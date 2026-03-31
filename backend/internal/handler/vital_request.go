@@ -10,6 +10,7 @@ type createVitalRequest struct {
 	HeartRate       *int      `json:"heart_rate"`
 	RespirationRate *int      `json:"respiration_rate"`
 	Weight          *float64  `json:"weight"`
+	WeightUnit      *string   `json:"weight_unit"`
 	Notes           string    `json:"notes"`
 }
 
@@ -21,5 +22,6 @@ type updateVitalRequest struct {
 	HeartRate       *int       `json:"heart_rate"`
 	RespirationRate *int       `json:"respiration_rate"`
 	Weight          *float64   `json:"weight"`
+	WeightUnit      *string    `json:"weight_unit"`
 	Notes           *string    `json:"notes"`
 }

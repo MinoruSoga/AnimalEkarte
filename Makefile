@@ -1,12 +1,16 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover build-go mod-download mod-tidy help codegen codegen-check
+.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
 
 # 起動
 up:
-	rm -rf frontend/node_modules
+	docker compose down --remove-orphans 2>/dev/null || true
 	docker compose up -d
+
+# node_modules をホストにコピー（IDE補完用・初回 or package.json 変更時のみ実行）
+sync-modules:
+	docker compose exec -T frontend npm install
 	docker compose cp frontend:/app/node_modules ./frontend/
 	docker compose cp frontend:/app/package-lock.json ./frontend/
 
@@ -36,7 +40,7 @@ ps:
 
 # DB接続
 db:
-	docker compose exec db psql -U ekarte_user -d ekarte_db
+	docker compose exec db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'
 
 # キャッシュクリア＆再ビルド
 clean:
@@ -77,6 +81,18 @@ test:
 test-cover:
 	docker compose exec backend go test -cover ./...
 
+# リンター実行（フロントエンド）
+lint-front:
+	docker compose exec frontend npm run lint
+
+# テスト実行（フロントエンド）
+test-front:
+	docker compose exec frontend npm run test:run
+
+# フロントエンドビルド
+build-front:
+	docker compose exec frontend npm run build
+
 # 型定義生成（Go model → TypeScript型）
 # backend/internal/model/*.go が single source of truth
 codegen:
@@ -86,6 +102,10 @@ codegen:
 # 型定義の差分チェック（CI用）
 codegen-check: codegen
 	git diff --exit-code frontend/src/types/generated/
+
+# スキーマ差分チェック（GoモデルとDBの整合性検証）
+schema-check:
+	docker compose exec backend go test ./internal/model/ -run TestSchemaDrift -v
 
 # Goビルド（開発用）
 build-go:
@@ -98,6 +118,11 @@ mod-download:
 # Goモジュールtidy
 mod-tidy:
 	docker compose exec backend go mod tidy
+
+# git hooks セットアップ（初回・新メンバーオンボーディング時に実行）
+setup-hooks:
+	git config core.hooksPath .githooks
+	@echo "Git hooks を .githooks に設定しました"
 
 # ヘルプ
 help:
@@ -125,10 +150,16 @@ help:
 	@echo "  lint-fix      Goリンター実行（自動修正）"
 	@echo "  test          Goテスト実行"
 	@echo "  test-cover    Goテスト実行（カバレッジ付き）"
+	@echo "  lint-front    フロントエンドリンター実行"
+	@echo "  test-front    フロントエンドテスト実行"
+	@echo "  build-front   フロントエンドビルド"
 	@echo "  codegen       型定義生成（Go model → TypeScript型）"
 	@echo "  codegen-check 型定義の差分チェック（CI用）"
+	@echo "  schema-check  GoモデルとDBスキーマの差分チェック"
 	@echo "  build-go      Goビルド（開発用）"
 	@echo "  mod-download  Goモジュールダウンロード"
 	@echo "  mod-tidy      Goモジュールtidy"
+	@echo "  sync-modules  node_modulesをホストにコピー（IDE補完用）"
+	@echo "  setup-hooks   git hooksをセットアップ（初回・新メンバー用）"
 	@echo ""
 	@echo "  help          このヘルプを表示"

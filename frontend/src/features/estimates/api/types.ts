@@ -1,48 +1,13 @@
-// バックエンドレスポンス型（snake_case）
+/**
+ * Estimates API types
+ * Backend types: {@link Estimate}, {@link EstimateItem} from models.ts (tygo generated)
+ */
+import type { Estimate, EstimateItem, Owner } from "@/types/generated/models";
 
-export interface BackendEstimateItem {
-  id: number;
-  estimate_id: number;
-  name: string;
-  category: string;
-  unit_price: number;
-  quantity: number;
-  tax_rate: number;
-  discount_rate: number;
-  discount_amount: number;
-  is_insurance_applicable: boolean;
-  sort_order: number;
-  created_at: string;
-}
-
-export interface BackendOwnerSummary {
-  id: number;
-  owner_name: string;
-  phone: string;
-}
-
-export interface BackendEstimate {
-  id: number;
-  clinic_id: number;
-  estimate_no: string;
-  medical_record_id?: number | null;
-  title: string;
-  owner_id?: number | null;
-  owner?: BackendOwnerSummary | null;
-  status: string;
-  subtotal: number;
-  tax_total: number;
-  total_amount: number;
-  insurance_amount: number;
-  discount_amount: number;
-  valid_until?: string | null;
-  comment: string;
-  notes: string;
-  created_by?: number | null;
-  items?: BackendEstimateItem[];
-  created_at: string;
-  updated_at: string;
-}
+// ── Backend response aliases ──
+export type BackendEstimate = Estimate;
+export type BackendEstimateItem = EstimateItem;
+export type BackendOwnerSummary = Pick<Owner, 'id' | 'owner_name' | 'phone'>;
 
 export interface EstimateListResponse {
   data: BackendEstimate[];
@@ -51,6 +16,10 @@ export interface EstimateListResponse {
   limit: number;
 }
 
+/**
+ * 見積書作成リクエスト
+ * @see {@link Estimate} — models.ts 由来の Backend 型
+ */
 export interface CreateEstimateRequest {
   title: string;
   owner_id?: number | null;
@@ -66,6 +35,10 @@ export interface CreateEstimateRequest {
   notes?: string;
 }
 
+/**
+ * 見積書更新リクエスト
+ * @see {@link Estimate} — models.ts 由来の Backend 型
+ */
 export interface UpdateEstimateRequest {
   title?: string;
   status?: string;

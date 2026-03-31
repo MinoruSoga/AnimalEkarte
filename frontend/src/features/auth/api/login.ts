@@ -6,7 +6,7 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
-/** バックエンドのログインレスポンス。token はレスポンスボディに含まれる */
+/** バックエンドのログインレスポンス。Cookie はバックエンドが Set-Cookie で設定する */
 interface BackendLoginResponse {
   token: string;
   expires_at: number;
@@ -25,8 +25,8 @@ export async function login(
     { email, password },
   );
 
-  // JWT トークンを sessionStorage に保存（Authorization Bearer ヘッダで送信用）
-  sessionStorage.setItem("auth_token", data.token);
+  // JWT トークンはバックエンドが httpOnly Cookie で設定するため
+  // フロントエンド側での sessionStorage 保存は不要
 
   const user = mapMeToAuthUser(data.user);
 

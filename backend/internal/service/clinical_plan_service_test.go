@@ -129,14 +129,14 @@ func TestClinicalPlanService_Update(t *testing.T) {
 	treatmentPolicy := "Prescribe antibiotics"
 
 	tests := []struct {
-		name                string
-		medicalRecordID     uint64
-		input               *UpdateClinicalPlanInput
-		repoFindPlan        *model.ClinicalPlan
-		repoFindErr         error
-		repoUpdateErr       error
-		repoReturnPlan      *model.ClinicalPlan
-		wantErr             bool
+		name            string
+		medicalRecordID uint64
+		input           *UpdateClinicalPlanInput
+		repoFindPlan    *model.ClinicalPlan
+		repoFindErr     error
+		repoUpdateErr   error
+		repoReturnPlan  *model.ClinicalPlan
+		wantErr         bool
 	}{
 		{
 			name:            "updates clinical plan successfully",
@@ -149,8 +149,8 @@ func TestClinicalPlanService_Update(t *testing.T) {
 				ID:              1,
 				MedicalRecordID: 1,
 			},
-			repoFindErr:    nil,
-			repoUpdateErr:  nil,
+			repoFindErr:   nil,
+			repoUpdateErr: nil,
 			repoReturnPlan: &model.ClinicalPlan{
 				ID:                  1,
 				MedicalRecordID:     1,

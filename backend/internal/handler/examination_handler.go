@@ -6,7 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListExaminations godoc
@@ -26,7 +28,7 @@ func (h *Handler) ListExaminations(c *gin.Context) {
 	if s := c.Query("pet_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
 			return
 		}
 		petID = &id
@@ -36,7 +38,7 @@ func (h *Handler) ListExaminations(c *gin.Context) {
 	if s := c.Query("owner_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
 			return
 		}
 		ownerID = &id
@@ -47,7 +49,18 @@ func (h *Handler) ListExaminations(c *gin.Context) {
 		status = &s
 	}
 
-	exams, total, err := h.svc.Examination.List(c.Request.Context(), clinicID, petID, ownerID, status, page, limit)
+	startDate, err := parseDateQuery(c, "start_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	endDate, err := parseDateQuery(c, "end_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	exams, total, err := h.svc.Examination.List(c.Request.Context(), clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -63,7 +76,7 @@ func (h *Handler) GetExamination(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	exam, err := h.svc.Examination.GetByID(c.Request.Context(), clinicID, id)
@@ -76,14 +89,20 @@ func (h *Handler) GetExamination(c *gin.Context) {
 
 // CreateExamination godoc
 func (h *Handler) CreateExamination(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	var input createExaminationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
 	exam := &model.Examination{
-		MedicalRecordID: input.MedicalRecordID,
+		ClinicID:        clinicID,
+		MedicalRecordID: input.MedicalRecordID, // nil if not provided (standalone examination)
 		PetID:           input.PetID,
 		ExamTypeID:      input.ExamTypeID,
 		DoctorID:        input.DoctorID,
@@ -110,32 +129,39 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateExaminationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	exam := &model.Examination{
-		ID:              id,
-		MedicalRecordID: input.MedicalRecordID,
-		PetID:           input.PetID,
-		ExamTypeID:      input.ExamTypeID,
-		DoctorID:        input.DoctorID,
-		ResultSummary:   input.ResultSummary,
-		Machine:         input.Machine,
+	var status *model.ExaminationStatus
+	if input.Status != nil {
+		s := model.ExaminationStatus(*input.Status)
+		status = &s
 	}
-	if input.Date != nil {
-		exam.Date = *input.Date
-	}
-	if input.Status != "" {
-		exam.Status = model.ExaminationStatus(input.Status)
+	var examTypeID *uint64
+	if input.ExamTypeID != 0 {
+		v := input.ExamTypeID
+		examTypeID = &v
 	}
 
-	if err := h.svc.Examination.Update(c.Request.Context(), clinicID, exam); err != nil {
+	svcInput := service.UpdateExaminationInput{
+		MedicalRecordID: input.MedicalRecordID,
+		PetID:           input.PetID,
+		ExamTypeID:      examTypeID,
+		DoctorID:        input.DoctorID,
+		Date:            input.Date,
+		ResultSummary:   input.ResultSummary,
+		Machine:         input.Machine,
+		Status:          status,
+	}
+
+	exam, err := h.svc.Examination.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -150,7 +176,7 @@ func (h *Handler) DeleteExamination(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Examination.Delete(c.Request.Context(), clinicID, id); err != nil {

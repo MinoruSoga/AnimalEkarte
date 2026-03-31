@@ -6,15 +6,15 @@ import { Plus } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 
 // Relative
-import { useTreatments } from "../../api/treatments";
-import { useCreateTreatment } from "../../api/treatments";
-import { useUpdateTreatment } from "../../api/treatments";
-import { useDeleteTreatment } from "../../api/treatments";
-import { useReorderTreatments } from "../../api/treatments";
-import type { TreatmentItemType, UpdateTreatmentInput } from "../../types";
+import { useGetTreatments } from "@/features/medical-records/api/treatments";
+import { useCreateTreatment } from "@/features/medical-records/api/treatments";
+import { useUpdateTreatment } from "@/features/medical-records/api/treatments";
+import { useDeleteTreatment } from "@/features/medical-records/api/treatments";
+import { useReorderTreatments } from "@/features/medical-records/api/treatments";
+import type { TreatmentItemType, UpdateTreatmentInput } from "@/features/medical-records/types";
 import { TreatmentRow } from "./TreatmentRow";
 
 // ── 静的定数 ───────────────────────────────────────────────────────────
@@ -43,16 +43,28 @@ const ITEM_TYPE_OPTIONS: { value: TreatmentItemType; label: string }[] = [
   { value: "other", label: "その他" },
 ];
 
+const ADMIN_ROUTE_OPTIONS = [
+  { value: "", label: "投与方法を選択" },
+  { value: "経口", label: "経口" },
+  { value: "注射", label: "注射" },
+  { value: "外用", label: "外用" },
+  { value: "点眼", label: "点眼" },
+  { value: "点耳", label: "点耳" },
+  { value: "吸入", label: "吸入" },
+  { value: "その他", label: "その他" },
+] as const;
+
 // ── Props ─────────────────────────────────────────────────────────────
 
 interface TreatmentsTabProps {
   medicalRecordId: string;
+  ownerDiscountRate?: number;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
-  const { data: treatments, isLoading } = useTreatments(medicalRecordId);
+export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: TreatmentsTabProps) {
+  const { data: treatments, isLoading } = useGetTreatments(medicalRecordId);
   const createMutation = useCreateTreatment(medicalRecordId);
   const updateMutation = useUpdateTreatment(medicalRecordId);
   const deleteMutation = useDeleteTreatment(medicalRecordId);
@@ -61,7 +73,10 @@ export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
   // 追加フォームの状態
   const [addItemType, setAddItemType] = useState<TreatmentItemType>("consultation");
   const [addContent, setAddContent] = useState("");
+  const [addAdminRoute, setAddAdminRoute] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  // 直前の追加後に最終行へ自動フォーカスするフラグ
+  const [focusLastRow, setFocusLastRow] = useState(false);
 
   // sort_order 昇順でソート済みリスト
   const sortedTreatments = useMemo(() => {
@@ -70,14 +85,23 @@ export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
   }, [treatments]);
 
   // 合計金額 (selected のみ)
-  const { selectedSubtotal, selectedCount } = useMemo(() => {
+  const { selectedSubtotal, selectedCount, finalTotal } = useMemo(() => {
     const selected = sortedTreatments.filter((t) => t.selected);
     const sub = selected.reduce(
       (sum, t) => sum + t.unit_price * t.quantity - t.discount_amount,
       0
     );
-    return { selectedSubtotal: sub, selectedCount: selected.length };
-  }, [sortedTreatments]);
+    // 飼主割引適用
+    const ownerDiscount = Math.floor(sub * (ownerDiscountRate / 100));
+    const afterDiscount = sub - ownerDiscount;
+    const tax = Math.floor(afterDiscount * 0.1);
+
+    return { 
+      selectedSubtotal: sub, 
+      selectedCount: selected.length,
+      finalTotal: afterDiscount + tax
+    };
+  }, [sortedTreatments, ownerDiscountRate]);
 
   // 全明細の合計
   const totalSubtotal = useMemo(
@@ -141,6 +165,11 @@ export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
       sortedTreatments.length > 0
         ? sortedTreatments[sortedTreatments.length - 1].sort_order + 1
         : 0;
+    // 薬品の場合、投与方法を memo に付記する（BE-MEDI-010: 専用カラム実装まで）
+    const memoWithRoute =
+      addItemType === "medicine" && addAdminRoute
+        ? `[投与方法: ${addAdminRoute}]`
+        : "";
     createMutation.mutate(
       {
         item_type: addItemType,
@@ -151,18 +180,22 @@ export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
         insurance: false,
         discount_amount: 0,
         sort_order: nextOrder,
+        memo: memoWithRoute,
       },
       {
         onSuccess: () => {
+          setFocusLastRow(true);
           setAddContent("");
+          setAddAdminRoute("");
           setIsAdding(false);
         },
       }
     );
-  }, [addItemType, addContent, sortedTreatments, createMutation]);
+  }, [addItemType, addContent, addAdminRoute, sortedTreatments, createMutation]);
 
   const handleAddCancel = useCallback(() => {
     setAddContent("");
+    setAddAdminRoute("");
     setIsAdding(false);
   }, []);
 
@@ -208,6 +241,8 @@ export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
                     deleteMutation.isPending ||
                     reorderMutation.isPending
                   }
+                  autoFocusQuantity={focusLastRow && idx === sortedTreatments.length - 1}
+                  onAutoFocusDone={focusLastRow && idx === sortedTreatments.length - 1 ? () => setFocusLastRow(false) : undefined}
                 />
               ))
             )}
@@ -219,7 +254,10 @@ export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
           <div className={`flex items-center gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
             <select
               value={addItemType}
-              onChange={(e) => setAddItemType(e.target.value as TreatmentItemType)}
+              onChange={(e) => {
+                setAddItemType(e.target.value as TreatmentItemType);
+                setAddAdminRoute("");
+              }}
               className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} bg-white px-2 ${C.text}`}
             >
               {ITEM_TYPE_OPTIONS.map((opt) => (
@@ -228,6 +266,19 @@ export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
                 </option>
               ))}
             </select>
+            {addItemType === "medicine" ? (
+              <select
+                value={addAdminRoute}
+                onChange={(e) => setAddAdminRoute(e.target.value)}
+                className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} bg-white px-2 ${C.text}`}
+              >
+                {ADMIN_ROUTE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <input
               autoFocus
               type="text"
@@ -262,7 +313,7 @@ export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
             className={STYLE.inlineAddBtn}
             onClick={() => setIsAdding(true)}
           >
-            <Plus className="size-3.5" />
+            <Plus className={`${ICON.xs}`} />
             <span>明細を追加</span>
           </button>
         )}
@@ -287,9 +338,9 @@ export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
           <div
             className={`flex items-center justify-between text-sm pt-1.5 border-t ${C.borderLight}`}
           >
-            <span className={C.text60}>税込合計 (10%)</span>
+            <span className={C.text60}>税込合計 (10% {ownerDiscountRate > 0 ? `飼主割引${ownerDiscountRate}%適用後` : ""})</span>
             <span className={`font-mono font-semibold text-[#1565C0]`}>
-              ¥{Math.floor(selectedSubtotal * 1.1).toLocaleString()}
+              ¥{finalTotal.toLocaleString()}
             </span>
           </div>
         </div>

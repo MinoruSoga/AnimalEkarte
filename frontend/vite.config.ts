@@ -24,6 +24,54 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // React コア
+          'vendor-react': ['react', 'react-dom', 'react-router'],
+          // データフェッチ
+          'vendor-query': ['@tanstack/react-query', 'axios'],
+          // Radix UI プリミティブ群（全パッケージ）
+          'vendor-radix': [
+            '@radix-ui/react-accordion',
+            '@radix-ui/react-alert-dialog',
+            '@radix-ui/react-aspect-ratio',
+            '@radix-ui/react-avatar',
+            '@radix-ui/react-checkbox',
+            '@radix-ui/react-collapsible',
+            '@radix-ui/react-context-menu',
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-hover-card',
+            '@radix-ui/react-label',
+            '@radix-ui/react-menubar',
+            '@radix-ui/react-navigation-menu',
+            '@radix-ui/react-popover',
+            '@radix-ui/react-progress',
+            '@radix-ui/react-radio-group',
+            '@radix-ui/react-scroll-area',
+            '@radix-ui/react-select',
+            '@radix-ui/react-separator',
+            '@radix-ui/react-slider',
+            '@radix-ui/react-slot',
+            '@radix-ui/react-switch',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-toggle',
+            '@radix-ui/react-toggle-group',
+            '@radix-ui/react-tooltip',
+          ],
+          // アニメーション・DnD（重量ライブラリを隔離）
+          'vendor-motion': ['motion/react'],
+          'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+          // 日付操作
+          'vendor-date': ['date-fns'],
+          // アイコン（全体で最大の外部 JS 資産になりやすい）
+          'vendor-icons': ['lucide-react'],
+          // その他ユーティリティ
+          'vendor-misc': ['zustand', 'sonner', 'clsx', 'tailwind-merge', 'cmdk'],
+        },
+      },
+    },
   },
   test: {
     globals: true,

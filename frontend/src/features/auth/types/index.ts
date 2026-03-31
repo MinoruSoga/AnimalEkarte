@@ -1,33 +1,48 @@
 /**
  * Authentication & Authorization types.
+ * Backend types: {@link UserAccount}, {@link UserClinicMembership}, {@link Clinic} from models.ts
  */
 import type { ReactNode } from "react";
+import {
+  UserTypeSystemAdmin,
+  UserTypeClinicAdmin,
+  UserTypeStaff,
+  StaffRoleVeterinarian,
+  StaffRoleNurse,
+  StaffRoleTrimmer,
+  StaffRoleReception,
+  StaffRoleManager,
+  type Resource,
+} from "@/types/generated/models";
 
-export const USER_TYPE_VALUES = ["system_admin", "clinic_admin", "staff"] as const;
+export type { Resource };
+
+/** @see {@link import("@/types/generated/models").UserType} */
+export const USER_TYPE_VALUES = [UserTypeSystemAdmin, UserTypeClinicAdmin, UserTypeStaff] as const;
 export type UserType = (typeof USER_TYPE_VALUES)[number];
 
 export const USER_TYPE_LABELS: Record<UserType, string> = {
-  system_admin: "運営管理者",
-  clinic_admin: "医院管理者",
-  staff: "スタッフ",
+  [UserTypeSystemAdmin]: "運営管理者",
+  [UserTypeClinicAdmin]: "医院管理者",
+  [UserTypeStaff]: "スタッフ",
 };
 
-/** バックエンドの staff_role ENUM と一致させる */
+/** @see {@link import("@/types/generated/models").StaffRole} */
 export const STAFF_ROLE_VALUES = [
-  "veterinarian",
-  "nurse",
-  "trimmer",
-  "reception",
-  "manager",
+  StaffRoleVeterinarian,
+  StaffRoleNurse,
+  StaffRoleTrimmer,
+  StaffRoleReception,
+  StaffRoleManager,
 ] as const;
 export type StaffRole = (typeof STAFF_ROLE_VALUES)[number];
 
 export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
-  veterinarian: "医師",
-  nurse: "看護師",
-  trimmer: "トリマー",
-  reception: "受付",
-  manager: "管理職",
+  [StaffRoleVeterinarian]: "医師",
+  [StaffRoleNurse]: "看護師",
+  [StaffRoleTrimmer]: "トリマー",
+  [StaffRoleReception]: "受付",
+  [StaffRoleManager]: "管理職",
 };
 
 /** @deprecated JOB_TITLE_VALUES は STAFF_ROLE_VALUES に統合。後方互換のため残す */
@@ -37,27 +52,28 @@ export type JobTitle = StaffRole;
 /** @deprecated JOB_TITLE_LABELS は STAFF_ROLE_LABELS に統合。後方互換のため残す */
 export const JOB_TITLE_LABELS = STAFF_ROLE_LABELS;
 
-export const PERMISSION_VALUES = [
-  "account_admin",
-  "medical",
-  "medical_read",
-  "trimming",
-  "billing",
-  "reception",
-  "hospitalization",
-  "master_admin",
-  "shift_admin",
-  "inventory",
-] as const;
-export type Permission = (typeof PERMISSION_VALUES)[number];
+/** 実効権限の CRUD アクション */
+export type ResourceAction = "view" | "create" | "edit" | "delete";
 
+/** 1リソースに対する CRUD 権限 */
+export interface ResourcePermission {
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+}
+
+/** resource → CRUD（バックエンドが UNION 計算済みのフラット実効権限） */
+export type ResourcePermissions = Record<string, ResourcePermission>;
+
+/** @see {@link import("@/types/generated/models").UserClinicMembership} */
 export interface ClinicMembership {
   clinicId: string;
   clinicName: string;
   isMain: boolean;
 }
 
-/** /me レスポンスに含まれるメイン医院の詳細情報 */
+/** @see {@link import("@/types/generated/models").Clinic} */
 export interface AuthClinic {
   id: string;
   name: string;
@@ -72,8 +88,7 @@ export interface AuthClinic {
   logoUrl: string | null;
 }
 
-export type ClinicPermissions = Record<string, readonly Permission[]>;
-
+/** @see {@link import("@/types/generated/models").UserAccount} */
 export interface AuthUser {
   id: string;
   email: string;
@@ -86,7 +101,7 @@ export interface AuthUser {
   /** メイン医院の詳細情報。/me レスポンスから取得。null の場合は未所属 */
   clinic: AuthClinic | null;
   clinics: ClinicMembership[];
-  permissions: ClinicPermissions;
+  permissions: ResourcePermissions;
 }
 
 export interface AuthContextValue {
@@ -98,12 +113,11 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   switchClinic: (clinicId: string) => Promise<void>;
-  hasPermission: (permission: Permission) => boolean;
-  hasAnyPermission: (permissions: readonly Permission[]) => boolean;
+  hasPermission: (resource: Resource, action: ResourceAction) => boolean;
+  /** /me を再取得してユーザー（権限含む）を更新する */
+  refreshPermissions: () => Promise<void>;
 }
 
 export interface ProtectedRouteProps {
-  permission?: Permission;
-  anyOf?: readonly Permission[];
   children: ReactNode;
 }

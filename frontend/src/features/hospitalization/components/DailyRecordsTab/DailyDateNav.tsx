@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useCallback, useMemo } from "react";
 
 // External
@@ -64,7 +65,7 @@ export function DailyDateNav({
                 className="h-8 w-8 p-0"
                 aria-label="前日"
             >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className={ICON.action} />
             </Button>
             <span className="text-sm font-semibold text-[#37352F]">{displayDate}</span>
             <Button
@@ -75,7 +76,7 @@ export function DailyDateNav({
                 className="h-8 w-8 p-0"
                 aria-label="翌日"
             >
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className={ICON.action} />
             </Button>
         </div>
     );

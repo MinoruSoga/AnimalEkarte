@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- TrimmingCourse ----
@@ -89,28 +90,25 @@ func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
 	}
 	var req updateTrimmingCourseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	course := &model.TrimmingCourse{
-		ID:          id,
-		ClinicID:    clinicID,
+	svcInput := service.UpdateTrimmingCourseInput{
 		Name:        req.Name,
 		Price:       req.Price,
+		IsActive:    req.IsActive,
 		Description: req.Description,
 		Duration:    req.Duration,
 		SortOrder:   req.SortOrder,
 	}
-	if req.IsActive != nil {
-		course.IsActive = *req.IsActive
-	}
-	if req.TargetSize != "" {
-		ts := model.TargetSize(req.TargetSize)
-		course.TargetSize = &ts
+	if req.TargetSize != nil {
+		ts := model.TargetSize(*req.TargetSize)
+		svcInput.TargetSize = &ts
 	}
 
-	if err := h.svc.TrimmingCourse.Update(c.Request.Context(), course); err != nil {
+	course, err := h.svc.TrimmingCourse.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -224,27 +222,22 @@ func (h *Handler) UpdateTrimmingOption(c *gin.Context) {
 	}
 	var req updateTrimmingOptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	option := &model.TrimmingOption{
-		ID:          id,
-		ClinicID:    clinicID,
+	svcInput := service.UpdateTrimmingOptionInput{
 		Name:        req.Name,
 		Price:       req.Price,
+		IsActive:    req.IsActive,
 		Description: req.Description,
 		Duration:    req.Duration,
+		Combinable:  req.Combinable,
 		SortOrder:   req.SortOrder,
 	}
-	if req.IsActive != nil {
-		option.IsActive = *req.IsActive
-	}
-	if req.Combinable != nil {
-		option.Combinable = *req.Combinable
-	}
 
-	if err := h.svc.TrimmingOption.Update(c.Request.Context(), option); err != nil {
+	option, err := h.svc.TrimmingOption.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

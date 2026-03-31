@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { C } from "@/lib/design-tokens";
 
 // ─────────────────────────────────────────────────
 // Notion-style property row for side peek panels

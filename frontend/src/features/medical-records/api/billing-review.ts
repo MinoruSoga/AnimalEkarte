@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Internal
 import { axios } from "@/lib/axios";
-import { useAuth } from "@/features/auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 // Relative
 import type { BillingReview, ReturnBillingReviewInput } from "../types";
@@ -19,7 +19,7 @@ const getBillingReview = async (medicalRecordId: string): Promise<BillingReview>
   return data;
 };
 
-export function useBillingReview(medicalRecordId: string) {
+export function useGetBillingReview(medicalRecordId: string) {
   return useQuery({
     queryKey: billingReviewQueryKey(medicalRecordId),
     queryFn: () => getBillingReview(medicalRecordId),
@@ -30,13 +30,12 @@ export function useBillingReview(medicalRecordId: string) {
 // POST /v1/medical-records/:id/billing-review/confirm
 export function useConfirmBillingReview(medicalRecordId: string) {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
   return useMutation({
-    mutationFn: () =>
+    mutationFn: (input: { confirmed_by: number; memo?: string }) =>
       axios.post<BillingReview>(
         `/v1/medical-records/${medicalRecordId}/billing-review/confirm`,
-        { confirmed_by: Number(user?.id ?? 0) }
+        input
       ),
     onSuccess: () => {
       void queryClient.invalidateQueries({

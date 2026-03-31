@@ -2,13 +2,15 @@
 import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
+import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
+import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 
 // DnD
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 // Shared hooks
-import { useSortableList } from "@/hooks/useSortableList";
+import { useSortableList } from "@/hooks/use-sortable-list";
 
 // External
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
@@ -23,7 +25,9 @@ import * as TabsPrimitive from "@radix-ui/react-tabs";
 // Internal shared
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
@@ -31,12 +35,12 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 
 // API hooks
 import {
@@ -77,6 +81,7 @@ import {
 
 // Types
 import type { TreatmentItem } from "@/lib/transforms/treatment";
+import type { TaxType } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -89,6 +94,8 @@ type TreatmentFormData = {
   price: number;
   description: string;
   isActive: boolean;
+  taxType: TaxType;
+  taxRate: number;
 };
 
 type MutateCallbacks = {
@@ -173,17 +180,29 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
     price: item?.price ?? 0,
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
+    taxType: (item?.taxType ?? "excluded") as TaxType,
+    taxRate: item?.taxRate ?? 0.1,
   }));
+  const [nameError, setNameError] = useState("");
+  const handleAction = () => {
+    if (!formData.name.trim()) {
+      setNameError("名称を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(formData);
+  };
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
-      onSave={() => onSave(formData)}
+      action={handleAction}
       onDelete={item !== null ? onDeleteRequest : undefined}
       icon={<Stethoscope className={LAYOUT.pageIcon.innerIcon} />}
+      titleError={nameError}
     >
       <StatusToggleButton
         isActive={formData.isActive}
@@ -193,8 +212,20 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
         value={formData.price}
         onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
       />
+      <PropertyRow label="課税区分">
+        <TaxTypeSelector
+          value={formData.taxType}
+          onChange={(v) => setFormData((prev) => ({ ...prev, taxType: v }))}
+        />
+      </PropertyRow>
+      <PropertyRow label="税率">
+        <TaxRateSelector
+          value={formData.taxRate}
+          onChange={(v) => setFormData((prev) => ({ ...prev, taxRate: v }))}
+        />
+      </PropertyRow>
       <PropertyRow label="備考">
-        <PropInput
+        <PropertyInput
           value={formData.description}
           onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
           placeholder="補足情報など"
@@ -221,11 +252,11 @@ function ChildTreatmentRow({
       <TableCell>
         <div className="flex items-center gap-1 pl-[22px]">
           <span className="size-[22px] shrink-0" />
-          <span className={`text-sm ${C.text}`}>{item.name}</span>
+          <span className={`text-base ${C.text}`}>{item.name}</span>
         </div>
       </TableCell>
       <TableCell className="text-right">
-        <span className={`text-sm ${C.text70} font-mono`}>
+        <span className={`text-base ${C.text70} font-mono`}>
           {item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}
         </span>
       </TableCell>
@@ -264,6 +295,7 @@ function TreatmentTabContent({
   onPendingDeleteChange,
 }: TreatmentTabContentProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
@@ -277,14 +309,23 @@ function TreatmentTabContent({
   });
 
   const filteredRoots = useMemo(() => {
-    if (!deferredSearch) return orderedRoots;
-    const lower = deferredSearch.toLowerCase();
-    return orderedRoots.filter(
-      (r) =>
-        r.name.toLowerCase().includes(lower) ||
-        r.children.some((c) => c.name.toLowerCase().includes(lower)),
-    );
-  }, [orderedRoots, deferredSearch]);
+    let items = orderedRoots;
+    for (const f of activeFilters) {
+      if (f.key === "status" && typeof f.value === "string") {
+        const want = f.value === "active";
+        items = items.filter((r) => f.condition === "is" ? r.isActive === want : r.isActive !== want);
+      }
+    }
+    if (deferredSearch) {
+      const lower = deferredSearch.toLowerCase();
+      items = items.filter(
+        (r) =>
+          r.name.toLowerCase().includes(lower) ||
+          r.children.some((c) => c.name.toLowerCase().includes(lower)),
+      );
+    }
+    return items;
+  }, [orderedRoots, activeFilters, deferredSearch]);
 
   const toggleExpanded = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -335,10 +376,13 @@ function TreatmentTabContent({
   return (
     <>
       <div className="flex flex-col gap-4">
-        <SearchFilterBar
+        <NotionFilter
+          properties={[MASTER_STATUS_FILTER]}
+          activeFilters={activeFilters}
+          onFilterChange={setActiveFilters}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
-          placeholder={searchPlaceholder}
+          searchPlaceholder={searchPlaceholder}
           count={totalCount}
         />
 
@@ -375,22 +419,22 @@ function TreatmentTabContent({
                               className={`size-[22px] flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
                             >
                               {row.isExpanded ? (
-                                <ChevronDown className="size-3.5" />
+                                <ChevronDown className={`${ICON.xs}`} />
                               ) : (
-                                <ChevronRight className="size-3.5" />
+                                <ChevronRight className={`${ICON.xs}`} />
                               )}
                             </button>
                           ) : (
                             <span className="size-[22px] shrink-0" />
                           )}
-                          <span className={`text-sm font-medium ${C.text}`}>{row.item.name}</span>
+                          <span className={`text-base font-medium ${C.text}`}>{row.item.name}</span>
                           {row.item.children.length > 0 ? (
-                            <span className={`text-xs ${C.text25} ml-0.5`}>{row.item.children.length}</span>
+                            <span className={`text-base ${C.text25} ml-0.5`}>{row.item.children.length}</span>
                           ) : null}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={`text-sm ${C.text70} font-mono`}>
+                        <span className={`text-base ${C.text70} font-mono`}>
                           {row.item.price > 0 ? `¥${row.item.price.toLocaleString()}` : "-"}
                         </span>
                       </TableCell>
@@ -496,6 +540,8 @@ export function TreatmentPlanMaster() {
             price: data.price,
             description: data.description || undefined,
             is_active: data.isActive,
+            tax_type: data.taxType,
+            tax_rate: data.taxRate,
           },
           { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
         ),
@@ -508,6 +554,8 @@ export function TreatmentPlanMaster() {
               price: data.price,
               description: data.description || undefined,
               is_active: data.isActive,
+              tax_type: data.taxType,
+              tax_rate: data.taxRate,
             },
           },
           { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
@@ -568,6 +616,8 @@ export function TreatmentPlanMaster() {
             price: data.price,
             description: data.description || undefined,
             is_active: data.isActive,
+            tax_type: data.taxType,
+            tax_rate: data.taxRate,
           },
           { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
         ),
@@ -580,6 +630,8 @@ export function TreatmentPlanMaster() {
               price: data.price,
               description: data.description || undefined,
               is_active: data.isActive,
+              tax_type: data.taxType,
+              tax_rate: data.taxRate,
             },
           },
           { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
@@ -705,12 +757,12 @@ export function TreatmentPlanMaster() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="治療プランマスタ"
-            icon={<Stethoscope className="size-5 text-[#37352F]" />}
+            icon={<Stethoscope className={`${ICON.page} text-[#37352F]`} />}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
               <PrimaryButton onClick={() => setEditTarget("new")}>
-                <Plus className="mr-1.5 size-4" />
+                <Plus className={`mr-1.5 ${ICON.action}`} />
                 新規登録
               </PrimaryButton>
             }
@@ -727,7 +779,7 @@ export function TreatmentPlanMaster() {
                   <TabsPrimitive.Trigger
                     key={tab.value}
                     value={tab.value}
-                    className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
+                    className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
                       data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
                   >
                     {tab.label}

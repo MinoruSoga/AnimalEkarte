@@ -2,7 +2,7 @@
 -- Animal Ekarte - 統合シード v20.0
 -- PostgreSQL 18
 -- 冪等性保証: ON CONFLICT DO NOTHING
--- 内容: マスタデータ + デモアカウント + サンプル取引データ
+-- 内容: マスタデータ + デモアカウント
 -- 依存: 001_init.sql
 -- =============================================================================
 
@@ -60,14 +60,17 @@ INSERT INTO staffs (id, clinic_id, name, is_active, staff_role, license_number, 
     (3,  3, '渡辺 博',     true, 'manager',      '',        5, 3),
     (4,  3, '佐藤 花子',   true, 'nurse',        '',        2, 4),
     (5,  3, '伊藤 さくら', true, 'nurse',        '',        2, 5),
-    (6,  3, '鈴木 一郎',   true, 'trimmer',      '',        3, 6),
+    (6,  3, '木村 健太',   true, 'trimmer',      '',        3, 6),
     (7,  3, '田中 美咲',   true, 'reception',    '',        4, 7),
     -- デモアカウント用スタッフ（八王子院）
     (8,  3, '田中 太郎',   true, 'veterinarian', 'V-20001', 1, 1),
     (9,  3, '山田 花子',   true, 'veterinarian', 'V-20002', 1, 2),
     (10, 3, '佐藤 美咲',   true, 'nurse',        '',        2, 3),
     (11, 3, '鈴木 一郎',   true, 'reception',    '',        4, 4),
-    (12, 3, '高橋 さくら', true, 'trimmer',      '',        3, 5)
+    (12, 3, '高橋 さくら', true, 'trimmer',      '',        3, 5),
+    -- 管理者・執行グループ デモアカウント用スタッフ
+    (13, 3, '渡辺 院長',   true, 'manager',      '',        5, 6),
+    (14, 3, '小林 部長',   true, 'manager',      '',        5, 7)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
@@ -87,7 +90,10 @@ INSERT INTO user_accounts (id, email, display_name, display_name_kana, user_type
     (6, 'nurse@example.com',     '佐藤 美咲',  'サトウ ミサキ',    'staff',        2, 'active', 10,   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
     (7, 'reception@example.com', '鈴木 一郎',  'スズキ イチロウ',  'staff',        4, 'active', 11,   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
     (8, 'trimmer@example.com',   '高橋 さくら','タカハシ サクラ',  'staff',        3, 'active', 12,   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
-    (9, 'system@example.com',    '本部 管理者', 'ホンブ カンリシャ','system_admin', 5, 'active', NULL, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6')
+    (9,  'system@example.com',   '本部 管理者', 'ホンブ カンリシャ','system_admin', 5, 'active', NULL, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
+    -- 管理者・執行グループ デモアカウント
+    (10, 'manager@example.com',  '渡辺 院長',  'ワタナベ インチョウ','staff',        5, 'active', 13, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
+    (11, 'exec@example.com',     '小林 部長',  'コバヤシ ブチョウ', 'staff',        5, 'active', 14, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6')
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('user_accounts', 'id'), (SELECT MAX(id) FROM user_accounts));
@@ -104,75 +110,100 @@ INSERT INTO user_clinic_memberships (id, user_id, clinic_id, is_main) VALUES
     (9,  8, 3, true),
     (10, 9, 3, true),
     (11, 9, 4, false),
-    (12, 9, 5, false)
+    (12, 9, 5, false),
+    -- 管理者・執行グループ ユーザー（八王子院）
+    (13, 10, 3, true),
+    (14, 11, 3, true)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('user_clinic_memberships', 'id'), (SELECT MAX(id) FROM user_clinic_memberships));
 
 -- -----------------------------------------------------------------------------
--- 7b. user_permissions（ユーザー権限）
+-- 7b. permission_groups（権限グループ）& user_permission_groups（割当）
 -- -----------------------------------------------------------------------------
--- admin@example.com: 全権限 × 全3院
-INSERT INTO user_permissions (id, user_id, clinic_id, permission) VALUES
-    (1,  4, 3, 'account_admin'),
-    (2,  4, 3, 'medical'),
-    (3,  4, 3, 'medical_read'),
-    (4,  4, 3, 'trimming'),
-    (5,  4, 3, 'billing'),
-    (6,  4, 3, 'reception'),
-    (7,  4, 3, 'hospitalization'),
-    (8,  4, 3, 'master_admin'),
-    (9,  4, 3, 'shift_admin'),
-    (10, 4, 3, 'inventory'),
-    (11, 4, 4, 'account_admin'),
-    (12, 4, 4, 'medical'),
-    (13, 4, 4, 'medical_read'),
-    (14, 4, 4, 'trimming'),
-    (15, 4, 4, 'billing'),
-    (16, 4, 4, 'reception'),
-    (17, 4, 4, 'hospitalization'),
-    (18, 4, 4, 'master_admin'),
-    (19, 4, 4, 'shift_admin'),
-    (20, 4, 4, 'inventory'),
-    (21, 4, 5, 'account_admin'),
-    (22, 4, 5, 'medical'),
-    (23, 4, 5, 'medical_read'),
-    (24, 4, 5, 'trimming'),
-    (25, 4, 5, 'billing'),
-    (26, 4, 5, 'reception'),
-    (27, 4, 5, 'hospitalization'),
-    (28, 4, 5, 'master_admin'),
-    (29, 4, 5, 'shift_admin'),
-    (30, 4, 5, 'inventory')
-ON CONFLICT DO NOTHING;
--- vet@example.com: medical, hospitalization / 八王子院
-INSERT INTO user_permissions (id, user_id, clinic_id, permission) VALUES
-    (31, 5, 3, 'medical'),
-    (32, 5, 3, 'hospitalization')
-ON CONFLICT DO NOTHING;
--- nurse@example.com: medical_read, hospitalization, shift_admin, inventory / 八王子院
-INSERT INTO user_permissions (id, user_id, clinic_id, permission) VALUES
-    (33, 6, 3, 'medical_read'),
-    (34, 6, 3, 'hospitalization'),
-    (35, 6, 3, 'shift_admin'),
-    (36, 6, 3, 'inventory')
-ON CONFLICT DO NOTHING;
--- reception@example.com: reception, billing / 八王子院
-INSERT INTO user_permissions (id, user_id, clinic_id, permission) VALUES
-    (37, 7, 3, 'reception'),
-    (38, 7, 3, 'billing')
-ON CONFLICT DO NOTHING;
--- trimmer@example.com: trimming, reception, billing / 八王子院
-INSERT INTO user_permissions (id, user_id, clinic_id, permission) VALUES
-    (39, 8, 3, 'trimming'),
-    (40, 8, 3, 'reception'),
-    (41, 8, 3, 'billing')
+-- ノア動物病院 (company_id=1): 管理者・執行・一般 の3グループ
+INSERT INTO permission_groups (id, company_id, name, description, color) VALUES
+    (1, 1, '管理者', '全機能フルアクセス・権限設定管理', '#EF4444'),
+    (2, 1, '執行',   '業務全般閲覧・権限設定変更',       '#6366F1'),
+    (3, 1, '一般',   '基本的な業務操作',                 '#10B981')
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('user_permissions', 'id'), (SELECT MAX(id) FROM user_permissions));
+-- グループルール（管理者: 全リソースフルアクセス）
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    (1, 'dashboard',        true, false, false, false),
+    (1, 'owners',           true, true,  true,  true),
+    (1, 'reservations',     true, true,  true,  true),
+    (1, 'medical-records',  true, true,  true,  true),
+    (1, 'hospitalization',  true, true,  true,  true),
+    (1, 'trimming',         true, true,  true,  true),
+    (1, 'examinations',     true, true,  true,  true),
+    (1, 'accounting',       true, true,  true,  true),
+    (1, 'vaccinations',     true, true,  true,  true),
+    (1, 'checkups',         true, true,  true,  true),
+    (1, 'inventory',        true, true,  true,  true),
+    (1, 'estimates',        true, true,  true,  true),
+    (1, 'shifts',           true, true,  true,  true),
+    (1, 'master',           true, true,  true,  true),
+    (1, 'hospital-settings',true, true,  true,  true)
+ON CONFLICT DO NOTHING;
+
+-- グループルール（執行: 業務全般閲覧＋権限設定変更）
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    (2, 'dashboard',        true, false, false, false),
+    (2, 'owners',           true, true,  true,  false),
+    (2, 'reservations',     true, true,  true,  false),
+    (2, 'medical-records',  true, false, false, false),
+    (2, 'hospitalization',  true, true,  true,  false),
+    (2, 'trimming',         true, false, false, false),
+    (2, 'examinations',     true, false, false, false),
+    (2, 'accounting',       true, true,  true,  false),
+    (2, 'vaccinations',     true, false, false, false),
+    (2, 'checkups',         true, false, false, false),
+    (2, 'inventory',        true, true,  true,  false),
+    (2, 'estimates',        true, true,  true,  false),
+    (2, 'shifts',           true, true,  true,  false),
+    (2, 'master',           true, true,  true,  false),
+    (2, 'hospital-settings',true, false, false, false)
+ON CONFLICT DO NOTHING;
+
+-- グループルール（一般: 基本的な業務操作）
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    (3, 'dashboard',        true, false, false, false),
+    (3, 'owners',           true, true,  true,  false),
+    (3, 'reservations',     true, true,  true,  false),
+    (3, 'medical-records',  true, true,  true,  false),
+    (3, 'hospitalization',  true, true,  true,  false),
+    (3, 'trimming',         true, true,  true,  false),
+    (3, 'examinations',     true, true,  true,  false),
+    (3, 'accounting',       true, false, false, false),
+    (3, 'vaccinations',     true, true,  true,  false),
+    (3, 'checkups',         true, false, false, false),
+    (3, 'inventory',        true, false, false, false),
+    (3, 'estimates',        true, false, false, false),
+    (3, 'shifts',           true, true,  true,  false),
+    (3, 'master',           true, false, false, false),
+    (3, 'hospital-settings',true, false, false, false)
+ON CONFLICT DO NOTHING;
+
+-- ユーザーへのグループ割当
+-- manager@example.com (user_id=10) → 管理者
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (10, 1) ON CONFLICT DO NOTHING;
+-- exec@example.com (user_id=11) → 執行
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (11, 2) ON CONFLICT DO NOTHING;
+-- vet@example.com (user_id=5) → 一般
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (5, 3) ON CONFLICT DO NOTHING;
+-- nurse@example.com (user_id=6) → 一般
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (6, 3) ON CONFLICT DO NOTHING;
+-- reception@example.com (user_id=7) → 一般
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (7, 3) ON CONFLICT DO NOTHING;
+-- trimmer@example.com (user_id=8) → 一般
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (8, 3) ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('permission_groups', 'id'), (SELECT MAX(id) FROM permission_groups));
 
 -- -----------------------------------------------------------------------------
--- 8. service_types（サービス種別: 8件）
+-- 8. service_types（サービス種別: 7件）
+-- 「再診」は visit_type（予約区分: 初診/再診）で管理するため service_types には含めない
 -- -----------------------------------------------------------------------------
 INSERT INTO service_types (id, clinic_id, name, is_active, description, color, sort_order) VALUES
     (1, 3, '一般診療',     true, '内科・外科・皮膚科などの一般的な診療', '#3B82F6', 1),
@@ -181,8 +212,7 @@ INSERT INTO service_types (id, clinic_id, name, is_active, description, color, s
     (4, 3, '手術・処置',   true, '去勢・避妊・その他外科手術',           '#EF4444', 4),
     (5, 3, 'トリミング',   true, 'グルーミング・爪切り・耳掃除など',     '#F59E0B', 5),
     (6, 3, '入院',         true, '入院・ホテル管理',                     '#6B7280', 6),
-    (7, 3, '検査',         true, '血液検査・尿検査・画像診断など',       '#EC4899', 7),
-    (8, 3, '再診',         true, '前回診察の経過確認・投薬管理',         '#06B6D4', 8)
+    (7, 3, '検査',         true, '血液検査・尿検査・画像診断など',       '#EC4899', 7)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('service_types', 'id'), (SELECT MAX(id) FROM service_types));
@@ -508,206 +538,21 @@ ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('inventory_items', 'id'), (SELECT MAX(id) FROM inventory_items));
 
--- =============================================================================
--- サンプル取引データ（旧 003_seed_sample.sql）
--- 基準日: 2026-03-12
--- =============================================================================
-
--- =============================================================================
--- A. owners（飼い主: 10件）
--- =============================================================================
-INSERT INTO owners (id, clinic_id, owner_name, owner_name_kana, postal_code, address1, phone, email, membership_type) VALUES
-    (1,  3, '鈴木 健太',   'スズキ ケンタ',     '150-0002', '東京都渋谷区渋谷1-2-3',     '090-1234-5678', 'suzuki@example.com',    'member'),
-    (2,  3, '田中 美咲',   'タナカ ミサキ',     '160-0022', '東京都新宿区新宿3-4-5',     '080-2345-6789', 'tanaka@example.com',    'member'),
-    (3,  3, '山本 一郎',   'ヤマモト イチロウ', '106-0032', '東京都港区六本木6-7-8',     '03-3456-7890',  'yamamoto@example.com',  'member'),
-    (4,  3, '佐藤 花子',   'サトウ ハナコ',     '153-0064', '東京都目黒区下目黒9-10-11', '090-4567-8901', 'sato@example.com',      'member'),
-    (5,  3, '伊藤 雄二',   'イトウ ユウジ',     '154-0004', '東京都世田谷区太子堂1-2-3', '080-5678-9012', 'ito@example.com',       'non_member'),
-    (6,  3, '渡辺 さくら', 'ワタナベ サクラ',   '140-0001', '東京都品川区北品川4-5-6',   '090-6789-0123', 'watanabe@example.com',  'member'),
-    (7,  3, '高橋 博',     'タカハシ ヒロシ',   '171-0022', '東京都豊島区南池袋7-8-9',   '03-7890-1234',  'takahashi@example.com', 'non_member'),
-    (8,  3, '中村 裕子',   'ナカムラ ユウコ',   '166-0003', '東京都杉並区高円寺南3-4-5', '080-8901-2345', 'nakamura@example.com',  'member'),
-    (9,  3, '小林 大輔',   'コバヤシ ダイスケ', '164-0001', '東京都中野区中野6-7-8',     '090-9012-3456', 'kobayashi@example.com', 'non_member'),
-    (10, 3, '加藤 恵',     'カトウ メグミ',     '176-0001', '東京都練馬区練馬1-2-3',     '080-0123-4567', 'kato@example.com',      'member')
+-- -----------------------------------------------------------------------------
+-- 25. merchandise_items（物販・フード・その他: 7件）
+-- -----------------------------------------------------------------------------
+INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_rate, sort_order) VALUES
+    (1, 3, 'ロイヤルカナン 消化器サポート 1kg', 'food', 2800, 0.10, 1),
+    (2, 3, 'ヒルズ k/d 2kg', 'food', 3500, 0.10, 2),
+    (3, 3, 'ペット用歯ブラシセット', 'goods', 1200, 0.10, 3),
+    (4, 3, 'エリザベスカラー（S）', 'goods', 800, 0.10, 4),
+    (5, 3, 'ノミ・ダニ予防首輪', 'goods', 1500, 0.10, 5),
+    (6, 3, '文書料', 'other', 3000, 0.10, 6),
+    (7, 3, '時間外診療費', 'other', 5000, 0.10, 7)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
+SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
 
 -- =============================================================================
--- B. pets（ペット: 15件）
--- =============================================================================
-INSERT INTO pets (id, clinic_id, owner_id, name, pet_name_kana, animal_species_id, gender, status, birth_date, breed, weight, insurance_id) VALUES
-    (1,  3, 1,  'チョコ',     'チョコ',     1, 'male',    'alive', '2020-03-15', '柴犬',                     9.5,   1),
-    (2,  3, 1,  'マロン',     'マロン',     1, 'male',    'alive', '2022-11-05', 'トイプードル',             3.2,   NULL),
-    (3,  3, 2,  'みけ',       'ミケ',       2, 'female',  'alive', '2019-05-10', '三毛猫',                   3.8,   1),
-    (4,  3, 2,  'ゆき',       'ユキ',       2, 'female',  'alive', '2021-03-18', 'ラグドール',               4.5,   NULL),
-    (5,  3, 3,  'ゴン',       'ゴン',       1, 'male',    'alive', '2018-11-01', 'ゴールデンレトリバー',     28.5,  NULL),
-    (6,  3, 3,  'タロウ',     'タロウ',     1, 'male',    'alive', '2016-07-14', 'ビーグル',                 12.0,  1),
-    (7,  3, 4,  'シロ',       'シロ',       2, 'male',    'alive', '2022-02-28', 'ペルシャ',                 4.2,   NULL),
-    (8,  3, 4,  'ハナ',       'ハナ',       2, 'female',  'alive', '2020-09-25', 'スコティッシュフォールド', 3.5,   1),
-    (9,  3, 5,  'ルビー',     'ルビー',     1, 'female',  'alive', '2021-09-15', 'ポメラニアン',             2.8,   NULL),
-    (10, 3, 6,  'クルミ',     'クルミ',     1, 'male',    'alive', '2017-04-03', 'ミニチュアダックスフンド', 5.5,   1),
-    (11, 3, 7,  'タマ',       'タマ',       2, 'male',    'alive', '2020-08-22', '雑種猫',                   5.0,   NULL),
-    (12, 3, 8,  'ピーちゃん', 'ピーチャン', 3, 'unknown', 'alive', '2021-12-01', 'セキセイインコ',          0.035, NULL),
-    (13, 3, 9,  'ナナ',       'ナナ',       1, 'female',  'alive', '2023-01-10', 'チワワ',                   1.8,   NULL),
-    (14, 3, 10, 'ソラ',       'ソラ',       2, 'female',  'alive', '2019-06-30', 'アメリカンショートヘア',   4.0,   1),
-    (15, 3, 10, 'キャラメル', 'キャラメル', 2, 'female',  'alive', '2023-05-20', 'メインクーン',             3.1,   NULL)
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
-
--- =============================================================================
--- C. reservation_appointments（予約: 10件）
--- =============================================================================
-INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, service_type_id, doctor_id, is_designated, status, notes) VALUES
-    (1,  3, '2026-03-12 09:00:00+09', '2026-03-12 09:30:00+09', 1,  1,  'revisit', 1, 1, true,  'completed',      '皮膚の経過観察'),
-    (2,  3, '2026-03-12 09:30:00+09', '2026-03-12 10:00:00+09', 2,  3,  'revisit', 8, 2, false, 'accounting',     '猫の定期検診'),
-    (3,  3, '2026-03-12 10:00:00+09', '2026-03-12 10:30:00+09', 3,  5,  'revisit', 1, 1, true,  'in_consultation', '足を引きずっている'),
-    (4,  3, '2026-03-12 10:30:00+09', '2026-03-12 11:00:00+09', 4,  7,  'first',   2, 2, false, 'checked_in',     'ワクチン接種希望'),
-    (5,  3, '2026-03-12 14:00:00+09', '2026-03-12 14:30:00+09', 5,  9,  'revisit', 1, 1, false, 'confirmed',      '食欲低下が続いている'),
-    (6,  3, '2026-03-13 09:00:00+09', '2026-03-13 09:30:00+09', 6,  10, 'revisit', 8, 2, true,  'confirmed',      '耳の治療経過確認'),
-    (7,  3, '2026-03-13 10:00:00+09', '2026-03-13 10:30:00+09', 7,  11, 'first',   1, 1, false, 'confirmed',      '嘔吐が続いている'),
-    (8,  3, '2026-03-14 09:30:00+09', '2026-03-14 10:00:00+09', 8,  12, 'revisit', 1, 2, false, 'confirmed',      'インコの羽毛の状態確認'),
-    (9,  3, '2026-03-15 11:00:00+09', '2026-03-15 11:30:00+09', 9,  13, 'first',   2, 1, false, 'confirmed',      '初回ワクチン接種'),
-    (10, 3, '2026-03-16 14:00:00+09', '2026-03-16 14:30:00+09', 10, 14, 'revisit', 8, 2, true,  'confirmed',      '腎臓値の経過観察')
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('reservation_appointments', 'id'), (SELECT MAX(id) FROM reservation_appointments));
-
--- =============================================================================
--- D. medical_records（カルテ: 5件）
--- =============================================================================
-INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, doctor_id, reservation_appointment_id, status) VALUES
-    (1, 3, 'MR-2026-0301', '2026-02-15', 1,  1,  1, NULL, 'finalized'),
-    (2, 3, 'MR-2026-0302', '2026-02-20', 2,  3,  2, NULL, 'finalized'),
-    (3, 3, 'MR-2026-0303', '2026-02-28', 6,  10, 1, NULL, 'finalized'),
-    (4, 3, 'MR-2026-0304', '2026-03-05', 3,  5,  1, NULL, 'finalized'),
-    (5, 3, 'MR-2026-0305', '2026-03-10', 10, 14, 2, NULL, 'finalized')
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
-
--- =============================================================================
--- E. inquiries（問診: 5件）
--- =============================================================================
-INSERT INTO inquiries (id, medical_record_id, chief_complaint_category_id, chief_complaint, history, current_medications, allergy_info, appetite, water_intake, owner_observations, staff_id) VALUES
-    (1, 3, 3, '体を頻繁に掻いている。耳の周りが赤い。',   '3日前から症状が悪化。以前も同様の症状あり（2025年秋頃）。', 'なし', 'ハウスダスト（疑い）', 'normal',    'normal',    '散歩後に特に掻く頻度が増える。フードは変更していない。',           1),
-    (2, 2, 1, '3日前から食事量が半分に減った。',           '特に既往歴なし。室内飼い。',                                 'なし', 'なし',               'decreased', 'normal',    '元気はあるが食欲だけが落ちている。排便は正常。',                   2),
-    (3, 3, 3, '耳を頻繁に掻く。耳垢が多い。',             '過去に外耳炎の治療歴あり（2025年6月）。',                    'なし', 'なし',               'normal',    'normal',    '頭を振る動作が増えた。臭いも気になる。',                           1),
-    (4, 4, 2, '昨日から軟便が続いている。今朝は水様便。', '1ヶ月前にドッグランで遊んだ後に嘔吐あり。',                  'なし', 'なし',               'decreased', 'increased', '食事は通常通り与えたが残す。水はよく飲む。',                       1),
-    (5, 5, 1, '食欲不振と多飲多尿。',                     '前回（2025年12月）の血液検査でBUN軽度上昇を指摘。',          'なし', 'なし',               'decreased', 'increased', 'トイレの回数が増えた。水をよく飲む。毛艶が悪くなった気がする。', 2)
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('inquiries', 'id'), (SELECT MAX(id) FROM inquiries));
-
--- =============================================================================
--- F. clinical_plans（診察/治療プラン: 5件）
--- =============================================================================
-INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_category_id, diagnosis_name_id, diagnosis_details, treatment_policy) VALUES
-    (1, 3, '体温38.5℃。耳介・腋窩部に発赤・搔痒痕あり。皮膚のフケ多め。', 3, 6,    'アトピー性皮膚炎の再燃が疑われる。二次感染の兆候なし。', 'プレドニゾロン短期投与。薬用シャンプー週2回。2週間後に再診。'),
-    (2, 2, '体温38.8℃。腹部触診で異常なし。口腔内正常。脱水なし。',         1, 1,    '軽度の胃腸炎が疑われる。',                                   '整腸剤投与。消化の良い食事に変更。3日後に改善なければ再来。'),
-    (3, 3, '体温38.3℃。左耳：外耳道に茶褐色の耳垢蓄積。軽度の発赤。',       3, 7,    '左耳外耳炎の再発。細菌性を疑う。',                           '耳道洗浄実施。抗生剤点耳薬処方。1週間後に再診。'),
-    (4, 4, '体温39.1℃。腹部触診でガス貯留。軽度脱水あり。',                 1, 1,    '急性胃腸炎。感染性の可能性も考慮。',                         '皮下補液実施。抗生剤＋整腸剤処方。絶食12時間後、少量ずつ食事再開。'),
-    (5, 5, '体温38.2℃。脱水軽度。口腔粘膜やや蒼白。毛艶低下。',             NULL, NULL, '慢性腎臓病（CKD）ステージ2の疑い。血液検査にてBUN・Cre上昇。SDMA高値。', '腎臓療法食への変更。皮下補液（週2回）。2週間後に血液再検査。')
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('clinical_plans', 'id'), (SELECT MAX(id) FROM clinical_plans));
-
--- =============================================================================
--- G. vitals（バイタル: 5件）
--- =============================================================================
-INSERT INTO vitals (id, medical_record_id, recorded_at, staff_id, temperature, heart_rate, respiration_rate, weight, notes) VALUES
-    (1, 3, '2026-02-15 09:15:00+09', 1, 38.5, 100, 22, 9.5,  '皮膚の搔痒感あり'),
-    (2, 2, '2026-02-20 10:00:00+09', 2, 38.8, 140, 28, 3.7,  '体重前回比-100g'),
-    (3, 3, '2026-02-28 09:30:00+09', 1, 38.3, 90,  20, 5.5,  '左耳を気にしている'),
-    (4, 4, '2026-03-05 11:00:00+09', 1, 39.1, 110, 26, 27.8, '軽度脱水。CRT 2秒'),
-    (5, 5, '2026-03-10 14:30:00+09', 2, 38.2, 160, 30, 3.8,  '粘膜色やや蒼白')
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('vitals', 'id'), (SELECT MAX(id) FROM vitals));
-
--- =============================================================================
--- H. treatments（治療明細: 8件）
--- =============================================================================
-INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, procedure_id, medicine_id, selected, status, content, unit_price, quantity, sort_order) VALUES
-    (1, 3, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
-    (2, 1, 'medicine',     NULL, NULL, 1,    true, 'completed', 'アモキシシリン 50mg x 7日分', 500,  7, 2),
-    (3, 2, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
-    (4, 3, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
-    (5, 3, 'procedure',    NULL, 4,    NULL, true, 'completed', '耳道洗浄（左耳）',          2500, 1, 2),
-    (6, 4, 'consultation', 1,    NULL, NULL, true, 'completed', '初診料',                    2000, 1, 1),
-    (7, 4, 'medicine',     NULL, NULL, 1,    true, 'completed', 'アモキシシリン 50mg x 5日分', 500,  5, 2),
-    (8, 5, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1)
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
-
--- =============================================================================
--- I. vaccinations（ワクチン接種記録: 3件）
--- =============================================================================
-INSERT INTO vaccinations (id, clinic_id, medical_record_id, pet_id, vaccine_id, date, next_date, next_schedule_type, doctor_id, remarks) VALUES
-    (1, 3, 3, 1,  1, '2026-02-15', '2027-02-15', '1year', 1, '接種後30分経過観察。異常なし。'),
-    (2, 3, 4, 6,  7, '2026-03-05', '2027-03-05', '1year', 1, '狂犬病予防法に基づく接種。済票発行。'),
-    (3, 3, 5, 14, 6, '2026-03-10', '2027-03-10', '1year', 2, '接種後の副反応なし。')
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
-
--- =============================================================================
--- J. hospitalizations（入院: 2件）
--- =============================================================================
-INSERT INTO hospitalizations (id, clinic_id, owner_id, pet_id, hospitalization_type, start_date, end_date, status, cage_id, doctor_id, memo, owner_request, staff_notes) VALUES
-    (1, 3, 3, 5,  'hospitalization', '2026-03-10', '2026-03-14', 'admitted',   5, 1, '急性胃腸炎による脱水治療。点滴管理中。',  '食事のアレルギーに注意してほしい（鶏肉不可）', '3/10入院開始。静脈点滴開始。3/11嘔吐1回。3/12状態改善傾向。'),
-    (2, 3, 6, 10, 'hospitalization', '2026-02-25', '2026-02-28', 'discharged', 4, 1, '外耳炎重症化に伴う入院治療。',             '怖がりなので優しく接してほしい',               '耳道洗浄を毎日実施。2/28退院時、症状改善。点耳薬処方。')
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('hospitalizations', 'id'), (SELECT MAX(id) FROM hospitalizations));
-
--- =============================================================================
--- K. care_plan_items（ケアプラン: 5件）
--- =============================================================================
-INSERT INTO care_plan_items (id, hospitalization_id, type, name, description, timing, status, notes, medicine_id, procedure_id, hospitalization_plan_id, unit_price, category, sort_order) VALUES
-    (1, 1, 'food',        '療法食（消化器サポート）', '1日3回、少量ずつ与える',         ARRAY['morning','noon','night']::plan_timing[], 'active',    '鶏肉不可。ラム主体のフードを使用。', NULL, NULL, NULL, 0,    '食事', 1),
-    (2, 1, 'medicine',    'アモキシシリン投与',       '1回1錠、朝夕食後',               ARRAY['morning','night']::plan_timing[],       'active',    '抗生剤。嘔吐がある場合はスキップ。', 1,    NULL, NULL, 500,  '投薬', 2),
-    (3, 1, 'instruction', 'バイタルチェック',         '体温・心拍・呼吸数を1日3回測定', ARRAY['morning','noon','night']::plan_timing[], 'active',    '異常値があれば即時報告。',           NULL, NULL, NULL, 0,    '観察', 3),
-    (4, 2, 'treatment',   '耳道洗浄',                 '1日1回、朝に実施',               ARRAY['morning']::plan_timing[],               'completed', '左耳を重点的に。',                   NULL, 4,    NULL, 2500, '処置', 1),
-    (5, 2, 'item',        '入院管理料（小型犬・1日）', '小型犬1日分の入院管理料',        ARRAY['morning']::plan_timing[],               'completed', '',                                  NULL, NULL, 1,    3000, '入院', 2)
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('care_plan_items', 'id'), (SELECT MAX(id) FROM care_plan_items));
-
--- =============================================================================
--- L. billings（会計: 3件）
--- =============================================================================
-INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo) VALUES
-    (1, 3, 1,    NULL, 1,  1,  4300, 430, 4730, true, 'completed', '2026-02-15', '2026-02-15 10:30:00+09', 'アニコム保険適用'),
-    (2, 3, 3,    NULL, 6,  10, 3300, 330, 3630, true, 'completed', '2026-02-28', '2026-02-28 11:00:00+09', 'アニコム保険適用'),
-    (3, 3, 2,    NULL, 2,  3,  800,  80,  880,  true, 'waiting',   '2026-03-12', NULL,                     'アニコム保険適用。会計待ち。')
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM billings));
-
--- =============================================================================
--- M. billing_items（会計明細: 5件）
--- =============================================================================
-INSERT INTO billing_items (id, billing_id, category, name, unit_price, quantity, tax_rate, is_insurance_applicable, source, sort_order) VALUES
-    (1, 3, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
-    (2, 3, 'medicine', 'アモキシシリン 50mg x 7日分', 500,  7, 0.10, true, 'medical_record', 2),
-    (3, 2, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
-    (4, 2, 'procedure','耳道洗浄',                  2500, 1, 0.10, true, 'medical_record', 2),
-    (5, 3, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1)
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
-
--- =============================================================================
--- N. payments（支払い: 2件）
--- =============================================================================
-INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insurance_name, insurance_ratio, insurance_amount, discount_amount, billing_amount, received_amount, change_amount, method) VALUES
-    (1, 3, 4300, 430, 4730, 'アニコム損保', 70, 3311, 0, 1419, 1500, 81, 'cash'),
-    (2, 2, 3300, 330, 3630, 'アニコム損保', 70, 2541, 0, 1089, 1100, 11, 'credit_card')
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
-
--- =============================================================================
--- シード完了
+-- マスタ設定完了
 -- =============================================================================

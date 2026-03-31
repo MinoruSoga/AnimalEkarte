@@ -24,6 +24,8 @@ const (
 	colMedicineInventoryID     = "inventory_id"
 	colMedicineDefaultQuantity = "default_quantity"
 	colMedicineSortOrder       = "sort_order"
+	colMedicineTaxType         = "tax_type"
+	colMedicineTaxRate         = "tax_rate"
 )
 
 // --- Input DTOs ---
@@ -32,29 +34,33 @@ const (
 type CreateMedicineInput struct {
 	Name            string
 	ParentID        *uint64
-	Price           *float64
+	Price           *int64
 	IsActive        bool
 	Description     string
 	DosageForm      *string // nil = 未指定, "tablet" 等 = 値セット
 	MedicineUnit    *string // nil = 未指定, "per_ml" 等 = 値セット
 	InventoryID     *uint64
-	DefaultQuantity int
+	DefaultQuantity float64
 	SortOrder       int
+	TaxType         *string  // nil = "excluded" (default)
+	TaxRate         *float64 // nil = 0.10 (default)
 }
 
 // UpdateMedicineInput は薬剤更新の入力DTO（nil = 未指定）
 type UpdateMedicineInput struct {
 	Name            *string
-	ParentID        *uint64  // nil = 未指定（ClearParentID=false 時）
-	ClearParentID   bool     // true = parent_id を NULL にクリア
-	Price           *float64
+	ParentID        *uint64 // nil = 未指定（ClearParentID=false 時）
+	ClearParentID   bool    // true = parent_id を NULL にクリア
+	Price           *int64
 	IsActive        *bool
 	Description     *string
 	DosageForm      *string  // nil = 未指定, "" = NULL クリア, "tablet" = 値セット
 	MedicineUnit    *string  // nil = 未指定, "" = NULL クリア, "per_ml" = 値セット
 	InventoryID     **uint64 // nil = 未指定, &nil = NULL クリア, &&val = 値セット
-	DefaultQuantity *int
+	DefaultQuantity *float64
 	SortOrder       *int
+	TaxType         *string
+	TaxRate         *float64
 }
 
 // buildMedicineUpdateFields は UpdateMedicineInput から map[string]any を構築する。
@@ -101,6 +107,12 @@ func buildMedicineUpdateFields(input *UpdateMedicineInput) map[string]any {
 	if input.SortOrder != nil {
 		fields[colMedicineSortOrder] = *input.SortOrder
 	}
+	if input.TaxType != nil {
+		fields[colMedicineTaxType] = *input.TaxType
+	}
+	if input.TaxRate != nil {
+		fields[colMedicineTaxRate] = *input.TaxRate
+	}
 	return fields
 }
 
@@ -116,12 +128,11 @@ type MedicineService interface {
 }
 
 type medicineService struct {
-	repo   repository.MedicineRepository
-	logger *slog.Logger
+	repo repository.MedicineRepository
 }
 
-func NewMedicineService(repo repository.MedicineRepository, logger *slog.Logger) MedicineService {
-	return &medicineService{repo: repo, logger: logger}
+func NewMedicineService(repo repository.MedicineRepository) MedicineService {
+	return &medicineService{repo: repo}
 }
 
 func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
@@ -137,6 +148,14 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, apperrors.WrapInvalidInput("name is required")
 	}
 
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != nil && *input.TaxType != "" {
+		taxType = model.TaxType(*input.TaxType)
+	}
+	taxRate := 0.10
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
+	}
 	medicine := &model.Medicine{
 		ClinicID:        clinicID,
 		Name:            input.Name,
@@ -147,6 +166,8 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		InventoryID:     input.InventoryID,
 		DefaultQuantity: input.DefaultQuantity,
 		SortOrder:       input.SortOrder,
+		TaxType:         taxType,
+		TaxRate:         taxRate,
 	}
 	if input.DosageForm != nil && *input.DosageForm != "" {
 		df := model.DosageForm(*input.DosageForm)
@@ -158,10 +179,10 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 
 	if err := s.repo.Create(ctx, medicine); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create medicine")
 	}
 
-	s.logger.InfoContext(ctx, "medicine created",
+	slog.InfoContext(ctx, "medicine created",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", medicine.ID),
 		slog.String("name", medicine.Name),
@@ -176,10 +197,10 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update medicine")
 	}
 
-	s.logger.InfoContext(ctx, "medicine updated",
+	slog.InfoContext(ctx, "medicine updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", id),
 	)
@@ -196,14 +217,14 @@ func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error {
 	m, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to get medicine")
 	}
 
 	// カテゴリ（parent_id = NULL）の場合、子アイテムが存在すれば削除を拒否する
 	if m.ParentID == nil {
 		count, err := s.repo.CountChildren(ctx, clinicID, id)
 		if err != nil {
-			return err
+			return apperrors.Wrap(err, "failed to count medicine children")
 		}
 		if count > 0 {
 			return apperrors.WrapInvalidInput(
@@ -213,9 +234,9 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to delete medicine")
 	}
-	s.logger.InfoContext(ctx, "medicine deleted",
+	slog.InfoContext(ctx, "medicine deleted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", id),
 	)

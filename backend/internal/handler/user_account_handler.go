@@ -7,25 +7,18 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListUsers godoc
-// GET /users?clinic_id=xxx
+// GET /users
+// clinic_id は JWT から取得し、クエリパラメータによる上書きは禁止（テナント分離）
 func (h *Handler) ListUsers(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
-	}
-	// クエリパラメータで clinic_id が明示的に指定されていれば上書き
-	if s := c.Query("clinic_id"); s != "" {
-		id, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid clinic_id"))
-			return
-		}
-		clinicID = id
 	}
 
 	accounts, err := h.svc.UserAccount.ListUsers(c.Request.Context(), clinicID)
@@ -60,6 +53,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		UserType:    model.UserType(req.UserType),
 		StaffID:     req.StaffID,
 		IsMain:      req.IsMain,
+		GroupIDs:    req.GroupIDs, // BUG-095: 初期グループ割当（省略可）
 	}
 
 	account, err := h.svc.UserAccount.CreateUser(c.Request.Context(), clinicID, input)
@@ -72,6 +66,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 
 // GetUser godoc
 // GET /users/:id
+// system_admin は任意ユーザーを取得可能。それ以外は同一クリニックに属するユーザーのみ。
 func (h *Handler) GetUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -79,6 +74,34 @@ func (h *Handler) GetUser(c *gin.Context) {
 		return
 	}
 	data, err := h.svc.UserAccount.GetWithMemberships(c.Request.Context(), strconv.FormatUint(id, 10))
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		clinicID, ok := extractClinicID(c)
+		if !ok {
+			return
+		}
+		belongs := false
+		for _, m := range data.Memberships {
+			if m.ClinicID == clinicID {
+				belongs = true
+				break
+			}
+		}
+		if !belongs {
+			RespondError(c, apperrors.WrapForbidden("cannot access user from other clinic"))
+			return
+		}
+	}
+
+	groupIDs, err := h.svc.UserAccount.GetPermissionGroupIDs(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -91,19 +114,95 @@ func (h *Handler) GetUser(c *gin.Context) {
 		})
 	}
 	c.JSON(http.StatusOK, userDetailResponse{
-		userResponse: toUserResponse(&data.UserAccount),
-		Memberships:  memberships,
+		userResponse:       toUserResponse(&data.UserAccount),
+		Memberships:        memberships,
+		PermissionGroupIDs: groupIDs,
 	})
+}
+
+// SetUserPermissionGroups godoc
+// PUT /users/:id/permission-groups — ユーザーへのグループ割当を全置換する
+// clinic_admin 以上のみ実行可能。system_admin 以外は同一クリニックのユーザーのみ変更可。
+func (h *Handler) SetUserPermissionGroups(c *gin.Context) {
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType == model.UserTypeStaff {
+		RespondError(c, apperrors.WrapForbidden("permission group assignment requires clinic_admin or above"))
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	// system_admin 以外はテナント検証
+	if userType != model.UserTypeSystemAdmin {
+		if ok := h.verifyUserClinicMembership(c, id); !ok {
+			return
+		}
+	}
+
+	var req struct {
+		GroupIDs []uint64 `json:"group_ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.UserAccount.SetPermissionGroups(c.Request.Context(), id, service.SetPermissionGroupsInput{
+		GroupIDs: req.GroupIDs,
+	}); err != nil {
+		RespondError(c, err)
+		return
+	}
+	h.writeAuditLog(c, model.AuditActionUserPermissionGroupSet, "user_permission_group", &id, nil)
+	c.Status(http.StatusNoContent)
+}
+
+// verifyUserClinicMembership は対象ユーザーが JWT クリニックに属しているかを検証するヘルパー。
+// 属していない場合は 403 を返して false を返す。
+func (h *Handler) verifyUserClinicMembership(c *gin.Context, userID uint64) bool {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return false
+	}
+	data, err := h.svc.UserAccount.GetWithMemberships(c.Request.Context(), strconv.FormatUint(userID, 10))
+	if err != nil {
+		RespondError(c, err)
+		return false
+	}
+	for _, m := range data.Memberships {
+		if m.ClinicID == clinicID {
+			return true
+		}
+	}
+	RespondError(c, apperrors.WrapForbidden("cannot access user from other clinic"))
+	return false
 }
 
 // UpdateUser godoc
 // PATCH /users/:id
+// system_admin 以外は同一クリニックのユーザーのみ更新可。user_type の変更は system_admin のみ許可。
 func (h *Handler) UpdateUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
+
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		if ok := h.verifyUserClinicMembership(c, id); !ok {
+			return
+		}
+	}
+
 	var req updateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
@@ -117,6 +216,10 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		StaffID:     req.StaffID,
 	}
 	if req.UserType != nil {
+		if userType != model.UserTypeSystemAdmin {
+			RespondError(c, apperrors.WrapForbidden("user_type change requires system_admin"))
+			return
+		}
 		ut := model.UserType(*req.UserType)
 		input.UserType = &ut
 	}
@@ -130,65 +233,25 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 // DeleteUser godoc
 // DELETE /users/:id
+// system_admin 以外は同一クリニックのユーザーのみ削除可。
 func (h *Handler) DeleteUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
+
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		if ok := h.verifyUserClinicMembership(c, id); !ok {
+			return
+		}
+	}
+
 	if err := h.svc.UserAccount.DeleteUser(c.Request.Context(), id); err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.Status(http.StatusNoContent)
-}
-
-// GetUserPermissions godoc
-// GET /users/:id/permissions?clinic_id=xxx
-func (h *Handler) GetUserPermissions(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
-		return
-	}
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-
-	perms, err := h.svc.UserAccount.GetPermissions(c.Request.Context(), userID, clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	items := make([]userPermissionResponse, 0, len(perms))
-	for _, p := range perms {
-		items = append(items, userPermissionResponse{Permission: string(p.Permission)})
-	}
-	c.JSON(http.StatusOK, items)
-}
-
-// SetUserPermissions godoc
-// PUT /users/:id/permissions
-func (h *Handler) SetUserPermissions(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
-		return
-	}
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-
-	var req setPermissionsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
-		return
-	}
-
-	input := &service.SetPermissionsInput{Permissions: req.Permissions}
-	if err := h.svc.UserAccount.SetPermissions(c.Request.Context(), userID, clinicID, input); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -198,11 +261,19 @@ func (h *Handler) SetUserPermissions(c *gin.Context) {
 // RegisterUserRoutes はユーザー管理関連のルートを登録する
 func (h *Handler) RegisterUserRoutes(rg *gin.RouterGroup) {
 	users := rg.Group("/users")
-	users.GET("", h.ListUsers)
-	users.POST("", h.CreateUser)
+
+	// 自分のパスワード変更（認証済みユーザー全員: BUG-062）
+	users.PUT("/me/password", h.ChangeMyPassword)
+
+	// 閲覧は全員許可
 	users.GET("/:id", h.GetUser)
-	users.PATCH("/:id", h.UpdateUser)
-	users.DELETE("/:id", h.DeleteUser)
-	users.GET("/:id/permissions", h.GetUserPermissions)
-	users.PUT("/:id/permissions", h.SetUserPermissions)
+
+	// 作成・更新・削除・権限グループ割当は clinic_admin 以上のみ（BE-080）
+	adminUsers := users.Group("")
+	adminUsers.Use(middleware.RequireClinicAdmin())
+	adminUsers.GET("", h.ListUsers)
+	adminUsers.POST("", h.CreateUser)
+	adminUsers.PATCH("/:id", h.UpdateUser)
+	adminUsers.DELETE("/:id", h.DeleteUser)
+	adminUsers.PUT("/:id/permission-groups", h.SetUserPermissionGroups)
 }

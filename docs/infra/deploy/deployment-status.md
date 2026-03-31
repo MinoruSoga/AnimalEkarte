@@ -1,6 +1,6 @@
 # デプロイ状態・AWSリソース一覧
 
-**最終更新:** 2026-03-04 | **リージョン:** us-east-1
+**最終更新:** 2026-03-31 | **リージョン:** us-east-1
 
 ---
 
@@ -10,6 +10,7 @@
 |--------------|------|
 | ECS Service | ✅ ACTIVE (running: 1 / desired: 1) |
 | RDS PostgreSQL | ✅ available |
+| CloudFront (HTTPS終端) | ✅ `dcqico6azu5w2.cloudfront.net` |
 | Frontend (Vercel) | ✅ Production デプロイ済み |
 | 自動デプロイ (Backend) | ✅ GitHub Actions + AWS OIDC |
 | 自動デプロイ (Frontend) | ✅ Vercel GitHub Integration |
@@ -34,7 +35,8 @@
 | ECS Cluster | animalekarte-test-cluster |
 | ECS Service | animalekarte-test-service |
 | Task Definition | animalekarte-test-api (0.25 vCPU / 0.5 GB) |
-| ALB URL | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com |
+| ALB URL（直接） | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com |
+| CloudFront URL | https://dcqico6azu5w2.cloudfront.net (Distribution: ERCVR5P0IAJKS) |
 | ECR Repository | 698109622668.dkr.ecr.us-east-1.amazonaws.com/animalekarte-api |
 
 ### データベース
@@ -80,14 +82,14 @@
 | `PORT` | 8080 |
 | `GIN_MODE` | release |
 | `DB_SSL_MODE` | require |
-| `ALLOWED_ORIGINS` | https://frontend-r0m0pyiaf-minorusogas-projects.vercel.app |
+| `CORS_ALLOWED_ORIGIN` | https://frontend-eta-six-20.vercel.app,https://dcqico6azu5w2.cloudfront.net |
 | `DB_HOST/PORT/USER/PASSWORD/NAME` | SSM Parameter Store から注入 |
 
 ### Frontend (Vercel)
 
 | 変数 | 値 |
 |------|-----|
-| `VITE_API_URL` | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/api |
+| `VITE_API_URL` | https://dcqico6azu5w2.cloudfront.net/api |
 
 ---
 
@@ -110,10 +112,10 @@
 
 | 問題 | 優先度 | 推奨対応 |
 |------|--------|---------|
-| CORS ミドルウェアが `*` のまま | High | `ALLOWED_ORIGINS` 環境変数は設定済みだが `backend/internal/middleware/cors.go` がそれを参照していない。ミドルウェアを修正して Vercel ドメイン限定にする |
-| HTTP のみ (HTTPS 未設定) | Medium | ACM 証明書取得 + ALB HTTPS Listener 追加 |
+| ~~CORS ミドルウェアが `*` のまま~~ | ~~High~~ | ✅ **解決済み (PR #10)**: `CORS_ALLOWED_ORIGIN` 環境変数を参照するよう修正済み |
+| ALB が HTTP のみ (HTTPS 未終端) | Low | CloudFront で HTTPS 終端済み。ALB 自体は CloudFront からのみアクセスされるため許容範囲 |
 | Single-AZ 構成 | Low | 本番環境では Multi-AZ 化 |
-| WAF 未導入 | Low | 本番環境では CloudFront + AWS WAF 導入 |
+| WAF 未導入 | Low | 本番環境では AWS WAF 導入 |
 
 ---
 

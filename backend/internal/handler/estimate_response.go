@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type estimateItemResponse struct {
@@ -11,40 +12,45 @@ type estimateItemResponse struct {
 	EstimateID            uint64    `json:"estimate_id"`
 	Name                  string    `json:"name"`
 	Category              string    `json:"category"`
-	UnitPrice             float64   `json:"unit_price"`
-	Quantity              int       `json:"quantity"`
+	UnitPrice             int64     `json:"unit_price"`
+	Quantity              float64   `json:"quantity"`
+	Subtotal              int64     `json:"subtotal"`
+	TaxType               string    `json:"tax_type"`
 	TaxRate               float64   `json:"tax_rate"`
+	TaxAmount             int64     `json:"tax_amount"`
 	DiscountRate          float64   `json:"discount_rate"`
-	DiscountAmount        float64   `json:"discount_amount"`
+	DiscountAmount        int64     `json:"discount_amount"`
 	IsInsuranceApplicable bool      `json:"is_insurance_applicable"`
 	SortOrder             int       `json:"sort_order"`
 	CreatedAt             time.Time `json:"created_at"`
 }
 
 type estimateResponse struct {
-	ID              uint64                  `json:"id"`
-	ClinicID        uint64                  `json:"clinic_id"`
-	EstimateNo      string                  `json:"estimate_no"`
-	MedicalRecordID *uint64                 `json:"medical_record_id,omitempty"`
-	Title           string                  `json:"title"`
-	OwnerID         *uint64                 `json:"owner_id,omitempty"`
-	Owner           *ownerSummaryResponse   `json:"owner,omitempty"`
-	Status          string                  `json:"status"`
-	Subtotal        float64                 `json:"subtotal"`
-	TaxTotal        float64                 `json:"tax_total"`
-	TotalAmount     float64                 `json:"total_amount"`
-	InsuranceAmount float64                 `json:"insurance_amount"`
-	DiscountAmount  float64                 `json:"discount_amount"`
-	ValidUntil      *time.Time              `json:"valid_until,omitempty"`
-	Comment         string                  `json:"comment"`
-	Notes           string                  `json:"notes"`
-	CreatedBy       *uint64                 `json:"created_by,omitempty"`
-	Items           []estimateItemResponse  `json:"items,omitempty"`
-	CreatedAt       time.Time               `json:"created_at"`
-	UpdatedAt       time.Time               `json:"updated_at"`
+	ID              uint64                 `json:"id"`
+	ClinicID        uint64                 `json:"clinic_id"`
+	EstimateNo      string                 `json:"estimate_no"`
+	MedicalRecordID *uint64                `json:"medical_record_id,omitempty"`
+	Title           string                 `json:"title"`
+	OwnerID         *uint64                `json:"owner_id,omitempty"`
+	Owner           *ownerSummaryResponse  `json:"owner,omitempty"`
+	Status          string                 `json:"status"`
+	Subtotal        int64                  `json:"subtotal"`
+	TaxTotal        int64                  `json:"tax_total"`
+	TotalAmount     int64                  `json:"total_amount"`
+	InsuranceAmount int64                  `json:"insurance_amount"`
+	DiscountAmount  int64                  `json:"discount_amount"`
+	ValidUntil      *time.Time             `json:"valid_until,omitempty"`
+	Comment         string                 `json:"comment"`
+	Notes           string                 `json:"notes"`
+	CreatedBy       *uint64                `json:"created_by,omitempty"`
+	Items           []estimateItemResponse `json:"items,omitempty"`
+	CreatedAt       time.Time              `json:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at"`
 }
 
 func toEstimateItemResponse(item *model.EstimateItem) estimateItemResponse {
+	subtotal := int64(float64(item.UnitPrice) * item.Quantity)
+	taxAmount := service.CalculateTaxAmount(item.UnitPrice, item.Quantity, item.TaxType, item.TaxRate)
 	return estimateItemResponse{
 		ID:                    item.ID,
 		EstimateID:            item.EstimateID,
@@ -52,7 +58,10 @@ func toEstimateItemResponse(item *model.EstimateItem) estimateItemResponse {
 		Category:              string(item.Category),
 		UnitPrice:             item.UnitPrice,
 		Quantity:              item.Quantity,
+		Subtotal:              subtotal,
+		TaxType:               string(item.TaxType),
 		TaxRate:               item.TaxRate,
+		TaxAmount:             taxAmount,
 		DiscountRate:          item.DiscountRate,
 		DiscountAmount:        item.DiscountAmount,
 		IsInsuranceApplicable: item.IsInsuranceApplicable,

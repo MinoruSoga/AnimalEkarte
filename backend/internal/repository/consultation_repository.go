@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -18,7 +17,7 @@ type ConsultationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
 	FindByID(ctx context.Context, id uint64) (*model.Consultation, error)
 	Create(ctx context.Context, consultation *model.Consultation) error
-	Update(ctx context.Context, consultation *model.Consultation) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -31,51 +30,51 @@ func NewConsultationRepository(db *gorm.DB) ConsultationRepository {
 
 func (r *consultationRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
 	consultations := make([]model.Consultation, 0)
-	if err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&consultations).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find consultations")
+	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&consultations).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "consultation", "")
 	}
 	return consultations, nil
 }
 
 func (r *consultationRepository) FindByID(ctx context.Context, id uint64) (*model.Consultation, error) {
 	var consultation model.Consultation
-	if err := r.db.WithContext(ctx).First(&consultation, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("consultation", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find consultation by id")
+	err := r.db.WithContext(ctx).First(&consultation, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "consultation", fmt.Sprintf("%d", id))
 	}
 	return &consultation, nil
 }
 
 func (r *consultationRepository) Create(ctx context.Context, consultation *model.Consultation) error {
-	if err := r.db.WithContext(ctx).Create(consultation).Error; err != nil {
+	err := r.db.WithContext(ctx).Create(consultation).Error
+	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("consultation", consultation.Name)
 		}
-		return apperrors.Wrap(err, "create consultation")
+		return apperrors.FromGORM(err, "consultation", "")
 	}
 	return nil
 }
 
-func (r *consultationRepository) Update(ctx context.Context, consultation *model.Consultation) error {
+func (r *consultationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Consultation{}).
-		Where("id = ? AND clinic_id = ?", consultation.ID, consultation.ClinicID).
-		Updates(consultation)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update consultation")
+		return nil, apperrors.FromGORM(result.Error, "consultation", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update consultation")
+		return nil, apperrors.WrapNotFound("consultation", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *consultationRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Consultation{}, "id = ?", id)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete consultation")
+		return apperrors.FromGORM(result.Error, "consultation", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("consultation", fmt.Sprintf("%d", id))
@@ -84,13 +83,13 @@ func (r *consultationRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 func (r *consultationRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.Consultation{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder consultation")
+				return apperrors.FromGORM(result.Error, "consultation", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("consultation id %d not found in this clinic", id))
@@ -98,4 +97,8 @@ func (r *consultationRepository) Reorder(ctx context.Context, clinicID uint64, i
 		}
 		return nil
 	})
+	if err != nil {
+		return apperrors.Wrap(err, "reorder consultation")
+	}
+	return nil
 }

@@ -14,13 +14,6 @@ const (
 	TrimmingStatusInProgress TrimmingStatus = "in_progress"
 )
 
-type BodyWeightUnit string
-
-const (
-	BodyWeightUnitKg BodyWeightUnit = "Kg"
-	BodyWeightUnitG  BodyWeightUnit = "g"
-)
-
 type TrimmingRecord struct {
 	ID             uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID       uint64         `gorm:"not null"                                       json:"clinic_id"`
@@ -28,12 +21,11 @@ type TrimmingRecord struct {
 	PetID          *uint64        `                                                      json:"pet_id,omitempty"`
 	StaffID        *uint64        `                                                      json:"staff_id,omitempty"`
 	CourseID       *uint64        `                                                      json:"course_id,omitempty"`
-	Weight         string         `gorm:"default:''"                                     json:"weight"`
 	Status         TrimmingStatus `gorm:"type:trimming_status;default:'reserved'"         json:"status"`
 	StyleRequest   string         `gorm:"default:''"                                     json:"style_request"`
-	BW             string         `gorm:"default:''"                                     json:"bw"`
+	BW             *float64       `gorm:"type:numeric(6,2)"                              json:"bw,omitempty"`
 	BWUnit         BodyWeightUnit `gorm:"type:body_weight_unit;default:'Kg'"             json:"bw_unit"`
-	BT             string         `gorm:"default:''"                                     json:"bt"`
+	BT             *float64       `gorm:"type:numeric(4,1)"                              json:"bt,omitempty"`
 	UsedShampoo    string         `gorm:"default:''"                                     json:"used_shampoo"`
 	UsedRibbon     string         `gorm:"default:''"                                     json:"used_ribbon"`
 	Remarks        string         `gorm:"default:''"                                     json:"remarks"`
@@ -53,10 +45,12 @@ type TrimmingRecord struct {
 func (TrimmingRecord) TableName() string { return "trimming_records" }
 
 type TrimmingRecordOption struct {
-	ID               uint64 `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	TrimmingRecordID uint64 `gorm:"not null"                                       json:"trimming_record_id"`
-	OptionID         uint64 `gorm:"not null"                                       json:"option_id"`
-	SortOrder        int    `gorm:"default:0"                                      json:"sort_order"`
+	ID               uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	TrimmingRecordID uint64    `gorm:"not null"                                       json:"trimming_record_id"`
+	OptionID         uint64    `gorm:"not null"                                       json:"option_id"`
+	SortOrder        int       `gorm:"type:integer;default:0"                         json:"sort_order"`
+	CreatedAt        time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt        time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
 
 func (TrimmingRecordOption) TableName() string { return "trimming_record_options" }

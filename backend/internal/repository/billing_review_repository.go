@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -29,13 +28,11 @@ func NewBillingReviewRepository(db *gorm.DB) BillingReviewRepository {
 
 func (r *billingReviewRepository) FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (*model.BillingReview, error) {
 	var review model.BillingReview
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Where("medical_record_id = ?", medicalRecordID).
-		First(&review).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("billing_review", fmt.Sprintf("medical_record_id=%d", medicalRecordID))
-		}
-		return nil, apperrors.Wrap(err, "find billing_review by medical_record_id")
+		First(&review).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "billing_review", fmt.Sprintf("medical_record_id=%d", medicalRecordID))
 	}
 	return &review, nil
 }

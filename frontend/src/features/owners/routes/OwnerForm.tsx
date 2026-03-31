@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, lazy, Suspense, memo, useCallback } from "react";
+import { useState, lazy, Suspense, memo, useCallback, useEffect } from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
 
 // External
@@ -16,6 +16,7 @@ import {
   CreditCard,
   Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -44,12 +45,17 @@ import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
-import { C, STYLE } from "@/lib/design-tokens";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { useTitle } from "@/hooks/use-title";
+import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Relative
-import { useOwnerForm } from "../hooks/useOwnerForm";
+import { useOwnerForm } from "../hooks/use-owner-form";
 import type { PetMutations } from "@/types/pet";
 import type { PetFormData, OwnerData } from "../types";
 // Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)
@@ -59,8 +65,6 @@ const PetEditModal = lazy(() =>
 import { MEMBERSHIP_TYPE_VALUES } from "../types";
 import type { MembershipType } from "../types";
 import type { OwnerLoaderData } from "../loaders";
-
-const INPUT_CLS = STYLE.formInput;
 
 // rerender-memo: 会員区分ボタンを memo 化して ownerData の他フィールド変更による
 // 不要な再レンダリングと inline onClick 生成を排除する
@@ -99,6 +103,8 @@ const MembershipTypeButtons = memo(function MembershipTypeButtons({
 interface PetTableRowProps {
   pet: PetFormData;
   ownerId: string | undefined;
+  canEdit: boolean;
+  canDelete: boolean;
   onEdit: (pet: PetFormData) => void;
   onDeleteRequest: (id: string, name: string) => void;
 }
@@ -106,6 +112,8 @@ interface PetTableRowProps {
 const PetTableRow = memo(function PetTableRow({
   pet,
   ownerId,
+  canEdit,
+  canDelete,
   onEdit,
   onDeleteRequest,
 }: PetTableRowProps) {
@@ -113,7 +121,10 @@ const PetTableRow = memo(function PetTableRow({
   const backFrom = ownerId ? `/owners/${ownerId}` : "/owners";
 
   return (
-    <TableRow className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}>
+    <TableRow
+      className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 cursor-pointer`}
+      onClick={() => onEdit(pet)}
+    >
       <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.petName}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.status}</TableCell>
@@ -131,56 +142,62 @@ const PetTableRow = memo(function PetTableRow({
         {pet.remarks}
       </TableCell>
       <TableCell className="py-2">
-        <div className="flex gap-1 justify-end">
+        <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger
               className={`inline-flex items-center justify-center rounded-[4px] cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
               aria-label="操作メニューを開く"
             >
-              <MoreHorizontal className="size-5" />
+              <MoreHorizontal className={ICON.page} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>操作</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => onEdit(pet)}>
-                <Edit className="mr-2 h-4 w-4" />
-                詳細・編集
-              </DropdownMenuItem>
+              {canEdit ? (
+                <DropdownMenuItem onClick={() => onEdit(pet)}>
+                  <Edit className={`mr-2 ${ICON.action}`} />
+                  詳細・編集
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
-                <Calendar className="mr-2 h-4 w-4" />
+                <Calendar className={`mr-2 ${ICON.action}`} />
                 予約作成
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <FileText className="mr-2 h-4 w-4" />
+                <FileText className={`mr-2 ${ICON.action}`} />
                 カルテ作成
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <Scissors className="mr-2 h-4 w-4" />
+                <Scissors className={`mr-2 ${ICON.action}`} />
                 トリミング
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <Bed className="mr-2 h-4 w-4" />
+                <Bed className={`mr-2 ${ICON.action}`} />
                 入院登録
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <CreditCard className="mr-2 h-4 w-4" />
+                <CreditCard className={`mr-2 ${ICON.action}`} />
                 会計登録
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => onDeleteRequest(pet.id, pet.petName)}
-                className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                削除
-              </DropdownMenuItem>
+              {canDelete ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onDeleteRequest(pet.id, pet.petName)}
+                    className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
+                  >
+                    <Trash2 className={`mr-2 ${ICON.action}`} />
+                    削除
+                  </DropdownMenuItem>
+                </>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -218,6 +235,7 @@ interface OwnerInfoSectionProps {
   onChange: (field: string, value: string | boolean | number) => void;
   onClearError: (field: string) => void;
   onMembershipChange: (type: MembershipType) => void;
+  onPostalCodeLookup: (postalCodeField: string, addressField: string) => void;
 }
 
 const OwnerInfoSection = memo(function OwnerInfoSection({
@@ -227,30 +245,47 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
   onChange,
   onClearError,
   onMembershipChange,
+  onPostalCodeLookup,
 }: OwnerInfoSectionProps) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Row 1 */}
       <div className="space-y-1.5">
         <Label htmlFor="ownerId" className={`text-sm ${C.text60}`}>飼主No</Label>
-        <Input
-          id="ownerId"
-          type="text"
-          value={ownerData.ownerId}
-          onChange={(e) => onChange("ownerId", e.target.value)}
-          disabled={isEdit}
-          className={`${INPUT_CLS} disabled:opacity-50`}
-        />
+        {isEdit ? (
+          <Input
+            id="ownerId"
+            type="text"
+            value={ownerData.ownerId}
+            disabled
+            className={`${STYLE.formInput} disabled:opacity-50`}
+          />
+        ) : (
+          <p className={`flex h-9 items-center px-3 text-sm ${C.text40} italic`}>
+            登録時に自動採番されます
+          </p>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>郵便番号</Label>
-        <Input
-          id="postalCode"
-          placeholder="123-4567"
-          value={ownerData.postalCode}
-          onChange={(e) => onChange("postalCode", e.target.value)}
-          className={INPUT_CLS}
-        />
+        <div className="flex gap-1.5">
+          <Input
+            id="postalCode"
+            placeholder="123-4567"
+            value={ownerData.postalCode}
+            onChange={(e) => onChange("postalCode", e.target.value)}
+            className={STYLE.formInput}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 h-9 text-xs px-2"
+            onClick={() => onPostalCodeLookup("postalCode", "address1")}
+          >
+            検索
+          </Button>
+        </div>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="company" className={`text-sm ${C.text60}`}>会社名</Label>
@@ -258,7 +293,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           id="company"
           value={ownerData.company}
           onChange={(e) => onChange("company", e.target.value)}
-          className={INPUT_CLS}
+          className={STYLE.formInput}
         />
       </div>
       <div className="space-y-1.5">
@@ -277,23 +312,34 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           aria-invalid={!!fieldErrors.ownerName}
           aria-describedby={fieldErrors.ownerName ? "ownerName-error" : undefined}
           onChange={(e) => { onChange("ownerName", e.target.value); onClearError("ownerName"); }}
-          className={`${INPUT_CLS} ${fieldErrors.ownerName ? STYLE.formInputError : ""}`}
+          className={`${STYLE.formInput} ${fieldErrors.ownerName ? STYLE.formInputError : ""}`}
         />
         <FormFieldError id="ownerName-error" message={fieldErrors.ownerName} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="address1" className={`text-sm ${C.text60}`}>住所1（会社）</Label>
-        <Input id="address1" value={ownerData.address1} onChange={(e) => onChange("address1", e.target.value)} className={INPUT_CLS} />
+        <Input id="address1" value={ownerData.address1} onChange={(e) => onChange("address1", e.target.value)} className={STYLE.formInput} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>郵便番号(自宅)</Label>
-        <Input
-          id="homePostalCode"
-          placeholder="123-4567"
-          value={ownerData.homePostalCode || ""}
-          onChange={(e) => onChange("homePostalCode", e.target.value)}
-          className={INPUT_CLS}
-        />
+        <div className="flex gap-1.5">
+          <Input
+            id="homePostalCode"
+            placeholder="123-4567"
+            value={ownerData.homePostalCode || ""}
+            onChange={(e) => onChange("homePostalCode", e.target.value)}
+            className={STYLE.formInput}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 h-9 text-xs px-2"
+            onClick={() => onPostalCodeLookup("homePostalCode", "homeAddress1")}
+          >
+            検索
+          </Button>
+        </div>
       </div>
       <div className="space-y-1.5 col-span-2 lg:col-span-1 lg:row-span-3">
         <Label className={`text-sm ${C.text60}`}>危険人物</Label>
@@ -328,17 +374,17 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           aria-invalid={!!fieldErrors.ownerNameKana}
           aria-describedby={fieldErrors.ownerNameKana ? "ownerNameKana-error" : undefined}
           onChange={(e) => { onChange("ownerNameKana", e.target.value); onClearError("ownerNameKana"); }}
-          className={`${INPUT_CLS} ${fieldErrors.ownerNameKana ? STYLE.formInputError : ""}`}
+          className={`${STYLE.formInput} ${fieldErrors.ownerNameKana ? STYLE.formInputError : ""}`}
         />
         <FormFieldError id="ownerNameKana-error" message={fieldErrors.ownerNameKana} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="address2" className={`text-sm ${C.text60}`}>住所2（会社）</Label>
-        <Input id="address2" value={ownerData.address2} onChange={(e) => onChange("address2", e.target.value)} className={INPUT_CLS} />
+        <Input id="address2" value={ownerData.address2} onChange={(e) => onChange("address2", e.target.value)} className={STYLE.formInput} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>住所1(自宅)</Label>
-        <Input id="homeAddress1" value={ownerData.homeAddress1} onChange={(e) => onChange("homeAddress1", e.target.value)} className={INPUT_CLS} />
+        <Input id="homeAddress1" value={ownerData.homeAddress1} onChange={(e) => onChange("homeAddress1", e.target.value)} className={STYLE.formInput} />
       </div>
 
       {/* Row 4 */}
@@ -348,11 +394,20 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="email" className={`text-sm ${C.text60}`}>メールアドレス</Label>
-        <Input id="email" type="email" value={ownerData.email} onChange={(e) => onChange("email", e.target.value)} className={INPUT_CLS} />
+        <Input
+          id="email"
+          type="email"
+          value={ownerData.email}
+          aria-invalid={!!fieldErrors.email}
+          aria-describedby={fieldErrors.email ? "email-error" : undefined}
+          onChange={(e) => { onChange("email", e.target.value); onClearError("email"); }}
+          className={`${STYLE.formInput} ${fieldErrors.email ? STYLE.formInputError : ""}`}
+        />
+        <FormFieldError id="email-error" message={fieldErrors.email} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>住所2(自宅)</Label>
-        <Input id="homeAddress2" value={ownerData.homeAddress2} onChange={(e) => onChange("homeAddress2", e.target.value)} className={INPUT_CLS} />
+        <Input id="homeAddress2" value={ownerData.homeAddress2} onChange={(e) => onChange("homeAddress2", e.target.value)} className={STYLE.formInput} />
       </div>
 
       {/* Row 5 */}
@@ -367,25 +422,28 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           aria-invalid={!!fieldErrors.phone}
           aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
           onChange={(e) => { onChange("phone", e.target.value); onClearError("phone"); }}
-          className={`${INPUT_CLS} ${fieldErrors.phone ? STYLE.formInputError : ""}`}
+          className={`${STYLE.formInput} ${fieldErrors.phone ? STYLE.formInputError : ""}`}
         />
         <FormFieldError id="phone-error" message={fieldErrors.phone} />
       </div>
       <div className="space-y-1.5 col-span-1 lg:col-span-2">
         <Label htmlFor="companyPhone" className={`text-sm ${C.text60}`}>会社 電話番号</Label>
-        <Input id="companyPhone" value={ownerData.companyPhone} onChange={(e) => onChange("companyPhone", e.target.value)} className={INPUT_CLS} />
+        <Input id="companyPhone" value={ownerData.companyPhone} onChange={(e) => onChange("companyPhone", e.target.value)} className={STYLE.formInput} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="discountRate" className={`text-sm ${C.text60}`}>値引率 (%)</Label>
-        <Input
+        <NumberInput
           id="discountRate"
-          type="number"
-          min="0"
-          max="100"
+          min={0}
+          max={100}
           value={ownerData.discountRate || ""}
-          onChange={(e) => onChange("discountRate", Number(e.target.value))}
-          className={INPUT_CLS}
+          aria-invalid={!!fieldErrors.discountRate}
+          aria-describedby={fieldErrors.discountRate ? "discountRate-error" : undefined}
+          onChange={(v) => { onChange("discountRate", Number(v)); onClearError("discountRate"); }}
+          suffix="%"
+          className={`${STYLE.formInput} ${fieldErrors.discountRate ? STYLE.formInputError : ""}`}
         />
+        <FormFieldError id="discountRate-error" message={fieldErrors.discountRate} />
       </div>
     </div>
   );
@@ -394,6 +452,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
 export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
+  const { canEdit, canDelete } = usePermission("owners");
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const [deletePetTarget, setDeletePetTarget] = useState<{
     id: string;
@@ -416,14 +475,71 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     handleEditPet,
     handleDeletePet,
     handleSavePet,
-    handleSave,
+    formAction,
+    formState,
     fieldErrors,
     clearFieldError,
   } = useOwnerForm(ownerId, initialOwner, petMutations);
 
+  useTitle(isEdit ? `飼主編集 (${ownerData.ownerName})` : "飼主登録");
+
+  // React 19 Action の成功を検知して遷移
+  // BUG-065: 新規登録後は詳細ページへリダイレクト
+  useEffect(() => {
+    if (formState.success) {
+      markClean();
+      if (!isEdit && formState.data) {
+        navigate(paths.owners.detail.getHref(formState.data as string));
+      } else if (isEdit) {
+        navigate(paths.owners.getHref());
+      }
+    }
+  }, [formState.success, formState.data, formState.timestamp, navigate, markClean, isEdit]);
+
+  // BUG-084: バリデーションエラー後に最初のエラーフィールドへフォーカスを移動する
+  // フォームのアクセシビリティ改善（WCAG 2.4.3 Focus Order / 3.3.1 Error Identification）
+  useEffect(() => {
+    const errorFields = Object.keys(fieldErrors);
+    if (errorFields.length === 0) return;
+    // フィールド名とDOM IDのマッピング（OwnerInfoSection内の htmlFor と対応）
+    const FIELD_ID_MAP: Record<string, string> = {
+      ownerName: "ownerName",
+      ownerNameKana: "ownerNameKana",
+      phone: "phone",
+      email: "email",
+      discountRate: "discountRate",
+    };
+    // 優先度順にフォーカスする最初のフィールドを探す
+    const PRIORITY_FIELDS = ["ownerName", "ownerNameKana", "phone", "email", "discountRate"];
+    const firstErrorField = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ?? errorFields[0];
+    const domId = FIELD_ID_MAP[firstErrorField] ?? firstErrorField;
+    const el = document.getElementById(domId) as HTMLElement | null;
+    el?.focus();
+  // fieldErrors オブジェクトのキー変化で発火させるため JSON.stringify を使用
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(Object.keys(fieldErrors).sort())]);
+
   const handleBack = () => {
     navigate(paths.owners.getHref());
   };
+
+  // FE-085: ペットの飼主変更ハンドラ
+  const handlePetChangeOwner = useCallback(
+    (newOwner: { id: string; name: string }) => {
+      if (!editingPet?.id || !petMutations) return;
+      petMutations.updatePetMutate(
+        { id: editingPet.id, req: { owner_id: Number(newOwner.id) } },
+        {
+          onSuccess: () => {
+            toast.success(`飼主を ${newOwner.name} に変更しました`);
+            setPetModalOpen(false);
+          },
+          onError: () => toast.error("飼主変更に失敗しました"),
+        },
+      );
+    },
+    [editingPet, petMutations, setPetModalOpen],
+  );
 
   // rerender-functional-setstate: setOwnerData・markDirty は両方安定した参照なので
   // useCallback で handleInputChange を安定化できる → MembershipTypeButtons memo の前提条件
@@ -431,13 +547,6 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     setOwnerData(prev => ({ ...prev, [field]: value }));
     markDirty();
   }, [setOwnerData, markDirty]);
-
-  const handleSubmit = () => {
-    handleSave(() => {
-      markClean();
-      navigate(paths.owners.getHref());
-    });
-  };
 
   const handleConfirmDeletePet = () => {
     if (deletePetTarget) {
@@ -456,29 +565,40 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     handleInputChange("membershipType", type);
   }, [handleInputChange]);
 
-  return (
-    <PageLayout
-      title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
-      onBack={handleBack}
-      maxWidth="max-w-[1400px]"
-      headerAction={
-        <Button
-          size="sm"
-          onClick={handleSubmit}
-          className={`${STYLE.confirmPrimary} px-4`}
-          disabled={isLoading}
-        >
-          {isLoading ? "保存中..." : isEdit ? "更新" : "登録"}
-        </Button>
+  // 郵便番号検索
+  const { lookup } = usePostalCodeLookup();
+  const handlePostalCodeLookup = useCallback(
+    async (postalCodeField: string, addressField: string) => {
+      const postalCode = String(ownerData[postalCodeField as keyof OwnerData] ?? "");
+      const result = await lookup(postalCode);
+      if (result) {
+        handleInputChange(addressField, `${result.prefecture}${result.city}${result.town}`);
       }
-    >
-      <NavigationBlocker when={isDirty && !isLoading} />
+    },
+    [ownerData, lookup, handleInputChange],
+  );
+
+  return (
+    <form action={formAction}>
+      <PageLayout
+        title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
+        onBack={handleBack}
+        maxWidth="max-w-[1400px]"
+        headerAction={
+          canEdit ? (
+            <SubmitButton size="sm">
+              {isEdit ? "更新" : "登録"}
+            </SubmitButton>
+          ) : null
+        }
+      >
+        <NavigationBlocker when={isDirty && !isLoading} />
 
       {/* Owner Information Form */}
       {/* rerender-memo: OwnerInfoSection はペット操作・モーダル開閉では再レンダーしない */}
       <div className={`mb-4 rounded-lg bg-white p-4 border ${C.borderMedium}`}>
         <h2 className={`mb-3 text-sm font-bold ${C.text} flex items-center gap-2`}>
-          <User className={`h-4 w-4 ${C.text60}`} />
+          <User className={`${ICON.action} ${C.text60}`} />
           飼主情報
         </h2>
         <OwnerInfoSection
@@ -488,6 +608,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
           onChange={handleInputChange}
           onClearError={clearFieldError}
           onMembershipChange={handleMembershipChange}
+          onPostalCodeLookup={handlePostalCodeLookup}
         />
       </div>
 
@@ -495,17 +616,19 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
       <div className="mb-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
-            <PawPrint className={`h-4 w-4 ${C.text60}`} />
+            <PawPrint className={`${ICON.action} ${C.text60}`} />
             ペット情報
           </h2>
-          <Button
-            size="sm"
-            onClick={handleAddPet}
-            className={`${STYLE.confirmPrimary} gap-1.5 text-sm px-4`}
-          >
-            <Plus className="size-4" />
-            ペット追加
-          </Button>
+          {canEdit ? (
+            <Button
+              size="sm"
+              onClick={handleAddPet}
+              className={`${STYLE.confirmPrimary} gap-1.5 text-sm px-4`}
+            >
+              <Plus className={ICON.action} />
+              ペット追加
+            </Button>
+          ) : null}
         </div>
 
         <div className={`rounded-lg bg-white overflow-hidden border ${C.borderMedium}`}>
@@ -528,6 +651,8 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
                     key={pet.id}
                     pet={pet}
                     ownerId={ownerId}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
                     onEdit={handleEditPet}
                     onDeleteRequest={handleDeletePetRequest}
                   />
@@ -546,6 +671,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
           ownerName={ownerData.ownerName || "新規飼主"}
           petData={editingPet ?? undefined}
           onSave={handleSavePet}
+          onChangeOwner={handlePetChangeOwner}
         />
       </Suspense>
 
@@ -561,5 +687,6 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         variant="destructive"
       />
     </PageLayout>
+    </form>
   );
 }

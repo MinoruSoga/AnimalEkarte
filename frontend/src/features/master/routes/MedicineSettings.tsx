@@ -28,11 +28,13 @@ import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 
 // Internal – shared
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import {
@@ -57,9 +59,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
-import { useReducedMotion } from "@/hooks/useReducedMotion";
-import { useSortableList } from "@/hooks/useSortableList";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { useSortableList } from "@/hooks/use-sortable-list";
 
 // Internal – feature API (direct import, no barrel)
 import {
@@ -70,6 +72,9 @@ import {
   useReorderMedicines,
 } from "../api/medicines";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
+import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
+import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
+import type { TaxType } from "@/types/generated/models";
 
 // Types
 import type { Medicine } from "@/types";
@@ -99,7 +104,7 @@ const MEDICINE_UNIT_SELECT_ITEMS = (
 );
 
 // Full-width Select trigger — matches Figma (h-[30px], no border, rounded-[3px])
-const SELECT_TRIGGER_FULL = `h-[30px] text-sm bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
+const SELECT_TRIGGER_FULL = `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
 
 // 剤形ラベルマップ
 const DOSAGE_FORM_LABELS: Record<string, string> = {
@@ -122,6 +127,8 @@ interface MedicineFormData {
   price: number;
   description: string;
   isActive: boolean;
+  taxType: TaxType;
+  taxRate: number;
 }
 
 const INITIAL_FORM: MedicineFormData = {
@@ -132,6 +139,8 @@ const INITIAL_FORM: MedicineFormData = {
   price: 0,
   description: "",
   isActive: true,
+  taxType: "excluded",
+  taxRate: 0.1,
 };
 
 // ─────────────────────────────────────────────────
@@ -152,7 +161,7 @@ function SortableMedicineRow({
       <TableCell className={`${STYLE.tableCell} font-medium ${grouped ? "pl-12!" : "pl-2"}`}>
         {medicine.name}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} w-[100px] text-center text-sm`}>
+      <TableCell className={`${STYLE.tableCell} w-[100px] text-center text-base`}>
         {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}>
@@ -169,7 +178,7 @@ function SortableMedicineRow({
                 type="button"
                 className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors"
               >
-                <MoreHorizontal className="size-4" />
+                <MoreHorizontal className={ICON.action} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -181,7 +190,7 @@ function SortableMedicineRow({
             onClick={() => onEdit(medicine)}
             className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors"
           >
-            <Maximize2 className="size-3.5" />
+            <Maximize2 className={`${ICON.xs}`} />
           </button>
         </div>
       </TableCell>
@@ -206,15 +215,15 @@ function MedicineRowOverlay({
       style={{ width: "100%" }}
     >
       <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50">
-        <GripVertical className="size-4" />
+        <GripVertical className={ICON.action} />
       </div>
-      <div className={`flex-1 min-w-0 text-sm font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}>
+      <div className={`flex-1 min-w-0 text-base font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}>
         {medicine.name}
       </div>
-      <div className="w-[100px] shrink-0 text-center text-sm text-[#37352F]/65">
+      <div className="w-[100px] shrink-0 text-center text-base text-[#37352F]/65">
         {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
       </div>
-      <div className={`w-[130px] shrink-0 text-right pr-4 font-mono text-sm ${C.text}`}>
+      <div className={`w-[130px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>
         {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
       </div>
       <div className="w-[110px] shrink-0 flex justify-center">
@@ -254,6 +263,15 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
   handleSave,
   handleDeleteRequest,
 }: MedicineSidePanelProps) {
+  const [nameError, setNameError] = useState("");
+  const handleAction = () => {
+    if (!formData.name.trim()) {
+      setNameError("名称を入力してください");
+      return;
+    }
+    setNameError("");
+    handleSave();
+  };
   return (
     <AnimatePresence>
       {isEditing ? (
@@ -268,19 +286,20 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
           <MasterSidePanel
             isNew={!selectedMedicine}
             title={formData.name}
-            onTitleChange={(v) => updateForm({ name: v })}
+            onTitleChange={(v) => { updateForm({ name: v }); if (v.trim()) setNameError(""); }}
             onClose={handleCloseEdit}
-            onSave={handleSave}
+            action={handleAction}
             onDelete={selectedMedicine ? handleDeleteRequest : undefined}
             icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
             titlePlaceholder="薬品名"
+            titleError={nameError}
           >
             {/* Properties */}
             {/* Parent category select */}
             <PropertyRow label="親カテゴリ">
               {isCategory ? (
                 // カテゴリはルート固定 — 変更不可
-                <span className={`text-sm ${C.text}`}>なし（ルート）</span>
+                <span className={`text-base ${C.text}`}>なし（ルート）</span>
               ) : (
                 <Select
                   value={formData.parentId || "__none__"}
@@ -302,10 +321,10 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
             {/* Price — カテゴリは子項目に設定するため disabled */}
             <PropertyRow label="単価(税込)">
               {isCategory ? (
-                <span className={`text-sm ${C.text35} select-none`}>子項目に金額を設定</span>
+                <span className={`text-base ${C.text35} select-none`}>子項目に金額を設定</span>
               ) : (
                 <div className="flex items-center gap-1">
-                  <span className={`text-sm ${C.text40}`}>¥</span>
+                  <span className={`text-base ${C.text40}`}>¥</span>
                   <input
                     type="number"
                     min={0}
@@ -316,6 +335,24 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
                   />
                 </div>
               )}
+            </PropertyRow>
+
+            {/* Tax type */}
+            <PropertyRow label="課税区分">
+              <TaxTypeSelector
+                value={formData.taxType}
+                onChange={(v) => updateForm({ taxType: v })}
+                disabled={isCategory}
+              />
+            </PropertyRow>
+
+            {/* Tax rate */}
+            <PropertyRow label="税率">
+              <TaxRateSelector
+                value={formData.taxRate}
+                onChange={(v) => updateForm({ taxRate: v })}
+                disabled={isCategory}
+              />
             </PropertyRow>
 
             {/* Status */}
@@ -331,7 +368,7 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
 
             {/* Description */}
             <PropertyRow label="備考">
-              <PropInput
+              <PropertyInput
                 value={formData.description}
                 onChange={(v) => updateForm({ description: v })}
                 placeholder="空"
@@ -342,9 +379,9 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
             <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
             <div className="py-1">
               <div className="flex items-center gap-1.5 py-2 mb-1">
-                <Pill className={`size-3.5 ${C.text40}`} />
+                <Pill className={`${ICON.xs} ${C.text40}`} />
                 <span
-                  className={`text-xs font-medium ${C.text50} uppercase tracking-wide select-none`}
+                  className={`text-base font-medium ${C.text50} uppercase tracking-wide select-none`}
                 >
                   薬剤詳細
                 </span>
@@ -399,6 +436,7 @@ export function MedicineSettings() {
 
   // ── UI state ──
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   // null=closed, "new"=create mode, Medicine=edit mode
   const [editTarget, setEditTarget] = useState<Medicine | "new" | null>(null);
@@ -466,8 +504,15 @@ export function MedicineSettings() {
   const deferredSearch = useDeferredValue(searchTerm);
 
   const { groupedMedicines, ungroupedMedicines, totalCount } = useMemo(() => {
+    let items = orderedMedicines;
+    for (const f of activeFilters) {
+      if (f.key === "status" && typeof f.value === "string") {
+        const want = f.value === "active";
+        items = items.filter((m) => f.condition === "is" ? m.isActive === want : m.isActive !== want);
+      }
+    }
     const lower = deferredSearch.toLowerCase();
-    const filtered = orderedMedicines.filter(
+    const filtered = items.filter(
       (m) => !deferredSearch || m.name.toLowerCase().includes(lower),
     );
 
@@ -501,7 +546,7 @@ export function MedicineSettings() {
     }
 
     return { groupedMedicines: groups, ungroupedMedicines: ungrouped, totalCount: filtered.length };
-  }, [orderedMedicines, deferredSearch, medicinesById]);
+  }, [orderedMedicines, activeFilters, deferredSearch, medicinesById]);
 
   // ── Handlers ──
 
@@ -584,6 +629,8 @@ export function MedicineSettings() {
       price: medicine.price,
       description: medicine.description,
       isActive: medicine.isActive,
+      taxType: medicine.taxType ?? "excluded",
+      taxRate: medicine.taxRate ?? 0.1,
     });
   }, []);
 
@@ -619,6 +666,8 @@ export function MedicineSettings() {
           price: effectivePrice,
           description: formData.description,
           is_active: formData.isActive,
+          tax_type: formData.taxType,
+          tax_rate: formData.taxRate,
         };
         // parent_id の処理
         if (formData.parentId) {
@@ -645,6 +694,8 @@ export function MedicineSettings() {
           price: effectivePrice,
           description: formData.description,
           is_active: formData.isActive,
+          tax_type: formData.taxType,
+          tax_rate: formData.taxRate,
           ...(formData.parentId ? { parent_id: Number(formData.parentId) } : {}),
         };
         createMutation.mutate(req, {
@@ -728,7 +779,7 @@ export function MedicineSettings() {
                         onClick={(e) => e.stopPropagation()}
                         className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/20 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F]/50 transition-colors cursor-grab"
                       >
-                        <GripVertical className="size-4" />
+                        <GripVertical className={ICON.action} />
                       </button>
                     </TableCell>
 
@@ -744,14 +795,14 @@ export function MedicineSettings() {
                           className="flex items-center gap-1.5 py-1.5 px-1 hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] transition-colors"
                         >
                           <ChevronRight
-                            className={`size-3.5 text-[#37352F]/50 transition-transform duration-150 ${
+                            className={`size-5 text-[#37352F]/50 transition-transform duration-150 ${
                               isCollapsed ? "" : "rotate-90"
                             }`}
                           />
-                          <span className="text-xs font-medium text-[#37352F]/65">
+                          <span className="text-base font-medium text-[#37352F]/65">
                             {header.name}
                           </span>
-                          <span className="text-xs text-[#37352F]/40 ml-0.5">{items.length}</span>
+                          <span className="text-base text-[#37352F]/40 ml-0.5">{items.length}</span>
                         </button>
                         <div className="flex-1" />
                         <button
@@ -762,7 +813,7 @@ export function MedicineSettings() {
                           }}
                           className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors opacity-0 group-hover/header:opacity-100"
                         >
-                          <Plus className="size-3.5" />
+                          <Plus className={`${ICON.xs}`} />
                         </button>
                       </div>
                     </TableCell>
@@ -786,7 +837,7 @@ export function MedicineSettings() {
                             type="button"
                             className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors opacity-0 group-hover/header:opacity-100"
                           >
-                            <MoreHorizontal className="size-4" />
+                            <MoreHorizontal className={ICON.action} />
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -847,9 +898,9 @@ export function MedicineSettings() {
       <button
         type="button"
         onClick={() => handleCreate()}
-        className="flex items-center gap-1.5 w-full px-3 py-2.5 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]"
+        className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]"
       >
-        <Plus className="size-3.5" />
+        <Plus className={`${ICON.xs}`} />
         新しい薬剤を追加...
       </button>
     </div>
@@ -861,21 +912,24 @@ export function MedicineSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="薬剤マスタ"
-            icon={<Pill className="size-5 text-[#37352F]" />}
+            icon={<Pill className={`${ICON.page} text-[#37352F]`} />}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
               <PrimaryButton onClick={() => handleCreate()}>
-                <Plus className="mr-1.5 size-4" />
+                <Plus className={`mr-1.5 ${ICON.action}`} />
                 新規登録
               </PrimaryButton>
             }
           >
             <div className="flex flex-col gap-4">
-              <SearchFilterBar
+              <NotionFilter
+                properties={[MASTER_STATUS_FILTER]}
+                activeFilters={activeFilters}
+                onFilterChange={setActiveFilters}
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                placeholder="薬品名で検索..."
+                searchPlaceholder="薬品名で検索..."
                 count={totalCount}
               />
               {tableContent}

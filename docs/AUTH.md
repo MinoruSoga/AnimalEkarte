@@ -3,7 +3,10 @@
 本ドキュメントは、システムの認証（Authentication）および認可（Authorization）の設計を定義します。
 マルチクリニック対応のRBAC（Role-Based Access Control）モデルを採用し、ユーザー種別・職種・権限の3層構造で柔軟なアクセス制御を実現します。
 
-**バージョン**: v3.0 | **最終更新**: 2026-03-12
+**バージョン**: v6.0 | **最終更新**: 2026-03-29
+
+> **ドキュメント方針**: 本ドキュメントは「あるべき姿（ベストプラクティス）」を記述します。
+> 現在の実装が本設計と乖離している箇所は `> ⚠️ 現在の実装:` として注記しています。
 
 ---
 
@@ -12,17 +15,17 @@
 1. [設計方針](#設計方針)
 2. [ユーザーモデル（3層構造）](#ユーザーモデル3層構造)
    - [2.1 ユーザー種別 (UserType)](#21-ユーザー種別-usertype)
-   - [2.2 職種 (JobTitle)](#22-職種-jobtitle)
-   - [2.3 権限 (Permission)](#23-権限-permission)
+   - [2.2 職種 (StaffRole / JobTitle)](#22-職種-staffrole--jobtitle)
+   - [2.3 権限グループ (PermissionGroup)](#23-権限グループ-permissiongroup)
 3. [マルチクリニック設計](#マルチクリニック設計)
 4. [認証フロー](#認証フロー)
 5. [権限マトリクス](#権限マトリクス)
 6. [DB設計](#db設計)
-   - [6.1 新規ENUM型](#61-新規enum型)
-   - [6.2 新規テーブル](#62-新規テーブル)
+   - [6.1 ENUM型](#61-enum型)
+   - [6.2 テーブル](#62-テーブル)
    - [6.3 既存テーブルへの影響](#63-既存テーブルへの影響)
    - [6.4 インデックス](#64-インデックス)
-7. [RLSポリシー設計](#rlsポリシー設計)
+7. [アプリケーション層認可設計](#アプリケーション層認可設計)
 8. [フロントエンド実装方針](#フロントエンド実装方針)
 9. [既存システムとの統合](#既存システムとの統合)
 
@@ -32,14 +35,14 @@
 
 | 項目 | 方針 |
 |------|------|
-| **3層モデル** | ユーザー種別（システムレベル）→ 職種（表示・テンプレート用）→ 権限（機能アクセス制御）の3層で分離 |
-| **権限の複数保持** | 1ユーザーが複数の権限を同時に保持可能（例: 医師権限 + アカウント管理者権限） |
-| **クリニックスコープ** | 権限はクリニック単位でスコープされる（運営管理者を除く） |
+| **3層モデル** | ユーザー種別（システムレベル）→ 職種（表示・テンプレート用）→ 権限グループ（リソース×CRUD制御）の3層で分離 |
+| **権限グループの複数保持** | 1ユーザーが複数の権限グループに所属可能（例: 一般 + 管理者） |
+| **companyスコープ** | 権限グループは company 単位で管理される（クリニック横断で共通の権限設定）。データの clinic_id 分離は維持 |
 | **職種と権限の分離** | 職種（何者であるか）と権限（何ができるか）を明確に分離。職種は権限テンプレートの初期値として使用 |
 | **最小権限の原則** | デフォルトでは最小限の権限のみ付与。必要に応じて権限を追加 |
 | **認証方式** | メールアドレス + パスワードによるログイン。将来的にSSO/SAML対応を想定 |
-| **セッション管理** | JWT（アクセストークン + リフレッシュトークン）ベース |
-| **監査ログ** | ログイン・ログアウト・権限変更を記録（将来実装） |
+| **セッション管理** | 短命アクセストークン (15分 JWT) + 長命リフレッシュトークン (7日 opaque) の dual-token。両方 httpOnly Cookie で管理。リフレッシュトークンは DB に保存しサーバー側で無効化可能にする |
+| **監査ログ** | ログイン・ログアウト・権限変更・重要リソース操作を `audit_logs` テーブルに記録 |
 
 ---
 
@@ -54,17 +57,17 @@
 │  │  運営管理者    │  医院管理者   │   スタッフ    │                     │
 │  └──────────────┴──────────────┴──────────────┘                     │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Layer 2: 職種 (JobTitle)                                           │
+│  Layer 2: 職種 (StaffRole / JobTitle)                               │
 │  業務上の肩書き・デフォルト権限テンプレートの決定                           │
 │  ┌──────┬──────┬──────┬──────┬──────┐                               │
 │  │ 医師  │ 看護師│トリマー│ 受付  │ 職員  │                               │
 │  └──────┴──────┴──────┴──────┴──────┘                               │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Layer 3: 権限 (Permission)                                         │
-│  機能単位のアクセス制御（複数保持可）                                     │
-│  ┌────────────┬────────┬────────┬────────┬──────┬──────┬──────┐     │
-│  │account_admin│medical │trimming│billing │master│shift │ ...  │     │
-│  └────────────┴────────┴────────┴────────┴──────┴──────┴──────┘     │
+│  Layer 3: 権限グループ (PermissionGroup)                              │
+│  リソース×CRUDのグループベースアクセス制御（1ユーザー複数グループ可）          │
+│  ┌──────────┬──────────┬──────────┬──────────┬──────────┐           │
+│  │  管理者    │    執行    │    一般    │                                    │
+│  └──────────┴──────────┴──────────┴──────────┴──────────┘           │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -83,50 +86,82 @@
 - `clinic_admin`: 所属クリニック内の全権限を暗黙的に保持
 - `staff`: 明示的に付与された権限のみ
 
-### 2.2 職種 (JobTitle)
+### 2.2 職種 (StaffRole / JobTitle)
 
-業務上の肩書き。UI表示やシフト管理でのフィルタリング、権限テンプレートの初期値決定に使用。
+業務上の肩書き。UI表示・シフト管理でのフィルタリング・権限テンプレートの初期値決定に使用。
 
-| 職種 | 値 | 説明 | デフォルト権限テンプレート |
+**現在の実装（2層構造）:**
+
+| カラム / テーブル | 型 | 場所 | 説明 |
 |---|---|---|---|
-| **医師** | `veterinarian` | 獣医師。診療・カルテ・処方等の医療行為全般 | `medical`, `hospitalization` |
-| **看護師** | `nurse` | 動物看護師。医師の補助、入院管理、バイタル記録 | `medical_read`, `hospitalization` |
-| **トリマー** | `trimmer` | トリミング施術担当 | `trimming` |
-| **受付** | `reception` | 受付業務。予約・会計・飼主/ペット情報管理 | `reception`, `billing` |
-| **職員** | `general_staff` | 一般職員。在庫管理等のバックオフィス業務 | `inventory` |
+| `staffs.staff_role` | `staff_role` ENUM | `staffs` テーブル | 職種分類（`veterinarian|nurse|trimmer|reception|manager`） |
+| `staffs.job_title_id` | bigint FK → `job_titles` | `staffs` テーブル | 表示名・ラベル用の職種マスタ |
+| `user_accounts.job_title_id` | bigint FK → `job_titles` | `user_accounts` テーブル | ユーザー直接の職種（`staffs` 非紐付けの場合） |
+| `user_accounts.staff_id` | bigint FK → `staffs` | `user_accounts` テーブル | スタッフマスタへの紐付け |
 
-> **注**: デフォルト権限テンプレートはアカウント作成時の初期値であり、作成後に個別に権限の追加・削除が可能。
+`AuthUser.staffRole` はバックエンドが `user_accounts → staffs.staff_role` を JOIN して返す。
 
-> **既存 `StaffRole` との関係**: 既存の `STAFF_ROLE_VALUES` (`features/master/types`) の `manager` は `UserType.clinic_admin` に対応。`StaffRole` enum は `JobTitle` に移行し、`manager` を `general_staff` に置換する。マスタ設定のスタッフカテゴリ（`StaffSection`）では `JobTitle` を使用して表示。
+| 職種 | `staff_role` 値 | 説明 |
+|---|---|---|
+| **医師** | `veterinarian` | 獣医師。診療・カルテ・処方等の医療行為全般 |
+| **看護師** | `nurse` | 動物看護師。医師の補助、入院管理、バイタル記録 |
+| **トリマー** | `trimmer` | トリミング施術担当 |
+| **受付** | `reception` | 受付業務。予約・会計・飼主/ペット情報管理 |
+| **管理職** | `manager` | 医院管理者に準ずるロール（`clinic_admin` ユーザーに対応） |
 
-### 2.3 権限 (Permission)
+> **注**: `general_staff` 値は migration に**存在しない**。`manager` は現在も `staff_role` ENUM に残存。
+> `job_title` ENUM 型も migration に**存在しない**（設計上の `JobTitle` ENUM 移行は未実施）。
+> デフォルト権限テンプレートはアカウント作成時の初期値であり、作成後に個別調整可能。
 
-機能単位のアクセス制御。1ユーザーが複数の権限を同時に保持可能。
+### 2.3 権限グループ (PermissionGroup)
 
-| 権限 | 値 | 説明 | 対応する機能 |
-|---|---|---|---|
-| **アカウント管理者** | `account_admin` | スタッフアカウントの追加・編集・無効化、権限の付与・剥奪 | マスタ（スタッフ）、権限管理画面 |
-| **医師** | `medical` | カルテの作成・編集・確定、処方箋発行、診断書発行、検査オーダー | カルテ、検査、予防接種、定期健診 |
-| **カルテ閲覧** | `medical_read` | カルテの閲覧（編集不可）。看護師等の補助スタッフ向け | カルテ（読み取り専用） |
-| **トリマー** | `trimming` | トリミング記録の作成・編集 | トリミング |
-| **会計** | `billing` | 会計の作成・編集、入金処理、領収書・明細書発行 | 会計 |
-| **受付** | `reception` | 予約の作成・編集・キャンセル、飼主/ペット情報の登録・編集、ダッシュボードのステータス遷移 | 予約、飼主、ペット、ダッシュボード |
-| **入院管理** | `hospitalization` | 入院の登録・編集・退院処理、ケアプラン管理、デイリーログ記録 | 入院管理 |
-| **マスタ管理** | `master_admin` | マスタデータ（診療項目・薬剤・ケージ等）の追加・編集・無効化 | マスタ設定（全15カテゴリ） |
-| **シフト管理** | `shift_admin` | シフトの作成・編集。全スタッフのシフトを管理可能 | シフト管理 |
-| **在庫管理** | `inventory` | 在庫品目の登録・編集・数量更新 | 在庫管理 |
+**グループベース RBAC（実装済み）**: `permission_groups` テーブルで定義されたグループを通じてアクセスを制御。1ユーザーが複数のグループに所属可能。
 
-**権限の組み合わせ例:**
+#### 権限モデル
 
-| ユーザー | ユーザー種別 | 職種 | 保持権限 |
-|---|---|---|---|
-| 院長（A院） | `clinic_admin` | `veterinarian` | （暗黙的に全権限） |
-| 勤務医（A院・B院） | `staff` | `veterinarian` | `medical`, `hospitalization` |
-| 主任看護師（A院） | `staff` | `nurse` | `medical_read`, `hospitalization`, `shift_admin`, `inventory` |
-| トリマー兼受付（A院） | `staff` | `trimmer` | `trimming`, `reception`, `billing` |
-| 受付スタッフ（A院） | `staff` | `reception` | `reception`, `billing` |
-| 事務職員（A院） | `staff` | `general_staff` | `inventory`, `billing` |
-| 本部管理者 | `system_admin` | — | （暗黙的に全権限） |
+各権限グループは **15リソース × CRUD（4操作）** の細粒度アクセス制御を持つ。
+
+| リソース | キー | 説明 |
+|---|---|---|
+| ダッシュボード | `dashboard` | ダッシュボード |
+| 飼主管理 | `owners` | 飼主・ペット情報 |
+| 予約管理 | `reservations` | 予約登録・変更 |
+| 電子カルテ | `medical-records` | カルテ作成・確定 |
+| 入院管理 | `hospitalization` | 入院・退院処理 |
+| トリミング | `trimming` | トリミング記録 |
+| 診察管理 | `examinations` | 検査記録 |
+| 会計 | `accounting` | 会計・入金処理 |
+| 予防接種 | `vaccinations` | ワクチン記録 |
+| 定期健診 | `checkups` | 健診記録 |
+| 在庫管理 | `inventory` | 在庫品目管理 |
+| 見積 | `estimates` | 見積書管理 |
+| シフト管理 | `shifts` | シフト登録 |
+| マスタ設定 | `master` | 全マスタ + **権限グループ管理** |
+| 病院設定 | `hospital-settings` | クリニック基本情報 |
+
+#### シードデータ：3つの権限グループ
+
+| グループ名 | カラー | 主な用途 |
+|---|---|---|
+| **管理者** | `#EF4444` | 全15リソースフルアクセス（権限設定管理含む） |
+| **執行** | `#6366F1` | 全15リソース閲覧 + ほぼ全創作・編集（権限設定管理含む） |
+| **一般** | `#10B981` | 基本業務操作（医療・予約・トリミング等の作成・編集） |
+
+> **`master` リソースへのアクセス = 権限グループ管理画面へのアクセスを含む。**
+> 全グループ `master` / `hospital-settings` の閲覧（can_view）は可。作成・編集・削除は 管理者 と 執行 のみ。
+> `system_admin` / `clinic_admin` は全リソースへの暗黙的フルアクセス（グループ不要）。
+
+**ユーザーとグループの組み合わせ例:**
+
+| ユーザー | ユーザー種別 | 権限グループ |
+|---|---|---|
+| 院長（clinic_admin） | `clinic_admin` | （暗黙的に全権限） |
+| 院長補佐 | `staff` | 管理者 |
+| 部長 | `staff` | 執行 |
+| 勤務医 | `staff` | 一般 |
+| 動物看護師 | `staff` | 一般 |
+| 受付 | `staff` | 一般 |
+| トリマー | `staff` | 一般 |
 
 ---
 
@@ -141,19 +176,22 @@
 │  id          │       │  user_id (FK)         │       │  id          │
 │  email       │       │  clinic_id (FK)       │       │  name        │
 │  user_type   │       │  is_main (BOOLEAN)    │       │  branch_name │
-│  job_title   │       │  joined_at            │       │  ...         │
+│  job_title_id│       │  joined_at            │       │  ...         │
 │  ...         │       └──────────────────────┘       └──────────────┘
 └─────────────┘
          │
-         │ 1   N
+         │ N   N  （user_permission_groups 中間テーブル）
          ▼
-┌─────────────────────┐
-│  UserPermission      │
-│                      │
-│  user_id (FK)        │
-│  clinic_id (FK)      │
-│  permission          │
-└─────────────────────┘
+┌─────────────────────┐       ┌──────────────────────────┐
+│  PermissionGroup     │ 1   N │  PermissionGroupRule      │
+│                      │───────│                           │
+│  id                  │       │  group_id (FK)            │
+│  company_id (FK)     │       │  resource (TEXT)          │
+│  name                │       │  can_view (BOOL)          │
+│  description         │       │  can_create (BOOL)        │
+│  color               │       │  can_edit (BOOL)          │
+└─────────────────────┘       │  can_delete (BOOL)        │
+                               └──────────────────────────┘
 ```
 
 ### 所属ルール
@@ -163,7 +201,7 @@
 | **複数クリニック所属** | 1ユーザーは複数のクリニックに所属可能 |
 | **メインクリニック** | 各ユーザーは必ず1つのメインクリニック (`is_main = true`) を持つ。ログイン後の初期表示クリニック |
 | **メインクリニック一意制約** | 1ユーザーにつき `is_main = true` は1レコードのみ（部分一意インデックスで保証） |
-| **権限のクリニックスコープ** | `UserPermission` はクリニック単位。同一ユーザーがA院では `medical` 権限、B院では `trimming` 権限のみ、という設定が可能 |
+| **権限の companyスコープ** | `permission_groups` は company 単位で管理（TASK-049）。グループ設定は全クリニック共通。データアクセスの clinic_id 分離とは独立して管理 |
 | **運営管理者の例外** | `system_admin` はクリニック所属に関係なく全クリニックにアクセス可能 |
 
 ### クリニック切替
@@ -172,7 +210,7 @@
 - 所属クリニックが複数ある場合、クリックでドロップダウンメニューを展開
 - クリニック切替時:
   1. `currentClinicId` をコンテキストで更新
-  2. 切替先クリニックでの権限セットを再ロード
+  2. 権限は company 単位のため追加 API コール不要（既存の `permissions` はそのまま有効）
   3. 現在のページを維持（権限がある場合）またはダッシュボードにリダイレクト（権限がない場合）
   4. サイドナビバーのメニュー項目を権限に基づいてフィルタリング
 
@@ -187,30 +225,69 @@
   │                           │                             │
   │  メール + パスワード入力    │                             │
   │ ─────────────────────────>│                             │
-  │                           │  POST /auth/login           │
+  │                           │  POST /v1/login             │
+  │                           │  { email, password }        │
   │                           │ ────────────────────────────>│
-  │                           │                             │  認証検証
-  │                           │                             │  JWT生成
-  │                           │  { accessToken,             │
-  │                           │    refreshToken,            │
-  │                           │    user: {                  │
+  │                           │                             │  1. FindByEmail()
+  │                           │                             │  2. bcrypt.Compare()
+  │                           │                             │  3. GetMemberships()
+  │                           │                             │  4. CalcEffectivePermissions()
+  │                           │                             │  5. JWT(15分) 生成
+  │                           │                             │  6. RefreshToken(opaque,7日) 生成
+  │                           │                             │  7. refresh_tokens テーブルに保存
+  │                           │                             │  8. Set-Cookie: access_token (15分)
+  │                           │                             │     Set-Cookie: refresh_token (7日)
+  │                           │  200 OK                     │
+  │                           │  { user: {                  │
   │                           │      id, email, userType,   │
-  │                           │      jobTitle,              │
+  │                           │      staffRole, avatarUrl,  │
   │                           │      mainClinicId,          │
   │                           │      clinics: [...],        │
-  │                           │      permissions: {...}     │
+  │                           │      permissions: {         │
+  │                           │        resource → CRUD      │
+  │                           │      }                      │
   │                           │    }                        │
   │                           │  }                          │
   │                           │ <────────────────────────────│
   │                           │                             │
   │                           │  AuthContext にセット         │
-  │                           │  currentClinicId =           │
+  │                           │  currentClinicId =          │
   │                           │    mainClinicId             │
   │                           │                             │
   │  メインクリニックの         │                             │
   │  ダッシュボード (`/`) へ遷移 │                             │
   │ <─────────────────────────│                             │
 ```
+
+> ✅ 実装済み: dual-token（`access_token` 15分 JWT + `refresh_token` 7日 opaque token）。`refresh_tokens` テーブルでサーバー側無効化対応済み。
+
+### トークンリフレッシュフロー
+
+```
+フロントエンド (Axiosインターセプター)       バックエンド
+  │                                          │
+  │  API リクエスト (access_token 期限切れ)  │
+  │ ────────────────────────────────────────>│ 401 Unauthorized
+  │ <────────────────────────────────────────│
+  │                                          │
+  │  POST /v1/auth/refresh                   │
+  │  (Cookie: refresh_token 自動送信)         │
+  │ ────────────────────────────────────────>│
+  │                                          │  1. refresh_tokens テーブルで検証
+  │                                          │  2. 期限・無効化フラグ確認
+  │                                          │  3. 旧トークンを無効化 (ローテーション)
+  │                                          │  4. 新 access_token (15分) 生成
+  │                                          │  5. 新 refresh_token (7日) 生成・DB保存
+  │                                          │  Set-Cookie: access_token (新)
+  │  200 OK                                  │  Set-Cookie: refresh_token (新)
+  │ <────────────────────────────────────────│
+  │                                          │
+  │  元のリクエストをリトライ                  │
+  │ ────────────────────────────────────────>│
+```
+
+**リフレッシュトークン ローテーション**: リフレッシュのたびに旧トークンを無効化し新トークンを発行する。
+これにより盗まれたリフレッシュトークンの使用を1回のみに限定できる（検知も可能）。
 
 ### ログイン後の初期遷移
 
@@ -224,156 +301,119 @@
 
 | 項目 | 仕様 |
 |---|---|
-| **アクセストークン** | JWT、有効期限15分 |
-| **リフレッシュトークン** | Opaque token、有効期限7日、httpOnly Cookie |
-| **トークンリフレッシュ** | アクセストークン期限切れ時に自動リフレッシュ（APIインターセプター） |
-| **ログアウト** | リフレッシュトークンをサーバー側で無効化 + クライアントのトークンをクリア |
-| **同時セッション** | 1ユーザーにつき最大3デバイスまで（超過時は最古セッションを無効化） |
+| **アクセストークン** | JWT (HS256)、有効期限 **15分**、httpOnly Cookie (`access_token`) |
+| **リフレッシュトークン** | Opaque token (crypto.randomBytes(32) → hex)、有効期限 **7日**、httpOnly Cookie (`refresh_token`)、`refresh_tokens` テーブルに保存 |
+| **Cookie 設定** | `HttpOnly: true`、`Secure: true` (本番)、`SameSite: None` (本番・クロスドメイン) / `Lax` (開発)、`Path: /` |
+| **トークンリフレッシュ** | Axios レスポンスインターセプターが 401 を検知 → `POST /v1/auth/refresh` → 元リクエストをリトライ |
+| **トークンローテーション** | リフレッシュのたびに旧リフレッシュトークンを無効化し新トークンを発行（再使用検知のため） |
+| **ログアウト** | `DELETE /v1/auth/refresh` でサーバー側の refresh_tokens レコードを削除 + 両 Cookie を MaxAge=-1 でクリア |
+| **強制ログアウト** | `DELETE /v1/users/:id/sessions` で `refresh_tokens` テーブルの全レコードを削除（パスワード変更・アカウント停止時） |
+| **同時セッション** | 1ユーザーにつき最大 **5デバイス**まで（超過時は最古セッションを無効化） |
+
+> ✅ 実装済み: dual-token（`access_token` 15分 + `refresh_token` 7日）、httpOnly Cookie、`refresh_tokens` テーブルによるサーバー側無効化。本番は `SameSite=None`（Vercel ↔ CloudFront クロスドメイン対応）。
+
+#### Cookie 設定の根拠
+
+| 設定 | 目的 |
+|------|------|
+| `HttpOnly` | JavaScript から Cookie にアクセス不可 → XSS でトークン盗取を防止 |
+| `Secure` | HTTPS のみ送信 → 中間者攻撃を防止 |
+| `SameSite=None` (本番) | Vercel (フロントエンド) ↔ CloudFront (API) のクロスドメイン通信で Cookie を送信するために必要。`Secure=true` とセット必須 |
+| トークンを localStorage に保存しない | XSS で `document.cookie` にアクセスできなくても localStorage は読み取り可能なため |
 
 ---
 
 ## 権限マトリクス
 
-### ページアクセス権限
+### 権限グループ別リソースアクセス（実装済みシードデータ）
 
-| ページ | ルート | `reception` | `medical` | `medical_read` | `trimming` | `billing` | `hospitalization` | `master_admin` | `shift_admin` | `inventory` | `account_admin` |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| ダッシュボード | `/` | R/W | R | R | R | R | R | — | — | — | — |
-| 飼主一覧 | `/owners` | R/W | R | R | R | R | R | — | — | — | — |
-| 飼主登録/編集 | `/owners/new`, `/owners/:id` | R/W | R/W | R | — | R | — | — | — | — | — |
-| 予約管理 | `/reservations` | R/W | R | R | R | — | — | — | — | — | — |
-| カルテ一覧 | `/medical-records` | R | R/W | R | — | R | R | — | — | — | — |
-| カルテ作成/編集 | `/medical-records/new`, `/:id` | — | R/W | R | — | — | — | — | — | — | — |
-| 入院一覧 | `/hospitalization` | R | R | R | — | — | R/W | — | — | — | — |
-| 入院登録/詳細 | `/hospitalization/new`, `/:id` | — | R/W | R | — | — | R/W | — | — | — | — |
-| トリミング一覧 | `/trimming` | R | — | — | R/W | R | — | — | — | — | — |
-| トリミング登録/編集 | `/trimming/new`, `/:id` | — | — | — | R/W | — | — | — | — | — | — |
-| 検査管理 | `/examinations` | — | R/W | R | — | — | — | — | — | — | — |
-| 会計一覧 | `/accounting` | R | R | R | — | R/W | — | — | — | — | — |
-| 会計詳細 | `/accounting/:id` | — | R | R | — | R/W | — | — | — | — | — |
-| 予防接種一覧 | `/vaccinations` | R | R/W | R | — | — | — | — | — | — | — |
-| 定期健診一覧 | `/checkups` | R | R/W | R | — | — | — | — | — | — | — |
-| 在庫管理 | `/inventory` | — | — | — | — | — | — | — | — | R/W | — |
-| シフト管理 | `/shifts` | R | R | R | R | R | R | — | R/W | — | — |
-| マスタ設定 | `/settings/*` | — | — | — | — | — | — | R/W | — | — | — |
-| 病院情報 | `/settings/clinic` | — | — | — | — | — | — | R/W | — | — | — |
+凡例: ✓=可、−=不可。操作列は View / Create / Edit / Delete の順。
 
-> **凡例**: R = 閲覧のみ、R/W = 閲覧+編集、— = アクセス不可
-> **注**: `system_admin` と `clinic_admin` は全ページにR/Wアクセス可能（マトリクスから省略）。
-> **注**: ダッシュボード (`/`) は全権限で閲覧可能。カードのD&D（ステータス遷移）操作は `reception` 権限が必要。
-
-### 機能別操作権限
-
-ページ内の特定機能に対する操作権限の詳細定義。
-
-#### カルテ管理（`/medical-records/:id`）
-
-| タブ / 機能 | 閲覧 | 編集・操作 | 説明 |
+| リソース | 管理者 | 執行 | 一般 |
 |---|---|---|---|
-| **問診タブ** | `medical`, `medical_read` | `medical` | 主訴・現病歴・身体検査の入力 |
-| **治療タブ** | `medical`, `medical_read`, `billing` | `medical` | 治療項目の追加・削除、数量・単価編集 |
-| **処方タブ** | `medical`, `medical_read` | `medical` | 処方薬の追加・削除、処方内容編集 |
-| **予防接種タブ** | `medical`, `medical_read`, `reception` | `medical` | ワクチン接種記録の登録・編集 |
-| **定期健診タブ** | `medical`, `medical_read`, `reception` | `medical` | 健診記録の登録・編集 |
-| **検査タブ** | `medical`, `medical_read` | `medical` | 検査オーダー・結果記録 |
-| **画像タブ** | `medical`, `medical_read` | `medical` | 画像アップロード・削除 |
-| **見積書タブ** | `medical`, `medical_read`, `billing` | `medical` | 見積PDF出力 |
-| **会計確認タブ** | `medical`, `medical_read`, `billing` | `medical` | 算定チェック・確認 |
-| **会計確認タブ - チェック完了** | — | `medical` | 「チェック完了」「未チェックに戻す」トグル操作（医師による算定最終確認） |
-| **会計確認タブ - 会計へ進む/会計を確認** | `medical`, `billing` | `medical`, `billing` | 会計画面への遷移・既存会計の確認 |
-| **バイタル入力** | — | `medical`, `medical_read`, `hospitalization` | 体温・心拍数・呼吸数・体重の記録 |
-| **カルテ確定** | — | `medical` | カルテステータスを「確定」に変更（編集ロック） |
+| `dashboard` | ✓/−/−/− | ✓/−/−/− | ✓/−/−/− |
+| `owners` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/✓/✓/− |
+| `reservations` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/✓/✓/− |
+| `medical-records` | ✓/✓/✓/✓ | ✓/−/−/− | ✓/✓/✓/− |
+| `hospitalization` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/✓/✓/− |
+| `trimming` | ✓/✓/✓/✓ | ✓/−/−/− | ✓/✓/✓/− |
+| `examinations` | ✓/✓/✓/✓ | ✓/−/−/− | ✓/✓/✓/− |
+| `accounting` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
+| `vaccinations` | ✓/✓/✓/✓ | ✓/−/−/− | ✓/✓/✓/− |
+| `checkups` | ✓/✓/✓/✓ | ✓/−/−/− | ✓/−/−/− |
+| `inventory` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
+| `estimates` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
+| `shifts` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/✓/✓/− |
+| `master` | **✓/✓/✓/✓** | **✓/✓/✓/−** | ✓/−/−/− |
+| `hospital-settings` | ✓/✓/✓/✓ | ✓/−/−/− | ✓/−/−/− |
 
-#### 入院管理（`/hospitalization/:id`）
-
-| 機能 | 閲覧 | 編集・操作 | 説明 |
-|---|---|---|---|
-| **入院基本情報** | `medical`, `medical_read`, `hospitalization` | `medical`, `hospitalization` | 入院日・退院予定日・ケージ・主治医等 |
-| **ケアプラン** | `medical`, `medical_read`, `hospitalization` | `medical`, `hospitalization` | ケア項目・タイミング・担当スタッフの設定 |
-| **デイリーログ** | `medical`, `medical_read`, `hospitalization` | `hospitalization` | 日次のケア実施記録・バイタル・スタッフメモ |
-| **退院処理** | — | `medical`, `hospitalization` | 退院ステータスへの変更 |
-
-#### 会計管理（`/accounting/:id`）
-
-| 機能 | 閲覧 | 編集・操作 | 説明 |
-|---|---|---|---|
-| **会計明細編集** | `medical`, `medical_read`, `billing` | `billing` | 明細項目の追加・削除・数量変更 |
-| **入金処理** | `medical`, `medical_read`, `billing` | `billing` | 入金額・支払方法の記録 |
-| **領収書・明細書発行** | `medical`, `medical_read`, `billing` | `billing` | PDF出力 |
-| **会計確定** | — | `billing` | 会計ステータスを「確定」に変更 |
-
-#### トリミング管理（`/trimming/:id`）
-
-| 機能 | 閲覧 | 編集・操作 | 説明 |
-|---|---|---|---|
-| **施術内容編集** | `trimming`, `billing` | `trimming` | コース・オプション・担当トリマーの設定 |
-| **施術完了** | — | `trimming` | ステータスを「完了」に変更 |
-
-> **凡例**:
-> - 閲覧権限を持つユーザーはタブ/機能を表示・参照可能
-> - 編集・操作権限を持つユーザーのみがボタン操作・データ更新可能
-> - 複数の権限が記載されている場合、いずれか1つを保持していれば操作可能
+> **重要**: `master` リソース = マスタ設定ページ全般（権限グループ管理含む）。
+> 全グループが `master` / `hospital-settings` を閲覧可（can_view=true）。
+> `master` の作成・編集は管理者・執行が可能。`hospital-settings` の作成・編集・削除は管理者のみ。
 
 ### サイドナビバー表示制御
 
-権限に基づきサイドナビバーのメニュー項目を動的にフィルタリング。
+`usePermission(resource).canView` が true のリソースに応じてフィルタリング。
 
-| メニュー項目 | 必要な権限（いずれか1つ） |
+| メニュー項目 | 必要なリソース（`view` が true） |
 |---|---|
-| ダッシュボード | （常時表示） |
-| 予約管理 | `reception`, `medical`, `medical_read`, `trimming` |
-| 飼主管理 | `reception`, `medical`, `medical_read`, `billing` |
-| カルテ | `medical`, `medical_read`, `billing`, `hospitalization` |
-| 入院管理 | `medical`, `medical_read`, `hospitalization` |
-| トリミング | `trimming`, `billing` |
-| 検査管理 | `medical`, `medical_read` |
-| 会計 | `billing`, `medical`, `medical_read` |
-| 予防接種 | `medical`, `medical_read`, `reception` |
-| 定期健診 | `medical`, `medical_read`, `reception` |
+| ダッシュボード | `dashboard` |
+| 予約管理 | `reservations` |
+| 飼主管理 | `owners` |
+| カルテ | `medical-records` |
+| 入院管理 | `hospitalization` |
+| トリミング | `trimming` |
+| 検査管理 | `examinations` |
+| 会計 | `accounting` |
+| 予防接種 | `vaccinations` |
+| 定期健診 | `checkups` |
 | 在庫管理 | `inventory` |
-| シフト管理 | （常時表示、編集は `shift_admin` 必要） |
-| マスタ設定 | `master_admin`, `account_admin` |
+| 見積 | `estimates` |
+| シフト管理 | `shifts` |
+| マスタ設定 | `master` |
+
+### デモアカウント（シードデータ）
+
+| メールアドレス | パスワード | ユーザー種別 | 権限グループ | 説明 |
+|---|---|---|---|---|
+| `admin@example.com` | `password` | `clinic_admin` | （暗黙的に全権限） | 医院管理者 |
+| `manager@example.com` | `password` | `staff` | 管理者 | 院長補佐（全リソースフルアクセス） |
+| `exec@example.com` | `password` | `staff` | 執行 | 部長（業務全般閲覧＋権限管理） |
+| `vet@example.com` | `password` | `staff` | 一般 | 勤務医 |
+| `nurse@example.com` | `password` | `staff` | 一般 | 動物看護師 |
+| `reception@example.com` | `password` | `staff` | 一般 | 受付担当 |
+| `trimmer@example.com` | `password` | `staff` | 一般 | トリマー |
 
 ---
 
 ## DB設計
 
-### 6.1 新規ENUM型
+### 6.1 ENUM型
 
 ```sql
 -- ユーザー種別
 CREATE TYPE user_type AS ENUM ('system_admin', 'clinic_admin', 'staff');
 
--- 職種（既存 staff_role を拡張置換）
--- 既存: CREATE TYPE staff_role AS ENUM ('veterinarian', 'nurse', 'trimmer', 'reception', 'manager');
--- 変更: 'manager' → 'general_staff' に置換。'manager' は user_type.clinic_admin に移行
-CREATE TYPE job_title AS ENUM ('veterinarian', 'nurse', 'trimmer', 'reception', 'general_staff');
-
--- 権限
-CREATE TYPE permission_type AS ENUM (
-  'account_admin',
-  'medical',
-  'medical_read',
-  'trimming',
-  'billing',
-  'reception',
-  'hospitalization',
-  'master_admin',
-  'shift_admin',
-  'inventory'
-);
+-- 職種（staffs テーブルで使用）
+CREATE TYPE staff_role AS ENUM ('veterinarian', 'nurse', 'trimmer', 'reception', 'manager');
 
 -- アカウントステータス
 CREATE TYPE account_status AS ENUM ('active', 'inactive', 'locked');
 ```
 
-### 6.2 新規テーブル
+> ⚠️ `job_title` ENUM は migration に**存在しない**。設計ドキュメントで言及される `general_staff` 値も未実装。
+> `job_titles` は FK テーブルとして管理（`staffs.job_title_id`, `user_accounts.job_title_id`）。
+
+> **廃止済み**: `permission_type` ENUM（`account_admin`, `medical` 等の10値）は**実装されていない**。
+> 権限制御は `permission_groups` + `permission_group_rules` テーブルで行う（§6.2参照）。
+
+### 6.2 テーブル
 
 #### `clinics` — クリニック（`clinic_info` を拡張・複数院対応）
 
 | カラム | 型 | 制約 | 説明 |
 |--------|-----|------|------|
-| `id` | `UUID` | `PK DEFAULT gen_random_uuid()` | クリニックID |
+| `id` | `BIGINT` | `PK DEFAULT -` | クリニックID |
 | `name` | `TEXT` | `NOT NULL` | 医院名 |
 | `branch_name` | `TEXT` | `DEFAULT ''` | 支院名 |
 | `postal_code` | `TEXT` | `DEFAULT ''` | 郵便番号 |
@@ -391,7 +431,7 @@ CREATE TYPE account_status AS ENUM ('active', 'inactive', 'locked');
 
 ```sql
 CREATE TABLE clinics (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                  BIGINT PRIMARY KEY DEFAULT -,
   name                TEXT NOT NULL,
   branch_name         TEXT DEFAULT '',
   postal_code         TEXT DEFAULT '',
@@ -417,37 +457,40 @@ CREATE TABLE clinics (
 
 | カラム | 型 | 制約 | 説明 |
 |--------|-----|------|------|
-| `id` | `UUID` | `PK DEFAULT gen_random_uuid()` | ユーザーID |
-| `email` | `TEXT` | `NOT NULL UNIQUE` | メールアドレス（ログインID） |
-| `display_name` | `TEXT` | `NOT NULL` | 表示名 |
-| `display_name_kana` | `TEXT` | | 表示名カナ |
+| `id` | `BIGSERIAL` | `PK` | ユーザーID |
+| `email` | `text` | `NOT NULL UNIQUE` | メールアドレス（ログインID） |
+| `display_name` | `text` | `NOT NULL` | 表示名 |
+| `display_name_kana` | `text` | `NOT NULL DEFAULT ''` | 表示名カナ |
 | `user_type` | `user_type` | `NOT NULL DEFAULT 'staff'` | ユーザー種別 |
-| `job_title` | `job_title` | | 職種（`system_admin` は NULL 可） |
-| `status` | `account_status` | `NOT NULL DEFAULT 'active'` | アカウントステータス |
-| `avatar_url` | `TEXT` | | アバター画像URL |
-| `staff_master_id` | `UUID` | `FK → master_items.id` | 既存スタッフマスタへの紐付け |
-| `last_login_at` | `TIMESTAMPTZ` | | 最終ログイン日時 |
-| `created_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 作成日時 |
-| `updated_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 更新日時 |
+| `job_title_id` | `bigint` | `FK → job_titles(id) SET NULL` | 職種マスタ（`system_admin` は NULL 可） |
+| `status` | `account_status` | `DEFAULT 'active'` | アカウントステータス |
+| `avatar_url` | `text` | `NOT NULL DEFAULT ''` | アバター画像URL |
+| `staff_id` | `bigint` | `FK → staffs(id) SET NULL` | スタッフマスタへの紐付け（`staff_role` 取得に使用） |
+| `password_hash` | `text` | `NOT NULL DEFAULT ''` | bcrypt ハッシュ |
+| `created_at` | `timestamptz` | `NOT NULL DEFAULT now()` | 作成日時 |
+| `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` | 更新日時 |
+| `deleted_at` | `timestamptz` | | 論理削除（NULL = 有効） |
 
 ```sql
 CREATE TABLE user_accounts (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email            TEXT NOT NULL UNIQUE,
-  display_name     TEXT NOT NULL,
-  display_name_kana TEXT,
-  user_type        user_type NOT NULL DEFAULT 'staff',
-  job_title        job_title,
-  status           account_status NOT NULL DEFAULT 'active',
-  avatar_url       TEXT,
-  staff_master_id  UUID REFERENCES master_items(id) ON DELETE SET NULL,
-  last_login_at    TIMESTAMPTZ,
-  created_at       TIMESTAMPTZ DEFAULT now(),
-  updated_at       TIMESTAMPTZ DEFAULT now()
+    id                BIGSERIAL      PRIMARY KEY,
+    email             text           NOT NULL UNIQUE,
+    display_name      text           NOT NULL,
+    display_name_kana text           NOT NULL DEFAULT '',
+    user_type         user_type      NOT NULL DEFAULT 'staff',
+    job_title_id      bigint                  REFERENCES job_titles(id) ON DELETE SET NULL,
+    status            account_status          DEFAULT 'active',
+    avatar_url        text           NOT NULL DEFAULT '',
+    staff_id          bigint                  REFERENCES staffs(id) ON DELETE SET NULL,
+    password_hash     text           NOT NULL DEFAULT '',
+    created_at        timestamptz    NOT NULL DEFAULT now(),
+    updated_at        timestamptz    NOT NULL DEFAULT now(),
+    deleted_at        timestamptz
 );
 ```
 
-> **`staff_master_id`**: 既存の `master_items` (category='staff') との紐付け。シフト管理・カルテの担当医表示等で既存のスタッフマスタデータを参照。認証実装後、スタッフマスタは `user_accounts` から派生する形に段階的に移行。
+> **`staff_id`**: `staffs` テーブルへの FK。`staffs.staff_role` を通じて `AuthUser.staffRole` を取得。
+> `job_title` ENUM 列は存在しない。職種は `job_titles` FK テーブルで管理。
 
 ---
 
@@ -455,18 +498,18 @@ CREATE TABLE user_accounts (
 
 | カラム | 型 | 制約 | 説明 |
 |--------|-----|------|------|
-| `id` | `UUID` | `PK DEFAULT gen_random_uuid()` | 所属ID |
-| `user_id` | `UUID` | `FK → user_accounts.id NOT NULL` | ユーザーID |
-| `clinic_id` | `UUID` | `FK → clinics.id NOT NULL` | クリニックID |
+| `id` | `BIGINT` | `PK DEFAULT -` | 所属ID |
+| `user_id` | `BIGINT` | `FK → user_accounts.id NOT NULL` | ユーザーID |
+| `clinic_id` | `BIGINT` | `FK → clinics.id NOT NULL` | クリニックID |
 | `is_main` | `BOOLEAN` | `NOT NULL DEFAULT false` | メインクリニックフラグ |
 | `joined_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 所属開始日時 |
 | `created_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 作成日時 |
 
 ```sql
 CREATE TABLE user_clinic_memberships (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    UUID NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
-  clinic_id  UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+  id         BIGINT PRIMARY KEY DEFAULT -,
+  user_id    BIGINT NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+  clinic_id  BIGINT NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   is_main    BOOLEAN NOT NULL DEFAULT false,
   joined_at  TIMESTAMPTZ DEFAULT now(),
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -481,28 +524,132 @@ CREATE UNIQUE INDEX idx_user_clinic_main
 
 ---
 
-#### `user_permissions` — ユーザー権限（クリニックスコープ）
+#### `permission_groups` — 権限グループ
+
+> ⚠️ **TASK-049**: `clinic_id` → `company_id` への移行により、権限グループが全クリニック共通になる予定。
+> **現在の実装**は `clinic_id` で clinic スコープ管理。
+
+**現在の実装（`clinic_id` ベース）:**
 
 | カラム | 型 | 制約 | 説明 |
 |--------|-----|------|------|
-| `id` | `UUID` | `PK DEFAULT gen_random_uuid()` | 権限レコードID |
-| `user_id` | `UUID` | `FK → user_accounts.id NOT NULL` | ユーザーID |
-| `clinic_id` | `UUID` | `FK → clinics.id NOT NULL` | クリニックID |
-| `permission` | `permission_type` | `NOT NULL` | 権限種別 |
-| `granted_by` | `UUID` | `FK → user_accounts.id` | 権限付与者 |
-| `granted_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 付与日時 |
+| `id` | `BIGSERIAL` | `PK` | グループID |
+| `clinic_id` | `bigint` | `FK → clinics.id NOT NULL` | クリニックID |
+| `name` | `varchar(100)` | `NOT NULL` | グループ名 |
+| `description` | `text` | `NOT NULL DEFAULT ''` | グループ説明 |
+| `color` | `varchar(7)` | `NOT NULL DEFAULT '#6B7280'` | 表示カラー（HEX） |
+| `created_at` | `timestamptz` | `NOT NULL DEFAULT now()` | 作成日時 |
+| `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` | 更新日時 |
+| `deleted_at` | `timestamptz` | | 論理削除（NULL = 有効） |
 
 ```sql
-CREATE TABLE user_permissions (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
-  clinic_id   UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
-  permission  permission_type NOT NULL,
-  granted_by  UUID REFERENCES user_accounts(id) ON DELETE SET NULL,
-  granted_at  TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(user_id, clinic_id, permission)
+-- 現在の実装
+CREATE TABLE permission_groups (
+    id          BIGSERIAL    PRIMARY KEY,
+    clinic_id   bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        varchar(100) NOT NULL,
+    description text         NOT NULL DEFAULT '',
+    color       varchar(7)   NOT NULL DEFAULT '#6B7280',
+    created_at  timestamptz  NOT NULL DEFAULT now(),
+    updated_at  timestamptz  NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
+);
+
+-- TASK-049 完了後（company_id へ移行）
+CREATE TABLE permission_groups (
+    id          BIGSERIAL    PRIMARY KEY,
+    company_id  bigint       NOT NULL REFERENCES company(id) ON DELETE CASCADE,
+    name        varchar(100) NOT NULL,
+    description text         NOT NULL DEFAULT '',
+    color       varchar(7)   NOT NULL DEFAULT '#6B7280',
+    created_at  timestamptz  NOT NULL DEFAULT now(),
+    updated_at  timestamptz  NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
 );
 ```
+
+---
+
+#### `permission_group_rules` — グループ別リソース権限
+
+| カラム | 型 | 制約 | 説明 |
+|--------|-----|------|------|
+| `id` | `BIGSERIAL` | `PK` | ルールID |
+| `group_id` | `BIGINT` | `FK → permission_groups.id NOT NULL` | グループID |
+| `resource` | `TEXT` | `NOT NULL` | リソースキー（例: `medical-records`） |
+| `can_view` | `BOOLEAN` | `NOT NULL DEFAULT false` | 閲覧権限 |
+| `can_create` | `BOOLEAN` | `NOT NULL DEFAULT false` | 作成権限 |
+| `can_edit` | `BOOLEAN` | `NOT NULL DEFAULT false` | 編集権限 |
+| `can_delete` | `BOOLEAN` | `NOT NULL DEFAULT false` | 削除権限 |
+
+```sql
+CREATE TABLE permission_group_rules (
+    id         BIGSERIAL   PRIMARY KEY,
+    group_id   bigint      NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+    resource   varchar(50) NOT NULL,
+    can_view   boolean     NOT NULL DEFAULT false,
+    can_create boolean     NOT NULL DEFAULT false,
+    can_edit   boolean     NOT NULL DEFAULT false,
+    can_delete boolean     NOT NULL DEFAULT false,
+    CONSTRAINT uk_permission_group_rules UNIQUE (group_id, resource)
+);
+```
+
+---
+
+#### `user_permission_groups` — ユーザー・グループ中間テーブル
+
+| カラム | 型 | 制約 | 説明 |
+|--------|-----|------|------|
+| `user_id` | `BIGINT` | `FK → user_accounts.id NOT NULL` | ユーザーID |
+| `group_id` | `BIGINT` | `FK → permission_groups.id NOT NULL` | グループID |
+
+```sql
+CREATE TABLE user_permission_groups (
+  user_id  BIGINT NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+  group_id BIGINT NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, group_id)
+);
+```
+
+> **廃止済み**: `user_permissions` テーブル（`permission_type` ENUM ベース）は実装されていない。
+> 権限制御は上記3テーブルで行う。
+
+---
+
+#### `refresh_tokens` — リフレッシュトークン管理
+
+| カラム | 型 | 制約 | 説明 |
+|--------|-----|------|------|
+| `id` | `BIGSERIAL` | `PK` | レコードID |
+| `user_id` | `BIGINT` | `FK → user_accounts.id NOT NULL` | ユーザーID |
+| `token_hash` | `TEXT` | `NOT NULL UNIQUE` | SHA-256 ハッシュ（平文は Cookie のみに存在） |
+| `expires_at` | `TIMESTAMPTZ` | `NOT NULL` | 有効期限 |
+| `revoked_at` | `TIMESTAMPTZ` | `NULL` | 無効化日時（NULL = 有効） |
+| `user_agent` | `TEXT` | | ブラウザ・デバイス識別用 |
+| `ip_address` | `INET` | | 発行時の IP アドレス |
+| `created_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 発行日時 |
+
+```sql
+CREATE TABLE refresh_tokens (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     BIGINT NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+  token_hash  TEXT NOT NULL UNIQUE,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  revoked_at  TIMESTAMPTZ,
+  user_agent  TEXT,
+  ip_address  INET,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
+-- 期限切れ・失効済みトークンの自動削除（バッチ or pg_cron）
+CREATE INDEX idx_refresh_tokens_cleanup ON refresh_tokens(expires_at) WHERE revoked_at IS NULL;
+```
+
+> **平文トークンの扱い**: Cookie には平文を格納、DB には `SHA-256(token)` のみ保存。
+> DB が漏洩してもトークン値は利用不可（レインボーテーブル対策として十分なエントロピーが前提）。
 
 ---
 
@@ -514,10 +661,10 @@ CREATE TABLE user_permissions (
 
 ```sql
 -- 例: owners テーブル
-ALTER TABLE owners ADD COLUMN clinic_id UUID NOT NULL REFERENCES clinics(id);
+ALTER TABLE owners ADD COLUMN clinic_id BIGINT NOT NULL REFERENCES clinics(id);
 
 -- 例: medical_records テーブル
-ALTER TABLE medical_records ADD COLUMN clinic_id UUID NOT NULL REFERENCES clinics(id);
+ALTER TABLE medical_records ADD COLUMN clinic_id BIGINT NOT NULL REFERENCES clinics(id);
 
 -- （以下、全27テーブルに同様の ALTER TABLE を実施）
 ```
@@ -528,15 +675,15 @@ ALTER TABLE medical_records ADD COLUMN clinic_id UUID NOT NULL REFERENCES clinic
 
 | 現状 | 移行後 |
 |---|---|
-| スタッフは `master_items` テーブルの `category='staff'` レコードとして管理 | `user_accounts` テーブルが認証の主テーブル。`staff_master_id` で既存マスタと紐付け |
-| `staff_role` enum でスタッフ職種を管理 | `job_title` enum に移行（`manager` → `general_staff` 置換） |
-| シフト管理は `master_items.id` を `shift_entries.staff_id` として参照 | 段階的に `user_accounts.id` ベースに移行。移行期間中は `staff_master_id` 経由で互換性維持 |
+| スタッフは `master_items` テーブルの `category='staff'` レコードとして管理 | `user_accounts` テーブルが認証の主テーブル。`staff_id` で `staffs` テーブルと紐付け（実装済み） |
+| `staff_role` ENUM で `staffs` テーブルの職種を管理（実装済み） | `job_titles` FK テーブルで職種名を管理（実装済み）。`job_title` ENUM への置換は未実施 |
+| シフト管理は `master_items.id` を `shift_entries.staff_id` として参照 | 段階的に `user_accounts.id` ベースに移行。移行期間中は `staffs.id`（`user_accounts.staff_id`）経由で互換性維持 |
 
 #### `clinic_info` テーブルの移行
 
 | 現状 | 移行後 |
 |---|---|
-| `clinic_info` テーブル（シングルトン、PK なし） | `clinics` テーブル（複数レコード対応、UUID PK） |
+| `clinic_info` テーブル（シングルトン、PK なし） | `clinics` テーブル（複数レコード対応、BIGINT PK） |
 | フロントエンド: `features/clinic/api/store.ts` でインメモリ管理 | フロントエンド: `currentClinicId` コンテキストで選択中クリニックを管理 |
 
 ### 6.4 インデックス
@@ -546,15 +693,23 @@ ALTER TABLE medical_records ADD COLUMN clinic_id UUID NOT NULL REFERENCES clinic
 CREATE INDEX idx_user_accounts_email ON user_accounts(email);
 CREATE INDEX idx_user_accounts_user_type ON user_accounts(user_type);
 CREATE INDEX idx_user_accounts_status ON user_accounts(status);
-CREATE INDEX idx_user_accounts_staff_master ON user_accounts(staff_master_id);
+CREATE INDEX idx_user_accounts_staff_id ON user_accounts(staff_id);
+CREATE INDEX idx_user_accounts_job_title_id ON user_accounts(job_title_id);
 
 -- ===== user_clinic_memberships =====
 -- UNIQUE(user_id, clinic_id) が複合インデックスを暗黙作成
 CREATE INDEX idx_user_clinic_memberships_clinic ON user_clinic_memberships(clinic_id);
 
--- ===== user_permissions =====
--- UNIQUE(user_id, clinic_id, permission) が複合インデックスを暗黙作成
-CREATE INDEX idx_user_permissions_clinic ON user_permissions(clinic_id);
+-- ===== permission_groups =====
+-- TASK-049 完了後: clinic_id → company_id
+CREATE INDEX idx_permission_groups_company ON permission_groups(company_id);
+
+-- ===== permission_group_rules =====
+-- UNIQUE(group_id, resource) が複合インデックスを暗黙作成
+
+-- ===== user_permission_groups =====
+-- PRIMARY KEY(user_id, group_id) が複合インデックスを暗黙作成
+CREATE INDEX idx_user_permission_groups_group ON user_permission_groups(group_id);
 
 -- ===== 既存テーブルの clinic_id インデックス =====
 CREATE INDEX idx_owners_clinic ON owners(clinic_id);
@@ -564,253 +719,256 @@ CREATE INDEX idx_hospitalizations_clinic ON hospitalizations(clinic_id);
 CREATE INDEX idx_reservation_appointments_clinic ON reservation_appointments(clinic_id);
 CREATE INDEX idx_trimming_records_clinic ON trimming_records(clinic_id);
 CREATE INDEX idx_accountings_clinic ON accountings(clinic_id);
-CREATE INDEX idx_master_items_clinic ON master_items(clinic_id);
+-- master_items テーブルは廃止済み（16専用マスタテーブルに分割）
 CREATE INDEX idx_inventory_items_clinic ON inventory_items(clinic_id);
 CREATE INDEX idx_shift_entries_clinic ON shift_entries(clinic_id);
 ```
 
 ---
 
-## RLSポリシー設計
+## アプリケーション層認可設計
 
-ERD.md の設計を認証・認可モデルに基づき拡充。
+本システムは Go/Gin + PostgreSQL 構成であり、認可はアプリケーション層（Gin ミドルウェア + ハンドラー）で実施する。
+DB 直接アクセスがないため PostgreSQL RLS は採用しない。
 
-### ヘルパー関数
+### 認証ミドルウェア (`internal/middleware/auth.go`)
 
-```sql
--- 現在のユーザーIDを取得
-CREATE OR REPLACE FUNCTION auth.current_user_id()
-RETURNS UUID AS $$
-  SELECT id FROM user_accounts WHERE id = auth.uid()
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+全保護エンドポイントに適用。JWT を検証し `user_id`, `clinic_id`, `user_type` を Gin コンテキストに格納する。
 
--- 現在のユーザー種別を取得
-CREATE OR REPLACE FUNCTION auth.current_user_type()
-RETURNS user_type AS $$
-  SELECT user_type FROM user_accounts WHERE id = auth.uid()
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+```go
+type JWTClaims struct {
+    UserID   string `json:"user_id"`
+    ClinicID string `json:"clinic_id"`
+    UserType string `json:"user_type"`
+    jwt.RegisteredClaims
+}
 
--- 指定クリニックでの権限チェック
-CREATE OR REPLACE FUNCTION auth.has_permission(
-  p_clinic_id UUID,
-  p_permission permission_type
+func Auth(secret string) gin.HandlerFunc {
+    key := []byte(secret)
+    return func(c *gin.Context) {
+        var tokenStr string
+
+        // 1. access_token Cookie を優先して読む（XSS耐性あり）
+        if cookie, err := c.Cookie("access_token"); err == nil && cookie != "" {
+            tokenStr = cookie
+        }
+
+        // 2. 後方互換: 旧Cookie名 auth_token にフォールバック
+        if tokenStr == "" {
+            if cookie, err := c.Cookie("auth_token"); err == nil && cookie != "" {
+                tokenStr = cookie
+            }
+        }
+
+        // 3. Cookie がなければ Authorization Bearer ヘッダにフォールバック
+        if tokenStr == "" {
+            if authHeader := c.GetHeader("Authorization"); authHeader != "" {
+                parts := strings.SplitN(authHeader, " ", 2)
+                if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
+                    tokenStr = parts[1]
+                }
+            }
+        }
+
+        if tokenStr == "" {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization required"})
+            c.Abort()
+            return
+        }
+
+        claims := &JWTClaims{}
+        if _, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
+            if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+                return nil, jwt.ErrSignatureInvalid
+            }
+            return key, nil
+        }); err != nil {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+            c.Abort()
+            return
+        }
+
+        c.Set("user_id",   claims.UserID)
+        c.Set("clinic_id", claims.ClinicID)
+        c.Set("user_type", claims.UserType)
+        c.Next()
+    }
+}
+```
+
+### マルチテナント強制
+
+全ハンドラーで `clinic_id` を JWT から取得し、クエリの WHERE 句に含める。
+**リクエストボディや URL パラメータの `clinic_id` は信頼しない。**
+
+```go
+// ✅ 正しい: JWT から取得
+clinicID := c.GetString("clinic_id")
+owners, err := h.service.ListOwners(ctx, clinicID)
+
+// ❌ 危険: クライアント入力を信頼
+clinicID := c.Query("clinic_id")  // 他クリニックの clinic_id を指定可能
+```
+
+### リソース・アクション別認可ミドルウェア
+
+`staff` ユーザーに対してリソース×アクション単位でアクセス可否を検証する。
+
+```go
+// RequirePermission: resource と action を指定したミドルウェア
+func RequirePermission(resource, action string) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        userType := c.GetString("user_type")
+        // system_admin / clinic_admin は全権限バイパス
+        if userType == "system_admin" || userType == "clinic_admin" {
+            c.Next()
+            return
+        }
+        // staff: DB から実効権限を取得して確認（権限は company スコープ）
+        userID := c.GetString("user_id")
+        allowed, err := checkPermission(c.Request.Context(), userID, resource, action)
+        if err != nil || !allowed {
+            RespondError(c, fmt.Errorf("%s/%s: %w", resource, action, ErrForbidden))
+            c.Abort()
+            return
+        }
+        c.Next()
+    }
+}
+
+// ルート定義での使用例
+protected.GET("/medical-records",
+    RequirePermission("medical-records", "view"),
+    handler.ListMedicalRecords,
 )
-RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM user_accounts ua
-    WHERE ua.id = auth.uid()
-    AND (
-      ua.user_type = 'system_admin'
-      OR ua.user_type = 'clinic_admin' AND EXISTS (
-        SELECT 1 FROM user_clinic_memberships ucm
-        WHERE ucm.user_id = ua.id AND ucm.clinic_id = p_clinic_id
-      )
-      OR EXISTS (
-        SELECT 1 FROM user_permissions up
-        WHERE up.user_id = ua.id
-        AND up.clinic_id = p_clinic_id
-        AND up.permission = p_permission
-      )
-    )
-  )
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-
--- 指定クリニックへの所属チェック
-CREATE OR REPLACE FUNCTION auth.is_member_of(p_clinic_id UUID)
-RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM user_accounts ua
-    WHERE ua.id = auth.uid()
-    AND (
-      ua.user_type = 'system_admin'
-      OR EXISTS (
-        SELECT 1 FROM user_clinic_memberships ucm
-        WHERE ucm.user_id = ua.id AND ucm.clinic_id = p_clinic_id
-      )
-    )
-  )
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+protected.POST("/medical-records",
+    RequirePermission("medical-records", "create"),
+    handler.CreateMedicalRecord,
+)
 ```
 
-### ポリシー定義
+### 実効権限の計算
+
+`staff` ユーザーは複数の権限グループに所属できる。実効権限は `bool_or()` で UNION する。
 
 ```sql
--- === 基本ポリシー: クリニックスコープ READ ===
-
--- 認証済み + 所属クリニックのデータのみ閲覧可能
-CREATE POLICY "clinic_scope_read" ON owners
-  FOR SELECT TO authenticated
-  USING (auth.is_member_of(clinic_id));
-
-CREATE POLICY "clinic_scope_read" ON pets
-  FOR SELECT TO authenticated
-  USING (auth.is_member_of(clinic_id));
-
-CREATE POLICY "clinic_scope_read" ON medical_records
-  FOR SELECT TO authenticated
-  USING (auth.is_member_of(clinic_id));
-
--- （全 clinic_id 付きテーブルに同様のポリシーを作成）
-
--- === 機能別 WRITE ポリシー ===
-
--- カルテ: medical 権限が必要
-CREATE POLICY "medical_write" ON medical_records
-  FOR INSERT TO authenticated
-  WITH CHECK (auth.has_permission(clinic_id, 'medical'));
-
-CREATE POLICY "medical_update" ON medical_records
-  FOR UPDATE TO authenticated
-  USING (auth.has_permission(clinic_id, 'medical'));
-
--- 会計: billing 権限が必要
-CREATE POLICY "billing_write" ON accountings
-  FOR INSERT TO authenticated
-  WITH CHECK (auth.has_permission(clinic_id, 'billing'));
-
-CREATE POLICY "billing_update" ON accountings
-  FOR UPDATE TO authenticated
-  USING (auth.has_permission(clinic_id, 'billing'));
-
--- マスタ: master_admin 権限が必要
-CREATE POLICY "master_write" ON master_items
-  FOR ALL TO authenticated
-  USING (auth.has_permission(clinic_id, 'master_admin'))
-  WITH CHECK (auth.has_permission(clinic_id, 'master_admin'));
-
--- 入院: hospitalization または medical 権限が必要
-CREATE POLICY "hospitalization_write" ON hospitalizations
-  FOR INSERT TO authenticated
-  WITH CHECK (
-    auth.has_permission(clinic_id, 'hospitalization')
-    OR auth.has_permission(clinic_id, 'medical')
-  );
-
--- トリミング: trimming 権限が必要
-CREATE POLICY "trimming_write" ON trimming_records
-  FOR INSERT TO authenticated
-  WITH CHECK (auth.has_permission(clinic_id, 'trimming'));
-
--- シフト: shift_admin 権限が必要
-CREATE POLICY "shift_write" ON shift_entries
-  FOR ALL TO authenticated
-  USING (auth.has_permission(clinic_id, 'shift_admin'))
-  WITH CHECK (auth.has_permission(clinic_id, 'shift_admin'));
-
--- 在庫: inventory 権限が必要
-CREATE POLICY "inventory_write" ON inventory_items
-  FOR ALL TO authenticated
-  USING (auth.has_permission(clinic_id, 'inventory'))
-  WITH CHECK (auth.has_permission(clinic_id, 'inventory'));
+-- TASK-049 完了後: company スコープでフラットに実効権限を計算
+SELECT
+    pgr.resource,
+    bool_or(pgr.can_view)   AS can_view,
+    bool_or(pgr.can_create) AS can_create,
+    bool_or(pgr.can_edit)   AS can_edit,
+    bool_or(pgr.can_delete) AS can_delete
+FROM user_permission_groups upg
+JOIN permission_groups pg ON pg.id = upg.group_id
+    AND pg.deleted_at IS NULL
+JOIN permission_group_rules pgr ON pgr.group_id = pg.id
+WHERE upg.user_id = $1   -- clinic_id フィルタ不要（company スコープ）
+GROUP BY pgr.resource
 ```
+
+### 認可チェックの責務分離
+
+| 層 | 責務 |
+|---|---|
+| **Middleware** | JWT 検証、`clinic_id` / `user_type` の Gin コンテキスト格納 |
+| **RequirePermission** | リソース×アクション単位の事前チェック（ルート定義時に宣言） |
+| **Handler** | パスパラメータと JWT の `clinic_id` 一致検証（サブリソース保護） |
+| **Repository** | 全クエリに `clinic_id` を必須フィルタとして適用 |
+
+```go
+// Handler でのサブリソース保護例 (GET /owners/:id の所有権確認)
+func (h *OwnerHandler) Get(c *gin.Context) {
+    ownerID  := c.Param("id")
+    clinicID := c.GetString("clinic_id")  // JWT から取得
+
+    owner, err := h.service.GetOwner(c.Request.Context(), clinicID, ownerID)
+    if err != nil {
+        RespondError(c, err)  // clinic_id 不一致 → ErrNotFound として処理
+        return
+    }
+    c.JSON(http.StatusOK, toOwnerResponse(owner))
+}
+```
+
+> **設計判断**: clinic_id 不一致時は `403 Forbidden` ではなく `404 Not Found` を返す。
+> 他クリニックのリソース存在の有無を推測させないための情報漏洩対策。
 
 ---
 
 ## フロントエンド実装方針
 
-### 新規ファイル構成
+### 実装済みファイル構成
 
 ```
-/features/auth/
+features/auth/
 ├── api/
-│   ├── index.ts              # barrel re-export
-│   ├── mockData.ts           # モックユーザー・権限データ
-│   ├── login.ts              # ログインAPI
-│   ├── logout.ts             # ログアウトAPI
-│   └── refreshToken.ts       # トークンリフレッシュ
+│   ├── login.ts              # ログインAPI（POST /v1/login）
+│   ├── logout.ts             # ログアウトAPI（POST /v1/logout）
+│   ├── refresh-token.ts      # セッション復元（GET /v1/me）
+│   └── types.ts              # API 型定義
 ├── components/
-│   ├── LoginForm.tsx          # ログインフォーム
-│   ├── ClinicSwitcher.tsx     # クリニック切替コンポーネント（サイドバー用）
-│   └── PermissionGate.tsx     # 権限ガードコンポーネント（children を条件付きレンダリング）
+│   └── LoginForm.tsx          # ログインフォーム
 ├── hooks/
-│   ├── useAuth.ts             # 認証状態管理フック（AuthContext）
-│   └── usePermission.ts      # 権限チェックフック
-├── routes/
-│   ├── index.ts              # barrel re-export
-│   └── Login.tsx             # ログインページ
-└── types/
-    └── index.ts              # 認証関連型定義
+│   ├── use-auth.tsx           # AuthContext + useAuth() フック
+│   └── use-permission.ts      # usePermission(resource) フック
+└── routes/
+    └── Login.tsx              # ログインページ
 ```
 
-### 型定義 (`features/auth/types/index.ts`)
+### 型定義（実装済み）
 
 ```typescript
-// ユーザー種別
+// ユーザー種別（models.ts の定数を使用）
 export const USER_TYPE_VALUES = ["system_admin", "clinic_admin", "staff"] as const;
 export type UserType = (typeof USER_TYPE_VALUES)[number];
 
-export const USER_TYPE_LABELS: Record<UserType, string> = {
-  system_admin: "運営管理者",
-  clinic_admin: "医院管理者",
-  staff: "スタッフ",
-};
+// 職種（staff_role ENUM に対応。スタッフマスタが紐づく場合のみ非null）
+export const STAFF_ROLE_VALUES = ["veterinarian", "nurse", "trimmer", "reception", "manager"] as const;
+export type StaffRole = (typeof STAFF_ROLE_VALUES)[number];
 
-// 職種
-export const JOB_TITLE_VALUES = ["veterinarian", "nurse", "trimmer", "reception", "general_staff"] as const;
-export type JobTitle = (typeof JOB_TITLE_VALUES)[number];
+// CRUD アクション（ResourcePermission のキーと一致）
+export type ResourceAction = "view" | "create" | "edit" | "delete";
 
-export const JOB_TITLE_LABELS: Record<JobTitle, string> = {
-  veterinarian: "医師",
-  nurse: "看護師",
-  trimmer: "トリマー",
-  reception: "受付",
-  general_staff: "職員",
-};
+// 1リソースの CRUD 権限（フィールド名は view/create/edit/delete）
+export interface ResourcePermission {
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+}
 
-// 権限
-export const PERMISSION_VALUES = [
-  "account_admin",
-  "medical",
-  "medical_read",
-  "trimming",
-  "billing",
-  "reception",
-  "hospitalization",
-  "master_admin",
-  "shift_admin",
-  "inventory",
-] as const;
-export type Permission = (typeof PERMISSION_VALUES)[number];
+// resource → CRUD マップ
+export type ResourcePermissions = Record<string, ResourcePermission>;
 
-export const PERMISSION_LABELS: Record<Permission, string> = {
-  account_admin: "アカウント管理者",
-  medical: "医師",
-  medical_read: "カルテ閲覧",
-  trimming: "トリマー",
-  billing: "会計",
-  reception: "受付",
-  hospitalization: "入院管理",
-  master_admin: "マスタ管理",
-  shift_admin: "シフト管理",
-  inventory: "在庫管理",
-};
+// clinicId → resource → CRUD（現在の実装。TASK-049 完了後フラット化予定）
+export type ClinicEffectivePermissions = Record<string, ResourcePermissions>;
 
-// アカウントステータス
-export const ACCOUNT_STATUS_VALUES = ["active", "inactive", "locked"] as const;
-export type AccountStatus = (typeof ACCOUNT_STATUS_VALUES)[number];
+// クリニック所属情報
+export interface ClinicMembership {
+  clinicId: string;
+  clinicName: string;
+  isMain: boolean;
+}
 
-// ログインユーザー情報
+// ログインユーザー情報（/me レスポンス対応）
+// permissions はバックエンドで実効権限を計算済みの状態で渡される
+// フロントエンドで permissionGroups を再計算しない
 export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
   userType: UserType;
-  jobTitle: JobTitle | null;
+  /** staff_role ENUM 値。スタッフマスタが紐づく場合のみ非null */
+  staffRole: StaffRole | null;
   avatarUrl: string | null;
   mainClinicId: string;
+  /** メイン医院の詳細情報 */
+  clinic: AuthClinic | null;
   clinics: ClinicMembership[];
-  permissions: ClinicPermissions;
+  // 現在: { clinicId → { resource → CRUD } }（TASK-049 完了後フラット化）
+  permissions: ClinicEffectivePermissions;
 }
-
-export interface ClinicMembership {
-  clinicId: string;
-  clinicName: string;
-  branchName: string;
-  isMain: boolean;
-}
-
-// クリニック別権限マップ: { [clinicId]: Permission[] }
-export type ClinicPermissions = Record<string, readonly Permission[]>;
 
 // 認証コンテキスト
 export interface AuthContextValue {
@@ -818,168 +976,240 @@ export interface AuthContextValue {
   currentClinicId: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isSwitchingClinic: boolean;  // クリニック切替中フラグ
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  switchClinic: (clinicId: string) => void;
-  hasPermission: (permission: Permission) => boolean;
-  hasAnyPermission: (permissions: readonly Permission[]) => boolean;
+  switchClinic: (clinicId: string) => Promise<void>;
+  hasPermission: (resource: string, action: ResourceAction) => boolean;
 }
+
+// ⚠️ 廃止予定: バックエンドのグループ構造をフロントで持ち回す設計は非推奨
+// 実効権限は permissions フィールドで参照すること
+// export interface PermissionGroupWithRules { ... }
 ```
 
 ### 権限チェックパターン
 
-```typescript
-// usePermission フック
-export function usePermission() {
-  const { user, currentClinicId } = useAuth();
+`hasPermission` は company スコープのフラット `permissions` を直接参照する（TASK-049）。
+`currentClinicId` によるスコープは不要 — 権限グループは全クリニック共通であるため。
 
-  function hasPermission(permission: Permission): boolean {
-    if (!user || !currentClinicId) return false;
-    // system_admin は全権限
-    if (user.userType === "system_admin") return true;
-    // clinic_admin は所属クリニック内全権限
-    if (user.userType === "clinic_admin") {
-      return user.clinics.some((c) => c.clinicId === currentClinicId);
-    }
-    // staff は明示的権限チェック
-    const clinicPerms = user.permissions[currentClinicId];
-    if (!clinicPerms) return false;
-    return clinicPerms.includes(permission);
+```typescript
+// use-auth.tsx 内の hasPermission 実装（TASK-049 完了後）
+function hasPermission(
+  resource: string,
+  action: "view" | "create" | "edit" | "delete"
+): boolean {
+  if (!user) return false;
+  // system_admin / clinic_admin は全権限バイパス
+  if (user.userType === "system_admin" || user.userType === "clinic_admin") return true;
+  // staff: company スコープの実効権限を参照（/me レスポンスで計算済み）
+  const resourcePerms = user.permissions[resource];
+  if (!resourcePerms) return false;
+  switch (action) {
+    case "view":   return resourcePerms.view;
+    case "create": return resourcePerms.create;
+    case "edit":   return resourcePerms.edit;
+    case "delete": return resourcePerms.delete;
+    default:       return false;
   }
-
-  return { hasPermission, hasAnyPermission };
 }
 ```
 
-```tsx
-// PermissionGate コンポーネント
-export function PermissionGate({
-  permission,
-  anyOf,
-  fallback = null,
-  children,
-}: PermissionGateProps) {
-  const { hasPermission, hasAnyPermission } = usePermission();
+> ⚠️ 現在の実装（TASK-049 未完了）: `permissions` が `{ clinicId → { resource → CRUD } }` の
+> ネスト構造になっており `currentClinicId` でスコープしている。
+> TASK-049（BE-082 + FE-139）完了後にフラット構造へ移行する。
 
-  if (permission && !hasPermission(permission)) return fallback;
-  if (anyOf && !hasAnyPermission(anyOf)) return fallback;
-
-  return <>{children}</>;
-}
-
-// 使用例: サイドバーのメニュー項目
-<PermissionGate anyOf={["medical", "medical_read", "billing", "hospitalization"]}>
-  <SidebarMenuItem path="/medical-records" label="カルテ" />
-</PermissionGate>
-```
-
-### ルーティング統合
+**バックエンドの `/me` レスポンス構造（TASK-049 完了後）:**
 
 ```typescript
-// ProtectedRoute ラッパー
-export function ProtectedRoute({
-  permission,
-  anyOf,
+// permissions は { resource → CRUD } のフラット構造で返す（company スコープ）
+// フロント側でグループを再計算しない（実効権限はバックエンドで計算済みを渡す）
+interface AuthUser {
+  id: string;
+  email: string;
+  displayName: string;
+  userType: UserType;
+  staffRole: StaffRole | null;
+  avatarUrl: string | null;
+  mainClinicId: string;
+  clinic: AuthClinic | null;
+  clinics: ClinicMembership[];
+  permissions: ResourcePermissions; // TASK-049完了後: { resource → CRUD } フラット構造
+}
+```
+
+### 認証ハイドレーション (React 19)
+
+FOUC (Flash of Unauthenticated Content) を防ぐため、React 19 の `use()` フックを使用した Suspense ベースのハイドレーションを採用しています。
+
+```typescript
+// features/auth/hooks/use-auth.tsx
+const initialAuthPromise = refreshToken().catch(() => null);
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  // 初期チェックが完了するまでレンダリングをサスペンド
+  const initialResult = use(initialAuthPromise);
+  
+  // ...初期値を state にセット
+}
+```
+
+このパターンにより、アプリケーション起動時に「一瞬未ログイン画面が見える」といった現象を完全に排除しています。
+
+### `usePermission(resource)` フック
+
+```typescript
+// features/auth/hooks/use-permission.ts
+import { useAuth } from "@/features/auth/hooks/use-auth";
+
+// usePermission の戻り値型（ResourcePermission とは別に can- prefix で公開）
+export interface UsePermissionResult {
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+export function usePermission(resource: string): UsePermissionResult {
+  const { hasPermission } = useAuth();
+  return {
+    canView:   hasPermission(resource, "view"),
+    canCreate: hasPermission(resource, "create"),
+    canEdit:   hasPermission(resource, "edit"),
+    canDelete: hasPermission(resource, "delete"),
+  };
+}
+
+// 使用例
+const { canView, canCreate, canEdit, canDelete } = usePermission("medical-records");
+
+// 閲覧権限チェック
+if (!canView) return <AccessDenied />;
+
+// 権限に応じてボタン表示/非表示（&& は禁止、三項演算子を使う）
+{canCreate ? <Button onClick={handleCreate}>新規登録</Button> : null}
+{canDelete ? <Button onClick={handleDelete}>削除</Button> : null}
+```
+
+### 権限ガード（コンポーネントレベル）
+
+`RequirePermission` コンポーネントでページ・セクション単位のアクセス制御を宣言的に記述する。
+
+```typescript
+// components/shared/RequirePermission.tsx
+interface RequirePermissionProps {
+  resource: string;
+  action?: "view" | "create" | "edit" | "delete";
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}
+
+export function RequirePermission({
+  resource,
+  action = "view",
   children,
-}: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth();
-  const { hasPermission, hasAnyPermission } = usePermission();
-
-  if (isLoading) return <RouteFallback />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (permission && !hasPermission(permission)) return <Navigate to="/" replace />;
-  if (anyOf && !hasAnyPermission(anyOf)) return <Navigate to="/" replace />;
-
+  fallback,
+}: RequirePermissionProps) {
+  const { hasPermission } = useAuth();
+  if (!hasPermission(resource, action)) {
+    return fallback ? <>{fallback}</> : <AccessDenied />;
+  }
   return <>{children}</>;
 }
 
-// routes.ts での使用
-createBrowserRouter([
-  {
-    path: "/login",
-    Component: Login,
-  },
-  {
-    path: "/",
-    Component: Root, // AuthProvider + Sidebar ラップ
-    children: [
-      { index: true, Component: Dashboard },
-      {
-        path: "medical-records",
-        Component: () => (
-          <ProtectedRoute anyOf={["medical", "medical_read", "billing"]}>
-            <MedicalRecords />
-          </ProtectedRoute>
-        ),
-      },
-      // ...
-    ],
-  },
-]);
+// ルートへの適用（app/router.tsx）
+{
+  path: "medical-records",
+  element: (
+    <RequirePermission resource="medical-records">
+      <Outlet />
+    </RequirePermission>
+  ),
+  children: [...],
+}
 ```
 
-### 新規ルート
+### ルート定義と必要権限一覧
 
-| ルート | コンポーネント | 説明 |
+| ルート | コンポーネント | 必要権限 |
 |---|---|---|
-| `/login` | `Login` | ログインページ |
-
-> ルート総数: 41 → 42 (+1)
+| `/login` | `Login` | 認証不要 |
+| `/` | `Dashboard` | `dashboard.view` |
+| `/reservations` | `ReservationsList` | `reservations.view` |
+| `/owners` | `OwnersList` | `owners.view` |
+| `/owners/new` | `OwnerFormPage` | `owners.create` |
+| `/owners/:id` | `OwnerFormPage` | `owners.view` |
+| `/medical-records` | `MedicalRecordsList` | `medical-records.view` |
+| `/medical-records/:id` | `MedicalRecordsForm` | `medical-records.view` |
+| `/hospitalization` | `HospitalizationList` | `hospitalization.view` |
+| `/trimming` | `TrimmingList` | `trimming.view` |
+| `/examinations` | `ExaminationsList` | `examinations.view` |
+| `/accounting` | `AccountingList` | `accounting.view` |
+| `/vaccinations` | `VaccinationsList` | `vaccinations.view` |
+| `/checkups` | `CheckupsList` | `checkups.view` |
+| `/inventory` | `InventoryList` | `inventory.view` |
+| `/estimates` | `EstimatesList` | `estimates.view` |
+| `/shifts` | `ShiftCalendar` | `shifts.view` |
+| `/settings/master` | `MasterSettings` | `master.view` |
+| `/settings/permission-groups` | `PermissionGroupSettings` | `master.view` |
+| `/settings/hospital` | `HospitalSettings` | `hospital-settings.view` |
 
 ---
 
-## 既存システムとの統合
+## 実装状態と残課題
 
-### 段階的移行計画
+### 実装済み
 
-| フェーズ | 内容 | 影響範囲 |
-|---|---|---|
-| **Phase 1: 認証基盤** | `AuthProvider` + `LoginForm` + モック認証。既存機能への影響なし | `/features/auth/` 新規作成、`App.tsx` に `AuthProvider` ラップ |
-| **Phase 2: クリニック切替** | `ClinicSwitcher` + `currentClinicId` コンテキスト。`Sidebar.tsx` にクリニック切替UI追加 | `Sidebar.tsx` 修正、`clinics` テーブル作成 |
-| **Phase 3: 権限ガード** | `PermissionGate` + `ProtectedRoute`。サイドバーメニュー・ルートに権限チェック追加 | 全ルート定義の修正、`Sidebar.tsx` のメニュー項目に権限ガード追加 |
-| **Phase 4: RLS 適用** | バックエンド接続後、RLSポリシーを段階的に適用 | DB層のみ。フロントエンドは権限ガードで既に制御済み |
-
-### 既存コンポーネントへの影響
-
-| コンポーネント | 変更内容 |
+| 項目 | 状態 |
 |---|---|
-| `Sidebar.tsx` | クリニック切替UI追加、メニュー項目の `PermissionGate` ラップ |
-| `App.tsx` | `AuthProvider` でラップ、`/login` ルート追加 |
-| `routes.ts` | `ProtectedRoute` による権限ガード追加 |
-| `PageLayout` | ログインユーザー情報表示（アバター・名前）の追加を検討 |
-| `features/clinic/` | `clinic_info` → `clinics` テーブル移行、`currentClinicId` 連携 |
-| `features/master/` (staff) | `StaffRole` の `manager` → `general_staff` 置換、`StaffSection` の職種表示更新 |
-| `features/shifts/` | `ShiftStaffInfo` を `user_accounts` ベースに移行 |
+| JWT + httpOnly Cookie ログイン / ログアウト | ✅ 実装済み |
+| `/me` API によるセッション復元 | ✅ 実装済み |
+| RBAC 3層モデル（UserType / StaffRole / PermissionGroup） | ✅ 実装済み |
+| 権限グループ CRUD（マスタ設定画面） | ✅ 実装済み |
+| `RequirePermission` コンポーネント | ✅ 実装済み |
+| `usePermission` フック | ✅ 実装済み |
+| サイドバーメニューの権限フィルタリング | ✅ 実装済み |
+| マルチクリニック所属・切替 | ✅ 実装済み |
+| 認証関連テーブル（6テーブル） | ✅ 実装済み |
+| デモアカウント・シードデータ（7アカウント） | ✅ 実装済み |
 
-### 数値整合
+### 残課題（セキュリティ優先度順）
 
-| 項目 | 現在（Phase 0） | 認証実装後（Phase 4完了） |
-|---|---|---|
-| ルート総数 | 41 (+`/dev/tests`) | 42 (+`/login`) |
-| Feature数 | 15 | 16 (+`auth`) |
-| エンティティ数 | 31 | 35 (+`UserAccount`, `Clinic`, `UserClinicMembership`, `UserPermission`) |
-| テーブル数 | 27 | 31 (+`clinics`, `user_accounts`, `user_clinic_memberships`, `user_permissions`) |
-| lazy-loaded コンポーネント数 | 29 | 30 (+`Login`) |
+| 課題 | チケット | 優先度 | 説明 |
+|---|---|---|---|
+| **論理削除ユーザーがログイン可能** | BUG-063 | 🔴 高 | `FindByEmail` に `deleted_at IS NULL` フィルタなし。削除済みユーザーが認証通過する |
+| **アカウント停止後も JWT が有効期限まで通過** | BUG-061 | 🔴 高 | ミドルウェアが DB の `account_status` を確認しない。停止後最大 24h アクセス継続 |
+| **dual-token 移行** | BUG-055 / BE-078 | 🔴 高 | 現在の 24h 単一 JWT をアクセス(15分) + リフレッシュ(7日) に分離。`refresh_tokens` テーブル追加が必要 |
+| **パスワード変更エンドポイント未実装** | BUG-062 | 🔴 高 | `PUT /v1/users/me/password` がない。初期パスワードを使い続けるリスク |
+| **権限スコープ company 単位への移行** | TASK-049 / BE-082 / FE-139 | 🔴 高 | `permission_groups.clinic_id` → `company_id`。`permissions` レスポンスのフラット化 |
+| **バックエンド認可ミドルウェア未実装** | BUG-056 / BE-080 | 🔴 高 | `RequirePermission` ミドルウェアが未適用。全エンドポイントが `staff` に対して無認可でアクセス可能 |
+| **パスワードリセットフロー未実装** | BUG-060 / BE-081 / FE-138 | 🟡 中 | `forgot-password` / `reset-password` エンドポイントなし |
+| **権限変更の即時反映なし** | BUG-057 / FE-137 | 🟡 中 | 権限グループ変更後、セッション中のユーザーに即時反映されない。`useMe` refetchInterval 5分 + refetchOnWindowFocus で対応予定 |
+| **`RequirePermission` をバックエンドと二重チェック** | — | 🟡 中 | フロントのガードは UX 目的。バックエンドの `RequirePermission` ミドルウェアが主防衛線 |
+| **ログイン試行回数制限** | — | 🟡 中 | ブルートフォース対策。5回失敗で 15分ロック（`account_status = 'locked'`） |
+| **監査ログ** | BE-079 | 🟢 低 | ログイン・ログアウト・権限変更イベントを別テーブルに記録 |
 
 ---
 
-## 備考
+## 備考・設計判断
 
-1. **`staff_role` enum の移行**: 既存の `staff_role` (`veterinarian`, `nurse`, `trimmer`, `reception`, `manager`) は `job_title` enum に段階的に移行する。`manager` は `UserType.clinic_admin` に対応するため、`job_title` enum では `general_staff` に置換。移行期間中は両方の enum が共存する。
+1. **`staff_role` と `job_titles` の関係**: `user_accounts.job_title_id` は `job_titles` テーブルへの FK（ENUM ではなく DB テーブル管理）。`staff_role` ENUM（`veterinarian|nurse|trimmer|reception|manager`）は `staffs.staff_role` カラムに格納（`user_accounts` には存在しない）。`user_accounts.staff_id` FK で `staffs` レコードと紐付け、`staffs.staff_role` を `/me` レスポンスの `staffRole` フィールドとして返す。`manager` ロールは現在も migration に存在するが、`user_type = clinic_admin` に対応するロール。一般スタッフは `staff_role` + 権限グループで権限管理。
 
-2. **パスワードハッシュ**: `user_accounts` テーブルにはパスワードカラムを持たない。パスワード管理は認証基盤（自前の場合は別テーブル `user_credentials`、Supabase の場合は `auth.users`）に委譲する。
+2. **パスワードハッシュ**: `user_accounts.password_hash` に bcrypt (cost=10) で保存。シードデータは `$2a$10$...` 形式。bcrypt は今後も推奨（argon2id はメモリ要件が高く Docker 環境でリスクあり）。
 
-3. **運営管理者のクリニック所属**: `system_admin` は `user_clinic_memberships` にレコードを持たなくてもよい（全クリニックアクセス可能）。ただし UI の利便性のため、メインクリニックの設定は推奨。
+3. **権限グループの companyスコープ（TASK-049）**: `permission_groups` は `company_id` で company 単位に管理する方針（現在は `clinic_id` で実装中）。権限グループ設定は全クリニック共通となり、クリニックごとに異なるグループ割り当ては廃止。データアクセスの clinic_id 分離（マルチテナント）は維持。`user_permission_groups` は user_id + group_id のみで管理。
 
-4. **マスタデータのクリニックスコープ**: `master_items` に `clinic_id` を追加すると、クリニックごとにマスタデータが独立する。法人全体で共有すべきマスタ項目がある場合は、`clinic_id = NULL` をグローバルマスタとして扱い、RLS ポリシーで「自クリニック OR NULL」を許可する設計も検討。
+4. **`master` リソースの特殊性**: `master.view` = マスタ設定ページ全般 + 権限グループ管理画面へのアクセス可否。`create/edit` = グループ作成・編集可、`delete` = グループ削除可。全グループが `master.view = true`（閲覧は全員可）。
 
-5. **職種テンプレートの自動適用**: アカウント作成時に `job_title` を選択すると、対応するデフォルト権限テンプレート（2.2 節参照）が自動的に `user_permissions` に挿入される。作成後に個別編集可能。
+5. **`system_admin` / `clinic_admin` の暗黙的全権限**: フロント・バックエンド両方で `userType` チェックにより全リソース全アクションをバイパス。`clinic_admin` は所属クリニック内のみ。
 
-6. **既存モックデータとの互換**: Phase 1 ではモック認証（`mockData.ts` に定義したユーザーでログイン）で動作させ、既存の Mock Data 環境を維持する。バックエンド接続時にリアル認証に切り替え。
+6. **`404 vs 403` の設計判断**: 他クリニックリソースへのアクセス時は `403 Forbidden` ではなく `404 Not Found` を返す。リソースの存在有無を他クリニックに推測させない情報漏洩対策。
 
-7. **WCAG AA 準拠**: ログインフォームは既存のフォームアクセシビリティパターン（`FormFieldError` + `aria-describedby`、`NavigationBlocker` 不要）に準拠。パスワード入力は `type="password"` + 表示/非表示トグル（`aria-label` 付き）。
+7. **WCAG AA 準拠**: ログインフォームは `aria-describedby` でエラー紐付け、パスワード入力は表示/非表示トグル付き。
 
-8. **印刷機能との関係**: 帳票（領収書・処方箋等）にクリニック情報を表示する箇所は、`currentClinicId` に基づく `clinics` テーブルのデータを使用するよう更新が必要。
+8. **印刷・帳票とクリニック情報**: 領収書・処方箋等は `currentClinicId` ベースの `clinics` テーブルデータを使用。クリニック切替後は帳票の発行元も自動的に切り替わる。
+
+9. **`switchClinic` 後の権限リロード不要**: 権限は company スコープのフラット構造のため、クリニック切替時に追加 API コールは不要。`currentClinicId` の変更は UI 表示切替のみに影響し、`hasPermission` の結果は変わらない（TASK-049 完了後）。
 
 ---
 
@@ -989,6 +1219,5 @@ createBrowserRouter([
 |---|---|---|
 | **仕様定義書** | `docs/SPECIFICATION.md` | Feature一覧、ルーティング構成、ロードマップ |
 | **画面仕様書** | `docs/SCREENS.md` | 全ルートの画面仕様（`/login` §15 追加済み） |
-| **ER図** | `docs/ERD.md` | エンティティ一覧（4エンティティ追加）、リレーション追加 |
-| **ER図** | `docs/ERD.md` | ENUM型追加、テーブル追加、`clinic_id` カラム追加（v5.0 最新版） |
+| **ER図** | `docs/ERD.md` | 全テーブル定義・ENUM型・インデックス（v27.0、57テーブル） |
 | **デザインシステム** | `docs/DESIGN_SYSTEM.md` | ログインページのUI仕様（§15 Login参照） |

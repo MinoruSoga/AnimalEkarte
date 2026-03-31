@@ -30,25 +30,13 @@ backend/
 │   │   ├── pet_service.go
 │   │   ├── validators.go        # 業務バリデーション関数
 │   │   └── ...
-│   ├── repository/              # データアクセス層
+├── repository/              # データアクセス層
 │   │   ├── owner_repository.go
 │   │   ├── pet_repository.go
+│   │   ├── db.go                # DB接続管理（旧 internal/db）
 │   │   └── ...
-│   ├── model/                   # GORMモデル（DBスキーマ対応）
-│   │   ├── owner.go
-│   │   ├── pet.go
-│   │   └── ...
-│   ├── errors/                  # アプリケーション全体のセンチネルエラー
-│   │   └── errors.go
-│   ├── middleware/              # Ginミドルウェア
-│   │   ├── auth.go
-│   │   └── ...
-│   ├── config/                  # 設定読み込み
-│   │   └── config.go
-│   ├── logger/                  # slogラッパー
-│   │   └── logger.go
-│   └── db/                      # DB接続管理
-│       └── postgres.go
+├── model/                   # GORMモデル（DBスキーマ対応）
+
 ├── migrations/                  # SQLマイグレーション
 ├── go.mod
 └── go.sum
@@ -241,6 +229,51 @@ type OwnerRepository interface {
 
 - `*gin.Context` を扱う
 - handler 層と同様、Gin に依存してよい
+
+---
+
+## フロントエンド・アーキテクチャ
+
+本システムは、大規模化に強い **Feature-Based 構造** と **Dependency Inversion** の原則に基づいて設計されています。
+
+### ディレクトリ構造
+
+```
+src/
+  ├── app/              # アプリケーション全体の統合層
+  │   ├── pages/        # クロスフィーチャー合成ページ（疎結合を維持）
+  │   ├── router.tsx    # React Router 7 (Data Mode)
+  │   └── main.tsx      # エントリポイント
+  ├── features/         # 独立した機能ドメイン
+  │   └── [feature]/
+  │       ├── api/      # TanStack Query / Axios
+  │       ├── components/
+  │       ├── hooks/
+  │       ├── types/
+  │       └── index.ts  # Public API (Barrel Export)
+  ├── components/       # 共通UIコンポーネント（shared）
+  ├── hooks/            # 共通カスタムフック
+  ├── lib/              # 共通ライブラリ・設定（design-tokens.ts, handle-api-error.ts等）
+  └── types/            # 共通型定義
+```
+
+### 疎結合の維持（Dependency Inversion）
+
+- **Feature 間インポート禁止**: Aフィーチャーから Bフィーチャーを直接インポートしてはいけません。
+- **合成は Page 層で**: 複数のフィーチャーが必要な場合、`app/pages/` で合成し、props 経由で依存性を注入します。
+- **Public API**: 各フィーチャーは `index.ts` から公開するものだけを外部に晒します。
+
+### デザインシステム (SSOT)
+
+- **`lib/design-tokens.ts`**: カラー、レイアウト、スタイルプリセットの **Single Source of Truth** です。
+- **Tailwind 4**: CSS変数をベースとした高速なスタイリング。ハードコードされた16進数は禁止です。
+
+### React 19 実装パターン
+
+- **Mutations**: `useActionState` と `useTransition` を使用し、楽観的更新とエラーハンドリングを統一します。
+- **Hydration**: `use(Promise)` パターンにより、認証情報の復元（Suspense）をスムーズに行います。
+- **Form Status**: `SubmitButton` 等で `useFormStatus` を活用し、コンポーネント単位で待機状態を制御します。
+- **No `&&`**: 条件付きレンダリングには常に三項演算子 `? : null` を使用します。
 
 ---
 

@@ -1,4 +1,5 @@
-import { Input } from "@/components/ui/input";
+import { memo } from "react";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { H_STYLES } from "../styles";
 
 interface HospitalizationCostSummaryProps {
@@ -14,7 +15,7 @@ interface HospitalizationCostSummaryProps {
     setGlobalDiscountAmount: (val: number) => void;
 }
 
-export function HospitalizationCostSummary({
+export const HospitalizationCostSummary = memo(function HospitalizationCostSummary({
     totals,
     globalDiscount,
     setGlobalDiscount,
@@ -39,16 +40,13 @@ export function HospitalizationCostSummary({
           <div className="flex items-center gap-3">
             <span className={`${H_STYLES.text.base} text-[#37352F]/60`}>割引適用額</span>
             <div className="flex items-center gap-2">
-              <Input
-                type="number"
+              <NumberInput
                 value={globalDiscount}
-                onChange={(e) =>
-                  setGlobalDiscount(parseInt(e.target.value) || 0)
-                }
-                className={`w-16 h-10 ${H_STYLES.text.base} text-right bg-white border-[rgba(55,53,47,0.16)] focus-visible:ring-[#2EAADC]`}
-                placeholder="0"
+                onChange={(v) => setGlobalDiscount(parseInt(v) || 0)}
+                suffix="%"
+                align="right"
+                className={`w-16 h-10 ${H_STYLES.text.base}`}
               />
-              <span className={`${H_STYLES.text.base} text-[#37352F]/60`}>%</span>
             </div>
           </div>
           <span className={`${H_STYLES.text.base} font-medium tabular-nums text-[#37352F]`}>
@@ -61,15 +59,12 @@ export function HospitalizationCostSummary({
           <div className="flex items-center gap-3">
             <span className={`${H_STYLES.text.base} text-[#37352F]/60`}>値引適用額</span>
             <div className="flex items-center gap-2">
-              <span className={`${H_STYLES.text.base} text-[#37352F]/60`}>￥</span>
-              <Input
-                type="number"
+              <NumberInput
                 value={globalDiscountAmount}
-                onChange={(e) =>
-                  setGlobalDiscountAmount(parseInt(e.target.value) || 0)
-                }
-                className={`w-20 h-10 ${H_STYLES.text.base} text-right bg-white border-[rgba(55,53,47,0.16)] focus-visible:ring-[#2EAADC]`}
-                placeholder="0"
+                onChange={(v) => setGlobalDiscountAmount(parseInt(v) || 0)}
+                suffix="円"
+                align="right"
+                className={`w-20 h-10 ${H_STYLES.text.base}`}
               />
             </div>
           </div>
@@ -110,4 +105,4 @@ export function HospitalizationCostSummary({
       </div>
     </div>
   );
-}
+});

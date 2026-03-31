@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useState, useCallback } from "react";
 
 // External
@@ -9,16 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog";
+import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Types
-import type { ApiStaffNoteRecord, CreateStaffNoteRecordRequest } from "../../api/daily-records-types";
+import type { ApiStaffNoteRecord, CreateStaffNoteRecordRequest } from "@/features/hospitalization/api/daily-records-types";
 
 interface DailyStaffNotesSectionProps {
     staffNotes: ApiStaffNoteRecord[];
@@ -54,10 +49,6 @@ export function DailyStaffNotesSection({
         setIsOpen(true);
     }, []);
 
-    const handleClose = useCallback(() => {
-        setIsOpen(false);
-    }, []);
-
     const handleChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
             const { name, value } = e.target;
@@ -82,7 +73,7 @@ export function DailyStaffNotesSection({
         <div>
             <div className="flex items-center justify-between mb-2">
                 <h4 className="flex items-center gap-1.5 text-sm font-bold text-[#37352F]">
-                    <MessageSquare className="h-4 w-4 text-green-500" />
+                    <MessageSquare className={`${ICON.action} text-green-500`} />
                     スタッフメモ
                 </h4>
                 <Button
@@ -91,7 +82,7 @@ export function DailyStaffNotesSection({
                     onClick={handleOpen}
                     className="h-7 gap-1 text-xs"
                 >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus className={ICON.action} />
                     追加
                 </Button>
             </div>
@@ -114,54 +105,46 @@ export function DailyStaffNotesSection({
                 </div>
             )}
 
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>スタッフメモ追加</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3 py-2">
-                        <div>
-                            <Label htmlFor="note-time" className="text-xs">
-                                時刻 <span className="text-red-500">*</span>
-                            </Label>
-                            <Input
-                                id="note-time"
-                                name="time"
-                                type="time"
-                                value={form.time}
-                                onChange={handleChange}
-                                className="mt-1"
-                            />
-                        </div>
-                        <div>
-                            <Label htmlFor="note-content" className="text-xs">
-                                内容 <span className="text-red-500">*</span>
-                            </Label>
-                            <Textarea
-                                id="note-content"
-                                name="content"
-                                value={form.content}
-                                onChange={handleChange}
-                                placeholder="メモ内容を入力"
-                                rows={3}
-                                className="mt-1 resize-none"
-                            />
-                        </div>
+            <FormDialog
+                open={isOpen}
+                onClose={() => setIsOpen(false)}
+                title="スタッフメモ追加"
+                onSave={handleSubmit}
+                saveLabel="追加"
+                isPending={isPending}
+                isSaveDisabled={!form.time || !form.content.trim()}
+                className="max-w-sm"
+            >
+                <div className="space-y-3 py-2">
+                    <div>
+                        <Label htmlFor="note-time" className="text-xs">
+                            時刻 <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                            id="note-time"
+                            name="time"
+                            type="time"
+                            value={form.time}
+                            onChange={handleChange}
+                            className="mt-1"
+                        />
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={handleClose} size="sm">
-                            キャンセル
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={!form.time || !form.content.trim() || isPending}
-                            size="sm"
-                        >
-                            保存
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    <div>
+                        <Label htmlFor="note-content" className="text-xs">
+                            内容 <span className="text-red-500">*</span>
+                        </Label>
+                        <Textarea
+                            id="note-content"
+                            name="content"
+                            value={form.content}
+                            onChange={handleChange}
+                            placeholder="メモ内容を入力"
+                            rows={3}
+                            className="mt-1 resize-none"
+                        />
+                    </div>
+                </div>
+            </FormDialog>
         </div>
     );
 }

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -9,6 +8,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListAccountings godoc
@@ -48,7 +48,18 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 		status = &s
 	}
 
-	accountings, total, err := h.svc.Accounting.List(c.Request.Context(), clinicID, petID, ownerID, status, page, limit)
+	startDate, err := parseDateQuery(c, "start_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	endDate, err := parseDateQuery(c, "end_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	accountings, total, err := h.svc.Accounting.List(c.Request.Context(), clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -89,7 +100,7 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 		return
 	}
 
-	billing := &model.Billing{
+	createInput := service.CreateAccountingInput{
 		ClinicID:          clinicID,
 		MedicalRecordID:   input.MedicalRecordID,
 		HospitalizationID: input.HospitalizationID,
@@ -104,18 +115,16 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 		Memo:              input.Memo,
 	}
 	if input.Status != "" {
-		billing.Status = model.BillingStatus(input.Status)
+		createInput.Status = model.BillingStatus(input.Status)
 	}
 
 	ctx := c.Request.Context()
-	if err := h.svc.Accounting.Create(ctx, clinicID, billing); err != nil {
+	created, err := h.svc.Accounting.Create(ctx, &createInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "accounting created",
-		slog.Uint64("billing_id", billing.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
-	c.JSON(http.StatusCreated, toAccountingResponse(billing))
+	c.JSON(http.StatusCreated, toAccountingResponse(created))
 }
 
 // UpdateAccounting godoc
@@ -136,7 +145,7 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		return
 	}
 
-	billing := &model.Billing{
+	updateInput := service.UpdateAccountingInput{
 		ID:                id,
 		ClinicID:          clinicID,
 		MedicalRecordID:   input.MedicalRecordID,
@@ -147,25 +156,22 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		TaxTotal:          input.TaxTotal,
 		TotalAmount:       input.TotalAmount,
 		HasInsurance:      input.HasInsurance,
+		ScheduledDate:     input.ScheduledDate,
 		CompletedAt:       input.CompletedAt,
 		Memo:              input.Memo,
 	}
-	if input.ScheduledDate != nil {
-		billing.ScheduledDate = *input.ScheduledDate
-	}
-	if input.Status != "" {
-		billing.Status = model.BillingStatus(input.Status)
+	if input.Status != nil {
+		s := model.BillingStatus(*input.Status)
+		updateInput.Status = &s
 	}
 
 	ctx := c.Request.Context()
-	if err := h.svc.Accounting.Update(ctx, clinicID, billing); err != nil {
+	updated, err := h.svc.Accounting.Update(ctx, &updateInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "accounting updated",
-		slog.Uint64("billing_id", billing.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
-	c.JSON(http.StatusOK, toAccountingResponse(billing))
+	c.JSON(http.StatusOK, toAccountingResponse(updated))
 }
 
 func (h *Handler) DeleteAccounting(c *gin.Context) {
@@ -175,7 +181,7 @@ func (h *Handler) DeleteAccounting(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Accounting.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -193,4 +199,6 @@ func (h *Handler) RegisterAccountingRoutes(rg *gin.RouterGroup) {
 	accountings.GET("/:id", h.GetAccounting)
 	accountings.PATCH("/:id", h.UpdateAccounting)
 	accountings.DELETE("/:id", h.DeleteAccounting)
+	accountings.GET("/:id/refunds", h.ListRefunds)
+	accountings.POST("/:id/refunds", h.CreateRefund)
 }

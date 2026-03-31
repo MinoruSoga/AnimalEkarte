@@ -4,45 +4,71 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
 
-// RateLimitStore IP別のレートリミッター管理
+// limiterEntry は IP ごとのレートリミッターと最終アクセス時刻を保持する
+type limiterEntry struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
+}
+
+// RateLimitStore IP別のレートリミッター管理（TTL eviction 付き）
 type RateLimitStore struct {
-	limiters map[string]*rate.Limiter
+	limiters map[string]*limiterEntry
 	mu       sync.RWMutex
 }
 
-// NewRateLimitStore はRateLimitStoreを初期化して返す
+// NewRateLimitStore はRateLimitStoreを初期化してバックグラウンドクリーンアップを開始する
 func NewRateLimitStore() *RateLimitStore {
-	return &RateLimitStore{
-		limiters: make(map[string]*rate.Limiter),
+	s := &RateLimitStore{
+		limiters: make(map[string]*limiterEntry),
+	}
+	go s.cleanupLoop()
+	return s
+}
+
+// cleanupLoop は 5 分ごとに 10 分以上アクセスのない IP エントリを削除する
+func (s *RateLimitStore) cleanupLoop() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		s.evict(10 * time.Minute)
 	}
 }
 
-// getLimiter はIPアドレスに対応するlimiterを取得・作成する
-func (s *RateLimitStore) getLimiter(ip string, rps rate.Limit, burst int) *rate.Limiter {
-	s.mu.RLock()
-	limiter, exists := s.limiters[ip]
-	s.mu.RUnlock()
-
-	if exists {
-		return limiter
+// evict は ttl より古いエントリを削除する（テスト用にも公開）
+func (s *RateLimitStore) evict(ttl time.Duration) {
+	threshold := time.Now().Add(-ttl)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for ip, entry := range s.limiters {
+		if entry.lastSeen.Before(threshold) {
+			delete(s.limiters, ip)
+		}
 	}
+}
 
+// getLimiter はIPアドレスに対応するlimiterを取得・作成し、lastSeen を更新する。
+// RLock → RUnlock → Lock の TOCTOU を避けるため始めから Write Lock を取得する。
+func (s *RateLimitStore) getLimiter(ip string, rps rate.Limit, burst int) *rate.Limiter {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// 二重チェック
-	if limiter, exists := s.limiters[ip]; exists {
-		return limiter
+	if entry, exists := s.limiters[ip]; exists {
+		entry.lastSeen = time.Now()
+		return entry.limiter
 	}
 
-	limiter = rate.NewLimiter(rps, burst)
-	s.limiters[ip] = limiter
-	return limiter
+	newEntry := &limiterEntry{
+		limiter:  rate.NewLimiter(rps, burst),
+		lastSeen: time.Now(),
+	}
+	s.limiters[ip] = newEntry
+	return newEntry.limiter
 }
 
 // RateLimit は指定されたレートでIPアドレスごとにレート制限を行う

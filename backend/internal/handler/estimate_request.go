@@ -8,11 +8,11 @@ type createEstimateRequest struct {
 	Title           string     `json:"title" binding:"required,min=1,max=255"`
 	OwnerID         *uint64    `json:"owner_id"`
 	Status          string     `json:"status"`
-	Subtotal        float64    `json:"subtotal"`
-	TaxTotal        float64    `json:"tax_total"`
-	TotalAmount     float64    `json:"total_amount"`
-	InsuranceAmount float64    `json:"insurance_amount"`
-	DiscountAmount  float64    `json:"discount_amount"`
+	Subtotal        int64      `json:"subtotal"`
+	TaxTotal        int64      `json:"tax_total"`
+	TotalAmount     int64      `json:"total_amount"`
+	InsuranceAmount int64      `json:"insurance_amount"`
+	DiscountAmount  int64      `json:"discount_amount"`
 	ValidUntil      *time.Time `json:"valid_until"`
 	Comment         string     `json:"comment"`
 	Notes           string     `json:"notes"`
@@ -23,11 +23,11 @@ type createEstimateRequest struct {
 type updateEstimateRequest struct {
 	Title           *string    `json:"title"`
 	Status          *string    `json:"status"`
-	Subtotal        *float64   `json:"subtotal"`
-	TaxTotal        *float64   `json:"tax_total"`
-	TotalAmount     *float64   `json:"total_amount"`
-	InsuranceAmount *float64   `json:"insurance_amount"`
-	DiscountAmount  *float64   `json:"discount_amount"`
+	Subtotal        *int64     `json:"subtotal"`
+	TaxTotal        *int64     `json:"tax_total"`
+	TotalAmount     *int64     `json:"total_amount"`
+	InsuranceAmount *int64     `json:"insurance_amount"`
+	DiscountAmount  *int64     `json:"discount_amount"`
 	ValidUntil      *time.Time `json:"valid_until"`
 	ClearValidUntil bool       `json:"clear_valid_until"`
 	Comment         *string    `json:"comment"`

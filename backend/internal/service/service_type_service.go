@@ -72,11 +72,12 @@ type ServiceTypeService interface { //nolint:revive // ServiceType is a domain e
 }
 
 type serviceTypeService struct {
-	repo repository.ServiceTypeRepository
+	repo            repository.ServiceTypeRepository
+	reservationRepo repository.ReservationRepository
 }
 
-func NewServiceTypeService(repo repository.ServiceTypeRepository) ServiceTypeService {
-	return &serviceTypeService{repo: repo}
+func NewServiceTypeService(repo repository.ServiceTypeRepository, reservationRepo repository.ReservationRepository) ServiceTypeService {
+	return &serviceTypeService{repo: repo, reservationRepo: reservationRepo}
 }
 
 func (s *serviceTypeService) List(ctx context.Context, clinicID uint64) ([]model.ServiceType, error) {
@@ -97,7 +98,7 @@ func (s *serviceTypeService) Create(ctx context.Context, clinicID uint64, input 
 		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, st); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create service type")
 	}
 	return st, nil
 }
@@ -108,12 +109,19 @@ func (s *serviceTypeService) Update(ctx context.Context, clinicID, id uint64, in
 		return s.repo.FindByID(ctx, clinicID, id)
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update service type")
 	}
 	return s.repo.FindByID(ctx, clinicID, id)
 }
 
 func (s *serviceTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
+	exists, err := s.reservationRepo.ExistsByServiceTypeID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check reservation dependency")
+	}
+	if exists {
+		return apperrors.WrapAlreadyExists("service_type", "この項目は予約データで使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, clinicID, id)
 }
 

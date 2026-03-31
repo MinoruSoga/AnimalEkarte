@@ -6,25 +6,63 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListClinics godoc
+// system_admin は全クリニック一覧を返す。それ以外は所属クリニックのみ返す。
 func (h *Handler) ListClinics(c *gin.Context) {
-	clinics, err := h.svc.Clinic.ListClinics(c.Request.Context())
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+
+	if userType == model.UserTypeSystemAdmin {
+		clinics, err := h.svc.Clinic.ListClinics(c.Request.Context())
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, clinics)
+		return
+	}
+
+	// system_admin 以外: JWT の clinic_id に対応する 1 件のみ返す
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	clinic, err := h.svc.Clinic.GetClinicByID(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, clinics)
+	c.JSON(http.StatusOK, []model.Clinic{*clinic})
 }
 
 // GetClinic godoc
+// system_admin は任意クリニックを取得可能。それ以外は所属クリニックのみ。
 func (h *Handler) GetClinic(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
+	}
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		clinicID, ok := extractClinicID(c)
+		if !ok {
+			return
+		}
+		if id != clinicID {
+			RespondError(c, apperrors.WrapForbidden("cannot access other clinics"))
+			return
+		}
 	}
 	clinic, err := h.svc.Clinic.GetClinicByID(c.Request.Context(), id)
 	if err != nil {
@@ -34,61 +72,50 @@ func (h *Handler) GetClinic(c *gin.Context) {
 	c.JSON(http.StatusOK, clinic)
 }
 
-// buildClinicUpdateFields は updateClinicRequest から非 nil フィールドのみを map に変換する。
-// GORM のゼロ値問題を回避し、PATCH セマンティクス（未送信フィールドは既存値を保持）を実現する。
-func buildClinicUpdateFields(req updateClinicRequest) map[string]any {
-	fields := make(map[string]any)
-	if req.Name != nil {
-		fields["name"] = *req.Name
-	}
-	if req.PostalCode != nil {
-		fields["postal_code"] = *req.PostalCode
-	}
-	if req.Address != nil {
-		fields["address"] = *req.Address
-	}
-	if req.PhoneNumber != nil {
-		fields["phone_number"] = *req.PhoneNumber
-	}
-	if req.FaxNumber != nil {
-		fields["fax_number"] = *req.FaxNumber
-	}
-	if req.RegistrationNumber != nil {
-		fields["registration_number"] = *req.RegistrationNumber
-	}
-	if req.DirectorName != nil {
-		fields["director_name"] = *req.DirectorName
-	}
-	if req.Email != nil {
-		fields["email"] = *req.Email
-	}
-	if req.Website != nil {
-		fields["website"] = *req.Website
-	}
-	if req.LogoURL != nil {
-		fields["logo_url"] = *req.LogoURL
-	}
-	if req.IsActive != nil {
-		fields["is_active"] = *req.IsActive
-	}
-	return fields
-}
-
 // UpdateClinic godoc
+// system_admin は任意クリニックを更新可能。clinic_admin は所属クリニックのみ。
 func (h *Handler) UpdateClinic(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
+	}
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		clinicID, ok := extractClinicID(c)
+		if !ok {
+			return
+		}
+		if id != clinicID {
+			RespondError(c, apperrors.WrapForbidden("cannot update other clinics"))
+			return
+		}
 	}
 	var req updateClinicRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	fields := buildClinicUpdateFields(req)
-	result, err := h.svc.Clinic.UpdateClinic(c.Request.Context(), id, fields)
+	input := &service.UpdateClinicInput{
+		Name:               req.Name,
+		PostalCode:         req.PostalCode,
+		Address:            req.Address,
+		PhoneNumber:        req.PhoneNumber,
+		FaxNumber:          req.FaxNumber,
+		RegistrationNumber: req.RegistrationNumber,
+		DirectorName:       req.DirectorName,
+		Email:              req.Email,
+		Website:            req.Website,
+		LogoURL:            req.LogoURL,
+		IsActive:           req.IsActive,
+		StandardTaxRate:    req.StandardTaxRate,
+		ReducedTaxRate:     req.ReducedTaxRate,
+	}
+	result, err := h.svc.Clinic.UpdateClinic(c.Request.Context(), id, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -97,10 +124,20 @@ func (h *Handler) UpdateClinic(c *gin.Context) {
 }
 
 // CreateClinic godoc
+// system_admin のみ実行可能
 func (h *Handler) CreateClinic(c *gin.Context) {
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		RespondError(c, apperrors.WrapForbidden("clinic creation requires system_admin"))
+		return
+	}
+
 	var req createClinicRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	clinic := &model.Clinic{
@@ -124,10 +161,20 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 }
 
 // DeleteClinic godoc
+// system_admin のみ実行可能
 func (h *Handler) DeleteClinic(c *gin.Context) {
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		RespondError(c, apperrors.WrapForbidden("clinic deletion requires system_admin"))
+		return
+	}
+
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Clinic.DeleteClinic(c.Request.Context(), id); err != nil {

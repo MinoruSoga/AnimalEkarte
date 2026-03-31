@@ -18,14 +18,14 @@ type createInventoryRequest struct {
 
 // updateInventoryRequest は在庫アイテム更新リクエスト。
 type updateInventoryRequest struct {
-	Name          string     `json:"name"`
-	Category      string     `json:"category"`
-	Quantity      int        `json:"quantity"`
-	Unit          string     `json:"unit"`
-	MinStockLevel int        `json:"min_stock_level"`
-	Location      string     `json:"location"`
+	Name          *string    `json:"name"`
+	Category      *string    `json:"category"`
+	Quantity      *int       `json:"quantity"`
+	Unit          *string    `json:"unit"`
+	MinStockLevel *int       `json:"min_stock_level"`
+	Location      *string    `json:"location"`
 	ExpiryDate    *time.Time `json:"expiry_date"`
-	Supplier      string     `json:"supplier"`
+	Supplier      *string    `json:"supplier"`
 	LastRestocked *time.Time `json:"last_restocked"`
-	Status        string     `json:"status"`
+	Status        *string    `json:"status"`
 }

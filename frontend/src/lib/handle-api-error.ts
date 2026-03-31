@@ -11,18 +11,21 @@ import { toast } from "sonner";
 export function handleApiError(err: unknown, context: string): void {
   if (axios.isAxiosError(err)) {
     const status = err.response?.status;
-    const serverMessage = err.response?.data?.message as string | undefined;
+    
+    // バックエンドの RespondError 規約に合わせて data.error を取得
+    const serverMessage = err.response?.data?.error as string | undefined;
 
     if (status === 400) {
-      toast.error(serverMessage ?? `入力値が不正です`);
+      toast.error(serverMessage ?? `${context}に失敗しました。入力内容を確認してください。`);
     } else if (status === 401) {
-      toast.error("認証が必要です。再度ログインしてください。");
+      // 401時は自動ログアウト・リダイレクトが行われるべきだが、ここでは通知のみ
+      toast.error("セッションが切れました。再度ログインしてください。");
     } else if (status === 403) {
       toast.error("この操作を実行する権限がありません。");
     } else if (status === 404) {
-      toast.error(`${context}対象が見つかりません。`);
+      toast.error(serverMessage ?? `${context}対象が見つかりません。`);
     } else if (status === 409) {
-      toast.error(serverMessage ?? `${context}中に競合が発生しました。`);
+      toast.error(serverMessage ?? "他のユーザーによって更新されています。一度リロードしてください。");
     } else if (status !== undefined && status >= 500) {
       toast.error(`サーバーエラーが発生しました。しばらく経ってから再度お試しください。`);
     } else {
@@ -32,5 +35,6 @@ export function handleApiError(err: unknown, context: string): void {
   }
 
   // Non-Axios errors (unexpected)
+  console.error("Non-Axios Error:", err);
   toast.error(`${context}中に予期しないエラーが発生しました。`);
 }

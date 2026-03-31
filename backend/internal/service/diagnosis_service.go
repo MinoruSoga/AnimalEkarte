@@ -74,17 +74,15 @@ type DiagnosisCategoryService interface {
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-// diagnosisCategoryService (#022: logger DI)
+// diagnosisCategoryService
 type diagnosisCategoryService struct {
-	repo   repository.DiagnosisCategoryRepository
-	logger *slog.Logger
+	repo repository.DiagnosisCategoryRepository
 }
 
 func NewDiagnosisCategoryService(
 	repo repository.DiagnosisCategoryRepository,
-	logger *slog.Logger,
 ) DiagnosisCategoryService {
-	return &diagnosisCategoryService{repo: repo, logger: logger}
+	return &diagnosisCategoryService{repo: repo}
 }
 
 func (s *diagnosisCategoryService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error) {
@@ -104,9 +102,9 @@ func (s *diagnosisCategoryService) Create(ctx context.Context, clinicID uint64, 
 		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, category); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create diagnosis category")
 	}
-	s.logger.InfoContext(ctx, "diagnosis category created",
+	slog.InfoContext(ctx, "diagnosis category created",
 		slog.Uint64("category_id", category.ID),
 		slog.Uint64("clinic_id", clinicID))
 	return category, nil
@@ -118,9 +116,9 @@ func (s *diagnosisCategoryService) Update(ctx context.Context, clinicID, id uint
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update diagnosis category")
 	}
-	s.logger.InfoContext(ctx, "diagnosis category updated",
+	slog.InfoContext(ctx, "diagnosis category updated",
 		slog.Uint64("category_id", id),
 		slog.Uint64("clinic_id", clinicID))
 	return s.repo.FindByID(ctx, clinicID, id)
@@ -167,19 +165,17 @@ type DiagnosisNameService interface {
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-// diagnosisNameService (#022: logger DI, #020: categoryRepo FK validation)
+// diagnosisNameService (#020: categoryRepo FK validation)
 type diagnosisNameService struct {
 	repo         repository.DiagnosisNameRepository
 	categoryRepo repository.DiagnosisCategoryRepository
-	logger       *slog.Logger
 }
 
 func NewDiagnosisNameService(
 	repo repository.DiagnosisNameRepository,
 	categoryRepo repository.DiagnosisCategoryRepository,
-	logger *slog.Logger,
 ) DiagnosisNameService {
-	return &diagnosisNameService{repo: repo, categoryRepo: categoryRepo, logger: logger}
+	return &diagnosisNameService{repo: repo, categoryRepo: categoryRepo}
 }
 
 func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
@@ -208,9 +204,9 @@ func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, inpu
 		SortOrder:           input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, name); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create diagnosis name")
 	}
-	s.logger.InfoContext(ctx, "diagnosis name created",
+	slog.InfoContext(ctx, "diagnosis name created",
 		slog.Uint64("name_id", name.ID),
 		slog.Uint64("clinic_id", clinicID))
 	return name, nil
@@ -228,9 +224,9 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update diagnosis name")
 	}
-	s.logger.InfoContext(ctx, "diagnosis name updated",
+	slog.InfoContext(ctx, "diagnosis name updated",
 		slog.Uint64("name_id", id),
 		slog.Uint64("clinic_id", clinicID))
 	return s.repo.FindByID(ctx, clinicID, id)

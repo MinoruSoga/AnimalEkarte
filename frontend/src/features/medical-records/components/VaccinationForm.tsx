@@ -15,7 +15,13 @@ import {
 } from "@/components/ui/select";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 
+interface VaccineOption {
+  value: string;
+  label: string;
+}
+
 interface VaccinationFormProps {
+  vaccineOptions: VaccineOption[];
   vaccineName: string;
   setVaccineName: (v: string) => void;
   date: string;
@@ -39,6 +45,7 @@ interface VaccinationFormProps {
 }
 
 export const VaccinationForm = memo(function VaccinationForm({
+  vaccineOptions,
   vaccineName,
   setVaccineName,
   date,
@@ -70,12 +77,14 @@ export const VaccinationForm = memo(function VaccinationForm({
           </Label>
           <Select value={vaccineName} onValueChange={setVaccineName}>
             <SelectTrigger className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]">
-              <SelectValue placeholder="選択してください" />
+              <SelectValue placeholder="ワクチンを選択" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="esophagitis">食道炎</SelectItem>
-              <SelectItem value="rabies">狂犬病ワクチン</SelectItem>
-              <SelectItem value="distemper">ジステンパー</SelectItem>
+            <SelectContent className="z-[9999]">
+              {vaccineOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

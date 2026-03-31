@@ -6,15 +6,15 @@ type createTreatmentRequest struct {
 	ProcedureID    *uint64 `json:"procedure_id"`
 	MedicineID     *uint64 `json:"medicine_id"`
 	InventoryID    *uint64 `json:"inventory_id"`
-	UnitPrice      float64 `json:"unit_price"`
-	Quantity       int     `json:"quantity"`
+	UnitPrice      int64   `json:"unit_price"`
+	Quantity       float64 `json:"quantity"`
 	Selected       bool    `json:"selected"`
 	Status         string  `json:"status"`
 	Content        string  `json:"content"`
 	Memo           string  `json:"memo"`
 	Insurance      bool    `json:"insurance"`
 	DiscountRate   float64 `json:"discount_rate"`
-	DiscountAmount float64 `json:"discount_amount"`
+	DiscountAmount int64   `json:"discount_amount"`
 	SortOrder      int     `json:"sort_order"`
 }
 
@@ -24,15 +24,15 @@ type updateTreatmentRequest struct {
 	ProcedureID    *uint64  `json:"procedure_id"`
 	MedicineID     *uint64  `json:"medicine_id"`
 	InventoryID    *uint64  `json:"inventory_id"`
-	UnitPrice      *float64 `json:"unit_price"`
-	Quantity       *int     `json:"quantity"`
+	UnitPrice      *int64   `json:"unit_price"`
+	Quantity       *float64 `json:"quantity"`
 	Selected       *bool    `json:"selected"`
 	Status         *string  `json:"status"`
 	Content        *string  `json:"content"`
 	Memo           *string  `json:"memo"`
 	Insurance      *bool    `json:"insurance"`
 	DiscountRate   *float64 `json:"discount_rate"`
-	DiscountAmount *float64 `json:"discount_amount"`
+	DiscountAmount *int64   `json:"discount_amount"`
 	SortOrder      *int     `json:"sort_order"`
 }
 

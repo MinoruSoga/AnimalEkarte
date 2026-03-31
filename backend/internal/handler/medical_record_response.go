@@ -7,21 +7,28 @@ import (
 )
 
 type medicalRecordResponse struct {
-	ID                       uint64                `json:"id"`
-	ClinicID                 uint64                `json:"clinic_id"`
-	RecordNo                 string                `json:"record_no"`
-	Date                     time.Time             `json:"date"`
-	OwnerID                  *uint64               `json:"owner_id,omitempty"`
-	PetID                    *uint64               `json:"pet_id,omitempty"`
-	DoctorID                 *uint64               `json:"doctor_id,omitempty"`
-	ReservationAppointmentID *uint64               `json:"reservation_appointment_id,omitempty"`
-	Status                   string                `json:"status"`
-	AccountingID             *uint64               `json:"accounting_id,omitempty"`
-	CreatedAt                time.Time             `json:"created_at"`
-	UpdatedAt                time.Time             `json:"updated_at"`
-	Owner                    *ownerSummaryResponse `json:"owner,omitempty"`
-	Pet                      *petSummaryResponse   `json:"pet,omitempty"`
-	Doctor                   *staffSummaryResponse `json:"doctor,omitempty"`
+	ID                       uint64                  `json:"id"`
+	ClinicID                 uint64                  `json:"clinic_id"`
+	RecordNo                 string                  `json:"record_no"`
+	Date                     time.Time               `json:"date"`
+	OwnerID                  *uint64                 `json:"owner_id,omitempty"`
+	PetID                    *uint64                 `json:"pet_id,omitempty"`
+	DoctorID                 *uint64                 `json:"doctor_id,omitempty"`
+	ReservationAppointmentID *uint64                 `json:"reservation_appointment_id,omitempty"`
+	Status                   string                  `json:"status"`
+	AccountingID             *uint64                 `json:"accounting_id,omitempty"`
+	CreatedAt                time.Time               `json:"created_at"`
+	UpdatedAt                time.Time               `json:"updated_at"`
+	Owner                    *ownerSummaryResponse   `json:"owner,omitempty"`
+	Pet                      *petSummaryResponse     `json:"pet,omitempty"`
+	Doctor                   *staffSummaryResponse   `json:"doctor,omitempty"`
+	Inquiry                  *inquirySummaryResponse `json:"inquiry,omitempty"`
+}
+
+// inquirySummaryResponse はカルテ一覧で使用する問診の要約型
+type inquirySummaryResponse struct {
+	ID             uint64 `json:"id"`
+	ChiefComplaint string `json:"chief_complaint"`
 }
 
 func toMedicalRecordResponseList(records []model.MedicalRecord) []medicalRecordResponse {
@@ -51,6 +58,12 @@ func toMedicalRecordResponse(r *model.MedicalRecord) medicalRecordResponse {
 	}
 	if r.Billing != nil {
 		resp.AccountingID = &r.Billing.ID
+	}
+	if r.Inquiry != nil {
+		resp.Inquiry = &inquirySummaryResponse{
+			ID:             r.Inquiry.ID,
+			ChiefComplaint: r.Inquiry.ChiefComplaint,
+		}
 	}
 	return resp
 }

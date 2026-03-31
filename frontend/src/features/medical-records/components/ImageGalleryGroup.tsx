@@ -1,10 +1,18 @@
-import React from "react";
+// React/Framework
+import React, { useCallback } from "react";
+
+// External
+import { Trash2, FileText } from "lucide-react";
+
+// Internal
+import { C, ICON } from "@/lib/design-tokens";
 
 interface ImageItem {
   id: number;
   name: string;
   src: string | null;
   label: string;
+  mimeType?: string;
 }
 
 interface ImageGalleryGroupProps {
@@ -13,36 +21,98 @@ interface ImageGalleryGroupProps {
     date: string;
     images: ImageItem[];
   };
+  onDeleteImage?: (imageId: number) => void;
+  isDeletingId?: number | null;
 }
 
 export const ImageGalleryGroup = React.memo(function ImageGalleryGroup({
   group,
+  onDeleteImage,
+  isDeletingId,
 }: ImageGalleryGroupProps) {
+  const handleDeleteClick = useCallback(
+    (e: React.MouseEvent, imageId: number) => {
+      e.stopPropagation();
+      onDeleteImage?.(imageId);
+    },
+    [onDeleteImage],
+  );
+
+  const handleImageClick = useCallback((src: string | null) => {
+    if (src) {
+      window.open(src, "_blank", "noopener,noreferrer");
+    }
+  }, []);
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-0 w-full">
-        <h3 className="text-sm font-bold text-[#37352F] mb-1 font-mono">
+        <h3 className={`text-sm font-bold font-mono mb-1 ${C.text}`}>
           {group.date}
         </h3>
-        <div className="h-[1px] w-full bg-[#37352F]/10" />
+        <div className={`h-[1px] w-full ${C.bgLight}`} />
       </div>
 
       <div className="flex flex-wrap gap-4 mt-2">
-        {group.images.map((img) => (
-          <div
-            key={img.id}
-            className="flex flex-col gap-1 w-[160px] group cursor-pointer"
-          >
-            <div className="h-[160px] w-full bg-[#F7F6F3] border border-[rgba(55,53,47,0.16)] flex items-center justify-center rounded-sm hover:border-[#37352F]/40 transition-colors">
-              <span className="text-sm font-medium text-[#37352F]/60">
-                {img.label}
-              </span>
+        {group.images.map((img) => {
+          const isPdf =
+            img.mimeType === "application/pdf" ||
+            img.name.toLowerCase().endsWith(".pdf");
+          const isDeleting = isDeletingId === img.id;
+
+          return (
+            <div
+              key={img.id}
+              className="flex flex-col gap-1 w-[160px] group relative cursor-pointer"
+              onClick={() => handleImageClick(img.src)}
+            >
+              <div
+                className={`h-[160px] w-full ${C.bgPage} border ${C.borderMedium} flex items-center justify-center rounded-sm hover:border-[rgba(55,53,47,0.40)] transition-colors overflow-hidden relative`}
+              >
+                {isPdf ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <FileText className={`${ICON.xl} ${C.text50}`} />
+                    <span className={`text-xs ${C.text50}`}>PDF</span>
+                  </div>
+                ) : img.src ? (
+                  <img
+                    src={img.src}
+                    alt={img.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className={`text-sm font-medium ${C.text50}`}>
+                    {img.label}
+                  </span>
+                )}
+
+                {/* Delete button — visible on hover */}
+                {onDeleteImage ? (
+                  <button
+                    type="button"
+                    aria-label={`${img.name}を削除`}
+                    onClick={(e) => handleDeleteClick(e, img.id)}
+                    disabled={isDeleting}
+                    className="absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm border border-red-200 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                  </button>
+                ) : null}
+
+                {isDeleting ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+                    <span className={`text-xs ${C.text50}`}>削除中...</span>
+                  </div>
+                ) : null}
+              </div>
+              <p
+                className={`text-sm font-medium truncate transition-colors ${C.text} group-hover:text-blue-600`}
+              >
+                {img.name}
+              </p>
             </div>
-            <p className="text-sm font-medium text-[#37352F] truncate group-hover:text-blue-600 transition-colors">
-              {img.name}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

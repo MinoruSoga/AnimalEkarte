@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -30,32 +29,32 @@ func NewChiefComplaintCategoryRepository(db *gorm.DB) ChiefComplaintCategoryRepo
 
 func (r *chiefComplaintCategoryRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error) {
 	categories := make([]model.ChiefComplaintCategory, 0)
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Where("clinic_id = ?", clinicID).
 		Order("sort_order ASC, name ASC").
-		Find(&categories).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find chief complaint categories")
+		Find(&categories).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "chief_complaint_category", "")
 	}
 	return categories, nil
 }
 
 func (r *chiefComplaintCategoryRepository) FindByID(ctx context.Context, id uint64) (*model.ChiefComplaintCategory, error) {
 	var category model.ChiefComplaintCategory
-	if err := r.db.WithContext(ctx).First(&category, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("chief_complaint_category", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find chief complaint category by id")
+	err := r.db.WithContext(ctx).First(&category, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "chief_complaint_category", fmt.Sprintf("%d", id))
 	}
 	return &category, nil
 }
 
 func (r *chiefComplaintCategoryRepository) Create(ctx context.Context, category *model.ChiefComplaintCategory) error {
-	if err := r.db.WithContext(ctx).Create(category).Error; err != nil {
+	err := r.db.WithContext(ctx).Create(category).Error
+	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("chief_complaint_category", category.Name)
 		}
-		return apperrors.Wrap(err, "create chief complaint category")
+		return apperrors.FromGORM(err, "chief_complaint_category", "")
 	}
 	return nil
 }
@@ -66,7 +65,7 @@ func (r *chiefComplaintCategoryRepository) Update(ctx context.Context, clinicID,
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update chief complaint category")
+		return apperrors.FromGORM(result.Error, "chief_complaint_category", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("chief_complaint_category", fmt.Sprintf("%d", id))
@@ -77,7 +76,7 @@ func (r *chiefComplaintCategoryRepository) Update(ctx context.Context, clinicID,
 func (r *chiefComplaintCategoryRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.ChiefComplaintCategory{}, "id = ?", id)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete chief complaint category")
+		return apperrors.FromGORM(result.Error, "chief_complaint_category", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("chief_complaint_category", fmt.Sprintf("%d", id))

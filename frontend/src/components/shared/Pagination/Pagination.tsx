@@ -1,3 +1,4 @@
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -62,7 +63,7 @@ export function Pagination({
 
   return (
     <div className="flex items-center justify-between py-3 px-1">
-      <div className="text-sm text-[#37352F]/60">
+      <div className={STYLE.paginationInfo}>
         {totalCount.toLocaleString()}件中 {startIndex.toLocaleString()}-{endIndex.toLocaleString()}件
       </div>
 
@@ -71,22 +72,22 @@ export function Pagination({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-[#37352F]/60 hover:bg-[#F7F6F3]/50"
+          className={STYLE.paginationBtn}
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
         >
-          <ChevronsLeft className="h-4 w-4" />
+          <ChevronsLeft className={ICON.action} />
         </Button>
 
         {/* Previous */}
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-[#37352F]/60 hover:bg-[#F7F6F3]/50"
+          className={STYLE.paginationBtn}
           onClick={onPrev}
           disabled={currentPage === 1}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className={ICON.action} />
         </Button>
 
         {/* Page numbers */}
@@ -94,7 +95,7 @@ export function Pagination({
           page === "ellipsis" ? (
             <span
               key={`ellipsis-${idx}`}
-              className="px-1 text-sm text-[#37352F]/40"
+              className={`px-1 text-base ${C.text40}`}
             >
               ...
             </span>
@@ -105,8 +106,8 @@ export function Pagination({
               size="icon"
               className={
                 currentPage === page
-                  ? "h-8 w-8 bg-[#37352F] text-white hover:bg-[#37352F]/90 text-sm"
-                  : "h-8 w-8 text-[#37352F]/60 hover:bg-[#F7F6F3]/50 text-sm"
+                  ? STYLE.paginationBtnActive
+                  : STYLE.paginationBtn
               }
               onClick={() => onPageChange(page)}
             >
@@ -119,22 +120,22 @@ export function Pagination({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-[#37352F]/60 hover:bg-[#F7F6F3]/50"
+          className={STYLE.paginationBtn}
           onClick={onNext}
           disabled={currentPage === totalPages}
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className={ICON.action} />
         </Button>
 
         {/* Last page */}
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-[#37352F]/60 hover:bg-[#F7F6F3]/50"
+          className={STYLE.paginationBtn}
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage === totalPages}
         >
-          <ChevronsRight className="h-4 w-4" />
+          <ChevronsRight className={ICON.action} />
         </Button>
       </div>
     </div>

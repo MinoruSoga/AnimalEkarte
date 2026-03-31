@@ -15,13 +15,15 @@ Terraform により構築・管理され、ECS(Fargate) 上の Go API を ALB �
 
 ### 1.1 構成概要
 
-- **入口**: Internet-facing ALB（HTTP:80）
+- **入口**: CloudFront（HTTPS終端, `dcqico6azu5w2.cloudfront.net`） → ALB（HTTP:80） → ECS
 - **アプリ**: ECS Fargate（Task: 1、Private Subnet）
 - **DB**: RDS PostgreSQL（Single-AZ、Private Subnet、暗号化あり）
 - **コンテナレジストリ**: ECR（latest 運用、ライフサイクルで最新10を保持）
 - **秘密情報**: SSM Parameter Store（DB user / password / name）
 - **ログ**: CloudWatch Logs（`/ecs/animalekarte-test`、retention 30日）
 - **IaC**: Terraform（state: S3 + lock: DynamoDB）
+
+> **CloudFront を使う理由**: ALB の `*.elb.amazonaws.com` ドメインには ACM 証明書を発行できないため、CloudFront の `*.cloudfront.net` で HTTPS を終端している。フロントエンド（Vercel）が `https://` で API を呼ぶために必須。
 
 ---
 
@@ -97,7 +99,7 @@ Terraform により構築・管理され、ECS(Fargate) 上の Go API を ALB �
   - `ekarte_db`
 
 > SSL 接続（`sslmode=require`）を使用。  
-> DB エンジンが確定前のため、UUID 等の DB 拡張機能依存は排除し、アプリ側で UUID を生成する設計に変更済みです。
+> DB エンジンが確定前のため、DB 拡張機能への依存を抑え、アプリ側（Go uint64）と DB 側（BIGSERIAL）で整合させた bigint 型の ID 体系を採用しています。
 
 ### 2.5 ECR
 
@@ -110,13 +112,17 @@ Terraform により構築・管理され、ECS(Fargate) 上の Go API を ALB �
 
 ### 2.6 ECS / ALB
 
+- CloudFront（HTTPS終端）
+  - Distribution ID: `ERCVR5P0IAJKS`
+  - URL: `https://dcqico6azu5w2.cloudfront.net`
+  - Origin: ALB（HTTP:80）
 - ALB
   - internet-facing
   - DNS:
     - `animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com`
   - URL:
     - `http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com`
-  - Listener: HTTP:80
+  - Listener: HTTP:80（CloudFront からのみ受信）
   - Target Group:
     - port: 8080
     - health check path: `/health`
@@ -136,8 +142,12 @@ Terraform により構築・管理され、ECS(Fargate) 上の Go API を ALB �
   - Port: 8080
   - Image: `.../animalekarte-api:latest`
   - Env:
+    - `PORT=8080`
+    - `GIN_MODE=release`
     - `DB_HOST` / `DB_PORT`
     - `DB_SSL_MODE=require`
+    - `CORS_ALLOWED_ORIGIN=https://frontend-eta-six-20.vercel.app,https://dcqico6azu5w2.cloudfront.net`
+    - `JWT_SECRET`（本番必須、config.Validate() で起動時に検証）
   - Secrets（SSM）:
     - `DB_NAME` / `DB_USER` / `DB_PASSWORD`
   - Logs:
@@ -151,7 +161,8 @@ Terraform により構築・管理され、ECS(Fargate) 上の Go API を ALB �
 
 ```mermaid
 flowchart TB
-  User[User / Browser] -->|HTTP 80| ALB[ALB (internet-facing)\nanimalekarte-test-alb]
+  User[User / Browser] -->|HTTPS 443| CF[CloudFront\ndcqico6azu5w2.cloudfront.net]
+  CF -->|HTTP 80| ALB[ALB (internet-facing)\nanimalekarte-test-alb]
   ALB -->|HTTP 8080| ECS[ECS Fargate Service\nanimalekarte-test-service\n(private subnets)]
   ECS -->|TCP 5432 (sslmode=require)| RDS[(RDS PostgreSQL 16\nprivate subnet\nencrypted)]
   ECS --> CW[(CloudWatch Logs\n/ecs/animalekarte-test)]
@@ -181,7 +192,8 @@ flowchart LR
     IGW[Internet Gateway]
   end
 
-  User --> IGW --> ALB1
+  User -->|HTTPS| CF[CloudFront\ndcqico6azu5w2.cloudfront.net]
+  CF --> IGW --> ALB1
   ALB1 --> ECS1
   ECS1 --> RDS1
   PrivateAZA --> NAT --> IGW
@@ -194,9 +206,10 @@ flowchart LR
 
 ### 4.1 外部→内部
 
-1. クライアント → ALB: `TCP/80`
-2. ALB → ECS Task: `TCP/8080`
-3. ECS Task → RDS: `TCP/5432`（SSL required）
+1. クライアント → CloudFront: `HTTPS/443`
+2. CloudFront → ALB: `HTTP/80`
+3. ALB → ECS Task: `TCP/8080`
+4. ECS Task → RDS: `TCP/5432`（SSL required）
 
 ### 4.2 インターネット向けアウトバウンド（Private Subnet）
 
@@ -319,7 +332,7 @@ aws elbv2 describe-target-health   --target-group-arn ${TG_ARN}   --region us-ea
 追加で削減できる余地（テスト用途）:
 - NAT Gateway を削る（ただし ECS が外部へ出る必要がある場合は不可）
 - ログ retention を 7日などに短縮
-- ALB をやめ、別の入口（CloudFront + API Gateway 等）へ寄せる（構成が変わるため別設計）
+- CloudFront は既に導入済み。ALB → CloudFront 直結で ALB を廃止すると更にコスト削減可能（構成変更要）
 
 ---
 
@@ -329,8 +342,9 @@ aws elbv2 describe-target-health   --target-group-arn ${TG_ARN}   --region us-ea
 > 医療レベル（監査/可用性/セキュリティ）に引き上げる場合は以下を追加検討します。
 
 - 通信
-  - ALB を HTTPS 化（ACM、HTTP→HTTPS リダイレクト）
-  - WAF 導入
+  - ~~ALB を HTTPS 化（ACM、HTTP→HTTPS リダイレクト）~~ → CloudFront で HTTPS 終端済み
+  - ALB SG を CloudFront IP レンジのみに絞る（現状 0.0.0.0/0:80）
+  - WAF 導入（CloudFront + AWS WAF）
 - 可用性
   - NAT を AZ ごとに分割（2台）
   - RDS Multi-AZ / バックアップ強化 / PITR
@@ -349,6 +363,9 @@ aws elbv2 describe-target-health   --target-group-arn ${TG_ARN}   --region us-ea
 
 ## 10. 参考：現在の重要出力（terraform output）
 
+- `frontend_url`: `https://frontend-eta-six-20.vercel.app`
+- `api_url`: `https://dcqico6azu5w2.cloudfront.net/api`
+- `cloudfront_distribution_id`: `ERCVR5P0IAJKS`
 - `alb_url`: `http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com`
 - `ecr_repository_url`: `698109622668.dkr.ecr.us-east-1.amazonaws.com/animalekarte-api`
 - `ecs_cluster_name`: `animalekarte-test-cluster`
@@ -362,4 +379,5 @@ aws elbv2 describe-target-health   --target-group-arn ${TG_ARN}   --region us-ea
 ## 変更履歴
 
 - 2026-02: 初版（テスト環境。VPC/RDS/ECS/ALB/ECR/SSM/Logs を Terraform で構築）
-- 2026-02: DB拡張（uuid-ossp）依存を排除し、アプリ側 UUID 生成へ変更
+- 2026-02: DB拡張（uuid-ossp）依存を排除し、Go モデル（uint64）と整合させた bigint 採番へ変更
+- 2026-03: CloudFront（`dcqico6azu5w2.cloudfront.net`）を追加。HTTPS終端・SameSite=None Cookie 対応のため導入

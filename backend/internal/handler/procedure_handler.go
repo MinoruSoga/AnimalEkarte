@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Procedure ----
@@ -51,6 +52,14 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		return
 	}
 
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != "" {
+		taxType = model.TaxType(input.TaxType)
+	}
+	taxRate := 0.10
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
+	}
 	procedure := &model.Procedure{
 		ClinicID:    clinicID,
 		Name:        input.Name,
@@ -60,6 +69,8 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		Duration:    input.Duration,
 		ParentID:    input.ParentID,
 		SortOrder:   input.SortOrder,
+		TaxType:     taxType,
+		TaxRate:     taxRate,
 	}
 	if input.Anesthesia != "" {
 		procedure.Anesthesia = model.AnesthesiaType(input.Anesthesia)
@@ -85,32 +96,32 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 	}
 	var input updateProcedureRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	procedure := &model.Procedure{
-		ID:          id,
-		ClinicID:    clinicID,
-		Name:        input.Name,
-		Price:       input.Price,
-		Description: input.Description,
-		Duration:    input.Duration,
-		SortOrder:   input.SortOrder,
+	svcInput := service.UpdateProcedureInput{
+		Name:          input.Name,
+		Price:         input.Price,
+		IsActive:      input.IsActive,
+		Description:   input.Description,
+		Duration:      input.Duration,
+		ParentID:      input.ParentID,
+		ClearParentID: input.ClearParentID,
+		SortOrder:     input.SortOrder,
+		TaxRate:       input.TaxRate,
 	}
-	if input.IsActive != nil {
-		procedure.IsActive = *input.IsActive
+	if input.Anesthesia != nil {
+		a := model.AnesthesiaType(*input.Anesthesia)
+		svcInput.Anesthesia = &a
 	}
-	if input.Anesthesia != "" {
-		procedure.Anesthesia = model.AnesthesiaType(input.Anesthesia)
-	}
-	if input.ClearParentID {
-		procedure.ParentID = nil
-	} else if input.ParentID != nil {
-		procedure.ParentID = input.ParentID
+	if input.TaxType != nil {
+		t := model.TaxType(*input.TaxType)
+		svcInput.TaxType = &t
 	}
 
-	if err := h.svc.Procedure.Update(c.Request.Context(), procedure); err != nil {
+	procedure, err := h.svc.Procedure.Update(c.Request.Context(), clinicID, id, &svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

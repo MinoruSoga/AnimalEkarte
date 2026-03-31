@@ -4,18 +4,6 @@ variable "name_prefix" {
   default     = "animalekarte-test"
 }
 
-variable "project_name" {
-  description = "Project name for parameter store path"
-  type        = string
-  default     = "animalekarte"
-}
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-  default     = "test"
-}
-
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
   type        = string
@@ -123,19 +111,6 @@ variable "alb_certificate_arn" {
   description = "ACM certificate ARN for ALB HTTPS listener"
   type        = string
   default     = ""
-}
-
-# Application Configuration
-variable "cors_allowed_origin" {
-  description = "Comma-separated list of allowed CORS origins"
-  type        = string
-  default     = "http://localhost:3000"
-}
-
-variable "cookie_cross_domain" {
-  description = "Enable cross-domain cookie settings (SameSite=None + Secure)"
-  type        = bool
-  default     = false
 }
 
 # GitHub Configuration

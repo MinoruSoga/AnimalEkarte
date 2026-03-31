@@ -1,6 +1,7 @@
 import type { MedicalRecord } from "@/types";
 import { formatDate } from "@/utils/format/date";
 import type { BackendMedicalRecord } from "./types";
+import type { InterviewHistoryItem } from "../types";
 
 export const transformMedicalRecord = (
   record: BackendMedicalRecord
@@ -33,5 +34,22 @@ export const transformMedicalRecord = (
     prescription: undefined,
     notes: record.inquiry?.notes,
     accountingId: record.accounting_id ? String(record.accounting_id) : undefined,
+    version: record.version ?? 1,
+  };
+};
+
+/** FEAT-003: BackendMedicalRecord → InterviewHistoryItem 変換 */
+export const transformToHistoryItem = (record: BackendMedicalRecord): InterviewHistoryItem => {
+  const chiefComplaint = record.inquiry?.chief_complaint ?? "";
+  const notes = record.inquiry?.notes ?? "";
+  const content = [chiefComplaint, notes].filter(Boolean).join("\n") || "（記録なし）";
+
+  return {
+    id: String(record.id ?? 0),
+    date: formatDate(record.date),
+    author: record.doctor?.name ?? "-",
+    type: record.status === "finalized" ? "確定済" : "作成中",
+    title: chiefComplaint || record.record_no,
+    content,
   };
 };

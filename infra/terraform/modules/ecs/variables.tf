@@ -53,26 +53,6 @@ variable "db_port" {
   type        = number
 }
 
-variable "db_name_parameter_arn" {
-  description = "SSM Parameter ARN for DB name"
-  type        = string
-}
-
-variable "db_user_parameter_arn" {
-  description = "SSM Parameter ARN for DB user"
-  type        = string
-}
-
-variable "db_password_parameter_arn" {
-  description = "SSM Parameter ARN for DB password"
-  type        = string
-}
-
-variable "ssm_parameter_arns" {
-  description = "List of SSM Parameter ARNs for task execution role"
-  type        = list(string)
-}
-
 variable "task_cpu" {
   description = "Task CPU units"
   type        = string
@@ -97,14 +77,3 @@ variable "alb_certificate_arn" {
   default     = ""
 }
 
-variable "cors_allowed_origin" {
-  description = "Comma-separated list of allowed CORS origins"
-  type        = string
-  default     = "http://localhost:3000"
-}
-
-variable "cookie_cross_domain" {
-  description = "Enable cross-domain cookie settings (SameSite=None + Secure)"
-  type        = bool
-  default     = false
-}

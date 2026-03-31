@@ -47,7 +47,7 @@ func (s *chiefComplaintCategoryService) GetByID(ctx context.Context, id uint64) 
 
 func (s *chiefComplaintCategoryService) Create(ctx context.Context, category *model.ChiefComplaintCategory) error {
 	if err := s.repo.Create(ctx, category); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to create chief complaint category")
 	}
 	slog.InfoContext(ctx, "chief complaint category created",
 		slog.Uint64("category_id", category.ID),
@@ -61,7 +61,7 @@ func (s *chiefComplaintCategoryService) Update(ctx context.Context, clinicID, id
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update chief complaint category")
 	}
 	slog.InfoContext(ctx, "chief complaint category updated",
 		slog.Uint64("category_id", id),

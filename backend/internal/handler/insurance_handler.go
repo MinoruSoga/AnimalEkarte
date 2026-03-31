@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Insurance ----
@@ -93,24 +94,17 @@ func (h *Handler) UpdateInsurance(c *gin.Context) {
 		return
 	}
 
-	coverageRate := 0
-	if req.CoverageRate != nil {
-		coverageRate = *req.CoverageRate
-	}
-	insurance := &model.Insurance{
-		ID:           id,
-		ClinicID:     clinicID,
+	svcInput := service.UpdateInsuranceInput{
 		Name:         req.Name,
+		IsActive:     req.IsActive,
 		Description:  req.Description,
-		CoverageRate: coverageRate,
+		CoverageRate: req.CoverageRate,
 		ContactPhone: req.ContactPhone,
 		SortOrder:    req.SortOrder,
 	}
-	if req.IsActive != nil {
-		insurance.IsActive = *req.IsActive
-	}
 
-	if err := h.svc.Insurance.Update(c.Request.Context(), insurance); err != nil {
+	insurance, err := h.svc.Insurance.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

@@ -14,12 +14,12 @@ import (
 // ---- JobTitle モック ----
 
 type mockJobTitleRepository struct {
-	findAllFn   func(ctx context.Context, clinicID uint64) ([]model.JobTitle, error)
-	findByIDFn  func(ctx context.Context, id uint64) (*model.JobTitle, error)
-	createFn    func(ctx context.Context, jobTitle *model.JobTitle) error
-	updateFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn    func(ctx context.Context, id uint64) error
-	reorderErr  error
+	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.JobTitle, error)
+	findByIDFn func(ctx context.Context, id uint64) (*model.JobTitle, error)
+	createFn   func(ctx context.Context, jobTitle *model.JobTitle) error
+	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn   func(ctx context.Context, id uint64) error
+	reorderErr error
 }
 
 func (m *mockJobTitleRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.JobTitle, error) {
@@ -415,4 +415,3 @@ func TestJobTitleService_Reorder(t *testing.T) {
 		})
 	}
 }
-

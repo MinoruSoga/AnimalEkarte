@@ -14,12 +14,12 @@ import (
 // ---- Consultation モック ----
 
 type mockConsultationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.Consultation, error)
-	createFn   func(ctx context.Context, consultation *model.Consultation) error
-	updateFn   func(ctx context.Context, consultation *model.Consultation) error
-	deleteFn   func(ctx context.Context, id uint64) error
-	reorderErr error
+	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
+	findByIDFn     func(ctx context.Context, id uint64) (*model.Consultation, error)
+	createFn       func(ctx context.Context, consultation *model.Consultation) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
+	deleteFn       func(ctx context.Context, id uint64) error
+	reorderErr     error
 }
 
 func (m *mockConsultationRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
@@ -34,8 +34,8 @@ func (m *mockConsultationRepository) Create(ctx context.Context, consultation *m
 	return m.createFn(ctx, consultation)
 }
 
-func (m *mockConsultationRepository) Update(ctx context.Context, consultation *model.Consultation) error {
-	return m.updateFn(ctx, consultation)
+func (m *mockConsultationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockConsultationRepository) Delete(ctx context.Context, id uint64) error {
@@ -105,12 +105,12 @@ func TestConsultationService_List(t *testing.T) {
 
 func TestConsultationService_GetByID(t *testing.T) {
 	tests := []struct {
-		name          string
-		id            uint64
-		repoData      *model.Consultation
-		repoErr       error
-		wantErr       bool
-		wantNotFound  bool
+		name         string
+		id           uint64
+		repoData     *model.Consultation
+		repoErr      error
+		wantErr      bool
+		wantNotFound bool
 	}{
 		{
 			name: "returns consultation when found",
@@ -118,7 +118,7 @@ func TestConsultationService_GetByID(t *testing.T) {
 			repoData: &model.Consultation{
 				ID:        1,
 				ClinicID:  1,
-				Name:     "相談1",
+				Name:      "相談1",
 				SortOrder: 1,
 				IsActive:  true,
 			},
@@ -180,7 +180,7 @@ func TestConsultationService_Create(t *testing.T) {
 			name: "creates consultation successfully",
 			input: &model.Consultation{
 				ClinicID:  1,
-				Name:     "新規相談",
+				Name:      "新規相談",
 				SortOrder: 3,
 				IsActive:  true,
 			},
@@ -191,7 +191,7 @@ func TestConsultationService_Create(t *testing.T) {
 			name: "returns error when consultation already exists",
 			input: &model.Consultation{
 				ClinicID: 1,
-				Name:    "既存相談",
+				Name:     "既存相談",
 			},
 			repoErr: apperrors.WrapAlreadyExists("consultation", "既存相談"),
 			wantErr: true,
@@ -200,7 +200,7 @@ func TestConsultationService_Create(t *testing.T) {
 			name: "returns error on repository failure",
 			input: &model.Consultation{
 				ClinicID: 1,
-				Name:    "エラー相談",
+				Name:     "エラー相談",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -228,40 +228,41 @@ func TestConsultationService_Create(t *testing.T) {
 }
 
 func TestConsultationService_Update(t *testing.T) {
+	name := "更新後相談"
+	isActive := true
 	tests := []struct {
 		name    string
-		input   *model.Consultation
+		input   UpdateConsultationInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "updates consultation successfully",
-			input: &model.Consultation{
-				ID:        1,
-				ClinicID:  1,
-				Name:     "更新後相談",
-				SortOrder: 2,
-				IsActive:  true,
+			input: UpdateConsultationInput{
+				Name:     &name,
+				IsActive: &isActive,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
+			name:    "returns error when no fields provided",
+			input:   UpdateConsultationInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
 			name: "returns not found error when consultation does not exist",
-			input: &model.Consultation{
-				ID:       999,
-				ClinicID: 1,
-				Name:    "存在しない相談",
+			input: UpdateConsultationInput{
+				Name: &name,
 			},
 			repoErr: apperrors.WrapNotFound("consultation", "999"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			input: &model.Consultation{
-				ID:       1,
-				ClinicID: 1,
-				Name:    "エラー相談",
+			input: UpdateConsultationInput{
+				Name: &name,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -271,18 +272,23 @@ func TestConsultationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockConsultationRepository{
-				updateFn: func(_ context.Context, _ *model.Consultation) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Consultation, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.Consultation{ID: 1, ClinicID: 1}, nil
 				},
 			}
 			svc := NewConsultationService(repo)
 
-			err := svc.Update(context.Background(), tt.input)
+			consultation, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, consultation)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, consultation)
 			}
 		})
 	}

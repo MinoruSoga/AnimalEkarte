@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Cage ----
@@ -89,25 +90,29 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 		return
 	}
 
-	cage := &model.Cage{
-		ID:          id,
-		ClinicID:    clinicID,
+	var cageType *model.CageType
+	if input.CageType != nil {
+		ct := model.CageType(*input.CageType)
+		cageType = &ct
+	}
+	var cageSize *model.CageSize
+	if input.CageSize != nil {
+		cs := model.CageSize(*input.CageSize)
+		cageSize = &cs
+	}
+
+	svcInput := service.UpdateCageInput{
 		Name:        input.Name,
+		CageType:    cageType,
+		CageSize:    cageSize,
 		Price:       input.Price,
+		IsActive:    input.IsActive,
 		Description: input.Description,
 		SortOrder:   input.SortOrder,
 	}
-	if input.CageType != "" {
-		cage.CageType = model.CageType(input.CageType)
-	}
-	if input.CageSize != "" {
-		cage.CageSize = model.CageSize(input.CageSize)
-	}
-	if input.IsActive != nil {
-		cage.IsActive = *input.IsActive
-	}
 
-	if err := h.svc.Cage.Update(c.Request.Context(), cage); err != nil {
+	cage, err := h.svc.Cage.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

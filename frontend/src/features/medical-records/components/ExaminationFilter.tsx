@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import React from "react";
 
 // External
@@ -8,6 +9,7 @@ import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
 interface ExaminationFilterProps {
   searchTerm: string;
@@ -33,7 +35,7 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
           size="sm"
           className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4"
         >
-          <FileText className="size-4" />
+          <FileText className={ICON.action} />
           検査取り込み
         </Button>
       </div>
@@ -57,18 +59,18 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
             期間
           </Label>
           <div className="flex items-center gap-2">
-            <Input
-              type="date"
+            <NotionDatePicker
               value={dateStart}
-              onChange={(e) => onDateStartChange(e.target.value)}
-              className="bg-white border-[rgba(55,53,47,0.16)] h-10 flex-1 text-sm"
+              onChange={onDateStartChange}
+              placeholder="開始日"
+              className="flex-1"
             />
             <span className="text-[#37352F] font-medium text-sm">〜</span>
-            <Input
-              type="date"
+            <NotionDatePicker
               value={dateEnd}
-              onChange={(e) => onDateEndChange(e.target.value)}
-              className="bg-white border-[rgba(55,53,47,0.16)] h-10 flex-1 text-sm"
+              onChange={onDateEndChange}
+              placeholder="終了日"
+              className="flex-1"
             />
           </div>
         </div>

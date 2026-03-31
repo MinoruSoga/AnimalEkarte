@@ -4,6 +4,7 @@ import type {
   Procedure,
   Vaccine,
   CheckupType,
+  TaxType,
 } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -20,6 +21,8 @@ export const transformConsultation = (data: Consultation) => ({
   sortOrder: data.sort_order ?? 0,
   timeCondition: data.time_condition ?? "",
   duration: data.duration,
+  taxType: (data.tax_type ?? "excluded") as TaxType,
+  taxRate: data.tax_rate ?? 0.1,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
 });
@@ -58,6 +61,8 @@ export const transformProcedure = (data: Procedure) => ({
   sortOrder: data.sort_order ?? 0,
   anesthesia: data.anesthesia ?? "none",
   duration: data.duration,
+  taxType: (data.tax_type ?? "excluded") as TaxType,
+  taxRate: data.tax_rate ?? 0.1,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
 });
@@ -116,4 +121,6 @@ export type TreatmentItem = {
   isActive: boolean;
   description: string;
   sortOrder: number;
+  taxType?: TaxType;
+  taxRate?: number;
 };

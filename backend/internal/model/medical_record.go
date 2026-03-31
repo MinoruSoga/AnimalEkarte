@@ -23,6 +23,7 @@ type MedicalRecord struct {
 	DoctorID                 *uint64             `                                                      json:"doctor_id,omitempty"`
 	ReservationAppointmentID *uint64             `                                                      json:"reservation_appointment_id,omitempty"`
 	Status                   MedicalRecordStatus `gorm:"type:medical_record_status;default:'draft'"      json:"status"`
+	Version                  int                 `gorm:"default:1"                                       json:"version"`
 	CreatedAt                time.Time           `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt                time.Time           `gorm:"autoUpdateTime"                                 json:"updated_at"`
 	DeletedAt                gorm.DeletedAt      `                                                      json:"-" swaggerignore:"true"`
@@ -34,7 +35,7 @@ type MedicalRecord struct {
 	ClinicalPlan  *ClinicalPlan  `gorm:"foreignKey:MedicalRecordID"  json:"clinical_plan,omitempty"`
 	Inquiry       *Inquiry       `gorm:"foreignKey:MedicalRecordID"  json:"inquiry,omitempty"`
 	Treatments    []Treatment    `gorm:"foreignKey:MedicalRecordID"  json:"treatments,omitempty"`
-	Vitals        []Vital        `gorm:"foreignKey:MedicalRecordID"  json:"vitals,omitempty"`
+	Vitals        []VitalRecord  `gorm:"foreignKey:MedicalRecordID"  json:"vitals,omitempty"`
 	Exams         []Examination  `gorm:"foreignKey:MedicalRecordID"  json:"exams,omitempty"`
 	Vaccinations  []Vaccination  `gorm:"foreignKey:MedicalRecordID"  json:"vaccinations,omitempty"`
 	Checkups      []Checkup      `gorm:"foreignKey:MedicalRecordID"  json:"checkups,omitempty"`

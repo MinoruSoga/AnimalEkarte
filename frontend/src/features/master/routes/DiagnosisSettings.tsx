@@ -1,7 +1,8 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, useDeferredValue, useTransition } from "react";
+import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
+import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 
 // DnD
 import {
@@ -14,7 +15,7 @@ import {
 } from "@dnd-kit/sortable";
 
 // Shared hooks
-import { useSortableList } from "@/hooks/useSortableList";
+import { useSortableList } from "@/hooks/use-sortable-list";
 
 // External
 import Plus from "lucide-react/dist/esm/icons/plus";
@@ -31,9 +32,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -41,10 +42,10 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
-import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import {
   useGetDiagnosisCategories,
   useCreateDiagnosisCategory,
@@ -131,25 +132,60 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
   }));
+  const [isDirty, setIsDirty] = useState(false);
+  const [nameError, setNameError] = useState("");
+
+  const handleTitleChange = useCallback((v: string) => {
+    setFormData((prev) => ({ ...prev, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleDescriptionChange = useCallback((v: string) => {
+    setFormData((prev) => ({ ...prev, description: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleAction = useCallback(() => {
+    if (!formData.name.trim()) {
+      setNameError("名称を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(formData);
+    setIsDirty(false);
+  }, [formData, onSave]);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
-      onClose={onClose}
-      onSave={() => onSave(formData)}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose}
+      action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<FolderTree className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
+      titleError={nameError}
     >
       <StatusToggleButton
         isActive={formData.isActive}
-        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+        onToggle={handleToggleActive}
       />
       <PropertyRow label="備考">
-        <PropInput
+        <PropertyInput
           value={formData.description}
-          onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
+          onChange={handleDescriptionChange}
           placeholder="補足情報など"
         />
       </PropertyRow>
@@ -186,6 +222,44 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
   }));
+  const [isDirty, setIsDirty] = useState(false);
+  const [nameError, setNameError] = useState("");
+
+  const handleTitleChange = useCallback((v: string) => {
+    setFormData((prev) => ({ ...prev, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleCategoryChange = useCallback((v: string) => {
+    setFormData((prev) => ({ ...prev, diagnosisCategoryId: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleDescriptionChange = useCallback((v: string) => {
+    setFormData((prev) => ({ ...prev, description: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleAction = useCallback(() => {
+    if (!formData.name.trim()) {
+      setNameError("診断病名を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(formData);
+    setIsDirty(false);
+  }, [formData, onSave]);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
 
   // js-cache-function-results: API由来のJSXリストをuseMemoでキャッシュ
   const categorySelectItems = useMemo(
@@ -199,20 +273,22 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
-      onClose={onClose}
-      onSave={() => onSave(formData)}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose}
+      action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<ClipboardList className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
+      titleError={nameError}
     >
       <StatusToggleButton
         isActive={formData.isActive}
-        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+        onToggle={handleToggleActive}
       />
       <PropertyRow label="カテゴリ">
         <Select
           value={formData.diagnosisCategoryId}
-          onValueChange={(v) => setFormData((prev) => ({ ...prev, diagnosisCategoryId: v }))}
+          onValueChange={handleCategoryChange}
         >
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="カテゴリを選択" />
@@ -223,9 +299,9 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
         </Select>
       </PropertyRow>
       <PropertyRow label="備考">
-        <PropInput
+        <PropertyInput
           value={formData.description}
-          onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
+          onChange={handleDescriptionChange}
           placeholder="補足情報など"
         />
       </PropertyRow>
@@ -267,10 +343,13 @@ function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: D
 
   return (
     <div className="flex flex-col gap-4">
-      <SearchFilterBar
+      <NotionFilter
+          properties={[]}
+          activeFilters={[]}
+          onFilterChange={() => {}}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        placeholder="カテゴリ名で検索..."
+        searchPlaceholder="カテゴリ名で検索..."
         count={filteredItems.length}
       />
 
@@ -293,10 +372,10 @@ function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: D
                 id={item.id}
                 onClick={() => onEditTargetChange(item)}
               >
-                <TableCell className={`font-medium text-sm ${C.text}`}>
+                <TableCell className={`font-medium text-base ${C.text}`}>
                   {item.name}
                 </TableCell>
-                <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
+                <TableCell className={`text-base ${C.text70} truncate max-w-[240px]`}>
                   {item.description || "-"}
                 </TableCell>
                 <TableCell className="text-center">
@@ -355,10 +434,13 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: Diagn
 
   return (
     <div className="flex flex-col gap-4">
-      <SearchFilterBar
+      <NotionFilter
+          properties={[]}
+          activeFilters={[]}
+          onFilterChange={() => {}}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        placeholder="診断病名で検索..."
+        searchPlaceholder="診断病名で検索..."
         count={filteredItems.length}
       />
 
@@ -381,10 +463,10 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: Diagn
                 id={item.id}
                 onClick={() => onEditTargetChange(item)}
               >
-                <TableCell className={`text-sm ${C.text70}`}>
+                <TableCell className={`text-base ${C.text70}`}>
                   {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
                 </TableCell>
-                <TableCell className={`font-medium text-sm ${C.text}`}>
+                <TableCell className={`font-medium text-base ${C.text}`}>
                   {item.name}
                 </TableCell>
                 <TableCell className="text-center">
@@ -411,29 +493,42 @@ export function DiagnosisSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "diagnosis_category";
 
-  const [categoryEditTarget, setCategoryEditTarget] = useState<DiagnosisCategory | "new" | null>(null);
-  const [nameEditTarget, setNameEditTarget] = useState<DiagnosisName | "new" | null>(null);
-  const [categoryPendingDelete, setCategoryPendingDelete] = useState<DiagnosisCategory | null>(null);
-  const [namePendingDelete, setNamePendingDelete] = useState<DiagnosisName | null>(null);
-  const [, startSaveTransition] = useTransition();
-
   const { data: rawCategories } = useGetDiagnosisCategories();
+  const { data: rawNames } = useGetDiagnosisNames();
   const createCategoryMutation = useCreateDiagnosisCategory();
   const updateCategoryMutation = useUpdateDiagnosisCategory();
   const deleteCategoryMutation = useDeleteDiagnosisCategory();
-
   const createNameMutation = useCreateDiagnosisName();
   const updateNameMutation = useUpdateDiagnosisName();
   const deleteNameMutation = useDeleteDiagnosisName();
 
+  const catCrud = useMasterCRUD<DiagnosisCategory>({
+    data: rawCategories,
+    deleteMutation: deleteCategoryMutation,
+    entityLabel: "診断カテゴリ",
+  });
+
+  const nameCrud = useMasterCRUD<DiagnosisName>({
+    data: rawNames,
+    deleteMutation: deleteNameMutation,
+    entityLabel: "診断病名",
+  });
+
+  // rerender-dependencies: destructure methods to avoid object reference instability in useCallback deps
+  const catSetEditTarget = catCrud.setEditTarget;
+  const catHandleClose = catCrud.handleClose;
+  const catStartSave = catCrud.startSaveTransition;
+  const catEditTarget = catCrud.editTarget;
+  const nameSetEditTarget = nameCrud.setEditTarget;
+  const nameHandleClose = nameCrud.handleClose;
+  const nameStartSave = nameCrud.startSaveTransition;
+  const nameEditTarget = nameCrud.editTarget;
+
   const handleTabChange = useCallback((tab: string) => {
     setSearchParams({ tab });
-    setCategoryEditTarget(null);
-    setNameEditTarget(null);
-  }, [setSearchParams]);
-
-  const handleCategoryClose = useCallback(() => setCategoryEditTarget(null), []);
-  const handleNameClose = useCallback(() => setNameEditTarget(null), []);
+    catSetEditTarget(null);
+    nameSetEditTarget(null);
+  }, [setSearchParams, catSetEditTarget, nameSetEditTarget]);
 
   const handleCategorySave = useCallback(
     (data: DiagnosisCategoryFormData) => {
@@ -441,17 +536,17 @@ export function DiagnosisSettings() {
         toast.error("カテゴリ名は必須です");
         return;
       }
-      startSaveTransition(() => {
-        if (categoryEditTarget !== null && categoryEditTarget !== "new") {
+      catStartSave(() => {
+        if (catEditTarget !== null && catEditTarget !== "new") {
           const req: UpdateDiagnosisCategoryRequest = {
             name: data.name,
             description: data.description || undefined,
             is_active: data.isActive,
           };
           updateCategoryMutation.mutate(
-            { id: categoryEditTarget.id, req },
+            { id: catEditTarget.id, req },
             {
-              onSuccess: () => { toast.success("更新しました"); handleCategoryClose(); },
+              onSuccess: () => { toast.success("更新しました"); catHandleClose(); },
               onError: () => toast.error("更新に失敗しました"),
             },
           );
@@ -462,26 +557,14 @@ export function DiagnosisSettings() {
             is_active: true,
           };
           createCategoryMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); handleCategoryClose(); },
+            onSuccess: () => { toast.success("登録しました"); catHandleClose(); },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [categoryEditTarget, updateCategoryMutation, createCategoryMutation, handleCategoryClose],
+    [catEditTarget, updateCategoryMutation, createCategoryMutation, catHandleClose, catStartSave],
   );
-
-  const handleCategoryDeleteConfirm = useCallback(() => {
-    if (!categoryPendingDelete) return;
-    deleteCategoryMutation.mutate(categoryPendingDelete.id, {
-      onSuccess: () => {
-        setCategoryPendingDelete(null);
-        handleCategoryClose();
-        toast.success("削除しました");
-      },
-      onError: () => toast.error("削除に失敗しました"),
-    });
-  }, [categoryPendingDelete, deleteCategoryMutation, handleCategoryClose]);
 
   const handleNameSave = useCallback(
     (data: DiagnosisNameFormData) => {
@@ -493,7 +576,7 @@ export function DiagnosisSettings() {
         toast.error("カテゴリは必須です");
         return;
       }
-      startSaveTransition(() => {
+      nameStartSave(() => {
         if (nameEditTarget !== null && nameEditTarget !== "new") {
           const req: UpdateDiagnosisNameRequest = {
             name: data.name,
@@ -504,7 +587,7 @@ export function DiagnosisSettings() {
           updateNameMutation.mutate(
             { id: nameEditTarget.id, req },
             {
-              onSuccess: () => { toast.success("更新しました"); handleNameClose(); },
+              onSuccess: () => { toast.success("更新しました"); nameHandleClose(); },
               onError: () => toast.error("更新に失敗しました"),
             },
           );
@@ -516,29 +599,14 @@ export function DiagnosisSettings() {
             is_active: true,
           };
           createNameMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); handleNameClose(); },
+            onSuccess: () => { toast.success("登録しました"); nameHandleClose(); },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [nameEditTarget, updateNameMutation, createNameMutation, handleNameClose],
+    [nameEditTarget, updateNameMutation, createNameMutation, nameHandleClose, nameStartSave],
   );
-
-  const handleNameDeleteConfirm = useCallback(() => {
-    if (!namePendingDelete) return;
-    deleteNameMutation.mutate(namePendingDelete.id, {
-      onSuccess: () => {
-        setNamePendingDelete(null);
-        handleNameClose();
-        toast.success("削除しました");
-      },
-      onError: () => toast.error("削除に失敗しました"),
-    });
-  }, [namePendingDelete, deleteNameMutation, handleNameClose]);
-
-  const categoryPanelItem = categoryEditTarget !== null && categoryEditTarget !== "new" ? categoryEditTarget : null;
-  const namePanelItem = nameEditTarget !== null && nameEditTarget !== "new" ? nameEditTarget : null;
 
   return (
     <>
@@ -546,92 +614,92 @@ export function DiagnosisSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="診断病名マスタ"
-            icon={<ClipboardList className="size-5 text-[#37352F]" />}
+            icon={<ClipboardList className={`${ICON.page} text-[#37352F]`} />}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
               <PrimaryButton onClick={() => {
-                if (activeTab === "diagnosis_category") setCategoryEditTarget("new");
-                else setNameEditTarget("new");
+                if (activeTab === "diagnosis_category") catCrud.handleNew();
+                else nameCrud.handleNew();
               }}>
-                <Plus className="mr-1.5 size-4" />
+                <Plus className={`mr-1.5 ${ICON.action}`} />
                 新規登録
               </PrimaryButton>
             }
           >
-            <Tabs
+            <TabsPrimitive.Root
               value={activeTab}
               onValueChange={handleTabChange}
               className="flex flex-col gap-4"
             >
-              <TabsList
+              <TabsPrimitive.List
                 className={`flex h-9 border-b ${C.borderLight} gap-0`}
               >
                 {TABS.map((tab) => (
-                  <TabsTrigger
+                  <TabsPrimitive.Trigger
                     key={tab.value}
                     value={tab.value}
-                    className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
+                    className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
                       data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
                   >
                     {tab.label}
-                  </TabsTrigger>
+                  </TabsPrimitive.Trigger>
                 ))}
-              </TabsList>
-              <TabsContent value="diagnosis_category" className="mt-4">
+              </TabsPrimitive.List>
+              <TabsPrimitive.Content value="diagnosis_category" className="mt-4">
                 <DiagnosisCategoryTab
-                  editTarget={categoryEditTarget}
-                  onEditTargetChange={setCategoryEditTarget}
+                  editTarget={catCrud.editTarget}
+                  onEditTargetChange={catCrud.setEditTarget}
                 />
-              </TabsContent>
-              <TabsContent value="diagnosis_name" className="mt-4">
+              </TabsPrimitive.Content>
+              <TabsPrimitive.Content value="diagnosis_name" className="mt-4">
                 <DiagnosisNameTab
-                  editTarget={nameEditTarget}
-                  onEditTargetChange={setNameEditTarget}
+                  editTarget={nameCrud.editTarget}
+                  onEditTargetChange={nameCrud.setEditTarget}
                 />
-              </TabsContent>
-            </Tabs>
+              </TabsPrimitive.Content>
+            </TabsPrimitive.Root>
           </PageLayout>
         </div>
 
-        {activeTab === "diagnosis_category" && categoryEditTarget !== null ? (
+        {activeTab === "diagnosis_category" && catCrud.isEditing ? (
           <DiagnosisCategorySidePanel
-            key={categoryPanelItem ? String(categoryPanelItem.id) : "new-category"}
-            item={categoryPanelItem}
-            onClose={handleCategoryClose}
+            key={catCrud.panelItem ? String(catCrud.panelItem.id) : "new-category"}
+            item={catCrud.panelItem}
+            onClose={catCrud.handleClose}
             onSave={handleCategorySave}
-            onDeleteRequest={setCategoryPendingDelete}
+            onDeleteRequest={catCrud.setPendingDelete}
           />
         ) : null}
-        {activeTab === "diagnosis_name" && nameEditTarget !== null ? (
+        {activeTab === "diagnosis_name" && nameCrud.isEditing ? (
           <DiagnosisNameSidePanel
-            key={namePanelItem ? String(namePanelItem.id) : "new-name"}
-            item={namePanelItem}
+            key={nameCrud.panelItem ? String(nameCrud.panelItem.id) : "new-name"}
+            item={nameCrud.panelItem}
             categories={rawCategories ?? []}
-            onClose={handleNameClose}
+            onClose={nameCrud.handleClose}
             onSave={handleNameSave}
-            onDeleteRequest={setNamePendingDelete}
+            onDeleteRequest={nameCrud.setPendingDelete}
           />
         ) : null}
       </div>
 
       <ConfirmDialog
-        open={categoryPendingDelete !== null}
-        onClose={() => setCategoryPendingDelete(null)}
+        open={catCrud.pendingDelete !== null}
+        onClose={catCrud.handleDeleteCancel}
         title="診断カテゴリを削除しますか？"
-        description={`「${categoryPendingDelete?.name}」を削除します。このカテゴリに属する診断名も影響を受けます。この操作は取り消せません。`}
+        description={`「${catCrud.pendingDelete?.name}」を削除します。このカテゴリに属する診断名も影響を受けます。この操作は取り消せません。`}
         confirmLabel="削除"
         variant="destructive"
-        onConfirm={handleCategoryDeleteConfirm}
+        onConfirm={catCrud.handleDeleteConfirm}
       />
       <ConfirmDialog
-        open={namePendingDelete !== null}
-        onClose={() => setNamePendingDelete(null)}
+        open={nameCrud.pendingDelete !== null}
+        onClose={nameCrud.handleDeleteCancel}
         title="診断病名を削除しますか？"
-        description={`「${namePendingDelete?.name}」を削除します。この操作は取り消せません。`}
+        description={`「${nameCrud.pendingDelete?.name}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除"
         variant="destructive"
-        onConfirm={handleNameDeleteConfirm}
+        onConfirm={nameCrud.handleDeleteConfirm}
       />
     </>
   );

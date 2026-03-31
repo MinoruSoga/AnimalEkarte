@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import React from "react";
 
 // External
@@ -115,7 +116,7 @@ export const ExaminationGroup = React.memo(function ExaminationGroup({
                 </Badge>
               ) : null}
               {item.status === "normal" ? (
-                <CheckCircle className="size-5 text-green-500/50" />
+                <CheckCircle className={`${ICON.page} text-green-500/50`} />
               ) : null}
             </div>
           </div>

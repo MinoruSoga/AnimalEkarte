@@ -1,6 +1,6 @@
 # Security Group for ALB
 resource "aws_security_group" "alb" {
-  name        = "${var.name_prefix}-alb-sg"
+  name_prefix = "${var.name_prefix}-alb-sg-"
   description = "Security group for Application Load Balancer"
   vpc_id      = var.vpc_id
 
@@ -31,11 +31,15 @@ resource "aws_security_group" "alb" {
   tags = {
     Name = "${var.name_prefix}-alb-sg"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Security Group for ECS
 resource "aws_security_group" "ecs" {
-  name        = "${var.name_prefix}-ecs-sg"
+  name_prefix = "${var.name_prefix}-ecs-sg-"
   description = "Security group for ECS tasks"
   vpc_id      = var.vpc_id
 
@@ -58,11 +62,15 @@ resource "aws_security_group" "ecs" {
   tags = {
     Name = "${var.name_prefix}-ecs-sg"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Security Group for RDS
 resource "aws_security_group" "rds" {
-  name        = "${var.name_prefix}-rds-sg"
+  name_prefix = "${var.name_prefix}-rds-sg-"
   description = "Security group for RDS PostgreSQL"
   vpc_id      = var.vpc_id
 
@@ -85,6 +93,10 @@ resource "aws_security_group" "rds" {
   tags = {
     Name = "${var.name_prefix}-rds-sg"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # CloudWatch Logs Group
@@ -97,38 +109,3 @@ resource "aws_cloudwatch_log_group" "ecs" {
   }
 }
 
-# SSM Parameter Store - DB User
-resource "aws_ssm_parameter" "db_user" {
-  name        = "/${var.project_name}/${var.environment}/db/user"
-  description = "Database username"
-  type        = "String"
-  value       = var.db_username
-
-  tags = {
-    Name = "${var.name_prefix}-db-user"
-  }
-}
-
-# SSM Parameter Store - DB Password
-resource "aws_ssm_parameter" "db_password" {
-  name        = "/${var.project_name}/${var.environment}/db/password"
-  description = "Database password"
-  type        = "SecureString"
-  value       = var.db_password
-
-  tags = {
-    Name = "${var.name_prefix}-db-password"
-  }
-}
-
-# SSM Parameter Store - DB Name
-resource "aws_ssm_parameter" "db_name" {
-  name        = "/${var.project_name}/${var.environment}/db/name"
-  description = "Database name"
-  type        = "String"
-  value       = var.db_name
-
-  tags = {
-    Name = "${var.name_prefix}-db-name"
-  }
-}

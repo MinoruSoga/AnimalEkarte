@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,10 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Shift } from "../../types";
-import { ShiftCell } from "../ShiftCell/ShiftCell";
+import type { Shift } from "@/features/shifts/types";
+import { ShiftCell } from "@/features/shifts/components/ShiftCell/ShiftCell";
+
 const ShiftFormDialog = lazy(() =>
-  import("../ShiftFormDialog/ShiftFormDialog").then((m) => ({ default: m.ShiftFormDialog }))
+  import("@/features/shifts/components/ShiftFormDialog/ShiftFormDialog").then((m) => ({ default: m.ShiftFormDialog }))
 );
 
 export interface StaffItem {
@@ -47,6 +49,8 @@ interface ShiftCalendarProps {
   shifts: Shift[];
   staffs: StaffItem[];
   selectedStaffId: string;
+  canCreate: boolean;
+  canEdit: boolean;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onStaffChange: (staffId: string) => void;
@@ -57,6 +61,8 @@ export const ShiftCalendar = memo(function ShiftCalendar({
   shifts,
   staffs,
   selectedStaffId,
+  canCreate,
+  canEdit,
   onPrevMonth,
   onNextMonth,
   onStaffChange,
@@ -142,7 +148,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
             onClick={onPrevMonth}
             aria-label="前月"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className={ICON.action} />
           </Button>
           <span className="text-base font-semibold min-w-[120px] text-center">
             {displayLabel}
@@ -153,7 +159,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
             onClick={onNextMonth}
             aria-label="翌月"
           >
-            <ChevronRight className="size-4" />
+            <ChevronRight className={ICON.action} />
           </Button>
         </div>
 
@@ -221,6 +227,8 @@ export const ShiftCalendar = memo(function ShiftCalendar({
                       staffId={staff.id}
                       staffName={staff.name}
                       dateStr={dateStr}
+                      canCreate={canCreate}
+                      canEdit={canEdit}
                       onAddShift={handleAddShift}
                       onEditShift={handleEditShift}
                     />

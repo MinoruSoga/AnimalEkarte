@@ -1,4 +1,9 @@
-// Medical records feature types
+/**
+ * Medical records feature types (UI-facing: string IDs)
+ * Backend types: {@link import("@/types/generated/models").Treatment},
+ * {@link import("@/types/generated/models").Vital},
+ * {@link import("@/types/generated/models").BillingReview} from models.ts
+ */
 
 /** Interview (問診) history list item */
 export interface InterviewHistoryItem {
@@ -12,6 +17,7 @@ export interface InterviewHistoryItem {
 
 // ── Treatment (治療明細) ──────────────────────────────────────────────
 
+/** @see {@link import("@/types/generated/models").TreatmentItemType} */
 export type TreatmentItemType = 'consultation' | 'procedure' | 'medicine' | 'other';
 
 export interface Treatment {
@@ -78,7 +84,7 @@ export interface BulkReorderTreatmentsInput {
 
 // ── BillingReview (会計医師確認) ──────────────────────────────────────
 
-/** 会計医師確認ステータス */
+/** 会計医師確認ステータス @see {@link import("@/types/generated/models").BillingReviewStatus} */
 export type BillingReviewStatus = 'pending' | 'confirmed' | 'returned';
 
 /** 会計医師確認レコード */
@@ -103,6 +109,8 @@ export interface ReturnBillingReviewInput {
 
 // ── Vital (バイタル) ──────────────────────────────────────────────────
 
+export type BodyWeightUnit = "Kg" | "g";
+
 export interface Vital {
   id: string;
   medical_record_id: string;
@@ -111,6 +119,7 @@ export interface Vital {
   heart_rate?: number | null;
   respiratory_rate?: number | null;
   body_weight?: number | null;
+  weight_unit: BodyWeightUnit;
   note?: string | null;
   created_at: string;
   updated_at: string;
@@ -122,6 +131,7 @@ export interface CreateVitalInput {
   heart_rate?: number | null;
   respiratory_rate?: number | null;
   body_weight?: number | null;
+  weight_unit: BodyWeightUnit;
   note?: string | null;
 }
 
@@ -131,5 +141,6 @@ export interface UpdateVitalInput {
   heart_rate?: number | null;
   respiratory_rate?: number | null;
   body_weight?: number | null;
+  weight_unit?: BodyWeightUnit;
   note?: string | null;
 }

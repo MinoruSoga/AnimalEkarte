@@ -40,12 +40,12 @@ func (m *mockRecordImageRepository) Delete(ctx context.Context, imageID uint64) 
 
 func TestRecordImageService_List(t *testing.T) {
 	tests := []struct {
-		name              string
-		medicalRecordID   uint64
-		repoImages        []model.RecordImage
-		repoErr           error
-		wantLen           int
-		wantErr           bool
+		name            string
+		medicalRecordID uint64
+		repoImages      []model.RecordImage
+		repoErr         error
+		wantLen         int
+		wantErr         bool
 	}{
 		{
 			name:            "returns record images for medical record",

@@ -52,6 +52,24 @@ HTTP Request
 
 ---
 
+## トレーサビリティとロギング
+
+本システムは、商用グレードの運用監視を実現するため、すべてのリクエストを一意の ID で追跡しています。
+
+### Request ID の伝播フロー
+
+1.  **生成**: `middleware.RequestID()` がリクエスト受信時に一意の UUID を生成。
+2.  **格納**: `gin.Context` に `request_id` としてセット。
+3.  **レスポンスヘッダー**: `X-Request-ID` ヘッダーとしてクライアントに返却。
+4.  **ログ出力**: `middleware.RequestLoggingMiddleware()` および Service 層の `slog` 出力において、常に `request_id` フィールドが含まれる。
+
+### 構造化ログの実装方針
+
+- **コンテキストの保持**: すべての Service/Repository メソッドは `context.Context` を第一引数に受け取ります。
+- **slog の活用**: `slog.InfoContext(ctx, "message", ...)` を使用することで、ログ基盤（Datadog/CloudWatch等）でリクエスト単位のフィルタリングが可能になります。
+
+---
+
 ## CRUD 別フロー
 
 ### GET /api/v1/owners — 一覧取得
@@ -59,17 +77,19 @@ HTTP Request
 ```
 Client
   │  GET /api/v1/owners?page=1&limit=20&search=山田
-  │  Cookie: auth_token=<JWT>
+  │  Cookie: access_token=<JWT>  (旧: auth_token — 後方互換で読み取り継続)
   ▼
 
 [Middleware: Auth]
-  1. Cookie "auth_token" を読む（なければ Authorization Bearer にフォールバック）
+  1. Cookie "access_token" を読む → なければ "auth_token"(legacy) → なければ Authorization Bearer
   2. JWT を検証（HMAC署名確認・有効期限確認）
   3. claims を gin.Context に格納
        c.Set("user_id",   "42")
        c.Set("clinic_id", "1")
-       c.Set("user_type", "doctor")
+       c.Set("user_type", "staff")  // "system_admin" | "clinic_admin" | "staff"
   4. c.Next() で次のハンドラへ
+     ⚠️ BUG-061: DB の account_status を確認しない（停止アカウントが通過する）
+     ⚠️ BUG-063: deleted_at IS NULL を確認しない（論理削除済みユーザーが通過する）
 
 [Handler: ListOwners]
   1. extractClinicID(c)

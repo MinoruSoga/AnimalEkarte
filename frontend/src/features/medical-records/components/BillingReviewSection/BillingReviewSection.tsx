@@ -7,15 +7,15 @@ import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { BADGE, C } from "@/lib/design-tokens";
+import { BADGE, C, ICON } from "@/lib/design-tokens";
 
 // Relative
 import {
-  useBillingReview,
+  useGetBillingReview,
   useConfirmBillingReview,
   useReturnBillingReview,
-} from "../../api/billing-review";
-import type { BillingReviewStatus } from "../../types";
+} from "@/features/medical-records/api/billing-review";
+import type { BillingReviewStatus } from "@/features/medical-records/types";
 
 const ReturnReasonDialog = lazy(() =>
   import("./ReturnReasonDialog").then((m) => ({ default: m.ReturnReasonDialog }))
@@ -31,11 +31,11 @@ const STATUS_LABELS: Record<BillingReviewStatus, string> = {
   returned: "差し戻し",
 };
 
-const STATUS_BADGE_CLASS: Record<BillingReviewStatus, string> = {
-  pending: BADGE.yellow,
-  confirmed: BADGE.green,
-  returned: BADGE.red,
-};
+function getBillingReviewStatusColor(s: BillingReviewStatus): string {
+  if (s === "confirmed") return BADGE.green;
+  if (s === "returned") return BADGE.red;
+  return BADGE.yellow;
+}
 
 type StatusIconComponent = typeof Clock;
 
@@ -50,7 +50,7 @@ export function BillingReviewSection({
 }: BillingReviewSectionProps) {
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
 
-  const { data: review, isLoading } = useBillingReview(medicalRecordId);
+  const { data: review, isLoading } = useGetBillingReview(medicalRecordId);
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
   const returnMutation = useReturnBillingReview(medicalRecordId);
 
@@ -84,7 +84,7 @@ export function BillingReviewSection({
   }
 
   const status = review.status as BillingReviewStatus;
-  const badgeClass = STATUS_BADGE_CLASS[status];
+  const badgeClass = getBillingReviewStatusColor(status);
   const StatusIcon = STATUS_ICON[status];
   const label = STATUS_LABELS[status];
   const isConfirmDisabled =
@@ -102,7 +102,7 @@ export function BillingReviewSection({
         <span
           className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded border ${badgeClass}`}
         >
-          <StatusIcon className="h-3 w-3" />
+          <StatusIcon className={ICON.action} />
           {label}
         </span>
 

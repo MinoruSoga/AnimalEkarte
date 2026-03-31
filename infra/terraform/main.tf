@@ -11,13 +11,8 @@ module "vpc" {
 module "security" {
   source = "./modules/security"
 
-  name_prefix  = var.name_prefix
-  project_name = var.project_name
-  environment  = var.environment
-  vpc_id       = module.vpc.vpc_id
-  db_username  = var.db_username
-  db_password  = var.db_password
-  db_name      = var.db_name
+  name_prefix = var.name_prefix
+  vpc_id      = module.vpc.vpc_id
 }
 
 module "rds" {
@@ -57,20 +52,10 @@ module "ecs" {
   aws_region                 = var.aws_region
   db_address                 = module.rds.db_address
   db_port                    = module.rds.db_port
-  db_name_parameter_arn      = module.security.db_name_parameter_arn
-  db_user_parameter_arn      = module.security.db_user_parameter_arn
-  db_password_parameter_arn  = module.security.db_password_parameter_arn
-  ssm_parameter_arns = [
-    module.security.db_name_parameter_arn,
-    module.security.db_user_parameter_arn,
-    module.security.db_password_parameter_arn
-  ]
-  task_cpu              = var.ecs_task_cpu
-  task_memory           = var.ecs_task_memory
-  desired_count         = var.ecs_desired_count
-  alb_certificate_arn   = var.alb_certificate_arn
-  cors_allowed_origin   = var.cors_allowed_origin
-  cookie_cross_domain   = var.cookie_cross_domain
+  task_cpu            = var.ecs_task_cpu
+  task_memory         = var.ecs_task_memory
+  desired_count       = var.ecs_desired_count
+  alb_certificate_arn = var.alb_certificate_arn
 }
 
 module "github_oidc" {

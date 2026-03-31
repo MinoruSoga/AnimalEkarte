@@ -1,7 +1,9 @@
+import { C, ICON } from "@/lib/design-tokens";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/components/ui/utils";
 
 export interface PetSelectionSearchParams {
   ownerId: string;
@@ -18,6 +20,7 @@ interface PetSelectionSearchFormProps {
   searchParams: PetSelectionSearchParams;
   setSearchParams: (params: PetSelectionSearchParams) => void;
   onSearch: () => void;
+  onClear: () => void;
 }
 
 const FIELD_DEFS = [
@@ -31,14 +34,14 @@ const FIELD_DEFS = [
   { id: "address", label: "住所", placeholder: "例: 東京都" },
 ] as const;
 
-export const PetSelectionSearchForm = ({ searchParams, setSearchParams, onSearch }: PetSelectionSearchFormProps) => {
+export function PetSelectionSearchForm({ searchParams, setSearchParams, onSearch, onClear }: PetSelectionSearchFormProps) {
   return (
-    <div className="mb-4 rounded-lg bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[rgba(55,53,47,0.16)]">
-      <h2 className="mb-2 text-sm font-medium text-[#37352F]">検索条件</h2>
+    <div className={cn("mb-4 rounded-lg bg-white p-4 shadow-sm border", C.borderMedium)}>
+      <h2 className={cn("mb-2 text-sm font-medium", C.text)}>検索条件</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
         {FIELD_DEFS.map(({ id, label, placeholder }) => (
           <div key={id} className="space-y-1.5">
-            <Label htmlFor={id} className="text-sm text-[#37352F]/60">
+            <Label htmlFor={id} className={cn("text-sm", C.text60)}>
               {label}
             </Label>
             <Input
@@ -48,21 +51,29 @@ export const PetSelectionSearchForm = ({ searchParams, setSearchParams, onSearch
               onChange={(e) =>
                 setSearchParams({ ...searchParams, [id]: e.target.value })
               }
-              className="text-sm h-11 bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
+              className={cn("text-sm h-11 bg-white focus-visible:ring-1", C.text, C.borderMedium)}
             />
           </div>
         ))}
       </div>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onClear}
+          className={cn("h-11 text-sm", C.borderMedium, C.text60, C.hoverBgPage, C.hoverText)}
+        >
+          クリア
+        </Button>
         <Button
           size="sm"
           onClick={onSearch}
-          className="gap-2 bg-[#2383E2] hover:bg-[#1B6EC2] text-white focus-visible:ring-[#2EAADC] h-11 text-sm"
+          className={cn("gap-2 text-white h-11 text-sm", C.bgAccent, C.bgAccentHover)}
         >
-          <Search className="size-4" />
+          <Search className={ICON.action} />
           検索
         </Button>
       </div>
     </div>
   );
-};
+}

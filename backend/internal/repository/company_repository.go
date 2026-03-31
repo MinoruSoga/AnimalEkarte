@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 
 	"gorm.io/gorm"
 
@@ -28,11 +27,9 @@ func NewCompanyRepository(db *gorm.DB) CompanyRepository {
 // Get は company テーブルの先頭レコードを返す。レコードがなければ WrapNotFound を返す。
 func (r *companyRepository) Get(ctx context.Context) (*model.Company, error) {
 	var company model.Company
-	if err := r.db.WithContext(ctx).Limit(1).First(&company).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("company", "1")
-		}
-		return nil, apperrors.Wrap(err, "get company")
+	err := r.db.WithContext(ctx).Limit(1).First(&company).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "company", "1")
 	}
 	return &company, nil
 }
@@ -45,7 +42,7 @@ func (r *companyRepository) Update(ctx context.Context, fields map[string]any) e
 		Where("id = ?", 1).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update company")
+		return apperrors.FromGORM(result.Error, "company", "1")
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("company", "1")

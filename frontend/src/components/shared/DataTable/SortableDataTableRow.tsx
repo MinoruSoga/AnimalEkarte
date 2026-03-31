@@ -1,3 +1,4 @@
+import { C, ICON } from "@/lib/design-tokens";
 import type { ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -11,7 +12,7 @@ interface SortableDataTableRowProps {
   children: ReactNode;
   /** Additional classes passed through to DataTableRow (e.g. `"group/row"` for CSS group hover). */
   className?: string;
-  /** Override grip cell className. Default: `"w-[32px] text-[#37352F]/20 cursor-grab"`. */
+  /** Override grip cell className. Default: `"w-[32px] ${C.text20} cursor-grab"`. */
   gripClassName?: string;
   /** Opacity applied to the row while dragging. Default: `0.5`. */
   isDraggingOpacity?: number;
@@ -34,7 +35,7 @@ export function SortableDataTableRow({
   onClick,
   children,
   className,
-  gripClassName = "w-[32px] text-[#37352F]/20 cursor-grab",
+  gripClassName = `w-[32px] ${C.text20} cursor-grab`,
   isDraggingOpacity = 0.5,
 }: SortableDataTableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -49,7 +50,7 @@ export function SortableDataTableRow({
   return (
     <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onClick} className={className}>
       <TableCell className={gripClassName} {...listeners}>
-        <GripVertical className="size-4" />
+        <GripVertical className={ICON.action} />
       </TableCell>
       {children}
     </DataTableRow>

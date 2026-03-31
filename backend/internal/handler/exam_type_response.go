@@ -20,7 +20,7 @@ type examTypeResponse struct {
 	ID          uint64                 `json:"id"`
 	ClinicID    uint64                 `json:"clinic_id"`
 	Name        string                 `json:"name"`
-	Price       *float64               `json:"price,omitempty"`
+	Price       *int64                 `json:"price,omitempty"`
 	IsActive    bool                   `json:"is_active"`
 	Description string                 `json:"description"`
 	SortOrder   int                    `json:"sort_order"`
@@ -57,23 +57,6 @@ func toExamTypeResponse(et *model.ExaminationType) examTypeResponse {
 		Items:       items,
 		CreatedAt:   et.CreatedAt,
 		UpdatedAt:   et.UpdatedAt,
-	}
-}
-
-// examTypeSummaryResponse はネストされたレスポンスで使用する検査種別の要約型
-type examTypeSummaryResponse struct {
-	ID   uint64 `json:"id"`
-	Name string `json:"name"`
-}
-
-// toExamTypeSummary は *model.ExaminationType を *examTypeSummaryResponse に変換する。nilの場合はnilを返す。
-func toExamTypeSummary(et *model.ExaminationType) *examTypeSummaryResponse {
-	if et == nil {
-		return nil
-	}
-	return &examTypeSummaryResponse{
-		ID:   et.ID,
-		Name: et.Name,
 	}
 }
 

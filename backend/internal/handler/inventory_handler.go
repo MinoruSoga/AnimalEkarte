@@ -6,7 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListInventory godoc
@@ -49,7 +51,7 @@ func (h *Handler) GetInventory(c *gin.Context) {
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	item, err := h.svc.Inventory.GetByID(c.Request.Context(), clinicID, id)
@@ -105,7 +107,7 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateInventoryRequest
@@ -114,10 +116,20 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 		return
 	}
 
-	item := &model.InventoryItem{
-		ID:            id,
-		ClinicID:      clinicID,
+	var category *model.InventoryCategory
+	if input.Category != nil {
+		cat := model.InventoryCategory(*input.Category)
+		category = &cat
+	}
+	var status *model.InventoryStatus
+	if input.Status != nil {
+		s := model.InventoryStatus(*input.Status)
+		status = &s
+	}
+
+	svcInput := service.UpdateInventoryInput{
 		Name:          input.Name,
+		Category:      category,
 		Quantity:      input.Quantity,
 		Unit:          input.Unit,
 		MinStockLevel: input.MinStockLevel,
@@ -125,15 +137,11 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 		ExpiryDate:    input.ExpiryDate,
 		Supplier:      input.Supplier,
 		LastRestocked: input.LastRestocked,
-	}
-	if input.Category != "" {
-		item.Category = model.InventoryCategory(input.Category)
-	}
-	if input.Status != "" {
-		item.Status = model.InventoryStatus(input.Status)
+		Status:        status,
 	}
 
-	if err := h.svc.Inventory.Update(c.Request.Context(), clinicID, item); err != nil {
+	item, err := h.svc.Inventory.Update(c.Request.Context(), clinicID, id, &svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -147,7 +155,7 @@ func (h *Handler) DeleteInventory(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Inventory.Delete(c.Request.Context(), clinicID, id); err != nil {

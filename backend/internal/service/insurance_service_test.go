@@ -13,12 +13,12 @@ import (
 
 // mockInsuranceRepository は InsuranceRepository のテスト用モック実装
 type mockInsuranceRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.Insurance, error)
-	createFn   func(ctx context.Context, insurance *model.Insurance) error
-	updateFn   func(ctx context.Context, insurance *model.Insurance) error
-	deleteFn   func(ctx context.Context, id uint64) error
-	reorderErr error
+	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
+	findByIDFn     func(ctx context.Context, id uint64) (*model.Insurance, error)
+	createFn       func(ctx context.Context, insurance *model.Insurance) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
+	deleteFn       func(ctx context.Context, id uint64) error
+	reorderErr     error
 }
 
 func (m *mockInsuranceRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Insurance, error) {
@@ -33,8 +33,8 @@ func (m *mockInsuranceRepository) Create(ctx context.Context, insurance *model.I
 	return m.createFn(ctx, insurance)
 }
 
-func (m *mockInsuranceRepository) Update(ctx context.Context, insurance *model.Insurance) error {
-	return m.updateFn(ctx, insurance)
+func (m *mockInsuranceRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockInsuranceRepository) Delete(ctx context.Context, id uint64) error {
@@ -223,29 +223,35 @@ func TestInsuranceService_Create(t *testing.T) {
 }
 
 func TestInsuranceService_Update(t *testing.T) {
+	name := "更新後保険"
+	isActive := true
 	coverageRate := 80
 	tests := []struct {
-		name      string
-		insurance *model.Insurance
-		repoErr   error
-		wantErr   bool
+		name    string
+		input   UpdateInsuranceInput
+		repoErr error
+		wantErr bool
 	}{
 		{
 			name: "updates insurance successfully",
-			insurance: &model.Insurance{
-				ID:           1,
-				Name:         "更新後保険",
-				IsActive:     true,
-				CoverageRate: coverageRate,
+			input: UpdateInsuranceInput{
+				Name:         &name,
+				IsActive:     &isActive,
+				CoverageRate: &coverageRate,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
+			name:    "returns error when no fields provided",
+			input:   UpdateInsuranceInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
 			name: "returns error on repository failure",
-			insurance: &model.Insurance{
-				ID:   999,
-				Name: "エラー保険",
+			input: UpdateInsuranceInput{
+				Name: &name,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -255,18 +261,23 @@ func TestInsuranceService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInsuranceRepository{
-				updateFn: func(_ context.Context, _ *model.Insurance) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Insurance, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.Insurance{ID: 1, ClinicID: 1}, nil
 				},
 			}
 			svc := NewInsuranceService(repo)
 
-			err := svc.Update(context.Background(), tt.insurance)
+			insurance, err := svc.Update(context.Background(), 1, 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, insurance)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, insurance)
 			}
 		})
 	}

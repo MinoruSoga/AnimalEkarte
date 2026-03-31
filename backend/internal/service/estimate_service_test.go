@@ -48,25 +48,25 @@ func TestEstimateService_List(t *testing.T) {
 	ownerID5 := uint64(5)
 
 	tests := []struct {
-		name             string
-		ownerID          *uint64
-		medicalRecordID  *uint64
-		status           *string
-		page             int
-		limit            int
-		repoEstimates    []model.Estimate
-		repoTotal        int64
-		repoErr          error
-		wantLen          int
-		wantTotal        int64
-		wantErr          bool
+		name            string
+		ownerID         *uint64
+		medicalRecordID *uint64
+		status          *string
+		page            int
+		limit           int
+		repoEstimates   []model.Estimate
+		repoTotal       int64
+		repoErr         error
+		wantLen         int
+		wantTotal       int64
+		wantErr         bool
 	}{
 		{
-			name:     "returns estimates with pagination",
-			ownerID:  nil,
-			status:   nil,
-			page:     1,
-			limit:    10,
+			name:    "returns estimates with pagination",
+			ownerID: nil,
+			status:  nil,
+			page:    1,
+			limit:   10,
 			repoEstimates: []model.Estimate{
 				{ID: 1, ClinicID: 1, Title: "見積1", TotalAmount: 10000},
 				{ID: 2, ClinicID: 1, Title: "見積2", TotalAmount: 20000},
@@ -78,11 +78,11 @@ func TestEstimateService_List(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:     "filters by owner_id",
-			ownerID:  &ownerID5,
-			status:   nil,
-			page:     1,
-			limit:    10,
+			name:    "filters by owner_id",
+			ownerID: &ownerID5,
+			status:  nil,
+			page:    1,
+			limit:   10,
 			repoEstimates: []model.Estimate{
 				{ID: 1, ClinicID: 1, OwnerID: &ownerID5, Title: "見積1", TotalAmount: 10000},
 			},
@@ -93,22 +93,22 @@ func TestEstimateService_List(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:           "returns empty list",
-			page:           1,
-			limit:          10,
-			repoEstimates:  []model.Estimate{},
-			repoTotal:      0,
-			repoErr:        nil,
-			wantLen:        0,
-			wantTotal:      0,
-			wantErr:        false,
+			name:          "returns empty list",
+			page:          1,
+			limit:         10,
+			repoEstimates: []model.Estimate{},
+			repoTotal:     0,
+			repoErr:       nil,
+			wantLen:       0,
+			wantTotal:     0,
+			wantErr:       false,
 		},
 		{
-			name:      "propagates repository error",
-			page:      1,
-			limit:     10,
-			repoErr:   errors.New("db error"),
-			wantErr:   true,
+			name:    "propagates repository error",
+			page:    1,
+			limit:   10,
+			repoErr: errors.New("db error"),
+			wantErr: true,
 		},
 	}
 
@@ -205,12 +205,12 @@ func TestEstimateService_Create(t *testing.T) {
 	ownerID1 := uint64(1)
 
 	tests := []struct {
-		name        string
-		input       *CreateEstimateInput
-		repoErr     error
-		findByIDErr error
+		name         string
+		input        *CreateEstimateInput
+		repoErr      error
+		findByIDErr  error
 		repoEstimate *model.Estimate
-		wantErr     bool
+		wantErr      bool
 	}{
 		{
 			name: "creates estimate successfully with default status",
@@ -313,7 +313,7 @@ func TestEstimateService_Create(t *testing.T) {
 
 func TestEstimateService_Update(t *testing.T) {
 	newTitle := "更新見積"
-	newAmount := 25000.0
+	newAmount := int64(25000)
 	newStatus := model.EstimateStatusSent
 
 	tests := []struct {

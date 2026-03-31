@@ -69,7 +69,8 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 	}
 
 	pets := make([]service.CreatePetForOwnerInput, 0, len(req.Pets))
-	for _, p := range req.Pets {
+	for i := range req.Pets {
+		p := &req.Pets[i]
 		pets = append(pets, service.CreatePetForOwnerInput{
 			Name:            p.Name,
 			AnimalSpeciesID: p.AnimalSpeciesID,

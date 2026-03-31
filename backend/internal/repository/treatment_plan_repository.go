@@ -49,11 +49,9 @@ func (r *treatmentPlanRepository) ListByHospitalizationID(ctx context.Context, h
 
 func (r *treatmentPlanRepository) FindByID(ctx context.Context, id uint64) (*model.TreatmentPlan, error) {
 	var plan model.TreatmentPlan
-	if err := r.db.WithContext(ctx).First(&plan, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, apperrors.WrapNotFound("treatment_plan", strconv.FormatUint(id, 10))
-		}
-		return nil, apperrors.Wrap(err, "find treatment plan by id")
+	err := r.db.WithContext(ctx).First(&plan, id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "treatment_plan", strconv.FormatUint(id, 10))
 	}
 	return &plan, nil
 }

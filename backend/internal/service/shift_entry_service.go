@@ -12,6 +12,21 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// normalizeTimeString は "15:04" または "15:04:05" 形式の時刻文字列を "15:04:05" に正規化する。
+// 不正な形式の場合は nil を返す。
+func normalizeTimeString(s *string) *string {
+	if s == nil || *s == "" {
+		return nil
+	}
+	for _, layout := range []string{"15:04:05", "15:04"} {
+		if t, err := time.Parse(layout, *s); err == nil {
+			normalized := t.Format("15:04:05")
+			return &normalized
+		}
+	}
+	return nil
+}
+
 // CreateShiftEntryInput はシフト作成の入力DTO
 type CreateShiftEntryInput struct {
 	StaffID   uint64
@@ -60,30 +75,61 @@ func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth
 	return s.repo.List(ctx, clinicID, filter)
 }
 
-func parseTimeString(s *string) *time.Time {
-	if s == nil || *s == "" {
+// requiresTimeSlot は時刻（start_time/end_time）が必要なシフト種別かどうかを返す。
+// off・paid_leave は時刻不要。
+func requiresTimeSlot(shiftType model.ShiftType) bool {
+	switch shiftType {
+	case model.ShiftTypeOff, model.ShiftTypePaidLeave:
+		return false
+	default:
+		return true
+	}
+}
+
+// validateShiftTimes は時刻が必要なシフト種別で end_time <= start_time でないかを検証する。
+// startTime/endTime は "15:04:05" 形式の文字列。
+func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) error {
+	if !requiresTimeSlot(shiftType) {
 		return nil
 	}
-	for _, layout := range []string{"15:04:05", "15:04"} {
-		if t, err := time.Parse(layout, *s); err == nil {
-			return &t
-		}
+	if startTime == nil || endTime == nil {
+		return nil
+	}
+	const layout = "15:04:05"
+	st, err := time.Parse(layout, *startTime)
+	if err != nil {
+		return nil
+	}
+	et, err := time.Parse(layout, *endTime)
+	if err != nil {
+		return nil
+	}
+	if !et.After(st) {
+		return apperrors.Wrap(apperrors.ErrInvalidInput, "end_time must be after start_time")
 	}
 	return nil
 }
 
 func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error) {
+	startTime := normalizeTimeString(input.StartTime)
+	endTime := normalizeTimeString(input.EndTime)
+
+	// BUG-028: 時刻バリデーション（off/paid_leave は除外）
+	if err := validateShiftTimes(input.ShiftType, startTime, endTime); err != nil {
+		return nil, err
+	}
+
 	entry := &model.ShiftEntry{
 		ClinicID:  clinicID,
 		StaffID:   input.StaffID,
 		Date:      input.Date,
 		ShiftType: input.ShiftType,
-		StartTime: parseTimeString(input.StartTime),
-		EndTime:   parseTimeString(input.EndTime),
+		StartTime: startTime,
+		EndTime:   endTime,
 		Note:      input.Note,
 	}
 	if err := s.repo.Create(ctx, entry); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create shift entry")
 	}
 	slog.InfoContext(ctx, "shift entry created",
 		slog.Uint64("shift_entry_id", entry.ID),
@@ -96,8 +142,32 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+
+	// BUG-028: 時刻バリデーション。更新後の start_time/end_time を確定させるために既存レコードを取得する。
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find shift entry for update")
+	}
+	// 更新後の shiftType を決定（input に値があれば上書き、なければ既存値）
+	effectiveShiftType := existing.ShiftType
+	if input.ShiftType != nil {
+		effectiveShiftType = *input.ShiftType
+	}
+	// 更新後の start_time/end_time を決定
+	effectiveStart := existing.StartTime
+	effectiveEnd := existing.EndTime
+	if input.StartTime != nil {
+		effectiveStart = normalizeTimeString(input.StartTime)
+	}
+	if input.EndTime != nil {
+		effectiveEnd = normalizeTimeString(input.EndTime)
+	}
+	if err := validateShiftTimes(effectiveShiftType, effectiveStart, effectiveEnd); err != nil {
 		return nil, err
+	}
+
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		return nil, apperrors.Wrap(err, "failed to update shift entry")
 	}
 	slog.InfoContext(ctx, "shift entry updated", slog.Uint64("shift_entry_id", id))
 	return s.repo.FindByID(ctx, clinicID, id)
@@ -105,7 +175,7 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 
 func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to delete shift entry")
 	}
 	slog.InfoContext(ctx, "shift entry deleted", slog.Uint64("shift_entry_id", id))
 	return nil
@@ -113,10 +183,18 @@ func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) err
 
 func buildShiftEntryUpdateFields(input *UpdateShiftEntryInput) map[string]any {
 	fields := map[string]any{}
-	if input.ShiftType != nil { fields["shift_type"] = *input.ShiftType }
-	if input.StartTime != nil { fields["start_time"] = parseTimeString(input.StartTime) }
-	if input.EndTime != nil   { fields["end_time"] = parseTimeString(input.EndTime) }
-	if input.Note != nil      { fields["note"] = *input.Note }
+	if input.ShiftType != nil {
+		fields["shift_type"] = *input.ShiftType
+	}
+	if input.StartTime != nil {
+		fields["start_time"] = normalizeTimeString(input.StartTime)
+	}
+	if input.EndTime != nil {
+		fields["end_time"] = normalizeTimeString(input.EndTime)
+	}
+	if input.Note != nil {
+		fields["note"] = *input.Note
+	}
 	return fields
 }
 

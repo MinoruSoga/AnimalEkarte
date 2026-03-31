@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- ExaminationType ----
@@ -85,28 +86,22 @@ func (h *Handler) UpdateExaminationType(c *gin.Context) {
 		return
 	}
 
-	examType := &model.ExaminationType{
-		ID:          id,
-		ClinicID:    clinicID,
-		Name:        req.Name,
-		Price:       req.Price,
-		Description: req.Description,
-		SortOrder:   req.SortOrder,
-	}
-	if req.IsActive != nil {
-		examType.IsActive = *req.IsActive
-	}
-	if req.ClearParentID {
-		examType.ParentID = nil
-	} else if req.ParentID != nil {
-		examType.ParentID = req.ParentID
+	svcInput := service.UpdateExamTypeInput{
+		Name:          req.Name,
+		Price:         req.Price,
+		IsActive:      req.IsActive,
+		Description:   req.Description,
+		ParentID:      req.ParentID,
+		ClearParentID: req.ClearParentID,
+		SortOrder:     req.SortOrder,
 	}
 
-	if err := h.svc.ExaminationType.Update(c.Request.Context(), examType); err != nil {
+	exType, err := h.svc.ExaminationType.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toExamTypeResponse(examType))
+	c.JSON(http.StatusOK, toExamTypeResponse(exType))
 }
 
 // ReorderExaminationTypes godoc

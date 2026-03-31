@@ -1,4 +1,11 @@
-// Pet-related type constants and definitions
+/**
+ * Owners feature types (UI-facing: 日本語ラベル値)
+ * Note: PetGender/AcquisitionType/DangerLevel/MembershipType は UI 表示用日本語値。
+ * models.ts の英語 enum 値（male/female/unknown 等）とは異なる。
+ * Backend ↔ Frontend の変換は transform 関数が担当。
+ * @see {@link import("@/types/generated/models").PetGender} — Backend enum (英語値)
+ * @see {@link import("@/types/generated/models").MembershipType} — Backend enum (英語値)
+ */
 export const PET_GENDER_VALUES = ["雄", "雌", "不明"] as const;
 export type PetGender = (typeof PET_GENDER_VALUES)[number];
 

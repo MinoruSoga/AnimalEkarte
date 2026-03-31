@@ -8,29 +8,34 @@ import (
 )
 
 type vitalResponse struct {
-	ID              string    `json:"id"`
-	MedicalRecordID string    `json:"medical_record_id"`
-	RecordedAt      time.Time `json:"recorded_at"`
-	StaffID         *string   `json:"staff_id,omitempty"`
-	Temperature     *float64  `json:"temperature,omitempty"`
-	HeartRate       *int      `json:"heart_rate,omitempty"`
-	RespirationRate *int      `json:"respiration_rate,omitempty"`
-	Weight          *float64  `json:"weight,omitempty"`
-	Notes           string    `json:"notes"`
-	CreatedAt       time.Time `json:"created_at"`
+	ID              string               `json:"id"`
+	MedicalRecordID *string              `json:"medical_record_id,omitempty"`
+	RecordedAt      time.Time            `json:"recorded_at"`
+	StaffID         *string              `json:"staff_id,omitempty"`
+	Temperature     *float64             `json:"temperature,omitempty"`
+	HeartRate       *int                 `json:"heart_rate,omitempty"`
+	RespirationRate *int                 `json:"respiration_rate,omitempty"`
+	Weight          *float64             `json:"weight,omitempty"`
+	WeightUnit      model.BodyWeightUnit `json:"weight_unit"`
+	Notes           string               `json:"notes"`
+	CreatedAt       time.Time            `json:"created_at"`
 }
 
-func toVitalResponse(v *model.Vital) vitalResponse {
+func toVitalResponse(v *model.VitalRecord) vitalResponse {
 	r := vitalResponse{
 		ID:              strconv.FormatUint(v.ID, 10),
-		MedicalRecordID: strconv.FormatUint(v.MedicalRecordID, 10),
 		RecordedAt:      v.RecordedAt,
 		Temperature:     v.Temperature,
 		HeartRate:       v.HeartRate,
 		RespirationRate: v.RespirationRate,
 		Weight:          v.Weight,
+		WeightUnit:      v.WeightUnit,
 		Notes:           v.Notes,
 		CreatedAt:       v.CreatedAt,
+	}
+	if v.MedicalRecordID != nil {
+		s := strconv.FormatUint(*v.MedicalRecordID, 10)
+		r.MedicalRecordID = &s
 	}
 	if v.StaffID != nil {
 		s := strconv.FormatUint(*v.StaffID, 10)

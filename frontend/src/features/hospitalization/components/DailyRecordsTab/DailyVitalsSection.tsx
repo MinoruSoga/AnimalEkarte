@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useState, useCallback } from "react";
 
 // External
@@ -8,6 +9,7 @@ import { Activity, Plus, Thermometer, Heart, Wind, Weight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import {
     Dialog,
     DialogContent,
@@ -17,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 
 // Types
-import type { ApiVitalRecord, CreateVitalRecordRequest } from "../../api/daily-records-types";
+import type { ApiVitalRecord, CreateVitalRecordRequest } from "@/features/hospitalization/api/daily-records-types";
 
 interface DailyVitalsSectionProps {
     vitals: ApiVitalRecord[];
@@ -88,7 +90,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
         <div>
             <div className="flex items-center justify-between mb-2">
                 <h4 className="flex items-center gap-1.5 text-sm font-bold text-[#37352F]">
-                    <Activity className="h-4 w-4 text-blue-500" />
+                    <Activity className={`${ICON.action} text-blue-500`} />
                     バイタル
                 </h4>
                 <Button
@@ -97,7 +99,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                     onClick={handleOpen}
                     className="h-7 gap-1 text-xs"
                 >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus className={ICON.action} />
                     追加
                 </Button>
             </div>
@@ -119,25 +121,25 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[#37352F]/70">
                                 {v.temperature !== undefined && v.temperature !== null ? (
                                     <span className="flex items-center gap-1">
-                                        <Thermometer className="h-3 w-3" />
+                                        <Thermometer className={ICON.action} />
                                         {v.temperature}℃
                                     </span>
                                 ) : null}
                                 {v.heart_rate !== undefined && v.heart_rate !== null ? (
                                     <span className="flex items-center gap-1">
-                                        <Heart className="h-3 w-3" />
+                                        <Heart className={ICON.action} />
                                         {v.heart_rate}bpm
                                     </span>
                                 ) : null}
                                 {v.respiration_rate !== undefined && v.respiration_rate !== null ? (
                                     <span className="flex items-center gap-1">
-                                        <Wind className="h-3 w-3" />
+                                        <Wind className={ICON.action} />
                                         {v.respiration_rate}回/分
                                     </span>
                                 ) : null}
                                 {v.weight !== undefined && v.weight !== null ? (
                                     <span className="flex items-center gap-1">
-                                        <Weight className="h-3 w-3" />
+                                        <Weight className={ICON.action} />
                                         {v.weight}kg
                                     </span>
                                 ) : null}
@@ -174,14 +176,13 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                                 <Label htmlFor="vital-temp" className="text-xs">
                                     体温 (℃)
                                 </Label>
-                                <Input
+                                <NumberInput
                                     id="vital-temp"
-                                    name="temperature"
-                                    type="number"
-                                    step="0.1"
+                                    step={0.1}
                                     value={form.temperature}
-                                    onChange={handleChange}
+                                    onChange={(v) => setForm((prev) => ({ ...prev, temperature: v }))}
                                     placeholder="38.5"
+                                    suffix="℃"
                                     className="mt-1"
                                 />
                             </div>
@@ -189,13 +190,12 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                                 <Label htmlFor="vital-hr" className="text-xs">
                                     心拍数 (bpm)
                                 </Label>
-                                <Input
+                                <NumberInput
                                     id="vital-hr"
-                                    name="heart_rate"
-                                    type="number"
                                     value={form.heart_rate}
-                                    onChange={handleChange}
+                                    onChange={(v) => setForm((prev) => ({ ...prev, heart_rate: v }))}
                                     placeholder="80"
+                                    suffix="/min"
                                     className="mt-1"
                                 />
                             </div>
@@ -203,13 +203,12 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                                 <Label htmlFor="vital-rr" className="text-xs">
                                     呼吸数 (回/分)
                                 </Label>
-                                <Input
+                                <NumberInput
                                     id="vital-rr"
-                                    name="respiration_rate"
-                                    type="number"
                                     value={form.respiration_rate}
-                                    onChange={handleChange}
+                                    onChange={(v) => setForm((prev) => ({ ...prev, respiration_rate: v }))}
                                     placeholder="20"
+                                    suffix="/min"
                                     className="mt-1"
                                 />
                             </div>
@@ -217,14 +216,13 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                                 <Label htmlFor="vital-weight" className="text-xs">
                                     体重 (kg)
                                 </Label>
-                                <Input
+                                <NumberInput
                                     id="vital-weight"
-                                    name="weight"
-                                    type="number"
-                                    step="0.01"
+                                    step={0.01}
                                     value={form.weight}
-                                    onChange={handleChange}
+                                    onChange={(v) => setForm((prev) => ({ ...prev, weight: v }))}
                                     placeholder="5.2"
+                                    suffix="kg"
                                     className="mt-1"
                                 />
                             </div>

@@ -1,6 +1,6 @@
 import { Calendar, Syringe, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { C } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import type { VaccinationRecord } from "@/types";
 
 interface VaccinationCardProps {
@@ -31,7 +31,7 @@ export function VaccinationCard({
       <CardContent className="px-4 py-3">
         {/* Header */}
         <div className="flex items-center gap-2 min-w-0">
-          <Syringe className={`size-4 shrink-0 ${C.text45}`} />
+          <Syringe className={`${ICON.action} shrink-0 ${C.text45}`} />
           <span className={`text-base font-medium ${C.text} truncate`}>
             {vaccination.vaccineName}
           </span>
@@ -41,7 +41,7 @@ export function VaccinationCard({
         <div className={`flex items-center gap-4 mt-1.5 text-sm ${C.text60} flex-wrap`}>
           {/* 接種日 */}
           <span className="flex items-center gap-1">
-            <Calendar className="size-3 shrink-0" />
+            <Calendar className={`${ICON.xs} shrink-0`} />
             接種: {vaccination.date}
           </span>
 
@@ -58,9 +58,9 @@ export function VaccinationCard({
             }`}
           >
             {overdue ? (
-              <AlertTriangle className="size-3.5 shrink-0" />
+              <AlertTriangle className={`${ICON.xs} shrink-0`} />
             ) : (
-              <Calendar className="size-3 shrink-0" />
+              <Calendar className={`${ICON.xs} shrink-0`} />
             )}
             <span>
               次回: {vaccination.nextDate}

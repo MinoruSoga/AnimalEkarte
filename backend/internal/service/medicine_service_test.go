@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,13 +13,13 @@ import (
 
 // mockMedicineRepository は MedicineRepository のテスト用モック実装
 type mockMedicineRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
+	findAllFn       func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
+	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
 	countChildrenFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
-	createFn       func(ctx context.Context, medicine *model.Medicine) error
-	updateFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
-	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
+	createFn        func(ctx context.Context, medicine *model.Medicine) error
+	updateFn        func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn        func(ctx context.Context, clinicID, id uint64) error
+	reorderFn       func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockMedicineRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
@@ -58,7 +57,7 @@ func (m *mockMedicineRepository) Reorder(ctx context.Context, clinicID uint64, i
 }
 
 func newTestMedicineService(repo *mockMedicineRepository) MedicineService {
-	return NewMedicineService(repo, slog.Default())
+	return NewMedicineService(repo)
 }
 
 func TestMedicineService_List(t *testing.T) {
@@ -263,8 +262,8 @@ func TestMedicineService_Update(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name: "returns same medicine when no fields provided",
-			id:   1,
+			name:  "returns same medicine when no fields provided",
+			id:    1,
 			input: &UpdateMedicineInput{
 				// 全フィールド nil
 			},
@@ -326,23 +325,23 @@ func uint64Ptr(v uint64) *uint64 { return &v }
 
 func TestMedicineService_Delete(t *testing.T) {
 	tests := []struct {
-		name            string
-		id              uint64
-		medicine        *model.Medicine  // FindByID が返すレコード
-		findErr         error
-		childrenCount   int64
+		name             string
+		id               uint64
+		medicine         *model.Medicine // FindByID が返すレコード
+		findErr          error
+		childrenCount    int64
 		countChildrenErr error
-		deleteErr       error
-		wantErr         bool
-		wantNotFound    bool
-		wantInvalid     bool
+		deleteErr        error
+		wantErr          bool
+		wantNotFound     bool
+		wantInvalid      bool
 	}{
 		{
-			name:          "deletes a leaf medicine item successfully",
-			id:            10,
-			medicine:      &model.Medicine{ID: 10, ClinicID: 1, ParentID: uint64Ptr(1)},
-			deleteErr:     nil,
-			wantErr:       false,
+			name:      "deletes a leaf medicine item successfully",
+			id:        10,
+			medicine:  &model.Medicine{ID: 10, ClinicID: 1, ParentID: uint64Ptr(1)},
+			deleteErr: nil,
+			wantErr:   false,
 		},
 		{
 			name:          "deletes an empty category successfully",

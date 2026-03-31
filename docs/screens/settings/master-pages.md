@@ -1,6 +1,6 @@
 # マスタ設定ページ一覧
 
-最終更新: 2026-03-15 (修正済)
+最終更新: 2026-03-18 (実装同期済)
 
 ## 凡例
 
@@ -16,15 +16,16 @@
 
 `MasterSettingsIndex.tsx`
 
-テーブルなし。カードリスト形式。
+テーブルなし。Notionスタイルのセクショングループ化されたリスト形式。
 
 ---
 
 ## 1. 医院マスタ (`/settings/clinic`)
 
 **コンポーネント:** `ClinicMasterSettings.tsx`
+**API:** `/api/v1/clinics`
 
-テーブルなし。フォーム入力のみ（院名・住所・電話番号等）。
+テーブルなし。Notionプロパティ形式のフォーム入力。
 
 ---
 
@@ -32,44 +33,31 @@
 
 **コンポーネント:** `TreatmentPlanMaster.tsx`
 **タブ切替:** `?tab=consultation|examination|procedure|vaccine|checkup`
-**タブコンポーネント:** `@radix-ui/react-tabs`（TabsPrimitive 直接）
+**API:** `/api/v1/masters/consultations` 他
 
 全タブ共通の `TreatmentTabContent` コンポーネントで描画。
 
 | タブ | ラベル | パターン | テーブルコンポーネント | D&D |
 |------|--------|---------|---------------------|-----|
-| `consultation` | 診察 | 階層パターン | `DataTable` + `SortableTreatmentRow` / `ChildTreatmentRow` | あり（root のみ） |
-| `examination` | 検査 | 階層パターン | `DataTable` + `SortableTreatmentRow` / `ChildTreatmentRow` | あり（root のみ） |
-| `procedure` | 処置 | 階層パターン | `DataTable` + `SortableTreatmentRow` / `ChildTreatmentRow` | あり（root のみ） |
-| `vaccine` | 予防接種 | 階層パターン | `DataTable` + `SortableTreatmentRow` / `ChildTreatmentRow` | あり（root のみ） |
-| `checkup` | 定期健診 | 階層パターン | `DataTable` + `SortableTreatmentRow` / `ChildTreatmentRow` | あり（root のみ） |
+| `consultation` | 診察 | 階層パターン | `DataTable` + `SortableDataTableRow` / `ChildTreatmentRow` | あり（root のみ） |
+| `examination` | 検査 | 階層パターン | `DataTable` + `SortableDataTableRow` / `ChildTreatmentRow` | あり（root のみ） |
+| `procedure` | 処置 | 階層パターン | `DataTable` + `SortableDataTableRow` / `ChildTreatmentRow` | あり（root のみ） |
+| `vaccine` | 予防接種 | 階層パターン | `DataTable` + `SortableDataTableRow` / `ChildTreatmentRow` | あり（root のみ） |
+| `checkup` | 定期健診 | 階層パターン | `DataTable` + `SortableDataTableRow` / `ChildTreatmentRow` | あり（root のみ） |
 
 **テーブルカラム（全タブ共通）:**
 
 | カラム | 幅 | 備考 |
 |--------|----|------|
-| D&Dハンドル | 32px | GripVertical |
+| D&Dハンドル | 32px | root行のみ |
 | 名称 | flex-1 | 展開トグル付き（子ありの場合） |
 | 単価(税込) | 120px | 右揃え |
 | ステータス | 100px | 中央揃え、`NotionStatusPill` |
 | 操作 | 80px | 右揃え、`RowActionButton` |
 
 **階層構造:**
-- `buildTree()` で flat array → `TreeItem[]`（root + children）に変換
-- root 行: `SortableTreatmentRow`（D&D対象）
+- root 行: `SortableDataTableRow`（D&D対象）
 - child 行: `ChildTreatmentRow`（D&D対象外、インデント表示）
-- 展開状態: `expandedIds: Set<string>` で管理
-
-**サイドピーク（`TreatmentItemSidePanel`）フィールド:**
-
-| ラベル | フィールド | 入力UI |
-|--------|-----------|--------|
-| ステータス | `isActive` | `NotionStatusPill` クリック切替 |
-| 単価(税込) | `price` | `<input type="number">` |
-| 備考 | `description` | `PropInput` |
-
-> **注意:** `checkup` タブは `interval`（健診間隔）・`target_age`（対象年齢）フィールドを表示しない。
-> API には対応フィールドが存在するが、`TreatmentTabContent` が汎用設計のため未対応。
 
 ---
 
@@ -77,240 +65,166 @@
 
 **コンポーネント:** `DiagnosisSettings.tsx`
 **タブ切替:** `?tab=diagnosis_category|diagnosis_name`
-**タブコンポーネント:** `@/components/ui/tabs`（shadcn/ui）
+**API:** `/api/v1/masters/diagnosis-categories` / `/api/v1/masters/diagnosis-names`
 
 ### タブ1: 診断病名カテゴリ (`diagnosis_category`)
 
 | 項目 | 内容 |
 |------|------|
 | パターン | フラットパターン |
-| テーブルコンポーネント | `DataTable` + `SortableCategoryRow`（`DataTableRow` ラップ） |
 | D&D | あり |
 
-**カラム:**
-
-| カラム | 幅 | 備考 |
-|--------|----|------|
-| D&Dハンドル | 32px | |
-| カテゴリ名 | flex-1 | |
-| 備考 | 240px | |
-| ステータス | 100px | 中央揃え、`NotionStatusPill` |
-| 操作 | 80px | 右揃え、`RowActionButton` |
-
-**サイドピーク（`DiagnosisCategorySidePanel`）フィールド:**
-
-| ラベル | フィールド | 入力UI |
-|--------|-----------|--------|
-| ステータス | `isActive` | `NotionStatusPill` クリック切替 |
-| 備考 | `description` | `PropInput` |
+**カラム:** D&Dハンドル | カテゴリ名 | 備考 | ステータス | 操作
 
 ### タブ2: 診断病名 (`diagnosis_name`)
 
 | 項目 | 内容 |
 |------|------|
-| パターン | フラットパターン（カテゴリFKを列表示） |
-| テーブルコンポーネント | `DataTable` + `SortableNameRow`（`DataTableRow` ラップ） |
+| パターン | フラットパターン（カテゴリ名を列表示） |
 | D&D | あり |
 
-**カラム:**
-
-| カラム | 幅 | 備考 |
-|--------|----|------|
-| D&Dハンドル | 32px | |
-| 所属カテゴリ | 160px | カテゴリ名を表示（FK解決） |
-| 診断病名 | flex-1 | |
-| ステータス | 100px | 中央揃え、`NotionStatusPill` |
-| 操作 | 80px | 右揃え、`RowActionButton` |
-
-**サイドピーク（`DiagnosisNameSidePanel`）フィールド:**
-
-| ラベル | フィールド | 入力UI |
-|--------|-----------|--------|
-| ステータス | `isActive` | `NotionStatusPill` クリック切替 |
-| カテゴリ | `diagnosisCategoryId` | `Select`（shadcn/ui） |
-| 備考 | `description` | `PropInput` |
+**カラム:** D&Dハンドル | 所属カテゴリ | 診断病名 | ステータス | 操作
 
 ---
 
 ## 4. トリミングマスタ (`/settings/trimming`)
 
 **コンポーネント:** `TrimmingSettings.tsx`
-**タブ切替:** `?tab=` なし（Tabs の value state 管理）
-**タブコンポーネント:** `@/components/ui/tabs`（shadcn/ui）
+**タブ切替:** `course` | `option`
+**API:** `/api/v1/masters/trimming-courses` / `/api/v1/masters/trimming-options`
 
 ### タブ1: トリミングコース
 
 | 項目 | 内容 |
 |------|------|
 | パターン | フラットパターン |
-| テーブルコンポーネント | `DataTable` + `DataTableRow` |
-| D&D | なし |
+| D&D | あり |
 
-**カラム:**
-
-| カラム | 幅 | 備考 |
-|--------|----|------|
-| コース名 | flex-1 | |
-| 対象サイズ | 120px | |
-| 所要時間 | 100px | |
-| 単価(税込) | 110px | 右揃え |
-| ステータス | 90px | 右揃え、`NotionStatusPill` |
+**カラム:** D&Dハンドル | コース名 | 対象サイズ | 所要時間 | 単価(税込) | ステータス | 操作
 
 ### タブ2: トリミングオプション
 
 | 項目 | 内容 |
 |------|------|
 | パターン | フラットパターン |
-| テーブルコンポーネント | `DataTable` + `DataTableRow` |
-| D&D | なし |
+| D&D | あり |
 
-**カラム:**
-
-| カラム | 幅 | 備考 |
-|--------|----|------|
-| オプション名 | flex-1 | |
-| 所要時間 | 100px | |
-| 組合せ可否 | 110px | 中央揃え、`CombinablePill`（ローカル定義） |
-| 単価(税込) | 110px | 右揃え |
-| ステータス | 90px | 右揃え、`NotionStatusPill` |
+**カラム:** D&Dハンドル | オプション名 | 所要時間 | 組合せ可否 | 単価(税込) | ステータス | 操作
 
 ---
 
 ## 5. 薬剤マスタ (`/settings/medicine`)
 
 **コンポーネント:** `MedicineSettings.tsx`
+**API:** `/api/v1/masters/medicines`
 
-タブなし。カテゴリ > 薬剤の2段階UI。
-
-| 項目 | 内容 |
-|------|------|
-| パターン | **階層パターン**（カテゴリ行 + 薬剤行の折りたたみ） |
-| テーブルコンポーネント | `Table` / `TableHeader` / `TableBody` / `TableRow` / `TableCell`（shadcn/ui 直接） + `DataTableRow`（薬剤行） |
-| D&D | あり（`DragOverlay` 付き、`motion/react` アニメーション） |
-
-> `DataTable`（共有コンポーネント）は**使用していない**。`Table` を直接構築する独自実装。
-
-**カラム:**
-
-| カラム | 幅 | 備考 |
-|--------|----|------|
-| D&Dハンドル | — | カテゴリ行のみ |
-| 名称 | flex-1 | カテゴリは太字、薬剤はインデント |
-| 剤形 | — | 薬剤行のみ |
-| 単価(税込) | — | 右揃え |
-| 操作 | — | `DropdownMenu`（MoreHorizontal + Maximize2） |
+タブなし。カテゴリ > 薬剤の2段階UI。独自 `Table` 実装。
 
 ---
 
 ## 6. 予約区分マスタ (`/settings/service-type`)
 
 **コンポーネント:** `ServiceTypeSettings.tsx`
+**API:** `/api/v1/masters/service-types`
 
 | 項目 | 内容 |
 |------|------|
 | パターン | フラットパターン |
-| テーブルコンポーネント | `DataTable` + `SortableServiceTypeRow`（`DataTableRow` ラップ） |
 | D&D | あり |
 
-**カラム:**
-
-| カラム | 幅 | 備考 |
-|--------|----|------|
-| D&Dハンドル | 32px | |
-| 名称 | flex-1 | カラードット付き |
-| 備考 | 240px | |
-| ステータス | 100px | 中央揃え、`NotionStatusPill` |
-| 操作 | 80px | 右揃え、`RowActionButton` |
-
-**サイドピーク（`ServiceTypeSidePanel`）フィールド:**
-
-| ラベル | フィールド | 入力UI |
-|--------|-----------|--------|
-| ステータス | `isActive` | `NotionStatusPill` クリック切替 |
-| カラー | `color` | `<input type="color">` + `PropInput` |
-| 備考 | `description` | `PropInput` |
+**カラム:** D&Dハンドル | 名称(カラードット付) | 備考 | ステータス | 操作
 
 ---
 
 ## 7. スタッフマスタ (`/settings/staff`)
 
 **コンポーネント:** `StaffSettings.tsx`
+**API:** `/api/v1/masters/staffs`
 
 | 項目 | 内容 |
 |------|------|
 | パターン | フラットパターン |
-| テーブルコンポーネント | `DataTable` + `DataTableRow` |
-| D&D | なし |
+| D&D | あり |
 
-**カラム:**
-
-| カラム | 幅 | 備考 |
-|--------|----|------|
-| 氏名 | flex-1 | |
-| 職種 | — | |
-| ステータス | — | `NotionStatusPill` |
-| 操作 | 80px | `RowActionButton` |
+**カラム:** D&Dハンドル | 氏名 | 職種 | ステータス | 操作
 
 ---
 
 ## 8. 入院マスタ (`/settings/hospitalization`)
 
-**コンポーネント:** `HospitalizationSettings.tsx`（**独自実装**）
-
-`body_size`（体格）・`billing_unit`（課金単位）など入院プラン固有フィールドが必要なため、`Settings.tsx` ラッパーではなく独自実装。データ取得は `useGetAllHospitalizationPlans`。
+**コンポーネント:** `HospitalizationSettings.tsx`
+**API:** `/api/v1/masters/hospitalization-plans`
 
 | 項目 | 内容 |
 |------|------|
 | パターン | フラットパターン |
-| テーブルコンポーネント | `DataTable` + `DataTableRow` |
-| D&D | なし |
+| D&D | あり |
 
 ---
 
 ## 9. ケージマスタ (`/settings/cage`)
 
-**コンポーネント:** `CageSettings.tsx`（**独自実装**）
-
-`cage_type`（エリア区分）・`cage_size`（サイズ）など固有フィールドが必要なため、`Settings.tsx` ラッパーではなく独自実装。データ取得は `useGetAllCages`。
+**コンポーネント:** `CageSettings.tsx`
+**API:** `/api/v1/masters/cages`
 
 | 項目 | 内容 |
 |------|------|
 | パターン | フラットパターン |
-| テーブルコンポーネント | `DataTable` + `DataTableRow` |
-| D&D | なし |
+| D&D | あり |
 
 ---
 
-## 10〜11. 汎用 Settings.tsx 経由ページ
+## 10. 動物種マスタ (`/settings/animal-species`)
 
-**コンポーネント:** `Settings.tsx`（`category` prop で動作を切り替え）
+**コンポーネント:** `AnimalSpeciesSettings.tsx`
+**API:** `/api/v1/masters/animal-species`
 
-| # | ページ | パス | category |
-|---|--------|------|----------|
-| 10 | 職種マスタ | `/settings/job-title` | `job_title` |
-| 11 | 保険マスタ | `/settings/insurance` | `insurance` |
+---
 
-全ページ共通:
+## 11. 職能マスタ (`/settings/job-title`)
 
-| 項目 | 内容 |
-|------|------|
-| パターン | フラットパターン |
-| テーブルコンポーネント | `DataTable` + `DataTableRow` |
-| D&D | なし |
-| データ取得 | `useMasterItems(category)` hook |
+**コンポーネント:** `JobTitleSettings.tsx`
+**API:** `/api/v1/masters/job-titles`
 
-表示カラムは `CATEGORY_CONFIG[category]` の `showPrice` / `showCode` / `showCategory` フラグで動的に切り替わる。
+---
+
+## 12. 主訴カテゴリマスタ (`/settings/interview/chief-complaint`)
+
+**コンポーネント:** `ChiefComplaintSettings.tsx`
+**API:** `/api/v1/masters/chief-complaint-categories`
+
+---
+
+## 13. 問診テンプレート (`/settings/interview/templates`)
+
+**コンポーネント:** `InterviewTemplateSettings.tsx`
+**API:** `/api/v1/masters/inquiry-templates`
+
+---
+
+## 14. 保険マスタ (`/settings/insurance`)
+
+**コンポーネント:** `InsuranceSettings.tsx`
+**API:** `/api/v1/masters/insurances`
+
+---
+
+## 15. 商品マスタ (`/settings/merchandise-items`)
+
+**コンポーネント:** `MerchandiseItemSettings.tsx`
+**API:** `/api/v1/masters/merchandise-items`
 
 ---
 
 ## 共有コンポーネント早見表
 
-| コンポーネント | パス | 使用ページ |
-|--------------|------|-----------|
-| `DataTable` | `@/components/shared/DataTable` | treatment-items, diagnosis, service-type, staff, Settings.tsx |
-| `DataTableRow` | `@/components/shared/DataTable` | 上記すべて + MedicineSettings（薬剤行のみ） |
-| `NotionStatusPill` | `@/components/shared/StatusPill/NotionStatusPill` | diagnosis, service-type, staff, Settings.tsx |
-| `PropertyRow` | `@/components/shared/SidePeek/PropertyRow` | diagnosis, service-type |
-| `PropInput` | `@/components/shared/SidePeek/PropInput` | diagnosis, service-type |
-| `RowActionButton` | `@/components/shared/RowActionButton` | treatment-items, diagnosis, service-type, staff, Settings.tsx |
-| `useSortableList` | `@/hooks/useSortableList` | treatment-items, diagnosis, service-type, MedicineSettings |
+| コンポーネント | パス |
+|--------------|------|
+| `DataTable` | `@/components/shared/DataTable` |
+| `MasterSidePanel` | `@/components/shared/SidePeek` |
+| `NotionStatusPill` | `@/components/shared/StatusPill` |
+| `PropertyRow` | `@/components/shared/SidePeek` |
+| `PropInput` | `@/components/shared/SidePeek` |
+| `MoneyInput` | `@/components/shared/SidePeek` |
+| `StatusToggleButton` | `@/components/shared/SidePeek` |
+| `RowActionButton` | `@/components/shared/RowActionButton` |

@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import React from "react";
 
 // External
@@ -23,7 +24,7 @@ export const DiagnosisHeaderPhysicalExam = React.memo(function DiagnosisHeaderPh
       <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent">
         <CardHeader className="p-0 pb-2">
           <CardTitle className="text-sm font-bold text-[#37352F] flex items-center gap-2">
-            <Activity className="size-4" />
+            <Activity className={ICON.action} />
             診察(PE)
           </CardTitle>
         </CardHeader>

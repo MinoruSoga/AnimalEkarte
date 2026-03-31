@@ -1,5 +1,5 @@
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
-import { C } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 
 type SortDirection = "ascending" | "descending" | "none";
 
@@ -25,7 +25,7 @@ export function SortableHeader({ label, direction, onToggle }: SortableHeaderPro
       aria-label={`${label}でソート`}
     >
       {label}
-      <Icon className={`size-3 ${direction === "none" ? C.text30 : C.text}`} />
+      <Icon className={`${ICON.xs} ${direction === "none" ? C.text30 : C.text}`} />
     </button>
   );
 }

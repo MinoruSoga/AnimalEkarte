@@ -26,6 +26,7 @@ Dockerfile
 
 # Issues / Docs (not needed in deployment)
 issues/
+docs/
 CODING_RULES.md
 README.md
 CLAUDE.md

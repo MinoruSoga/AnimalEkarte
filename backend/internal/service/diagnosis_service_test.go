@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -89,14 +88,14 @@ func (m *mockDiagnosisNameRepository) Reorder(ctx context.Context, clinicID uint
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-// newCategoryService はテスト用ヘルパー（logger 付き）
+// newCategoryService はテスト用ヘルパー
 func newCategoryService(repo *mockDiagnosisCategoryRepository) DiagnosisCategoryService {
-	return NewDiagnosisCategoryService(repo, slog.Default())
+	return NewDiagnosisCategoryService(repo)
 }
 
-// newNameService はテスト用ヘルパー（logger + categoryRepo 付き）
+// newNameService はテスト用ヘルパー（categoryRepo FK validation付き）
 func newNameService(repo *mockDiagnosisNameRepository, categoryRepo *mockDiagnosisCategoryRepository) DiagnosisNameService {
-	return NewDiagnosisNameService(repo, categoryRepo, slog.Default())
+	return NewDiagnosisNameService(repo, categoryRepo)
 }
 
 // ---- DiagnosisCategoryService テスト ----
