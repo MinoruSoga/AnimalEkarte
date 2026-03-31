@@ -66,14 +66,42 @@ jobs:
             ./backend
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Download current task definition
+      # -------------------------------------------------------
+      # .env.production → ECS environment JSON に変換
+      # -------------------------------------------------------
+      - name: Parse .env.production
+        run: |
+          python3 -c "
+          import json
+          pairs = []
+          with open('backend/.env.production') as f:
+              for line in f:
+                  line = line.strip()
+                  if not line or line.startswith('#'):
+                      continue
+                  key, _, value = line.partition('=')
+                  if key:
+                      pairs.append({'name': key, 'value': value})
+          print(json.dumps(pairs))
+          " > /tmp/env_vars.json
+
+      # -------------------------------------------------------
+      # API タスク定義: env 全置換・secrets 撤廃
+      # -------------------------------------------------------
+      - name: Download and prepare API task definition
         run: |
           aws ecs describe-task-definition \
             --task-definition ${{ env.ECS_TASK_DEFINITION_FAMILY }} \
             --query taskDefinition \
-            --region ${{ env.AWS_REGION }} > task-definition.json
+            --region ${{ env.AWS_REGION }} > task-definition-raw.json
 
-      - name: Fill in new image ID in task definition
+          jq --argjson envvars "$(cat /tmp/env_vars.json)" \
+            'del(.taskDefinitionArn,.revision,.status,.registeredAt,.registeredBy,.compatibilities,.requiresAttributes) |
+             .containerDefinitions[0].environment = $envvars |
+             .containerDefinitions[0].secrets = []' \
+            task-definition-raw.json > task-definition.json
+
+      - name: Fill in new image ID in API task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -84,24 +112,32 @@ jobs:
       # -------------------------------------------------------
       # Run database migration before deploying new API version
       # -------------------------------------------------------
-      - name: Download migrate task definition
+      - name: Download and prepare migrate task definition
         run: |
           aws ecs describe-task-definition \
             --task-definition ${{ env.ECS_MIGRATE_TASK_FAMILY }} \
             --query taskDefinition \
             --region ${{ env.AWS_REGION }} > migrate-task-definition-raw.json
 
-          # register-task-definition は read-only フィールドを拒否するため除去
-          # DB_RESET を workflow input から注入（push トリガーでは "false"）
           DB_RESET_VALUE="${{ github.event.inputs.db_reset || 'false' }}"
-          jq --arg db_reset "$DB_RESET_VALUE" '
-            del(.taskDefinitionArn, .revision, .status, .registeredAt, .registeredBy, .compatibilities, .requiresAttributes) |
-            .containerDefinitions[0].environment |= map(
-              if .name == "DB_RESET" then .value = $db_reset else . end
-            )
-          ' migrate-task-definition-raw.json > migrate-task-definition.json
 
-      - name: Update migrate task definition with new image
+          # DB_RESET を workflow input で上書き
+          python3 -c "
+          import json, sys
+          vars = json.load(open('/tmp/env_vars.json'))
+          for v in vars:
+              if v['name'] == 'DB_RESET':
+                  v['value'] = '$DB_RESET_VALUE'
+          print(json.dumps(vars))
+          " > /tmp/migrate_env_vars.json
+
+          jq --argjson envvars "$(cat /tmp/migrate_env_vars.json)" \
+            'del(.taskDefinitionArn,.revision,.status,.registeredAt,.registeredBy,.compatibilities,.requiresAttributes) |
+             .containerDefinitions[0].environment = $envvars |
+             .containerDefinitions[0].secrets = []' \
+            migrate-task-definition-raw.json > migrate-task-definition.json
+
+      - name: Fill in new image ID in migrate task definition
         id: migrate-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -156,7 +192,6 @@ jobs:
           REGION="${{ env.AWS_REGION }}"
           TASK_ID=$(echo "$TASK_ARN" | awk -F'/' '{print $NF}')
 
-          # 10秒間隔 × 最大60回 = 最大10分ポーリング（step timeout は15分で余裕を持たせる）
           for i in $(seq 1 60); do
             STATUS=$(aws ecs describe-tasks \
               --cluster "$CLUSTER" \
@@ -179,7 +214,6 @@ jobs:
             exit 1
           fi
 
-          # Check exit code（null/空の場合もエラーとして扱う）
           EXIT_CODE=$(aws ecs describe-tasks \
             --cluster "$CLUSTER" \
             --tasks "$TASK_ARN" \
@@ -190,7 +224,6 @@ jobs:
           if [ -z "$EXIT_CODE" ] || [ "$EXIT_CODE" = "None" ] || [ "$EXIT_CODE" != "0" ]; then
             echo "::error::Migration failed (exit code: $EXIT_CODE)"
 
-            # ECS awslogs stream format: {prefix}/{container-name}/{task-id}
             echo "--- Migration logs ---"
             aws logs get-log-events \
               --log-group-name /ecs/animalekarte-test \

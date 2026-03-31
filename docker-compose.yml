@@ -3,6 +3,8 @@ services:
     image: postgres:18-alpine
     networks:
       - ekarte-network
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -26,15 +28,11 @@ services:
         - ekarte-backend:latest
     networks:
       - ekarte-network
+    env_file:
+      - .env
     environment:
+      # Local Docker network overrides
       DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      DB_RESET: ${DB_RESET:-false}
-      GIN_MODE: debug
-      CORS_ALLOWED_ORIGIN: http://localhost:3003
     ports:
       - "8080:8080"
     volumes:
