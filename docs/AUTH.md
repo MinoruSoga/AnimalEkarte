@@ -42,7 +42,7 @@
 | **最小権限の原則** | デフォルトでは最小限の権限のみ付与。必要に応じて権限を追加 |
 | **認証方式** | メールアドレス + パスワードによるログイン。将来的にSSO/SAML対応を想定 |
 | **セッション管理** | 短命アクセストークン (15分 JWT) + 長命リフレッシュトークン (7日 opaque) の dual-token。両方 httpOnly Cookie で管理。リフレッシュトークンは DB に保存しサーバー側で無効化可能にする |
-| **監査ログ** | ログイン・ログアウト・権限変更を記録（将来実装） |
+| **監査ログ** | ログイン・ログアウト・権限変更・重要リソース操作を `audit_logs` テーブルに記録 |
 
 ---
 
@@ -1031,6 +1031,24 @@ interface AuthUser {
   permissions: ResourcePermissions; // TASK-049完了後: { resource → CRUD } フラット構造
 }
 ```
+
+### 認証ハイドレーション (React 19)
+
+FOUC (Flash of Unauthenticated Content) を防ぐため、React 19 の `use()` フックを使用した Suspense ベースのハイドレーションを採用しています。
+
+```typescript
+// features/auth/hooks/use-auth.tsx
+const initialAuthPromise = refreshToken().catch(() => null);
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  // 初期チェックが完了するまでレンダリングをサスペンド
+  const initialResult = use(initialAuthPromise);
+  
+  // ...初期値を state にセット
+}
+```
+
+このパターンにより、アプリケーション起動時に「一瞬未ログイン画面が見える」といった現象を完全に排除しています。
 
 ### `usePermission(resource)` フック
 

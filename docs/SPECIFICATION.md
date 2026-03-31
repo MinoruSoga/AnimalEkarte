@@ -27,14 +27,13 @@
 - **[個別画面詳細 (docs/screens/)](./screens/README.md)**: 画面ごとの項目・ロジック・API詳細。
 
 ### 🏗️ アーキテクチャ・開発
-- **[フロントエンド設計 (docs/FRONTEND_ARCHITECTURE.md)](./FRONTEND_ARCHITECTURE.md)**: React/TypeScript の実装指針。
-- **[バックエンド設計 (docs/architecture.md)](./architecture.md)**: Go レイヤードアーキテクチャ。
+- **[全体アーキテクチャ (docs/architecture.md)](./architecture.md)**: React/TypeScript フロントエンドおよび Go バックエンドの実装指針。
 - **[データフロー (docs/data-flow.md)](./data-flow.md)**: リクエスト〜レスポンスの詳細。
 - **[DB設計 (docs/ERD.md)](./ERD.md)**: エンティティ定義とリレーション。
 
 ### ⚙️ 運用・品質
 - **[開発・運用ガイド (docs/OPERATIONS.md)](./OPERATIONS.md)**: Codegen、デプロイ、管理コマンド。
-- **[テスト戦略 (docs/TESTING_STRATEGY.md)](./TESTING_STRATEGY.md)**: テスト方針とモック戦略。
+
 
 ---
 
