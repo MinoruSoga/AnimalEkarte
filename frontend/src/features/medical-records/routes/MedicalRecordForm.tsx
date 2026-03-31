@@ -55,7 +55,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     formAction,
     formState,
     isCreating,
-    treatmentPlanItems,
+    treatmentPlanItems: _treatmentPlanItems,
     setTreatmentPlanItems,
     chiefComplaint,
     setChiefComplaint,
@@ -234,7 +234,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setDiagnosis2NameId(id);
   }, [markDirty, setDiagnosis2NameId]);
 
-  const handleSetTreatmentPlanItems = useCallback<typeof setTreatmentPlanItems>((items) => {
+  const _handleSetTreatmentPlanItems = useCallback<typeof setTreatmentPlanItems>((items) => {
     markDirty();
     setTreatmentPlanItems(items);
   }, [markDirty, setTreatmentPlanItems]);
