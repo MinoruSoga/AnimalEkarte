@@ -241,5 +241,3 @@ export const SortPopover = memo(function SortPopover({
     </Popover>
   );
 });
-;
-});
