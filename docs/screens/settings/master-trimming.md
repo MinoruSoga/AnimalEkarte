@@ -45,6 +45,12 @@
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
 | GET | `/api/v1/masters/trimming-courses` | コース一覧取得 | 実装済 |
-| GET | `/api/v1/masters/trimming-options` | オプション一覧取得 | 実装済 |
 | POST | `/api/v1/masters/trimming-courses` | コース作成 | 実装済 |
-| PATCH | `/api/v1/masters/trimming-courses/reorder` | 並び順一括保存 | 実装済 |
+| PATCH | `/api/v1/masters/trimming-courses/:id` | コース更新 | 実装済 |
+| DELETE | `/api/v1/masters/trimming-courses/:id` | コース削除 | 実装済 |
+| PATCH | `/api/v1/masters/trimming-courses/reorder` | コース並び順一括保存 | 実装済 |
+| GET | `/api/v1/masters/trimming-options` | オプション一覧取得 | 実装済 |
+| POST | `/api/v1/masters/trimming-options` | オプション作成 | 実装済 |
+| PATCH | `/api/v1/masters/trimming-options/:id` | オプション更新 | 実装済 |
+| DELETE | `/api/v1/masters/trimming-options/:id` | オプション削除 | 実装済 |
+| PATCH | `/api/v1/masters/trimming-options/reorder` | オプション並び順一括保存 | 実装済 |

@@ -16,30 +16,33 @@
 
 | サービス | URL |
 |---|---|
-| Frontend | `https://frontend-eta-six-20.vercel.app` |
-| Backend API | `https://dcqico6azu5w2.cloudfront.net/api` |
-| ALB (直接) | `http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com` |
-| RDS | `animalekarte-test-db.cqbe28s44fta.us-east-1.rds.amazonaws.com:5432` |
+| Frontend | `https://stg.noah-karte.com` |
+| Backend API | `https://api.stg.noah-karte.com/api` |
+| ALB (直接) | `http://animalekarte-stg-alb-1915768826.us-east-1.elb.amazonaws.com` |
+| RDS | `animalekarte-stg-db.cqbe28s44fta.us-east-1.rds.amazonaws.com:5432` |
 
 ### AWS リソース ID
 
 | リソース | ID / ARN |
 |---|---|
 | CloudFront Distribution | `ERCVR5P0IAJKS` (`dcqico6azu5w2.cloudfront.net`) |
-| ECS Cluster | `animalekarte-test-cluster` |
-| ECS Service | `animalekarte-test-service` |
-| Task Definition Family | `animalekarte-test-api` |
+| ECS Cluster | `animalekarte-stg-cluster` |
+| ECS Service | `animalekarte-stg-service` |
+| Task Definition Family | `animalekarte-stg-api` |
 | ECR Repository | `animalekarte-api` |
 | ALB SG | `sg-047ff4f8c3ab99411` |
 | ECS SG | `sg-0934ac397301ec633` |
 | RDS SG | `sg-053d44ac9fab4e71a` |
-| IAM OIDC Deploy Role | `animalekarte-test-github-ecs-deploy-role` |
+| IAM OIDC Deploy Role | `animalekarte-stg-github-ecs-deploy-role` |
+| ALB SG | `sg-090b034e4a30b5ca7` |
+| ECS SG | `sg-0aa38e88ba0e4876c` |
+| RDS SG | `sg-09026c201ac735d7e` |
 
 ### DB 接続情報
 
 | 項目 | 値 |
 |---|---|
-| Host | `animalekarte-test-db.cqbe28s44fta.us-east-1.rds.amazonaws.com` |
+| Host | `animalekarte-stg-db.cqbe28s44fta.us-east-1.rds.amazonaws.com` |
 | Port | `5432` |
 | Database | `ekarte_db` |
 | Username | `ekarte_admin` |
@@ -49,10 +52,10 @@
 
 ### 1. バックエンド（自動）
 
-`backend/**` を変更して `main` にプッシュすると GitHub Actions が自動デプロイ。
+`backend/**` を変更して `staging` にプッシュすると GitHub Actions が自動デプロイ。
 
 ```bash
-git push origin main
+git push origin staging
 ```
 
 ワークフロー確認:
@@ -104,7 +107,7 @@ GitHub Actions デプロイでは、既存タスク定義のイメージタグ�
 
 ```bash
 aws ecs describe-task-definition \
-  --task-definition animalekarte-test-api \
+  --task-definition animalekarte-stg-api \
   --profile AnimalEkarte \
   --query 'taskDefinition' | jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' > /tmp/task-def.json
 ```
@@ -124,9 +127,9 @@ aws ecs register-task-definition \
   --profile AnimalEkarte
 
 aws ecs update-service \
-  --cluster animalekarte-test-cluster \
-  --service animalekarte-test-service \
-  --task-definition animalekarte-test-api \
+  --cluster animalekarte-stg-cluster \
+  --service animalekarte-stg-service \
+  --task-definition animalekarte-stg-api \
   --force-new-deployment \
   --profile AnimalEkarte
 ```
@@ -158,8 +161,7 @@ aws ec2 revoke-security-group-ingress \
 ### TablePlus から実行
 
 1. TablePlus で RDS に接続
-2. `backend/migrations/001_init.sql` を実行（テーブル作成）
-3. `backend/migrations/002_seed_master.sql` を実行（マスタデータ投入）
+2. `backend/migrations/001_init.sql` を実行（スキーマ作成 + マスタデータ + デモデータ投入）
 
 ### DB リセット
 
@@ -168,7 +170,6 @@ aws ec2 revoke-security-group-ingress \
 DROP SCHEMA public CASCADE;
 CREATE SCHEMA public;
 -- 001_init.sql を再実行
--- 002_seed_master.sql を再実行
 ```
 
 ## ログ確認
@@ -178,14 +179,14 @@ CREATE SCHEMA public;
 ```bash
 # 実行中タスク ID 取得
 TASK_ID=$(aws ecs list-tasks \
-  --cluster animalekarte-test-cluster \
-  --service-name animalekarte-test-service \
+  --cluster animalekarte-stg-cluster \
+  --service-name animalekarte-stg-service \
   --profile AnimalEkarte \
   --query 'taskArns[0]' --output text | awk -F/ '{print $NF}')
 
 # ログ確認
 aws logs get-log-events \
-  --log-group-name /ecs/animalekarte-test \
+  --log-group-name /ecs/animalekarte-stg \
   --log-stream-name "api/api/$TASK_ID" \
   --profile AnimalEkarte \
   --query 'events[-20:].message' | jq -r '.[]'
@@ -195,7 +196,7 @@ aws logs get-log-events \
 
 ```bash
 aws ecs execute-command \
-  --cluster animalekarte-test-cluster \
+  --cluster animalekarte-stg-cluster \
   --task $TASK_ID \
   --container api \
   --interactive \
@@ -216,7 +217,7 @@ GitHub Actions は `${github.sha}` タグで新イメージをプッシュし、
 `CORS_ALLOWED_ORIGIN` 環境変数にフロントエンドのオリジンが含まれているか確認:
 ```bash
 aws ecs describe-task-definition \
-  --task-definition animalekarte-test-api \
+  --task-definition animalekarte-stg-api \
   --profile AnimalEkarte \
   --query 'taskDefinition.containerDefinitions[0].environment' | \
   jq '.[] | select(.name == "CORS_ALLOWED_ORIGIN")'
@@ -224,17 +225,18 @@ aws ecs describe-task-definition \
 
 ### Cookie が保存されない
 
-- `COOKIE_CROSS_DOMAIN=true` が設定されているか確認
+- `GIN_MODE=release` が設定されているか確認（`release` のとき `Secure=true`, `SameSite=None` が有効になる）
 - ブラウザの開発者ツールで `Set-Cookie` ヘッダーに `SameSite=None; Secure` が含まれるか確認
+- `CORS_ALLOWED_ORIGIN` にフロントエンドオリジンが含まれ、かつ `Access-Control-Allow-Credentials: true` がレスポンスヘッダに含まれるか確認
 
 ### GitHub Actions OIDC 認証エラー
 
 IAM Role の trust policy でリポジトリ名が一致しているか確認:
 ```bash
 aws iam get-role \
-  --role-name animalekarte-test-github-ecs-deploy-role \
+  --role-name animalekarte-stg-github-ecs-deploy-role \
   --profile AnimalEkarte \
   --query 'Role.AssumeRolePolicyDocument' | jq
 ```
 
-正しい値: `repo:MinoruSoga/AnimalEkarte:*`
+正しい値: `repo:MinoruSoga/AnimalEkarte:ref:refs/heads/staging`

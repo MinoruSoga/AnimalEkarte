@@ -155,6 +155,9 @@ export function useVaccinationForm(id?: string) {
             date: toRFC3339(formData.date),
             next_date: formData.nextDate ? `${formData.nextDate}T00:00:00Z` : null,
             lot1: formData.lot1 || undefined,
+            lot2: formData.lot2 || undefined,
+            lot3: formData.lot3 || undefined,
+            lot4: formData.lot4 || undefined,
             remarks: formData.remarks || undefined,
           };
           await updateMutation.mutateAsync({ id, req });
@@ -169,6 +172,9 @@ export function useVaccinationForm(id?: string) {
             date: formData.date ? `${formData.date}T00:00:00Z` : new Date().toISOString(),
             next_date: formData.nextDate ? `${formData.nextDate}T00:00:00Z` : null,
             lot1: formData.lot1 || undefined,
+            lot2: formData.lot2 || undefined,
+            lot3: formData.lot3 || undefined,
+            lot4: formData.lot4 || undefined,
             remarks: formData.remarks || undefined,
           };
           await createMutation.mutateAsync(req);
@@ -188,7 +194,7 @@ export function useVaccinationForm(id?: string) {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
   const [historySearchTerm, setHistorySearchTerm] = useState("");
-  const [sortOrder, setSortOrder] = useState("desc");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // New mode: populate pet selection from petId query param
   useEffect(() => {

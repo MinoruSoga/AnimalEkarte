@@ -19,6 +19,8 @@
 |-----------|--------|---------|------|------|
 | 薬品名 | `name` | `Input` | ✅ | タイトルエリアで編集 |
 | 親カテゴリ | `parentId` | `Select` | - | 既存のカテゴリ薬（単価0円のもの）から選択 |
+| 税区分 | `taxType` | `TaxTypeSelector` | - | 課税/非課税/軽減税率 |
+| 税率 | `taxRate` | `TaxRateSelector` | - | 税区分に応じて自動選択 |
 | 単価(税込) | `price` | `MoneyInput`| - | カテゴリの場合は入力不可 |
 | ステータス | `isActive` | `StatusToggleButton`| - | 有効/無効の切り替え |
 | 備考 | `description`| `PropInput` | - | |

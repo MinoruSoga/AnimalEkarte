@@ -1,3 +1,6 @@
+// React/Framework
+import { useState } from "react";
+
 // Internal
 import {
   AlertDialog,
@@ -9,6 +12,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 // Relative
 import { H_STYLES } from "../styles";
@@ -16,12 +21,19 @@ import { H_STYLES } from "../styles";
 interface DischargeAlertDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onConfirm: () => void;
+    onConfirm: (navigateToAccounting: boolean) => void;
 }
 
 export function DischargeAlertDialog({ open, onOpenChange, onConfirm }: DischargeAlertDialogProps) {
+    const [navigateToAccounting, setNavigateToAccounting] = useState(false);
+
+    const handleOpenChange = (next: boolean) => {
+        if (!next) setNavigateToAccounting(false);
+        onOpenChange(next);
+    };
+
     return (
-        <AlertDialog open={open} onOpenChange={onOpenChange}>
+        <AlertDialog open={open} onOpenChange={handleOpenChange}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>退院処理を行いますか？</AlertDialogTitle>
@@ -30,9 +42,24 @@ export function DischargeAlertDialog({ open, onOpenChange, onConfirm }: Discharg
                         この操作は取り消せません。
                     </AlertDialogDescription>
                 </AlertDialogHeader>
+
+                <div className="flex items-center gap-2 py-2">
+                    <Checkbox
+                        id="navigate-to-accounting"
+                        checked={navigateToAccounting}
+                        onCheckedChange={(checked) => setNavigateToAccounting(checked === true)}
+                    />
+                    <Label htmlFor="navigate-to-accounting" className="text-sm cursor-pointer">
+                        退院後、そのまま会計画面へ進む
+                    </Label>
+                </div>
+
                 <AlertDialogFooter>
                     <AlertDialogCancel className={H_STYLES.button.action}>キャンセル</AlertDialogCancel>
-                    <AlertDialogAction onClick={onConfirm} className={`bg-red-600 hover:bg-red-700 ${H_STYLES.button.action}`}>
+                    <AlertDialogAction
+                        onClick={() => onConfirm(navigateToAccounting)}
+                        className={`bg-red-600 hover:bg-red-700 ${H_STYLES.button.action}`}
+                    >
                         退院処理を実行
                     </AlertDialogAction>
                 </AlertDialogFooter>

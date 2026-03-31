@@ -25,6 +25,7 @@ type CreateTreatmentInput struct {
 	Status         string
 	Content        string
 	Memo           string
+	AdminRoute     string
 	Insurance      bool
 	DiscountRate   float64
 	DiscountAmount int64
@@ -44,6 +45,7 @@ type UpdateTreatmentInput struct {
 	Status         *string
 	Content        *string
 	Memo           *string
+	AdminRoute     *string
 	Insurance      *bool
 	DiscountRate   *float64
 	DiscountAmount *int64
@@ -129,6 +131,7 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 			Status:          status,
 			Content:         input.Content,
 			Memo:            input.Memo,
+			AdminRoute:      input.AdminRoute,
 			Insurance:       input.Insurance,
 			DiscountRate:    input.DiscountRate,
 			DiscountAmount:  input.DiscountAmount,
@@ -294,6 +297,9 @@ func buildTreatmentUpdateFields(input *UpdateTreatmentInput) map[string]any {
 	}
 	if input.Memo != nil {
 		fields["memo"] = *input.Memo
+	}
+	if input.AdminRoute != nil {
+		fields["admin_route"] = *input.AdminRoute
 	}
 	if input.Insurance != nil {
 		fields["insurance"] = *input.Insurance

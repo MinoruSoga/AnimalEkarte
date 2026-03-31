@@ -80,7 +80,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setVisitType,
     handleChangeDoctor,
     handleChangeOwner,
-    } = useMedicalRecordForm();
+    } = useMedicalRecordForm(recordId);
 
     useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
 

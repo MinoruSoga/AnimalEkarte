@@ -23,7 +23,7 @@
 
 ## 主な機能
 - **ケアプラン即時反映**: ポップオーバーからケアプランのステータス（実施中/完了）を即座にトグルし、サーバーへ同期。
-- **会計連携フロー**: 退院時に「そのまま会計画面へ進む」オプションを選択することで、入院中の全プランを会計明細へ自動変換。
+- **会計連携フロー**: 退院時ダイアログに「退院後、そのまま会計画面へ進む」チェックボックスがある。チェックして実行すると `/accounting/new?petId=XXX` へ遷移。**注意: プラン明細の自動変換はバックエンド未実装（BE-HOSP-001）のため、現状は手動入力になる。**
 - **ドキュメント発行**: `PrintPreviewDialog` を経由して、入院期間と費用をまとめた入院サマリーを印刷。
 
 ## API連携
@@ -33,3 +33,4 @@
 | GET | `/api/v1/hospitalizations/:id/care-plans` | ケアプラン一覧 |
 | POST | `/api/v1/hospitalizations/:id/daily-records` | 日次記録作成 |
 | GET | `/api/v1/hospitalizations/:id/daily-records` | 日次記録一覧 |
+| POST | `/api/v1/hospitalizations/:id/discharge-with-billing` | 退院＋会計自動生成（BE-HOSP-001、未実装） |

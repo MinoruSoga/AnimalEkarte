@@ -3,7 +3,7 @@ name: Backend Deploy
 on:
   push:
     branches:
-      - main
+      - staging
     paths:
       - 'backend/**'
       - '.github/workflows/backend-deploy.yml'
@@ -25,12 +25,12 @@ permissions:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: animalekarte-api
-  ECS_CLUSTER: animalekarte-test-cluster
-  ECS_SERVICE: animalekarte-test-service
-  ECS_TASK_DEFINITION_FAMILY: animalekarte-test-api
-  ECS_MIGRATE_TASK_FAMILY: animalekarte-test-migrate
+  ECS_CLUSTER: animalekarte-stg-cluster
+  ECS_SERVICE: animalekarte-stg-service
+  ECS_TASK_DEFINITION_FAMILY: animalekarte-stg-api
+  ECS_MIGRATE_TASK_FAMILY: animalekarte-stg-migrate
   ECS_SUBNETS: subnet-02442ec427303161f,subnet-0e2c5fa539a4048ca
-  ECS_SECURITY_GROUPS: sg-0934ac397301ec633
+  ECS_SECURITY_GROUPS: sg-0aa38e88ba0e4876c
 
 jobs:
   deploy:
@@ -44,7 +44,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::698109622668:role/animalekarte-test-github-ecs-deploy-role
+          role-to-assume: arn:aws:iam::698109622668:role/animalekarte-stg-github-ecs-deploy-role
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -69,12 +69,12 @@ jobs:
       # -------------------------------------------------------
       # .env.production → ECS environment JSON に変換
       # -------------------------------------------------------
-      - name: Parse .env.production
+      - name: Parse .env.staging
         run: |
           python3 -c "
           import json
           pairs = []
-          with open('backend/.env.production') as f:
+          with open('backend/.env.staging') as f:
               for line in f:
                   line = line.strip()
                   if not line or line.startswith('#'):
@@ -226,7 +226,7 @@ jobs:
 
             echo "--- Migration logs ---"
             aws logs get-log-events \
-              --log-group-name /ecs/animalekarte-test \
+              --log-group-name /ecs/animalekarte-stg \
               --log-stream-name "migrate/migrate/$TASK_ID" \
               --region "$REGION" \
               --query 'events[*].message' \

@@ -1,45 +1,35 @@
 # Animal Ekarte - Claude 作業進捗
 
-**最終更新**: 2026-03-26
-**現在のブランチ**: bug/fix（main より 131 コミット先行）
-**最新ステータス**: 全タスク完了・マージ待ち
+**最終更新**: 2026-03-31
+**現在のブランチ**: main（staging と同期済み）
+**最新ステータス**: 全タスク完了・ステージング環境稼働中
 
 ---
 
-## ✅ 完了済みタスク（bug/fix ブランチ）
+## ✅ 完了済みタスク（2026-03-31）
 
-### TASK-031: 返金機能（2026-03-26）
-- `billing_refunds` テーブル追加（001_init.sql）
-- BillingRefund モデル・全レイヤー実装（repository / service / handler）
-- Frontend: createRefund / useGetRefunds / transformToRefund / RefundSection
-- 会計一覧「返金あり」バッジ
-- 多テナント保護・N+1なし・型安全（tsc --noEmit 0エラー）
+### INFRA-001: ステージング環境構築（2026-03-31）
+- `stg.noah-karte.com` → Vercel カスタムドメイン設定
+- `api.stg.noah-karte.com` → CloudFront + ACM 証明書
+- AWS リソース名 `animalekarte-test-*` → `animalekarte-stg-*` 移行
+- RDS in-place リネーム（データ保持）
+- Vercel SSO 保護解除（stg ドメインから外部アクセス可能に）
+- GitHub Actions `backend-deploy.yml` stg 対応
+- 旧リソース全削除（ACM 2件・CloudWatch 3件・SSM 3件）
 
-### TASK-030: タブレットファーストUI統一（2026-03-26）
-- 全一覧テーブルのテキストサイズ・パディング統一（text-base / py-2）
-- 不要な lg:table-cell 制限除去
+### マイグレーションファイル統合（2026-03-31）
+- `002_seed_master.sql` / `003_seed_demo.sql` / `004_add_columns.sql` を廃止
+- `001_init.sql` に全統合（スキーマ + マスタデータ + デモデータ）
+- DB_RESET=true でステージング再デプロイ済み
 
-### TASK-029: 消費税率設定（2026-03-25）
-- 医院マスタの税率設定をサイドパネルに統合（hospital-settings）
+---
 
-### TASK-028: 日付範囲フィルタ（2026-03-25）
-- 定期健診 / カルテ / 会計管理 一覧に NotionFilter date-range フィルタ追加
-- 会計管理: loaderData → useGetAccountings hook 移行
-- BE: medical_record / accounting list API に start_date/end_date クエリパラメータ追加
+## 🌐 ステージング環境
 
-### 動的フィルタ追加（2026-03-24）
-- カルテ・検査・会計・入院・トリミング・予防接種 に ステータス / 支払方法 / 担当医 / 種 フィルタ
-- DB 制約に基づくフィルタ条件の適切な制限（CONDITIONS_NO_EMPTY / WITH_EMPTY）
-
-### 税種別（tax_type）対応（2026-03-22）
-- medicine / merchandise_item マスタに tax_type 追加
-- Backend 全レイヤー対応
-
-### その他主要変更（2026-03-17〜2026-03-26）
-- ページネーション（5ページに追加）
-- カルテ詳細タブ: API統合（バイタル・治療・会計確認）
-- トリミング・入院管理: 日付フィルタをサーバーサイドに移行
-- フロントエンド ESLint 警告削減（45件 → 12件）
+| サービス | URL | 状態 |
+|---------|-----|------|
+| フロントエンド | https://stg.noah-karte.com | ✅ 200 |
+| バックエンド API | https://api.stg.noah-karte.com/health | ✅ {"status":"ok"} |
 
 ---
 
@@ -47,27 +37,13 @@
 
 | 項目 | 数値 |
 |------|------|
-| main からのコミット数 | 131 |
-| フロントエンドテスト | 242件 / 全pass |
-| Go テスト | 全pass |
-| TypeScript エラー（tsc --noEmit） | 0件 |
-| ESLint エラー | 0件 |
+| フロントエンドテスト | 272件 / 全pass |
+| TypeScript エラー | 0件 |
+| ESLint エラー | 0件 / 警告 14件 |
+| オープンイシュー | 0件 |
 
 ---
 
 ## 📋 次のアクション候補
 
-1. **PR作成**: `bug/fix` → `main` / `develop` へのプルリクエスト
-2. **ブラウザ動作確認** (`http://localhost:3003`):
-   - 返金機能（completed 会計で返金登録・履歴表示・残額更新）
-   - 日付範囲フィルタ（カルテ・会計・定期健診）
-   - タブレット表示確認
-3. **シードデータ追加**: `003_seed_demo.sql` に billing_refunds サンプルデータ（任意）
-
----
-
-## 🔗 参照ドキュメント
-- [ERD](docs/ERD.md)
-- [アーキテクチャ](docs/architecture.md)
-- [タスク一覧](docs/tasks/)
-- [Claudeコマンドマニュアル](docs/CLAUDE_COMMANDS.md)
+特になし。新規タスクの指示を待つ状態。

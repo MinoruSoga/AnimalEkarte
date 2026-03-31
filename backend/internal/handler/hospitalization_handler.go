@@ -201,6 +201,36 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 	c.JSON(http.StatusOK, hosp)
 }
 
+// DischargeWithBilling godoc
+// POST /hospitalizations/:id/discharge-with-billing
+func (h *Handler) DischargeWithBilling(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	var req dischargeWithBillingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	result, err := h.svc.Hospitalization.DischargeWithBilling(c.Request.Context(), clinicID, id, service.DischargeWithBillingInput{
+		DischargeDate:    req.DischargeDate,
+		CreateAccounting: req.CreateAccounting,
+	})
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 // DeleteHospitalization godoc
 func (h *Handler) DeleteHospitalization(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)

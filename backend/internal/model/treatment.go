@@ -40,6 +40,7 @@ type Treatment struct {
 	Status          TreatmentStatus   `gorm:"type:treatment_status;default:'pending'"          json:"status"`
 	Content         string            `gorm:"not null;default:''"                            json:"content"`
 	Memo            string            `gorm:"default:''"                                     json:"memo"`
+	AdminRoute      string            `gorm:"column:admin_route;type:varchar(50);default:''" json:"admin_route"`
 	Insurance       bool              `gorm:"default:false"                                  json:"insurance"`
 	DiscountRate    float64           `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
 	DiscountAmount  int64             `gorm:"default:0"                                      json:"discount_amount"`

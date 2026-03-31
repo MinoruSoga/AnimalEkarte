@@ -49,4 +49,9 @@ resource "aws_db_instance" "main" {
   tags = {
     Name = "${var.name_prefix}-db"
   }
+
+  lifecycle {
+    # db_subnet_group_name cannot be changed within the same VPC
+    ignore_changes = [db_subnet_group_name, identifier]
+  }
 }

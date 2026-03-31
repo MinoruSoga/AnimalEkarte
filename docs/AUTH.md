@@ -259,8 +259,7 @@
   │ <─────────────────────────│                             │
 ```
 
-> ⚠️ 現在の実装: JWT 1本のみ (24時間)、refresh_tokens テーブルなし。
-> トークン漏洩時の24時間ウィンドウがリスク。dual-token への移行が必要。
+> ✅ 実装済み: dual-token（`access_token` 15分 JWT + `refresh_token` 7日 opaque token）。`refresh_tokens` テーブルでサーバー側無効化対応済み。
 
 ### トークンリフレッシュフロー
 
@@ -304,14 +303,14 @@
 |---|---|
 | **アクセストークン** | JWT (HS256)、有効期限 **15分**、httpOnly Cookie (`access_token`) |
 | **リフレッシュトークン** | Opaque token (crypto.randomBytes(32) → hex)、有効期限 **7日**、httpOnly Cookie (`refresh_token`)、`refresh_tokens` テーブルに保存 |
-| **Cookie 設定** | `HttpOnly: true`、`Secure: true` (本番)、`SameSite: Strict` (本番) / `Lax` (開発)、`Path: /` |
+| **Cookie 設定** | `HttpOnly: true`、`Secure: true` (本番)、`SameSite: None` (本番・クロスドメイン) / `Lax` (開発)、`Path: /` |
 | **トークンリフレッシュ** | Axios レスポンスインターセプターが 401 を検知 → `POST /v1/auth/refresh` → 元リクエストをリトライ |
 | **トークンローテーション** | リフレッシュのたびに旧リフレッシュトークンを無効化し新トークンを発行（再使用検知のため） |
 | **ログアウト** | `DELETE /v1/auth/refresh` でサーバー側の refresh_tokens レコードを削除 + 両 Cookie を MaxAge=-1 でクリア |
 | **強制ログアウト** | `DELETE /v1/users/:id/sessions` で `refresh_tokens` テーブルの全レコードを削除（パスワード変更・アカウント停止時） |
 | **同時セッション** | 1ユーザーにつき最大 **5デバイス**まで（超過時は最古セッションを無効化） |
 
-> ⚠️ 現在の実装: JWT 1本 (24時間)、Cookie 名は `auth_token`（設計では `access_token`）、refresh_tokens テーブルなし、強制ログアウト機能なし。
+> ✅ 実装済み: dual-token（`access_token` 15分 + `refresh_token` 7日）、httpOnly Cookie、`refresh_tokens` テーブルによるサーバー側無効化。本番は `SameSite=None`（Vercel ↔ CloudFront クロスドメイン対応）。
 
 #### Cookie 設定の根拠
 
@@ -319,7 +318,7 @@
 |------|------|
 | `HttpOnly` | JavaScript から Cookie にアクセス不可 → XSS でトークン盗取を防止 |
 | `Secure` | HTTPS のみ送信 → 中間者攻撃を防止 |
-| `SameSite=Strict` | 他サイトからのリクエストに Cookie を付与しない → CSRF を防止 |
+| `SameSite=None` (本番) | Vercel (フロントエンド) ↔ CloudFront (API) のクロスドメイン通信で Cookie を送信するために必要。`Secure=true` とセット必須 |
 | トークンを localStorage に保存しない | XSS で `document.cookie` にアクセスできなくても localStorage は読み取り可能なため |
 
 ---
@@ -749,12 +748,19 @@ func Auth(secret string) gin.HandlerFunc {
     return func(c *gin.Context) {
         var tokenStr string
 
-        // httpOnly Cookie を優先（XSS耐性あり）
-        if cookie, err := c.Cookie("auth_token"); err == nil && cookie != "" {
+        // 1. access_token Cookie を優先して読む（XSS耐性あり）
+        if cookie, err := c.Cookie("access_token"); err == nil && cookie != "" {
             tokenStr = cookie
         }
 
-        // Cookie がなければ Authorization Bearer ヘッダにフォールバック
+        // 2. 後方互換: 旧Cookie名 auth_token にフォールバック
+        if tokenStr == "" {
+            if cookie, err := c.Cookie("auth_token"); err == nil && cookie != "" {
+                tokenStr = cookie
+            }
+        }
+
+        // 3. Cookie がなければ Authorization Bearer ヘッダにフォールバック
         if tokenStr == "" {
             if authHeader := c.GetHeader("Authorization"); authHeader != "" {
                 parts := strings.SplitN(authHeader, " ", 2)

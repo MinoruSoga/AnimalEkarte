@@ -40,5 +40,12 @@
 | メソッド | エンドポイント | 用途 |
 |---------|--------------|------|
 | GET | `/api/v1/masters/diagnosis-categories` | カテゴリ一覧取得 |
+| POST | `/api/v1/masters/diagnosis-categories` | カテゴリ作成 |
+| PATCH | `/api/v1/masters/diagnosis-categories/:id` | カテゴリ更新 |
+| DELETE | `/api/v1/masters/diagnosis-categories/:id` | カテゴリ削除 |
+| PATCH | `/api/v1/masters/diagnosis-categories/reorder` | カテゴリ並び順一括保存 |
+| GET | `/api/v1/masters/diagnosis-names` | 病名一覧取得 |
 | POST | `/api/v1/masters/diagnosis-names` | 病名作成 |
-| PATCH | `/api/v1/masters/diagnosis-names/reorder`| 病名並び順一括保存 |
+| PATCH | `/api/v1/masters/diagnosis-names/:id` | 病名更新 |
+| DELETE | `/api/v1/masters/diagnosis-names/:id` | 病名削除 |
+| PATCH | `/api/v1/masters/diagnosis-names/reorder` | 病名並び順一括保存 |

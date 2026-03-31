@@ -14,6 +14,9 @@ export interface CreateVaccinationRequest {
   doctor_id?: number | null;
   next_date?: string | null;
   lot1?: string;
+  lot2?: string;
+  lot3?: string;
+  lot4?: string;
   remarks?: string;
 }
 
@@ -21,5 +24,8 @@ export interface UpdateVaccinationRequest {
   date?: string;
   next_date?: string | null;
   lot1?: string;
+  lot2?: string;
+  lot3?: string;
+  lot4?: string;
   remarks?: string;
 }

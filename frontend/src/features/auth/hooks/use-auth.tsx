@@ -46,7 +46,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 /**
  * Initial session restoration promise.
- * Defined outside to be stable across re-renders during hydration.
+ * Module-level で一度だけ作成する（アプリ起動時に 1 回だけ /v1/me を呼ぶ）。
+ * ログイン後は AuthContext の login() が setUser() を直接呼ぶため
+ * フルリロードは不要。
  */
 const initialAuthPromise = refreshToken().catch(() => null);
 
@@ -55,7 +57,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  // Use React 19 use() to suspend until the initial auth check completes.
+  // React 19 use() でセッション復元が完了するまでサスペンドする
   const initialResult = use(initialAuthPromise);
 
   const [user, setUser] = useState<AuthUser | null>(initialResult?.user ?? null);

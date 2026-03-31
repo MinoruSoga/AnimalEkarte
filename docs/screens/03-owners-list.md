@@ -35,7 +35,7 @@
 | フィールド名 | 型 | 説明 | ソート | 備考 |
 |------------|-----|------|--------|------|
 | 飼主No | string | 飼主ID番号 | ○ | `pet.ownerNumber` |
-| 飼主名 | string | 飼い主氏名 | ○ | `pet.ownerName` |
+| 飼主名 | string | 飼い主氏名 | ○ | `pet.ownerName`。`dangerLevel === "高"` のペットを持つ飼主には ⚠ 危険バッジ（赤）を表示 |
 | ペット番号 | string | ペットの患者番号 | - | `pet.petNumber`（等幅フォント） |
 | ペット名 | string | ペットの名前 | ○ | `pet.name` |
 | 生死 | string | 生存/死亡ステータス（StatusBadge） | - | `pet.status` |

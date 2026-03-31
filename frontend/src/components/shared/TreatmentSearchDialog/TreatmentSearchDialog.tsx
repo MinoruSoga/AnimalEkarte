@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import * as React from "react";
 
 // External

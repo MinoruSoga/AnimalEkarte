@@ -192,10 +192,16 @@ func TestTreatmentService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewTreatmentService(&repository.Repositories{
+			invRepo := &mockInventoryRepository{}
+			// TransactionFn: DB 不要でトランザクションをインライン実行
+			repos := &repository.Repositories{
 				Treatment: repo,
-				Inventory: &mockInventoryRepository{},
-			})
+				Inventory: invRepo,
+			}
+			repos.TransactionFn = func(fn func(*repository.Repositories) error) error {
+				return fn(repos)
+			}
+			svc := NewTreatmentService(repos)
 
 			treatment, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 

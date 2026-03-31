@@ -1,13 +1,13 @@
 # Infra - デプロイ & インフラ構成
 
-## テスト環境エンドポイント
+## ステージング環境エンドポイント
 
 | サービス | URL |
 |---------|-----|
-| Frontend | https://frontend-eta-six-20.vercel.app |
-| Backend API | https://dcqico6azu5w2.cloudfront.net/api |
-| ALB（直接） | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com |
-| RDS | animalekarte-test-db.cqbe28s44fta.us-east-1.rds.amazonaws.com:5432 |
+| Frontend | https://stg.noah-karte.com |
+| Backend API | https://api.stg.noah-karte.com/api (または https://dcqico6azu5w2.cloudfront.net/api) |
+| ALB（直接） | http://animalekarte-stg-alb-1915768826.us-east-1.elb.amazonaws.com |
+| RDS | animalekarte-stg-db.cqbe28s44fta.us-east-1.rds.amazonaws.com:5432 |
 
 ---
 
@@ -67,7 +67,7 @@ main ブランチへ Push (backend/**)
     ↓
 GitHub Actions トリガー
     ↓
-AWS OIDC 認証（animalekarte-test-github-ecs-deploy-role）
+AWS OIDC 認証（animalekarte-stg-github-ecs-deploy-role）
     ↓
 Docker Build (linux/amd64) & ECR Push
   → タグ: ${github.sha} + latest
@@ -83,8 +83,8 @@ HealthCheck 確認 (/health)
 
 | ロール | 用途 | 権限 |
 |--------|------|------|
-| `animalekarte-test-github-terraform-role` | Terraform 実行 | AdministratorAccess（テスト環境限定） |
-| `animalekarte-test-github-ecs-deploy-role` | ECS デプロイ | ECR Push + ECS Update + IAM PassRole |
+| `animalekarte-stg-github-terraform-role` | Terraform 実行 | AdministratorAccess（テスト環境限定） |
+| `animalekarte-stg-github-ecs-deploy-role` | ECS デプロイ | ECR Push + ECS Update + IAM PassRole |
 
 ---
 
@@ -118,7 +118,7 @@ infra/
 
 ```
 S3: animalekarte-tfstate-698109622668
-Key: env/test/terraform.tfstate
+Key: env/stg/terraform.tfstate
 Lock: DynamoDB animalekarte-terraform-lock
 Encryption: enabled
 ```
@@ -127,7 +127,7 @@ Encryption: enabled
 
 | 変数 | デフォルト値 | 説明 |
 |------|-------------|------|
-| `name_prefix` | `animalekarte-test` | リソース名プレフィックス |
+| `name_prefix` | `animalekarte-stg` | リソース名プレフィックス |
 | `rds_instance_class` | `db.t4g.micro` | RDS インスタンスタイプ |
 | `ecs_task_cpu` | `256` | ECS タスク CPU |
 | `ecs_task_memory` | `512` | ECS タスクメモリ (MB) |
@@ -191,9 +191,12 @@ make build-prod   # animal-ekarte-api:latest + animal-ekarte-front:latest
 
 ## 認証方式
 
-- **Authorization Bearer**: JWT トークンを `sessionStorage` に保存
-- axios インターセプターで全 API リクエストに `Authorization: Bearer <token>` を自動注入
-- `withCredentials` は不要（Cookie 不使用）
+- **httpOnly Cookie** で JWT を管理（`sessionStorage` / `localStorage` 不使用）
+- Cookie 名: `access_token`（15分）、`refresh_token`（7日、Path: `/api/v1/auth/refresh`）
+- 本番環境（`GIN_MODE=release`）: `Secure=true`, `SameSite=None`（Vercel ↔ CloudFront クロスドメイン対応）
+- 開発環境: `SameSite=Lax`（localhost 同一オリジン）
+- フロントエンドの axios は `withCredentials: true` を設定して Cookie を自動送信
+- `Authorization: Bearer` ヘッダは **不使用**（Cookie で完結）
 
 ---
 
@@ -208,7 +211,7 @@ make build-prod   # animal-ekarte-api:latest + animal-ekarte-front:latest
 | GitHub Terraform Role | AdministratorAccess | 最小権限ポリシー |
 | CloudFront | 手動作成 | Terraform 管理化 |
 | 独自ドメイン | なし | 取得 + ACM 証明書 |
-| ALB HTTP | forward | redirect（HTTPS 強制） |
+| ALB HTTP | forward (CloudFront が HTTPS 終端済み) | 独自ドメイン取得後に redirect 強制 |
 
 ---
 

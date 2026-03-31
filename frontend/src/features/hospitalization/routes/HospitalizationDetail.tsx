@@ -32,13 +32,19 @@ export function HospitalizationDetail() {
 
     const [showDischargeDialog, setShowDischargeDialog] = useState(false);
 
-    const handleDischargeConfirm = useCallback(async () => {
-        const success = await dischargeHospitalization();
-        if (success) {
+    const handleDischargeConfirm = useCallback(async (navigateToAccounting: boolean) => {
+        const result = await dischargeHospitalization(navigateToAccounting);
+        if (result.success) {
             setShowDischargeDialog(false);
-            navigate(paths.hospitalization.getHref());
+            if (navigateToAccounting && result.accountingId) {
+                navigate(paths.accounting.detail.getHref(String(result.accountingId)));
+            } else if (navigateToAccounting && hospitalization?.petId) {
+                navigate(`${paths.accounting.new.getHref()}?petId=${hospitalization.petId}`);
+            } else {
+                navigate(paths.hospitalization.getHref());
+            }
         }
-    }, [dischargeHospitalization, navigate]);
+    }, [dischargeHospitalization, navigate, hospitalization]);
 
     if (isLoading || !hospitalization) {
         return <div className="p-8 text-center text-gray-500">読み込み中...</div>;

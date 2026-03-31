@@ -353,12 +353,14 @@ func TestMedicalRecordService_Create(t *testing.T) {
 func TestMedicalRecordService_Update(t *testing.T) {
 	now := time.Now()
 	statusFinalized := model.MedicalRecordStatusFinalized
+	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0}
 	tests := []struct {
-		name    string
-		input   UpdateMedicalRecordInput
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name        string
+		input       UpdateMedicalRecordInput
+		findByIDErr error // FindByID のエラー（nil = 正常レコード返却）
+		updateErr   error // UpdateFields のエラー
+		wantErr     bool
+		wantNF      bool
 	}{
 		{
 			name: "updates record successfully",
@@ -366,43 +368,53 @@ func TestMedicalRecordService_Update(t *testing.T) {
 				Date:   &now,
 				Status: &statusFinalized,
 			},
-			repoErr: nil,
-			wantErr: false,
-			wantNF:  false,
+			findByIDErr: nil,
+			updateErr:   nil,
+			wantErr:     false,
+			wantNF:      false,
 		},
 		{
-			name:    "returns error when no fields provided",
-			input:   UpdateMedicalRecordInput{},
-			repoErr: nil,
-			wantErr: true,
-			wantNF:  false,
+			name:        "returns error when no fields provided",
+			input:       UpdateMedicalRecordInput{},
+			findByIDErr: nil,
+			updateErr:   nil,
+			wantErr:     true,
+			wantNF:      false,
 		},
 		{
 			name: "returns not found error when record does not exist",
 			input: UpdateMedicalRecordInput{
 				Status: &statusFinalized,
 			},
-			repoErr: apperrors.WrapNotFound("medical_record", "999"),
-			wantErr: true,
-			wantNF:  true,
+			findByIDErr: apperrors.WrapNotFound("medical_record", "999"),
+			updateErr:   nil,
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name: "returns error on repository failure",
 			input: UpdateMedicalRecordInput{
 				Date: &now,
 			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			findByIDErr: nil,
+			updateErr:   errors.New("db error"),
+			wantErr:     true,
+			wantNF:      false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return validRecord, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
-					if tt.repoErr != nil {
-						return nil, tt.repoErr
+					if tt.updateErr != nil {
+						return nil, tt.updateErr
 					}
 					return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
 				},
@@ -427,9 +439,14 @@ func TestMedicalRecordService_Update(t *testing.T) {
 
 func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 	ownerID := uint64(100)
+	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0}
 
 	t.Run("rejects owner_id not in clinic", func(t *testing.T) {
-		repo := &mockMedicalRecordRepository{}
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return validRecord, nil
+			},
+		}
 		ownerRepo := &mrMockOwnerRepo{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 				return nil, apperrors.WrapNotFound("owner", "100")
@@ -446,7 +463,14 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 	})
 
 	t.Run("accepts valid owner_id in clinic", func(t *testing.T) {
-		repo := &mockMedicalRecordRepository{}
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return validRecord, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
+			},
+		}
 		ownerRepo := &mrMockOwnerRepo{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 				return &model.Owner{ID: ownerID, ClinicID: 1}, nil
@@ -466,8 +490,14 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 	petID := uint64(200)
 
+	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0}
+
 	t.Run("rejects pet_id not in clinic", func(t *testing.T) {
-		repo := &mockMedicalRecordRepository{}
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return validRecord, nil
+			},
+		}
 		petRepo := &mrMockPetRepo{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
 				return nil, apperrors.WrapNotFound("pet", "200")
@@ -484,7 +514,14 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 	})
 
 	t.Run("accepts valid pet_id in clinic", func(t *testing.T) {
-		repo := &mockMedicalRecordRepository{}
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return validRecord, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
+			},
+		}
 		petRepo := &mrMockPetRepo{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
 				return &model.Pet{ID: petID, ClinicID: 1}, nil

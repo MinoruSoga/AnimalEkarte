@@ -1,6 +1,6 @@
 # デプロイ状態・AWSリソース一覧
 
-**最終更新:** 2026-03-04 | **リージョン:** us-east-1
+**最終更新:** 2026-03-31 | **リージョン:** us-east-1
 
 ---
 
@@ -10,6 +10,7 @@
 |--------------|------|
 | ECS Service | ✅ ACTIVE (running: 1 / desired: 1) |
 | RDS PostgreSQL | ✅ available |
+| CloudFront (HTTPS終端) | ✅ `api.stg.noah-karte.com` |
 | Frontend (Vercel) | ✅ Production デプロイ済み |
 | 自動デプロイ (Backend) | ✅ GitHub Actions + AWS OIDC |
 | 自動デプロイ (Frontend) | ✅ Vercel GitHub Integration |
@@ -31,29 +32,30 @@
 
 | リソース | 値 |
 |---------|-----|
-| ECS Cluster | animalekarte-test-cluster |
-| ECS Service | animalekarte-test-service |
-| Task Definition | animalekarte-test-api (0.25 vCPU / 0.5 GB) |
-| ALB URL | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com |
+| ECS Cluster | animalekarte-stg-cluster |
+| ECS Service | animalekarte-stg-service |
+| Task Definition | animalekarte-stg-api (0.25 vCPU / 0.5 GB) |
+| ALB URL（直接） | http://animalekarte-stg-alb-1915768826.us-east-1.elb.amazonaws.com |
+| CloudFront URL | https://api.stg.noah-karte.com (Distribution: ERCVR5P0IAJKS) |
 | ECR Repository | 698109622668.dkr.ecr.us-east-1.amazonaws.com/animalekarte-api |
 
 ### データベース
 
 | リソース | 値 |
 |---------|-----|
-| RDS Instance | animalekarte-test-db (db.t4g.micro, PostgreSQL 16) |
-| Endpoint | animalekarte-test-db.cqbe28s44fta.us-east-1.rds.amazonaws.com:5432 |
-| Storage | 20GB gp3, 暗号化有効, Backup 1日（テスト環境） |
-| DB 認証情報 | SSM Parameter Store (`/animalekarte/test/db/user`, `/password`, `/name`) |
+| RDS Instance | animalekarte-stg-db (db.t4g.micro, PostgreSQL 16) |
+| Endpoint | animalekarte-stg-db.cqbe28s44fta.us-east-1.rds.amazonaws.com:5432 |
+| Storage | 20GB gp3, 暗号化有効, Backup 1日（ステージング環境） |
+| DB 認証情報 | SSM Parameter Store (`/animalekarte/stg/db/user`, `/password`, `/name`) |
 
 ### IAM Roles
 
 | Role | 用途 |
 |------|------|
-| animalekarte-test-github-ecs-deploy-role | GitHub Actions → ECS デプロイ (OIDC) |
-| animalekarte-test-github-terraform-role | Terraform 実行 |
-| animalekarte-test-ecs-task-role | CloudWatch Logs 書き込み |
-| animalekarte-test-ecs-execution-role | ECR Pull, SSM Parameter Store 読み取り |
+| animalekarte-stg-github-ecs-deploy-role | GitHub Actions → ECS デプロイ (OIDC) |
+| animalekarte-stg-github-terraform-role | Terraform 実行 |
+| animalekarte-stg-ecs-task-role | CloudWatch Logs 書き込み |
+| animalekarte-stg-ecs-execution-role | ECR Pull, SSM Parameter Store 読み取り |
 
 ### セキュリティグループ
 
@@ -67,7 +69,7 @@
 
 | リソース | 値 |
 |---------|-----|
-| CloudWatch Logs | /ecs/animalekarte-test (30日保持) |
+| CloudWatch Logs | /ecs/animalekarte-stg (30日保持) |
 
 ---
 
@@ -80,14 +82,14 @@
 | `PORT` | 8080 |
 | `GIN_MODE` | release |
 | `DB_SSL_MODE` | require |
-| `ALLOWED_ORIGINS` | https://frontend-r0m0pyiaf-minorusogas-projects.vercel.app |
+| `CORS_ALLOWED_ORIGIN` | https://stg.noah-karte.com,https://api.stg.noah-karte.com |
 | `DB_HOST/PORT/USER/PASSWORD/NAME` | SSM Parameter Store から注入 |
 
 ### Frontend (Vercel)
 
 | 変数 | 値 |
 |------|-----|
-| `VITE_API_URL` | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/api |
+| `VITE_API_URL` | https://api.stg.noah-karte.com/api |
 
 ---
 
@@ -110,10 +112,10 @@
 
 | 問題 | 優先度 | 推奨対応 |
 |------|--------|---------|
-| CORS ミドルウェアが `*` のまま | High | `ALLOWED_ORIGINS` 環境変数は設定済みだが `backend/internal/middleware/cors.go` がそれを参照していない。ミドルウェアを修正して Vercel ドメイン限定にする |
-| HTTP のみ (HTTPS 未設定) | Medium | ACM 証明書取得 + ALB HTTPS Listener 追加 |
+| ~~CORS ミドルウェアが `*` のまま~~ | ~~High~~ | ✅ **解決済み (PR #10)**: `CORS_ALLOWED_ORIGIN` 環境変数を参照するよう修正済み |
+| ALB が HTTP のみ (HTTPS 未終端) | Low | CloudFront で HTTPS 終端済み。ALB 自体は CloudFront からのみアクセスされるため許容範囲 |
 | Single-AZ 構成 | Low | 本番環境では Multi-AZ 化 |
-| WAF 未導入 | Low | 本番環境では CloudFront + AWS WAF 導入 |
+| WAF 未導入 | Low | 本番環境では AWS WAF 導入 |
 
 ---
 
@@ -148,13 +150,13 @@ cd infra/terraform && terraform state list | wc -l
 
 # ECS サービス確認
 aws ecs describe-services \
-  --cluster animalekarte-test-cluster \
-  --services animalekarte-test-service \
+  --cluster animalekarte-stg-cluster \
+  --services animalekarte-stg-service \
   --region us-east-1 | jq '.services[0] | {status, runningCount, desiredCount}'
 
 # RDS 確認
 aws rds describe-db-instances \
-  --db-instance-identifier animalekarte-test-db \
+  --db-instance-identifier animalekarte-stg-db \
   --region us-east-1 | jq '.DBInstances[0] | {DBInstanceStatus, Endpoint}'
 
 # ECR 最新イメージ
