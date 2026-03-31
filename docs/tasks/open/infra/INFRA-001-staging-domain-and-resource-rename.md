@@ -501,9 +501,9 @@ vercel deploy --target=staging
 - [x] CAA レコード `amazon.com` 追加（ACM 証明書発行に必要）✅
 
 ### Phase 2（ACM 証明書発行後）
-- [ ] ACM 証明書リクエスト (`us-east-1`)
-- [ ] DNS バリデーション CNAME 追加 → `ISSUED` 確認
-- [ ] CloudFront に `api.stg.noah-karte.com` CNAME + ACM 証明書設定
+- [x] ACM 証明書リクエスト (`us-east-1`) → `arn:aws:acm:us-east-1:698109622668:certificate/561b7489-dce3-416a-98dd-0d16050e4a8d` ✅
+- [x] DNS バリデーション CNAME 追加 → `ISSUED` ✅（CAA amazon.com 設定済みで即時発行）
+- [x] CloudFront に `api.stg.noah-karte.com` Alias + ACM 証明書設定 ✅（Deployed 待ち）
 - [x] Vercel プロジェクト名を `noah-karte.com` にリネーム ✅
 - [x] Vercel Custom Environment `Staging` を作成（Branch Tracking: `staging` ブランチ）✅
 - [x] `stg.noah-karte.com` を Staging Custom Environment に Attach ✅
