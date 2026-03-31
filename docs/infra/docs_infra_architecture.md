@@ -318,6 +318,21 @@ TG_ARN=$(aws elbv2 describe-target-groups   --names animalekarte-stg-tg   --regi
 aws elbv2 describe-target-health   --target-group-arn ${TG_ARN}   --region us-east-1   --profile AnimalEkarte
 ```
 
+### 7.4 ステージング RDS への直接接続（TablePlus）
+
+RDS は `PubliclyAccessible: true`、かつ RDS SG が `0.0.0.0/0:5432` を許可しているため、**SSM トンネル不要で直接接続可能**。
+
+| 項目 | 値 |
+|------|-----|
+| Host | `animalekarte-stg-db.cqbe28s44fta.us-east-1.rds.amazonaws.com` |
+| Port | `5432` |
+| User | `ekarte_admin` |
+| Password | `TempPass123!ChangeMe` |
+| Database | `ekarte_db` |
+| SSL | Enable（required） |
+
+> **注意**: 本番化の際はパスワード変更・SG を ECS SG のみに絞ることを必須とする。
+
 ---
 
 ## 8. コスト最適化（ステージング前提）
@@ -381,3 +396,4 @@ aws elbv2 describe-target-health   --target-group-arn ${TG_ARN}   --region us-ea
 - 2026-02: 初版（テスト環境。VPC/RDS/ECS/ALB/ECR/SSM/Logs を Terraform で構築）
 - 2026-02: DB拡張（uuid-ossp）依存を排除し、Go モデル（uint64）と整合させた bigint 採番へ変更
 - 2026-03: CloudFront（`api.stg.noah-karte.com`）を追加。HTTPS終端・SameSite=None Cookie 対応のため導入
+- 2026-04: RDS を PubliclyAccessible=true + SG 0.0.0.0/0:5432 に変更。SSM トンネル不要で TablePlus から直接接続可能に（7.4 参照）

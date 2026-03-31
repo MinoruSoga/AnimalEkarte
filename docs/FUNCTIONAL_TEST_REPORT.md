@@ -1887,6 +1887,22 @@
 | 「チェック完了」ボタン（未確認状態） | OK | POST /billing-review/confirm HTTP 200 → バナー表示・ボタンテキスト変更 |
 | 「確認を取り消す」ボタン（確認済み状態） | OK | POST /billing-review/return HTTP 200 → バナー非表示・ボタンテキスト戻る |
 
+### 4.3.99 カルテ編集フロー 回帰テスト（BUG: useMedicalRecordForm recordId 未渡し）
+
+> **背景**: commit `7daf5fd` で `useTitle` 追加時に `useMedicalRecordForm()` への `recordId` 引数が脱落。
+> `id?: string` でオプショナルなため TypeScript エラーが出ず、ステージング環境で初めて検出（2026-04-01）。
+> 修正 commit: `c357615`。自動化テスト: `frontend/src/features/medical-records/hooks/use-medical-record-form.test.ts`
+
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| カルテ一覧から既存カルテ行クリック → カルテ編集画面に遷移 | OK | `/medical-records/:id` で編集画面表示確認（bugfix 後・ステージング 2026-04-01） |
+| カルテ編集画面で「ペット選択」リダイレクトが**起きない**こと | OK | `shouldRedirectToSelectPet = false` を確認。修正前は `/medical-records/select-pet` に強制遷移していた |
+| 既存カルテのフォームフィールドに保存済み値が表示される | OK | 主訴・治療プラン等の既存値がフォームにロードされること |
+| カルテ編集 → 保存 → HTTP 200（新規作成 201 でないこと） | OK | PATCH /v1/medical-records/:id が呼ばれること（POST /v1/medical-records ではない） |
+| `useMedicalRecordForm(recordId)` に recordId を渡すと `isNewRecord = false` になる | ✅ 自動化 | `use-medical-record-form.test.ts` 参照 |
+| `useMedicalRecordForm()` で recordId 未渡し時 → `isNewRecord = true`（バグ再現） | ✅ 自動化 | `use-medical-record-form.test.ts` 参照 |
+| 編集時(`recordId`あり) → `shouldRedirectToSelectPet = false`（回帰確認） | ✅ 自動化 | `use-medical-record-form.test.ts` 参照 |
+
 ### 4.4 カルテ一覧 検索・フィルタ詳細
 
 #### NotionFilter 検索操作
