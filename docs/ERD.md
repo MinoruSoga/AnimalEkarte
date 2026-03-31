@@ -2823,7 +2823,7 @@ erDiagram
 | quantity | numeric(10,1) | YES | 1 | 数量 |
 | discount_rate | numeric(5,2) | YES | 0 | 割引率 |
 | discount_amount | integer | YES | 0 | 割引額 |
-| subtotal | integer | YES | 0 | 小計 |
+| inventory_id | bigint | YES | | inventory_items.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
@@ -3039,6 +3039,36 @@ erDiagram
 **インデックス:**
 - `(staff_id, date)` UNIQUE
 - `(clinic_id)`
+
+---
+
+### 監査
+
+---
+
+#### `audit_logs`
+
+用途: 権限変更・認証操作の監査ログ。セキュリティとコンプライアンス維持のため削除禁止。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | YES | | clinics.id FK（マルチテナント） |
+| actor_id | bigint | YES | | user_accounts.id FK（操作者） |
+| actor_type | varchar(30) | NO | | 操作者種別（system, staff等） |
+| action | varchar(50) | NO | | アクション（login, update_permission等） |
+| resource | varchar(50) | NO | | 対象リソース名 |
+| resource_id | bigint | YES | | 対象リソースID |
+| old_value | jsonb | YES | | 変更前データ（JSON） |
+| new_value | jsonb | YES | | 変更後データ（JSON） |
+| ip_address | inet | YES | | アクセス元IP |
+| user_agent | text | YES | | アクセス元ブラウザ/端末 |
+| created_at | timestamptz | NO | now() | 記録日時 |
+
+**インデックス:**
+- `(clinic_id, created_at DESC)`
+- `(actor_id, created_at DESC)`
+- `(resource, resource_id, created_at DESC)`
 
 ---
 
