@@ -231,6 +231,7 @@ export const C = {
   borderPrimary25: "border-[#37352F]/25",
   borderPrimary10: "border-[#37352F]/10",
   borderLPrimary: "border-l-[#37352F]",
+  borderBPrimary: "border-b-[#37352F]",
   divideDivider: "divide-[rgba(55,53,47,0.09)]",
   divideDividerFaint: "divide-[rgba(55,53,47,0.06)]",
 
@@ -454,6 +455,10 @@ export const C = {
   dotBrown:   "bg-[#937264]",
   dotGray:    "bg-[#9B9A97]",
   dotDefault: "bg-[#91918E]",
+
+  /* ── Data-state active (Radix Tabs) ── */
+  dataActiveBorderB: "data-[state=active]:border-b-[#37352F]",
+  dataActiveText:    "data-[state=active]:text-[#37352F]",
 } as const;
 
 /* ================================================================== */

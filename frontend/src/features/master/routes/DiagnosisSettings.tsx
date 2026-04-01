@@ -640,7 +640,7 @@ export function DiagnosisSettings() {
                     key={tab.value}
                     value={tab.value}
                     className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
-                      data-[state=active]:border-b-[#37352F] data-[state=active]:${C.text} data-[state=active]:font-medium`}
+                      ${C.dataActiveBorderB} ${C.dataActiveText} data-[state=active]:font-medium`}
                   >
                     {tab.label}
                   </TabsPrimitive.Trigger>

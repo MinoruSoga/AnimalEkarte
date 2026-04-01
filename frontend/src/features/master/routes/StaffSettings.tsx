@@ -9,7 +9,7 @@ import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPil
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
 import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
@@ -431,7 +431,7 @@ export function StaffSettings() {
                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[3px] text-xs"
                         style={{
                           backgroundColor: g.color ? `${g.color}18` : "rgba(55,53,47,0.06)",
-                          color: g.color ?? "#37352F",
+                          color: g.color ?? PALETTE.primary,
                         }}
                       >
                         <span

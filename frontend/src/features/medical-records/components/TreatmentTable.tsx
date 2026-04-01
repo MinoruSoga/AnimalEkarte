@@ -65,7 +65,7 @@ export const TreatmentTable = memo(function TreatmentTable({
       {/* Header */}
       <div
         className={cn(
-          "grid gap-0 border-b border-[rgba(55,53,47,0.16)] bg-[#F7F6F3] text-sm font-bold ${C.text80} min-h-[48px] items-center",
+          `grid gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} min-h-[48px] items-center`,
           gridColsClass
         )}
       >
@@ -89,7 +89,7 @@ export const TreatmentTable = memo(function TreatmentTable({
             <div
               key={item.id}
               className={cn(
-                "grid gap-0 border-b border-[rgba(55,53,47,0.09)] bg-white text-sm ${C.text} items-center hover:bg-[#F7F6F3]/50 transition-colors h-12 group",
+                `grid gap-0 border-b ${C.borderLight} bg-white text-sm ${C.text} items-center ${C.hoverBgPageHalf} transition-colors h-12 group`,
                 gridColsClass
               )}
             >
