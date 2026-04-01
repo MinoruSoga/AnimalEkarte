@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { memo, useState, useCallback, useMemo } from "react";
 import { Search, ListFilter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
@@ -8,7 +8,7 @@ import { SortPopover } from "./SortPopover";
 import { SortPill } from "./SortPill";
 import type { NotionFilterProps, ActiveFilter } from "./types";
 
-export function NotionFilter({
+export const NotionFilter = memo(function NotionFilter({
   properties,
   activeFilters,
   onFilterChange,
@@ -222,4 +222,4 @@ export function NotionFilter({
       ) : null}
     </div>
   );
-}
+});
