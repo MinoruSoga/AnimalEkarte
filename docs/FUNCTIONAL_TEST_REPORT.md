@@ -1,6 +1,6 @@
 # 機能テストレポート
 
-> 最終更新: 2026-04-02 (FK dependency checks 全実装完了 ✅ / 45 Delete service tests PASS / NG項目 12個を OK に更新)
+> 最終更新: 2026-04-02 (FK dependency checks 全実装完了 ✅ / 45 Delete service tests PASS / NG項目 12個を OK に更新 / Medical Record 薬品選択自動フォーカス実装確認 ✅)
 > テスト環境: ローカル (localhost:3003) + **ステージング (stg.noah-karte.com)** ※ Section 14 は Chrome DevTools MCP ブラウザ自動テスト
 > テストアカウント: admin@example.com (田中太郎 / 医院管理者)
 
