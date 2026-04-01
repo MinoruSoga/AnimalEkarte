@@ -125,6 +125,13 @@ func (s *diagnosisCategoryService) Update(ctx context.Context, clinicID, id uint
 }
 
 func (s *diagnosisCategoryService) Delete(ctx context.Context, clinicID, id uint64) error {
+	count, err := s.repo.CountNamesByCategoryID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check diagnosis category dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この診断カテゴリには診断名が登録されているため削除できません")
+	}
 	return s.repo.Delete(ctx, clinicID, id)
 }
 
@@ -233,6 +240,13 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) error {
+	count, err := s.repo.CountClinicalPlansByDiagnosisNameID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check diagnosis name dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この診断名は診療記録で使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, clinicID, id)
 }
 

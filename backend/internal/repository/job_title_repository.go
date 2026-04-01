@@ -20,6 +20,7 @@ type JobTitleRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountStaffsByJobTitleID(ctx context.Context, jobTitleID uint64) (int64, error)
 }
 
 type jobTitleRepository struct{ db *gorm.DB }
@@ -83,6 +84,18 @@ func (r *jobTitleRepository) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapNotFound("job_title", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountStaffsByJobTitleID は指定役職を参照しているスタッフ数を返す（BUG-112）
+func (r *jobTitleRepository) CountStaffsByJobTitleID(ctx context.Context, jobTitleID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Staff{}).
+		Where("job_title_id = ?", jobTitleID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "staff", "")
+	}
+	return count, nil
 }
 
 func (r *jobTitleRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

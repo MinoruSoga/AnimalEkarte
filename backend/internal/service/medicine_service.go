@@ -231,6 +231,15 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 				fmt.Sprintf("このカテゴリには%d件の薬剤が含まれています。先に薬剤を移動または削除してください", count),
 			)
 		}
+	} else {
+		// 薬剤アイテムの場合、治療や入院ケアプランで使用中であれば削除を拒否する（BUG-108）
+		usageCount, err := s.repo.CountUsageByMedicineID(ctx, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check medicine usage")
+		}
+		if usageCount > 0 {
+			return apperrors.WrapConflict("この薬剤は診療記録で使用中のため削除できません")
+		}
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {

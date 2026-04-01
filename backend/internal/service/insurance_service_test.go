@@ -45,6 +45,10 @@ func (m *mockInsuranceRepository) Reorder(_ context.Context, _ uint64, _ []uint6
 	return m.reorderErr
 }
 
+func (m *mockInsuranceRepository) CountPetsByInsuranceID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func TestInsuranceService_List(t *testing.T) {
 	tests := []struct {
 		name           string

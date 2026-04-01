@@ -51,6 +51,13 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	return plan, nil
 }
 func (s *hospitalizationPlanService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.repo.CountCarePlanItemsByPlanID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check hospitalization plan dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この入院プランはケアプランで使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, id)
 }
 

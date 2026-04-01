@@ -20,6 +20,7 @@ type TrimmingCourseRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountRecordsByCourseID(ctx context.Context, courseID uint64) (int64, error)
 }
 
 type trimmingCourseRepository struct{ db *gorm.DB }
@@ -78,6 +79,18 @@ func (r *trimmingCourseRepository) Delete(ctx context.Context, id uint64) error 
 		return apperrors.WrapNotFound("trimming_course", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountRecordsByCourseID は指定コースを使用しているトリミング記録数を返す（BUG-111）
+func (r *trimmingCourseRepository) CountRecordsByCourseID(ctx context.Context, courseID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.TrimmingRecord{}).
+		Where("course_id = ?", courseID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "trimming_record", "")
+	}
+	return count, nil
 }
 
 func (r *trimmingCourseRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

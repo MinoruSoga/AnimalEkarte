@@ -20,6 +20,7 @@ type HospitalizationPlanRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountCarePlanItemsByPlanID(ctx context.Context, planID uint64) (int64, error)
 }
 
 type hospitalizationPlanRepository struct{ db *gorm.DB }
@@ -80,6 +81,18 @@ func (r *hospitalizationPlanRepository) Delete(ctx context.Context, id uint64) e
 		return apperrors.WrapNotFound("hospitalization_plan", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountCarePlanItemsByPlanID は指定入院プランを参照する care_plan_items の件数を返す（BUG-105）
+func (r *hospitalizationPlanRepository) CountCarePlanItemsByPlanID(ctx context.Context, planID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.CarePlanItem{}).
+		Where("hospitalization_plan_id = ?", planID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "care_plan_item", "")
+	}
+	return count, nil
 }
 
 func (r *hospitalizationPlanRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

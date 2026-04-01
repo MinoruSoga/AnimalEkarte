@@ -99,6 +99,13 @@ func (s *permissionGroupService) Update(ctx context.Context, id uint64, input Up
 
 func (s *permissionGroupService) Delete(ctx context.Context, id uint64) error {
 	slog.InfoContext(ctx, "deleting permission group", "id", id)
+	count, err := s.repo.CountStaffsByPermissionGroupID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check permission group dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この権限グループは使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, id)
 }
 

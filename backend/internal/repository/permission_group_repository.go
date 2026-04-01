@@ -20,6 +20,7 @@ type PermissionGroupRepository interface {
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
 	HasPermission(ctx context.Context, userID uint64, resource model.Resource, action string) (bool, error)
 	VerifyGroupExists(ctx context.Context, groupID uint64) error
+	CountStaffsByPermissionGroupID(ctx context.Context, groupID uint64) (int64, error)
 }
 
 type permissionGroupRepository struct {
@@ -106,6 +107,18 @@ func (r *permissionGroupRepository) VerifyGroupExists(ctx context.Context, group
 		return apperrors.WrapNotFound("permission_group", fmt.Sprintf("%d", groupID))
 	}
 	return nil
+}
+
+// CountStaffsByPermissionGroupID は指定権限グループに所属するスタッフ数を返す（BUG-104）
+func (r *permissionGroupRepository) CountStaffsByPermissionGroupID(ctx context.Context, groupID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Table("user_permission_groups").
+		Where("group_id = ?", groupID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.Wrap(err, "count staffs by permission group id")
+	}
+	return count, nil
 }
 
 // HasPermission はユーザーが指定リソースに対して指定アクションの権限を持つかどうかを確認する
