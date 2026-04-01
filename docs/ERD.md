@@ -803,6 +803,7 @@ erDiagram
         treatment_status status
         text content
         text memo
+        varchar admin_route
         boolean insurance
         numeric discount_rate
         integer discount_amount
@@ -854,6 +855,9 @@ erDiagram
         text result
         text unit
         text ref
+        decimal ref_min
+        decimal ref_max
+        boolean is_abnormal
         integer sort_order
         timestamptz created_at
         timestamptz updated_at

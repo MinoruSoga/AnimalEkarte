@@ -1865,6 +1865,20 @@ components:
         ref:
           type: string
           nullable: true
+        ref_min:
+          type: number
+          format: double
+          nullable: true
+          description: 基準値下限
+        ref_max:
+          type: number
+          format: double
+          nullable: true
+          description: 基準値上限
+        is_abnormal:
+          type: boolean
+          default: false
+          description: 異常値フラグ
         status:
           type: string
           enum: [normal, high, low]
@@ -2752,6 +2766,9 @@ components:
           type: string
         memo:
           type: string
+        admin_route:
+          type: string
+          description: 投与経路（経口/皮下注射/静脈注射 等）
         insurance:
           type: boolean
         discount_rate:
