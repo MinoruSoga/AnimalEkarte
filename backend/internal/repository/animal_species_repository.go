@@ -83,7 +83,7 @@ func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
 		return apperrors.Wrap(err, "check animal species usage")
 	}
 	if count > 0 {
-		return apperrors.WrapAlreadyExists("animal_species", fmt.Sprintf("id %d is referenced by %d pets", id, count))
+		return apperrors.WrapConflict("この動物種はペットで使用中のため削除できません。先にペットを削除またはこの種を変更してください")
 	}
 
 	result := r.db.WithContext(ctx).

@@ -384,6 +384,15 @@ func buildOwnerUpdateFields(input *UpdateOwnerInput) map[string]any {
 }
 
 func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
+	// FK依存チェック: ペットが紐付いている場合は削除を拒否
+	petCount, err := s.repo.CountPetsByOwnerID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check pet dependencies")
+	}
+	if petCount > 0 {
+		return apperrors.WrapConflict("ペットが紐付いているため削除できません。先にペットを削除してください")
+	}
+
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete owner")
 	}
