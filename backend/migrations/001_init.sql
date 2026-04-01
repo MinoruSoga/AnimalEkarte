@@ -1522,6 +1522,10 @@ CREATE UNIQUE INDEX idx_trimming_options_clinic_name ON trimming_options(clinic_
 CREATE UNIQUE INDEX idx_insurance_clinic_name ON insurances(clinic_id, name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_checkup_types_clinic_name ON checkup_types(clinic_id, name) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_hospitalization_plans_clinic_name ON hospitalization_plans(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_job_titles_clinic_name ON job_titles(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_chief_complaint_categories_clinic_name ON chief_complaint_categories(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_animal_species_name ON animal_species(name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_merchandise_items_clinic_name ON merchandise_items(clinic_id, name) WHERE is_active = true AND deleted_at IS NULL;
 
 -- =============================================================================
 -- 5. テーブルコメント

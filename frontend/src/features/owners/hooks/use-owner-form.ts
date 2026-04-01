@@ -134,6 +134,14 @@ export function useOwnerForm(
       if (ownerData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerData.email)) {
         errors.email = "メールアドレスの形式が正しくありません";
       }
+      // BUG-066: 郵便番号フォーマットチェック（ハイフンあり: 123-4567 / なし: 1234567）
+      const postalPattern = /^\d{3}-?\d{4}$/;
+      if (ownerData.postalCode && !postalPattern.test(ownerData.postalCode.trim())) {
+        errors.postalCode = "郵便番号の形式が正しくありません（例: 123-4567）";
+      }
+      if (ownerData.homePostalCode && !postalPattern.test(ownerData.homePostalCode.trim())) {
+        errors.homePostalCode = "郵便番号の形式が正しくありません（例: 123-4567）";
+      }
       // BUG-066: 値引率は 0〜100 の範囲
       if (ownerData.discountRate < 0 || ownerData.discountRate > 100) {
         errors.discountRate = "値引率は0〜100の範囲で入力してください";

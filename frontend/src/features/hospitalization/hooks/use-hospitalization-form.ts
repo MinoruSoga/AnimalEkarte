@@ -133,6 +133,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
 
   useEffect(() => {
     if (!hospitalizationData) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: initialize form from API data once loaded; functional setState avoids stale closure
     setFormData((prev) => ({
       ...prev,
       hospitalizationType:

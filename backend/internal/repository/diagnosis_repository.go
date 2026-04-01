@@ -20,6 +20,7 @@ type DiagnosisCategoryRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountNamesByCategoryID(ctx context.Context, categoryID uint64) (int64, error)
 }
 
 type diagnosisCategoryRepository struct{ db *gorm.DB }
@@ -63,7 +64,7 @@ func (r *diagnosisCategoryRepository) Create(ctx context.Context, category *mode
 	err := r.db.WithContext(ctx).Create(category).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("diagnosis_category", category.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "diagnosis_category", "")
 	}
@@ -95,6 +96,18 @@ func (r *diagnosisCategoryRepository) Delete(ctx context.Context, clinicID, id u
 		return apperrors.WrapNotFound("diagnosis_category", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountNamesByCategoryID は指定カテゴリに属する diagnosis_names の件数を返す（BUG-113 補足）
+func (r *diagnosisCategoryRepository) CountNamesByCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.DiagnosisName{}).
+		Where("diagnosis_category_id = ?", categoryID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "diagnosis_name", "")
+	}
+	return count, nil
 }
 
 // Reorder はトランザクション内でカテゴリの sort_order を ids の順序で更新する (#019)
@@ -129,6 +142,7 @@ type DiagnosisNameRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountClinicalPlansByDiagnosisNameID(ctx context.Context, diagnosisNameID uint64) (int64, error)
 }
 
 type diagnosisNameRepository struct{ db *gorm.DB }
@@ -192,7 +206,7 @@ func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.Diagno
 	err := r.db.WithContext(ctx).Create(name).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("diagnosis_name", name.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "diagnosis_name", "")
 	}
@@ -224,6 +238,19 @@ func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint6
 		return apperrors.WrapNotFound("diagnosis_name", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountClinicalPlansByDiagnosisNameID は診断名を参照している clinical_plans の件数を返す（BUG-113）
+// diagnosis_name_id および diagnosis_2_name_id 両方をカウントする
+func (r *diagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(ctx context.Context, diagnosisNameID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.ClinicalPlan{}).
+		Where("diagnosis_name_id = ? OR diagnosis_2_name_id = ?", diagnosisNameID, diagnosisNameID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "clinical_plan", "")
+	}
+	return count, nil
 }
 
 // Reorder はトランザクション内で診断名の sort_order を ids の順序で更新する (#019)

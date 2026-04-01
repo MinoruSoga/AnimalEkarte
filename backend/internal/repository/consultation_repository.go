@@ -20,6 +20,7 @@ type ConsultationRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountUsageByConsultationID(ctx context.Context, consultationID uint64) (int64, error)
 }
 
 type consultationRepository struct{ db *gorm.DB }
@@ -50,7 +51,7 @@ func (r *consultationRepository) Create(ctx context.Context, consultation *model
 	err := r.db.WithContext(ctx).Create(consultation).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("consultation", consultation.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "consultation", "")
 	}
@@ -101,4 +102,16 @@ func (r *consultationRepository) Reorder(ctx context.Context, clinicID uint64, i
 		return apperrors.Wrap(err, "reorder consultation")
 	}
 	return nil
+}
+
+// CountUsageByConsultationID は診察マスタを参照している treatments の件数を返す（BUG-107）
+func (r *consultationRepository) CountUsageByConsultationID(ctx context.Context, consultationID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Treatment{}).
+		Where("consultation_id = ?", consultationID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "treatment", "")
+	}
+	return count, nil
 }

@@ -20,6 +20,7 @@ type VaccineRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error)
 }
 
 type vaccineRepository struct{ db *gorm.DB }
@@ -50,7 +51,7 @@ func (r *vaccineRepository) FindByID(ctx context.Context, id uint64) (*model.Vac
 func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {
 	if err := r.db.WithContext(ctx).Create(vaccine).Error; err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("vaccine", vaccine.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.Wrap(err, "create vaccine")
 	}
@@ -100,4 +101,16 @@ func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []
 		return apperrors.Wrap(err, "reorder vaccines")
 	}
 	return nil
+}
+
+// CountUsageByVaccineID はワクチンマスタを参照している vaccination_records の件数を返す（BUG-107）
+func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Vaccination{}).
+		Where("vaccine_id = ?", vaccineID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "vaccination_record", "")
+	}
+	return count, nil
 }

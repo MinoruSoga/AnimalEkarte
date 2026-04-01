@@ -323,12 +323,21 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
       return;
     }
 
+    // BUG-044: 数値フィールドがすべて未入力の場合は保存しない（サーバー500回避）
+    const heartRate = parseNumField(addForm.heart_rate);
+    const respiratoryRate = parseNumField(addForm.respiratory_rate);
+    const bodyWeight = parseNumField(addForm.body_weight);
+    if (temp === null && heartRate === null && respiratoryRate === null && bodyWeight === null) {
+      toast.error("体温・心拍数・呼吸数・体重のいずれかを入力してください");
+      return;
+    }
+
     const input: CreateVitalInput = {
       recorded_at: recordedDate.toISOString(),
       temperature: temp,
-      heart_rate: parseNumField(addForm.heart_rate),
-      respiratory_rate: parseNumField(addForm.respiratory_rate),
-      body_weight: parseNumField(addForm.body_weight),
+      heart_rate: heartRate,
+      respiratory_rate: respiratoryRate,
+      body_weight: bodyWeight,
       weight_unit: addForm.weight_unit,
       note: addForm.note.trim() || null,
     };

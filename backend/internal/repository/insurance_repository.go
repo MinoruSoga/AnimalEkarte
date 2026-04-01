@@ -20,6 +20,7 @@ type InsuranceRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountPetsByInsuranceID(ctx context.Context, insuranceID uint64) (int64, error)
 }
 
 type insuranceRepository struct{ db *gorm.DB }
@@ -48,7 +49,7 @@ func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insur
 	err := r.db.WithContext(ctx).Create(insurance).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("insurance", insurance.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "insurance", "")
 	}
@@ -78,6 +79,18 @@ func (r *insuranceRepository) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapNotFound("insurance", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountPetsByInsuranceID は指定保険を参照しているペット数を返す（BUG-110）
+func (r *insuranceRepository) CountPetsByInsuranceID(ctx context.Context, insuranceID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Pet{}).
+		Where("insurance_id = ?", insuranceID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "pet", "")
+	}
+	return count, nil
 }
 
 func (r *insuranceRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

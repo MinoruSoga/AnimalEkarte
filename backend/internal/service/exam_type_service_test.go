@@ -48,6 +48,10 @@ func (m *mockExamTypeRepository) Reorder(ctx context.Context, clinicID uint64, i
 	return nil
 }
 
+func (m *mockExamTypeRepository) CountUsageByExamTypeID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func TestExamTypeService_List(t *testing.T) {
 	tests := []struct {
 		name     string

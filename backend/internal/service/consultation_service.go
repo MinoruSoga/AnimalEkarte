@@ -54,6 +54,13 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	return consultation, nil
 }
 func (s *consultationService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.repo.CountUsageByConsultationID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check consultation dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この診察項目は診療記録で使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, id)
 }
 

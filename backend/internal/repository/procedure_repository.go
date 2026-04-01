@@ -20,6 +20,7 @@ type ProcedureRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountUsageByProcedureID(ctx context.Context, procedureID uint64) (int64, error)
 }
 
 type procedureRepository struct{ db *gorm.DB }
@@ -46,7 +47,7 @@ func (r *procedureRepository) FindByID(ctx context.Context, id uint64) (*model.P
 func (r *procedureRepository) Create(ctx context.Context, procedure *model.Procedure) error {
 	if err := r.db.WithContext(ctx).Create(procedure).Error; err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("procedure", procedure.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.Wrap(err, "create procedure")
 	}
@@ -76,6 +77,24 @@ func (r *procedureRepository) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountUsageByProcedureID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-107）
+func (r *procedureRepository) CountUsageByProcedureID(ctx context.Context, procedureID uint64) (int64, error) {
+	var treatmentCount, carePlanCount int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Treatment{}).
+		Where("procedure_id = ?", procedureID).
+		Count(&treatmentCount).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "treatment", "")
+	}
+	if err := r.db.WithContext(ctx).
+		Model(&model.CarePlanItem{}).
+		Where("procedure_id = ?", procedureID).
+		Count(&carePlanCount).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "care_plan_item", "")
+	}
+	return treatmentCount + carePlanCount, nil
 }
 
 func (r *procedureRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

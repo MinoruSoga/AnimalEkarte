@@ -120,7 +120,7 @@ func (s *serviceTypeService) Delete(ctx context.Context, clinicID, id uint64) er
 		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}
 	if exists {
-		return apperrors.WrapAlreadyExists("service_type", "この項目は予約データで使用中のため削除できません")
+		return apperrors.WrapConflict("この項目は予約データで使用中のため削除できません")
 	}
 	return s.repo.Delete(ctx, clinicID, id)
 }

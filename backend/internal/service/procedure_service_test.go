@@ -49,6 +49,10 @@ func (m *mockProcedureRepository) Reorder(ctx context.Context, clinicID uint64, 
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
+func (m *mockProcedureRepository) CountUsageByProcedureID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- Tests ----
 
 func TestProcedureService_List(t *testing.T) {

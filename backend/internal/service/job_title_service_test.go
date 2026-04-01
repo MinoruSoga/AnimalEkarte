@@ -46,6 +46,10 @@ func (m *mockJobTitleRepository) Reorder(_ context.Context, _ uint64, _ []uint64
 	return m.reorderErr
 }
 
+func (m *mockJobTitleRepository) CountStaffsByJobTitleID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- Tests ----
 
 func TestJobTitleService_List(t *testing.T) {

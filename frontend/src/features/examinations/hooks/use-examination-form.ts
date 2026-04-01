@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition, useCallback, useActionState } from "react";
+import { useState, useEffect, useTransition, useCallback, useActionState, useRef } from "react";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router";
 import type { ExaminationRecord } from "@/types";
@@ -67,15 +67,23 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
         }
       : formData;
 
+  // useActionState の stale closure 対策: 最新の formDataWithPet を ref で保持
+  // (use-medical-record-form.ts の activeTabRef と同じパターン)
+  const formDataWithPetRef = useRef(formDataWithPet);
+  useEffect(() => {
+    formDataWithPetRef.current = formDataWithPet;
+  });
+
   /**
    * React 19 useActionState を使用したフォームアクション
    */
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
+      const current = formDataWithPetRef.current;
       // フロントエンド・バリデーション
       const errors: Record<string, string> = {};
-      if (!formDataWithPet.testTypeId) errors.testTypeId = "検査種別を選択してください";
-      if (!formDataWithPet.doctorId) errors.doctorId = "担当医を選択してください";
+      if (!current.testTypeId) errors.testTypeId = "検査種別を選択してください";
+      if (!current.doctorId) errors.doctorId = "担当医を選択してください";
 
       if (Object.keys(errors).length > 0) {
         toast.error("未入力の項目があります");
@@ -85,10 +93,14 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
       try {
         if (isEdit && id) {
           const req: UpdateExaminationRequest = {
-            status: formDataWithPet.status ? EXAM_STATUS_JA_TO_EN[formDataWithPet.status] : undefined,
-            result_summary: formDataWithPet.resultSummary,
-            machine: formDataWithPet.machine,
-            date: formDataWithPet.date,
+            status: current.status ? EXAM_STATUS_JA_TO_EN[current.status] : undefined,
+            result_summary: current.resultSummary,
+            machine: current.machine,
+            date: current.date
+              ? current.date.includes("T")
+                ? current.date
+                : `${current.date}T00:00:00Z`
+              : undefined,
           };
           await updateMutation.mutateAsync({ id, req });
         } else {
@@ -97,11 +109,11 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
           const req: CreateExaminationRequest = {
             medical_record_id: medicalRecordId ? Number(medicalRecordId) : null,
             pet_id: Number(pet.id) || null,
-            exam_type_id: Number(formDataWithPet.testTypeId) || 0,
-            doctor_id: formDataWithPet.doctorId ? Number(formDataWithPet.doctorId) : null,
-            date: formDataWithPet.date ?? new Date().toISOString(),
-            result_summary: formDataWithPet.resultSummary,
-            machine: formDataWithPet.machine,
+            exam_type_id: Number(current.testTypeId) || 0,
+            doctor_id: current.doctorId ? Number(current.doctorId) : null,
+            date: current.date ?? new Date().toISOString(),
+            result_summary: current.resultSummary,
+            machine: current.machine,
           };
           await createMutation.mutateAsync(req);
         }

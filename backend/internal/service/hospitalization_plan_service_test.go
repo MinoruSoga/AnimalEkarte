@@ -45,6 +45,10 @@ func (m *mockHospitalizationPlanRepository) Reorder(ctx context.Context, clinicI
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
+func (m *mockHospitalizationPlanRepository) CountCarePlanItemsByPlanID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- Tests ----
 
 func TestHospitalizationPlanService_List(t *testing.T) {

@@ -17,6 +17,7 @@ type MedicineRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
 	CountChildren(ctx context.Context, clinicID, parentID uint64) (int64, error)
+	CountUsageByMedicineID(ctx context.Context, medicineID uint64) (int64, error)
 	Create(ctx context.Context, medicine *model.Medicine) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -57,6 +58,24 @@ func (r *medicineRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 	return &medicine, nil
 }
 
+// CountUsageByMedicineID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-108）
+func (r *medicineRepository) CountUsageByMedicineID(ctx context.Context, medicineID uint64) (int64, error) {
+	var treatmentCount, carePlanCount int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Treatment{}).
+		Where("medicine_id = ?", medicineID).
+		Count(&treatmentCount).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "treatment", "")
+	}
+	if err := r.db.WithContext(ctx).
+		Model(&model.CarePlanItem{}).
+		Where("medicine_id = ?", medicineID).
+		Count(&carePlanCount).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "care_plan_item", "")
+	}
+	return treatmentCount + carePlanCount, nil
+}
+
 func (r *medicineRepository) CountChildren(ctx context.Context, clinicID, parentID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
@@ -72,7 +91,7 @@ func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicin
 	err := r.db.WithContext(ctx).Create(medicine).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("medicine", medicine.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "medicine", "")
 	}

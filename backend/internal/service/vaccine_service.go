@@ -93,6 +93,13 @@ func buildVaccineUpdateFields(input UpdateVaccineInput) map[string]any {
 	return fields
 }
 func (s *vaccineService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.repo.CountUsageByVaccineID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check vaccine dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("このワクチンはワクチン接種記録で使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, id)
 }
 

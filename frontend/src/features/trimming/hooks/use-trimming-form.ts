@@ -72,6 +72,7 @@ export function useTrimmingForm(id?: string) {
     if (saved) {
       try {
         const draft = JSON.parse(saved);
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: one-time draft restore on mount
         setLocalOverrides((prev) => ({ ...prev, ...draft }));
         toast.info("未保存の下書きを復元しました", { duration: 2000 });
       } catch { /* ignore */ }

@@ -48,6 +48,10 @@ func (m *mockDiagnosisCategoryRepository) Reorder(ctx context.Context, clinicID 
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
+func (m *mockDiagnosisCategoryRepository) CountNamesByCategoryID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- DiagnosisName モック ----
 
 type mockDiagnosisNameRepository struct {
@@ -86,6 +90,10 @@ func (m *mockDiagnosisNameRepository) Delete(ctx context.Context, clinicID, id u
 
 func (m *mockDiagnosisNameRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return m.reorderFn(ctx, clinicID, ids)
+}
+
+func (m *mockDiagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
 }
 
 // newCategoryService はテスト用ヘルパー

@@ -40,11 +40,11 @@ export function useMedicalRecordForm(recordId?: string) {
 
     // 優先順位に基づいたエラーフィールドの特定
     // key は API のフィールド名、value は DOM ID またはタブ切り替えロジック
-    const PRIORITY_FIELDS = ["chief_complaint", "treatment_policy", "diagnosis1_category_id"];
+    const PRIORITY_FIELDS = ["treatment_policy", "diagnosis1_category_id"];
     const firstError = PRIORITY_FIELDS.find(f => errorFields.includes(f)) || errorFields[0];
-    
-    // 主訴や治療方針にエラーがある場合は「問診」タブへ強制移動
-    if (["chief_complaint", "treatment_policy"].includes(firstError)) {
+
+    // 治療方針にエラーがある場合は「問診」タブへ強制移動
+    if (["treatment_policy"].includes(firstError)) {
       setActiveTab("問診");
     } else if (["diagnosis1_category_id", "diagnosis1_name_id"].includes(firstError)) {
       setActiveTab("診察/治療プラン");
@@ -163,18 +163,6 @@ export function useMedicalRecordForm(recordId?: string) {
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       if (!recordId) return { success: false, timestamp: Date.now() };
 
-      // フロントエンド・バリデーション
-      const errors: Record<string, string> = {};
-      if (!chiefComplaint || chiefComplaint === DEFAULT_CHIEF_COMPLAINT) {
-        errors.chief_complaint = "主訴を入力してください";
-      }
-      
-      if (Object.keys(errors).length > 0) {
-        setManualErrors(errors);
-        toast.error("必須項目が未入力です");
-        return { success: false, fieldErrors: errors, timestamp: Date.now() };
-      }
-
       try {
         setManualErrors({});
         const currentTab = activeTabRef.current;
@@ -195,14 +183,16 @@ export function useMedicalRecordForm(recordId?: string) {
               toast.error("診断名を選択してください");
               return { success: false, fieldErrors: diagError, timestamp: Date.now() };
             }
-            await updateTreatmentPlanMutation.mutateAsync({
-              treatment_policy: plan !== DEFAULT_PLAN ? plan : undefined,
-              diagnosis_details: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
+            // BUG-102: DEFAULT値でも常に送信する（undefined を送ると BE が 400 を返す）
+            const treatmentPlanPayload = {
+              treatment_policy: plan,
+              diagnosis_details: assessment,
               diagnosis_category_id: diagnosis1CategoryId ?? undefined,
               diagnosis_name_id: diagnosis1NameId ?? undefined,
               diagnosis_2_category_id: diagnosis2CategoryId ?? undefined,
               diagnosis_2_name_id: diagnosis2NameId ?? undefined,
-            });
+            };
+            await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
             break;
           }
 
@@ -305,6 +295,7 @@ export function useMedicalRecordForm(recordId?: string) {
     };
 
     autoCreate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run only when isNewRecord or petId changes; createMutation/navigate/visitType are stable references
   }, [isNewRecord, selectedPet?.id]);
 
   const shouldRedirectToSelectPet = isNewRecord && !petId;

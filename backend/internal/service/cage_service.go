@@ -57,7 +57,7 @@ func (s *cageService) Delete(ctx context.Context, id uint64) error {
 		return apperrors.Wrap(err, "failed to check hospitalization dependency")
 	}
 	if exists {
-		return apperrors.WrapAlreadyExists("cage", "このケージは入院データで使用中のため削除できません")
+		return apperrors.WrapConflict("このケージは入院データで使用中のため削除できません")
 	}
 	return s.repo.Delete(ctx, id)
 }

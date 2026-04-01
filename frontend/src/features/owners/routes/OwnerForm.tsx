@@ -273,8 +273,10 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
             id="postalCode"
             placeholder="123-4567"
             value={ownerData.postalCode}
-            onChange={(e) => onChange("postalCode", e.target.value)}
-            className={STYLE.formInput}
+            aria-invalid={!!fieldErrors.postalCode}
+            aria-describedby={fieldErrors.postalCode ? "postalCode-error" : undefined}
+            onChange={(e) => { onChange("postalCode", e.target.value); onClearError("postalCode"); }}
+            className={`${STYLE.formInput} ${fieldErrors.postalCode ? STYLE.formInputError : ""}`}
           />
           <Button
             type="button"
@@ -286,6 +288,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
             検索
           </Button>
         </div>
+        <FormFieldError id="postalCode-error" message={fieldErrors.postalCode} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="company" className={`text-sm ${C.text60}`}>会社名</Label>
@@ -327,8 +330,10 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
             id="homePostalCode"
             placeholder="123-4567"
             value={ownerData.homePostalCode || ""}
-            onChange={(e) => onChange("homePostalCode", e.target.value)}
-            className={STYLE.formInput}
+            aria-invalid={!!fieldErrors.homePostalCode}
+            aria-describedby={fieldErrors.homePostalCode ? "homePostalCode-error" : undefined}
+            onChange={(e) => { onChange("homePostalCode", e.target.value); onClearError("homePostalCode"); }}
+            className={`${STYLE.formInput} ${fieldErrors.homePostalCode ? STYLE.formInputError : ""}`}
           />
           <Button
             type="button"
@@ -340,6 +345,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
             検索
           </Button>
         </div>
+        <FormFieldError id="homePostalCode-error" message={fieldErrors.homePostalCode} />
       </div>
       <div className="space-y-1.5 col-span-2 lg:col-span-1 lg:row-span-3">
         <Label className={`text-sm ${C.text60}`}>危険人物</Label>

@@ -51,6 +51,13 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 	return course, nil
 }
 func (s *trimmingCourseService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.repo.CountRecordsByCourseID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check trimming course dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("このトリミングコースはトリミング記録で使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, id)
 }
 

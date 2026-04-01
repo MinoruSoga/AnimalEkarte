@@ -19,6 +19,7 @@ import {
 // External
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import Pill from "lucide-react/dist/esm/icons/pill";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
@@ -722,7 +723,7 @@ export function MedicineSettings() {
         setDeleteConfirmOpen(false);
         handleCloseEdit();
       },
-      onError: () => toast.error("削除に失敗しました"),
+      onError: (error) => handleApiError(error, "薬剤の削除"),
     });
   }, [selectedMedicine, deleteMutation, handleCloseEdit]);
 

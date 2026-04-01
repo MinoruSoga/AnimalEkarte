@@ -51,6 +51,14 @@ func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, inpu
 	return insurance, nil
 }
 func (s *insuranceService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.repo.CountPetsByInsuranceID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check insurance dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この保険はペット情報で使用中のため削除できません")
+	}
+	slog.InfoContext(ctx, "insurance deleted", slog.Uint64("insurance_id", id))
 	return s.repo.Delete(ctx, id)
 }
 

@@ -1,7 +1,7 @@
-import { lazy, memo, Suspense, useState, useMemo, useCallback, useActionState } from "react";
+import { lazy, memo, Suspense, useState, useMemo, useCallback, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { handleApiError } from "@/lib/handle-api-error";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
@@ -38,26 +38,22 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
   const returnMutation = useReturnBillingReview(medicalRecordId);
 
-  interface ActionFormState {
-    success: boolean;
-    timestamp: number;
-  }
+  const [isConfirmPending, startConfirmTransition] = useTransition();
+  const userId = user?.id;
 
-  const [, formAction] = useActionState(
-    async (_prevState: ActionFormState, _formData: FormData): Promise<ActionFormState> => {
+  const handleConfirm = useCallback(() => {
+    startConfirmTransition(async () => {
       try {
         await confirmMutation.mutateAsync({
-          confirmed_by: Number(user?.id ?? 0),
-          memo: "医師確認済み"
+          confirmed_by: Number(userId ?? 0),
+          memo: "医師確認済み",
         });
         toast.success("会計確認を完了しました");
-        return { success: true, timestamp: Date.now() };
-      } catch {
-        return { success: false, timestamp: Date.now() };
+      } catch (error) {
+        handleApiError(error, "会計確認");
       }
-    },
-    { success: false, timestamp: 0 }
-  );
+    });
+  }, [confirmMutation, userId]);
 
   const handleReturn = useCallback(() => {
     returnMutation.mutate({
@@ -198,17 +194,16 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
             確認を取り消す
           </Button>
         ) : (
-          <form action={formAction}>
-            <SubmitButton
-              disabled={items.length === 0}
-              size="sm"
-              className={`${STYLE.confirmPrimary} min-w-[120px] shadow-lg h-10 text-sm gap-2`}
-              loadingText="処理中..."
-            >
-              <CheckCircle2 className={ICON.action} />
-              チェック完了
-            </SubmitButton>
-          </form>
+          <Button
+            type="button"
+            size="sm"
+            disabled={isConfirmPending || items.length === 0}
+            onClick={handleConfirm}
+            className={`${STYLE.confirmPrimary} min-w-[120px] shadow-lg h-10 text-sm gap-2`}
+          >
+            <CheckCircle2 className={ICON.action} />
+            {isConfirmPending ? "処理中..." : "チェック完了"}
+          </Button>
         )}
       </div>
 

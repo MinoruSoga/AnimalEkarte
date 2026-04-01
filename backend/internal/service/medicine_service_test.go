@@ -37,6 +37,10 @@ func (m *mockMedicineRepository) CountChildren(ctx context.Context, clinicID, pa
 	return 0, nil
 }
 
+func (m *mockMedicineRepository) CountUsageByMedicineID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func (m *mockMedicineRepository) Create(ctx context.Context, medicine *model.Medicine) error {
 	return m.createFn(ctx, medicine)
 }

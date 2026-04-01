@@ -70,6 +70,7 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
           onChange={handleFileChange}
         />
         <Button
+          type="button"
           size="sm"
           className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4"
           onClick={handleUploadClick}
@@ -116,12 +117,14 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
 
         <div className="flex items-end gap-2 pb-[1px]">
           <Button
+            type="button"
             variant="outline"
             className="h-10 bg-[#37352F] text-white hover:bg-[#37352F]/90 hover:text-white border-transparent text-sm shadow-sm px-3"
           >
             クリア
           </Button>
           <Button
+            type="button"
             variant="outline"
             className="h-10 bg-[#37352F] text-white hover:bg-[#37352F]/90 hover:text-white border-transparent text-sm shadow-sm px-3"
           >

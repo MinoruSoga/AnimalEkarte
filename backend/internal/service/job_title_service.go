@@ -71,6 +71,13 @@ func (s *jobTitleService) Update(ctx context.Context, clinicID, id uint64, input
 }
 
 func (s *jobTitleService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.repo.CountStaffsByJobTitleID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check job title dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この役職はスタッフ情報で使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, id)
 }
 

@@ -4,6 +4,9 @@ import { useState, useMemo, useCallback, useDeferredValue, useTransition } from 
 // External
 import { toast } from "sonner";
 
+// Shared
+import { handleApiError } from "@/lib/handle-api-error";
+
 // Types
 import type { UseMutationResult } from "@tanstack/react-query";
 import type { ActiveFilter, ActiveSort } from "@/components/shared/NotionFilter/types";
@@ -203,7 +206,7 @@ export function useMasterCRUD<T extends MasterEntity>({
         setEditTarget(null);
         toast.success(`${entityLabel}を削除しました`);
       },
-      onError: () => toast.error(`${entityLabel}の削除に失敗しました`),
+      onError: (error) => handleApiError(error, `${entityLabel}の削除`),
     });
   }, [pendingDelete, deleteMutation, entityLabel]);
 
