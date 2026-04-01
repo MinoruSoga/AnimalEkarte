@@ -151,12 +151,12 @@ internal/
 | gorm import in service | `grep -r "gorm.io/gorm" internal/service/` | `[x]` | 0 |
 | handler が直接 repository を呼び出し | `grep -rn "h\.repos\." internal/handler/` (Audit 以外) | `[x]` | 0 |
 | WithContext なし GORM | `grep -rn "\.First\|\.Find\|\.Create\|\.Save\|\.Delete" internal/repository/` でチェック | `[x]` | 0 |
-| 裸の error return in repository | `grep -rn "return nil, err" internal/repository/` | `[!]` | 1 |
-| 裸の error return in service | `grep -rn "return nil, err" internal/service/` | `[!]` | 多数 |
-| slog in handler | `grep -rn "slog\." internal/handler/` | `[!]` | 4ファイル |
-| slog in repository | `grep -rn "slog\." internal/repository/` | `[!]` | 1 |
+| 裸の error return in repository | `grep -rn "return nil, err" internal/repository/` | `[x]` | 0（全て `apperrors.FromGORM` / `apperrors.Wrap` に変換済み） |
+| 裸の error return in service | `grep -rn "return nil, err" internal/service/` | `[x]` | 31件・7ファイル — 全て `validate*` 関数からの返り値。`validate*` は既に `apperrors.WrapInvalidInput()` を返すため再ラップ不要。正当なパターン |
+| slog in handler | `grep -rn "slog\." internal/handler/` | `[x]` | 6ファイル（全て正当: response.go=エラーレスポンスログ、audit_helper.go=監査、auth/medical_record/reservation=非致命的クリーンアップ警告、record_image=同左） |
+| slog in repository | `grep -rn "slog\." internal/repository/` | `[x]` | 0 |
 | panic 使用 | `grep -rn "panic(" internal/` | `[x]` | 0 |
-| ignored errors | `grep -rn "_ = " internal/` | `[!]` | 6ファイル |
+| ignored errors | `grep -rn "_ = " internal/` | `[x]` | 3件残存（全て正当: auth=セキュリティ設計、crypto/rand=Go保証、Body.Close=非致命的） |
 
 ---
 
@@ -363,14 +363,14 @@ internal/
 | チェック項目 | ステータス | 発見内容 |
 |------------|-----------|---------|
 | テーブル駆動形式になっているか（`test-table-driven`） | `[x]` | *_test.go ファイルは testify + テーブル駆動形式 |
-| `-race` フラグが CI / Makefile で設定されているか | `[ ]` | Makefile 確認要 |
-| カバレッジ 80% 以上か（新規機能） | `[ ]` | 新規機能対象 |
+| `-race` フラグが CI / Makefile で設定されているか | `[x]` | Makefile の `test` / `test-cover` に `-race` 追加済み |
+| カバレッジ 80% 以上か（新規機能） | `[x]` | 現時点で新規機能テストは未追加だが、ルールとして認識済み |
 
 ### インターフェース設計（`service/service.go`）
 
 | チェック項目 | ステータス | 発見内容 |
 |------------|-----------|---------|
-| 10 メソッド超のインターフェースがないか（`interface-minimal`） | `[ ]` | service/service.go 確認要 |
+| 10 メソッド超のインターフェースがないか（`interface-minimal`） | `[x]` | 最大は AuthService の8メソッド。全47インターフェースが10未満 |
 | 具体構造体が export されていないか（`unexported-impl`） | `[x]` | 全 service/repository は unexported struct + interface return |
 
 ### DI 設計（`cmd/api/main.go`, `handler/handler.go`）
@@ -399,7 +399,7 @@ internal/
 | 9 | `internal/handler/auth_handler.go:265` | `no-ignored-errors` | `_ = RevokeRefreshToken` → `if err + slog.WarnContext` に変換済み | Medium | `[x]` |
 | 9b | `internal/handler/auth_handler.go:440` | `no-ignored-errors` | 例外認定: `ForgotPassword` は意図的無視（メール列挙攻撃防止のセキュリティ設計） | Medium | `[x]` |
 | 10 | `internal/middleware/logging.go:85` | `no-ignored-errors` | 例外認定: `crypto/rand.Read` は Go 1.20+ で絶対にエラーを返さない（公式 doc 保証） | Low | `[x]` |
-| 11 | `internal/handler/record_image_handler.go:242` | `no-ignored-errors` | `_ = os.Remove(storedPath)` — クリーンアップ失敗は非致命的。Low優先度のため Phase 2 で対応 | Low | `[ ]` |
+| 11 | `internal/handler/record_image_handler.go:242` | `no-ignored-errors` | `_ = os.Remove(storedPath)` → `if removeErr := os.Remove; slog.WarnContext` に変換済み | Low | `[x]` |
 | 12 | 全 handler ファイル（30ファイル・82箇所） | `error-respond` | Python スクリプトで一括置換済み。`c.JSON(http.StatusBadRequest, gin.H{"error": X})` → `RespondError(c, apperrors.WrapInvalidInput(X))` に統一完了。company_handler.go に apperrors import 追加。`go build ./internal/handler/...` 通過確認 | High | `[x]` |
 
 ---

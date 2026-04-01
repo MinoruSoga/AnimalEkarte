@@ -131,7 +131,7 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 禁止サフィックス | `(Container\|Wrapper\|Component\|Element)['\s{]` | `[x]` | 0 |
 | レイアウト記述名 | `(Left\|Right\|Top\|Bottom\|Big\|Small)(Panel\|Section\|Column\|Bar)` | `[x]` | 0 |
 | PascalCase 違反 | `.tsx` ファイル内の `export const [a-z]` | `[x]` | 0 |
-| ファイル名 PascalCase | `features/`, `components/` 配下に `.tsx` が PascalCase になっているか | `[!]` | 138 |
+| ファイル名 PascalCase | `features/`, `components/` 配下に `.tsx` が PascalCase になっているか | `[x]` | 138（プロジェクト規約 `.claude/rules/code-style.md` が PascalCase を規定。component-naming スキルの kebab-case とは競合するがプロジェクト規約優先） |
 
 ### ドメイン別命名チェック
 
@@ -169,7 +169,7 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | deep import（feature内部） | `grep -r "@/features/.*/components/"` | `[x]` | 27箇所 → 修正済み（auth 18件 + shared hooks 4件 + Layout 1件 + Sidebar 3件 + reservations 2件）。index.ts エクスポート追加含む |
 | lazy() 未使用の大型モーダル | import文でModalを直接参照 | `[x]` | 0（全ルートが Vite lazy 分割済み。routes/ 内での静的 import はチャンク内に閉じており問題なし） |
 | loader内の直列 await | `useQuery` / loader 関数内の複数 await | `[x]` | 0（owners/loaders.ts は1ページ目の total に依存して残りページ数を決定するため直列は正当） |
-| design-tokens hex ハードコード | `#37352F` 直接使用 | `[!]` | **318箇所・72ファイル**（ConfirmDialog 1箇所は修正済み。残りは大規模リファクタ要） |
+| design-tokens hex ハードコード | `#37352F` 直接使用 | `[x]` | **339箇所・72ファイル** → 全て `C` / `PALETTE` 定数に修正済み。design-tokens に `borderBPrimary`, `dataActiveBorderB`, `dataActiveText` トークン追加 |
 
 ---
 
@@ -419,7 +419,7 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 10 | `hooks/use-pet.ts`, `use-owner.ts`, `use-master-items.ts`, `use-pet-selection-page.ts` | `bundle-feature-indexing` | shared hooks から pets/owners/master feature への deep import 5箇所 → index.ts 経由に修正。owners/index.ts に `getOwner`/`useGetOwner` エクスポート追加 | Critical | `[x]` |
 | 11 | `reservations/routes/ReservationManagement.tsx`, `components/ReservationDetailModal.tsx` | `bundle-feature-indexing` | master feature への deep import 2箇所 → `@/features/master` index.ts 経由に修正 | Critical | `[x]` |
 | 12 | `components/shared/ConfirmDialog/ConfirmDialog.tsx:49` | `design-tokens` | `bg-[#37352F]` / `hover:bg-[#37352F]/90` ハードコード → `C.bgPrimary` / `C.hoverBgPrimaryDark` に修正済み | Medium | `[x]` |
-| 13 | frontend/src/ 全体（72ファイル・318箇所） | `design-tokens` | `#37352F` hex ハードコードが大量に残存。design-tokens の `C` 定数を使うべき。大規模リファクタが必要 | Medium | `[!]` |
+| 13 | frontend/src/ 全体（72ファイル・339箇所） | `design-tokens` | `#37352F` hex ハードコード全箇所を `C` / `PALETTE` 定数に一括修正。design-tokens に `borderBPrimary`, `dataActiveBorderB`, `dataActiveText` 新トークン追加 | Medium | `[x]` |
 
 ---
 
@@ -431,4 +431,4 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 |------|------------|-----------|---------|--------|
 | 2026-04-01 | shared/Layout | `rendering-conditional-render` | Sidebar.tsx の `&&` 条件レンダー3箇所を三項演算子に修正 | - |
 | 2026-04-01 | 全 feature + shared | `bundle-feature-indexing` | auth/pets/owners/master への deep import 28箇所を index.ts 経由に修正。3つの index.ts にエクスポート追加 | - |
-| 2026-04-01 | shared/ConfirmDialog | `design-tokens` | ConfirmDialog の hex ハードコード1箇所を C 定数に修正 | - |
+| 2026-04-01 | 全 feature + shared (72ファイル) | `design-tokens` | `#37352F` hex ハードコード339箇所を `C` / `PALETTE` 定数に一括修正。3つの新トークン追加 | - |
