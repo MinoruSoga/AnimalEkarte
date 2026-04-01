@@ -7019,10 +7019,10 @@
 | トリミングマスタ | `/settings/trimming` | 5コース | OK | OK | OK | OK | OK | OK | OK |
 | 薬剤マスタ | `/settings/medicine` | **24件** | OK | OK | OK | OK | OK | OK | OK |
 | 予約区分マスタ | `/settings/service-type` | 8件 | OK | OK | OK | OK | OK | OK | OK |
-| 入院マスタ | `/settings/hospitalization` | 5件 | OK | OK | OK | OK | OK | OK | OK |
-| ケージマスタ | `/settings/cage` | 8件 | OK | OK | OK | OK | OK | OK | OK |
-| 物販・その他 | `/settings/merchandise-items` | 7件 | OK | OK | OK | OK | OK | OK | OK |
-| 保険マスタ | `/settings/insurance` | 5件 | OK | OK | OK | OK | OK | OK | OK |
+| 入院マスタ | `/settings/hospitalization` | 5件 | OK | OK | OK | OK | OK | OK | NG(BUG-105) |
+| ケージマスタ | `/settings/cage` | 8件 | OK | OK | OK | OK | OK | OK | NG(BUG-103) |
+| 物販・その他 | `/settings/merchandise-items` | 7件 | OK | OK | OK | OK | OK | OK | NG(FK未チェック) |
+| 保険マスタ | `/settings/insurance` | 5件 | OK | OK | OK | OK | OK | OK | NG(FK未チェック) |
 | 役職マスタ | `/settings/job-title` | 5件 | OK | OK | OK | OK | OK | OK | OK |
 | 問診テンプレート | `/settings/inquiry-templates` | 10件 | OK | OK | OK | OK | OK | OK | OK |
 | 主訴マスタ | `/settings/interview/chief-complaint` | 6件 | OK | OK | OK | OK | OK | OK | OK |
@@ -7176,6 +7176,7 @@
 | 病名マスタの一覧表示（カテゴリ別） | OK | 病名マスタ一覧確認 |
 | 新規病名の追加（病名・ICD コード） | OK | 診断病名マスタ /settings/diagnosis で新規登録ボタン確認・カテゴリ8件+病名20件 |
 | カルテ入力時の病名マスタ検索・選択 | OK | MasterSelectModal 経由の選択確認 |
+| 診断カテゴリ削除（配下病名あり） | NG(設計問題) | DELETE /masters/diagnosis-categories/1 → 204。カスケード削除（配下の診断名も削除）。ダイアログ警告あり「診断名も影響を受けます」。ただし既存カルテの diagnosis_category_id 参照チェックなし。ローカル確認 2026-04-01 |
 | 病名マスタ変更後の既存カルテへの影響 | OK | 既存カルテ参照の表示確認 |
 
 ### 14.17 薬品マスタ詳細管理テスト
