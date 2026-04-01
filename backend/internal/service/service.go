@@ -63,7 +63,7 @@ func NewServices(repos *repository.Repositories) *Services {
 		Auth:                   NewAuthService(repos.Auth, repos.UserAccount),
 		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies),
 		Owner:                  NewOwnerService(repos.Owner),
-		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance),
+		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
 		Reservation:            NewReservationService(repos.Reservation),
 		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet),
 		Hospitalization:        NewHospitalizationService(repos),

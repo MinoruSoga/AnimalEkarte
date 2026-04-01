@@ -16,6 +16,7 @@ type MedicalRecordRepository interface {
 	Create(ctx context.Context, record *model.MedicalRecord) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
 }
 
 type medicalRecordRepository struct {
@@ -103,4 +104,17 @@ func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint6
 		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountByPetID は指定されたペットに関連するカルテ数を返す
+func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.MedicalRecord{}).
+		Where("clinic_id = ? AND pet_id = ?", clinicID, petID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.Wrap(err, "count medical records by pet")
+	}
+	return count, nil
 }

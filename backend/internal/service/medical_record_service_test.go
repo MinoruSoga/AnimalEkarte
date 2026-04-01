@@ -19,6 +19,7 @@ type mockMedicalRecordRepository struct {
 	createFn       func(ctx context.Context, record *model.MedicalRecord) error
 	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
+	countByPetIDFn func(ctx context.Context, clinicID, petID uint64) (int64, error)
 }
 
 func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -42,6 +43,13 @@ func (m *mockMedicalRecordRepository) UpdateFields(ctx context.Context, clinicID
 
 func (m *mockMedicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockMedicalRecordRepository) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
+	if m.countByPetIDFn != nil {
+		return m.countByPetIDFn(ctx, clinicID, petID)
+	}
+	return 0, nil
 }
 
 // mrMockOwnerRepo は MedicalRecord テスト用 OwnerRepository モック（FindByID のみ）
