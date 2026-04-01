@@ -56,7 +56,7 @@ func (s *insuranceService) Delete(ctx context.Context, id uint64) error {
 		return apperrors.Wrap(err, "failed to check insurance dependencies")
 	}
 	if count > 0 {
-		return apperrors.WrapAlreadyExists("insurance", "この保険はペット情報で使用中のため削除できません")
+		return apperrors.WrapConflict("この保険はペット情報で使用中のため削除できません")
 	}
 	slog.InfoContext(ctx, "insurance deleted", slog.Uint64("insurance_id", id))
 	return s.repo.Delete(ctx, id)

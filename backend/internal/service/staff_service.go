@@ -162,14 +162,14 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
 		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}
 	if reservationExists {
-		return apperrors.WrapAlreadyExists("staff", "このスタッフはシフト・予約データで使用中のため削除できません")
+		return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
 	}
 	shiftExists, err := s.shiftEntryRepo.ExistsByStaffID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check shift dependency")
 	}
 	if shiftExists {
-		return apperrors.WrapAlreadyExists("staff", "このスタッフはシフト・予約データで使用中のため削除できません")
+		return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
 	}
 	return s.repo.Delete(ctx, clinicID, id)
 }
