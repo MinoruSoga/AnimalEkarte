@@ -16,6 +16,7 @@ type AccountingRepository interface {
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	CountItemsByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error)
 }
 
 type accountingRepository struct {
@@ -147,4 +148,17 @@ func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uint64) 
 		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *accountingRepository) CountItemsByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.BillingItem{}).
+		Joins("JOIN billings ON billing_items.billing_id = billings.id").
+		Where("billings.clinic_id = ? AND billing_items.billing_id = ?", clinicID, billingID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("billing_id=%d", billingID))
+	}
+	return count, nil
 }

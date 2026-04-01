@@ -14,11 +14,12 @@ import (
 
 // mockAccountingRepository は AccountingRepository のテスト用モック実装
 type mockAccountingRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
-	createFn       func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
-	updateFieldsFn func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
+	findAllFn               func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	findByIDFn              func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	createFn                func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
+	updateFieldsFn          func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	deleteFn                func(ctx context.Context, clinicID, id uint64) error
+	countItemsByBillingIDFn func(ctx context.Context, clinicID, billingID uint64) (int64, error)
 }
 
 func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
@@ -39,6 +40,13 @@ func (m *mockAccountingRepository) UpdateFields(ctx context.Context, clinicID, b
 
 func (m *mockAccountingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockAccountingRepository) CountItemsByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error) {
+	if m.countItemsByBillingIDFn == nil {
+		return 0, nil
+	}
+	return m.countItemsByBillingIDFn(ctx, clinicID, billingID)
 }
 
 func ptrString(v string) *string { return &v }
@@ -395,42 +403,72 @@ func TestAccountingService_Update(t *testing.T) {
 
 func TestAccountingService_Delete(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name         string
+		clinicID     uint64
+		id           uint64
+		itemCount    int64
+		countItemErr error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
-			name:     "deletes billing successfully",
-			clinicID: 1,
-			id:       10,
-			repoErr:  nil,
-			wantErr:  false,
-			wantNF:   false,
+			name:         "deletes billing successfully when no items exist",
+			clinicID:     1,
+			id:           10,
+			itemCount:    0,
+			countItemErr: nil,
+			repoErr:      nil,
+			wantErr:      false,
 		},
 		{
-			name:     "returns not found error when billing does not exist",
-			clinicID: 1,
-			id:       999,
-			repoErr:  apperrors.WrapNotFound("billing", "999"),
-			wantErr:  true,
-			wantNF:   true,
+			name:         "returns conflict error when billing has items",
+			clinicID:     1,
+			id:           10,
+			itemCount:    3,
+			countItemErr: nil,
+			repoErr:      nil,
+			wantErr:      true,
+			wantConflict: true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			id:       10,
-			repoErr:  errors.New("db error"),
-			wantErr:  true,
-			wantNF:   false,
+			name:         "returns error when item count check fails",
+			clinicID:     1,
+			id:           10,
+			itemCount:    0,
+			countItemErr: errors.New("db error"),
+			repoErr:      nil,
+			wantErr:      true,
+		},
+		{
+			name:         "returns not found error when billing does not exist",
+			clinicID:     1,
+			id:           999,
+			itemCount:    0,
+			countItemErr: nil,
+			repoErr:      apperrors.WrapNotFound("billing", "999"),
+			wantErr:      true,
+			wantNF:       true,
+		},
+		{
+			name:         "returns error on repository failure",
+			clinicID:     1,
+			id:           10,
+			itemCount:    0,
+			countItemErr: nil,
+			repoErr:      errors.New("db error"),
+			wantErr:      true,
+			wantNF:       false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockAccountingRepository{
+				countItemsByBillingIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.itemCount, tt.countItemErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -443,6 +481,9 @@ func TestAccountingService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)
