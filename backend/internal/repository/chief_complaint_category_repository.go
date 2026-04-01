@@ -52,7 +52,7 @@ func (r *chiefComplaintCategoryRepository) Create(ctx context.Context, category 
 	err := r.db.WithContext(ctx).Create(category).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("chief_complaint_category", category.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "chief_complaint_category", "")
 	}

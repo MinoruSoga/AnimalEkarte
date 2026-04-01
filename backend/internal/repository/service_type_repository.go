@@ -51,7 +51,7 @@ func (r *serviceTypeRepository) FindByID(ctx context.Context, clinicID, id uint6
 func (r *serviceTypeRepository) Create(ctx context.Context, serviceType *model.ServiceType) error {
 	if err := r.db.WithContext(ctx).Create(serviceType).Error; err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("service_type", serviceType.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.Wrap(err, "create service type")
 	}

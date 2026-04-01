@@ -46,6 +46,10 @@ func (m *mockConsultationRepository) Reorder(_ context.Context, _ uint64, _ []ui
 	return m.reorderErr
 }
 
+func (m *mockConsultationRepository) CountUsageByConsultationID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- Tests ----
 
 func TestConsultationService_List(t *testing.T) {

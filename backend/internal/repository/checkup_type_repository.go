@@ -51,7 +51,7 @@ func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.C
 	err := r.db.WithContext(ctx).Create(checkupType).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("checkup_type", checkupType.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "checkup_type", "")
 	}

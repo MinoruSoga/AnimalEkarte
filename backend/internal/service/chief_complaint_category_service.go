@@ -30,11 +30,12 @@ type ChiefComplaintCategoryService interface {
 }
 
 type chiefComplaintCategoryService struct {
-	repo repository.ChiefComplaintCategoryRepository
+	repo        repository.ChiefComplaintCategoryRepository
+	inquiryRepo repository.InquiryRepository
 }
 
-func NewChiefComplaintCategoryService(repo repository.ChiefComplaintCategoryRepository) ChiefComplaintCategoryService {
-	return &chiefComplaintCategoryService{repo: repo}
+func NewChiefComplaintCategoryService(repo repository.ChiefComplaintCategoryRepository, inquiryRepo repository.InquiryRepository) ChiefComplaintCategoryService {
+	return &chiefComplaintCategoryService{repo: repo, inquiryRepo: inquiryRepo}
 }
 
 func (s *chiefComplaintCategoryService) List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error) {
@@ -70,6 +71,14 @@ func (s *chiefComplaintCategoryService) Update(ctx context.Context, clinicID, id
 }
 
 func (s *chiefComplaintCategoryService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.inquiryRepo.CountByChiefComplaintCategoryID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check inquiry dependency")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この主訴カテゴリは問診記録で使用中のため削除できません")
+	}
+	slog.InfoContext(ctx, "chief complaint category deleted", slog.Uint64("category_id", id))
 	return s.repo.Delete(ctx, id)
 }
 

@@ -64,7 +64,7 @@ func (r *diagnosisCategoryRepository) Create(ctx context.Context, category *mode
 	err := r.db.WithContext(ctx).Create(category).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("diagnosis_category", category.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "diagnosis_category", "")
 	}
@@ -206,7 +206,7 @@ func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.Diagno
 	err := r.db.WithContext(ctx).Create(name).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("diagnosis_name", name.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "diagnosis_name", "")
 	}

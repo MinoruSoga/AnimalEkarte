@@ -50,7 +50,7 @@ func (r *cageRepository) FindByID(ctx context.Context, id uint64) (*model.Cage, 
 func (r *cageRepository) Create(ctx context.Context, cage *model.Cage) error {
 	if err := r.db.WithContext(ctx).Create(cage).Error; err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("cage", cage.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.Wrap(err, "create cage")
 	}

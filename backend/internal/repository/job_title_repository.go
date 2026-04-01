@@ -54,7 +54,7 @@ func (r *jobTitleRepository) Create(ctx context.Context, jobTitle *model.JobTitl
 	err := r.db.WithContext(ctx).Create(jobTitle).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("job_title", jobTitle.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "job_title", "")
 	}

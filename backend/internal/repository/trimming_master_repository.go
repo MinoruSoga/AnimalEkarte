@@ -49,7 +49,7 @@ func (r *trimmingCourseRepository) FindByID(ctx context.Context, id uint64) (*mo
 func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.TrimmingCourse) error {
 	if err := r.db.WithContext(ctx).Create(course).Error; err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("trimming_course", course.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.Wrap(err, "create trimming course")
 	}
@@ -150,7 +150,7 @@ func (r *trimmingOptionRepository) FindByID(ctx context.Context, id uint64) (*mo
 func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.TrimmingOption) error {
 	if err := r.db.WithContext(ctx).Create(option).Error; err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("trimming_option", option.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.Wrap(err, "create trimming option")
 	}

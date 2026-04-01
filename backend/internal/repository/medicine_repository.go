@@ -91,7 +91,7 @@ func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicin
 	err := r.db.WithContext(ctx).Create(medicine).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("medicine", medicine.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "medicine", "")
 	}

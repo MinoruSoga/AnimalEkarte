@@ -49,7 +49,7 @@ func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insur
 	err := r.db.WithContext(ctx).Create(insurance).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("insurance", insurance.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "insurance", "")
 	}

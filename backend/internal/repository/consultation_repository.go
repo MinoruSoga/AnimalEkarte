@@ -51,7 +51,7 @@ func (r *consultationRepository) Create(ctx context.Context, consultation *model
 	err := r.db.WithContext(ctx).Create(consultation).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("consultation", consultation.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "consultation", "")
 	}

@@ -44,6 +44,10 @@ func (m *mockCheckupTypeRepository) Reorder(ctx context.Context, clinicID uint64
 	return nil
 }
 
+func (m *mockCheckupTypeRepository) CountUsageByCheckupTypeID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func TestCheckupTypeService_List(t *testing.T) {
 	tests := []struct {
 		name     string

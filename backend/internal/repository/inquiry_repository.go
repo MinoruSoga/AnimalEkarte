@@ -12,6 +12,7 @@ import (
 // InquiryRepository は医療記録問診の永続化インターフェース
 type InquiryRepository interface {
 	UpsertByMedicalRecordID(ctx context.Context, inquiry *model.Inquiry) (*model.Inquiry, error)
+	CountByChiefComplaintCategoryID(ctx context.Context, categoryID uint64) (int64, error)
 }
 
 type inquiryRepository struct {
@@ -60,7 +61,7 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, inquiry
 		return nil, apperrors.Wrap(err, "upsert inquiry: update fields")
 	}
 
-	// 最新状態を返す
+	// 最新状態を返す（フィールドをローカル変数に反映）
 	existing.ChiefComplaint = inquiry.ChiefComplaint
 	existing.Notes = inquiry.Notes
 	existing.History = inquiry.History
@@ -76,4 +77,18 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, inquiry
 	existing.StaffID = inquiry.StaffID
 
 	return &existing, nil
+}
+
+// CountByChiefComplaintCategoryID は指定カテゴリIDを参照するInquiryの件数を返す。
+// Delete の FK チェックに使用する。
+func (r *inquiryRepository) CountByChiefComplaintCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Inquiry{}).
+		Where("chief_complaint_category_id = ?", categoryID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.Wrap(err, "count inquiries by chief_complaint_category_id")
+	}
+	return count, nil
 }

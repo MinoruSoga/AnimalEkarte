@@ -44,6 +44,10 @@ func (m *mockVaccineRepository) Reorder(ctx context.Context, clinicID uint64, id
 	return nil
 }
 
+func (m *mockVaccineRepository) CountUsageByVaccineID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func TestVaccineService_List(t *testing.T) {
 	dogSpecies := "dog"
 

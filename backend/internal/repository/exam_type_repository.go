@@ -51,7 +51,7 @@ func (r *examTypeRepository) Create(ctx context.Context, exType *model.Examinati
 	err := r.db.WithContext(ctx).Create(exType).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("examination_type", exType.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "examination_type", "")
 	}

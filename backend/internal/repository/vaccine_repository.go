@@ -51,7 +51,7 @@ func (r *vaccineRepository) FindByID(ctx context.Context, id uint64) (*model.Vac
 func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {
 	if err := r.db.WithContext(ctx).Create(vaccine).Error; err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("vaccine", vaccine.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.Wrap(err, "create vaccine")
 	}

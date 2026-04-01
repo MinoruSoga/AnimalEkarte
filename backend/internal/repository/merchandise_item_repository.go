@@ -67,7 +67,7 @@ func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id u
 func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.MerchandiseItem) error {
 	if err := r.db.WithContext(ctx).Create(item).Error; err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("merchandise_item", item.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.Wrap(err, "create merchandise item")
 	}

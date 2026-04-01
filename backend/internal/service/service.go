@@ -90,7 +90,7 @@ func NewServices(repos *repository.Repositories) *Services {
 		Examination:            NewExaminationService(repos.Examination),
 		Vaccination:            NewVaccinationService(repos.Vaccination),
 		JobTitle:               NewJobTitleService(repos.JobTitle),
-		ChiefComplaintCategory: NewChiefComplaintCategoryService(repos.ChiefComplaintCategory),
+		ChiefComplaintCategory: NewChiefComplaintCategoryService(repos.ChiefComplaintCategory, repos.Inquiry),
 		Inquiry:                NewInquiryService(repos.Inquiry),
 		InquiryTemplate:        NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                NewCompanyService(repos.Company),
