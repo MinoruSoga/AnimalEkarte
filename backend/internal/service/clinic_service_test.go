@@ -13,12 +13,14 @@ import (
 
 // mockClinicRepository は ClinicRepository のテスト用モック実装
 type mockClinicRepository struct {
-	findAllFn    func(ctx context.Context) ([]model.Clinic, error)
-	findByIDFn   func(ctx context.Context, id uint64) (*model.Clinic, error)
-	getCompanyFn func(ctx context.Context) (*model.Company, error)
-	createFn     func(ctx context.Context, clinic *model.Clinic) error
-	updateFn     func(ctx context.Context, id uint64, fields map[string]any) error
-	deleteFn     func(ctx context.Context, id uint64) error
+	findAllFn               func(ctx context.Context) ([]model.Clinic, error)
+	findByIDFn              func(ctx context.Context, id uint64) (*model.Clinic, error)
+	getCompanyFn            func(ctx context.Context) (*model.Company, error)
+	createFn                func(ctx context.Context, clinic *model.Clinic) error
+	updateFn                func(ctx context.Context, id uint64, fields map[string]any) error
+	deleteFn                func(ctx context.Context, id uint64) error
+	countOwnersByClinicIDFn func(ctx context.Context, clinicID uint64) (int64, error)
+	countStaffByClinicIDFn  func(ctx context.Context, clinicID uint64) (int64, error)
 }
 
 func (m *mockClinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) {
@@ -43,6 +45,20 @@ func (m *mockClinicRepository) Update(ctx context.Context, id uint64, fields map
 
 func (m *mockClinicRepository) Delete(ctx context.Context, id uint64) error {
 	return m.deleteFn(ctx, id)
+}
+
+func (m *mockClinicRepository) CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
+	if m.countOwnersByClinicIDFn == nil {
+		return 0, nil
+	}
+	return m.countOwnersByClinicIDFn(ctx, clinicID)
+}
+
+func (m *mockClinicRepository) CountStaffByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
+	if m.countStaffByClinicIDFn == nil {
+		return 0, nil
+	}
+	return m.countStaffByClinicIDFn(ctx, clinicID)
 }
 
 func TestClinicService_ListClinics(t *testing.T) {
@@ -320,36 +336,92 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 
 func TestClinicService_DeleteClinic(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name          string
+		id            uint64
+		ownerCount    int64
+		staffCount    int64
+		countOwnerErr error
+		countStaffErr error
+		repoErr       error
+		wantErr       bool
+		wantNF        bool
+		wantConflict  bool
 	}{
 		{
-			name:    "deletes clinic successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
+			name:          "deletes clinic successfully when no dependencies exist",
+			id:            1,
+			ownerCount:    0,
+			staffCount:    0,
+			countOwnerErr: nil,
+			countStaffErr: nil,
+			repoErr:       nil,
+			wantErr:       false,
 		},
 		{
-			name:    "returns not found error when clinic does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("clinic", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:          "returns conflict error when clinic has owners",
+			id:            1,
+			ownerCount:    5,
+			staffCount:    0,
+			countOwnerErr: nil,
+			countStaffErr: nil,
+			repoErr:       nil,
+			wantErr:       true,
+			wantConflict:  true,
 		},
 		{
-			name:    "returns error on repository failure",
-			id:      1,
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			name:          "returns conflict error when clinic has staff",
+			id:            1,
+			ownerCount:    0,
+			staffCount:    3,
+			countOwnerErr: nil,
+			countStaffErr: nil,
+			repoErr:       nil,
+			wantErr:       true,
+			wantConflict:  true,
+		},
+		{
+			name:          "returns conflict error when clinic has both owners and staff",
+			id:            1,
+			ownerCount:    5,
+			staffCount:    3,
+			countOwnerErr: nil,
+			countStaffErr: nil,
+			repoErr:       nil,
+			wantErr:       true,
+			wantConflict:  true,
+		},
+		{
+			name:          "returns error when owner count check fails",
+			id:            1,
+			ownerCount:    0,
+			staffCount:    0,
+			countOwnerErr: errors.New("db error"),
+			countStaffErr: nil,
+			repoErr:       nil,
+			wantErr:       true,
+		},
+		{
+			name:          "returns not found error when clinic does not exist",
+			id:            999,
+			ownerCount:    0,
+			staffCount:    0,
+			countOwnerErr: nil,
+			countStaffErr: nil,
+			repoErr:       apperrors.WrapNotFound("clinic", "999"),
+			wantErr:       true,
+			wantNF:        true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockClinicRepository{
+				countOwnersByClinicIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.ownerCount, tt.countOwnerErr
+				},
+				countStaffByClinicIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.staffCount, tt.countStaffErr
+				},
 				deleteFn: func(_ context.Context, _ uint64) error {
 					return tt.repoErr
 				},
@@ -362,6 +434,9 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

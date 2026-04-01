@@ -17,6 +17,8 @@ type ClinicRepository interface {
 	Create(ctx context.Context, clinic *model.Clinic) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
+	CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error)
+	CountStaffByClinicID(ctx context.Context, clinicID uint64) (int64, error)
 }
 
 type clinicRepository struct {
@@ -85,4 +87,28 @@ func (r *clinicRepository) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *clinicRepository) CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Owner{}).
+		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "owner", fmt.Sprintf("clinic_id=%d", clinicID))
+	}
+	return count, nil
+}
+
+func (r *clinicRepository) CountStaffByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Staff{}).
+		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "staff", fmt.Sprintf("clinic_id=%d", clinicID))
+	}
+	return count, nil
 }

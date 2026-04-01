@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"log/slog"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -147,8 +149,30 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 }
 
 func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
+	// FK依存チェック: クリニックに関連するオーナーが存在する場合は削除を拒否
+	ownerCount, err := s.repo.CountOwnersByClinicID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check owner dependencies")
+	}
+	if ownerCount > 0 {
+		return apperrors.WrapConflict("飼主が紐付いているため削除できません。先に飼主を削除してください")
+	}
+
+	// FK依存チェック: クリニックに関連するスタッフが存在する場合は削除を拒否
+	staffCount, err := s.repo.CountStaffByClinicID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check staff dependencies")
+	}
+	if staffCount > 0 {
+		return apperrors.WrapConflict("スタッフが紐付いているため削除できません。先にスタッフを削除してください")
+	}
+
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete clinic")
 	}
+
+	slog.InfoContext(ctx, "clinic deleted",
+		slog.Uint64("clinic_id", id))
+
 	return nil
 }
