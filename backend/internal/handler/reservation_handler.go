@@ -261,9 +261,17 @@ func (h *Handler) autoCreateMedicalRecord(ctx context.Context, clinicID uint64, 
 		return
 	}
 
-	// サブテーブル（inquiry, clinical_plan）を空レコードで作成
-	_, _ = h.svc.Inquiry.Upsert(ctx, service.UpsertInquiryInput{MedicalRecordID: record.ID})
-	_, _ = h.svc.ClinicalPlan.GetOrCreate(ctx, record.ID)
+	// サブテーブル（inquiry, clinical_plan）を空レコードで作成（best-effort）
+	if _, err := h.svc.Inquiry.Upsert(ctx, service.UpsertInquiryInput{MedicalRecordID: record.ID}); err != nil {
+		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to upsert inquiry",
+			slog.Uint64("medical_record_id", record.ID),
+			slog.String("error", err.Error()))
+	}
+	if _, err := h.svc.ClinicalPlan.GetOrCreate(ctx, record.ID); err != nil {
+		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to get or create clinical plan",
+			slog.Uint64("medical_record_id", record.ID),
+			slog.String("error", err.Error()))
+	}
 }
 
 // DeleteReservation godoc

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -260,9 +261,11 @@ func (h *Handler) Logout(c *gin.Context) {
 		sameSite = http.SameSiteNoneMode
 	}
 
-	// リフレッシュトークンを無効化する
+	// リフレッシュトークンを無効化する（best-effort: 失敗してもログアウト処理は続行）
 	if rawRefreshToken, err := c.Cookie(refreshTokenCookieName); err == nil && rawRefreshToken != "" {
-		_ = h.svc.Auth.RevokeRefreshToken(ctx, rawRefreshToken)
+		if err := h.svc.Auth.RevokeRefreshToken(ctx, rawRefreshToken); err != nil {
+			slog.WarnContext(ctx, "logout: failed to revoke refresh token", slog.String("error", err.Error()))
+		}
 	}
 
 	// アクセストークン Cookie をクリア

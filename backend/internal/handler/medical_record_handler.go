@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -165,17 +166,25 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 // フロントエンドはタブごとに PATCH で保存するため、サブテーブルが存在しない場合に 404 とならないよう
 // カルテ作成と同時に空レコードを用意する。失敗してもカルテ作成は完了済みのためエラーは握りつぶす。
 func (h *Handler) createSubRecords(ctx context.Context, recordID uint64, input *createMedicalRecordRequest) {
-	// 1. inquiry: フィールドの有無に関わらず常に upsert（空でも OK）
+	// 1. inquiry: フィールドの有無に関わらず常に upsert（空でも OK、best-effort）
 	inquiryInput := service.UpsertInquiryInput{
 		MedicalRecordID:          recordID,
 		ChiefComplaintCategoryID: input.ChiefComplaintCategoryID,
 		ChiefComplaint:           input.ChiefComplaint,
 		Notes:                    input.Notes,
 	}
-	_, _ = h.svc.Inquiry.Upsert(ctx, inquiryInput)
+	if _, err := h.svc.Inquiry.Upsert(ctx, inquiryInput); err != nil {
+		slog.WarnContext(ctx, "createSubRecords: failed to upsert inquiry",
+			slog.Uint64("medical_record_id", recordID),
+			slog.String("error", err.Error()))
+	}
 
-	// 2. clinical_plan: 常に GetOrCreate で空レコードを確保し、フィールドがあれば更新
-	_, _ = h.svc.ClinicalPlan.GetOrCreate(ctx, recordID)
+	// 2. clinical_plan: 常に GetOrCreate で空レコードを確保し、フィールドがあれば更新（best-effort）
+	if _, err := h.svc.ClinicalPlan.GetOrCreate(ctx, recordID); err != nil {
+		slog.WarnContext(ctx, "createSubRecords: failed to get or create clinical plan",
+			slog.Uint64("medical_record_id", recordID),
+			slog.String("error", err.Error()))
+	}
 	if input.Plan != nil || input.Assessment != nil || input.Diagnosis1CategoryID != nil || input.Diagnosis1NameID != nil {
 		clinicalPlanInput := &service.UpdateClinicalPlanInput{
 			TreatmentPolicy:      input.Plan,
@@ -185,7 +194,11 @@ func (h *Handler) createSubRecords(ctx context.Context, recordID uint64, input *
 			Diagnosis2CategoryID: input.Diagnosis2CategoryID,
 			Diagnosis2NameID:     input.Diagnosis2NameID,
 		}
-		_, _ = h.svc.ClinicalPlan.Update(ctx, recordID, clinicalPlanInput)
+		if _, err := h.svc.ClinicalPlan.Update(ctx, recordID, clinicalPlanInput); err != nil {
+			slog.WarnContext(ctx, "createSubRecords: failed to update clinical plan",
+				slog.Uint64("medical_record_id", recordID),
+				slog.String("error", err.Error()))
+		}
 	}
 }
 
