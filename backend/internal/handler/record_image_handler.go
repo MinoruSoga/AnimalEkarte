@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -238,8 +239,10 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 
 	image, err := h.svc.RecordImage.Create(c.Request.Context(), medicalRecordID, input)
 	if err != nil {
-		// Clean up saved file on service error
-		_ = os.Remove(storedPath)
+		// Clean up saved file on service error (non-fatal)
+		if removeErr := os.Remove(storedPath); removeErr != nil {
+			slog.WarnContext(c.Request.Context(), "failed to clean up uploaded file", "path", storedPath, "error", removeErr)
+		}
 		RespondError(c, err)
 		return
 	}

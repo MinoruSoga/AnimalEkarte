@@ -75,11 +75,11 @@ lint-fix:
 
 # テスト実行（Go）
 test:
-	docker compose exec backend go test -v ./...
+	docker compose exec backend go test -race -v ./...
 
 # テスト実行（カバレッジ付き）
 test-cover:
-	docker compose exec backend go test -cover ./...
+	docker compose exec backend go test -race -cover ./...
 
 # リンター実行（フロントエンド）
 lint-front:
