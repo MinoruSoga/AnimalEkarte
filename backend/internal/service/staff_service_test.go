@@ -478,36 +478,98 @@ func TestStaffService_Reorder(t *testing.T) {
 
 func TestStaffService_Delete(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name                string
+		clinicID            uint64
+		id                  uint64
+		reservationExists   bool
+		shiftExists         bool
+		checkReservationErr error
+		checkShiftErr       error
+		repoErr             error
+		wantErr             bool
+		wantNF              bool
+		wantConflict        bool
 	}{
 		{
-			name:     "deletes staff successfully",
-			clinicID: 1,
-			id:       10,
-			repoErr:  nil,
-			wantErr:  false,
-			wantNF:   false,
+			name:                "deletes staff successfully when no dependencies exist",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   false,
+			shiftExists:         false,
+			checkReservationErr: nil,
+			checkShiftErr:       nil,
+			repoErr:             nil,
+			wantErr:             false,
 		},
 		{
-			name:     "returns not found error when staff does not exist",
-			clinicID: 1,
-			id:       999,
-			repoErr:  apperrors.WrapNotFound("staff", "999"),
-			wantErr:  true,
-			wantNF:   true,
+			name:                "returns conflict error when staff has reservations",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   true,
+			shiftExists:         false,
+			checkReservationErr: nil,
+			checkShiftErr:       nil,
+			repoErr:             nil,
+			wantErr:             true,
+			wantConflict:        true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			id:       10,
-			repoErr:  errors.New("db error"),
-			wantErr:  true,
-			wantNF:   false,
+			name:                "returns conflict error when staff has shift entries",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   false,
+			shiftExists:         true,
+			checkReservationErr: nil,
+			checkShiftErr:       nil,
+			repoErr:             nil,
+			wantErr:             true,
+			wantConflict:        true,
+		},
+		{
+			name:                "returns conflict error when staff has both reservations and shifts",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   true,
+			shiftExists:         true,
+			checkReservationErr: nil,
+			checkShiftErr:       nil,
+			repoErr:             nil,
+			wantErr:             true,
+			wantConflict:        true,
+		},
+		{
+			name:                "returns error when reservation check fails",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   false,
+			shiftExists:         false,
+			checkReservationErr: errors.New("db error"),
+			checkShiftErr:       nil,
+			repoErr:             nil,
+			wantErr:             true,
+		},
+		{
+			name:                "returns error when shift check fails",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   false,
+			shiftExists:         false,
+			checkReservationErr: nil,
+			checkShiftErr:       errors.New("db error"),
+			repoErr:             nil,
+			wantErr:             true,
+		},
+		{
+			name:                "returns not found error when staff does not exist",
+			clinicID:            1,
+			id:                  999,
+			reservationExists:   false,
+			shiftExists:         false,
+			checkReservationErr: nil,
+			checkShiftErr:       nil,
+			repoErr:             apperrors.WrapNotFound("staff", "999"),
+			wantErr:             true,
+			wantNF:              true,
 		},
 	}
 
@@ -518,7 +580,17 @@ func TestStaffService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := newTestStaffService(repo)
+			reservationRepo := &mockReservationForStaff{
+				existsByStaffIDFn: func(_ context.Context, _ uint64) (bool, error) {
+					return tt.reservationExists, tt.checkReservationErr
+				},
+			}
+			shiftRepo := &mockShiftEntryForStaff{
+				existsByStaffIDFn: func(_ context.Context, _ uint64) (bool, error) {
+					return tt.shiftExists, tt.checkShiftErr
+				},
+			}
+			svc := NewStaffService(repo, reservationRepo, shiftRepo)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -526,6 +598,9 @@ func TestStaffService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)
