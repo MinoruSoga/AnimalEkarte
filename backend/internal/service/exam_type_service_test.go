@@ -13,11 +13,12 @@ import (
 
 // mockExamTypeRepository は ExamTypeRepository のテスト用モック実装
 type mockExamTypeRepository struct {
-	findAllFn      func(ctx context.Context) ([]model.ExaminationType, error)
-	findByIDFn     func(ctx context.Context, id uint64) (*model.ExaminationType, error)
-	createFn       func(ctx context.Context, exType *model.ExaminationType) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
-	deleteFn       func(ctx context.Context, id uint64) error
+	findAllFn                func(ctx context.Context) ([]model.ExaminationType, error)
+	findByIDFn               func(ctx context.Context, id uint64) (*model.ExaminationType, error)
+	createFn                 func(ctx context.Context, exType *model.ExaminationType) error
+	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
+	deleteFn                 func(ctx context.Context, id uint64) error
+	countUsageByExamTypeIDFn func(ctx context.Context, examTypeID uint64) (int64, error)
 }
 
 func (m *mockExamTypeRepository) FindAll(ctx context.Context) ([]model.ExaminationType, error) {
@@ -48,8 +49,11 @@ func (m *mockExamTypeRepository) Reorder(ctx context.Context, clinicID uint64, i
 	return nil
 }
 
-func (m *mockExamTypeRepository) CountUsageByExamTypeID(_ context.Context, _ uint64) (int64, error) {
-	return 0, nil
+func (m *mockExamTypeRepository) CountUsageByExamTypeID(ctx context.Context, examTypeID uint64) (int64, error) {
+	if m.countUsageByExamTypeIDFn == nil {
+		return 0, nil
+	}
+	return m.countUsageByExamTypeIDFn(ctx, examTypeID)
 }
 
 func TestExamTypeService_List(t *testing.T) {
@@ -309,38 +313,65 @@ func TestExamTypeService_Update(t *testing.T) {
 
 func TestExamTypeService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name          string
+		id            uint64
+		usageCount    int64
+		countUsageErr error
+		repoErr       error
+		wantErr       bool
+		wantNF        bool
+		wantConflict  bool
 	}{
 		{
-			name:    "deletes exam type successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
-			wantNF:  false,
+			name:          "deletes exam type successfully when no exams use it",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       nil,
+			wantErr:       false,
 		},
 		{
-			name:    "returns not found error when exam type does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("exam_type", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:          "returns conflict error when exam type is used in exam records",
+			id:            1,
+			usageCount:    4,
+			countUsageErr: nil,
+			repoErr:       nil,
+			wantErr:       true,
+			wantConflict:  true,
 		},
 		{
-			name:    "returns error on repository failure",
-			id:      1,
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			name:          "returns error when usage count check fails",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: errors.New("db error"),
+			repoErr:       nil,
+			wantErr:       true,
+		},
+		{
+			name:          "returns not found error when exam type does not exist",
+			id:            999,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       apperrors.WrapNotFound("exam_type", "999"),
+			wantErr:       true,
+			wantNF:        true,
+		},
+		{
+			name:          "returns error on repository failure",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       errors.New("db error"),
+			wantErr:       true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
+				countUsageByExamTypeIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.usageCount, tt.countUsageErr
+				},
 				deleteFn: func(_ context.Context, _ uint64) error {
 					return tt.repoErr
 				},
@@ -353,6 +384,9 @@ func TestExamTypeService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)
