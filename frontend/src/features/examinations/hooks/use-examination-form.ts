@@ -70,7 +70,9 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
   // useActionState の stale closure 対策: 最新の formDataWithPet を ref で保持
   // (use-medical-record-form.ts の activeTabRef と同じパターン)
   const formDataWithPetRef = useRef(formDataWithPet);
-  formDataWithPetRef.current = formDataWithPet;
+  useEffect(() => {
+    formDataWithPetRef.current = formDataWithPet;
+  });
 
   /**
    * React 19 useActionState を使用したフォームアクション
