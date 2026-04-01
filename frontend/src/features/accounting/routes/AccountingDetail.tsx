@@ -285,6 +285,16 @@ const ItemListCard = memo(function ItemListCard({
                   disabled={!manualName.trim() || !manualPrice}
                   onClick={() => {
                     if (!manualName.trim() || !manualPrice) return;
+                    // BUG-072: 金額の範囲チェック（負の値・上限超過）
+                    const priceNum = parseInt(manualPrice, 10);
+                    if (isNaN(priceNum) || priceNum < 0) {
+                      toast.error("単価は0以上の整数で入力してください");
+                      return;
+                    }
+                    if (priceNum > 999999999) {
+                      toast.error("単価は999,999,999円以下で入力してください");
+                      return;
+                    }
                     onAddItem(manualName.trim(), manualPrice, "other");
                     setManualName("");
                     setManualPrice("");

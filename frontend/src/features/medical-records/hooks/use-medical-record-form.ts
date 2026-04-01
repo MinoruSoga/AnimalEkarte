@@ -183,18 +183,16 @@ export function useMedicalRecordForm(recordId?: string) {
               toast.error("診断名を選択してください");
               return { success: false, fieldErrors: diagError, timestamp: Date.now() };
             }
+            // BUG-102: DEFAULT値でも常に送信する（undefined を送ると BE が 400 を返す）
             const treatmentPlanPayload = {
-              treatment_policy: plan !== DEFAULT_PLAN ? plan : undefined,
-              diagnosis_details: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
+              treatment_policy: plan,
+              diagnosis_details: assessment,
               diagnosis_category_id: diagnosis1CategoryId ?? undefined,
               diagnosis_name_id: diagnosis1NameId ?? undefined,
               diagnosis_2_category_id: diagnosis2CategoryId ?? undefined,
               diagnosis_2_name_id: diagnosis2NameId ?? undefined,
             };
-            const hasTreatmentPlanField = Object.values(treatmentPlanPayload).some(v => v !== undefined);
-            if (hasTreatmentPlanField) {
-              await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
-            }
+            await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
             break;
           }
 
