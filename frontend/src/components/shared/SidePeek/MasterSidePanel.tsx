@@ -42,6 +42,15 @@ export function MasterSidePanel({
   children,
 }: MasterSidePanelProps) {
   // --- Focus Management (Accessibility) ---
+  // BUG-084: パネルが開いたとき（マウント時）にタイトル入力へ自動フォーカス
+  useEffect(() => {
+    const element = document.getElementById("master-title");
+    if (element) {
+      element.focus();
+    }
+  }, []);
+
+  // バリデーションエラー発生時もタイトルフィールドへフォーカス
   useEffect(() => {
     if (titleError) {
       const element = document.getElementById("master-title");
