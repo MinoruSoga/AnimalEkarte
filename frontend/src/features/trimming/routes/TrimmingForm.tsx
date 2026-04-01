@@ -397,8 +397,8 @@ export function TrimmingForm() {
   const { data: coursesRaw = [] } = useMasterItems("trimmingCourse");
   const { data: optionsRaw = [] } = useMasterItems("trimmingOption");
   const { data: staffItems = [] } = useMasterItems("staff");
-  const courses = coursesRaw.map((c) => ({ ...c, id: String(c.id) }));
-  const options = optionsRaw.map((o) => ({ ...o, id: String(o.id) }));
+  const courses = useMemo(() => coursesRaw.map((c) => ({ ...c, id: String(c.id) })), [coursesRaw]);
+  const options = useMemo(() => optionsRaw.map((o) => ({ ...o, id: String(o.id) })), [optionsRaw]);
 
   const {
     mode,

@@ -187,8 +187,14 @@ export function ExaminationForm() {
 
   const { data: examTypesRaw } = useMasterItems("examination");
   const { data: staffListRaw } = useMasterItems("staff");
-  const examTypes = examTypesRaw.map((t) => ({ id: String(t.id), name: t.name }));
-  const staffList = staffListRaw.map((s) => ({ id: String(s.id), name: s.name }));
+  const examTypes = useMemo(
+    () => examTypesRaw.map((t) => ({ id: String(t.id), name: t.name })),
+    [examTypesRaw],
+  );
+  const staffList = useMemo(
+    () => staffListRaw.map((s) => ({ id: String(s.id), name: s.name })),
+    [staffListRaw],
+  );
 
   const {
     formData,

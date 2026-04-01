@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/utils/format/number';
 import { calcLineItemAmount } from '@/utils/line-item-helpers';
@@ -24,7 +25,7 @@ interface EstimateLineItemsProps {
   totalAmount: number;
 }
 
-export function EstimateLineItems({
+export const EstimateLineItems = memo(function EstimateLineItems({
   items,
   subtotal,
   taxTotal,
@@ -32,6 +33,35 @@ export function EstimateLineItems({
   discountAmount,
   totalAmount,
 }: EstimateLineItemsProps) {
+  const sortedRows = useMemo(
+    () =>
+      items
+        .slice()
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((item, idx) => {
+          const { total: lineTotal } = calcLineItemAmount(item);
+          return (
+            <TableRow key={item.id} className={`text-sm ${C.text}`}>
+              <TableCell className={`${C.text40} py-2`}>{idx + 1}</TableCell>
+              <TableCell className="py-2">{item.name}</TableCell>
+              <TableCell className={`py-2 ${C.text60}`}>
+                {CATEGORY_LABELS[item.category] ?? item.category}
+              </TableCell>
+              <TableCell className="text-right font-mono py-2">{formatCurrency(item.unitPrice)}</TableCell>
+              <TableCell className="text-right py-2">{item.quantity}</TableCell>
+              <TableCell className="text-right py-2">{Math.round(item.taxRate * 100)}%</TableCell>
+              <TableCell className="text-right py-2">
+                {item.discountAmount > 0 ? `-${formatCurrency(item.discountAmount)}` : '-'}
+              </TableCell>
+              <TableCell className="text-right font-mono font-medium py-2">
+                {formatCurrency(lineTotal)}
+              </TableCell>
+            </TableRow>
+          );
+        }),
+    [items],
+  );
+
   return (
     <div className="space-y-3">
       <Table>
@@ -55,30 +85,7 @@ export function EstimateLineItems({
               </TableCell>
             </TableRow>
           ) : (
-            items
-              .slice()
-              .sort((a, b) => a.sortOrder - b.sortOrder)
-              .map((item, idx) => {
-                const { total: lineTotal } = calcLineItemAmount(item);
-                return (
-                  <TableRow key={item.id} className={`text-sm ${C.text}`}>
-                    <TableCell className={`${C.text40} py-2`}>{idx + 1}</TableCell>
-                    <TableCell className="py-2">{item.name}</TableCell>
-                    <TableCell className={`py-2 ${C.text60}`}>
-                      {CATEGORY_LABELS[item.category] ?? item.category}
-                    </TableCell>
-                    <TableCell className="text-right font-mono py-2">{formatCurrency(item.unitPrice)}</TableCell>
-                    <TableCell className="text-right py-2">{item.quantity}</TableCell>
-                    <TableCell className="text-right py-2">{Math.round(item.taxRate * 100)}%</TableCell>
-                    <TableCell className="text-right py-2">
-                      {item.discountAmount > 0 ? `-${formatCurrency(item.discountAmount)}` : '-'}
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-medium py-2">
-                      {formatCurrency(lineTotal)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+            sortedRows
           )}
         </TableBody>
       </Table>
@@ -114,4 +121,4 @@ export function EstimateLineItems({
       </div>
     </div>
   );
-}
+});

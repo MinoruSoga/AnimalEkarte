@@ -151,6 +151,76 @@ const ItemListCard = memo(function ItemListCard({
     [onAddItem],
   );
 
+  const itemRows = useMemo(
+    () =>
+      items.map((item) => (
+        <TableRow key={item.id} className="h-12">
+          <TableCell>
+            <Badge variant="outline" className="font-normal text-xs">
+              {CATEGORY_LABELS[item.category as ItemCategory] ?? "その他"}
+            </Badge>
+          </TableCell>
+          <TableCell className="font-medium">
+            {item.name}
+            {item.source === "medical_record" ? (
+              <span className="ml-2 text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                カルテ連携
+              </span>
+            ) : null}
+          </TableCell>
+          <TableCell className="text-right">
+            ¥{item.unitPrice.toLocaleString()}
+          </TableCell>
+          <TableCell className="text-center">
+            <div className="flex items-center justify-center gap-2">
+              {item.quantity}
+            </div>
+          </TableCell>
+          <TableCell className="text-center">
+            {billingId !== undefined && onUpdateItemTax !== undefined ? (
+              <TaxTypeSelector
+                value={item.taxType}
+                onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
+              />
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                {item.taxType === "excluded" ? "外税" : item.taxType === "included" ? "内税" : "非課税"}
+              </span>
+            )}
+          </TableCell>
+          <TableCell className="text-center">
+            {billingId !== undefined && onUpdateItemTax !== undefined ? (
+              <TaxRateSelector
+                value={item.taxRate}
+                onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
+              />
+            ) : (
+              <span className="text-sm text-muted-foreground">{Math.round(item.taxRate * 100)}%</span>
+            )}
+          </TableCell>
+          <TableCell className="text-right font-mono text-sm">
+            ¥{item.taxAmount.toLocaleString()}
+          </TableCell>
+          <TableCell className="text-center">
+            {item.isInsuranceApplicable ? (
+              <span className="text-green-600 font-bold text-xs">●</span>
+            ) : (
+              <span className="text-gray-300 text-xs">-</span>
+            )}
+          </TableCell>
+          <TableCell className="text-right font-medium">
+            ¥{(item.subtotal + item.taxAmount).toLocaleString()}
+          </TableCell>
+          <TableCell>
+            {item.source === "manual" ? (
+              <DeleteIconButton onClick={() => onDeleteItem(item.id)} />
+            ) : null}
+          </TableCell>
+        </TableRow>
+      )),
+    [items, billingId, onDeleteItem, onUpdateItemTax],
+  );
+
   return (
     <Card className="flex-1 flex flex-col overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between py-4 border-b shrink-0">
@@ -325,71 +395,7 @@ const ItemListCard = memo(function ItemListCard({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((item) => (
-              <TableRow key={item.id} className="h-12">
-                <TableCell>
-                  <Badge variant="outline" className="font-normal text-xs">
-                    {CATEGORY_LABELS[item.category as ItemCategory] ?? "その他"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="font-medium">
-                  {item.name}
-                  {item.source === "medical_record" ? (
-                    <span className="ml-2 text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
-                      カルテ連携
-                    </span>
-                  ) : null}
-                </TableCell>
-                <TableCell className="text-right">
-                  ¥{item.unitPrice.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    {item.quantity}
-                  </div>
-                </TableCell>
-                <TableCell className="text-center">
-                  {billingId !== undefined && onUpdateItemTax !== undefined ? (
-                    <TaxTypeSelector
-                      value={item.taxType}
-                      onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
-                    />
-                  ) : (
-                    <span className="text-sm text-muted-foreground">
-                      {item.taxType === "excluded" ? "外税" : item.taxType === "included" ? "内税" : "非課税"}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="text-center">
-                  {billingId !== undefined && onUpdateItemTax !== undefined ? (
-                    <TaxRateSelector
-                      value={item.taxRate}
-                      onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
-                    />
-                  ) : (
-                    <span className="text-sm text-muted-foreground">{Math.round(item.taxRate * 100)}%</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  ¥{item.taxAmount.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-center">
-                  {item.isInsuranceApplicable ? (
-                    <span className="text-green-600 font-bold text-xs">●</span>
-                  ) : (
-                    <span className="text-gray-300 text-xs">-</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  ¥{(item.subtotal + item.taxAmount).toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  {item.source === "manual" ? (
-                    <DeleteIconButton onClick={() => onDeleteItem(item.id)} />
-                  ) : null}
-                </TableCell>
-              </TableRow>
-            ))}
+            {itemRows}
           </TableBody>
         </Table>
       </CardContent>
@@ -627,6 +633,7 @@ const RefundSection = memo(function RefundSection({
     setRefundAmount("");
     setRefundReason("");
   }, [refundAmount, refundReason, onRefund]);
+
 
   return (
     <Card>
