@@ -51,6 +51,13 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	return checkupType, nil
 }
 func (s *checkupTypeService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.repo.CountUsageByCheckupTypeID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check checkup type dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この定期健診種別は健診記録で使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, id)
 }
 

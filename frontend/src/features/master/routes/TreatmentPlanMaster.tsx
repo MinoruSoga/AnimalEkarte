@@ -18,6 +18,7 @@ import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Radix UI Tabs (primitive — same as DiagnosisSettings)
 import * as TabsPrimitive from "@radix-ui/react-tabs";
@@ -369,7 +370,7 @@ function TreatmentTabContent({
         handleClose();
         toast.success("削除しました");
       },
-      onError: () => toast.error("削除に失敗しました"),
+      onError: (error) => handleApiError(error, "削除"),
     });
   }, [pendingDelete, onDelete, handleClose, onPendingDeleteChange]);
 

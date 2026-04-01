@@ -49,6 +49,13 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	return exType, nil
 }
 func (s *examTypeService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.repo.CountUsageByExamTypeID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check exam type dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この検査種別は検査記録で使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, id)
 }
 

@@ -20,6 +20,7 @@ type ExamTypeRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountUsageByExamTypeID(ctx context.Context, examTypeID uint64) (int64, error)
 }
 
 type examTypeRepository struct{ db *gorm.DB }
@@ -101,4 +102,16 @@ func (r *examTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 		return apperrors.Wrap(err, "reorder examination type")
 	}
 	return nil
+}
+
+// CountUsageByExamTypeID は検査種別を参照している examination_records の件数を返す（BUG-107）
+func (r *examTypeRepository) CountUsageByExamTypeID(ctx context.Context, examTypeID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Examination{}).
+		Where("exam_type_id = ?", examTypeID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "examination_record", "")
+	}
+	return count, nil
 }

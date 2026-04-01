@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import { Shield } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton/RowActionButton";
@@ -315,8 +316,8 @@ export function PermissionGroupSettings() {
       try {
         await deleteMutation.mutateAsync(pendingDelete.id);
         toast.success("権限グループを削除しました");
-      } catch {
-        toast.error("削除に失敗しました");
+      } catch (error) {
+        handleApiError(error, "権限グループの削除");
       } finally {
         setPendingDelete(null);
       }

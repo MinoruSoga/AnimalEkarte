@@ -20,6 +20,7 @@ type CheckupTypeRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountUsageByCheckupTypeID(ctx context.Context, checkupTypeID uint64) (int64, error)
 }
 
 type checkupTypeRepository struct{ db *gorm.DB }
@@ -101,4 +102,16 @@ func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, id
 		return apperrors.Wrap(err, "reorder checkup type")
 	}
 	return nil
+}
+
+// CountUsageByCheckupTypeID は定期健診種別を参照している checkup_records の件数を返す（BUG-107）
+func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, checkupTypeID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Checkup{}).
+		Where("checkup_type_id = ?", checkupTypeID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "checkup_record", "")
+	}
+	return count, nil
 }
