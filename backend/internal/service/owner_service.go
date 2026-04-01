@@ -144,6 +144,21 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	}
 	input.OwnerName = strings.TrimSpace(input.OwnerName)
 
+	// メールアドレス形式バリデーション（空でない場合）
+	if err := validateEmailFormat(input.Email); err != nil {
+		return nil, err
+	}
+
+	// 電話番号形式バリデーション（空でない場合）
+	if err := validatePhoneFormat(input.Phone); err != nil {
+		return nil, err
+	}
+
+	// 郵便番号形式バリデーション（空でない場合）
+	if err := validatePostalCodeFormat(input.PostalCode); err != nil {
+		return nil, err
+	}
+
 	// ビジネスルールバリデーション
 	if err := validateDiscountRate(input.DiscountRate); err != nil {
 		return nil, err
@@ -268,6 +283,27 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		}
 		trimmed := strings.TrimSpace(*input.OwnerName)
 		input.OwnerName = &trimmed
+	}
+
+	// メールアドレス形式バリデーション（指定されている場合）
+	if input.Email != nil {
+		if err := validateEmailFormat(*input.Email); err != nil {
+			return nil, err
+		}
+	}
+
+	// 電話番号形式バリデーション（指定されている場合）
+	if input.Phone != nil {
+		if err := validatePhoneFormat(*input.Phone); err != nil {
+			return nil, err
+		}
+	}
+
+	// 郵便番号形式バリデーション（指定されている場合）
+	if input.PostalCode != nil {
+		if err := validatePostalCodeFormat(*input.PostalCode); err != nil {
+			return nil, err
+		}
 	}
 
 	// ビジネスルールバリデーション
