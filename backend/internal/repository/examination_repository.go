@@ -16,6 +16,7 @@ type ExaminationRepository interface {
 	Create(ctx context.Context, exam *model.Examination) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	CountItemsByExamID(ctx context.Context, clinicID, examID uint64) (int64, error)
 }
 
 type examinationRepository struct {
@@ -107,4 +108,17 @@ func (r *examinationRepository) Delete(ctx context.Context, clinicID, id uint64)
 		return apperrors.WrapNotFound("exam", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *examinationRepository) CountItemsByExamID(ctx context.Context, clinicID, examID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.ExaminationItem{}).
+		Joins("JOIN exams ON exam_items.exam_id = exams.id").
+		Where("exams.clinic_id = ? AND exam_items.exam_id = ?", clinicID, examID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "exam_item", fmt.Sprintf("exam_id=%d", examID))
+	}
+	return count, nil
 }

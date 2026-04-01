@@ -60,7 +60,24 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 }
 
 func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return s.repo.Delete(ctx, clinicID, id)
+	// FK依存チェック: 検査に紐付く検査明細が存在する場合は削除を拒否
+	itemCount, err := s.repo.CountItemsByExamID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check examination item dependencies")
+	}
+	if itemCount > 0 {
+		return apperrors.WrapConflict("検査結果が紐付いているため削除できません。先に検査結果を削除してください")
+	}
+
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete examination")
+	}
+
+	slog.InfoContext(ctx, "examination deleted",
+		slog.Uint64("examination_id", id),
+		slog.Uint64("clinic_id", clinicID))
+
+	return nil
 }
 
 // UpdateExaminationInput は検査更新のサービス入力 DTO
