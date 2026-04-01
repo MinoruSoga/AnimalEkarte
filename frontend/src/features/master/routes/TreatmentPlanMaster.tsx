@@ -101,7 +101,7 @@ type TreatmentFormData = {
 
 type MutateCallbacks = {
   onSuccess: () => void;
-  onError: () => void;
+  onError: (error?: unknown) => void;
 };
 
 interface TreatmentTabConfig {
@@ -544,7 +544,7 @@ export function TreatmentPlanMaster() {
             tax_type: data.taxType,
             tax_rate: data.taxRate,
           },
-          { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
+          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
         ),
       onUpdate: (id, data, cb) =>
         updateConsultation.mutate(
@@ -559,12 +559,12 @@ export function TreatmentPlanMaster() {
               tax_rate: data.taxRate,
             },
           },
-          { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
+          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
         ),
       onDelete: (id, cb) =>
         deleteConsultation.mutate(id, {
           onSuccess: () => cb.onSuccess(),
-          onError: () => cb.onError(),
+          onError: (error) => cb.onError(error),
         }),
       onReorder: (ids) => reorderConsultations.mutate({ ids }),
     },
@@ -582,7 +582,7 @@ export function TreatmentPlanMaster() {
             description: data.description || undefined,
             is_active: data.isActive,
           },
-          { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
+          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
         ),
       onUpdate: (id, data, cb) =>
         updateExamination.mutate(
@@ -595,12 +595,12 @@ export function TreatmentPlanMaster() {
               is_active: data.isActive,
             },
           },
-          { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
+          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
         ),
       onDelete: (id, cb) =>
         deleteExamination.mutate(id, {
           onSuccess: () => cb.onSuccess(),
-          onError: () => cb.onError(),
+          onError: (error) => cb.onError(error),
         }),
       onReorder: (ids) => reorderExaminations.mutate({ ids }),
     },
@@ -620,7 +620,7 @@ export function TreatmentPlanMaster() {
             tax_type: data.taxType,
             tax_rate: data.taxRate,
           },
-          { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
+          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
         ),
       onUpdate: (id, data, cb) =>
         updateProcedure.mutate(
@@ -635,12 +635,12 @@ export function TreatmentPlanMaster() {
               tax_rate: data.taxRate,
             },
           },
-          { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
+          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
         ),
       onDelete: (id, cb) =>
         deleteProcedure.mutate(id, {
           onSuccess: () => cb.onSuccess(),
-          onError: () => cb.onError(),
+          onError: (error) => cb.onError(error),
         }),
       onReorder: (ids) => reorderProcedures.mutate({ ids }),
     },
@@ -658,7 +658,7 @@ export function TreatmentPlanMaster() {
             description: data.description || undefined,
             is_active: data.isActive,
           },
-          { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
+          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
         ),
       onUpdate: (id, data, cb) =>
         updateVaccine.mutate(
@@ -671,12 +671,12 @@ export function TreatmentPlanMaster() {
               is_active: data.isActive,
             },
           },
-          { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
+          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
         ),
       onDelete: (id, cb) =>
         deleteVaccine.mutate(id, {
           onSuccess: () => cb.onSuccess(),
-          onError: () => cb.onError(),
+          onError: (error) => cb.onError(error),
         }),
       onReorder: (ids) => reorderVaccines.mutate({ ids }),
     },
@@ -694,7 +694,7 @@ export function TreatmentPlanMaster() {
             description: data.description || undefined,
             is_active: data.isActive,
           },
-          { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
+          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
         ),
       onUpdate: (id, data, cb) =>
         updateCheckup.mutate(
@@ -707,12 +707,12 @@ export function TreatmentPlanMaster() {
               is_active: data.isActive,
             },
           },
-          { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
+          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
         ),
       onDelete: (id, cb) =>
         deleteCheckup.mutate(id, {
           onSuccess: () => cb.onSuccess(),
-          onError: () => cb.onError(),
+          onError: (error) => cb.onError(error),
         }),
       onReorder: (ids) => reorderCheckups.mutate({ ids }),
     },
