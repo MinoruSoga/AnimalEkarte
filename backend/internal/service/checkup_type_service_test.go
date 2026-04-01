@@ -13,11 +13,12 @@ import (
 
 // mockCheckupTypeRepository は CheckupTypeRepository のテスト用モック実装
 type mockCheckupTypeRepository struct {
-	findAllFn      func(ctx context.Context) ([]model.CheckupType, error)
-	findByIDFn     func(ctx context.Context, id uint64) (*model.CheckupType, error)
-	createFn       func(ctx context.Context, checkupType *model.CheckupType) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
-	deleteFn       func(ctx context.Context, id uint64) error
+	findAllFn                   func(ctx context.Context) ([]model.CheckupType, error)
+	findByIDFn                  func(ctx context.Context, id uint64) (*model.CheckupType, error)
+	createFn                    func(ctx context.Context, checkupType *model.CheckupType) error
+	updateFieldsFn              func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
+	deleteFn                    func(ctx context.Context, id uint64) error
+	countUsageByCheckupTypeIDFn func(ctx context.Context, checkupTypeID uint64) (int64, error)
 }
 
 func (m *mockCheckupTypeRepository) FindAll(ctx context.Context) ([]model.CheckupType, error) {
@@ -44,8 +45,11 @@ func (m *mockCheckupTypeRepository) Reorder(ctx context.Context, clinicID uint64
 	return nil
 }
 
-func (m *mockCheckupTypeRepository) CountUsageByCheckupTypeID(_ context.Context, _ uint64) (int64, error) {
-	return 0, nil
+func (m *mockCheckupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, checkupTypeID uint64) (int64, error) {
+	if m.countUsageByCheckupTypeIDFn == nil {
+		return 0, nil
+	}
+	return m.countUsageByCheckupTypeIDFn(ctx, checkupTypeID)
 }
 
 func TestCheckupTypeService_List(t *testing.T) {
@@ -292,38 +296,65 @@ func TestCheckupTypeService_Update(t *testing.T) {
 
 func TestCheckupTypeService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name          string
+		id            uint64
+		usageCount    int64
+		countUsageErr error
+		repoErr       error
+		wantErr       bool
+		wantNF        bool
+		wantConflict  bool
 	}{
 		{
-			name:    "deletes checkup type successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
-			wantNF:  false,
+			name:          "deletes checkup type successfully when no checkups use it",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       nil,
+			wantErr:       false,
 		},
 		{
-			name:    "returns not found error when checkup type does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("checkup_type", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:          "returns conflict error when checkup type is used in checkup records",
+			id:            1,
+			usageCount:    3,
+			countUsageErr: nil,
+			repoErr:       nil,
+			wantErr:       true,
+			wantConflict:  true,
 		},
 		{
-			name:    "returns error on repository failure",
-			id:      1,
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			name:          "returns error when usage count check fails",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: errors.New("db error"),
+			repoErr:       nil,
+			wantErr:       true,
+		},
+		{
+			name:          "returns not found error when checkup type does not exist",
+			id:            999,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       apperrors.WrapNotFound("checkup_type", "999"),
+			wantErr:       true,
+			wantNF:        true,
+		},
+		{
+			name:          "returns error on repository failure",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       errors.New("db error"),
+			wantErr:       true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCheckupTypeRepository{
+				countUsageByCheckupTypeIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.usageCount, tt.countUsageErr
+				},
 				deleteFn: func(_ context.Context, _ uint64) error {
 					return tt.repoErr
 				},
@@ -336,6 +367,9 @@ func TestCheckupTypeService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)
