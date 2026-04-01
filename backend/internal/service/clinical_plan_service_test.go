@@ -160,7 +160,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:            "returns error when no fields provided",
+			name:            "returns current plan when no fields provided (no-op)",
 			medicalRecordID: 1,
 			input:           &UpdateClinicalPlanInput{},
 			repoFindPlan: &model.ClinicalPlan{
@@ -169,7 +169,11 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			},
 			repoFindErr:   nil,
 			repoUpdateErr: nil,
-			wantErr:       true,
+			repoReturnPlan: &model.ClinicalPlan{
+				ID:              1,
+				MedicalRecordID: 1,
+			},
+			wantErr: false,
 		},
 		{
 			name:            "returns error when update fails",

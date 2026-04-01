@@ -17,6 +17,7 @@ import (
 type MerchandiseItemRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
+	CountUsageByMerchandiseItemID(ctx context.Context, merchandiseItemID uint64) (int64, error)
 	Create(ctx context.Context, item *model.MerchandiseItem) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -112,6 +113,14 @@ func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64
 		return apperrors.Wrap(err, "reorder merchandise item")
 	}
 	return nil
+}
+
+// CountUsageByMerchandiseItemID は物販品目を参照している billing_items と estimate_items の件数の合計を返す（BUG-109）
+// 注意: 現在のスキーマでは billing_items/estimate_items は物販品目への FK を持たず、
+// 名称・価格をコピーして保持する設計のため、常に 0 を返す。
+// 将来 FK カラムが追加された際はここでカウントクエリを追加すること。
+func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
 }
 
 func (r *merchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
