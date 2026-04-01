@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 
 	"gorm.io/gorm"
 
@@ -26,9 +25,6 @@ func NewAuditRepository(db *gorm.DB) AuditRepository {
 
 func (r *auditRepository) Create(ctx context.Context, log *model.AuditLog) error {
 	if err := r.db.WithContext(ctx).Create(log).Error; err != nil {
-		slog.WarnContext(ctx, "audit log write failed",
-			slog.String("action", log.Action),
-			slog.String("error", err.Error()))
 		return err
 	}
 	return nil

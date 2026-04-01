@@ -63,7 +63,7 @@ func (s *billingReviewService) GetOrCreate(ctx context.Context, medicalRecordID 
 func (s *billingReviewService) Confirm(ctx context.Context, medicalRecordID uint64, input *ConfirmBillingReviewInput) (*model.BillingReview, error) {
 	review, err := s.GetOrCreate(ctx, medicalRecordID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to get or create billing review")
 	}
 	if review.Status == model.BillingReviewStatusConfirmed {
 		return nil, apperrors.WrapInvalidInput("billing review is already confirmed")
@@ -83,13 +83,17 @@ func (s *billingReviewService) Confirm(ctx context.Context, medicalRecordID uint
 		slog.Uint64("billing_review_id", review.ID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Uint64("confirmed_by", input.ConfirmedBy))
-	return s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	confirmed, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get confirmed billing review")
+	}
+	return confirmed, nil
 }
 
 func (s *billingReviewService) Return(ctx context.Context, medicalRecordID uint64, input *ReturnBillingReviewInput) (*model.BillingReview, error) {
 	review, err := s.GetOrCreate(ctx, medicalRecordID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to get or create billing review")
 	}
 
 	now := time.Now()
@@ -107,5 +111,9 @@ func (s *billingReviewService) Return(ctx context.Context, medicalRecordID uint6
 		slog.Uint64("billing_review_id", review.ID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Uint64("returned_by", input.ReturnedBy))
-	return s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	returned, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get returned billing review")
+	}
+	return returned, nil
 }

@@ -111,11 +111,19 @@ func NewPetService(
 }
 
 func (s *petService) List(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, ownerID, page, limit, search)
+	pets, total, err := s.repo.FindAll(ctx, clinicID, ownerID, page, limit, search)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list pets")
+	}
+	return pets, total, nil
 }
 
 func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	pet, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get pet")
+	}
+	return pet, nil
 }
 
 func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreatePetInput) (*model.Pet, error) {
@@ -270,7 +278,11 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		slog.Uint64("pet_id", id),
 		slog.Uint64("clinic_id", clinicID))
 
-	return s.repo.FindByID(ctx, clinicID, id)
+	pet, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get updated pet")
+	}
+	return pet, nil
 }
 
 // buildPetUpdateFields はポインタが非 nil のフィールドのみ map に追加する
@@ -341,5 +353,8 @@ func buildPetUpdateFields(input *UpdatePetInput) map[string]any {
 }
 
 func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete pet")
+	}
+	return nil
 }

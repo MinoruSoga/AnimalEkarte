@@ -94,11 +94,19 @@ func NewClinicService(repo repository.ClinicRepository) ClinicService {
 }
 
 func (s *clinicService) ListClinics(ctx context.Context) ([]model.Clinic, error) {
-	return s.repo.FindAll(ctx)
+	clinics, err := s.repo.FindAll(ctx)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list clinics")
+	}
+	return clinics, nil
 }
 
 func (s *clinicService) GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error) {
-	return s.repo.FindByID(ctx, id)
+	clinic, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get clinic")
+	}
+	return clinic, nil
 }
 
 func (s *clinicService) CreateClinic(ctx context.Context, clinic *model.Clinic) (*model.Clinic, error) {
@@ -117,19 +125,30 @@ func (s *clinicService) CreateClinic(ctx context.Context, clinic *model.Clinic) 
 func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) (*model.Clinic, error) {
 	// 存在確認（NotFound を早期返却）
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to find clinic for update")
 	}
 	fields := buildClinicUpdateFields(input)
 	if len(fields) == 0 {
-		return s.repo.FindByID(ctx, id)
+		clinic, err := s.repo.FindByID(ctx, id)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to get clinic")
+		}
+		return clinic, nil
 	}
 	if err := s.repo.Update(ctx, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update clinic")
 	}
 	// 更新後の完全なレコードを DB から取得して返す（created_at 等のサーバー管理フィールドを正しく反映）
-	return s.repo.FindByID(ctx, id)
+	updated, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get updated clinic")
+	}
+	return updated, nil
 }
 
 func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete clinic")
+	}
+	return nil
 }

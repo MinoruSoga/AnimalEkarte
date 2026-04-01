@@ -34,22 +34,23 @@ func NewPermissionGroupRepository(db *gorm.DB) PermissionGroupRepository {
 
 func (r *permissionGroupRepository) FindByCompanyID(ctx context.Context, companyID uint64) ([]model.PermissionGroup, error) {
 	var groups []model.PermissionGroup
-	err := r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Preload("Rules").
 		Where("company_id = ? AND deleted_at IS NULL", companyID).
 		Order("id ASC").
-		Find(&groups).Error
-	return groups, err
+		Find(&groups).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", companyID))
+	}
+	return groups, nil
 }
 
 func (r *permissionGroupRepository) FindByID(ctx context.Context, id uint64) (*model.PermissionGroup, error) {
 	var group model.PermissionGroup
-	err := r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Preload("Rules").
 		Where("id = ? AND deleted_at IS NULL", id).
-		First(&group).Error
-	if err != nil {
-		return nil, err
+		First(&group).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
 	}
 	return &group, nil
 }
@@ -66,16 +67,22 @@ func (r *permissionGroupRepository) Create(ctx context.Context, group *model.Per
 }
 
 func (r *permissionGroupRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]any) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Model(&model.PermissionGroup{}).
 		Where("id = ? AND deleted_at IS NULL", id).
-		Updates(fields).Error
+		Updates(fields).Error; err != nil {
+		return apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
+	}
+	return nil
 }
 
 func (r *permissionGroupRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("id = ? AND deleted_at IS NULL", id).
-		Delete(&model.PermissionGroup{}).Error
+		Delete(&model.PermissionGroup{}).Error; err != nil {
+		return apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
+	}
+	return nil
 }
 
 // SetRules はトランザクション内で既存ルールを全削除→新規一括挿入する

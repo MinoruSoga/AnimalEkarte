@@ -60,7 +60,7 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, medicalRecordID u
 func (s *clinicalPlanService) Update(ctx context.Context, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
 	plan, err := s.GetOrCreate(ctx, medicalRecordID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to get or create clinical plan")
 	}
 	fields := buildClinicalPlanUpdateFields(input)
 	if len(fields) == 0 {
@@ -72,7 +72,11 @@ func (s *clinicalPlanService) Update(ctx context.Context, medicalRecordID uint64
 	slog.InfoContext(ctx, "clinical_plan updated",
 		slog.Uint64("clinical_plan_id", plan.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-	return s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	updated, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get updated clinical plan")
+	}
+	return updated, nil
 }
 
 func (s *clinicalPlanService) Delete(ctx context.Context, medicalRecordID uint64) error {

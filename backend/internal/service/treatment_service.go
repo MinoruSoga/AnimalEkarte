@@ -88,7 +88,11 @@ func NewTreatmentService(repos *repository.Repositories) TreatmentService {
 }
 
 func (s *treatmentService) List(ctx context.Context, medicalRecordID uint64) ([]model.Treatment, error) {
-	return s.repos.Treatment.ListByMedicalRecordID(ctx, medicalRecordID)
+	treatments, err := s.repos.Treatment.ListByMedicalRecordID(ctx, medicalRecordID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list treatments")
+	}
+	return treatments, nil
 }
 
 func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error) {
@@ -163,7 +167,7 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create treatment")
 	}
 
 	slog.InfoContext(ctx, "treatment created with atomic inventory sync",
@@ -216,7 +220,11 @@ func (s *treatmentService) Update(ctx context.Context, medicalRecordID, treatmen
 		slog.Uint64("treatment_id", treatmentID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 
-	return s.repos.Treatment.FindByID(ctx, treatmentID)
+	treatment, err := s.repos.Treatment.FindByID(ctx, treatmentID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get updated treatment")
+	}
+	return treatment, nil
 }
 
 func (s *treatmentService) Delete(ctx context.Context, medicalRecordID, treatmentID uint64) error {
