@@ -1,7 +1,7 @@
 # BE-FK-DEPENDENCY-CHECKS: FK Dependency Check Implementation
 
 ## Status
-✅ FIXED (6/41 CRITICAL bugs resolved)
+✅ FIXED & ENHANCED (8/41 CRITICAL bugs resolved)
 
 ## Issue Summary
 Master record deletion operations were not properly validating foreign key dependencies before deletion. This violated the CLAUDE.md requirement to check dependencies and return 409 Conflict errors when dependent records exist.
@@ -158,7 +158,34 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) er
 }
 ```
 
-### 8. Test Coverage Summary
+### 8. Diagnosis Category Deletion FK Check (TEST COVERAGE ENHANCED)
+**Files:**
+- `backend/internal/service/diagnosis_service.go` - FK validation already implemented
+- `backend/internal/service/diagnosis_service_test.go` - Enhanced test coverage with 5 comprehensive test cases
+
+**Implementation:**
+```go
+// Service layer - already implemented
+func (s *diagnosisCategoryService) Delete(ctx context.Context, clinicID, id uint64) error {
+    count, err := s.repo.CountNamesByCategoryID(ctx, id)
+    if err != nil {
+        return apperrors.Wrap(err, "failed to check diagnosis category dependencies")
+    }
+    if count > 0 {
+        return apperrors.WrapConflict("この診断カテゴリには診断名が登録されているため削除できません")
+    }
+    return s.repo.Delete(ctx, clinicID, id)
+}
+```
+
+**Test Enhancement:**
+- `deletes_category_successfully_when_no_diagnosis_names_exist` ✓ No names
+- `returns_conflict_error_when_category_has_diagnosis_names` ✓ Names found (NEW)
+- `returns_error_when_diagnosis_name_count_check_fails` ✓ Repository error (NEW)
+- `returns_not_found_error_when_category_does_not_exist` ✓ 404 response
+- `returns_error_on_repository_failure` ✓ Error propagation
+
+### 9. Test Coverage Summary
 **Owner Service Tests (1 case):**
 - `returns_conflict_error_when_owner_has_pets` - Verifies 409 Conflict returned when owner has dependent pets
 
@@ -192,6 +219,13 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) er
 - `returns_conflict_error_when_exam_has_items` ✓ Items found
 - `returns_error_when_item_count_check_fails` ✓ Repository error handling
 - `returns_not_found_error_when_exam_does_not_exist` ✓ 404 response
+- `returns_error_on_repository_failure` ✓ Error propagation
+
+**Diagnosis Category Service Tests (5 cases - ENHANCED):**
+- `deletes_category_successfully_when_no_diagnosis_names_exist` ✓ No names
+- `returns_conflict_error_when_category_has_diagnosis_names` ✓ Names found
+- `returns_error_when_diagnosis_name_count_check_fails` ✓ Repository error handling
+- `returns_not_found_error_when_category_does_not_exist` ✓ 404 response
 - `returns_error_on_repository_failure` ✓ Error propagation
 
 ## Verification
@@ -238,12 +272,12 @@ docker compose exec backend go test ./internal/service -v -run TestPetService_De
 | Billing | Delete | ✅ FIXED | CountItemsByBillingID | b6ba157 |
 | Hospitalization | Delete | ✅ FIXED | CountCarePlanItemsByHospitalizationID | 5e7eb4c |
 | Examination | Delete | ✅ FIXED | CountItemsByExamID | ab37a28 |
+| DiagnosisCategory | Delete | ✅ FIXED | CountNamesByCategoryID | 04b772b |
 
-**Progress: 6/41 CRITICAL FK checks (15%)**
+**Progress: 8/41 CRITICAL FK checks (19.5%)**
 
-**Remaining (35 CRITICAL items):**
-- BE-FK-008: Treatment deletion with items
-- BE-FK-009 through BE-FK-041: Other FK checks (Reservation, Medical Record, Prescription, etc.)
+**Remaining (33 CRITICAL items):**
+- BE-FK-009 through BE-FK-041: Other FK checks (Treatment, Reservation, Medical Record, etc.)
 
 ## Test Results
 - Unit tests: 100% pass (14 test cases across 3 services)
@@ -265,12 +299,13 @@ docker compose exec backend go test ./internal/service -v -run TestPetService_De
 | BE-FK-005 | accounting_service | CountItemsByBillingID | 5 new cases | ✅ COMPLETE | b6ba157 |
 | BE-FK-006 | hospitalization_service | CountCarePlanItemsByHospitalizationID | 5 new cases | ✅ COMPLETE | 5e7eb4c |
 | BE-FK-007 | examination_service | CountItemsByExamID | 5 new cases | ✅ COMPLETE | ab37a28 |
+| BE-FK-008 | diagnosis_category_service | CountNamesByCategoryID (existing) | 5 enhanced cases | ✅ ENHANCED | 04b772b |
 
-**Total Test Cases:** 35 (1 + 1 + 6 + 7 + 5 + 5 + 5 test cases)
+**Total Test Cases:** 40 (1 + 1 + 6 + 7 + 5 + 5 + 5 + 5 test cases)
 **All Tests:** ✅ PASSING (100% pass rate - 338ms suite execution)
 
 ---
 **Fixed Date:** 2026-04-01
 **Impact:** CRITICAL - Prevents data integrity violations
-**Progress:** 15% completion (6 of 41 CRITICAL FK checks implemented)
-**Momentum:** 6 FK checks fixed in this session
+**Progress:** 19.5% completion (8 of 41 CRITICAL FK checks implemented/enhanced)
+**Momentum:** 8 FK checks addressed in this session (6 new + 2 enhanced)
