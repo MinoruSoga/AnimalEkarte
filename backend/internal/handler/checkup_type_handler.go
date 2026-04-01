@@ -48,7 +48,7 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 
 	var input createCheckupTypeRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -84,7 +84,7 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 	}
 	var input updateCheckupTypeRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -116,7 +116,7 @@ func (h *Handler) ReorderCheckupTypes(c *gin.Context) {
 	}
 	var req reorderCheckupTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.CheckupType.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

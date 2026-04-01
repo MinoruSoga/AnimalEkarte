@@ -52,7 +52,7 @@ func (h *Handler) CreateTrimmingCourse(c *gin.Context) {
 
 	var req createTrimmingCourseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -137,7 +137,7 @@ func (h *Handler) ReorderTrimmingCourses(c *gin.Context) {
 	}
 	var req reorderTrimmingCourseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.TrimmingCourse.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
@@ -187,7 +187,7 @@ func (h *Handler) CreateTrimmingOption(c *gin.Context) {
 
 	var req createTrimmingOptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -266,7 +266,7 @@ func (h *Handler) ReorderTrimmingOptions(c *gin.Context) {
 	}
 	var req reorderTrimmingOptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.TrimmingOption.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

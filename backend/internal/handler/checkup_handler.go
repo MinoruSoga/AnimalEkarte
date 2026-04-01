@@ -42,20 +42,20 @@ func (h *Handler) CreateCheckup(c *gin.Context) {
 
 	var req createCheckupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "date must be YYYY-MM-DD format"})
+		RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
 		return
 	}
 	var nextDate *time.Time
 	if req.NextDate != nil && *req.NextDate != "" {
 		nd, err2 := time.Parse("2006-01-02", *req.NextDate)
 		if err2 != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "next_date must be YYYY-MM-DD format"})
+			RespondError(c, apperrors.WrapInvalidInput("next_date must be YYYY-MM-DD format"))
 			return
 		}
 		nextDate = &nd
@@ -93,7 +93,7 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 
 	var req updateCheckupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -101,7 +101,7 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 	if req.Date != nil && *req.Date != "" {
 		d, err2 := time.Parse("2006-01-02", *req.Date)
 		if err2 != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "date must be YYYY-MM-DD format"})
+			RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
 			return
 		}
 		updateDate = &d
@@ -110,7 +110,7 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 	if req.NextDate != nil && *req.NextDate != "" {
 		nd, err2 := time.Parse("2006-01-02", *req.NextDate)
 		if err2 != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "next_date must be YYYY-MM-DD format"})
+			RespondError(c, apperrors.WrapInvalidInput("next_date must be YYYY-MM-DD format"))
 			return
 		}
 		updateNextDate = &nd

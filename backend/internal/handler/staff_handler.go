@@ -39,7 +39,7 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 func (h *Handler) CreateStaff(c *gin.Context) {
 	var req createStaffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -78,7 +78,7 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	}
 	var req updateStaffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -138,7 +138,7 @@ func (h *Handler) ReorderStaffs(c *gin.Context) {
 	}
 	var req reorderStaffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.Staff.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

@@ -42,7 +42,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	}
 	var req createUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -149,7 +149,7 @@ func (h *Handler) SetUserPermissionGroups(c *gin.Context) {
 		GroupIDs []uint64 `json:"group_ids" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.UserAccount.SetPermissionGroups(c.Request.Context(), id, service.SetPermissionGroupsInput{
@@ -205,7 +205,7 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 	var req updateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

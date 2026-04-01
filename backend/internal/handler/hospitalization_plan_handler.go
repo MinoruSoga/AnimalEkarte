@@ -52,7 +52,7 @@ func (h *Handler) CreateHospitalizationPlan(c *gin.Context) {
 
 	var input createHospitalizationPlanRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -103,7 +103,7 @@ func (h *Handler) UpdateHospitalizationPlan(c *gin.Context) {
 	}
 	var input updateHospitalizationPlanRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -165,7 +165,7 @@ func (h *Handler) ReorderHospitalizationPlans(c *gin.Context) {
 	}
 	var req reorderHospitalizationPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.HospitalizationPlan.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

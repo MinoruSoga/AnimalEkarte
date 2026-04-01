@@ -71,7 +71,7 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 
 	var input createInventoryRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -112,7 +112,7 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 	}
 	var input updateInventoryRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

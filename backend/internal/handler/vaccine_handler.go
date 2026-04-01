@@ -52,7 +52,7 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 
 	var input createVaccineRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -126,7 +126,7 @@ func (h *Handler) ReorderVaccines(c *gin.Context) {
 	}
 	var req reorderVaccineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.Vaccine.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

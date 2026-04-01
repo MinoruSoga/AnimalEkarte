@@ -52,7 +52,7 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 
 	var input createConsultationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -98,7 +98,7 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 	}
 	var input updateConsultationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -138,7 +138,7 @@ func (h *Handler) ReorderConsultations(c *gin.Context) {
 	}
 	var req reorderConsultationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.Consultation.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

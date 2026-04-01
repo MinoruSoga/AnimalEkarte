@@ -50,7 +50,7 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 	}
 	var req createPermissionGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	group, err := h.svc.PermissionGroup.Create(c.Request.Context(), companyID, service.CreatePermissionGroupInput{
@@ -72,7 +72,7 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 func (h *Handler) GetPermissionGroup(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	group, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), id)
@@ -88,12 +88,12 @@ func (h *Handler) GetPermissionGroup(c *gin.Context) {
 func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var req updatePermissionGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.PermissionGroup.Update(c.Request.Context(), id, service.UpdatePermissionGroupInput{
@@ -114,7 +114,7 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.PermissionGroup.Delete(c.Request.Context(), id); err != nil {
@@ -130,12 +130,12 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var req setPermissionGroupRulesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	rules := make([]service.RuleInput, len(req.Rules))

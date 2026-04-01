@@ -48,7 +48,7 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 
 	var req createExaminationTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -82,7 +82,7 @@ func (h *Handler) UpdateExaminationType(c *gin.Context) {
 	}
 	var req updateExaminationTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -112,7 +112,7 @@ func (h *Handler) ReorderExaminationTypes(c *gin.Context) {
 	}
 	var req reorderExaminationTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.ExaminationType.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

@@ -36,7 +36,7 @@ func (h *Handler) UpdateClinicalPlan(c *gin.Context) {
 	}
 	var req updateClinicalPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	input := &service.UpdateClinicalPlanInput{

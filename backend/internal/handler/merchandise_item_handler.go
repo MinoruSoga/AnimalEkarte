@@ -61,7 +61,7 @@ func (h *Handler) CreateMerchandiseItem(c *gin.Context) {
 
 	var req createMerchandiseItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -98,7 +98,7 @@ func (h *Handler) UpdateMerchandiseItem(c *gin.Context) {
 
 	var req updateMerchandiseItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -128,7 +128,7 @@ func (h *Handler) ReorderMerchandiseItems(c *gin.Context) {
 	}
 	var req reorderMerchandiseItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.MerchandiseItem.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

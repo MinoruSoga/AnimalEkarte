@@ -52,7 +52,7 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 
 	var req createInsuranceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -90,7 +90,7 @@ func (h *Handler) UpdateInsurance(c *gin.Context) {
 	}
 	var req updateInsuranceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -133,7 +133,7 @@ func (h *Handler) ReorderInsurances(c *gin.Context) {
 	}
 	var req reorderInsuranceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.Insurance.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

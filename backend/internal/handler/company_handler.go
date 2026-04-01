@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -22,7 +23,7 @@ func (h *Handler) GetCompany(c *gin.Context) {
 func (h *Handler) UpdateCompany(c *gin.Context) {
 	var req updateCompanyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	company, err := h.svc.Company.Update(c.Request.Context(), &service.UpdateCompanyInput{

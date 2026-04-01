@@ -52,7 +52,7 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 
 	var req createTreatmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -108,7 +108,7 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 
 	var req updateTreatmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -182,7 +182,7 @@ func (h *Handler) BulkUpdateTreatments(c *gin.Context) {
 
 	var req bulkUpdateTreatmentsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

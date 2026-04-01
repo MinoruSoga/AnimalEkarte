@@ -38,7 +38,7 @@ func (h *Handler) ConfirmBillingReview(c *gin.Context) {
 
 	var req confirmBillingReviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -66,7 +66,7 @@ func (h *Handler) ReturnBillingReview(c *gin.Context) {
 
 	var req returnBillingReviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
