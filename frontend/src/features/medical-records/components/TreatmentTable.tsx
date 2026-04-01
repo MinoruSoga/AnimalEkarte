@@ -96,7 +96,7 @@ export const TreatmentTable = memo(function TreatmentTable({
               {showStatus ? (
                 <Cell align="center">
                   <Select
-                    value={item.status || "未完了"}
+                    value={item.status || "pending"}
                     onValueChange={(val) => onUpdate(item.id, "status", val)}
                     disabled={disabled}
                   >
@@ -104,9 +104,9 @@ export const TreatmentTable = memo(function TreatmentTable({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="未完了">未完了</SelectItem>
-                      <SelectItem value="完了">完了</SelectItem>
-                      <SelectItem value="-">-</SelectItem>
+                      <SelectItem value="pending">未完了</SelectItem>
+                      <SelectItem value="completed">完了</SelectItem>
+                      <SelectItem value="not_applicable">-</SelectItem>
                     </SelectContent>
                   </Select>
                 </Cell>
@@ -209,6 +209,7 @@ export const TreatmentTable = memo(function TreatmentTable({
       {disabled ? null : (
         <div className="p-2 bg-[#F7F6F3] border-t border-[rgba(55,53,47,0.16)] flex justify-center">
           <Button
+            type="button"
             variant="ghost"
             size="sm"
             className="h-10 text-sm gap-2 text-muted-foreground hover:text-primary"
