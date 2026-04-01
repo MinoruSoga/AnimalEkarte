@@ -18,7 +18,7 @@
 |---------|------|
 | Frontend | React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui |
 | Backend | Go 1.25 / Gin / GORM / Air (Hot Reload) |
-| Database | PostgreSQL 17 (Docker: postgres:17-alpine) |
+| Database | PostgreSQL 18 (Docker: postgres:18-alpine) |
 | Testing | MSW (Mock Service Worker), Vitest, testify |
 | Infrastructure | Docker Compose, Terraform (AWS) |
 
