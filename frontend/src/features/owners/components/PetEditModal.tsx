@@ -215,7 +215,7 @@ export function PetEditModal({
   const handleSave = () => {
     const errors: Record<string, string> = {};
     if (!formData.petName.trim()) errors.petName = "ペット名を入力してください";
-    if (!formData.animalSpeciesId) errors.animalSpeciesId = "CFBEを選択してください";
+    if (!formData.animalSpeciesId) errors.animalSpeciesId = "動物種を選択してください";
     if (!formData.gender) errors.gender = "性別を選択してください";
     if (formData.weight !== "" && formData.weight !== undefined) {
       const weightNum = parseFloat(formData.weight);
@@ -342,7 +342,7 @@ export function PetEditModal({
 
             <div className="space-y-1">
               <Label htmlFor="animalSpeciesId" className={LABEL_CLS}>
-                CFBE <span className={C.textRequired}>*</span>
+                動物種 <span className={C.textRequired}>*</span>
               </Label>
               <Select
                 value={formData.animalSpeciesId || ""}
@@ -401,7 +401,7 @@ export function PetEditModal({
           <div className="space-y-2">
             <div className="space-y-1">
               <Label htmlFor="breed" className={LABEL_CLS}>
-                BREED
+                品種
               </Label>
               {/* BUG-100: 種別に応じたサジェスト付き datalist + 自由テキスト */}
               <Input
