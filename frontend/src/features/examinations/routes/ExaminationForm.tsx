@@ -26,7 +26,7 @@ import { useGetExaminations } from "../api/get-examinations";
 import { ExaminationCard } from "../components/ExaminationCard";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 import type { ExaminationRecord } from "@/types";
 
 // rendering-hoist-jsx: ステータス選択肢は静的なのでモジュール定数に巻き上げ

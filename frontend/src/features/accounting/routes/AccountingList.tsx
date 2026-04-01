@@ -31,7 +31,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/D
 // Relative
 import { useGetAccountings } from "../api/get-accountings";
 import type { AccountingFilters } from "../api/get-accountings";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";

@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
+import { C } from "@/lib/design-tokens";
 
 interface VaccineOption {
   value: string;
@@ -72,11 +73,11 @@ export const VaccinationForm = memo(function VaccinationForm({
       {/* Row 1: Name and Date */}
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             予防接種名
           </Label>
           <Select value={vaccineName} onValueChange={setVaccineName}>
-            <SelectTrigger className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]">
+            <SelectTrigger className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}>
               <SelectValue placeholder="ワクチンを選択" />
             </SelectTrigger>
             <SelectContent className="z-[9999]">
@@ -89,7 +90,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           </Select>
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             予防接種日
           </Label>
           <NotionDatePicker value={date} onChange={setDate} />
@@ -98,63 +99,63 @@ export const VaccinationForm = memo(function VaccinationForm({
 
       {/* Supplemental */}
       <div className="flex flex-col gap-1.5">
-        <Label className="text-sm font-medium text-[#37352F]/60">
+        <Label className={`text-sm font-medium ${C.text60}`}>
           補助説明
         </Label>
         <Input
           value={supplemental}
           onChange={(e) => setSupplemental(e.target.value)}
-          className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]"
+          className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
         />
       </div>
 
       {/* LOT Numbers */}
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             LOT1
           </Label>
           <Input
             value={lot1}
             onChange={(e) => setLot1(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]"
+            className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             LOT2
           </Label>
           <Input
             value={lot2}
             onChange={(e) => setLot2(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]"
+            className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             LOT3
           </Label>
           <Input
             value={lot3}
             onChange={(e) => setLot3(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]"
+            className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             LOT4
           </Label>
           <Input
             value={lot4}
             onChange={(e) => setLot4(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]"
+            className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
           />
         </div>
       </div>
 
       {/* Next Schedule Type */}
       <div className="flex flex-col gap-1.5">
-        <Label className="text-sm font-medium text-[#37352F]/60">
+        <Label className={`text-sm font-medium ${C.text60}`}>
           次回予防接種予定設定
         </Label>
         <RadioGroup
@@ -166,11 +167,11 @@ export const VaccinationForm = memo(function VaccinationForm({
             <RadioGroupItem
               value="3weeks"
               id="r1"
-              className="border-gray-400 text-[#37352F]"
+              className={`border-gray-400 ${C.text}`}
             />
             <Label
               htmlFor="r1"
-              className="font-normal text-[#37352F] text-sm cursor-pointer"
+              className={`font-normal ${C.text} text-sm cursor-pointer`}
             >
               3週間後
             </Label>
@@ -179,11 +180,11 @@ export const VaccinationForm = memo(function VaccinationForm({
             <RadioGroupItem
               value="4weeks"
               id="r2"
-              className="border-gray-400 text-[#37352F]"
+              className={`border-gray-400 ${C.text}`}
             />
             <Label
               htmlFor="r2"
-              className="font-normal text-[#37352F] text-sm cursor-pointer"
+              className={`font-normal ${C.text} text-sm cursor-pointer`}
             >
               4週間後
             </Label>
@@ -192,11 +193,11 @@ export const VaccinationForm = memo(function VaccinationForm({
             <RadioGroupItem
               value="1year"
               id="r3"
-              className="border-gray-400 text-[#37352F]"
+              className={`border-gray-400 ${C.text}`}
             />
             <Label
               htmlFor="r3"
-              className="font-normal text-[#37352F] text-sm cursor-pointer"
+              className={`font-normal ${C.text} text-sm cursor-pointer`}
             >
               1年後
             </Label>
@@ -205,11 +206,11 @@ export const VaccinationForm = memo(function VaccinationForm({
             <RadioGroupItem
               value="other"
               id="r4"
-              className="border-gray-400 text-[#37352F]"
+              className={`border-gray-400 ${C.text}`}
             />
             <Label
               htmlFor="r4"
-              className="font-normal text-[#37352F] text-sm cursor-pointer"
+              className={`font-normal ${C.text} text-sm cursor-pointer`}
             >
               以外
             </Label>
@@ -219,7 +220,7 @@ export const VaccinationForm = memo(function VaccinationForm({
 
       {/* Next Date */}
       <div className="flex flex-col gap-1.5">
-        <Label className="text-sm font-medium text-[#37352F]/60">
+        <Label className={`text-sm font-medium ${C.text60}`}>
           次回予定日
         </Label>
         <NotionDatePicker value={nextDate} onChange={setNextDate} />
@@ -227,13 +228,13 @@ export const VaccinationForm = memo(function VaccinationForm({
 
       {/* Remarks */}
       <div className="flex flex-col gap-1.5 flex-1 min-h-0">
-        <Label className="text-sm font-medium text-[#37352F]/60">
+        <Label className={`text-sm font-medium ${C.text60}`}>
           備考
         </Label>
         <Textarea
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
-          className="flex-1 resize-none bg-white border-[rgba(55,53,47,0.16)] p-3 text-sm text-[#37352F] leading-relaxed"
+          className={`flex-1 resize-none bg-white border-[rgba(55,53,47,0.16)] p-3 text-sm ${C.text} leading-relaxed`}
         />
       </div>
     </div>

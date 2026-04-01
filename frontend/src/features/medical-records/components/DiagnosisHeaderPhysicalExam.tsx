@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import React from "react";
 
 // External
@@ -23,13 +23,13 @@ export const DiagnosisHeaderPhysicalExam = React.memo(function DiagnosisHeaderPh
     <div className="col-span-4 flex flex-col min-h-0">
       <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent">
         <CardHeader className="p-0 pb-2">
-          <CardTitle className="text-sm font-bold text-[#37352F] flex items-center gap-2">
+          <CardTitle className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
             <Activity className={ICON.action} />
             診察(PE)
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-          <Label className="text-sm text-[#37352F]/60 mb-1.5">方針</Label>
+          <Label className={`text-sm ${C.text60} mb-1.5`}>方針</Label>
           <Textarea
             value={policy}
             onChange={(e) => setPolicy(e.target.value)}

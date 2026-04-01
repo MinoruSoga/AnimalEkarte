@@ -43,7 +43,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 // Shared Hooks
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@/features/auth";
 
 // Relative
 import { useGetAccountingDetail } from "../api/get-accounting";

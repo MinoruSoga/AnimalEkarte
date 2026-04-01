@@ -1,7 +1,7 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useDeferredValue, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 import { useModalState } from "@/hooks/use-modal-state";
 import { formatCurrency } from "@/utils/format/number";
 import { Plus, FileText, Trash2, ExternalLink, CircleDot, Calendar } from "lucide-react";

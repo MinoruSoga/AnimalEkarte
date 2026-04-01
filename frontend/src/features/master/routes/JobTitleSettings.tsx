@@ -125,7 +125,7 @@ export function JobTitleSettings() {
   return (
     <MasterCRUDPage
       title="役職マスタ"
-      icon={<Briefcase className={`${ICON.page} text-[#37352F]`} />}
+      icon={<Briefcase className={`${ICON.page} ${C.text}`} />}
       entityLabel="役職"
       searchPlaceholder="役職名で検索..."
       emptyMessage="役職が登録されていません"

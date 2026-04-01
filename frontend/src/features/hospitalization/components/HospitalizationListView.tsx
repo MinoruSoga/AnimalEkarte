@@ -5,7 +5,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { getHospitalizationStatusColor, getHospitalizationTypeColor } from "@/utils/status-helpers";
-import { STYLE } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 
 // Types
 import type { Hospitalization } from "@/types";
@@ -60,7 +60,7 @@ export function HospitalizationListView({ hospitalizations, onNavigate }: Hospit
           </TableCell>
           <TableCell className="text-right py-2">
             {h.petIsDeceased ? (
-              <span className="text-xs text-[#37352F]/40 font-medium">死亡</span>
+              <span className={`text-xs ${C.text40} font-medium`}>死亡</span>
             ) : (
               <RowActionButton onClick={() => onNavigate(h.id)} />
             )}

@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -28,7 +28,7 @@ import { FilteringIndicator } from "@/components/shared/FilteringIndicator/Filte
 // Relative
 import { useFilterExaminationRecords } from "../hooks/use-examination-records";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type {
@@ -157,14 +157,14 @@ export function ExaminationsList() {
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((r: ExaminationRecord) => (
     <DataTableRow key={r.id} onClick={() => handleEdit(r.id)}>
-      <TableCell className="font-mono text-base text-[#37352F] py-2.5">{r.date}</TableCell>
-      <TableCell className="text-base text-[#37352F] py-2.5">{r.ownerName}</TableCell>
-      <TableCell className="text-base text-[#37352F] py-2.5">{r.petName}</TableCell>
-      <TableCell className="text-base font-medium text-[#37352F] py-2.5">{r.testType}</TableCell>
+      <TableCell className={`font-mono text-base ${C.text} py-2.5`}>{r.date}</TableCell>
+      <TableCell className={`text-base ${C.text} py-2.5`}>{r.ownerName}</TableCell>
+      <TableCell className={`text-base ${C.text} py-2.5`}>{r.petName}</TableCell>
+      <TableCell className={`text-base font-medium ${C.text} py-2.5`}>{r.testType}</TableCell>
       <TableCell className="text-base text-muted-foreground truncate max-w-[200px] py-2.5 hidden lg:table-cell">
         {r.resultSummary || "-"}
       </TableCell>
-      <TableCell className="text-base text-[#37352F] py-2.5">{r.doctor}</TableCell>
+      <TableCell className={`text-base ${C.text} py-2.5`}>{r.doctor}</TableCell>
       <TableCell className="py-2.5">
         <StatusBadge colorClass={getExaminationStatusColor(r.status)}>
           {r.status}
@@ -241,7 +241,7 @@ export function ExaminationsList() {
   return (
     <PageLayout
       title="検査管理"
-      icon={<TestTube className={`${ICON.page} text-[#37352F]`} />}
+      icon={<TestTube className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">
           <Button variant="outline" className="h-10 text-sm gap-2 bg-white" onClick={() => {}}>

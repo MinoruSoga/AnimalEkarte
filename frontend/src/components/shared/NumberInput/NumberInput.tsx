@@ -1,5 +1,6 @@
 // Internal
 import { Input } from "@/components/ui/input";
+import { C } from "@/lib/design-tokens";
 
 interface NumberInputProps {
   value: number | string;
@@ -44,7 +45,7 @@ export function NumberInput({
         className={`${suffix ? "pr-10" : ""} ${align === "right" ? "text-right" : ""} ${className ?? ""}`.trimEnd()}
       />
       {suffix ? (
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[#37352F]/60">
+        <span className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm ${C.text60}`}>
           {suffix}
         </span>
       ) : null}

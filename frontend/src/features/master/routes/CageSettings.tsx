@@ -129,10 +129,10 @@ const CageSidePanel = memo(function CageSidePanel({
 function CageRowOverlay({ cage }: { cage: Cage }) {
   return (
     <div className={`flex items-center h-12 bg-white border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`} style={{ width: "100%" }}>
-      <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50"><GripVertical className={ICON.action} /></div>
+      <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}><GripVertical className={ICON.action} /></div>
       <div className={`flex-1 min-w-0 text-base font-medium ${C.text} px-3`}>{cage.name}</div>
-      <div className="w-[100px] shrink-0 text-base text-[#37352F]/65">{CAGE_TYPE_LABELS[cage.cageType]}</div>
-      <div className="w-[90px] shrink-0 text-base text-[#37352F]/65">{CAGE_SIZE_LABELS[cage.cageSize]}</div>
+      <div className={`w-[100px] shrink-0 text-base ${C.text65}`}>{CAGE_TYPE_LABELS[cage.cageType]}</div>
+      <div className={`w-[90px] shrink-0 text-base ${C.text65}`}>{CAGE_SIZE_LABELS[cage.cageSize]}</div>
       <div className={`w-[120px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>{cage.price != null ? `¥${cage.price.toLocaleString()}` : "-"}</div>
       <div className="w-[90px] shrink-0 flex justify-center"><NotionStatusPill isActive={cage.isActive} /></div>
       <div className="w-[80px] shrink-0" />
@@ -182,7 +182,7 @@ export function CageSettings() {
 
   // CageSettings uses custom table (not DataTable) for DnD + DragOverlay + bottom "add" button
   return (
-    <MasterCRUDPage title="ケージマスタ" icon={<Building2 className={`${ICON.page} text-[#37352F]`} />}
+    <MasterCRUDPage title="ケージマスタ" icon={<Building2 className={`${ICON.page} ${C.text}`} />}
       entityLabel="ケージ" searchPlaceholder="ケージ名で検索..." emptyMessage="ケージが登録されていません"
       crud={crud} handleSave={handleSave}
       filterProperties={[MASTER_STATUS_FILTER]}
@@ -227,7 +227,7 @@ export function CageSettings() {
           </DndContext>
         </div>
         <button type="button" onClick={crud.handleNew}
-          className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]">
+          className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText}/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]`}>
           <Plus className={`${ICON.xs}`} />新しいケージを追加...
         </button>
       </div>

@@ -10,8 +10,8 @@ import { RowActionButton } from "@/components/shared/RowActionButton/RowActionBu
 import { MasterListPage } from "@/features/master/components/MasterListPage";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { LAYOUT, ICON } from "@/lib/design-tokens";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { useAuth } from "@/features/auth";
 import { PermissionRuleTable } from "@/features/master/components/PermissionRuleTable";
 import { PERMISSION_RESOURCES } from "@/features/master/types/permission-resources";
 import {
@@ -331,7 +331,7 @@ export function PermissionGroupSettings() {
   return (
     <MasterListPage
       title="権限グループ管理"
-      icon={<Shield className={`${ICON.page} text-[#37352F]`} />}
+      icon={<Shield className={`${ICON.page} ${C.text}`} />}
       searchTerm={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder="グループ名を検索..."

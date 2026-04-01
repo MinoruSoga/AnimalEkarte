@@ -1,3 +1,4 @@
+import { C } from "@/lib/design-tokens";
 // ─────────────────────────────────────────────────
 // Notion-style status pill
 // ─────────────────────────────────────────────────
@@ -10,10 +11,10 @@ const STATUS_CONFIG = {
     text: "text-[#183B56]",
   },
   inactive: {
-    dot: "bg-[#37352F]/10",
+    dot: C.bgPrimary10,
     label: "無効",
     bg: "bg-[#E3E2E0]",
-    text: "text-[#37352F]/60",
+    text: C.text60,
   },
 } as const;
 

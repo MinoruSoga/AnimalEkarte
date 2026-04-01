@@ -114,7 +114,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
                     );
                 })}
                 {dayAppointments.length > 4 ? (
-                    <div className="text-sm text-[#37352F]/60 pl-1">
+                    <div className={`text-sm ${C.text60} pl-1`}>
                         他 {dayAppointments.length - 4} 件
                     </div>
                 ) : null}

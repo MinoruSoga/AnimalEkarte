@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { memo, useMemo } from "react";
 
 // External
@@ -97,7 +97,7 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
                 
                 <TabsContent value="plan" className="mt-2">
                     <div className={`bg-white rounded-lg border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} shadow-sm mb-20`}>
-                        <div className="flex items-center gap-2 mb-4 text-[#37352F]/60 text-sm">
+                        <div className={`flex items-center gap-2 mb-4 ${C.text60} text-sm`}>
                             <Calendar className={ICON.action} />
                             <span>入院期間: {hospitalization.startDate} 〜 {hospitalization.endDate}</span>
                         </div>

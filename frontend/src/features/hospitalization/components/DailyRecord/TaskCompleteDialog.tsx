@@ -7,6 +7,7 @@ import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 import { CreateCareLogDTO, Task } from "@/features/hospitalization/types";
 import { DailyRecord } from "@/types";
 import { H_STYLES } from "@/features/hospitalization/styles";
+import { C } from "@/lib/design-tokens";
 
 type CareLogType = DailyRecord["careLogs"][0]["type"];
 const VALID_LOG_TYPES: CareLogType[] = ["food", "medicine", "treatment", "other", "excretion"];
@@ -63,8 +64,8 @@ export function TaskCompleteDialog({ open, onOpenChange, task, onConfirm }: Task
         >
             <div className="space-y-4 py-4">
                 <div className="bg-[#F7F6F3] p-3 rounded-md border border-[rgba(55,53,47,0.09)]">
-                    <div className={`font-bold text-[#37352F] ${H_STYLES.text.base}`}>{task?.name}</div>
-                    <div className={`text-[#37352F]/60 ${H_STYLES.text.sm}`}>{task?.description}</div>
+                    <div className={`font-bold ${C.text} ${H_STYLES.text.base}`}>{task?.name}</div>
+                    <div className={`${C.text60} ${H_STYLES.text.sm}`}>{task?.description}</div>
                 </div>
 
                 <div className="space-y-2">

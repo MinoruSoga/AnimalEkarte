@@ -177,7 +177,7 @@ function SortableMedicineRow({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors"
+                className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} hover:bg-[rgba(55,53,47,0.08)] ${C.hoverText} transition-colors`}
               >
                 <MoreHorizontal className={ICON.action} />
               </button>
@@ -189,7 +189,7 @@ function SortableMedicineRow({
           <button
             type="button"
             onClick={() => onEdit(medicine)}
-            className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors"
+            className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} hover:bg-[rgba(55,53,47,0.08)] ${C.hoverText} transition-colors`}
           >
             <Maximize2 className={`${ICON.xs}`} />
           </button>
@@ -215,13 +215,13 @@ function MedicineRowOverlay({
       className={`flex items-center h-12 bg-white border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`}
       style={{ width: "100%" }}
     >
-      <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50">
+      <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}>
         <GripVertical className={ICON.action} />
       </div>
       <div className={`flex-1 min-w-0 text-base font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}>
         {medicine.name}
       </div>
-      <div className="w-[100px] shrink-0 text-center text-base text-[#37352F]/65">
+      <div className={`w-[100px] shrink-0 text-center text-base ${C.text65}`}>
         {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
       </div>
       <div className={`w-[130px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>
@@ -778,7 +778,7 @@ export function MedicineSettings() {
                         type="button"
                         tabIndex={-1}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/20 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F]/50 transition-colors cursor-grab"
+                        className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text20} hover:bg-[rgba(55,53,47,0.08)] ${C.hoverText}/50 transition-colors cursor-grab`}
                       >
                         <GripVertical className={ICON.action} />
                       </button>
@@ -796,14 +796,14 @@ export function MedicineSettings() {
                           className="flex items-center gap-1.5 py-1.5 px-1 hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] transition-colors"
                         >
                           <ChevronRight
-                            className={`size-5 text-[#37352F]/50 transition-transform duration-150 ${
+                            className={`size-5 ${C.text50} transition-transform duration-150 ${
                               isCollapsed ? "" : "rotate-90"
                             }`}
                           />
-                          <span className="text-base font-medium text-[#37352F]/65">
+                          <span className={`text-base font-medium ${C.text65}`}>
                             {header.name}
                           </span>
-                          <span className="text-base text-[#37352F]/40 ml-0.5">{items.length}</span>
+                          <span className={`text-base ${C.text40} ml-0.5`}>{items.length}</span>
                         </button>
                         <div className="flex-1" />
                         <button
@@ -812,7 +812,7 @@ export function MedicineSettings() {
                             e.stopPropagation();
                             handleCreate(parentId);
                           }}
-                          className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors opacity-0 group-hover/header:opacity-100"
+                          className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text40} hover:bg-[rgba(55,53,47,0.08)] ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
                         >
                           <Plus className={`${ICON.xs}`} />
                         </button>
@@ -836,7 +836,7 @@ export function MedicineSettings() {
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors opacity-0 group-hover/header:opacity-100"
+                            className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} hover:bg-[rgba(55,53,47,0.08)] ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
                           >
                             <MoreHorizontal className={ICON.action} />
                           </button>
@@ -899,7 +899,7 @@ export function MedicineSettings() {
       <button
         type="button"
         onClick={() => handleCreate()}
-        className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]"
+        className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText}/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]`}
       >
         <Plus className={`${ICON.xs}`} />
         新しい薬剤を追加...
@@ -913,7 +913,7 @@ export function MedicineSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="薬剤マスタ"
-            icon={<Pill className={`${ICON.page} text-[#37352F]`} />}
+            icon={<Pill className={`${ICON.page} ${C.text}`} />}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={

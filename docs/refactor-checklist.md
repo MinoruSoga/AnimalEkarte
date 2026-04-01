@@ -165,10 +165,11 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | チェック項目 | コマンド / 観点 | ステータス | 発見数 |
 |------------|----------------|-----------|--------|
-| `&&` 条件レンダー | `grep -r "{\s*\w\+\s*&&"` | `[x]` | 0 |
-| deep import（feature内部） | `grep -r "@/features/.*/components/"` | `[x]` | 0 |
+| `&&` 条件レンダー | `grep -r "{\s*\w\+\s*&&"` | `[x]` | 3 → 修正済み（Sidebar.tsx:271,288,301） |
+| deep import（feature内部） | `grep -r "@/features/.*/components/"` | `[x]` | 27箇所 → 修正済み（auth 18件 + shared hooks 4件 + Layout 1件 + Sidebar 3件 + reservations 2件）。index.ts エクスポート追加含む |
 | lazy() 未使用の大型モーダル | import文でModalを直接参照 | `[x]` | 0（全ルートが Vite lazy 分割済み。routes/ 内での静的 import はチャンク内に閉じており問題なし） |
-| loader内の直列 await | `useQuery` / loader 関数内の複数 await | `[x]` | 0 |
+| loader内の直列 await | `useQuery` / loader 関数内の複数 await | `[x]` | 0（owners/loaders.ts は1ページ目の total に依存して残りページ数を決定するため直列は正当） |
+| design-tokens hex ハードコード | `#37352F` 直接使用 | `[!]` | **318箇所・72ファイル**（ConfirmDialog 1箇所は修正済み。残りは大規模リファクタ要） |
 
 ---
 
@@ -386,6 +387,9 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | `SidePeek/` | `rerender-memo`, `bundle-dynamic-imports` | `[x]` | SidePeekPanel memo() 追加済み |
 | `NotionFilter/` | `rendering-hoist-jsx`, `rerender-memo` | `[x]` | DATE_PRESETS モジュール定数化済み。memo() 追加済み |
 | 全体 | `rendering-conditional-render` | `[x]` | &&パターンなし確認済み |
+| `ConfirmDialog/` | `design-tokens` | `[x]` | `#37352F` ハードコード → `C.bgPrimary` / `C.hoverBgPrimaryDark` に修正済み |
+| `Layout/` | `bundle-feature-indexing` | `[x]` | Layout.tsx + Sidebar.tsx の auth deep import → index.ts 経由に修正済み |
+| `Layout/Sidebar.tsx` | `rendering-conditional-render` | `[x]` | `{!collapsed && <p>}` 3箇所 → 三項演算子に修正済み |
 
 ### app/pages/
 
@@ -410,6 +414,12 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 5 | `features/examinations/routes/ExaminationForm.tsx:190-191` | `js-cache-function-results` | examTypes/staffList の inline .map() に useMemo なし → useMemo([examTypesRaw]/[staffListRaw]) で修正済み | Medium | `[x]` |
 | 6 | `features/trimming/routes/TrimmingForm.tsx:400-401` | `js-cache-function-results` | coursesRaw/optionsRaw の inline .map() に useMemo なし → useMemo([coursesRaw]/[optionsRaw]) で修正済み | Medium | `[x]` |
 | 7 | `components/shared/DataTable/`, `Pagination/`, `SidePeek/`, `NotionFilter/` | `rerender-memo` | 4 共有コンポーネントに memo() なし → memo() 追加済み | Medium | `[x]` |
+| 8 | `components/shared/Layout/Sidebar.tsx:271,288,301` | `rendering-conditional-render` | `{!collapsed && <p>}` パターン3箇所 → 三項演算子 `? ... : null` に修正済み | Critical | `[x]` |
+| 9 | `Sidebar.tsx`, `Layout.tsx`, `RequirePermission.tsx` + 18 features ファイル | `bundle-feature-indexing` | auth feature への deep import 21箇所 → `@/features/auth` index.ts 経由に修正。`usePermission` エクスポート追加 | Critical | `[x]` |
+| 10 | `hooks/use-pet.ts`, `use-owner.ts`, `use-master-items.ts`, `use-pet-selection-page.ts` | `bundle-feature-indexing` | shared hooks から pets/owners/master feature への deep import 5箇所 → index.ts 経由に修正。owners/index.ts に `getOwner`/`useGetOwner` エクスポート追加 | Critical | `[x]` |
+| 11 | `reservations/routes/ReservationManagement.tsx`, `components/ReservationDetailModal.tsx` | `bundle-feature-indexing` | master feature への deep import 2箇所 → `@/features/master` index.ts 経由に修正 | Critical | `[x]` |
+| 12 | `components/shared/ConfirmDialog/ConfirmDialog.tsx:49` | `design-tokens` | `bg-[#37352F]` / `hover:bg-[#37352F]/90` ハードコード → `C.bgPrimary` / `C.hoverBgPrimaryDark` に修正済み | Medium | `[x]` |
+| 13 | frontend/src/ 全体（72ファイル・318箇所） | `design-tokens` | `#37352F` hex ハードコードが大量に残存。design-tokens の `C` 定数を使うべき。大規模リファクタが必要 | Medium | `[!]` |
 
 ---
 
@@ -419,4 +429,6 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | 日付 | 対象ドメイン | 修正ルール | 修正内容 | commit |
 |------|------------|-----------|---------|--------|
-| - | - | - | - | - |
+| 2026-04-01 | shared/Layout | `rendering-conditional-render` | Sidebar.tsx の `&&` 条件レンダー3箇所を三項演算子に修正 | - |
+| 2026-04-01 | 全 feature + shared | `bundle-feature-indexing` | auth/pets/owners/master への deep import 28箇所を index.ts 経由に修正。3つの index.ts にエクスポート追加 | - |
+| 2026-04-01 | shared/ConfirmDialog | `design-tokens` | ConfirmDialog の hex ハードコード1箇所を C 定数に修正 | - |

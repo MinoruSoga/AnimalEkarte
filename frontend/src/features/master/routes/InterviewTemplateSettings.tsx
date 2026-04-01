@@ -127,7 +127,7 @@ export function InterviewTemplateSettings() {
   });
 
   return (
-    <MasterCRUDPage title="問診テンプレートマスタ" icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
+    <MasterCRUDPage title="問診テンプレートマスタ" icon={<FileText className={`${ICON.page} ${C.text}`} />}
       entityLabel="問診テンプレート" searchPlaceholder="カテゴリ、タイトルで検索..." emptyMessage="問診テンプレートが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS} deleteNameField="title"
       filterProperties={[MASTER_STATUS_FILTER]}

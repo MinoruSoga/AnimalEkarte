@@ -8,6 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { C } from "@/lib/design-tokens";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -46,7 +47,7 @@ export function ConfirmDialog({
             className={
               variant === "destructive"
                 ? "bg-red-600 text-white hover:bg-red-700"
-                : "bg-[#37352F] text-white hover:bg-[#37352F]/90"
+                : `${C.bgPrimary} text-white ${C.hoverBgPrimaryDark}`
             }
           >
             {confirmLabel}

@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { memo, useMemo } from "react";
 // External
 import { useDroppable } from "@dnd-kit/core";
@@ -53,7 +53,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`${colors.bg} rounded-md p-2 flex flex-col gap-3 w-full lg:flex-1 lg:min-w-[220px] xl:min-w-[280px] transition-colors shadow-sm ${isOver ? 'ring-2 ring-[#37352F]/20 bg-[#EAE9E5]' : ''}`}
+      className={`${colors.bg} rounded-md p-2 flex flex-col gap-3 w-full lg:flex-1 lg:min-w-[220px] xl:min-w-[280px] transition-colors shadow-sm ${isOver ? 'ring-2 ${C.ringPrimary20} bg-[#EAE9E5]' : ''}`}
       role="region"
       aria-label={`${data.title} — ${data.appointments.length}件`}
     >

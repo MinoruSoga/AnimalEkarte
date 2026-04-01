@@ -30,9 +30,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, memo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { useAuth } from "@/features/auth/hooks/use-auth";
-import { ChangePasswordDialog } from "@/features/auth/components/ChangePasswordDialog";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { useAuth, ChangePasswordDialog, usePermission } from "@/features/auth";
 import { paths } from "@/config/paths";
 import {
   ResourceDashboard,
@@ -268,7 +266,7 @@ export function Sidebar() {
       <nav aria-label="メインナビゲーション" className="flex-1 px-1 py-2 space-y-6 overflow-y-auto">
         {/* Clinical Section */}
         <div className="space-y-px">
-          {!collapsed && <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>診療業務</p>}
+          {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>診療業務</p> : null}
           {[
             { icon: <LayoutDashboard className={ICON.toolbar} />, label: "当日の受付",  path: paths.home.getHref(),            resource: ResourceDashboard },
             { icon: <Users         className={ICON.toolbar} />, label: "飼主・ペット", path: paths.owners.getHref(),          resource: ResourceOwners },
@@ -285,7 +283,7 @@ export function Sidebar() {
 
         {/* Operations Section */}
         <div className="space-y-px">
-          {!collapsed && <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>運用・管理</p>}
+          {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>運用・管理</p> : null}
           {[
             { icon: <CreditCard    className={ICON.toolbar} />, label: "会計管理",     path: paths.accounting.getHref(),      resource: ResourceAccounting },
             { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref(), resource: ResourceHospitalization },
@@ -298,7 +296,7 @@ export function Sidebar() {
 
         {/* Settings Section */}
         <div className="space-y-px">
-          {!collapsed && <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>システム設定</p>}
+          {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>システム設定</p> : null}
           <SidebarItemWithPermission 
             item={{
               icon: <Settings className={ICON.toolbar} />,

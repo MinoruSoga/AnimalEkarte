@@ -34,7 +34,7 @@ import type { SortOrder } from "@/types";
 
 // Relative
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
@@ -235,7 +235,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                 <Label>LOT番号</Label>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-[#37352F]/60">LOT 1</Label>
+                    <Label className={`text-xs ${C.text60}`}>LOT 1</Label>
                     <Input
                       value={lot1}
                       onChange={(e) => { markDirty(); setLot1(e.target.value); }}
@@ -243,7 +243,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-[#37352F]/60">LOT 2</Label>
+                    <Label className={`text-xs ${C.text60}`}>LOT 2</Label>
                     <Input
                       value={lot2}
                       onChange={(e) => { markDirty(); setLot2(e.target.value); }}
@@ -251,7 +251,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-[#37352F]/60">LOT 3</Label>
+                    <Label className={`text-xs ${C.text60}`}>LOT 3</Label>
                     <Input
                       value={lot3}
                       onChange={(e) => { markDirty(); setLot3(e.target.value); }}
@@ -259,7 +259,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-[#37352F]/60">LOT 4</Label>
+                    <Label className={`text-xs ${C.text60}`}>LOT 4</Label>
                     <Input
                       value={lot4}
                       onChange={(e) => { markDirty(); setLot4(e.target.value); }}

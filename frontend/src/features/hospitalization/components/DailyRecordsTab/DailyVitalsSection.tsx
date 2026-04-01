@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback } from "react";
 
 // External
@@ -89,7 +89,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
     return (
         <div>
             <div className="flex items-center justify-between mb-2">
-                <h4 className="flex items-center gap-1.5 text-sm font-bold text-[#37352F]">
+                <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
                     <Activity className={`${ICON.action} text-blue-500`} />
                     バイタル
                 </h4>
@@ -105,7 +105,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
             </div>
 
             {sorted.length === 0 ? (
-                <p className="text-xs text-[#37352F]/40 py-3 text-center bg-gray-50 rounded border border-dashed border-[rgba(55,53,47,0.16)]">
+                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed border-[rgba(55,53,47,0.16)]`}>
                     記録なし
                 </p>
             ) : (
@@ -118,7 +118,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="font-semibold text-blue-700">{v.time}</span>
                             </div>
-                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[#37352F]/70">
+                            <div className={`flex flex-wrap gap-x-3 gap-y-0.5 ${C.text70}`}>
                                 {v.temperature !== undefined && v.temperature !== null ? (
                                     <span className="flex items-center gap-1">
                                         <Thermometer className={ICON.action} />
@@ -145,7 +145,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                                 ) : null}
                             </div>
                             {v.notes ? (
-                                <p className="mt-1 text-[#37352F]/60">{v.notes}</p>
+                                <p className={`mt-1 ${C.text60}`}>{v.notes}</p>
                             ) : null}
                         </div>
                     ))}

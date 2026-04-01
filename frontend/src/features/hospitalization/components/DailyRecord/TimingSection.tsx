@@ -1,5 +1,5 @@
 // External
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { Check, Clock } from "lucide-react";
 
 // Internal
@@ -48,10 +48,10 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
                                     {task.completedLog ? <Check className={ICON.page} /> : <Clock className={ICON.page} />}
                                 </div>
                                 <div>
-                                    <div className={`font-bold ${H_STYLES.text.base} leading-tight ${task.completedLog ? "text-[#37352F]/60 line-through" : "text-[#37352F]"}`}>
+                                    <div className={`font-bold ${H_STYLES.text.base} leading-tight ${task.completedLog ? `${C.text60} line-through` : C.text}`}>
                                         {task.name}
                                     </div>
-                                    <div className={`${H_STYLES.text.sm} text-[#37352F]/60 leading-tight mt-0.5`}>
+                                    <div className={`${H_STYLES.text.sm} ${C.text60} leading-tight mt-0.5`}>
                                         {task.description}
                                     </div>
                                 </div>
@@ -62,7 +62,7 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
                                     <div className={`${H_STYLES.text.sm} font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded`}>
                                         {task.completedLog.time} 実施済
                                     </div>
-                                    <div className={`${H_STYLES.text.xs} text-[#37352F]/40 mt-0.5`}>
+                                    <div className={`${H_STYLES.text.xs} ${C.text40} mt-0.5`}>
                                         {task.completedLog.staff}
                                     </div>
                                 </div>

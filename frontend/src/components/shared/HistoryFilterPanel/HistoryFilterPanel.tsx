@@ -14,6 +14,7 @@ import type { SortOrder } from "@/types";
 import { SORT_ORDER_VALUES } from "@/types";
 import { getSortOrderLabel } from "@/utils/status-helpers";
 import { isOneOf } from "@/lib/type-utils";
+import { C } from "@/lib/design-tokens";
 
 interface HistoryFilterPanelProps {
   /** 日付範囲フィルターを表示するか */
@@ -50,7 +51,7 @@ export const HistoryFilterPanel = React.memo(function HistoryFilterPanel({
     <div className="space-y-3 bg-white p-3 rounded-lg border border-[rgba(55,53,47,0.16)] shadow-sm">
       {showDateRange ? (
         <div className="flex flex-col gap-1.5">
-          <Label className="text-sm text-[#37352F]/60">実施日</Label>
+          <Label className={`text-sm ${C.text60}`}>実施日</Label>
           <div className="flex items-center gap-2">
             <NotionDatePicker
               value={filterStartDate}
@@ -58,7 +59,7 @@ export const HistoryFilterPanel = React.memo(function HistoryFilterPanel({
               className="flex-1"
               placeholder="開始日"
             />
-            <span className="text-[#37352F] text-sm shrink-0">〜</span>
+            <span className={`${C.text} text-sm shrink-0`}>〜</span>
             <NotionDatePicker
               value={filterEndDate}
               onChange={(val) => onFilterEndDateChange?.(val)}
@@ -69,17 +70,17 @@ export const HistoryFilterPanel = React.memo(function HistoryFilterPanel({
         </div>
       ) : null}
       <div className="flex flex-col gap-1.5">
-        <Label className="text-sm text-[#37352F]/60">検索単語</Label>
+        <Label className={`text-sm ${C.text60}`}>検索単語</Label>
         <div className="flex gap-2">
           <Input
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
-            className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]"
+            className={`flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
             placeholder={searchPlaceholder}
           />
           <Button
             variant="outline"
-            className="h-10 text-sm text-[#37352F]/60 hover:text-[#37352F] hover:bg-[#F7F6F3] border-[rgba(55,53,47,0.16)]"
+            className={`h-10 text-sm ${C.text60} ${C.hoverText} hover:bg-[#F7F6F3] border-[rgba(55,53,47,0.16)]`}
             onClick={onClear}
           >
             クリア
@@ -89,7 +90,7 @@ export const HistoryFilterPanel = React.memo(function HistoryFilterPanel({
               onSortOrderChange(val);
             }
           }}>
-            <SelectTrigger className="w-[80px] h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]">
+            <SelectTrigger className={`w-[80px] h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] ${C.text}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

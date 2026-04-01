@@ -758,7 +758,7 @@ export function TreatmentPlanMaster() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="治療プランマスタ"
-            icon={<Stethoscope className={`${ICON.page} text-[#37352F]`} />}
+            icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
@@ -781,7 +781,7 @@ export function TreatmentPlanMaster() {
                     key={tab.value}
                     value={tab.value}
                     className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
-                      data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
+                      data-[state=active]:border-b-[#37352F] data-[state=active]:${C.text} data-[state=active]:font-medium`}
                   >
                     {tab.label}
                   </TabsPrimitive.Trigger>

@@ -7,7 +7,7 @@ import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } from "../api/billing-review";
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@/features/auth";
 import { CheckCircle2, RotateCcw } from "lucide-react";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
@@ -129,7 +129,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
 
   if (isNewRecord) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-lg border border-dashed text-[#37352F]/40">
+      <div className={`flex flex-col items-center justify-center p-12 bg-white rounded-lg border border-dashed ${C.text40}`}>
         カルテを保存してから会計確認を行えます
       </div>
     );

@@ -175,7 +175,7 @@ function MerchandiseRowOverlay({ item }: { item: FrontendMerchandiseItem }) {
       className={`flex items-center h-12 bg-white border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`}
       style={{ width: "100%" }}
     >
-      <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50">
+      <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}>
         <GripVertical className={ICON.action} />
       </div>
       <div className={`flex-1 min-w-0 text-base font-medium ${C.text} px-3`}>{item.name}</div>
@@ -272,7 +272,7 @@ export function MerchandiseItemSettings() {
   return (
     <MasterCRUDPage
       title="物販・その他マスタ"
-      icon={<ShoppingBag className={`${ICON.page} text-[#37352F]`} />}
+      icon={<ShoppingBag className={`${ICON.page} ${C.text}`} />}
       entityLabel="品目"
       searchPlaceholder="品目名で検索..."
       emptyMessage="品目が登録されていません"
@@ -349,7 +349,7 @@ export function MerchandiseItemSettings() {
         <button
           type="button"
           onClick={crud.handleNew}
-          className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]"
+          className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText}/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]`}
         >
           <Plus className={`${ICON.xs}`} />
           新しい品目を追加...

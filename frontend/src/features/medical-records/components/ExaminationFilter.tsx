@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import React from "react";
 
 // External
@@ -43,7 +43,7 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
       {/* Filters */}
       <div className="flex flex-col md:flex-row items-end gap-4 bg-white p-4 rounded-lg border border-[rgba(55,53,47,0.16)] shadow-sm">
         <div className="flex flex-col gap-1.5 w-full md:w-[300px]">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             検査項目検索
           </Label>
           <Input
@@ -55,7 +55,7 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
         </div>
 
         <div className="flex flex-col gap-1.5 w-full md:w-[400px]">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             期間
           </Label>
           <div className="flex items-center gap-2">
@@ -65,7 +65,7 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
               placeholder="開始日"
               className="flex-1"
             />
-            <span className="text-[#37352F] font-medium text-sm">〜</span>
+            <span className={`${C.text} font-medium text-sm`}>〜</span>
             <NotionDatePicker
               value={dateEnd}
               onChange={onDateEndChange}

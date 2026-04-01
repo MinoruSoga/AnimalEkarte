@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useCallback, useMemo } from "react";
 
 // External
@@ -67,7 +67,7 @@ export function DailyDateNav({
             >
                 <ChevronLeft className={ICON.action} />
             </Button>
-            <span className="text-sm font-semibold text-[#37352F]">{displayDate}</span>
+            <span className={`text-sm font-semibold ${C.text}`}>{displayDate}</span>
             <Button
                 variant="ghost"
                 size="sm"

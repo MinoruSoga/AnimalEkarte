@@ -33,7 +33,7 @@ import { transformUpdatePetRequest } from "@/lib/transforms/pet";
 import { handleApiError } from "@/lib/handle-api-error";
 // bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport
 import { deleteOwner } from "../api/delete-owner";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // bundle-dynamic-imports: PetEditModal を遅延ロード
 const PetEditModal = lazy(() =>

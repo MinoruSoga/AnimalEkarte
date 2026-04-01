@@ -172,7 +172,7 @@ export function MasterSettingsIndex() {
   return (
     <PageLayout
       title="マスタ設定"
-      icon={<Settings className={`${ICON.page} text-[#37352F]`} />}
+      icon={<Settings className={`${ICON.page} ${C.text}`} />}
       maxWidth="max-w-3xl"
       align="left"
     >

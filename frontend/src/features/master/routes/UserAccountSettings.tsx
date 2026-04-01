@@ -3,7 +3,7 @@ import { memo, useCallback, useState, useTransition, useMemo } from "react";
 import { Users, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@/features/auth";
 import { PermissionGroupSelector } from "@/features/master/components/PermissionGroupSelector";
 import {
   useGetUsers,

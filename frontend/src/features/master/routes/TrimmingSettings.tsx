@@ -101,7 +101,7 @@ function CombinablePill({ combinable }: { combinable: boolean }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base bg-[#E3E2E0] text-[#37352F]/60">
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base bg-[#E3E2E0] ${C.text60}`}>
       不可
     </span>
   );
@@ -645,7 +645,7 @@ export function TrimmingSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="トリミングマスタ"
-            icon={<Scissors className={`${ICON.page} text-[#37352F]`} />}
+            icon={<Scissors className={`${ICON.page} ${C.text}`} />}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
@@ -666,7 +666,7 @@ export function TrimmingSettings() {
                       key={tab.value}
                       value={tab.value}
                       className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
-                        data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
+                        data-[state=active]:border-b-[#37352F] data-[state=active]:${C.text} data-[state=active]:font-medium`}
                     >
                       {tab.label}
                     </TabsPrimitive.Trigger>

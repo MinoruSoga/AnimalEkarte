@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback, useMemo, useTransition } from "react";
 
 // External
@@ -124,13 +124,13 @@ export function DailyRecordsTab({
             />
 
             {isLoading ? (
-                <div className="flex items-center justify-center py-10 text-[#37352F]/40">
+                <div className={`flex items-center justify-center py-10 ${C.text40}`}>
                     <Loader2 className={`${ICON.page} animate-spin mr-2`} />
                     <span className="text-sm">読み込み中...</span>
                 </div>
             ) : isError ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <p className="text-sm text-[#37352F]/50">この日の記録はまだありません</p>
+                    <p className={`text-sm ${C.text50}`}>この日の記録はまだありません</p>
                     <Button
                         variant="outline"
                         size="sm"

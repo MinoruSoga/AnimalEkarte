@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
@@ -170,7 +170,7 @@ export function CheckupsList() {
   return (
     <PageLayout
       title="定期健診"
-      icon={<ClipboardCheck className={`${ICON.page} text-[#37352F]`} />}
+      icon={<ClipboardCheck className={`${ICON.page} ${C.text}`} />}
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
@@ -194,19 +194,19 @@ export function CheckupsList() {
             emptyMessage="定期健診の記録がありません"
             renderRow={(c) => (
               <DataTableRow key={c.id}>
-                <TableCell className="font-mono text-base text-[#37352F] py-2">
+                <TableCell className={`font-mono text-base ${C.text} py-2`}>
                   {c.date ? formatDate(c.date) : "-"}
                 </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">{c.ownerName || "-"}</TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">{c.petName || "-"}</TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">{c.checkupTypeName || "-"}</TableCell>
-                <TableCell className="font-mono text-base text-[#37352F] py-2 hidden lg:table-cell">
+                <TableCell className={`text-base ${C.text} py-2`}>{c.ownerName || "-"}</TableCell>
+                <TableCell className={`text-base ${C.text} py-2`}>{c.petName || "-"}</TableCell>
+                <TableCell className={`text-base ${C.text} py-2`}>{c.checkupTypeName || "-"}</TableCell>
+                <TableCell className={`font-mono text-base ${C.text} py-2 hidden lg:table-cell`}>
                   {c.nextDate ? formatDate(c.nextDate) : "-"}
                 </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2 max-w-xs truncate hidden lg:table-cell">
+                <TableCell className={`text-base ${C.text} py-2 max-w-xs truncate hidden lg:table-cell`}>
                   {c.result || "-"}
                 </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">{c.doctorName || "-"}</TableCell>
+                <TableCell className={`text-base ${C.text} py-2`}>{c.doctorName || "-"}</TableCell>
               </DataTableRow>
             )}
           />

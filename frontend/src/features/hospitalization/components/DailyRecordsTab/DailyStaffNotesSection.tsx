@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback } from "react";
 
 // External
@@ -72,7 +72,7 @@ export function DailyStaffNotesSection({
     return (
         <div>
             <div className="flex items-center justify-between mb-2">
-                <h4 className="flex items-center gap-1.5 text-sm font-bold text-[#37352F]">
+                <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
                     <MessageSquare className={`${ICON.action} text-green-500`} />
                     スタッフメモ
                 </h4>
@@ -88,7 +88,7 @@ export function DailyStaffNotesSection({
             </div>
 
             {sorted.length === 0 ? (
-                <p className="text-xs text-[#37352F]/40 py-3 text-center bg-gray-50 rounded border border-dashed border-[rgba(55,53,47,0.16)]">
+                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed border-[rgba(55,53,47,0.16)]`}>
                     記録なし
                 </p>
             ) : (
@@ -99,7 +99,7 @@ export function DailyStaffNotesSection({
                             className="text-xs bg-green-50 rounded px-2.5 py-2 border border-green-100"
                         >
                             <span className="font-semibold text-green-700 mr-2">{note.time}</span>
-                            <span className="text-[#37352F]/80">{note.content}</span>
+                            <span className={`${C.text80}`}>{note.content}</span>
                         </div>
                     ))}
                 </div>

@@ -27,7 +27,7 @@ import {
 } from "@/features/master/api/user-accounts";
 import { useGetPermissionGroups } from "@/features/master/api/permission-groups/permission-groups";
 import type { PermissionGroup } from "@/types/generated/models";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@/features/auth";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -403,7 +403,7 @@ export function StaffSettings() {
   return (
     <MasterCRUDPage
       title="スタッフマスタ"
-      icon={<UserRound className={`${ICON.page} text-[#37352F]`} />}
+      icon={<UserRound className={`${ICON.page} ${C.text}`} />}
       entityLabel="スタッフ"
       searchPlaceholder="氏名、職種で検索..."
       emptyMessage="スタッフが登録されていません"

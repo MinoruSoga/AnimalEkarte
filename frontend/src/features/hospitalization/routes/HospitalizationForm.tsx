@@ -12,13 +12,12 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth, usePermission } from "@/features/auth";
 
 // Relative
 import { useHospitalizationForm } from "../hooks/use-hospitalization-form";
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth/hooks/use-permission";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo";
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
@@ -138,7 +137,7 @@ export function HospitalizationForm() {
     <PageLayout
       title={hospitalizationId ? "入院編集" : "入院登録"}
       onBack={handleBack}
-      icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
+      icon={<FileText className={`${ICON.page} ${C.text}`} />}
       maxWidth="max-w-[1400px]"
       headerAction={
         <div className="flex gap-2">

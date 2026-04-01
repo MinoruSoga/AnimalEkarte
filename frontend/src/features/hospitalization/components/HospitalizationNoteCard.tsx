@@ -1,5 +1,5 @@
 // Internal
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { Textarea } from "@/components/ui/textarea";
 
 // Relative
@@ -20,8 +20,8 @@ interface HospitalizationNoteCardProps {
 export function HospitalizationNoteCard({ id, title, icon: Icon, value, onChange, placeholder }: HospitalizationNoteCardProps) {
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} h-full`}>
-      <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 text-[#37352F]`}>
-        <Icon className={`${ICON.action} text-[#37352F]/60`} />
+      <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
+        <Icon className={`${ICON.action} ${C.text60}`} />
         {title}
       </h2>
       <Textarea

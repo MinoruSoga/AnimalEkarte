@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback } from "react";
 
 // External
@@ -135,7 +135,7 @@ export function DailyCareLogsSection({
     return (
         <div>
             <div className="flex items-center justify-between mb-2">
-                <h4 className="flex items-center gap-1.5 text-sm font-bold text-[#37352F]">
+                <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
                     <UtensilsCrossed className={`${ICON.action} text-orange-500`} />
                     ケアログ
                 </h4>
@@ -151,7 +151,7 @@ export function DailyCareLogsSection({
             </div>
 
             {sorted.length === 0 ? (
-                <p className="text-xs text-[#37352F]/40 py-3 text-center bg-gray-50 rounded border border-dashed border-[rgba(55,53,47,0.16)]">
+                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed border-[rgba(55,53,47,0.16)]`}>
                     記録なし
                 </p>
             ) : (
@@ -170,11 +170,11 @@ export function DailyCareLogsSection({
                                         {CARE_LOG_TYPE_LABELS[log.type as CareLogType] ?? log.type}
                                     </span>
                                     {log.value ? (
-                                        <span className="text-[#37352F]/70">{log.value}</span>
+                                        <span className={`${C.text70}`}>{log.value}</span>
                                     ) : null}
                                 </div>
                                 {log.notes ? (
-                                    <p className="text-[#37352F]/60 mt-0.5">{log.notes}</p>
+                                    <p className={`${C.text60} mt-0.5`}>{log.notes}</p>
                                 ) : null}
                             </div>
                         );

@@ -96,7 +96,7 @@ export function AnimalSpeciesSettings() {
   });
 
   return (
-    <MasterCRUDPage title="動物種類マスタ" icon={<PawPrint className={`${ICON.page} text-[#37352F]`} />}
+    <MasterCRUDPage title="動物種類マスタ" icon={<PawPrint className={`${ICON.page} ${C.text}`} />}
       entityLabel="動物種類" searchPlaceholder="動物種類名で検索..." emptyMessage="動物種類が登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}

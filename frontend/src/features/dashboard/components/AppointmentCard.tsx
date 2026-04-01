@@ -152,7 +152,7 @@ export const AppointmentCard = memo(function AppointmentCard({
             </Badge>
 
             {/* BUG-037: 担当医バッジ — doctor が未設定でも「担当医未設定」として表示 */}
-            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.isDesignated ? `bg-[#FAEBDD] text-[#D9730D] border-[#D9730D]/20` : `bg-white text-[#37352F]/60`}`}>
+            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.isDesignated ? `bg-[#FAEBDD] text-[#D9730D] border-[#D9730D]/20` : `bg-white ${C.text60}`}`}>
               <Stethoscope className={`${ICON.xs} shrink-0`} />
               <span className="truncate max-w-[80px]">{appointment.doctor ?? "担当医未設定"}</span>
               {appointment.isDesignated ? <span className="text-[10px] ml-0.5 font-bold tracking-[0.12em]">指</span> : null}

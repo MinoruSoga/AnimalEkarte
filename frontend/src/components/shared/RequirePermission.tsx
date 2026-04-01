@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Resource } from "@/types/generated/models";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@/features/auth";
 import type { ResourceAction } from "@/features/auth/types";
 
 interface RequirePermissionProps {

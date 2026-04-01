@@ -65,7 +65,7 @@ function PropertyRow({
 }) {
   return (
     <div className="flex gap-2 py-2 px-2 -mx-2 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors min-h-[40px]">
-      <div className="w-[140px] shrink-0 text-sm text-[#37352F]/65 select-none truncate flex items-center">
+      <div className={`w-[140px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
         {label}
       </div>
       <div className="flex-1 flex items-center">{children}</div>
@@ -85,10 +85,10 @@ const STATUS_CONFIG = {
     text: "text-[#183B56]",
   },
   inactive: {
-    dot: "bg-[#37352F]/10",
+    dot: C.bgPrimary10,
     label: "無効",
     bg: "bg-[#E3E2E0]",
-    text: "text-[#37352F]/60",
+    text: C.text60,
   },
 } as const;
 
@@ -298,7 +298,7 @@ export function ClinicMasterSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="医院マスタ"
-            icon={<Building2 className={`${ICON.page} text-[#37352F]`} />}
+            icon={<Building2 className={`${ICON.page} ${C.text}`} />}
             onBack={() => navigate(paths.settings.getHref())}
             headerAction={
               <PrimaryButton onClick={handleCreate}>
@@ -325,19 +325,19 @@ export function ClinicMasterSettings() {
                 emptyMessage="医院が登録されていません"
                 renderRow={(item) => (
                   <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-                    <TableCell className="font-medium text-sm text-[#37352F] py-2.5">
+                    <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
                       {item.name}
                     </TableCell>
-                    <TableCell className="font-mono text-sm text-[#37352F]/80 py-2.5">
+                    <TableCell className={`font-mono text-sm ${C.text80} py-2.5`}>
                       {item.phoneNumber || "-"}
                     </TableCell>
-                    <TableCell className="text-sm text-[#37352F]/80 py-2.5">
+                    <TableCell className={`text-sm ${C.text80} py-2.5`}>
                       {item.email || "-"}
                     </TableCell>
                     <TableCell className="text-right py-2.5">
                       <span className="inline-flex items-center gap-1.5">
-                        <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
-                        <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
+                        <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : `${C.bgPrimary}/20`}`} />
+                        <span className={`text-sm ${item.isActive ? C.text65 : C.text35}`}>
                           {item.isActive ? "有効" : "無効"}
                         </span>
                       </span>
@@ -348,7 +348,7 @@ export function ClinicMasterSettings() {
               <button
                 type="button"
                 onClick={handleCreate}
-                className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
+                className={`flex items-center gap-1.5 w-full px-3 py-2 text-sm ${C.text40} ${C.hoverText}/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded`}
               >
                 <Plus className={`${ICON.xs}`} />
                 新しい医院を追加...
@@ -364,7 +364,7 @@ export function ClinicMasterSettings() {
           >
             {/* Toolbar */}
             <div className={STYLE.sidePeekToolbar}>
-              <span className="text-xs text-[#37352F]/35 pl-1 select-none">
+              <span className={`text-xs ${C.text35} pl-1 select-none`}>
                 {selectedItem ? "編集" : "新規作成"}
               </span>
               <div className="flex items-center gap-1">
@@ -554,7 +554,7 @@ export function ClinicMasterSettings() {
 
                   {/* 税率セクション */}
                   <div className={`${STYLE.sectionDivider} my-2`} />
-                  <div className="flex items-center gap-1.5 py-1.5 text-xs text-[#37352F]/45 select-none">
+                  <div className={`flex items-center gap-1.5 py-1.5 text-xs ${C.text45} select-none`}>
                     <Percent className={ICON.xs} />
                     消費税率
                   </div>
@@ -576,7 +576,7 @@ export function ClinicMasterSettings() {
                           }))
                         }
                       />
-                      <span className="text-sm text-[#37352F]/50">%</span>
+                      <span className={`text-sm ${C.text50}`}>%</span>
                     </div>
                   </PropertyRow>
 
@@ -597,7 +597,7 @@ export function ClinicMasterSettings() {
                           }))
                         }
                       />
-                      <span className="text-sm text-[#37352F]/50">%</span>
+                      <span className={`text-sm ${C.text50}`}>%</span>
                     </div>
                   </PropertyRow>
                 </div>

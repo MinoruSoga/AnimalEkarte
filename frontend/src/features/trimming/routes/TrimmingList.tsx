@@ -42,7 +42,7 @@ import { paths } from "@/config/paths";
 // Relative (direct file import, no barrel)
 import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
 import type { TrimmingFilters } from "../api/get-trimmings";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // rerender-memo + js-cache-function-results: renderRow インライン closure を memo コンポーネントに抽出
 interface TrimmingTableRowProps {

@@ -52,7 +52,7 @@ import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Relative
 import { useOwnerForm } from "../hooks/use-owner-form";

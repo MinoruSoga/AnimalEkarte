@@ -6,7 +6,7 @@ import { useNavigate, useParams } from "react-router";
 import { Package, ArrowLeft, Save } from "lucide-react";
 
 // Internal
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ import { useEffect } from "react";
 
 // Relative
 import { useInventoryForm } from "../hooks/use-inventory-form";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type { InventoryItem } from "@/types";
@@ -63,10 +63,10 @@ const BasicInfoSection = memo(function BasicInfoSection({
 }: BasicInfoSectionProps) {
   return (
     <div className="bg-white rounded-lg border border-[rgba(55,53,47,0.16)] p-6">
-      <h3 className="text-base font-medium text-[#37352F] mb-4">基本情報</h3>
+      <h3 className={`text-base font-medium ${C.text} mb-4`}>基本情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
-          <Label htmlFor="name" className="text-sm text-[#37352F]">
+          <Label htmlFor="name" className={`text-sm ${C.text}`}>
             品名 <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -79,7 +79,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
           />
         </div>
         <div>
-          <Label htmlFor="category" className="text-sm text-[#37352F]">
+          <Label htmlFor="category" className={`text-sm ${C.text}`}>
             カテゴリ <span className="text-red-500">*</span>
           </Label>
           <Select
@@ -102,7 +102,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
           </Select>
         </div>
         <div>
-          <Label htmlFor="unit" className="text-sm text-[#37352F]">
+          <Label htmlFor="unit" className={`text-sm ${C.text}`}>
             単位 <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -142,10 +142,10 @@ const StockInfoSection = memo(function StockInfoSection({
 }: StockInfoSectionProps) {
   return (
     <div className="bg-white rounded-lg border border-[rgba(55,53,47,0.16)] p-6">
-      <h3 className="text-base font-medium text-[#37352F] mb-4">在庫情報</h3>
+      <h3 className={`text-base font-medium ${C.text} mb-4`}>在庫情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="quantity" className="text-sm text-[#37352F]">
+          <Label htmlFor="quantity" className={`text-sm ${C.text}`}>
             現在庫数 <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -159,7 +159,7 @@ const StockInfoSection = memo(function StockInfoSection({
           />
         </div>
         <div>
-          <Label htmlFor="minStockLevel" className="text-sm text-[#37352F]">
+          <Label htmlFor="minStockLevel" className={`text-sm ${C.text}`}>
             最低在庫数 <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -173,7 +173,7 @@ const StockInfoSection = memo(function StockInfoSection({
           />
         </div>
         <div>
-          <Label htmlFor="location" className="text-sm text-[#37352F]">
+          <Label htmlFor="location" className={`text-sm ${C.text}`}>
             保管場所
           </Label>
           <Input
@@ -185,7 +185,7 @@ const StockInfoSection = memo(function StockInfoSection({
           />
         </div>
         <div>
-          <Label htmlFor="expiryDate" className="text-sm text-[#37352F]">
+          <Label htmlFor="expiryDate" className={`text-sm ${C.text}`}>
             有効期限
           </Label>
           <input type="hidden" name="expiryDate" value={resolvedExpiry} />
@@ -224,10 +224,10 @@ const SupplierInfoSection = memo(function SupplierInfoSection({
 }: SupplierInfoSectionProps) {
   return (
     <div className="bg-white rounded-lg border border-[rgba(55,53,47,0.16)] p-6">
-      <h3 className="text-base font-medium text-[#37352F] mb-4">仕入先情報</h3>
+      <h3 className={`text-base font-medium ${C.text} mb-4`}>仕入先情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="supplier" className="text-sm text-[#37352F]">
+          <Label htmlFor="supplier" className={`text-sm ${C.text}`}>
             仕入先
           </Label>
           <Input
@@ -239,7 +239,7 @@ const SupplierInfoSection = memo(function SupplierInfoSection({
           />
         </div>
         <div>
-          <Label htmlFor="lastRestocked" className="text-sm text-[#37352F]">
+          <Label htmlFor="lastRestocked" className={`text-sm ${C.text}`}>
             最終入荷日
           </Label>
           <input
@@ -318,10 +318,10 @@ export function InventoryForm() {
     return (
       <PageLayout
         title="在庫編集"
-        icon={<Package className={`${ICON.page} text-[#37352F]`} />}
+        icon={<Package className={`${ICON.page} ${C.text}`} />}
         maxWidth="max-w-3xl"
       >
-        <div className="text-sm text-[#37352F]/60">読み込み中...</div>
+        <div className={`text-sm ${C.text60}`}>読み込み中...</div>
       </PageLayout>
     );
   }
@@ -329,7 +329,7 @@ export function InventoryForm() {
   return (
     <PageLayout
       title={isEdit ? "在庫編集" : "在庫登録"}
-      icon={<Package className={`${ICON.page} text-[#37352F]`} />}
+      icon={<Package className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <Button
           variant="ghost"

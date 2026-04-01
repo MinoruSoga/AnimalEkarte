@@ -1,5 +1,5 @@
 // External
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { Building2, Calendar } from "lucide-react";
 
 // Internal
@@ -25,14 +25,14 @@ interface HospitalizationBasicInfoProps {
 export function HospitalizationBasicInfo({ formData, onChange, cageItems }: HospitalizationBasicInfoProps) {
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box}`}>
-      <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 text-[#37352F]`}>
-        <Building2 className={`${ICON.action} text-[#37352F]/60`} />
+      <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
+        <Building2 className={`${ICON.action} ${C.text60}`} />
         基本情報
       </h2>
       
       {/* 入院タイプ */}
       <div className="mb-3">
-        <Label className={`${H_STYLES.text.sm} text-[#37352F]/60 mb-1.5 block`}>入院タイプ</Label>
+        <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>入院タイプ</Label>
         <RadioGroup
           value={formData.hospitalizationType}
           onValueChange={(val) =>
@@ -45,24 +45,24 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
             <RadioGroupItem
               value="入院"
               id="type-hospitalization"
-              className="text-[#37352F]"
+              className={`${C.text}`}
             />
-            <Label htmlFor="type-hospitalization" className={`${H_STYLES.text.base} text-[#37352F] cursor-pointer`}>入院</Label>
+            <Label htmlFor="type-hospitalization" className={`${H_STYLES.text.base} ${C.text} cursor-pointer`}>入院</Label>
           </div>
           <div className="flex items-center gap-2 cursor-pointer">
             <RadioGroupItem
               value="ホテル"
               id="type-hotel"
-              className="text-[#37352F]"
+              className={`${C.text}`}
             />
-            <Label htmlFor="type-hotel" className={`${H_STYLES.text.base} text-[#37352F] cursor-pointer`}>ホテル</Label>
+            <Label htmlFor="type-hotel" className={`${H_STYLES.text.base} ${C.text} cursor-pointer`}>ホテル</Label>
           </div>
         </RadioGroup>
       </div>
 
       {/* 期間 */}
       <div className="mb-3">
-        <Label className={`${H_STYLES.text.sm} text-[#37352F]/60 mb-1.5 block flex items-center gap-2`}>
+        <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block flex items-center gap-2`}>
           <Calendar className={ICON.action} />
           期間
         </Label>
@@ -74,7 +74,7 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
             placeholder="開始日"
             className="flex-1"
           />
-          <span className="text-[#37352F]/40 text-sm">〜</span>
+          <span className={`${C.text40} text-sm`}>〜</span>
           <NotionDatePicker
             id="end_date"
             value={formData.endDate ?? ""}
@@ -87,7 +87,7 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
 
       {/* ケージ/個室 */}
       <div className="mb-3">
-          <Label className={`${H_STYLES.text.sm} text-[#37352F]/60 mb-1.5 block`}>ケージ・個室</Label>
+          <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>ケージ・個室</Label>
           <Select 
               value={formData.cageId} 
               onValueChange={(val) => onChange({ cageId: val })}
@@ -107,7 +107,7 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
 
       {/* メモ */}
       <div>
-        <Label className={`${H_STYLES.text.sm} text-[#37352F]/60 mb-1.5 block`}>メモ</Label>
+        <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>メモ</Label>
         <Textarea
           id="memo"
           value={formData.memo}

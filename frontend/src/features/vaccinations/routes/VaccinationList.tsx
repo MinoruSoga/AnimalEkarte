@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -28,7 +28,7 @@ import { FilteringIndicator } from "@/components/shared/FilteringIndicator/Filte
 // Relative
 import { useFilterVaccinations } from "../hooks/use-vaccinations";
 import { useDeleteVaccination } from "../api/delete-vaccination";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type { VaccinationRecord } from "@/types";
@@ -203,11 +203,11 @@ export function VaccinationList() {
     ];
     return (
       <DataTableRow key={r.id} onClick={() => handleEdit(r.id)}>
-        <TableCell className="font-mono text-base text-[#37352F] py-2">{r.date}</TableCell>
-        <TableCell className="text-base text-[#37352F] py-2">{r.ownerName}</TableCell>
-        <TableCell className="text-base text-[#37352F] py-2">{r.petName}</TableCell>
-        <TableCell className="text-base font-medium text-[#37352F] py-2">{r.vaccineName}</TableCell>
-        <TableCell className="font-mono text-base text-[#37352F] py-2">{r.nextDate}</TableCell>
+        <TableCell className={`font-mono text-base ${C.text} py-2`}>{r.date}</TableCell>
+        <TableCell className={`text-base ${C.text} py-2`}>{r.ownerName}</TableCell>
+        <TableCell className={`text-base ${C.text} py-2`}>{r.petName}</TableCell>
+        <TableCell className={`text-base font-medium ${C.text} py-2`}>{r.vaccineName}</TableCell>
+        <TableCell className={`font-mono text-base ${C.text} py-2`}>{r.nextDate}</TableCell>
         <TableCell className="text-right py-2">
           {/* BUG-089: 行操作ドロップダウン（編集・削除） */}
           {actions.length > 0 ? <RowActionDropdown actions={actions} /> : null}
@@ -220,7 +220,7 @@ export function VaccinationList() {
     <>
     <PageLayout
       title="予防接種管理"
-      icon={<Syringe className={`${ICON.page} text-[#37352F]`} />}
+      icon={<Syringe className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">
           <Button variant="outline" className="h-10 text-base gap-2 bg-white" onClick={() => {}}>

@@ -133,7 +133,7 @@ export function ServiceTypeSettings() {
   });
 
   return (
-    <MasterCRUDPage title="診療サービスマスタ" icon={<Activity className={`${ICON.page} text-[#37352F]`} />}
+    <MasterCRUDPage title="診療サービスマスタ" icon={<Activity className={`${ICON.page} ${C.text}`} />}
       entityLabel="診療サービス" searchPlaceholder="診療サービス名で検索..." emptyMessage="診療サービスが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}

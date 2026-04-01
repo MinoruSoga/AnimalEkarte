@@ -229,7 +229,7 @@ export const SortPopover = memo(function SortPopover({
               <button
                 type="button"
                 onClick={() => setAddingSort(true)}
-                className={`flex items-center gap-1 mt-1 px-1 py-1 text-base ${C.text50} hover:text-[#37352F]/80 ${C.hoverBgLight} rounded-[3px] transition-colors w-full`}
+                className={`flex items-center gap-1 mt-1 px-1 py-1 text-base ${C.text50} ${C.hoverText}/80 ${C.hoverBgLight} rounded-[3px] transition-colors w-full`}
               >
                 <Plus className={ICON.page} />
                 並べ替えを追加

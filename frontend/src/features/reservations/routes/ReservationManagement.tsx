@@ -26,8 +26,8 @@ const ReservationFormModal = lazy(() =>
   })),
 );
 import { useReservationManagement } from "../hooks/use-reservation-management";
-import { useServiceTypeColorMap } from "@/features/master/hooks/use-service-type-color-map";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { useServiceTypeColorMap } from "@/features/master";
+import { usePermission } from "@/features/auth";
 
 const MonthView = lazy(() =>
   import("../components/MonthView").then((m) => ({ default: m.MonthView })),

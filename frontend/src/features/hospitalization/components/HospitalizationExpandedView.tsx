@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { memo, useMemo } from "react";
 
 // External
@@ -72,7 +72,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
             <div className={`flex flex-col ${H_STYLES.gap.default} w-full min-w-0`}>
                 {/* Care Plan Section */}
                 <div className={`w-full min-w-0 bg-white rounded-lg border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} shadow-sm overflow-hidden`}>
-                    <div className="flex items-center gap-1.5 mb-2 text-[#37352F]/60 text-sm px-0.5">
+                    <div className={`flex items-center gap-1.5 mb-2 ${C.text60} text-sm px-0.5`}>
                         <Calendar className={`${ICON.action} shrink-0`} />
                         <span className="font-medium truncate">入院期間: {hospitalization.startDate} 〜 {hospitalization.endDate}</span>
                     </div>
@@ -88,7 +88,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
                 {/* Daily Records Section */}
                 <div className="w-full min-w-0 bg-white rounded-lg border border-[rgba(55,53,47,0.16)] shadow-sm flex flex-col overflow-hidden">
                     <div className="px-3 py-2 border-b border-[rgba(55,53,47,0.09)] bg-gray-50/50 flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-1.5 font-bold text-[#37352F] text-sm">
+                        <div className={`flex items-center gap-1.5 font-bold ${C.text} text-sm`}>
                             <FileText className={`${ICON.action} text-[#2EAADC]`} />
                             デイリーカルテ
                         </div>

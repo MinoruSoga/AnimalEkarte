@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Internal
 import { axios } from "@/lib/axios";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@/features/auth";
 
 // Relative
 import type { BillingReview, ReturnBillingReviewInput } from "../types";

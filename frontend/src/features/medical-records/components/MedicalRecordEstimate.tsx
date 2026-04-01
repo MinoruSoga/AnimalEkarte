@@ -11,6 +11,7 @@ import {
   useCreateEstimateRecord,
   useUpdateEstimateRecord,
 } from "../api/save-estimate";
+import { C } from "@/lib/design-tokens";
 
 interface MedicalRecordEstimateProps {
   isNewRecord?: boolean;
@@ -182,23 +183,23 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       {/* Comments & Remarks */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             コメント
           </Label>
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] min-h-[60px] resize-none p-2 text-sm text-[#37352F]"
+            className={`bg-white border-[rgba(55,53,47,0.16)] min-h-[60px] resize-none p-2 text-sm ${C.text}`}
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             備考
           </Label>
           <Textarea
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] min-h-[60px] resize-none p-2 text-sm text-[#37352F]"
+            className={`bg-white border-[rgba(55,53,47,0.16)] min-h-[60px] resize-none p-2 text-sm ${C.text}`}
           />
         </div>
       </div>
@@ -207,7 +208,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       <div className="flex justify-end gap-2 pt-2">
         <Button
           variant="outline"
-          className="h-10 px-4 text-sm border-[rgba(55,53,47,0.16)] text-[#37352F] hover:bg-[#F7F6F3]"
+          className={`h-10 px-4 text-sm border-[rgba(55,53,47,0.16)] ${C.text} hover:bg-[#F7F6F3]`}
           onClick={handlePdfExport}
         >
           PDF出力

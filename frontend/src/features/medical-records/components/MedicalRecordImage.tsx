@@ -6,6 +6,7 @@ import { useGetRecordImages } from "../api/get-record-images";
 import { useUploadImages, useDeleteImage } from "../api/record-images";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
+import { C } from "@/lib/design-tokens";
 
 interface MedicalRecordImageProps {
   isNewRecord?: boolean;
@@ -77,16 +78,16 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
       {/* Results Title */}
       <div>
-        <h2 className="text-sm font-bold text-[#37352F] pl-1">検査結果</h2>
+        <h2 className={`text-sm font-bold ${C.text} pl-1`}>検査結果</h2>
       </div>
 
       {/* Image Groups */}
       {isLoading ? (
-        <div className="flex items-center justify-center h-24 text-sm text-[#37352F]/40 pl-1">
+        <div className={`flex items-center justify-center h-24 text-sm ${C.text40} pl-1`}>
           読み込み中...
         </div>
       ) : imageGroups.length === 0 ? (
-        <div className="flex items-center justify-center h-24 text-sm text-[#37352F]/40 pl-1">
+        <div className={`flex items-center justify-center h-24 text-sm ${C.text40} pl-1`}>
           画像がありません
         </div>
       ) : null}

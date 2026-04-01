@@ -164,7 +164,7 @@ export function HospitalizationSettings() {
   });
 
   return (
-    <MasterCRUDPage title="入院マスタ" icon={<Bed className={`${ICON.page} text-[#37352F]`} />}
+    <MasterCRUDPage title="入院マスタ" icon={<Bed className={`${ICON.page} ${C.text}`} />}
       entityLabel="入院プラン" searchPlaceholder="名称で検索..." emptyMessage="入院プランが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}

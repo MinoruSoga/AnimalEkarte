@@ -25,7 +25,7 @@ import type { ReservationAppointment, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import { useServiceTypeColorMap } from "@/features/master/hooks/use-service-type-color-map";
+import { useServiceTypeColorMap } from "@/features/master";
 import {
   RESERVATION_STATUS_COLORS,
   getReservationStatusColor,

@@ -599,7 +599,7 @@ function ClearButton({ onClick }: { onClick: (e: React.MouseEvent<HTMLSpanElemen
         if (e.key === "Enter" || e.key === " ")
           onClick(e as unknown as React.MouseEvent<HTMLSpanElement>);
       }}
-      className={`ml-1 shrink-0 rounded p-0.5 ${C.text40} ${C.hoverBgPrimary10} hover:text-[#37352F]/70 cursor-pointer`}
+      className={`ml-1 shrink-0 rounded p-0.5 ${C.text40} ${C.hoverBgPrimary10} ${C.hoverText}/70 cursor-pointer`}
       aria-label="日付をクリア"
     >
       <X className={ICON.action} />

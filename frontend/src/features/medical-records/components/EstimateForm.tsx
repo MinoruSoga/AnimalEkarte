@@ -4,6 +4,7 @@ import React from "react";
 // Internal
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { C } from "@/lib/design-tokens";
 
 interface EstimateFormProps {
   subject: string;
@@ -16,7 +17,7 @@ export const EstimateForm = React.memo(function EstimateForm({
 }: EstimateFormProps) {
   return (
     <div className="flex flex-col gap-1.5 w-[300px]">
-      <Label className="text-sm font-medium text-[#37352F]/60">
+      <Label className={`text-sm font-medium ${C.text60}`}>
         見積書件名
       </Label>
       <Input

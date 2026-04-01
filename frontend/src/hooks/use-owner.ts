@@ -1,4 +1,4 @@
-import { useGetOwner as _useGetOwner } from "@/features/owners/api/get-owner";
+import { useGetOwner as _useGetOwner } from "@/features/owners";
 
 /**
  * Shared hook for fetching a single owner by ID.

@@ -3,7 +3,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { useGetShifts } from "../api/get-shifts";
 import { useStaffsForShift } from "../api/get-staffs";
 import { ShiftCalendar as ShiftCalendarGrid } from "../components/ShiftCalendar/ShiftCalendar";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 function getInitialYearMonth(): string {
   const now = new Date();

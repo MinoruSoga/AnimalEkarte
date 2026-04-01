@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import React from "react";
 
 // External
@@ -53,7 +53,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
     <div className="col-span-5 flex flex-col min-h-0">
       <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent">
         <CardHeader className="p-0 pb-2">
-          <CardTitle className="text-sm font-bold text-[#37352F] flex items-center gap-2">
+          <CardTitle className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
             <ChevronRight className={ICON.action} />
             診断
           </CardTitle>
@@ -61,7 +61,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
         <CardContent className="p-0 flex-1 flex flex-col gap-2 min-h-0">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Label className="w-10 shrink-0 text-sm font-medium text-[#37352F]/60">
+              <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60}`}>
                 診断1
               </Label>
               <Select
@@ -102,7 +102,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
             </div>
 
             <div className="flex items-center gap-2">
-              <Label className="w-10 shrink-0 text-sm font-medium text-[#37352F]/60">
+              <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60}`}>
                 診断2
               </Label>
               <Select
@@ -144,7 +144,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
           </div>
 
           <div className="flex-1 flex flex-col min-h-0">
-            <Label className="text-sm text-[#37352F]/60 mb-1.5">
+            <Label className={`text-sm ${C.text60} mb-1.5`}>
               診断詳細
             </Label>
             <Textarea

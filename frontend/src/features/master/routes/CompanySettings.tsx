@@ -138,7 +138,7 @@ export function CompanySettings() {
       <div className="flex-1 min-w-0">
         <PageLayout
           title="法人情報"
-          icon={<Building2 className={`${ICON.page} text-[#37352F]`} />}
+          icon={<Building2 className={`${ICON.page} ${C.text}`} />}
           onBack={() => navigate(paths.settings.getHref())}
           headerAction={
             isLoading ? null : (
@@ -245,7 +245,7 @@ export function CompanySettings() {
         >
           {/* Toolbar */}
           <div className={STYLE.sidePeekToolbar}>
-            <span className="text-base text-[#37352F]/35 pl-1 select-none">編集</span>
+            <span className={`text-base ${C.text35} pl-1 select-none`}>編集</span>
             <div className="flex items-center gap-1">
               <button
                 type="button"

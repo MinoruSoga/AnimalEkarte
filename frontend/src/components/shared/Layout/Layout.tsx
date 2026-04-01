@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation, useNavigation } from "react-router";
 import { Sidebar } from "./Sidebar";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@/features/auth";
 import { C } from "@/lib/design-tokens";
 
 export function Layout() {
