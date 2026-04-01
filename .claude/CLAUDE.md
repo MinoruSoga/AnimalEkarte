@@ -29,6 +29,24 @@ Be direct, rational, and unfiltered.
 
 ---
 
+## 🌿 ブランチ戦略
+
+```
+production  ← 本番環境（直接push禁止・タグ付き）
+  ↑ --no-ff merge（リリース確定時のみ）
+staging     ← 開発統合ブランチ（CI/CD → stg.noah-karte.com）
+  ↑ PR merge
+feature/xxx
+bug/xxx
+```
+
+- **作業開始**: 必ず `staging` から切り出す
+- **PR**: 必ず `staging` ベース
+- **`main` ブランチ**: 廃止済み・新規作業禁止
+- 詳細: `.claude/rules/git-workflow.md`
+
+---
+
 ## 🔧 運用ルール
 
 ### ⚠️ 重要: ALWAYS USE DOCKER
