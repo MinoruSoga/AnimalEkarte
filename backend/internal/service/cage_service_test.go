@@ -75,6 +75,10 @@ func (m *mockHospitalizationForCage) ExistsByCageID(ctx context.Context, cageID 
 	return false, nil
 }
 
+func (m *mockHospitalizationForCage) CountCarePlanItemsByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func newTestCageService(repo *mockCageRepository) CageService {
 	return NewCageService(repo, &mockHospitalizationForCage{})
 }

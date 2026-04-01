@@ -130,9 +130,23 @@ func buildHospitalizationUpdateFields(input *UpdateHospitalizationInput) map[str
 }
 
 func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	// FK依存チェック: 入院に紐付くケアプラン項目が存在する場合は削除を拒否
+	itemCount, err := s.repos.Hospitalization.CountCarePlanItemsByHospitalizationID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check care plan item dependencies")
+	}
+	if itemCount > 0 {
+		return apperrors.WrapConflict("ケアプランが紐付いているため削除できません。先にケアプランを削除してください")
+	}
+
 	if err := s.repos.Hospitalization.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete hospitalization")
 	}
+
+	slog.InfoContext(ctx, "hospitalization deleted",
+		slog.Uint64("hospitalization_id", id),
+		slog.Uint64("clinic_id", clinicID))
+
 	return nil
 }
 
