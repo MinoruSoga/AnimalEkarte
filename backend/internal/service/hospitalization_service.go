@@ -130,7 +130,10 @@ func buildHospitalizationUpdateFields(input *UpdateHospitalizationInput) map[str
 }
 
 func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return s.repos.Hospitalization.Delete(ctx, clinicID, id)
+	if err := s.repos.Hospitalization.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete hospitalization")
+	}
+	return nil
 }
 
 // DischargeWithBilling は退院処理を行い、オプションで会計レコードを自動生成する。
@@ -217,7 +220,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to discharge hospitalization with billing")
 	}
 
 	slog.InfoContext(ctx, "hospitalization discharged",

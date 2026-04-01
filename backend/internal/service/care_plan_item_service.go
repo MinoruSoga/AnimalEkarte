@@ -62,7 +62,11 @@ func NewCarePlanItemService(repo repository.CarePlanItemRepository) CarePlanItem
 }
 
 func (s *carePlanItemService) List(ctx context.Context, hospitalizationID uint64) ([]model.CarePlanItem, error) {
-	return s.repo.ListByHospitalizationID(ctx, hospitalizationID)
+	items, err := s.repo.ListByHospitalizationID(ctx, hospitalizationID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list care plan items")
+	}
+	return items, nil
 }
 
 func (s *carePlanItemService) Create(ctx context.Context, hospitalizationID uint64, input *CreateCarePlanItemInput) (*model.CarePlanItem, error) {
@@ -103,7 +107,11 @@ func (s *carePlanItemService) Create(ctx context.Context, hospitalizationID uint
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("care_plan_item_id", item.ID))
 
-	return s.repo.FindByID(ctx, item.ID)
+	created, err := s.repo.FindByID(ctx, item.ID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get created care plan item")
+	}
+	return created, nil
 }
 
 func (s *carePlanItemService) Update(ctx context.Context, hospitalizationID, itemID uint64, input *UpdateCarePlanItemInput) (*model.CarePlanItem, error) {
@@ -140,7 +148,11 @@ func (s *carePlanItemService) Update(ctx context.Context, hospitalizationID, ite
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("care_plan_item_id", itemID))
 
-	return s.repo.FindByID(ctx, itemID)
+	updated, err := s.repo.FindByID(ctx, itemID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get updated care plan item")
+	}
+	return updated, nil
 }
 
 func (s *carePlanItemService) Delete(ctx context.Context, hospitalizationID, itemID uint64) error {

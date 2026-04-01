@@ -122,11 +122,19 @@ func NewOwnerService(repo repository.OwnerRepository) OwnerService {
 }
 
 func (s *ownerService) List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, page, limit, search)
+	owners, total, err := s.repo.FindAll(ctx, clinicID, page, limit, search)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list owners")
+	}
+	return owners, total, nil
 }
 
 func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get owner")
+	}
+	return owner, nil
 }
 
 func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error) {
@@ -311,7 +319,11 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		slog.Uint64("clinic_id", clinicID))
 
 	// DB の最新状態を返す
-	return s.repo.FindByID(ctx, clinicID, id)
+	owner, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get updated owner")
+	}
+	return owner, nil
 }
 
 // buildOwnerUpdateFields はポインタが非 nil のフィールドのみ map に追加する
@@ -372,5 +384,8 @@ func buildOwnerUpdateFields(input *UpdateOwnerInput) map[string]any {
 }
 
 func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete owner")
+	}
+	return nil
 }
