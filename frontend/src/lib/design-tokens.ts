@@ -395,6 +395,8 @@ export const C = {
 
   /** Notion muted (default fallback badge) */
   bgMutedBadge:   "bg-[#F1F1EF]",
+  hoverBgMutedBadge: "hover:bg-[#E8E7E4]",
+  bgMutedBadgeActive: "bg-[#E8E7E4]",
   textMuted:      "text-[#787774]",
   /** #E3E2E0 — PALETTE.grayLight; see also bgInactive, bgGrayTag */
   borderMuted:    "border-[#E3E2E0]",

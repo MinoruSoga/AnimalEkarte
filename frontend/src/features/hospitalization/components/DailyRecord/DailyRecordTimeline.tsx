@@ -1,3 +1,6 @@
+// External
+import { memo } from "react";
+
 // Internal
 import { Badge } from "@/components/ui/badge";
 
@@ -12,7 +15,7 @@ interface DailyRecordTimelineProps {
     items: TimelineItem[];
 }
 
-export function DailyRecordTimeline({ items }: DailyRecordTimelineProps) {
+export const DailyRecordTimeline = memo(function DailyRecordTimeline({ items }: DailyRecordTimelineProps) {
     if (items.length === 0) {
         return (
             <div className={`${H_STYLES.text.base} ${C.text40} text-center py-4`}>
@@ -63,4 +66,4 @@ export function DailyRecordTimeline({ items }: DailyRecordTimelineProps) {
             ))}
         </div>
     );
-}
+});

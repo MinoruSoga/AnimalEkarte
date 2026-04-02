@@ -44,7 +44,7 @@ const SortRuleRow = memo(function SortRuleRow({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} hover:bg-[#E8E7E4] rounded-[3px] transition-colors max-w-[160px] truncate`}
+            className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-[3px] transition-colors max-w-[160px] truncate`}
           >
             {property?.icon ? (
               <property.icon className={`${ICON.action} shrink-0 opacity-50`} />
@@ -81,7 +81,7 @@ const SortRuleRow = memo(function SortRuleRow({
       <button
         type="button"
         onClick={() => onToggleDirection(sort.key)}
-        className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap`}
+        className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-[3px] transition-colors whitespace-nowrap`}
       >
         {sort.direction === "asc" ? (
           <ArrowUp className={`${ICON.page} shrink-0`} />

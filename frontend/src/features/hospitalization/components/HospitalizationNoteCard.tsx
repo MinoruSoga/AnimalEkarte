@@ -1,3 +1,6 @@
+// External
+import { memo } from "react";
+
 // Internal
 import { C, ICON } from "@/lib/design-tokens";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,7 +20,7 @@ interface HospitalizationNoteCardProps {
   placeholder?: string;
 }
 
-export function HospitalizationNoteCard({ id, title, icon: Icon, value, onChange, placeholder }: HospitalizationNoteCardProps) {
+export const HospitalizationNoteCard = memo(function HospitalizationNoteCard({ id, title, icon: Icon, value, onChange, placeholder }: HospitalizationNoteCardProps) {
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} h-full`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
@@ -33,4 +36,4 @@ export function HospitalizationNoteCard({ id, title, icon: Icon, value, onChange
       />
     </div>
   );
-}
+});

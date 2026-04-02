@@ -1,4 +1,5 @@
 // React/Framework
+import { memo } from "react";
 import type { ReactNode } from "react";
 import {
   useCallback,
@@ -56,7 +57,7 @@ const COLUMNS = [
 // Property Row (Notion-style)
 // ─────────────────────────────────────────────────
 
-function PropertyRow({
+const PropertyRow = memo(function PropertyRow({
   label,
   children,
 }: {
@@ -71,7 +72,7 @@ function PropertyRow({
       <div className="flex-1 flex items-center">{children}</div>
     </div>
   );
-}
+});
 
 // ─────────────────────────────────────────────────
 // Status Pill

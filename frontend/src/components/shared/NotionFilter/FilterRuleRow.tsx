@@ -141,7 +141,7 @@ const InlineSelector = memo(function InlineSelector({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap max-w-[200px] truncate`}
+          className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-[3px] transition-colors whitespace-nowrap max-w-[200px] truncate`}
         >
           <span className="truncate">{label}</span>
           <ChevronDown className={`${ICON.page} shrink-0 opacity-50`} />
@@ -219,7 +219,7 @@ const DateValueEditor = memo(function DateValueEditor({
               const { from, to } = resolvePreset(preset);
               handlePresetClick(from, to, preset.label);
             }}
-            className={cn(`w-full text-left px-3 py-1.5 text-sm ${C.bgMutedBadge} hover:bg-[#E8E7E4] transition-colors`, C.text)}
+            className={cn(`w-full text-left px-3 py-1.5 text-sm ${C.bgMutedBadge} ${C.hoverBgMutedBadge} transition-colors`, C.text)}
           >
             {preset.label}
           </button>

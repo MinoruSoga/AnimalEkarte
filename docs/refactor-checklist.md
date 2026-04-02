@@ -211,9 +211,9 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
 | `api/` | `async-parallel` | `[x]` | |
-| `components/CarePlan/` | `rerender-memo` | `[x]` | CarePlanItemRow/CarePlanSection memo() + useCallback 済み |
+| `components/CarePlan/` | `rerender-memo` | `[x]` | CarePlanItemRow/CarePlanSection/CarePlanDialog memo() + useCallback 済み |
 | `components/CarePlanTab/` | `bundle-dynamic-imports` | `[x]` | |
-| `components/DailyRecord/` | `rerender-memo` | `[x]` | DailyRecordSection memo() + useCallback 済み |
+| `components/DailyRecord/` | `rerender-memo` | `[x]` | DailyRecordSection/DailyRecordTimeline memo() + useCallback 済み |
 | `components/DailyRecordsTab/` | `bundle-dynamic-imports` | `[x]` | |
 | `routes/` | `rendering-conditional-render` | `[x]` | |
 | `routes/` | `rerender-transitions` | `[x]` | useTransition 使用済み |
@@ -420,6 +420,9 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 11 | `reservations/routes/ReservationManagement.tsx`, `components/ReservationDetailModal.tsx` | `bundle-feature-indexing` | master feature への deep import 2箇所 → `@/features/master` index.ts 経由に修正 | Critical | `[x]` |
 | 12 | `components/shared/ConfirmDialog/ConfirmDialog.tsx:49` | `design-tokens` | `bg-[#37352F]` / `hover:bg-[#37352F]/90` ハードコード → `C.bgPrimary` / `C.hoverBgPrimaryDark` に修正済み | Medium | `[x]` |
 | 13 | frontend/src/ 全体（72ファイル・339箇所） | `design-tokens` | `#37352F` hex ハードコード全箇所を `C` / `PALETTE` 定数に一括修正。design-tokens に `borderBPrimary`, `dataActiveBorderB`, `dataActiveText` 新トークン追加 | Medium | `[x]` |
+| 14 | `hospitalization/components/HospitalizationBasicInfo.tsx`, `HospitalizationNoteCard.tsx`, `DailyRecord/DailyRecordTimeline.tsx` | `rerender-memo` | 大型コンポーネント3件に memo() 未適用 → memo() 追加済み | Medium | `[x]` |
+| 15 | `hospital-settings/routes/ClinicMasterSettings.tsx` (PropertyRow) | `rerender-memo` | ループ内レンダリングされる内部コンポーネントに memo() 未適用 → memo() 追加済み | Medium | `[x]` |
+| 16 | `NotionFilter/FilterRuleRow.tsx`, `NotionFilter/SortPopover.tsx` | `design-tokens` | `#F1F1EF`/`#E8E7E4` hex ハードコード4箇所 → `C.bgMutedBadge`/`C.hoverBgMutedBadge` に修正。`hoverBgMutedBadge` 新トークン追加 | Medium | `[x]` |
 
 ---
 
@@ -432,3 +435,5 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 2026-04-01 | shared/Layout | `rendering-conditional-render` | Sidebar.tsx の `&&` 条件レンダー3箇所を三項演算子に修正 | - |
 | 2026-04-01 | 全 feature + shared | `bundle-feature-indexing` | auth/pets/owners/master への deep import 28箇所を index.ts 経由に修正。3つの index.ts にエクスポート追加 | - |
 | 2026-04-01 | 全 feature + shared (72ファイル) | `design-tokens` | `#37352F` hex ハードコード339箇所を `C` / `PALETTE` 定数に一括修正。3つの新トークン追加 | - |
+| 2026-04-02 | hospitalization + hospital-settings | `rerender-memo` | HospitalizationBasicInfo/NoteCard/DailyRecordTimeline/PropertyRow に memo() 追加 | - |
+| 2026-04-02 | shared/NotionFilter | `design-tokens` | FilterRuleRow/SortPopover の `#F1F1EF`/`#E8E7E4` hex → C 定数。`hoverBgMutedBadge` トークン追加 | - |

@@ -1,4 +1,5 @@
 // External
+import { memo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import { Building2, Calendar } from "lucide-react";
 
@@ -22,7 +23,7 @@ interface HospitalizationBasicInfoProps {
   cageItems: MasterItem[];
 }
 
-export function HospitalizationBasicInfo({ formData, onChange, cageItems }: HospitalizationBasicInfoProps) {
+export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({ formData, onChange, cageItems }: HospitalizationBasicInfoProps) {
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
@@ -118,4 +119,4 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
       </div>
     </div>
   );
-}
+});

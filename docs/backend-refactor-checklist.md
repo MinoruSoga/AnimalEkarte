@@ -321,7 +321,7 @@ internal/
 
 | レイヤー | ルールID | ステータス | 発見内容 |
 |---------|---------|-----------|---------|
-| handler | `error-respond` | `[x]` | Phase 1 修正済み（violation #9/9b 対応済み） |
+| handler | `error-respond` | `[x]` | 11箇所の c.JSON 直書き → RespondError + WrapUnauthorized/WrapInternalServerError に統一修正済み |
 | service | `ctx-propagation` | `[x]` | |
 | service | `error-wrap-service` | `[x]` | |
 | repository | `ctx-withcontext` | `[x]` | |
@@ -401,6 +401,8 @@ internal/
 | 10 | `internal/middleware/logging.go:85` | `no-ignored-errors` | 例外認定: `crypto/rand.Read` は Go 1.20+ で絶対にエラーを返さない（公式 doc 保証） | Low | `[x]` |
 | 11 | `internal/handler/record_image_handler.go:242` | `no-ignored-errors` | `_ = os.Remove(storedPath)` → `if removeErr := os.Remove; slog.WarnContext` に変換済み | Low | `[x]` |
 | 12 | 全 handler ファイル（30ファイル・82箇所） | `error-respond` | Python スクリプトで一括置換済み。`c.JSON(http.StatusBadRequest, gin.H{"error": X})` → `RespondError(c, apperrors.WrapInvalidInput(X))` に統一完了。company_handler.go に apperrors import 追加。`go build ./internal/handler/...` 通過確認 | High | `[x]` |
+| 13 | `internal/handler/auth_handler.go` (11箇所) | `error-respond` | 前回一括修正で StatusBadRequest のみ対象だったため、StatusUnauthorized(8箇所) / StatusInternalServerError(3箇所) が漏れていた。`WrapUnauthorized` / `WrapInternalServerError` を errors.go に追加し、RespondError 統一。response.go の ErrUnauthorized ケースも AppError.Message 抽出に対応 | High | `[x]` |
+| 14 | `internal/repository/vaccination_repository.go:80` | `error-from-gorm` | Create で `apperrors.Wrap` → `apperrors.FromGORM` に統一修正 | Low | `[x]` |
 
 ---
 
@@ -408,4 +410,5 @@ internal/
 
 | 日付 | 対象ドメイン | 修正ルール | 修正内容 | commit |
 |------|------------|-----------|---------|--------|
-| - | - | - | - | - |
+| 2026-04-02 | auth handler | `error-respond` | auth_handler.go 11箇所の c.JSON 直書き → RespondError 統一。WrapUnauthorized/WrapInternalServerError 追加 | - |
+| 2026-04-02 | vaccination repo | `error-from-gorm` | Create の Wrap → FromGORM 統一 | - |
