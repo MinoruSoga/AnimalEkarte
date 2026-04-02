@@ -27,6 +27,8 @@ const TYPE_OPTIONS: { value: CarePlanItemType; label: string }[] = [
     { value: "item", label: "持ち物" },
 ];
 
+const INITIAL_TIMING: CarePlanTiming[] = ["morning"];
+
 const TIMING_OPTIONS: { value: CarePlanTiming; label: string }[] = [
     { value: "morning", label: "朝" },
     { value: "noon", label: "昼" },
@@ -221,7 +223,7 @@ interface AddFormProps {
 function AddForm({ onSubmit, isSubmitting }: AddFormProps) {
     const [type, setType] = useState<CarePlanItemType>("instruction");
     const [name, setName] = useState("");
-    const [timing, setTiming] = useState<CarePlanTiming[]>(["morning"]);
+    const [timing, setTiming] = useState<CarePlanTiming[]>(INITIAL_TIMING);
 
     const handleTimingToggle = useCallback((t: CarePlanTiming) => {
         setTiming((prev) =>
@@ -234,7 +236,7 @@ function AddForm({ onSubmit, isSubmitting }: AddFormProps) {
         onSubmit(type, name.trim(), timing);
         setName("");
         setType("instruction");
-        setTiming(["morning"]);
+        setTiming(INITIAL_TIMING);
     }, [name, type, timing, onSubmit]);
 
     return (

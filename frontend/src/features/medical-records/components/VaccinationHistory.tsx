@@ -119,7 +119,7 @@ export const VaccinationHistory = React.memo(function VaccinationHistory({
               接種記録がありません
             </div>
           ) : null}
-          {!isLoading && filteredItems.map((item) => (
+          {!isLoading ? filteredItems.map((item) => (
             <div
               key={item.id}
               className={`flex items-center border-b ${C.borderMedium} bg-white text-sm ${C.text} h-12 ${C.hoverBgPageHalf} transition-colors`}
@@ -141,7 +141,7 @@ export const VaccinationHistory = React.memo(function VaccinationHistory({
                 </Button>
               </div>
             </div>
-          ))}
+          )) : null}
         </div>
       </div>
     </div>

@@ -428,6 +428,12 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 19 | `master/routes/StaffSettings.tsx`, `PermissionGroupSettings.tsx`, `ServiceTypeSettings.tsx`, `PermissionGroupSelector.tsx` | `design-tokens` | `#6B7280`/`#3B82F6`/`#e5e7eb` hex 9箇所 → `PALETTE.defaultGray`/`defaultBlue`/`borderUnselected` に修正 | Medium | `[x]` |
 | 20 | `medical-records/components/VitalsTab/VitalsGraph.tsx` | `design-tokens` | `#E07B54`/`#9C6EDE`/`#4CAF82`/`#e8e6e3`/`#9B9B97` チャート色9箇所 → `PALETTE.chart*` 定数に修正 | Medium | `[x]` |
 | 21 | 42ファイル（78箇所） | `design-tokens` | `#2EAADC`(13件), `#F7F6F3`(31件), `#2383E2`(14件), `#038B94`(8件) 等の残存 hex ハードコード → 全て `C`/`PALETTE` 定数に修正。新トークン19個追加（medical-blue系, brand系, accent-focus系, data-checked系, bgMuted） | Critical | `[x]` |
+| 22 | `medical-records/components/VaccinationHistory.tsx:122` | `rendering-conditional-render` | `{!isLoading && filteredItems.map(...)}` → `? ... : null` に修正 | Critical | `[x]` |
+| 23 | `hospitalization/hooks/use-hospitalization-list.ts`, `use-hospitalizations.ts` | `async-parallel` | 独立した `updateHospitalization` 2件の直列 await → `Promise.all` で並列化 | Medium | `[x]` |
+| 24 | `medical-records/routes/MedicalRecordForm.tsx` | `rendering-hoist-jsx` | `VISIT_TYPE_OPTIONS` + `tabs` 静的配列をモジュール定数に巻き上げ | Medium | `[x]` |
+| 25 | `hospitalization/components/DailyRecordsTab/DailyDateNav.tsx` | `rendering-hoist-jsx` | `weekDays` 静的配列をモジュール定数 `WEEK_DAYS` に巻き上げ | Medium | `[x]` |
+| 26 | `hospitalization/components/CarePlanTab/CarePlanTab.tsx` | `rendering-hoist-jsx` | `["morning"]` 初期値をモジュール定数 `INITIAL_TIMING` に巻き上げ | Medium | `[x]` |
+| 27 | `hospitalization/hooks/use-hospitalizations.ts` | `rerender-transitions` | 手動 `isLoading` 管理の死コード → ファイル削除（`useGetHospitalizations` React Query フックが既存） | Medium | `[x]` |
 
 ---
 
@@ -446,3 +452,7 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 2026-04-02 | shared/RequirePermission | `bundle-feature-indexing` | auth/types → @/features/auth に修正 | - |
 | 2026-04-02 | master + VitalsGraph | `design-tokens` | `#6B7280`/`#3B82F6`/`#e5e7eb`/チャート色 18箇所 → PALETTE 定数に修正。7つの新トークン追加 | - |
 | 2026-04-02 | 全42ファイル (78箇所) | `design-tokens` | `#2EAADC`/`#F7F6F3`/`#2383E2`/`#038B94` 等の残存 hex 全量修正。19個の新 C トークン追加（medical-blue, brand, accent-focus, data-checked, bgMuted） | - |
+| 2026-04-02 | medical-records | `rendering-conditional-render` | VaccinationHistory.tsx の `&&` → 三項演算子 | - |
+| 2026-04-02 | hospitalization | `async-parallel` | ケージ移動の直列 await → Promise.all 並列化（2ファイル） | - |
+| 2026-04-02 | medical-records + hospitalization | `rendering-hoist-jsx` | MedicalRecordForm/DailyDateNav/CarePlanTab の静的配列をモジュール定数に巻き上げ | - |
+| 2026-04-02 | hospitalization | `rerender-transitions` | 死コード use-hospitalizations.ts 削除（React Query ��ック既存） | - |

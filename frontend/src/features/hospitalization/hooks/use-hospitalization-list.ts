@@ -36,12 +36,14 @@ export const useHospitalizationList = () => {
 
     try {
       if (targetHosp) {
-        await updateHospitalization(sourceHosp.id, { cage_id: targetCageId });
         // 元のケージがない場合は cage_id フィールドを送らない（空文字列は uint64 として不正）
         const swapPayload = sourceHosp.cageId
           ? { cage_id: sourceHosp.cageId }
           : {};
-        await updateHospitalization(targetHosp.id, swapPayload);
+        await Promise.all([
+          updateHospitalization(sourceHosp.id, { cage_id: targetCageId }),
+          updateHospitalization(targetHosp.id, swapPayload),
+        ]);
       } else {
         await updateHospitalization(sourceHosp.id, { cage_id: targetCageId });
       }

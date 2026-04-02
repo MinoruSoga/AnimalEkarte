@@ -40,6 +40,20 @@ import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 
+const VISIT_TYPE_OPTIONS = ["初診", "再診", "緊急", "往診"] as const;
+
+const MEDICAL_RECORD_TABS = [
+  "問診",
+  "診察/治療プラン",
+  "治療",
+  "予防接種",
+  "定期健診",
+  "検査",
+  "画像",
+  "見積書",
+  "会計(医師確認)",
+];
+
 export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();
   const navigate = useNavigate();
@@ -146,7 +160,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
   // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
-  const VISIT_TYPE_OPTIONS = ["初診", "再診", "緊急", "往診"] as const;
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -161,18 +174,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     }
   }, [shouldRedirectToSelectPet, navigate]);
 
-  // Tab definitions
-  const tabs = [
-    "問診",
-    "診察/治療プラン",
-    "治療",
-    "予防接種",
-    "定期健診",
-    "検査",
-    "画像",
-    "見積書",
-    "会計(医師確認)",
-  ];
+  const tabs = MEDICAL_RECORD_TABS;
 
   // タブ切り替え: 一度開いたタブはhide/showで状態を維持する
   // BUG-MEDI-005: タブ切替時にスクロール位置をトップにリセット
