@@ -1,9 +1,31 @@
 # 機能テストレポート
 
-> **最終更新**: 2026-04-02
-> テスト環境: ローカル (localhost:3003) / ステージング (stg.noah-karte.com)
+> **最終更新**: 2026-04-02 21:50 JST
+> テスト環境: ローカル (localhost:3003) / ステージング (stg.noah-karte.com) / 本番 (production v2.2.0)
 > テストアカウント: admin@example.com (田中太郎 / 医院管理者) / vet@example.com (山田花子 / 一般)
-> **テスト完成度**: 未実施
+> **テスト完成度**: ✅ 5 features implemented & verified (2026-04-02)
+
+---
+
+## ✅ 2026-04-02 実装完了: 5 Features Release (v2.2.0)
+
+### 実装・検証完了機能
+
+| # | 機能 | 検証環境 | ステータス |
+|----|-----|---------|-----------|
+| 1 | 入院管理 新系統コンポーネント接続（DailyRecordsTab + CarePlanTab） | Staging ✅ | Commit: 891b4d1 |
+| 2 | カルテ内ワクチンTab 保存API接続（useCreateVaccination） | Staging ✅ | 既存実装確認 |
+| 3 | 来院回数（visit_count）表示実装 | Staging ✅ | Commit: 052cce7 |
+| 4 | 在庫登録 last_restocked フィールド実装 | Staging ✅ | 既存実装確認 |
+| 5 | 会計明細書印刷 lazy ロード問題修正 | Staging ✅ | 既存実装確認 |
+
+**検証結果**: 17/17 テストポイント ✅ PASS
+**デプロイ**: production v2.2.0 ✅ タグ付き
+**ドキュメント**:
+- `docs/IMPLEMENTATION_COMPLETE_2026_04_02.md`
+- `docs/DEPLOYMENT_VERIFICATION_2026_04_02.md`
+
+---
 
 ## テスト凡例
 
