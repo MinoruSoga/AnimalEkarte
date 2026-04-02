@@ -1,10 +1,5 @@
 import React, { useMemo } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useGetStaffs } from "@/features/master";
 import { C } from "@/lib/design-tokens";
@@ -54,7 +49,7 @@ export const StaffSelectionModal = React.memo(function StaffSelectionModal({
                 variant="ghost"
                 className={`justify-start h-10 text-sm font-normal ${
                   selectedStaffName === staff.name
-                    ? "bg-[#2EAADC] text-white hover:bg-[#2EAADC] hover:text-white"
+                    ? `${C.bgMedicalBlue} text-white ${C.hoverBgMedicalBlue90} hover:text-white`
                     : `${C.text} ${C.hoverBgPage}`
                 }`}
                 onClick={() => {

@@ -2,16 +2,7 @@
 import { useState, memo } from "react";
 
 // External
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // Internal
 import { C, PALETTE } from "@/lib/design-tokens";
@@ -34,7 +25,7 @@ interface MetricDef {
 
 const METRICS: MetricDef[] = [
   { key: "temperature",      label: "体温",   unit: "℃",    color: PALETTE.chartTemperature, yAxisId: "left",  domain: [30, 45] },
-  { key: "heart_rate",       label: "心拍数", unit: "bpm",  color: "#2383E2",                  yAxisId: "right", domain: [0, "auto"] },
+  { key: "heart_rate",       label: "心拍数", unit: "bpm",  color: PALETTE.accent,             yAxisId: "right", domain: [0, "auto"] },
   { key: "respiratory_rate", label: "呼吸数", unit: "/min", color: PALETTE.chartRespiratory,   yAxisId: "right", domain: [0, "auto"] },
   { key: "body_weight",      label: "体重",   unit: "",     color: PALETTE.chartWeight,        yAxisId: "left",  domain: [0, "auto"] },
 ];

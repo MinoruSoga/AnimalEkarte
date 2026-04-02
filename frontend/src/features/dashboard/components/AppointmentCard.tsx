@@ -152,7 +152,7 @@ export const AppointmentCard = memo(function AppointmentCard({
             </Badge>
 
             {/* BUG-037: 担当医バッジ — doctor が未設定でも「担当医未設定」として表示 */}
-            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.isDesignated ? `bg-[#FAEBDD] text-[#D9730D] border-[#D9730D]/20` : `bg-white ${C.text60}`}`}>
+            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.isDesignated ? `${C.bgDiscountLight} ${C.textDiscount} ${C.borderDiscount20}` : `bg-white ${C.text60}`}`}>
               <Stethoscope className={`${ICON.xs} shrink-0`} />
               <span className="truncate max-w-[80px]">{appointment.doctor ?? "担当医未設定"}</span>
               {appointment.isDesignated ? <span className="text-[10px] ml-0.5 font-bold tracking-[0.12em]">指</span> : null}
@@ -160,11 +160,11 @@ export const AppointmentCard = memo(function AppointmentCard({
           </div>
 
           {/* ミニアクションボタン */}
-          <div className="flex items-center gap-1 pt-0.5 border-t border-[rgba(55,53,47,0.06)]">
+          <div className={`flex items-center gap-1 pt-0.5 border-t ${C.borderDivider}`}>
             <button
               type="button"
               aria-label={isTrimming ? `${appointment.petName}のトリミング記録` : `${appointment.petName}のカルテ`}
-              className="flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] text-[#2383E2] bg-[#D3E5EF]/30 border border-[#B8D4E3]/40 rounded px-1.5 py-0.5 hover:bg-[#D3E5EF]/60 transition-colors"
+              className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] ${C.accent} ${C.bgAccentLight30} border ${C.borderAccentBadge} rounded px-1.5 py-0.5 ${C.hoverBgAccentLight60} transition-colors`}
               onClick={handleKarteClick}
             >
               {isTrimming ? <Scissors className={`${ICON.xs} shrink-0`} /> : <FileText className={`${ICON.xs} shrink-0`} />}
@@ -174,7 +174,7 @@ export const AppointmentCard = memo(function AppointmentCard({
               <button
                 type="button"
                 aria-label={`${appointment.petName}の会計`}
-                className="flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] text-[#0F7B6C] bg-[#DDEDEA]/30 border border-[#DDEDEA]/40 rounded px-1.5 py-0.5 hover:bg-[#DDEDEA]/60 transition-colors"
+                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] ${C.textStatusGreen} ${C.bgStatusGreen30} border ${C.borderStatusGreen} rounded px-1.5 py-0.5 ${C.hoverBgStatusGreenLight60} transition-colors`}
                 onClick={handleAccountingClick}
               >
                 <CreditCard className={`${ICON.xs} shrink-0`} />
@@ -185,7 +185,7 @@ export const AppointmentCard = memo(function AppointmentCard({
               <button
                 type="button"
                 aria-label={`${appointment.petName}の入院登録`}
-                className="flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] text-[#6940A5] bg-[#EEE0F7]/30 border border-[#6940A5]/20 rounded px-1.5 py-0.5 hover:bg-[#EEE0F7]/60 transition-colors"
+                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] ${C.textStatusPurple} ${C.bgStatusPurple30} border ${C.borderStatusPurple} rounded px-1.5 py-0.5 ${C.hoverBgStatusPurpleLight60} transition-colors`}
                 onClick={handleHospitalizationClick}
               >
                 <BedDouble className={`${ICON.xs} shrink-0`} />

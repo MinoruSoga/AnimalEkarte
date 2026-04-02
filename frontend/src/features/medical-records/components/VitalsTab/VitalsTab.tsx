@@ -11,8 +11,8 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 
 // rendering-hoist-jsx: design token は定数なので module-level に巻き上げ
-const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`;
-const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2]`;
+const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`;
+const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent}`;
 
 // Relative
 import { VitalsGraph } from "./VitalsGraph";

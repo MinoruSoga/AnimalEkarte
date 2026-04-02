@@ -30,20 +30,20 @@ export const TreatmentDetailedSummary = React.memo(function TreatmentDetailedSum
   disabled = false,
 }: TreatmentDetailedSummaryProps) {
   return (
-    <div className="grid grid-cols-2 gap-0 mt-2 border border-[rgba(55,53,47,0.16)] rounded-lg bg-white text-sm overflow-hidden mb-8 shadow-sm">
+    <div className={`grid grid-cols-2 gap-0 mt-2 border ${C.borderMedium} rounded-lg bg-white text-sm overflow-hidden mb-8 shadow-sm`}>
       <div className="col-span-2">
         {/* Summary Headers */}
-        <div className="grid grid-cols-5 border-b border-[rgba(55,53,47,0.16)] bg-[#F7F6F3]">
-          <div className={`p-2 font-bold ${C.text80} text-sm border-r border-[rgba(55,53,47,0.16)]`}>
+        <div className={`grid grid-cols-5 border-b ${C.borderMedium} ${C.bgPage}`}>
+          <div className={`p-2 font-bold ${C.text80} text-sm border-r ${C.borderMedium}`}>
             診療費 小計
           </div>
-          <div className={`p-2 font-bold ${C.text80} text-sm border-r border-[rgba(55,53,47,0.16)]`}>
+          <div className={`p-2 font-bold ${C.text80} text-sm border-r ${C.borderMedium}`}>
             割引適用額
           </div>
-          <div className={`p-2 font-bold ${C.text80} text-sm border-r border-[rgba(55,53,47,0.16)]`}>
+          <div className={`p-2 font-bold ${C.text80} text-sm border-r ${C.borderMedium}`}>
             値引適用額
           </div>
-          <div className={`p-2 font-bold ${C.text80} text-sm border-r border-[rgba(55,53,47,0.16)]`}>
+          <div className={`p-2 font-bold ${C.text80} text-sm border-r ${C.borderMedium}`}>
             消費税
           </div>
           <div className={`p-2 font-bold ${C.text80} text-sm`}>
@@ -52,11 +52,11 @@ export const TreatmentDetailedSummary = React.memo(function TreatmentDetailedSum
         </div>
 
         {/* Summary Values */}
-        <div className="grid grid-cols-5 border-b border-[rgba(55,53,47,0.16)] bg-white items-center h-12">
-          <div className={`p-2 text-right ${C.text} border-r border-[rgba(55,53,47,0.16)] h-full flex items-center justify-end font-mono font-medium`}>
+        <div className={`grid grid-cols-5 border-b ${C.borderMedium} bg-white items-center h-12`}>
+          <div className={`p-2 text-right ${C.text} border-r ${C.borderMedium} h-full flex items-center justify-end font-mono font-medium`}>
             ￥{subtotal.toLocaleString()}
           </div>
-          <div className="p-2 border-r border-[rgba(55,53,47,0.16)] h-full flex items-center justify-end gap-1">
+          <div className={`p-2 border-r ${C.borderMedium} h-full flex items-center justify-end gap-1`}>
             {isDiscountRateReadonly ? (
               <>
                 <span className={`text-xs ${C.text50}`}>飼主割引</span>
@@ -77,7 +77,7 @@ export const TreatmentDetailedSummary = React.memo(function TreatmentDetailedSum
               </>
             )}
           </div>
-          <div className="p-2 border-r border-[rgba(55,53,47,0.16)] h-full flex items-center justify-end gap-1">
+          <div className={`p-2 border-r ${C.borderMedium} h-full flex items-center justify-end gap-1`}>
             <span className={`text-sm ${C.text60}`}>値引額</span>
             <NumberInput
               className="w-20 h-10"
@@ -88,7 +88,7 @@ export const TreatmentDetailedSummary = React.memo(function TreatmentDetailedSum
               disabled={disabled}
             />
           </div>
-          <div className={`p-2 text-right ${C.text} border-r border-[rgba(55,53,47,0.16)] h-full flex items-center justify-end font-mono font-medium`}>
+          <div className={`p-2 text-right ${C.text} border-r ${C.borderMedium} h-full flex items-center justify-end font-mono font-medium`}>
             ￥{tax.toLocaleString()}
           </div>
           <div className={`p-2 text-right ${C.text} h-full flex items-center justify-end font-mono font-bold text-lg`}>
@@ -98,7 +98,7 @@ export const TreatmentDetailedSummary = React.memo(function TreatmentDetailedSum
 
         {/* Final Totals */}
         <div className="grid grid-cols-2 bg-white">
-          <div className="p-2 border-r border-[rgba(55,53,47,0.16)] flex justify-between items-center h-10">
+          <div className={`p-2 border-r ${C.borderMedium} flex justify-between items-center h-10`}>
             <span className={`font-normal ${C.text} text-sm`}>
               保険請求額
             </span>

@@ -96,6 +96,7 @@ export function useInventoryForm(id?: string) {
             location: (formData.get("location") as string) || undefined,
             expiry_date: expiryDateStr || undefined,
             supplier: (formData.get("supplier") as string) || undefined,
+            last_restocked: lastRestockedStr || undefined,
           };
           await createMutation.mutateAsync(req);
           toast.success("在庫情報を登録しました");

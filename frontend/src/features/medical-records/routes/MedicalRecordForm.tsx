@@ -77,6 +77,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     ownerDiscountRate,
     visitType,
     setVisitType,
+    visitCount,
     handleChangeDoctor,
     handleChangeOwner,
     } = useMedicalRecordForm(recordId);
@@ -290,6 +291,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           insuranceDetails={selectedPet.insuranceDetails || "-"}
           nextVisitDate="-"
           nextVisitContent="-"
+          visitCount={visitCount}
           sticky={false}
         />
 

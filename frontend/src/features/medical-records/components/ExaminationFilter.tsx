@@ -33,7 +33,7 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
       <div className="flex justify-end">
         <Button
           size="sm"
-          className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4"
+          className={`${C.bgAccent} ${C.bgAccentHover} text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
         >
           <FileText className={ICON.action} />
           検査取り込み
@@ -41,7 +41,7 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row items-end gap-4 bg-white p-4 rounded-lg border border-[rgba(55,53,47,0.16)] shadow-sm">
+      <div className={`flex flex-col md:flex-row items-end gap-4 bg-white p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>
         <div className="flex flex-col gap-1.5 w-full md:w-[300px]">
           <Label className={`text-sm font-medium ${C.text60}`}>
             検査項目検索
@@ -49,7 +49,7 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
           <Input
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm"
+            className={`bg-white ${C.borderMedium} h-10 text-sm`}
             placeholder="WBC, Cre, etc..."
           />
         </div>

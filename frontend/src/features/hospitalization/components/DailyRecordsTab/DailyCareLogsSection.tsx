@@ -3,27 +3,14 @@ import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback } from "react";
 
 // External
-import {
-    UtensilsCrossed,
-    Droplets,
-    Pill,
-    Stethoscope,
-    MoreHorizontal,
-    Plus,
-} from "lucide-react";
+import { UtensilsCrossed, Droplets, Pill, Stethoscope, MoreHorizontal, Plus } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Types
@@ -151,7 +138,7 @@ export function DailyCareLogsSection({
             </div>
 
             {sorted.length === 0 ? (
-                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed border-[rgba(55,53,47,0.16)]`}>
+                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed ${C.borderMedium}`}>
                     記録なし
                 </p>
             ) : (

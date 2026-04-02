@@ -289,7 +289,7 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
                 if (e.key === "Enter") handleAddSubmit();
                 if (e.key === "Escape") handleAddCancel();
               }}
-              className={`flex-1 h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2]`}
+              className={`flex-1 h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent}`}
             />
             <Button
               size="sm"
@@ -339,7 +339,7 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
             className={`flex items-center justify-between text-sm pt-1.5 border-t ${C.borderLight}`}
           >
             <span className={C.text60}>税込合計 (10% {ownerDiscountRate > 0 ? `飼主割引${ownerDiscountRate}%適用後` : ""})</span>
-            <span className={`font-mono font-semibold text-[#1565C0]`}>
+            <span className={`font-mono font-semibold ${C.textCostBlue}`}>
               ¥{finalTotal.toLocaleString()}
             </span>
           </div>

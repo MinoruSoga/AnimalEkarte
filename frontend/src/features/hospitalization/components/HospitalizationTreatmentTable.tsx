@@ -21,7 +21,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
     onUpdate
 }: HospitalizationTreatmentTableProps) {
   return (
-    <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} mb-3`}>
+    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} ${H_STYLES.padding.box} mb-3`}>
       <div className="flex items-center justify-between mb-3">
         <h2 className={`${H_STYLES.text.base} font-bold flex items-center gap-2 ${C.text}`}>
           <FileText className={`${ICON.action} ${C.text60}`} />
@@ -31,7 +31,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
           onClick={onAdd}
           variant="outline"
           size="sm"
-          className={`gap-1.5 ${H_STYLES.button.action} ${C.text} border-[rgba(55,53,47,0.16)] hover:bg-[rgba(55,53,47,0.06)]`}
+          className={`gap-1.5 ${H_STYLES.button.action} ${C.text} ${C.borderMedium} ${C.bgSkeleton}`}
         >
           <Plus className={H_STYLES.button.icon} />
           追加
@@ -39,9 +39,9 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
       </div>
 
       {/* Table */}
-      <div className="border border-[rgba(55,53,47,0.16)] rounded-md overflow-hidden overflow-x-auto">
+      <div className={`border ${C.borderMedium} rounded-md overflow-hidden overflow-x-auto`}>
         <table className="w-full min-w-[800px]">
-          <thead className="bg-[#F7F6F3] border-b border-[rgba(55,53,47,0.16)]">
+          <thead className={`${C.bgPage} border-b ${C.borderMedium}`}>
             <tr>
               <th className={`text-left px-3 py-2 ${H_STYLES.text.sm} font-medium ${C.text60}`}>治療内容</th>
               <th className={`text-left px-3 py-2 ${H_STYLES.text.sm} font-medium ${C.text60}`}>メモ</th>
@@ -54,16 +54,16 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
               <th className={`text-center px-3 py-2 ${H_STYLES.text.sm} font-medium ${C.text60} w-12`}>操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[rgba(55,53,47,0.09)]">
+          <tbody className={`divide-y ${C.divideDivider}`}>
             {treatmentPlans.map((plan) => (
-              <tr key={plan.id} className="hover:bg-[rgba(55,53,47,0.06)] transition-colors h-10">
+              <tr key={plan.id} className={`${C.hoverBgLight} transition-colors h-10`}>
                 <td className="px-3 py-1">
                   <Input
                     value={plan.treatmentContent}
                     onChange={(e) =>
                       onUpdate(plan.id, "treatmentContent", e.target.value)
                     }
-                    className={`${H_STYLES.text.base} h-10 border-none shadow-none focus-visible:ring-1 focus-visible:ring-[#2EAADC] bg-transparent ${C.text}`}
+                    className={`${H_STYLES.text.base} h-10 border-none shadow-none focus-visible:ring-1 ${C.focusRingMedicalBlue} bg-transparent ${C.text}`}
                     placeholder="治療内容を入力..."
                   />
                 </td>
@@ -73,7 +73,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                     onChange={(e) =>
                       onUpdate(plan.id, "memo", e.target.value)
                     }
-                    className={`${H_STYLES.text.base} h-10 border-none shadow-none focus-visible:ring-1 focus-visible:ring-[#2EAADC] bg-transparent ${C.text}`}
+                    className={`${H_STYLES.text.base} h-10 border-none shadow-none focus-visible:ring-1 ${C.focusRingMedicalBlue} bg-transparent ${C.text}`}
                     placeholder="メモ..."
                   />
                 </td>

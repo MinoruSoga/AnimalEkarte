@@ -15,16 +15,10 @@ import type { FilterProperty } from "@/components/shared/NotionFilter/types";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetStaffs, useCreateStaff, useUpdateStaff, useDeleteStaff, STAFF_ROLE_LABELS,
-} from "@/features/master/api/staffs";
+import { useGetStaffs, useCreateStaff, useUpdateStaff, useDeleteStaff, STAFF_ROLE_LABELS } from "@/features/master/api/staffs";
 import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
-import {
-  useGetUsers,
-  useGetUser,
-  useSetUserPermissionGroups,
-} from "@/features/master/api/user-accounts";
+import { useGetUsers, useGetUser, useSetUserPermissionGroups } from "@/features/master/api/user-accounts";
 import { useGetPermissionGroups } from "@/features/master/api/permission-groups/permission-groups";
 import type { PermissionGroup } from "@/types/generated/models";
 import { useAuth } from "@/features/auth";

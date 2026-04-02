@@ -4,21 +4,8 @@ import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Calendar, Clock, Stethoscope, FileText, Pencil, Scissors, Building2, FilePlus2, PawPrint, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import type { ReservationAppointment, ReservationStatus } from "../types";
@@ -26,11 +13,7 @@ import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
 import { useServiceTypeColorMap } from "@/features/master";
-import {
-  RESERVATION_STATUS_COLORS,
-  getReservationStatusColor,
-  getVisitTypeColor,
-} from "@/utils/constants/status-colors";
+import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/utils/constants/status-colors";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;

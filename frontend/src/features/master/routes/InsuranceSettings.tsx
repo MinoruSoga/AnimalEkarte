@@ -13,9 +13,7 @@ import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/cons
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetAllInsurances, useCreateInsurance, useUpdateInsurance, useDeleteInsurance,
-} from "@/features/master/api/insurances";
+import { useGetAllInsurances, useCreateInsurance, useUpdateInsurance, useDeleteInsurance } from "@/features/master/api/insurances";
 import type { Insurance, CreateInsuranceRequest, UpdateInsuranceRequest } from "@/features/master/api/insurances";
 
 const COLUMNS = [

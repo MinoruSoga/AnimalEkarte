@@ -14,13 +14,7 @@ import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
 import { useAuth } from "@/features/auth";
 import { PermissionRuleTable } from "@/features/master/components/PermissionRuleTable";
 import { PERMISSION_RESOURCES } from "@/features/master/types/permission-resources";
-import {
-  useGetPermissionGroups,
-  useCreatePermissionGroup,
-  useUpdatePermissionGroup,
-  useDeletePermissionGroup,
-  useSetPermissionGroupRules,
-} from "@/features/master/api/permission-groups/permission-groups";
+import { useGetPermissionGroups, useCreatePermissionGroup, useUpdatePermissionGroup, useDeletePermissionGroup, useSetPermissionGroupRules } from "@/features/master/api/permission-groups/permission-groups";
 import type { RuleInput } from "@/features/master/api/permission-groups/permission-groups";
 import type { PermissionGroup, PermissionGroupRule } from "@/types/generated/models";
 

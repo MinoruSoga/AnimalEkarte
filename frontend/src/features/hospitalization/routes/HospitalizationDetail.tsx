@@ -50,7 +50,7 @@ export function HospitalizationDetail() {
         return <div className="p-8 text-center text-gray-500">読み込み中...</div>;
     }
 
-    const commonProps = {
+    const expandedViewProps = {
         hospitalization,
         plans,
         records,
@@ -66,16 +66,16 @@ export function HospitalizationDetail() {
             title="入院詳細・カルテ"
             onBack={() => navigate(paths.hospitalization.getHref())}
             headerAction={
-                <HospitalizationDetailActions 
-                    hospitalization={hospitalization} 
-                    onDischargeClick={() => setShowDischargeDialog(true)} 
+                <HospitalizationDetailActions
+                    hospitalization={hospitalization}
+                    onDischargeClick={() => setShowDischargeDialog(true)}
                 />
             }
             maxWidth="max-w-[1600px]"
         >
             <div>
-                <HospitalizationExpandedView {...commonProps} />
-                <HospitalizationTabbedView {...commonProps} />
+                <HospitalizationExpandedView {...expandedViewProps} />
+                <HospitalizationTabbedView hospitalization={hospitalization} />
             </div>
 
             <DischargeAlertDialog 

@@ -67,7 +67,7 @@ export const ImageGalleryGroup = React.memo(function ImageGalleryGroup({
               onClick={() => handleImageClick(img.src)}
             >
               <div
-                className={`h-[160px] w-full ${C.bgPage} border ${C.borderMedium} flex items-center justify-center rounded-sm hover:border-[rgba(55,53,47,0.40)] transition-colors overflow-hidden relative`}
+                className={`h-[160px] w-full ${C.bgPage} border ${C.borderMedium} flex items-center justify-center rounded-sm ${C.hoverBorderMedium40} transition-colors overflow-hidden relative`}
               >
                 {isPdf ? (
                   <div className="flex flex-col items-center gap-2">

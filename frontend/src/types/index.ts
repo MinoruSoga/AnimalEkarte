@@ -258,6 +258,7 @@ export interface MedicalRecord {
   prescription?: string;
   notes?: string;
   accountingId?: string;
+  visitCount?: number;
   version: number;
 }
 

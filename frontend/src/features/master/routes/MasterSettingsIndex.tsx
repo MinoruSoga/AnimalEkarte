@@ -3,15 +3,7 @@ import type { ReactNode } from "react";
 import { useNavigate } from "react-router";
 
 // External
-import {
-  Building2,
-  ChevronRight,
-  ClipboardList,
-  FolderTree,
-  Scissors,
-  Settings,
-  Stethoscope,
-} from "lucide-react";
+import { Building2, ChevronRight, ClipboardList, FolderTree, Scissors, Settings, Stethoscope } from "lucide-react";
 import { CATEGORY_CONFIG } from "@/features/master/constants/category-config";
 import type { MasterSettingsCategory } from "@/features/master/constants/category-config";
 

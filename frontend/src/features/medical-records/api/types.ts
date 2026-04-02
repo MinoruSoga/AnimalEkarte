@@ -1,8 +1,9 @@
 import type { MedicalRecord as ApiMedicalRecord } from "@/types/generated/models";
 
-// APIレスポンス (medicalRecordResponse) は Go モデルと異なり accounting_id を直接返す
+// APIレスポンス (medicalRecordResponse) は Go モデルと異なり accounting_id と visit_count を直接返す
 export type BackendMedicalRecord = ApiMedicalRecord & {
   accounting_id?: number;
+  visit_count?: number;
 };
 
 // ── CreateMedicalRecordRequest ──

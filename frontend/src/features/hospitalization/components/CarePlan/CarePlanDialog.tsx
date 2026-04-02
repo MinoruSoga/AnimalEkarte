@@ -109,7 +109,7 @@ export const CarePlanDialog = memo(function CarePlanDialog({
             >
                 <div className="space-y-4 py-4">
                     {/* Search Action */}
-                    <div className="flex items-end gap-3 mb-2 p-3 bg-[#F7F6F3] rounded-md border border-[rgba(55,53,47,0.09)]">
+                    <div className={`flex items-end gap-3 mb-2 p-3 ${C.bgPage} rounded-md border ${C.borderLight}`}>
                         <div className="flex-1">
                             <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1 block`}>マスタから引用</Label>
                             <div className={`${H_STYLES.text.base} ${C.text}`}>
@@ -191,8 +191,8 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                                     className={`
                                         px-3 py-1.5 rounded-md ${H_STYLES.text.base} border cursor-pointer select-none transition-colors
                                         ${formData.timing?.includes(time)
-                                            ? "bg-[#2EAADC] text-white border-[#2EAADC]"
-                                            : "bg-white ${C.text} border-[rgba(55,53,47,0.16)] hover:bg-gray-50"}
+                                            ? `${C.bgMedicalBlue} text-white ${C.borderMedicalBlue}`
+                                            : `bg-white ${C.text} ${C.borderMedium} hover:bg-gray-50`}
                                     `}
                                 >
                                     {time === 'morning' ? '朝' : time === 'noon' ? '昼' : '夜'}

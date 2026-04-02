@@ -1,22 +1,10 @@
 import { useState, useEffect, useCallback, useTransition } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import type { Shift, ShiftType, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
 import { SHIFT_TYPE_LABELS } from "@/features/shifts/types";

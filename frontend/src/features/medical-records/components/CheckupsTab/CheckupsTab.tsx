@@ -105,7 +105,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
           onChange={(e: ChangeEvent<HTMLSelectElement>) =>
             handleChange("checkup_type_id", e.target.value ? Number(e.target.value) : null)
           }
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`}
+          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         >
           <option value="">選択してください</option>
           {checkupTypes.map((type: CheckupTypeItem) => (
@@ -132,7 +132,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
           value={form.result ?? ""}
           onChange={(e) => handleChange("result", e.target.value)}
           placeholder="結果を入力..."
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`}
+          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         />
       </td>
       <td className="px-2 py-2">
@@ -339,7 +339,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
             <select
               value={addForm.checkup_type_id}
               onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("checkup_type_id", e.target.value)}
-              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-32`}
+              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-32`}
             >
               <option value="">選択</option>
               {checkupTypeOptions}
@@ -360,7 +360,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
                 if (e.key === "Enter") handleAddSubmit();
                 if (e.key === "Escape") handleAddCancel();
               }}
-              className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2]`}
+              className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent}`}
             />
             <Button
               size="sm"

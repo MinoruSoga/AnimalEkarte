@@ -1,14 +1,7 @@
 // React/Framework
 import { memo } from "react";
 import type { ReactNode } from "react";
-import {
-  useCallback,
-  useDeferredValue,
-  useMemo,
-  useState,
-  useActionState,
-  useEffect,
-} from "react";
+import { useCallback, useDeferredValue, useMemo, useState, useActionState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -28,12 +21,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
-import {
-  useGetClinics,
-  useCreateClinic,
-  useUpdateClinic,
-  useDeleteClinic,
-} from "@/features/hospital-settings/api/clinics";
+import { useGetClinics, useCreateClinic, useUpdateClinic, useDeleteClinic } from "@/features/hospital-settings/api/clinics";
 
 // Types
 import type {
@@ -65,7 +53,7 @@ const PropertyRow = memo(function PropertyRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex gap-2 py-2 px-2 -mx-2 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors min-h-[40px]">
+    <div className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}>
       <div className={`w-[140px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
         {label}
       </div>
@@ -80,15 +68,15 @@ const PropertyRow = memo(function PropertyRow({
 
 const STATUS_CONFIG = {
   active: {
-    dot: "bg-[#2383E2]",
+    dot: `${C.bgAccent}`,
     label: "有効",
-    bg: "bg-[#D3E5EF]",
-    text: "text-[#183B56]",
+    bg: `${C.bgAccentLight}`,
+    text: `${C.textAccentDark}`,
   },
   inactive: {
     dot: C.bgPrimary10,
     label: "無効",
-    bg: "bg-[#E3E2E0]",
+    bg: `${C.bgInactive}`,
     text: C.text60,
   },
 } as const;
@@ -143,7 +131,7 @@ const DEFAULT_FORM_DATA: ClinicFormData = {
 // PropertyInput class
 // ─────────────────────────────────────────────────
 
-const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`;
+const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
 
 // ─────────────────────────────────────────────────
 // ClinicMasterSettings
@@ -337,7 +325,7 @@ export function ClinicMasterSettings() {
                     </TableCell>
                     <TableCell className="text-right py-2.5">
                       <span className="inline-flex items-center gap-1.5">
-                        <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : `${C.bgPrimary}/20`}`} />
+                        <span className={`size-[7px] rounded-full ${item.isActive ? C.bgAccent : C.bgPrimary10}`} />
                         <span className={`text-sm ${item.isActive ? C.text65 : C.text35}`}>
                           {item.isActive ? "有効" : "無効"}
                         </span>
@@ -349,7 +337,7 @@ export function ClinicMasterSettings() {
               <button
                 type="button"
                 onClick={handleCreate}
-                className={`flex items-center gap-1.5 w-full px-3 py-2 text-sm ${C.text40} ${C.hoverText}/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded`}
+                className={`flex items-center gap-1.5 w-full px-3 py-2 text-sm ${C.text40} ${C.hoverText60} ${C.hoverBgLight} transition-colors rounded`}
               >
                 <Plus className={`${ICON.xs}`} />
                 新しい医院を追加...
@@ -397,7 +385,7 @@ export function ClinicMasterSettings() {
                 <div className="pb-1 mb-4">
                   <input
                     type="text"
-                    className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+                    className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0`}
                     style={{
                       fontSize: LAYOUT.pageTitle.fontSize,
                       fontWeight: LAYOUT.pageTitle.fontWeight,
@@ -426,7 +414,7 @@ export function ClinicMasterSettings() {
                           is_active: !prev.is_active,
                         }))
                       }
-                      className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
+                      className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
                     >
                       <NotionStatusPill
                         status={formData.is_active ? "active" : "inactive"}

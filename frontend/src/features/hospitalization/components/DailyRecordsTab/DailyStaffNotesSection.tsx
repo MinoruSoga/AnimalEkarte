@@ -88,7 +88,7 @@ export function DailyStaffNotesSection({
             </div>
 
             {sorted.length === 0 ? (
-                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed border-[rgba(55,53,47,0.16)]`}>
+                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed ${C.borderMedium}`}>
                     記録なし
                 </p>
             ) : (

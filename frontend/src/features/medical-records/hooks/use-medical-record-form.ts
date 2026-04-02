@@ -341,6 +341,8 @@ export function useMedicalRecordForm(recordId?: string) {
     setDiagnosis2NameId,
     // 飼主割引率
     ownerDiscountRate,
+    // 医療記録
+    visitCount: existingRecord?.visitCount,
     // 担当医変更
     handleChangeDoctor,
     // 飼主変更

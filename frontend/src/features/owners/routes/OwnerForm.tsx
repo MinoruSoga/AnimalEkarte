@@ -3,19 +3,7 @@ import { useState, lazy, Suspense, memo, useCallback, useEffect } from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
 
 // External
-import {
-  Plus,
-  Edit,
-  User,
-  PawPrint,
-  MoreHorizontal,
-  Calendar,
-  FileText,
-  Scissors,
-  Bed,
-  CreditCard,
-  Trash2,
-} from "lucide-react";
+import { Plus, Edit, User, PawPrint, MoreHorizontal, Calendar, FileText, Scissors, Bed, CreditCard, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
@@ -24,22 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";

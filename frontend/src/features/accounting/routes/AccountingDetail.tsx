@@ -1,6 +1,6 @@
 // React/Framework
 import { ICON, C } from "@/lib/design-tokens";
-import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, useDeferredValue, useActionState, useEffect } from "react";
+import { useState, useMemo, useCallback, memo, useTransition, Suspense, useDeferredValue, useActionState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
@@ -12,34 +12,13 @@ import { toast } from "sonner";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 
 // Shared Hooks
@@ -61,10 +40,7 @@ import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSele
 import { queryKeys } from "@/lib/query-keys";
 import { handleApiError } from "@/lib/handle-api-error";
 import { calculateBillingTotals } from "@/lib/calculations";
-// bundle-dynamic-imports: 191行のコンポーネントを遅延ロード
-const AccountingDocument = lazy(() =>
-  import("../components/AccountingDocument").then((m) => ({ default: m.AccountingDocument }))
-);
+import { AccountingDocument } from "../components/AccountingDocument";
 import { paths } from "@/config/paths";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
@@ -1173,14 +1149,12 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
             `}
           </style>
           <div className="p-8">
-            <Suspense fallback={null}>
-              <AccountingDocument
-                type={previewType}
-                accounting={accounting}
-                paymentInfo={accounting.payment}
-                clinic={clinicForDocument}
-              />
-            </Suspense>
+            <AccountingDocument
+              type={previewType}
+              accounting={accounting}
+              paymentInfo={accounting.payment}
+              clinic={clinicForDocument}
+            />
           </div>
         </div>
       ) : null}

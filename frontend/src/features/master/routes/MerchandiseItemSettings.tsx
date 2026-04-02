@@ -19,13 +19,7 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetAllMerchandiseItems,
-  useCreateMerchandiseItem,
-  useUpdateMerchandiseItem,
-  useDeleteMerchandiseItem,
-  useReorderMerchandiseItems,
-} from "../api/merchandise-items";
+import { useGetAllMerchandiseItems, useCreateMerchandiseItem, useUpdateMerchandiseItem, useDeleteMerchandiseItem, useReorderMerchandiseItems } from "../api/merchandise-items";
 import type {
   FrontendMerchandiseItem,
   CreateMerchandiseItemRequest,
@@ -350,7 +344,7 @@ export function MerchandiseItemSettings() {
         <button
           type="button"
           onClick={crud.handleNew}
-          className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText}/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]`}
+          className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}
         >
           <Plus className={`${ICON.xs}`} />
           新しい品目を追加...

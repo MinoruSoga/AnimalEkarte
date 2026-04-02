@@ -206,7 +206,7 @@ export const TreatmentRow = memo(function TreatmentRow({
         <Checkbox
           checked={treatment.selected}
           onCheckedChange={handleSelectedChange}
-          className="data-[state=checked]:bg-[#2383E2] data-[state=checked]:border-[#2383E2]"
+          className={`${C.dataCheckedBgAccent} ${C.dataCheckedBorderAccent}`}
         />
       </td>
 
@@ -247,7 +247,7 @@ export const TreatmentRow = memo(function TreatmentRow({
         <Checkbox
           checked={treatment.insurance}
           onCheckedChange={handleInsuranceChange}
-          className="data-[state=checked]:bg-[#038B94] data-[state=checked]:border-[#038B94]"
+          className={`${C.dataCheckedBgBrand} ${C.dataCheckedBorderBrand}`}
         />
         {treatment.insurance ? (
           <Shield className={`${ICON.xs} mt-0.5 mx-auto ${C.textStatusGreen}`} />

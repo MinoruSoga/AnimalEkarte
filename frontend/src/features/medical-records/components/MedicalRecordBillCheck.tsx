@@ -143,18 +143,18 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         <div className="flex items-center justify-between mb-2">
           <h2 className={`text-sm font-bold ${C.text}`}>会計確認 (医師)</h2>
           {isConfirmed ? (
-            <div className={`px-2 py-1 rounded bg-[#DDEDEA] text-[#0F7B6C] text-xs font-bold flex items-center gap-1`}>
+            <div className={`px-2 py-1 rounded ${C.bgStatusGreen} ${C.textStatusGreen} text-xs font-bold flex items-center gap-1`}>
               <CheckCircle2 className="size-3" />
               確認済み
             </div>
           ) : (
-            <div className={`px-2 py-1 rounded bg-[#F1F0EE] text-[#787774] text-xs font-bold`}>
+            <div className={`px-2 py-1 rounded ${C.bgMuted} ${C.textMuted} text-xs font-bold`}>
               未確認
             </div>
           )}
         </div>
 
-        <div className="flex-1 min-h-0 bg-white rounded-lg border border-[rgba(55,53,47,0.09)] overflow-hidden flex flex-col">
+        <div className={`flex-1 min-h-0 bg-white rounded-lg border ${C.borderLight} overflow-hidden flex flex-col`}>
           <div className="flex-1 min-h-0">
             <TreatmentTable
               items={items}

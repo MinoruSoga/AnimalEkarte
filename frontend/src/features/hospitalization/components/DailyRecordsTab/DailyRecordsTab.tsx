@@ -14,13 +14,7 @@ import { DailyDateNav } from "@/features/hospitalization/components/DailyRecords
 import { DailyVitalsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyVitalsSection";
 import { DailyCareLogsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyCareLogsSection";
 import { DailyStaffNotesSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyStaffNotesSection";
-import {
-    useDailyRecord,
-    useCreateDailyRecord,
-    useCreateDailyVital,
-    useCreateCareLog,
-    useCreateStaffNote,
-} from "@/features/hospitalization/api/daily-records";
+import { useDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "@/features/hospitalization/api/daily-records";
 
 // Types
 import type { CreateVitalRecordRequest, CreateCareLogRecordRequest, CreateStaffNoteRecordRequest } from "@/features/hospitalization/api/daily-records-types";

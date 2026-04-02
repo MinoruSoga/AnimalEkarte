@@ -29,7 +29,7 @@ export const DailyRecordTimeline = memo(function DailyRecordTimeline({ items }: 
             {items.map((item, idx) => (
                 <div key={idx} className={`flex ${H_STYLES.gap.default} ${H_STYLES.text.base} group`}>
                     <div className={`font-mono ${C.text60} w-12 pt-0.5 ${H_STYLES.text.base}`}>{item.time}</div>
-                    <div className="flex-1 pb-2 border-b border-[rgba(55,53,47,0.06)] group-last:border-0">
+                    <div className={`flex-1 pb-2 border-b ${C.borderDivider} group-last:border-0`}>
                         <div className={`flex items-center ${H_STYLES.gap.default} mb-1`}>
                             {item.kind === 'vital' ? <Badge variant="outline" className={`${H_STYLES.text.xs} px-2 h-6 bg-rose-50 text-rose-600 border-rose-200`}>バイタル</Badge> : null}
                             {item.kind === 'log' ? (

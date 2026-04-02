@@ -25,7 +25,7 @@ interface HospitalizationBasicInfoProps {
 
 export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({ formData, onChange, cageItems }: HospitalizationBasicInfoProps) {
   return (
-    <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box}`}>
+    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
         <Building2 className={`${ICON.action} ${C.text60}`} />
         基本情報
@@ -93,7 +93,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
               value={formData.cageId} 
               onValueChange={(val) => onChange({ cageId: val })}
           >
-              <SelectTrigger id="cage_id" className={`h-10 ${H_STYLES.text.base} bg-white border-[rgba(55,53,47,0.16)]`}>
+              <SelectTrigger id="cage_id" className={`h-10 ${H_STYLES.text.base} bg-white ${C.borderMedium}`}>
                   <SelectValue placeholder="選択してください" />
               </SelectTrigger>
               <SelectContent>
@@ -114,7 +114,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           value={formData.memo}
           onChange={(e) => onChange({ memo: e.target.value })}
           placeholder="メモを入力..."
-          className={`min-h-[80px] ${H_STYLES.text.base} resize-none bg-white border-[rgba(55,53,47,0.16)] focus-visible:ring-[#2EAADC]`}
+          className={`min-h-[80px] ${H_STYLES.text.base} resize-none bg-white ${C.borderMedium} ${C.focusRingMedicalBlue}`}
         />
       </div>
     </div>

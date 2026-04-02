@@ -13,12 +13,7 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetAllJobTitles,
-  useCreateJobTitle,
-  useUpdateJobTitle,
-  useDeleteJobTitle,
-} from "@/features/master/api/job-titles";
+import { useGetAllJobTitles, useCreateJobTitle, useUpdateJobTitle, useDeleteJobTitle } from "@/features/master/api/job-titles";
 import type { JobTitle, CreateJobTitleRequest, UpdateJobTitleRequest } from "@/features/master/api/job-titles";
 
 // ─── Constants ───

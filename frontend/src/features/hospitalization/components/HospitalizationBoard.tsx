@@ -60,12 +60,12 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm }: Ca
                 className={`relative flex flex-col h-40 transition-all border touch-none
                   ${occupant
                       ? isDeceased
-                        ? "bg-[#F7F6F3] border-l-4 ${C.borderLPrimary}/20 opacity-40"
-                        : "bg-white border-l-4 border-l-[#2EAADC]"
-                      : "bg-[#F7F6F3] border-dashed ${C.borderPrimary20}"
+                        ? `${C.bgPage} border-l-4 ${C.borderPrimary20} opacity-40`
+                        : `bg-white border-l-4 ${C.borderLMedicalBlue}`
+                      : `${C.bgPage} border-dashed ${C.borderPrimary20}`
                   }
                   ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-md'}
-                  ${isOver ? 'ring-2 ring-[#2EAADC] ring-offset-2 bg-[#2EAADC]/5' : ''}
+                  ${isOver ? `ring-2 ${C.ringMedicalBlue} ring-offset-2 ${C.bgMedicalBlue5}` : ''}
                   ${isDeceased ? 'cursor-default' : 'cursor-pointer'}
                 `}
                 onClick={isDeceased ? undefined : () => onNavigateToForm(occupant?.id)}

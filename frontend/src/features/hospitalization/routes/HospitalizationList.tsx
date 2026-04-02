@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router";
 
@@ -261,7 +261,7 @@ export function HospitalizationList() {
                   onSortChange={handleSortChange}
                 />
             </div>
-            <div className="bg-white rounded-[6px] border border-[rgba(55,53,47,0.16)] p-1 h-11 flex items-center">
+            <div className={`bg-white rounded-[6px] border ${C.borderMedium} p-1 h-11 flex items-center`}>
                 <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && isValidViewMode(v) && setViewMode(v)}>
                     <ToggleGroupItem value="board" size="sm" aria-label="Board View">
                         <LayoutGrid className={ICON.action} />

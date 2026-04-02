@@ -15,9 +15,7 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetAnimalSpecies, useCreateAnimalSpecies, useUpdateAnimalSpecies, useDeleteAnimalSpecies, useReorderAnimalSpecies,
-} from "@/features/master/api/animal-species";
+import { useGetAnimalSpecies, useCreateAnimalSpecies, useUpdateAnimalSpecies, useDeleteAnimalSpecies, useReorderAnimalSpecies } from "@/features/master/api/animal-species";
 import type { AnimalSpecies, UpdateAnimalSpeciesRequest } from "@/features/master/api/animal-species";
 
 const COLUMNS = [

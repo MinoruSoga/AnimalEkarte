@@ -23,7 +23,7 @@ export const EstimateForm = React.memo(function EstimateForm({
       <Input
         value={subject}
         onChange={(e) => onSubjectChange(e.target.value)}
-        className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm"
+        className={`bg-white ${C.borderMedium} h-10 text-sm`}
       />
     </div>
   );

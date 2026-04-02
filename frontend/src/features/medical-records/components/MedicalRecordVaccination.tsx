@@ -1,8 +1,12 @@
 // React/Framework
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useState, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 // Internal
 import { useGetAllVaccinesMaster } from "@/features/master";
+import { useCreateVaccination } from "@/features/vaccinations/api/create-vaccination";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
 import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
@@ -29,11 +33,63 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
 
   const { data: historyItems = [], isLoading } = useGetPetVaccinations(petId);
   const { data: vaccinesMaster = [] } = useGetAllVaccinesMaster();
+  const createVaccinationMutation = useCreateVaccination();
+  const queryClient = useQueryClient();
 
   const vaccineOptions = useMemo(
     () => vaccinesMaster.filter((v) => v.isActive).map((v) => ({ value: v.id, label: v.name })),
     [vaccinesMaster]
   );
+
+  const handleSave = useCallback(async () => {
+    if (!petId || !vaccineName || !date) {
+      toast.error("必須項目を入力してください");
+      return;
+    }
+
+    try {
+      await createVaccinationMutation.mutateAsync({
+        pet_id: Number(petId),
+        vaccine_id: Number(vaccineName),
+        date,
+        next_date: nextDate || null,
+        lot1: lot1 || undefined,
+        lot2: lot2 || undefined,
+        lot3: lot3 || undefined,
+        lot4: lot4 || undefined,
+        remarks: remarks || undefined,
+      });
+
+      toast.success("ワクチン記録を保存しました");
+      queryClient.invalidateQueries({ queryKey: ["vaccinations", "pet", petId] });
+
+      // Clear form
+      setVaccineName("esophagitis");
+      setDate("");
+      setSupplemental("");
+      setLot1("");
+      setLot2("");
+      setLot3("");
+      setLot4("");
+      setNextScheduleType("4weeks");
+      setNextDate("");
+      setRemarks("");
+    } catch (error) {
+      handleApiError(error, "ワクチン記録の保存");
+    }
+  }, [
+    petId,
+    vaccineName,
+    date,
+    nextDate,
+    lot1,
+    lot2,
+    lot3,
+    lot4,
+    remarks,
+    createVaccinationMutation,
+    queryClient,
+  ]);
 
   return (
     <div className="grid grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1">
@@ -60,6 +116,8 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         setNextDate={setNextDate}
         remarks={remarks}
         setRemarks={setRemarks}
+        onSave={handleSave}
+        isSaving={createVaccinationMutation.isPending}
       />
 
       {/* Right Column: History */}

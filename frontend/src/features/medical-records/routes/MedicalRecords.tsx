@@ -249,7 +249,7 @@ export function MedicalRecords() {
                         e.stopPropagation();
                         navigate(`/accounting/${r.accountingId}`);
                       }}
-                      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-[3px] border ${C.textSuccess} bg-[#10B981]/10 border-[#10B981]/30 hover:bg-[#10B981]/20 transition-colors`}
+                      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-[3px] border ${C.textSuccess} ${C.bgSuccess10} ${C.borderSuccess30} ${C.hoverBgSuccess20} transition-colors`}
                     >
                       <Receipt className={ICON.xs} />
                       会計

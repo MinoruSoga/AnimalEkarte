@@ -44,41 +44,11 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 
 // API hooks
-import {
-  useGetAllConsultations,
-  useCreateConsultation,
-  useUpdateConsultation,
-  useDeleteConsultation,
-  useReorderConsultations,
-} from "@/features/master/api/consultations";
-import {
-  useGetAllExaminationTypes,
-  useCreateExaminationType,
-  useUpdateExaminationType,
-  useDeleteExaminationType,
-  useReorderExaminationTypes,
-} from "@/features/master/api/exam-types-master";
-import {
-  useGetAllProcedures,
-  useCreateProcedure,
-  useUpdateProcedure,
-  useDeleteProcedure,
-  useReorderProcedures,
-} from "@/features/master/api/procedures";
-import {
-  useGetAllVaccinesMaster,
-  useCreateVaccineMaster,
-  useUpdateVaccineMaster,
-  useDeleteVaccineMaster,
-  useReorderVaccinesMaster,
-} from "@/features/master/api/vaccines-master";
-import {
-  useGetAllCheckupTypes,
-  useCreateCheckupType,
-  useUpdateCheckupType,
-  useDeleteCheckupType,
-  useReorderCheckupTypes,
-} from "@/features/master/api/checkup-types";
+import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useDeleteConsultation, useReorderConsultations } from "@/features/master/api/consultations";
+import { useGetAllExaminationTypes, useCreateExaminationType, useUpdateExaminationType, useDeleteExaminationType, useReorderExaminationTypes } from "@/features/master/api/exam-types-master";
+import { useGetAllProcedures, useCreateProcedure, useUpdateProcedure, useDeleteProcedure, useReorderProcedures } from "@/features/master/api/procedures";
+import { useGetAllVaccinesMaster, useCreateVaccineMaster, useUpdateVaccineMaster, useDeleteVaccineMaster, useReorderVaccinesMaster } from "@/features/master/api/vaccines-master";
+import { useGetAllCheckupTypes, useCreateCheckupType, useUpdateCheckupType, useDeleteCheckupType, useReorderCheckupTypes } from "@/features/master/api/checkup-types";
 
 // Types
 import type { TreatmentItem } from "@/lib/transforms/treatment";

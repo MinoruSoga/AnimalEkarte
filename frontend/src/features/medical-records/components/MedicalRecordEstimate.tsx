@@ -6,11 +6,7 @@ import { Button } from "@/components/ui/button";
 import { EstimateForm } from "./EstimateForm";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
-import {
-  useGetEstimateByRecord,
-  useCreateEstimateRecord,
-  useUpdateEstimateRecord,
-} from "../api/save-estimate";
+import { useGetEstimateByRecord, useCreateEstimateRecord, useUpdateEstimateRecord } from "../api/save-estimate";
 import { C } from "@/lib/design-tokens";
 
 interface MedicalRecordEstimateProps {
@@ -189,7 +185,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className={`bg-white border-[rgba(55,53,47,0.16)] min-h-[60px] resize-none p-2 text-sm ${C.text}`}
+            className={`bg-white ${C.borderMedium} min-h-[60px] resize-none p-2 text-sm ${C.text}`}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -199,7 +195,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
           <Textarea
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
-            className={`bg-white border-[rgba(55,53,47,0.16)] min-h-[60px] resize-none p-2 text-sm ${C.text}`}
+            className={`bg-white ${C.borderMedium} min-h-[60px] resize-none p-2 text-sm ${C.text}`}
           />
         </div>
       </div>
@@ -208,7 +204,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       <div className="flex justify-end gap-2 pt-2">
         <Button
           variant="outline"
-          className={`h-10 px-4 text-sm border-[rgba(55,53,47,0.16)] ${C.text} hover:bg-[#F7F6F3]`}
+          className={`h-10 px-4 text-sm ${C.borderMedium} ${C.text} ${C.hoverBgPage}`}
           onClick={handlePdfExport}
         >
           PDF出力

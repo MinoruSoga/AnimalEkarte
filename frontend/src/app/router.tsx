@@ -5,23 +5,7 @@ import { Layout } from "@/components/shared/Layout/Layout";
 import { RootErrorBoundary, RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
 import { RequirePermission } from "@/components/shared/RequirePermission";
 import { AuthProvider } from "@/features/auth";
-import {
-  ResourceDashboard,
-  ResourceOwners,
-  ResourceReservations,
-  ResourceMedicalRecords,
-  ResourceHospitalization,
-  ResourceTrimming,
-  ResourceExaminations,
-  ResourceAccounting,
-  ResourceVaccinations,
-  ResourceCheckups,
-  ResourceInventory,
-  ResourceEstimates,
-  ResourceShifts,
-  ResourceMaster,
-  ResourceHospitalSettings,
-} from "@/types/generated/models";
+import { ResourceDashboard, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceHospitalization, ResourceTrimming, ResourceExaminations, ResourceAccounting, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceEstimates, ResourceShifts, ResourceMaster, ResourceHospitalSettings } from "@/types/generated/models";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
 const Login = lazy(() =>

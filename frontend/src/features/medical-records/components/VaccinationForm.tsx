@@ -6,13 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { C } from "@/lib/design-tokens";
 
@@ -43,6 +38,8 @@ interface VaccinationFormProps {
   setNextDate: (v: string) => void;
   remarks: string;
   setRemarks: (v: string) => void;
+  onSave: () => void;
+  isSaving?: boolean;
 }
 
 export const VaccinationForm = memo(function VaccinationForm({
@@ -67,6 +64,8 @@ export const VaccinationForm = memo(function VaccinationForm({
   setNextDate,
   remarks,
   setRemarks,
+  onSave,
+  isSaving = false,
 }: VaccinationFormProps) {
   return (
     <div className="col-span-6 flex flex-col gap-4">
@@ -77,7 +76,7 @@ export const VaccinationForm = memo(function VaccinationForm({
             予防接種名
           </Label>
           <Select value={vaccineName} onValueChange={setVaccineName}>
-            <SelectTrigger className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}>
+            <SelectTrigger className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}>
               <SelectValue placeholder="ワクチンを選択" />
             </SelectTrigger>
             <SelectContent className="z-[9999]">
@@ -105,7 +104,7 @@ export const VaccinationForm = memo(function VaccinationForm({
         <Input
           value={supplemental}
           onChange={(e) => setSupplemental(e.target.value)}
-          className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
+          className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
         />
       </div>
 
@@ -118,7 +117,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <Input
             value={lot1}
             onChange={(e) => setLot1(e.target.value)}
-            className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
+            className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -128,7 +127,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <Input
             value={lot2}
             onChange={(e) => setLot2(e.target.value)}
-            className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
+            className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -138,7 +137,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <Input
             value={lot3}
             onChange={(e) => setLot3(e.target.value)}
-            className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
+            className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -148,7 +147,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <Input
             value={lot4}
             onChange={(e) => setLot4(e.target.value)}
-            className={`bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
+            className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
           />
         </div>
       </div>
@@ -234,9 +233,18 @@ export const VaccinationForm = memo(function VaccinationForm({
         <Textarea
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
-          className={`flex-1 resize-none bg-white border-[rgba(55,53,47,0.16)] p-3 text-sm ${C.text} leading-relaxed`}
+          className={`flex-1 resize-none bg-white ${C.borderMedium} p-3 text-sm ${C.text} leading-relaxed`}
         />
       </div>
+
+      {/* Save Button */}
+      <Button
+        onClick={onSave}
+        disabled={isSaving}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+      >
+        {isSaving ? "保存中..." : "保存"}
+      </Button>
     </div>
   );
 });

@@ -53,7 +53,7 @@ const DemoAccount = memo(function DemoAccount({
           <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.text50} ${C.bgInactive}`}>
             {roleLabel}
           </span>
-          <span className={`text-xs px-1.5 py-px rounded-[3px] text-[#038B94] bg-[#038B94]/10`}>
+          <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.textBrand} ${C.bgBrand10}`}>
             {permissionLabel}
           </span>
         </div>
@@ -65,7 +65,7 @@ const DemoAccount = memo(function DemoAccount({
 
 /* ---- Shared input classes (padding-x set per field to avoid conflict) ---- */
 // Figma実測: fontSize=15px, height=~48px, bg=rgba(242,241,238,0.6), borderRadius=3px
-const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 focus:ring-[#038B94] focus:border-transparent disabled:opacity-60`;
+const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingBrand} focus:border-transparent disabled:opacity-60`;
 
 /* ---- Login Form ---- */
 
@@ -201,7 +201,7 @@ export function LoginForm() {
 
         {/* Submit */}
         <SubmitButton
-          className="w-full h-[52px] text-base font-medium rounded-[3px] bg-[#038B94] hover:bg-[#027A82] transition-colors text-white"
+          className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} ${C.hoverBgBrand} transition-colors text-white`}
           loadingText="ログイン中..."
         >
           ログイン

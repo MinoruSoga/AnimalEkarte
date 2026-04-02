@@ -5,11 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth";
 import { PermissionGroupSelector } from "@/features/master/components/PermissionGroupSelector";
-import {
-  useGetUsers,
-  useGetUser,
-  useSetUserPermissionGroups,
-} from "@/features/master/api/user-accounts";
+import { useGetUsers, useGetUser, useSetUserPermissionGroups } from "@/features/master/api/user-accounts";
 import type { UserAccountItem } from "@/features/master/api/user-accounts";
 import { useGetPermissionGroups } from "@/features/master/api/permission-groups/permission-groups";
 

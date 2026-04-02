@@ -12,12 +12,7 @@ import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/cons
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetInquiryTemplates,
-  useCreateInquiryTemplate,
-  useUpdateInquiryTemplate,
-  useDeleteInquiryTemplate,
-} from "@/features/master/api/inquiry-templates";
+import { useGetInquiryTemplates, useCreateInquiryTemplate, useUpdateInquiryTemplate, useDeleteInquiryTemplate } from "@/features/master/api/inquiry-templates";
 import type {
   InquiryTemplate,
   CreateInquiryTemplateRequest,

@@ -10,13 +10,7 @@ import { toast } from "sonner";
 
 // Shared
 import { TableCell } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -31,18 +25,7 @@ import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
-import {
-  useGetTrimmingCourses,
-  useCreateTrimmingCourse,
-  useUpdateTrimmingCourse,
-  useDeleteTrimmingCourse,
-  useGetTrimmingOptions,
-  useCreateTrimmingOption,
-  useUpdateTrimmingOption,
-  useDeleteTrimmingOption,
-  TARGET_SIZE_LABELS,
-  TARGET_SIZE_OPTIONS,
-} from "@/features/master/api/trimming";
+import { useGetTrimmingCourses, useCreateTrimmingCourse, useUpdateTrimmingCourse, useDeleteTrimmingCourse, useGetTrimmingOptions, useCreateTrimmingOption, useUpdateTrimmingOption, useDeleteTrimmingOption, TARGET_SIZE_LABELS, TARGET_SIZE_OPTIONS } from "@/features/master/api/trimming";
 
 // Types
 import type {
@@ -95,13 +78,13 @@ const TARGET_SIZE_SELECT_ITEMS = [
 function CombinablePill({ combinable }: { combinable: boolean }) {
   if (combinable) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base bg-[#DDEDEA] text-[#0F7B6C]">
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base ${C.bgStatusGreen} ${C.textStatusGreen}`}>
         可
       </span>
     );
   }
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base bg-[#E3E2E0] ${C.text60}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base ${C.bgInactive} ${C.text60}`}>
       不可
     </span>
   );

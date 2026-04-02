@@ -12,12 +12,7 @@ import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/cons
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetChiefComplaintCategories,
-  useCreateChiefComplaintCategory,
-  useUpdateChiefComplaintCategory,
-  useDeleteChiefComplaintCategory,
-} from "@/features/master/api/chief-complaint-categories";
+import { useGetChiefComplaintCategories, useCreateChiefComplaintCategory, useUpdateChiefComplaintCategory, useDeleteChiefComplaintCategory } from "@/features/master/api/chief-complaint-categories";
 import type {
   ChiefComplaintCategory,
   CreateChiefComplaintCategoryRequest,

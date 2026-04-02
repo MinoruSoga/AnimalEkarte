@@ -9,13 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
 
 interface ImageGalleryFilterProps {
@@ -72,7 +66,7 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
         <Button
           type="button"
           size="sm"
-          className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4"
+          className={`${C.bgAccent} ${C.bgAccentHover} text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
           onClick={handleUploadClick}
           disabled={isUploading}
         >
@@ -82,7 +76,7 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
       </div>
 
       {/* Filters */}
-      <div className="flex items-end gap-4 flex-wrap bg-white p-4 rounded-lg border border-[rgba(55,53,47,0.16)] shadow-sm">
+      <div className={`flex items-end gap-4 flex-wrap bg-white p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>
         <div className="flex flex-col gap-1.5 w-[300px]">
           <Label className={`text-sm font-medium ${C.text60}`}>
             検索単語
@@ -90,7 +84,7 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
           <Input
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm"
+            className={`bg-white ${C.borderMedium} h-10 text-sm`}
           />
         </div>
 
@@ -131,7 +125,7 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
             検索
           </Button>
           <Select value={sortOrder} onValueChange={onSortOrderChange}>
-            <SelectTrigger className="w-[80px] h-10 bg-white border-[rgba(55,53,47,0.16)] text-sm">
+            <SelectTrigger className={`w-[80px] h-10 bg-white ${C.borderMedium} text-sm`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

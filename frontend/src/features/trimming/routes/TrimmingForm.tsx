@@ -12,13 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
@@ -180,7 +174,7 @@ const LeftColumn = memo(function LeftColumn({
             </button>
           </div>
         ) : (
-          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer hover:bg-[#F7F6F3]`}>
+          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer ${C.hoverBgPage}`}>
             <div className="flex flex-col items-center">
               <Upload className={`${ICON.lg} ${C.text40} mb-1`} />
               <span className={`text-sm ${C.text60}`}>画像をアップロード</span>
@@ -293,7 +287,7 @@ const MiddleColumn = memo(function MiddleColumn({
             </button>
           </div>
         ) : (
-          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer hover:bg-[#F7F6F3]`}>
+          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer ${C.hoverBgPage}`}>
             <div className="flex flex-col items-center">
               <Upload className={`${ICON.lg} ${C.text40} mb-1`} />
               <span className={`text-sm ${C.text60}`}>画像をアップロード</span>
@@ -367,7 +361,7 @@ const RightColumn = memo(function RightColumn({
           sortedHistory.map((hist) => (
             <div
               key={hist.id}
-              className={`p-3 border ${C.borderMedium} rounded-lg bg-white hover:bg-[#F7F6F3] transition-colors cursor-pointer`}
+              className={`p-3 border ${C.borderMedium} rounded-lg bg-white ${C.hoverBgPage} transition-colors cursor-pointer`}
               onClick={() => onHistoryClick({ styleRequest: hist.styleRequest, staffName: hist.staff })}
             >
               <div className="flex items-start justify-between">

@@ -14,13 +14,7 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export interface TreatmentItem {
   id: number;
@@ -61,7 +55,7 @@ export const TreatmentTable = memo(function TreatmentTable({
     : "grid-cols-[3fr_2fr_0.8fr_1fr_0.8fr_1fr_1fr_1fr_0.8fr]";
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 border border-[rgba(55,53,47,0.16)] rounded-lg bg-white overflow-hidden shadow-sm">
+    <div className={`flex-1 flex flex-col min-h-0 border ${C.borderMedium} rounded-lg bg-white overflow-hidden shadow-sm`}>
       {/* Header */}
       <div
         className={cn(
@@ -133,7 +127,7 @@ export const TreatmentTable = memo(function TreatmentTable({
                 className={disabled ? undefined : "cursor-pointer hover:bg-gray-50"}
               >
                 {item.insurance ? (
-                  <Circle className={`${ICON.action} text-[#EA3323]`} />
+                  <Circle className={`${ICON.action} ${C.textRedIcon}`} />
                 ) : (
                   <X className={`${ICON.action} text-gray-300`} />
                 )}
@@ -212,7 +206,7 @@ export const TreatmentTable = memo(function TreatmentTable({
 
       {/* BUG-051: disabled 時は行追加ボタンを非表示 */}
       {disabled ? null : (
-        <div className="p-2 bg-[#F7F6F3] border-t border-[rgba(55,53,47,0.16)] flex justify-center">
+        <div className={`p-2 ${C.bgPage} border-t ${C.borderMedium} flex justify-center`}>
           <Button
             type="button"
             variant="ghost"
@@ -243,7 +237,7 @@ function HeaderCell({
   return (
     <div
       className={cn(
-        "p-2 border-[rgba(55,53,47,0.16)] h-full flex items-center",
+        `p-2 ${C.borderMedium} h-full flex items-center`,
         !last && "border-r",
         align === "center" && "justify-center",
         align === "right" && "justify-end"
@@ -270,7 +264,7 @@ function Cell({
   return (
     <div
       className={cn(
-        "h-full flex items-center border-[rgba(55,53,47,0.09)] p-0",
+        `h-full flex items-center ${C.borderLight} p-0`,
         !last && "border-r",
         align === "center" && "justify-center",
         align === "right" && "justify-end",

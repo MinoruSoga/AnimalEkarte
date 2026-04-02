@@ -63,7 +63,7 @@ export function TaskCompleteDialog({ open, onOpenChange, task, onConfirm }: Task
             saveLabel="実施記録を保存"
         >
             <div className="space-y-4 py-4">
-                <div className="bg-[#F7F6F3] p-3 rounded-md border border-[rgba(55,53,47,0.09)]">
+                <div className={`${C.bgPage} p-3 rounded-md border ${C.borderLight}`}>
                     <div className={`font-bold ${C.text} ${H_STYLES.text.base}`}>{task?.name}</div>
                     <div className={`${C.text60} ${H_STYLES.text.sm}`}>{task?.description}</div>
                 </div>

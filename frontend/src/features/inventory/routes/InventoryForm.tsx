@@ -10,13 +10,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";

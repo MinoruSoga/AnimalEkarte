@@ -10,13 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 // Types
 import type { ApiVitalRecord, CreateVitalRecordRequest } from "@/features/hospitalization/api/daily-records-types";
@@ -105,7 +99,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
             </div>
 
             {sorted.length === 0 ? (
-                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed border-[rgba(55,53,47,0.16)]`}>
+                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed ${C.borderMedium}`}>
                     記録なし
                 </p>
             ) : (

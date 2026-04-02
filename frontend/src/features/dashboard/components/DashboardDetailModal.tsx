@@ -18,21 +18,11 @@ import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 
 // Internal
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
-import {
-  DASHBOARD_STATUS_COLORS,
-  DASHBOARD_STATUS_COLOR_FALLBACK,
-} from "@/utils/constants/status-colors";
+import { DASHBOARD_STATUS_COLORS, DASHBOARD_STATUS_COLOR_FALLBACK } from "@/utils/constants/status-colors";
 
 // Types
 import type { Appointment } from "@/types";
@@ -43,9 +33,9 @@ const DIVIDER_ROW = `flex items-center justify-between border-b ${C.borderLight}
 const ROW_ICON = `flex items-center gap-2 ${C.text60}`;
 
 const RELATED_BTN_BASE = "flex items-center gap-1.5 text-sm border rounded-md px-3 py-1.5 transition-colors group";
-const RELATED_BTN_KARTE      = `${RELATED_BTN_BASE} ${C.accent} bg-[#D3E5EF]/40 hover:bg-[#D3E5EF] ${C.borderAccentLight}`;
-const RELATED_BTN_ACCOUNTING = `${RELATED_BTN_BASE} ${C.textStatusGreen} bg-[#DDEDEA]/40 hover:bg-[#DDEDEA] ${C.borderStatusGreen}`;
-const RELATED_BTN_HOSPITAL   = `${RELATED_BTN_BASE} ${C.textStatusPurple} bg-[#EEE0F7]/40 hover:bg-[#EEE0F7] ${C.borderStatusPurple}`;
+const RELATED_BTN_KARTE      = `${RELATED_BTN_BASE} ${C.accent} ${C.bgAccentLight40} ${C.hoverBgAccentLight} ${C.borderAccentLight}`;
+const RELATED_BTN_ACCOUNTING = `${RELATED_BTN_BASE} ${C.textStatusGreen} ${C.bgStatusGreen40} ${C.hoverBgStatusGreen} ${C.borderStatusGreen}`;
+const RELATED_BTN_HOSPITAL   = `${RELATED_BTN_BASE} ${C.textStatusPurple} ${C.bgStatusPurple40} ${C.hoverBgStatusPurple} ${C.borderStatusPurple}`;
 
 
 interface RelatedPagesProps {

@@ -33,7 +33,7 @@ export const DiagnosisHeaderPhysicalExam = React.memo(function DiagnosisHeaderPh
           <Textarea
             value={policy}
             onChange={(e) => setPolicy(e.target.value)}
-            className="flex-1 resize-none bg-white border-[rgba(55,53,47,0.16)] text-sm p-3 font-mono focus-visible:ring-[#2EAADC]"
+            className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 font-mono ${C.focusRingMedicalBlue}`}
           />
         </CardContent>
       </Card>

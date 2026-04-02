@@ -34,6 +34,7 @@ export const transformMedicalRecord = (
     prescription: undefined,
     notes: record.inquiry?.notes,
     accountingId: record.accounting_id ? String(record.accounting_id) : undefined,
+    visitCount: record.visit_count,
     version: record.version ?? 1,
   };
 };

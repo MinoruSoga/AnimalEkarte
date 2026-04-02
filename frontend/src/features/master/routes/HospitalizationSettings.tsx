@@ -17,10 +17,7 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetAllHospitalizationPlans, useCreateHospitalizationPlan, useUpdateHospitalizationPlan, useDeleteHospitalizationPlan,
-  BODY_SIZE_OPTIONS, BODY_SIZE_LABELS, BILLING_UNIT_OPTIONS, BILLING_UNIT_LABELS,
-} from "@/features/master/api/hospitalization-plans";
+import { useGetAllHospitalizationPlans, useCreateHospitalizationPlan, useUpdateHospitalizationPlan, useDeleteHospitalizationPlan, BODY_SIZE_OPTIONS, BODY_SIZE_LABELS, BILLING_UNIT_OPTIONS, BILLING_UNIT_LABELS } from "@/features/master/api/hospitalization-plans";
 import type { HospitalizationPlan, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest } from "@/features/master/api/hospitalization-plans";
 import type { BodySize, BillingUnit, TaxType } from "@/types/generated/models";
 

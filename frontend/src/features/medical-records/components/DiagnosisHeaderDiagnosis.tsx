@@ -9,13 +9,7 @@ import { ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Relative
 import { useGetDiagnosisCategories, useGetDiagnosisNames } from "../api/get-diagnosis-options";
@@ -72,7 +66,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
                 }}
                 disabled={isCategoriesLoading}
               >
-                <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
+                <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
                   <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
@@ -88,7 +82,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
                 onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
                 disabled={isNames1Loading || !diagnosis1CategoryId}
               >
-                <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
+                <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
                   <SelectValue placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
@@ -113,7 +107,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
                 }}
                 disabled={isCategoriesLoading}
               >
-                <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
+                <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
                   <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
@@ -129,7 +123,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
                 onValueChange={(value) => setDiagnosis2NameId?.(value ? Number(value) : null)}
                 disabled={isNames2Loading || !diagnosis2CategoryId}
               >
-                <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
+                <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
                   <SelectValue placeholder={isNames2Loading ? "読み込み中..." : "病名を選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
@@ -150,7 +144,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
             <Textarea
               value={diagnosisDetails}
               onChange={(e) => setDiagnosisDetails(e.target.value)}
-              className="flex-1 resize-none bg-white border-[rgba(55,53,47,0.16)] text-sm p-3 font-mono focus-visible:ring-[#2EAADC]"
+              className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 font-mono ${C.focusRingMedicalBlue}`}
             />
           </div>
         </CardContent>

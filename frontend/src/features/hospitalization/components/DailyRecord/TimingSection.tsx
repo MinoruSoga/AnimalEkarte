@@ -35,9 +35,9 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
                 {tasks.map((task, idx) => (
                     <Card key={idx} className={`
                         ${H_STYLES.padding.card} border transition-all duration-200
-                        ${task.completedLog 
-                            ? "bg-[#F7F6F3] border-transparent opacity-80" 
-                            : "bg-white border-[rgba(55,53,47,0.16)] hover:shadow-sm hover:border-[#2EAADC]/50"}
+                        ${task.completedLog
+                            ? `${C.bgPage} border-transparent opacity-80`
+                            : `bg-white ${C.borderMedium} hover:shadow-sm ${C.hoverBorderMedicalBlue50}`}
                     `}>
                         <div className="flex items-center justify-between">
                             <div className={`flex items-center ${H_STYLES.gap.default}`}>

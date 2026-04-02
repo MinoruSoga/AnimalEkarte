@@ -18,9 +18,7 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetServiceTypes, useCreateServiceType, useUpdateServiceType, useDeleteServiceType, useReorderServiceTypes,
-} from "@/features/master/api/service-types";
+import { useGetServiceTypes, useCreateServiceType, useUpdateServiceType, useDeleteServiceType, useReorderServiceTypes } from "@/features/master/api/service-types";
 import type { ServiceType } from "@/features/master/api/service-types";
 import type { CreateServiceTypeRequest, UpdateServiceTypeRequest } from "@/types/service-type";
 

@@ -5,14 +5,8 @@ import { paths } from "@/config/paths";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 
 // DnD
-import {
-  DndContext,
-  closestCenter,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { DndContext, closestCenter } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 // Shared hooks
 import { useSortableList } from "@/hooks/use-sortable-list";
@@ -25,13 +19,7 @@ import { toast } from "sonner";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -46,18 +34,7 @@ import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
-import {
-  useGetDiagnosisCategories,
-  useCreateDiagnosisCategory,
-  useUpdateDiagnosisCategory,
-  useDeleteDiagnosisCategory,
-  useReorderDiagnosisCategories,
-  useGetDiagnosisNames,
-  useCreateDiagnosisName,
-  useUpdateDiagnosisName,
-  useDeleteDiagnosisName,
-  useReorderDiagnosisNames,
-} from "@/features/master/api/diagnosis";
+import { useGetDiagnosisCategories, useCreateDiagnosisCategory, useUpdateDiagnosisCategory, useDeleteDiagnosisCategory, useReorderDiagnosisCategories, useGetDiagnosisNames, useCreateDiagnosisName, useUpdateDiagnosisName, useDeleteDiagnosisName, useReorderDiagnosisNames } from "@/features/master/api/diagnosis";
 
 // Types
 import type { DiagnosisCategory, DiagnosisName } from "@/features/master/api/diagnosis";

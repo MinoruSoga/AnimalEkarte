@@ -1,34 +1,17 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
-import {
-  PET_GENDER_VALUES,
-  ACQUISITION_TYPE_VALUES,
-  DANGER_LEVEL_VALUES,
-  PetFormData,
-} from "../types";
+import { PET_GENDER_VALUES, ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES, PetFormData } from "../types";
 import { useGetAnimalSpecies } from "../api/get-animal-species";
 import { useGetInsurances } from "../api/get-insurances";
 

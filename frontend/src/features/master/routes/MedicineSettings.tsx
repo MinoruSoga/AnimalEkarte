@@ -5,16 +5,8 @@ import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
 // DnD
-import {
-  DndContext,
-  DragOverlay,
-  closestCenter,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { DndContext, DragOverlay, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 // External
 import { AnimatePresence, motion } from "motion/react";
@@ -38,40 +30,16 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useSortableList } from "@/hooks/use-sortable-list";
 
 // Internal – feature API (direct import, no barrel)
-import {
-  useGetAllMedicines,
-  useCreateMedicine,
-  useUpdateMedicine,
-  useDeleteMedicine,
-  useReorderMedicines,
-} from "../api/medicines";
+import { useGetAllMedicines, useCreateMedicine, useUpdateMedicine, useDeleteMedicine, useReorderMedicines } from "../api/medicines";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
@@ -177,7 +145,7 @@ function SortableMedicineRow({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} hover:bg-[rgba(55,53,47,0.08)] ${C.hoverText} transition-colors`}
+                className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
               >
                 <MoreHorizontal className={ICON.action} />
               </button>
@@ -189,7 +157,7 @@ function SortableMedicineRow({
           <button
             type="button"
             onClick={() => onEdit(medicine)}
-            className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} hover:bg-[rgba(55,53,47,0.08)] ${C.hoverText} transition-colors`}
+            className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
           >
             <Maximize2 className={`${ICON.xs}`} />
           </button>
@@ -362,7 +330,7 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
               <button
                 type="button"
                 onClick={() => updateForm({ isActive: !formData.isActive })}
-                className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
+                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
               >
                 <NotionStatusPill isActive={formData.isActive} />
               </button>
@@ -771,7 +739,7 @@ export function MedicineSettings() {
                   {/* Group header row — クリックでカテゴリ編集パネルを開く */}
                   <TableRow
                     onClick={() => handleEdit(header)}
-                    className={`${STYLE.tableRow} border-b ${C.borderLight} bg-[#F7F6F3]/30 group/header hover:bg-[#F7F6F3]/60`}
+                    className={`${STYLE.tableRow} border-b ${C.borderLight} ${C.bgPage30} group/header ${C.hoverBgPage60}`}
                   >
                     {/* Grip handle — left (クリック伝播を止める) */}
                     <TableCell className="w-8 px-0 py-0">
@@ -779,7 +747,7 @@ export function MedicineSettings() {
                         type="button"
                         tabIndex={-1}
                         onClick={(e) => e.stopPropagation()}
-                        className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text20} hover:bg-[rgba(55,53,47,0.08)] ${C.hoverText}/50 transition-colors cursor-grab`}
+                        className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text20} ${C.hoverBgMedium} ${C.hoverText60} transition-colors cursor-grab`}
                       >
                         <GripVertical className={ICON.action} />
                       </button>
@@ -794,7 +762,7 @@ export function MedicineSettings() {
                             e.stopPropagation();
                             toggleGroup(parentId);
                           }}
-                          className="flex items-center gap-1.5 py-1.5 px-1 hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] transition-colors"
+                          className={`flex items-center gap-1.5 py-1.5 px-1 ${C.hoverBgLight} rounded-[3px] transition-colors`}
                         >
                           <ChevronRight
                             className={`size-5 ${C.text50} transition-transform duration-150 ${
@@ -813,7 +781,7 @@ export function MedicineSettings() {
                             e.stopPropagation();
                             handleCreate(parentId);
                           }}
-                          className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text40} hover:bg-[rgba(55,53,47,0.08)] ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
+                          className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
                         >
                           <Plus className={`${ICON.xs}`} />
                         </button>
@@ -837,7 +805,7 @@ export function MedicineSettings() {
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} hover:bg-[rgba(55,53,47,0.08)] ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
+                            className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
                           >
                             <MoreHorizontal className={ICON.action} />
                           </button>
@@ -900,7 +868,7 @@ export function MedicineSettings() {
       <button
         type="button"
         onClick={() => handleCreate()}
-        className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText}/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]`}
+        className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}
       >
         <Plus className={`${ICON.xs}`} />
         新しい薬剤を追加...
