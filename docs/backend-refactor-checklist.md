@@ -92,7 +92,7 @@ internal/
 |------|------|
 | `[ ]` | 未着手 |
 | `[~]` | チェック中 |
-| `[x]` | 完了（違反なし or 修正済み） |
+| `[ ]` | 完了（違反なし or 修正済み） |
 | `[!]` | 違反あり・修正待ち |
 
 ---
@@ -146,17 +146,17 @@ internal/
 
 | チェック項目 | スキャン対象 | ステータス | 発見数 |
 |------------|------------|-----------|--------|
-| gin import in service | `grep -r "gin-gonic/gin" internal/service/` | `[x]` | 0 |
-| gin import in repository | `grep -r "gin-gonic/gin" internal/repository/` | `[x]` | 0 |
-| gorm import in service | `grep -r "gorm.io/gorm" internal/service/` | `[x]` | 0 |
-| handler が直接 repository を呼び出し | `grep -rn "h\.repos\." internal/handler/` (Audit 以外) | `[x]` | 0 |
-| WithContext なし GORM | `grep -rn "\.First\|\.Find\|\.Create\|\.Save\|\.Delete" internal/repository/` でチェック | `[x]` | 0 |
-| 裸の error return in repository | `grep -rn "return nil, err" internal/repository/` + `grep -rn "return err$"` | `[x]` | `return nil, err` 0件。`return err` 3件: permission_group/user_account はTransaction callback 内で外側Wrap済み（正当）、audit_repository はFromGORMに修正済み |
-| 裸の error return in service | `grep -rn "return nil, err" internal/service/` | `[x]` | 31件・7ファイル — 全て `validate*` 関数からの返り値。`validate*` は既に `apperrors.WrapInvalidInput()` を返すため再ラップ不要。正当なパターン |
-| slog in handler | `grep -rn "slog\." internal/handler/` | `[x]` | 6ファイル（全て正当: response.go=エラーレスポンスログ、audit_helper.go=監査、auth/medical_record/reservation=非致命的クリーンアップ警告、record_image=同左） |
-| slog in repository | `grep -rn "slog\." internal/repository/` | `[x]` | 0 |
-| panic 使用 | `grep -rn "panic(" internal/` | `[x]` | 0 |
-| ignored errors | `grep -rn "_ = " internal/` | `[x]` | 3件残存（全て正当: auth=セキュリティ設計、crypto/rand=Go保証、Body.Close=非致命的） |
+| gin import in service | `grep -r "gin-gonic/gin" internal/service/` | `[ ]` | 0 |
+| gin import in repository | `grep -r "gin-gonic/gin" internal/repository/` | `[ ]` | 0 |
+| gorm import in service | `grep -r "gorm.io/gorm" internal/service/` | `[ ]` | 0 |
+| handler が直接 repository を呼び出し | `grep -rn "h\.repos\." internal/handler/` (Audit 以外) | `[ ]` | 0 |
+| WithContext なし GORM | `grep -rn "\.First\|\.Find\|\.Create\|\.Save\|\.Delete" internal/repository/` でチェック | `[ ]` | 0 |
+| 裸の error return in repository | `grep -rn "return nil, err" internal/repository/` + `grep -rn "return err$"` | `[ ]` | `return nil, err` 0件。`return err` 3件: permission_group/user_account はTransaction callback 内で外側Wrap済み（正当）、audit_repository はFromGORMに修正済み |
+| 裸の error return in service | `grep -rn "return nil, err" internal/service/` | `[ ]` | 31件・7ファイル — 全て `validate*` 関数からの返り値。`validate*` は既に `apperrors.WrapInvalidInput()` を返すため再ラップ不要。正当なパターン |
+| slog in handler | `grep -rn "slog\." internal/handler/` | `[ ]` | 6ファイル（全て正当: response.go=エラーレスポンスログ、audit_helper.go=監査、auth/medical_record/reservation=非致命的クリーンアップ警告、record_image=同左） |
+| slog in repository | `grep -rn "slog\." internal/repository/` | `[ ]` | 0 |
+| panic 使用 | `grep -rn "panic(" internal/` | `[ ]` | 0 |
+| ignored errors | `grep -rn "_ = " internal/` | `[ ]` | 3件残存（全て正当: auth=セキュリティ設計、crypto/rand=Go保証、Body.Close=非致命的） |
 
 ---
 
@@ -181,14 +181,14 @@ internal/
 
 | レイヤー | ルールID | ステータス | 発見内容 |
 |---------|---------|-----------|---------|
-| handler | `layer-handler-direct-repo` | `[x]` | |
-| handler | `error-respond` | `[x]` | billing_review_handler.go:41,69 修正済み + システム全体一括修正完了 |
-| service | `ctx-propagation` | `[x]` | |
-| service | `error-wrap-service` | `[x]` | |
-| service | `slog-service-only` | `[x]` | |
-| service | `patch-pointer-fields` | `[x]` | |
-| repository | `ctx-withcontext` | `[x]` | |
-| repository | `error-from-gorm` | `[x]` | refund_repository は apperrors.Wrap 使用。Find/Scan は FromGORM 不要（ErrRecordNotFound を返さない） |
+| handler | `layer-handler-direct-repo` | `[ ]` | |
+| handler | `error-respond` | `[ ]` | billing_review_handler.go:41,69 修正済み + システム全体一括修正完了 |
+| service | `ctx-propagation` | `[ ]` | |
+| service | `error-wrap-service` | `[ ]` | |
+| service | `slog-service-only` | `[ ]` | |
+| service | `patch-pointer-fields` | `[ ]` | |
+| repository | `ctx-withcontext` | `[ ]` | |
+| repository | `error-from-gorm` | `[ ]` | refund_repository は apperrors.Wrap 使用。Find/Scan は FromGORM 不要（ErrRecordNotFound を返さない） |
 
 ---
 
@@ -200,13 +200,13 @@ internal/
 
 | レイヤー | ルールID | ステータス | 発見内容 |
 |---------|---------|-----------|---------|
-| handler | `layer-handler-direct-repo` | `[x]` | |
-| handler | `error-respond` | `[x]` | 一括修正済み（violation #12 fix） |
-| service | `ctx-propagation` | `[x]` | |
-| service | `error-wrap-service` | `[x]` | |
-| service | `errgroup-parallel`（複数 service 連携） | `[x]` | |
-| repository | `ctx-withcontext` | `[x]` | |
-| repository | `error-from-gorm` | `[x]` | |
+| handler | `layer-handler-direct-repo` | `[ ]` | |
+| handler | `error-respond` | `[ ]` | 一括修正済み（violation #12 fix） |
+| service | `ctx-propagation` | `[ ]` | |
+| service | `error-wrap-service` | `[ ]` | |
+| service | `errgroup-parallel`（複数 service 連携） | `[ ]` | |
+| repository | `ctx-withcontext` | `[ ]` | |
+| repository | `error-from-gorm` | `[ ]` | |
 
 ---
 
@@ -217,13 +217,13 @@ internal/
 
 | レイヤー | ルールID | ステータス | 発見内容 |
 |---------|---------|-----------|---------|
-| handler | `layer-handler-direct-repo` | `[x]` | |
-| handler | `error-respond` | `[x]` | 一括修正済み（violation #12 fix） |
-| service | `ctx-propagation` | `[x]` | |
-| service | `error-wrap-service` | `[x]` | care_plan_item_service validateXxx は apperrors.WrapInvalidInput 済み。準拠 |
-| service | `patch-pointer-fields` | `[x]` | |
-| repository | `ctx-withcontext` | `[x]` | |
-| repository | `error-from-gorm` | `[x]` | |
+| handler | `layer-handler-direct-repo` | `[ ]` | |
+| handler | `error-respond` | `[ ]` | 一括修正済み（violation #12 fix） |
+| service | `ctx-propagation` | `[ ]` | |
+| service | `error-wrap-service` | `[ ]` | care_plan_item_service validateXxx は apperrors.WrapInvalidInput 済み。準拠 |
+| service | `patch-pointer-fields` | `[ ]` | |
+| repository | `ctx-withcontext` | `[ ]` | |
+| repository | `error-from-gorm` | `[ ]` | |
 
 ---
 
@@ -234,11 +234,11 @@ internal/
 
 | レイヤー | ルールID | ステータス | 発見内容 |
 |---------|---------|-----------|---------|
-| handler | `error-respond` | `[x]` | RespondError 使用済み（c.JSON パターンなし） |
-| service | `ctx-propagation` | `[x]` | |
-| service | `error-wrap-service` | `[x]` | |
-| repository | `ctx-withcontext` | `[x]` | |
-| repository | `error-from-gorm` | `[x]` | FindByID: apperrors.FromGORM 使用済み。UpdateFields: map[string]any パターン準拠 |
+| handler | `error-respond` | `[ ]` | RespondError 使用済み（c.JSON パターンなし） |
+| service | `ctx-propagation` | `[ ]` | |
+| service | `error-wrap-service` | `[ ]` | |
+| repository | `ctx-withcontext` | `[ ]` | |
+| repository | `error-from-gorm` | `[ ]` | FindByID: apperrors.FromGORM 使用済み。UpdateFields: map[string]any パターン準拠 |
 
 ---
 
@@ -248,11 +248,11 @@ internal/
 
 | レイヤー | ルールID | ステータス | 発見内容 |
 |---------|---------|-----------|---------|
-| handler | `error-respond` | `[x]` | 一括修正済み（violation #12 fix） |
-| service | `ctx-propagation` | `[x]` | |
-| service | `patch-pointer-fields` | `[x]` | UpdateEstimateInput ポインタ型 + buildEstimateUpdateFields 準拠 |
-| repository | `ctx-withcontext` | `[x]` | |
-| repository | `error-from-gorm` | `[x]` | |
+| handler | `error-respond` | `[ ]` | 一括修正済み（violation #12 fix） |
+| service | `ctx-propagation` | `[ ]` | |
+| service | `patch-pointer-fields` | `[ ]` | UpdateEstimateInput ポインタ型 + buildEstimateUpdateFields 準拠 |
+| repository | `ctx-withcontext` | `[ ]` | |
+| repository | `error-from-gorm` | `[ ]` | |
 
 ---
 
@@ -263,10 +263,10 @@ internal/
 
 | レイヤー | ルールID | ステータス | 発見内容 |
 |---------|---------|-----------|---------|
-| handler | `error-respond` | `[x]` | 一括修正済み（violation #12 fix） |
-| service | `ctx-propagation` | `[x]` | |
-| repository | `ctx-withcontext` | `[x]` | |
-| repository | `error-from-gorm` | `[x]` | FindByID: apperrors.FromGORM 済み |
+| handler | `error-respond` | `[ ]` | 一括修正済み（violation #12 fix） |
+| service | `ctx-propagation` | `[ ]` | |
+| repository | `ctx-withcontext` | `[ ]` | |
+| repository | `error-from-gorm` | `[ ]` | FindByID: apperrors.FromGORM 済み |
 
 ---
 
@@ -277,10 +277,10 @@ internal/
 
 | レイヤー | ルールID | ステータス | 発見内容 |
 |---------|---------|-----------|---------|
-| handler | `error-respond` | `[x]` | RespondError 使用済み（c.JSON パターンなし） |
-| service | `ctx-propagation` | `[x]` | |
-| repository | `ctx-withcontext` | `[x]` | |
-| repository | `error-from-gorm` | `[x]` | FindByID: apperrors.FromGORM 済み |
+| handler | `error-respond` | `[ ]` | RespondError 使用済み（c.JSON パターンなし） |
+| service | `ctx-propagation` | `[ ]` | |
+| repository | `ctx-withcontext` | `[ ]` | |
+| repository | `error-from-gorm` | `[ ]` | FindByID: apperrors.FromGORM 済み |
 
 ---
 
@@ -291,10 +291,10 @@ internal/
 
 | レイヤー | ルールID | ステータス | 発見内容 |
 |---------|---------|-----------|---------|
-| handler | `error-respond` | `[x]` | RespondError 使用済み（c.JSON パターンなし） |
-| service | `ctx-propagation` | `[x]` | |
-| repository | `ctx-withcontext` | `[x]` | |
-| repository | `error-from-gorm` | `[x]` | FindByID: apperrors.FromGORM 済み |
+| handler | `error-respond` | `[ ]` | RespondError 使用済み（c.JSON パターンなし） |
+| service | `ctx-propagation` | `[ ]` | |
+| repository | `ctx-withcontext` | `[ ]` | |
+| repository | `error-from-gorm` | `[ ]` | FindByID: apperrors.FromGORM 済み |
 
 ---
 
@@ -308,10 +308,10 @@ internal/
 
 | ルールID | ステータス | 発見内容 |
 |---------|-----------|---------|
-| `error-respond`（handler） | `[x]` | animal_species_handler.go 等: RespondError / apperrors.WrapInvalidInput 使用済み（c.JSON パターンなし） |
-| `ctx-propagation`（service） | `[x]` | |
-| `error-from-gorm`（repository） | `[x]` | FindByID: apperrors.FromGORM 済み。FindAll/Create/Update/Delete は apperrors.Wrap/WrapConflict 使用 |
-| `ctx-withcontext`（repository） | `[x]` | |
+| `error-respond`（handler） | `[ ]` | animal_species_handler.go 等: RespondError / apperrors.WrapInvalidInput 使用済み（c.JSON パターンなし） |
+| `ctx-propagation`（service） | `[ ]` | |
+| `error-from-gorm`（repository） | `[ ]` | FindByID: apperrors.FromGORM 済み。FindAll/Create/Update/Delete は apperrors.Wrap/WrapConflict 使用 |
+| `ctx-withcontext`（repository） | `[ ]` | |
 
 ---
 
@@ -321,10 +321,10 @@ internal/
 
 | レイヤー | ルールID | ステータス | 発見内容 |
 |---------|---------|-----------|---------|
-| handler | `error-respond` | `[x]` | 11箇所の c.JSON 直書き → RespondError + WrapUnauthorized/WrapInternalServerError に統一修正済み |
-| service | `ctx-propagation` | `[x]` | |
-| service | `error-wrap-service` | `[x]` | |
-| repository | `ctx-withcontext` | `[x]` | |
+| handler | `error-respond` | `[ ]` | 11箇所の c.JSON 直書き → RespondError + WrapUnauthorized/WrapInternalServerError に統一修正済み |
+| service | `ctx-propagation` | `[ ]` | |
+| service | `error-wrap-service` | `[ ]` | |
+| repository | `ctx-withcontext` | `[ ]` | |
 
 ---
 
@@ -335,10 +335,10 @@ internal/
 
 | ルールID | ステータス | 発見内容 |
 |---------|-----------|---------|
-| `error-respond` | `[x]` | 一括修正済み（violation #12 fix） |
-| `ctx-propagation` | `[x]` | |
-| `ctx-withcontext` | `[x]` | |
-| `error-from-gorm` | `[x]` | |
+| `error-respond` | `[ ]` | 一括修正済み（violation #12 fix） |
+| `ctx-propagation` | `[ ]` | |
+| `ctx-withcontext` | `[ ]` | |
+| `error-from-gorm` | `[ ]` | |
 
 ---
 
@@ -349,10 +349,10 @@ internal/
 
 | ルールID | ステータス | 発見内容 |
 |---------|-----------|---------|
-| `error-respond` | `[x]` | 一括修正済み（violation #12 fix） |
-| `ctx-propagation` | `[x]` | |
-| `ctx-withcontext` | `[x]` | |
-| `error-from-gorm` | `[x]` | pet_repository.go FindByID: apperrors.FromGORM 使用済み。FindAll/Create/Update/Delete は apperrors.Wrap 系使用。適切 |
+| `error-respond` | `[ ]` | 一括修正済み（violation #12 fix） |
+| `ctx-propagation` | `[ ]` | |
+| `ctx-withcontext` | `[ ]` | |
+| `error-from-gorm` | `[ ]` | pet_repository.go FindByID: apperrors.FromGORM 使用済み。FindAll/Create/Update/Delete は apperrors.Wrap 系使用。適切 |
 
 ---
 
@@ -362,23 +362,23 @@ internal/
 
 | チェック項目 | ステータス | 発見内容 |
 |------------|-----------|---------|
-| テーブル駆動形式になっているか（`test-table-driven`） | `[x]` | *_test.go ファイルは testify + テーブル駆動形式 |
-| `-race` フラグが CI / Makefile で設定されているか | `[x]` | Makefile の `test` / `test-cover` に `-race` 追加済み |
-| カバレッジ 80% 以上か（新規機能） | `[x]` | 現時点で新規機能テストは未追加だが、ルールとして認識済み |
+| テーブル駆動形式になっているか（`test-table-driven`） | `[ ]` | *_test.go ファイルは testify + テーブル駆動形式 |
+| `-race` フラグが CI / Makefile で設定されているか | `[ ]` | Makefile の `test` / `test-cover` に `-race` 追加済み |
+| カバレッジ 80% 以上か（新規機能） | `[ ]` | 現時点で新規機能テストは未追加だが、ルールとして認識済み |
 
 ### インターフェース設計（`service/service.go`）
 
 | チェック項目 | ステータス | 発見内容 |
 |------------|-----------|---------|
-| 10 メソッド超のインターフェースがないか（`interface-minimal`） | `[x]` | 最大は AuthService の8メソッド。全47インターフェースが10未満 |
-| 具体構造体が export されていないか（`unexported-impl`） | `[x]` | 全 service/repository は unexported struct + interface return |
+| 10 メソッド超のインターフェースがないか（`interface-minimal`） | `[ ]` | 最大は AuthService の8メソッド。全47インターフェースが10未満 |
+| 具体構造体が export されていないか（`unexported-impl`） | `[ ]` | 全 service/repository は unexported struct + interface return |
 
 ### DI 設計（`cmd/api/main.go`, `handler/handler.go`）
 
 | チェック項目 | ステータス | 発見内容 |
 |------------|-----------|---------|
-| DI 配線が main.go のみか（他ファイルで new していないか） | `[x]` | cmd/api/main.go で一元管理 |
-| handler が repos を業務ロジックで直接利用していないか | `[x]` | h.repos は Audit のみ |
+| DI 配線が main.go のみか（他ファイルで new していないか） | `[ ]` | cmd/api/main.go で一元管理 |
+| handler が repos を業務ロジックで直接利用していないか | `[ ]` | h.repos は Audit のみ |
 
 ---
 
@@ -388,22 +388,22 @@ internal/
 
 | # | ファイル | ルールID | 内容 | 優先度 | ステータス |
 |---|---------|---------|------|--------|-----------|
-| 1 | `internal/repository/permission_group_repository.go:52` | `error-from-gorm` | `return nil, err` — `apperrors.FromGORM` を使わず裸のエラー返却。FindByID/FindByCompanyID/UpdateFields/Delete の4箇所を `apperrors.FromGORM` に修正済み | High | `[x]` |
-| 2 | `internal/service/` 全体 | `error-wrap-service` | 多数の `return nil, err` — Phase 2 High 全ドメインチェック完了。care_plan_item / billing / medical-record / hospitalization service 全て準拠済み。残存確認要 | High | `[x]` |
-| 3 | `internal/handler/response.go:50` | `slog-service-only` | `RespondError` 内で `slog.ErrorContext` を直接呼び出し。例外認定: 500エラー最終ログ地点。handler インフラ責務 | High | `[x]` |
-| 4 | `internal/handler/reservation_handler.go:224-260` | `slog-service-only` | `autoCreateMedicalRecord` 内で `slog.WarnContext` / `slog.InfoContext` 複数呼び出し。例外認定: best-effort 自動カルテ作成。意図的設計 | High | `[x]` |
-| 5 | `internal/handler/audit_helper.go:50` | `slog-service-only` | 監査ヘルパー内で `slog.WarnContext` 呼び出し。例外認定: 監査ログ失敗の best-effort ログ。handler ctx 必須 | High | `[x]` |
-| 6 | `internal/repository/audit_repository.go:29` | `slog-service-only` | repository 内で `slog.WarnContext` 呼び出し。`slog.WarnContext` と `log/slog` import を削除し、エラーをそのまま return するよう修正済み | High | `[x]` |
-| 7 | `internal/handler/reservation_handler.go:265-266` | `no-ignored-errors` | `_, _ =` → `if _, err :=` + `slog.WarnContext` に変換済み | Medium | `[x]` |
-| 8 | `internal/handler/medical_record_handler.go:175,178,188` | `no-ignored-errors` | `_, _ =` → `if _, err :=` + `slog.WarnContext` に変換済み（3箇所） | Medium | `[x]` |
-| 9 | `internal/handler/auth_handler.go:265` | `no-ignored-errors` | `_ = RevokeRefreshToken` → `if err + slog.WarnContext` に変換済み | Medium | `[x]` |
-| 9b | `internal/handler/auth_handler.go:440` | `no-ignored-errors` | 例外認定: `ForgotPassword` は意図的無視（メール列挙攻撃防止のセキュリティ設計） | Medium | `[x]` |
-| 10 | `internal/middleware/logging.go:85` | `no-ignored-errors` | 例外認定: `crypto/rand.Read` は Go 1.20+ で絶対にエラーを返さない（公式 doc 保証） | Low | `[x]` |
-| 11 | `internal/handler/record_image_handler.go:242` | `no-ignored-errors` | `_ = os.Remove(storedPath)` → `if removeErr := os.Remove; slog.WarnContext` に変換済み | Low | `[x]` |
-| 12 | 全 handler ファイル（30ファイル・82箇所） | `error-respond` | Python スクリプトで一括置換済み。`c.JSON(http.StatusBadRequest, gin.H{"error": X})` → `RespondError(c, apperrors.WrapInvalidInput(X))` に統一完了。company_handler.go に apperrors import 追加。`go build ./internal/handler/...` 通過確認 | High | `[x]` |
-| 13 | `internal/handler/auth_handler.go` (11箇所) | `error-respond` | 前回一括修正で StatusBadRequest のみ対象だったため、StatusUnauthorized(8箇所) / StatusInternalServerError(3箇所) が漏れていた。`WrapUnauthorized` / `WrapInternalServerError` を errors.go に追加し、RespondError 統一。response.go の ErrUnauthorized ケースも AppError.Message 抽出に対応 | High | `[x]` |
-| 14 | `internal/repository/vaccination_repository.go:80` | `error-from-gorm` | Create で `apperrors.Wrap` → `apperrors.FromGORM` に統一修正 | Low | `[x]` |
-| 15 | `internal/repository/audit_repository.go:28` | `error-from-gorm` | Create で `return err` 裸返却 → `apperrors.FromGORM(err, "audit_log", "")` に修正。apperrors import 追加 | Low | `[x]` |
+| 1 | `internal/repository/permission_group_repository.go:52` | `error-from-gorm` | `return nil, err` — `apperrors.FromGORM` を使わず裸のエラー返却。FindByID/FindByCompanyID/UpdateFields/Delete の4箇所を `apperrors.FromGORM` に修正済み | High | `[ ]` |
+| 2 | `internal/service/` 全体 | `error-wrap-service` | 多数の `return nil, err` — Phase 2 High 全ドメインチェック完了。care_plan_item / billing / medical-record / hospitalization service 全て準拠済み。残存確認要 | High | `[ ]` |
+| 3 | `internal/handler/response.go:50` | `slog-service-only` | `RespondError` 内で `slog.ErrorContext` を直接呼び出し。例外認定: 500エラー最終ログ地点。handler インフラ責務 | High | `[ ]` |
+| 4 | `internal/handler/reservation_handler.go:224-260` | `slog-service-only` | `autoCreateMedicalRecord` 内で `slog.WarnContext` / `slog.InfoContext` 複数呼び出し。例外認定: best-effort 自動カルテ作成。意図的設計 | High | `[ ]` |
+| 5 | `internal/handler/audit_helper.go:50` | `slog-service-only` | 監査ヘルパー内で `slog.WarnContext` 呼び出し。例外認定: 監査ログ失敗の best-effort ログ。handler ctx 必須 | High | `[ ]` |
+| 6 | `internal/repository/audit_repository.go:29` | `slog-service-only` | repository 内で `slog.WarnContext` 呼び出し。`slog.WarnContext` と `log/slog` import を削除し、エラーをそのまま return するよう修正済み | High | `[ ]` |
+| 7 | `internal/handler/reservation_handler.go:265-266` | `no-ignored-errors` | `_, _ =` → `if _, err :=` + `slog.WarnContext` に変換済み | Medium | `[ ]` |
+| 8 | `internal/handler/medical_record_handler.go:175,178,188` | `no-ignored-errors` | `_, _ =` → `if _, err :=` + `slog.WarnContext` に変換済み（3箇所） | Medium | `[ ]` |
+| 9 | `internal/handler/auth_handler.go:265` | `no-ignored-errors` | `_ = RevokeRefreshToken` → `if err + slog.WarnContext` に変換済み | Medium | `[ ]` |
+| 9b | `internal/handler/auth_handler.go:440` | `no-ignored-errors` | 例外認定: `ForgotPassword` は意図的無視（メール列挙攻撃防止のセキュリティ設計） | Medium | `[ ]` |
+| 10 | `internal/middleware/logging.go:85` | `no-ignored-errors` | 例外認定: `crypto/rand.Read` は Go 1.20+ で絶対にエラーを返さない（公式 doc 保証） | Low | `[ ]` |
+| 11 | `internal/handler/record_image_handler.go:242` | `no-ignored-errors` | `_ = os.Remove(storedPath)` → `if removeErr := os.Remove; slog.WarnContext` に変換済み | Low | `[ ]` |
+| 12 | 全 handler ファイル（30ファイル・82箇所） | `error-respond` | Python スクリプトで一括置換済み。`c.JSON(http.StatusBadRequest, gin.H{"error": X})` → `RespondError(c, apperrors.WrapInvalidInput(X))` に統一完了。company_handler.go に apperrors import 追加。`go build ./internal/handler/...` 通過確認 | High | `[ ]` |
+| 13 | `internal/handler/auth_handler.go` (11箇所) | `error-respond` | 前回一括修正で StatusBadRequest のみ対象だったため、StatusUnauthorized(8箇所) / StatusInternalServerError(3箇所) が漏れていた。`WrapUnauthorized` / `WrapInternalServerError` を errors.go に追加し、RespondError 統一。response.go の ErrUnauthorized ケースも AppError.Message 抽出に対応 | High | `[ ]` |
+| 14 | `internal/repository/vaccination_repository.go:80` | `error-from-gorm` | Create で `apperrors.Wrap` → `apperrors.FromGORM` に統一修正 | Low | `[ ]` |
+| 15 | `internal/repository/audit_repository.go:28` | `error-from-gorm` | Create で `return err` 裸返却 → `apperrors.FromGORM(err, "audit_log", "")` に修正。apperrors import 追加 | Low | `[ ]` |
 
 ---
 

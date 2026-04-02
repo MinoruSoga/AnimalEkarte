@@ -68,7 +68,7 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 |------|------|
 | `[ ]` | 未着手 |
 | `[~]` | チェック中 |
-| `[x]` | 完了（違反なし or 修正済み） |
+| `[ ]` | 完了（違反なし or 修正済み） |
 | `[!]` | 違反あり・修正待ち |
 
 ---
@@ -127,11 +127,11 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | チェック項目 | 観点 | ステータス | 発見数 |
 |------------|------|-----------|--------|
-| 汎用名コンポーネント | `export (const\|function) (Card\|List\|Item\|Data\|Table\|Form\b)` | `[x]` | 0 |
-| 禁止サフィックス | `(Container\|Wrapper\|Component\|Element)['\s{]` | `[x]` | 0 |
-| レイアウト記述名 | `(Left\|Right\|Top\|Bottom\|Big\|Small)(Panel\|Section\|Column\|Bar)` | `[x]` | 0 |
-| PascalCase 違反 | `.tsx` ファイル内の `export const [a-z]` | `[x]` | 0 |
-| ファイル名 PascalCase | `features/`, `components/` 配下に `.tsx` が PascalCase になっているか | `[x]` | 138（プロジェクト規約 `.claude/rules/code-style.md` が PascalCase を規定。component-naming スキルの kebab-case とは競合するがプロジェクト規約優先） |
+| 汎用名コンポーネント | `export (const\|function) (Card\|List\|Item\|Data\|Table\|Form\b)` | `[ ]` | 0 |
+| 禁止サフィックス | `(Container\|Wrapper\|Component\|Element)['\s{]` | `[ ]` | 0 |
+| レイアウト記述名 | `(Left\|Right\|Top\|Bottom\|Big\|Small)(Panel\|Section\|Column\|Bar)` | `[ ]` | 0 |
+| PascalCase 違反 | `.tsx` ファイル内の `export const [a-z]` | `[ ]` | 0 |
+| ファイル名 PascalCase | `features/`, `components/` 配下に `.tsx` が PascalCase になっているか | `[ ]` | 138（プロジェクト規約 `.claude/rules/code-style.md` が PascalCase を規定。component-naming スキルの kebab-case とは競合するがプロジェクト規約優先） |
 
 ### ドメイン別命名チェック
 
@@ -139,22 +139,22 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | ドメイン | ステータス | 発見内容 |
 |---------|-----------|---------|
-| `accounting` | `[x]` | |
-| `hospitalization` | `[x]` | |
-| `estimates` | `[x]` | |
-| `reservations` | `[x]` | |
-| `examinations` | `[x]` | |
-| `trimming` | `[x]` | |
-| `master` | `[x]` | |
-| `dashboard` | `[x]` | |
-| `auth` | `[x]` | |
-| `checkups` | `[x]` | |
-| `pets` | `[x]` | |
-| `vaccinations` | `[x]` | |
-| `inventory` | `[x]` | |
-| `hospital-settings` | `[x]` | |
-| `shifts` | `[x]` | |
-| `components/shared` | `[x]` | |
+| `accounting` | `[ ]` | |
+| `hospitalization` | `[ ]` | |
+| `estimates` | `[ ]` | |
+| `reservations` | `[ ]` | |
+| `examinations` | `[ ]` | |
+| `trimming` | `[ ]` | |
+| `master` | `[ ]` | |
+| `dashboard` | `[ ]` | |
+| `auth` | `[ ]` | |
+| `checkups` | `[ ]` | |
+| `pets` | `[ ]` | |
+| `vaccinations` | `[ ]` | |
+| `inventory` | `[ ]` | |
+| `hospital-settings` | `[ ]` | |
+| `shifts` | `[ ]` | |
+| `components/shared` | `[ ]` | |
 
 ---
 
@@ -165,11 +165,11 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | チェック項目 | コマンド / 観点 | ステータス | 発見数 |
 |------------|----------------|-----------|--------|
-| `&&` 条件レンダー | `grep -r "{\s*\w\+\s*&&"` | `[x]` | 再検証: 0件（全て三項演算子使用済み） |
-| deep import（feature内部） | `grep -r "@/features/.*/components/"` | `[x]` | 再検証: 0件（cross-feature deep import なし） |
-| lazy() 未使用の大型モーダル | import文でModalを直接参照 | `[x]` | 再検証: 0件 |
-| loader内の直列 await | `useQuery` / loader 関数内の複数 await | `[x]` | 再検証: 0件 |
-| design-tokens hex ハードコード | 全 hex カラー直接使用 | `[x]` | 再検証: **78箇所・42ファイル追加発見**（`#2EAADC` 13件, `#F7F6F3` 31件, `#2383E2` 14件, `#038B94` 8件, その他 12件）→ 全て `C` / `PALETTE` 定数に修正済み。新トークン: `medicalBlue`, `bgMedicalBlue/5/90`, `textMedicalBlue`, `borderLMedicalBlue`, `ringMedicalBlue`, `focusRingMedicalBlue`, `hoverBorderMedicalBlue50`, `textBrand`, `bgBrand10`, `hoverBgBrand`, `focusRingBrand`, `borderBrand`, `focusBorderAccent`, `dataCheckedBg/Border Accent/Brand`, `bgMuted` |
+| `&&` 条件レンダー | `grep -r "{\s*\w\+\s*&&"` | `[ ]` | 再検証: 0件（全て三項演算子使用済み） |
+| deep import（feature内部） | `grep -r "@/features/.*/components/"` | `[ ]` | 再検証: 0件（cross-feature deep import なし） |
+| lazy() 未使用の大型モーダル | import文でModalを直接参照 | `[ ]` | 再検証: 0件 |
+| loader内の直列 await | `useQuery` / loader 関数内の複数 await | `[ ]` | 再検証: 0件 |
+| design-tokens hex ハードコード | 全 hex カラー直接使用 | `[ ]` | 再検証: **78箇所・42ファイル追加発見**（`#2EAADC` 13件, `#F7F6F3` 31件, `#2383E2` 14件, `#038B94` 8件, その他 12件）→ 全て `C` / `PALETTE` 定数に修正済み。新トークン: `medicalBlue`, `bgMedicalBlue/5/90`, `textMedicalBlue`, `borderLMedicalBlue`, `ringMedicalBlue`, `focusRingMedicalBlue`, `hoverBorderMedicalBlue50`, `textBrand`, `bgBrand10`, `hoverBgBrand`, `focusRingBrand`, `borderBrand`, `focusBorderAccent`, `dataCheckedBg/Border Accent/Brand`, `bgMuted` |
 
 ---
 
@@ -193,13 +193,13 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `components/` | `rerender-memo` | `[x]` | ItemListCard/InsuranceCard/PaymentCard/RefundSection 全て memo() 済み |
-| `components/` | `rendering-hoist-jsx` | `[x]` | CATEGORY_LABELS 等モジュール定数化済み |
-| `components/` | `js-cache-function-results` | `[x]` | `AccountingDetail` L.328/L.712 の `.map()` を useMemo 化済み |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
-| `routes/` | `bundle-dynamic-imports` | `[x]` | AccountingDocument を lazy() 化済み |
-| `app/pages/AccountingDetailPage.tsx` | `async-parallel` | `[x]` | 単一 hook のみ |
+| `api/` | `async-parallel` | `[ ]` | |
+| `components/` | `rerender-memo` | `[ ]` | ItemListCard/InsuranceCard/PaymentCard/RefundSection 全て memo() 済み |
+| `components/` | `rendering-hoist-jsx` | `[ ]` | CATEGORY_LABELS 等モジュール定数化済み |
+| `components/` | `js-cache-function-results` | `[ ]` | `AccountingDetail` L.328/L.712 の `.map()` を useMemo 化済み |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
+| `routes/` | `bundle-dynamic-imports` | `[ ]` | AccountingDocument を lazy() 化済み |
+| `app/pages/AccountingDetailPage.tsx` | `async-parallel` | `[ ]` | 単一 hook のみ |
 
 ---
 
@@ -210,13 +210,13 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `components/CarePlan/` | `rerender-memo` | `[x]` | CarePlanItemRow/CarePlanSection/CarePlanDialog memo() + useCallback 済み |
-| `components/CarePlanTab/` | `bundle-dynamic-imports` | `[x]` | |
-| `components/DailyRecord/` | `rerender-memo` | `[x]` | DailyRecordSection/DailyRecordTimeline memo() + useCallback 済み |
-| `components/DailyRecordsTab/` | `bundle-dynamic-imports` | `[x]` | |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
-| `routes/` | `rerender-transitions` | `[x]` | useTransition 使用済み |
+| `api/` | `async-parallel` | `[ ]` | |
+| `components/CarePlan/` | `rerender-memo` | `[ ]` | CarePlanItemRow/CarePlanSection/CarePlanDialog memo() + useCallback 済み |
+| `components/CarePlanTab/` | `bundle-dynamic-imports` | `[ ]` | |
+| `components/DailyRecord/` | `rerender-memo` | `[ ]` | DailyRecordSection/DailyRecordTimeline memo() + useCallback 済み |
+| `components/DailyRecordsTab/` | `bundle-dynamic-imports` | `[ ]` | |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
+| `routes/` | `rerender-transitions` | `[ ]` | useTransition 使用済み |
 
 ---
 
@@ -227,12 +227,12 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `components/EstimateLineItems/` | `rerender-memo` | `[x]` | memo() + useMemo 修正済み（EstimateLineItems.tsx） |
-| `components/EstimateLineItems/` | `rendering-hoist-jsx` | `[x]` | CATEGORY_LABELS モジュール定数化済み |
-| `components/EstimateStatusBadge/` | `rendering-hoist-jsx` | `[x]` | （小コンポーネント・対象外） |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
-| `routes/` | `bundle-dynamic-imports` | `[x]` | Vite ルート分割済み |
+| `api/` | `async-parallel` | `[ ]` | |
+| `components/EstimateLineItems/` | `rerender-memo` | `[ ]` | memo() + useMemo 修正済み（EstimateLineItems.tsx） |
+| `components/EstimateLineItems/` | `rendering-hoist-jsx` | `[ ]` | CATEGORY_LABELS モジュール定数化済み |
+| `components/EstimateStatusBadge/` | `rendering-hoist-jsx` | `[ ]` | （小コンポーネント・対象外） |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
+| `routes/` | `bundle-dynamic-imports` | `[ ]` | Vite ルート分割済み |
 
 ---
 
@@ -243,10 +243,10 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
-| `routes/` | `bundle-dynamic-imports` | `[x]` | ReservationFormModal / MonthView / WeekView / ReservationDetailModal は lazy() 化済み |
-| `routes/` | `rerender-transitions` | `[x]` | |
+| `api/` | `async-parallel` | `[ ]` | |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
+| `routes/` | `bundle-dynamic-imports` | `[ ]` | ReservationFormModal / MonthView / WeekView / ReservationDetailModal は lazy() 化済み |
+| `routes/` | `rerender-transitions` | `[ ]` | |
 
 ---
 
@@ -256,11 +256,11 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `components/` | `rerender-memo` | `[x]` | FormFieldsSection memo() + useCallback 済み |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
-| `routes/` | `bundle-dynamic-imports` | `[x]` | |
-| `routes/` | `js-cache-function-results` | `[x]` | ExaminationForm.tsx:190-191 — examTypes/staffList .map() に useMemo なし → useMemo([examTypesRaw]) / useMemo([staffListRaw]) で修正済み |
+| `api/` | `async-parallel` | `[ ]` | |
+| `components/` | `rerender-memo` | `[ ]` | FormFieldsSection memo() + useCallback 済み |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
+| `routes/` | `bundle-dynamic-imports` | `[ ]` | |
+| `routes/` | `js-cache-function-results` | `[ ]` | ExaminationForm.tsx:190-191 — examTypes/staffList .map() に useMemo なし → useMemo([examTypesRaw]) / useMemo([staffListRaw]) で修正済み |
 
 ---
 
@@ -270,11 +270,11 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
-| `routes/` | `bundle-dynamic-imports` | `[x]` | MasterSelectModal / ConfirmDialog を lazy() 化済み |
-| `routes/` | `rerender-memo` | `[x]` | LeftColumn / MiddleColumn / RightColumn memo() 済み |
-| `hooks/` | `js-cache-function-results` | `[x]` | use-trimming-form.ts:400-401 coursesRaw/optionsRaw .map() を useMemo で修正済み |
+| `api/` | `async-parallel` | `[ ]` | |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
+| `routes/` | `bundle-dynamic-imports` | `[ ]` | MasterSelectModal / ConfirmDialog を lazy() 化済み |
+| `routes/` | `rerender-memo` | `[ ]` | LeftColumn / MiddleColumn / RightColumn memo() 済み |
+| `hooks/` | `js-cache-function-results` | `[ ]` | use-trimming-form.ts:400-401 coursesRaw/optionsRaw .map() を useMemo で修正済み |
 
 ---
 
@@ -285,10 +285,10 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `components/` | `rendering-hoist-jsx` | `[x]` | CATEGORY_CONFIG モジュール定数化済み |
-| `hooks/` | `rerender-functional-setstate` | `[x]` | use-master-crud.ts 全ハンドラ useCallback 済み |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
+| `api/` | `async-parallel` | `[ ]` | |
+| `components/` | `rendering-hoist-jsx` | `[ ]` | CATEGORY_CONFIG モジュール定数化済み |
+| `hooks/` | `rerender-functional-setstate` | `[ ]` | use-master-crud.ts 全ハンドラ useCallback 済み |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
 
 ---
 
@@ -299,9 +299,9 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | useGetDashboard + useGetStaffs は React Query が自動並列化。loader パターン不使用のため実質並列 |
-| `components/` | `rerender-memo` | `[x]` | AppointmentCard memo() 済み |
-| `routes/` | `rendering-conditional-render` | `[x]` | AppointmentCard.tsx:184 は `cond1 && cond2 ? ... : null` 形式。&& は条件式内の論理演算子で違反なし |
+| `api/` | `async-parallel` | `[ ]` | useGetDashboard + useGetStaffs は React Query が自動並列化。loader パターン不使用のため実質並列 |
+| `components/` | `rerender-memo` | `[ ]` | AppointmentCard memo() 済み |
+| `routes/` | `rendering-conditional-render` | `[ ]` | AppointmentCard.tsx:184 は `cond1 && cond2 ? ... : null` 形式。&& は条件式内の論理演算子で違反なし |
 
 ---
 
@@ -309,8 +309,8 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `routes/` | `rendering-conditional-render` | `[x]` | |
-| `hooks/` | `rerender-functional-setstate` | `[x]` | |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
+| `hooks/` | `rerender-functional-setstate` | `[ ]` | |
 
 ---
 
@@ -318,8 +318,8 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
+| `api/` | `async-parallel` | `[ ]` | |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
 
 ---
 
@@ -327,8 +327,8 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
+| `api/` | `async-parallel` | `[ ]` | |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
 
 ---
 
@@ -336,8 +336,8 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
+| `api/` | `async-parallel` | `[ ]` | |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
 
 ---
 
@@ -345,8 +345,8 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
+| `api/` | `async-parallel` | `[ ]` | |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
 
 ---
 
@@ -354,9 +354,9 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[x]` | |
-| `routes/` | `rendering-conditional-render` | `[x]` | |
-| `hooks/` | `rerender-functional-setstate` | `[x]` | |
+| `api/` | `async-parallel` | `[ ]` | |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
+| `hooks/` | `rerender-functional-setstate` | `[ ]` | |
 
 ---
 
@@ -364,8 +364,8 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | レイヤー | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `routes/` | `rendering-conditional-render` | `[x]` | |
-| `routes/` | `bundle-dynamic-imports` | `[x]` | ShiftFormDialog lazy() 化済み |
+| `routes/` | `rendering-conditional-render` | `[ ]` | |
+| `routes/` | `bundle-dynamic-imports` | `[ ]` | ShiftFormDialog lazy() 化済み |
 
 ---
 
@@ -377,27 +377,27 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | コンポーネント | ルール | ステータス | 発見内容 |
 |--------------|--------|-----------|---------|
-| `DataTable/` | `rerender-memo`, `js-cache-function-results` | `[x]` | memo() 追加済み。renderRow は呼び出し側が useCallback で安定化 |
-| `FormDialog/` | `bundle-dynamic-imports`（呼び出し元） | `[x]` | 各 feature routes/ から lazy() 経由で import 済み |
-| `MasterSelectModal/` | `bundle-dynamic-imports`（呼び出し元） | `[x]` | |
-| `OwnerSearchModal/` | `bundle-dynamic-imports`（呼び出し元） | `[x]` | |
-| `TreatmentSearchDialog/` | `bundle-dynamic-imports`（呼び出し元） | `[x]` | |
-| `SearchBox/` | `rerender-transitions`（useDeferredValue） | `[x]` | 検索 deferral は呼び出し側責務（OwnersList.tsx 等で useDeferredValue 使用済み） |
-| `Pagination/` | `rerender-memo` | `[x]` | memo() 追加済み |
-| `SidePeek/` | `rerender-memo`, `bundle-dynamic-imports` | `[x]` | SidePeekPanel memo() 追加済み |
-| `NotionFilter/` | `rendering-hoist-jsx`, `rerender-memo` | `[x]` | DATE_PRESETS モジュール定数化済み。memo() 追加済み |
-| 全体 | `rendering-conditional-render` | `[x]` | &&パターンなし確認済み |
-| `ConfirmDialog/` | `design-tokens` | `[x]` | `#37352F` ハードコード → `C.bgPrimary` / `C.hoverBgPrimaryDark` に修正済み |
-| `Layout/` | `bundle-feature-indexing` | `[x]` | Layout.tsx + Sidebar.tsx の auth deep import → index.ts 経由に修正済み |
-| `Layout/Sidebar.tsx` | `rendering-conditional-render` | `[x]` | `{!collapsed && <p>}` 3箇所 → 三項演算子に修正済み |
+| `DataTable/` | `rerender-memo`, `js-cache-function-results` | `[ ]` | memo() 追加済み。renderRow は呼び出し側が useCallback で安定化 |
+| `FormDialog/` | `bundle-dynamic-imports`（呼び出し元） | `[ ]` | 各 feature routes/ から lazy() 経由で import 済み |
+| `MasterSelectModal/` | `bundle-dynamic-imports`（呼び出し元） | `[ ]` | |
+| `OwnerSearchModal/` | `bundle-dynamic-imports`（呼び出し元） | `[ ]` | |
+| `TreatmentSearchDialog/` | `bundle-dynamic-imports`（呼び出し元） | `[ ]` | |
+| `SearchBox/` | `rerender-transitions`（useDeferredValue） | `[ ]` | 検索 deferral は呼び出し側責務（OwnersList.tsx 等で useDeferredValue 使用済み） |
+| `Pagination/` | `rerender-memo` | `[ ]` | memo() 追加済み |
+| `SidePeek/` | `rerender-memo`, `bundle-dynamic-imports` | `[ ]` | SidePeekPanel memo() 追加済み |
+| `NotionFilter/` | `rendering-hoist-jsx`, `rerender-memo` | `[ ]` | DATE_PRESETS モジュール定数化済み。memo() 追加済み |
+| 全体 | `rendering-conditional-render` | `[ ]` | &&パターンなし確認済み |
+| `ConfirmDialog/` | `design-tokens` | `[ ]` | `#37352F` ハードコード → `C.bgPrimary` / `C.hoverBgPrimaryDark` に修正済み |
+| `Layout/` | `bundle-feature-indexing` | `[ ]` | Layout.tsx + Sidebar.tsx の auth deep import → index.ts 経由に修正済み |
+| `Layout/Sidebar.tsx` | `rendering-conditional-render` | `[ ]` | `{!collapsed && <p>}` 3箇所 → 三項演算子に修正済み |
 
 ### app/pages/
 
 | ファイル | ルール | ステータス | 発見内容 |
 |---------|--------|-----------|---------|
-| `AccountingDetailPage.tsx` | `async-parallel` | `[x]` | ローダーなし。単一 hook のみ |
-| `OwnerFormPage.tsx` | `async-parallel`, `rerender-memo` | `[x]` | ローダーなし。app 層での mutation 注入のみ |
-| `OwnersListPage.tsx` | `async-parallel` | `[x]` | ownersLoader で Promise.all 並列フェッチ実装済み |
+| `AccountingDetailPage.tsx` | `async-parallel` | `[ ]` | ローダーなし。単一 hook のみ |
+| `OwnerFormPage.tsx` | `async-parallel`, `rerender-memo` | `[ ]` | ローダーなし。app 層での mutation 注入のみ |
+| `OwnersListPage.tsx` | `async-parallel` | `[ ]` | ownersLoader で Promise.all 並列フェッチ実装済み |
 
 ---
 
@@ -407,41 +407,41 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | # | ファイル | ルールID | 内容 | 優先度 | ステータス |
 |---|---------|---------|------|--------|-----------|
-| 1 | `components/shared/ConfirmDialog/`, `FormDialog/` 他 | `bundle-dynamic-imports` | **Vite ルート分割済み。routes/ は既に別チャンク。** `router.tsx` の全ルートが `lazy: async () => { ... }` パターンで遅延ロード済み。`ConfirmDialog` / `FormDialog` / `TreatmentSearchDialog` / `ReservationFormModal` はすべて `features/routes/` or `features/components/` 内から使われており、それぞれのルートチャンクに閉じている（初期バンドル混入なし）。`Dashboard.tsx` の `ReservationFormModal` / `DashboardDetailModal` も既に `lazy()` 化済み。`app/pages/` 3 ファイルと `Layout.tsx` にはダイアログ import なし。追加の `lazy()` 対応は不要。 | Critical | `[x]` |
-| 2 | `features/`, `components/shared/` 配下 全 .tsx | `naming-file-kebab` | **プロジェクト規約優先・違反ではない**: `.claude/rules/code-style.md` が「コンポーネントファイル（.tsx）: PascalCase」と明示。`component-naming` スキルの kebab-case ルールと競合するが、プロジェクト固有規約が優先される。 | Medium | `[x]` |
-| 3 | `features/accounting/routes/AccountingDetail.tsx:328,712` | `js-cache-function-results` | `.map()` に useMemo なし → useMemo([items]) / useMemo([refunds]) で修正済み | Medium | `[x]` |
-| 4 | `features/estimates/components/EstimateLineItems/EstimateLineItems.tsx` | `rerender-memo` | `memo()` なし + `.slice().sort().map()` に useMemo なし → memo() + useMemo([items]) で修正済み | Medium | `[x]` |
-| 5 | `features/examinations/routes/ExaminationForm.tsx:190-191` | `js-cache-function-results` | examTypes/staffList の inline .map() に useMemo なし → useMemo([examTypesRaw]/[staffListRaw]) で修正済み | Medium | `[x]` |
-| 6 | `features/trimming/routes/TrimmingForm.tsx:400-401` | `js-cache-function-results` | coursesRaw/optionsRaw の inline .map() に useMemo なし → useMemo([coursesRaw]/[optionsRaw]) で修正済み | Medium | `[x]` |
-| 7 | `components/shared/DataTable/`, `Pagination/`, `SidePeek/`, `NotionFilter/` | `rerender-memo` | 4 共有コンポーネントに memo() なし → memo() 追加済み | Medium | `[x]` |
-| 8 | `components/shared/Layout/Sidebar.tsx:271,288,301` | `rendering-conditional-render` | `{!collapsed && <p>}` パターン3箇所 → 三項演算子 `? ... : null` に修正済み | Critical | `[x]` |
-| 9 | `Sidebar.tsx`, `Layout.tsx`, `RequirePermission.tsx` + 18 features ファイル | `bundle-feature-indexing` | auth feature への deep import 21箇所 → `@/features/auth` index.ts 経由に修正。`usePermission` エクスポート追加 | Critical | `[x]` |
-| 10 | `hooks/use-pet.ts`, `use-owner.ts`, `use-master-items.ts`, `use-pet-selection-page.ts` | `bundle-feature-indexing` | shared hooks から pets/owners/master feature への deep import 5箇所 → index.ts 経由に修正。owners/index.ts に `getOwner`/`useGetOwner` エクスポート追加 | Critical | `[x]` |
-| 11 | `reservations/routes/ReservationManagement.tsx`, `components/ReservationDetailModal.tsx` | `bundle-feature-indexing` | master feature への deep import 2箇所 → `@/features/master` index.ts 経由に修正 | Critical | `[x]` |
-| 12 | `components/shared/ConfirmDialog/ConfirmDialog.tsx:49` | `design-tokens` | `bg-[#37352F]` / `hover:bg-[#37352F]/90` ハードコード → `C.bgPrimary` / `C.hoverBgPrimaryDark` に修正済み | Medium | `[x]` |
-| 13 | frontend/src/ 全体（72ファイル・339箇所） | `design-tokens` | `#37352F` hex ハードコード全箇所を `C` / `PALETTE` 定数に一括修正。design-tokens に `borderBPrimary`, `dataActiveBorderB`, `dataActiveText` 新トークン追加 | Medium | `[x]` |
-| 14 | `hospitalization/components/HospitalizationBasicInfo.tsx`, `HospitalizationNoteCard.tsx`, `DailyRecord/DailyRecordTimeline.tsx` | `rerender-memo` | 大型コンポーネント3件に memo() 未適用 → memo() 追加済み | Medium | `[x]` |
-| 15 | `hospital-settings/routes/ClinicMasterSettings.tsx` (PropertyRow) | `rerender-memo` | ループ内レンダリングされる内部コンポーネントに memo() 未適用 → memo() 追加済み | Medium | `[x]` |
-| 16 | `NotionFilter/FilterRuleRow.tsx`, `NotionFilter/SortPopover.tsx` | `design-tokens` | `#F1F1EF`/`#E8E7E4` hex ハードコード4箇所 → `C.bgMutedBadge`/`C.hoverBgMutedBadge` に修正。`hoverBgMutedBadge` 新トークン追加 | Medium | `[x]` |
-| 17 | `medical-records/components/MedicalRecordVaccination.tsx`, `CheckupsTab.tsx`, `StaffSelectionModal.tsx` | `bundle-feature-indexing` | medical-records → master への deep import 4箇所 → `@/features/master` index.ts 経由に修正。master/index.ts に `useGetAllVaccinesMaster`/`useGetAllCheckupTypes`/`useGetStaffs` エクスポート追加 | Critical | `[x]` |
-| 18 | `components/shared/RequirePermission.tsx` | `bundle-feature-indexing` | `@/features/auth/types` → `@/features/auth` に修正 | Critical | `[x]` |
-| 19 | `master/routes/StaffSettings.tsx`, `PermissionGroupSettings.tsx`, `ServiceTypeSettings.tsx`, `PermissionGroupSelector.tsx` | `design-tokens` | `#6B7280`/`#3B82F6`/`#e5e7eb` hex 9箇所 → `PALETTE.defaultGray`/`defaultBlue`/`borderUnselected` に修正 | Medium | `[x]` |
-| 20 | `medical-records/components/VitalsTab/VitalsGraph.tsx` | `design-tokens` | `#E07B54`/`#9C6EDE`/`#4CAF82`/`#e8e6e3`/`#9B9B97` チャート色9箇所 → `PALETTE.chart*` 定数に修正 | Medium | `[x]` |
-| 21 | 42ファイル（78箇所） | `design-tokens` | `#2EAADC`(13件), `#F7F6F3`(31件), `#2383E2`(14件), `#038B94`(8件) 等の残存 hex ハードコード → 全て `C`/`PALETTE` 定数に修正。新トークン19個追加（medical-blue系, brand系, accent-focus系, data-checked系, bgMuted） | Critical | `[x]` |
-| 22 | `medical-records/components/VaccinationHistory.tsx:122` | `rendering-conditional-render` | `{!isLoading && filteredItems.map(...)}` → `? ... : null` に修正 | Critical | `[x]` |
-| 23 | `hospitalization/hooks/use-hospitalization-list.ts`, `use-hospitalizations.ts` | `async-parallel` | 独立した `updateHospitalization` 2件の直列 await → `Promise.all` で並列化 | Medium | `[x]` |
-| 24 | `medical-records/routes/MedicalRecordForm.tsx` | `rendering-hoist-jsx` | `VISIT_TYPE_OPTIONS` + `tabs` 静的配列をモジュール定数に巻き上げ | Medium | `[x]` |
-| 25 | `hospitalization/components/DailyRecordsTab/DailyDateNav.tsx` | `rendering-hoist-jsx` | `weekDays` 静的配列をモジュール定数 `WEEK_DAYS` に巻き上げ | Medium | `[x]` |
-| 26 | `hospitalization/components/CarePlanTab/CarePlanTab.tsx` | `rendering-hoist-jsx` | `["morning"]` 初期値をモジュール定数 `INITIAL_TIMING` に巻き上げ | Medium | `[x]` |
-| 27 | `hospitalization/hooks/use-hospitalizations.ts` | `rerender-transitions` | 手動 `isLoading` 管理の死コード → ファイル削除（`useGetHospitalizations` React Query フックが既存） | Medium | `[x]` |
-| 32 | `utils/constants/status-colors.ts:45-57` | `design-tokens` | `VISIT_TYPE_COLORS` の badge 系プロパティに `#D3E5EF`/`#183B56`/`#B8D4E3`/`#F7F6F3`/`#37352F`/`rgba(55,53,47,0.09)` ハードコード 6箇所 → `C.bgAccentLight60`/`textAccentDark90`/`borderAccentBadge50`/`bgPage60`/`text90`/`borderLight50` 新トークン 6 個追加して修正 | Medium | `[x]` |
-| 33 | `features/inventory/routes/InventoryForm.tsx:59,133,207` | `design-tokens` | `border-[rgba(55,53,47,0.16)]` ハードコード 3箇所 → `C.borderMedium` に修正 | Medium | `[x]` |
-| 34 | `features/hospitalization/styles.ts:9` | `design-tokens` | `text-[#37352F]/60` → `C.text60` に修正 | Medium | `[x]` |
-| 35 | `features/master/hooks/use-service-type-color-map.ts:24-31` | `design-tokens` | DEFAULT_COLOR の inline style hex 5箇所 → `PALETTE.mutedBg`/`grayMedium`/`grayLight` に修正 | Medium | `[x]` |
-| 36 | `features/master/api/permission-groups/permission-groups.ts:58` | `design-tokens` | デフォルト色 `#6B7280` → `PALETTE.defaultGray` に修正 | Medium | `[x]` |
-| 37 | `shared/SidePeek/SidePeekTitleInput.tsx:45` | `design-tokens` | `placeholder:text-[rgba(55,53,47,0.15)]` → `C.textPlaceholderFaint` に修正 | Medium | `[x]` |
-| 38 | `features/vaccinations/routes/VaccinationForm.tsx:186` | `design-tokens` | `border-[rgba(55,53,47,0.09)]` → `C.borderLight` に修正 | Medium | `[x]` |
-| 39 | `shared/NotionFilter/FilterRuleRow.tsx:189` | `design-tokens` | `divide-[rgba(55,53,47,0.09)]` → `C.divideDivider` に修正 | Medium | `[x]` |
+| 1 | `components/shared/ConfirmDialog/`, `FormDialog/` 他 | `bundle-dynamic-imports` | **Vite ルート分割済み。routes/ は既に別チャンク。** `router.tsx` の全ルートが `lazy: async () => { ... }` パターンで遅延ロード済み。`ConfirmDialog` / `FormDialog` / `TreatmentSearchDialog` / `ReservationFormModal` はすべて `features/routes/` or `features/components/` 内から使われており、それぞれのルートチャンクに閉じている（初期バンドル混入なし）。`Dashboard.tsx` の `ReservationFormModal` / `DashboardDetailModal` も既に `lazy()` 化済み。`app/pages/` 3 ファイルと `Layout.tsx` にはダイアログ import なし。追加の `lazy()` 対応は不要。 | Critical | `[ ]` |
+| 2 | `features/`, `components/shared/` 配下 全 .tsx | `naming-file-kebab` | **プロジェクト規約優先・違反ではない**: `.claude/rules/code-style.md` が「コンポーネントファイル（.tsx）: PascalCase」と明示。`component-naming` スキルの kebab-case ルールと競合するが、プロジェクト固有規約が優先される。 | Medium | `[ ]` |
+| 3 | `features/accounting/routes/AccountingDetail.tsx:328,712` | `js-cache-function-results` | `.map()` に useMemo なし → useMemo([items]) / useMemo([refunds]) で修正済み | Medium | `[ ]` |
+| 4 | `features/estimates/components/EstimateLineItems/EstimateLineItems.tsx` | `rerender-memo` | `memo()` なし + `.slice().sort().map()` に useMemo なし → memo() + useMemo([items]) で修正済み | Medium | `[ ]` |
+| 5 | `features/examinations/routes/ExaminationForm.tsx:190-191` | `js-cache-function-results` | examTypes/staffList の inline .map() に useMemo なし → useMemo([examTypesRaw]/[staffListRaw]) で修正済み | Medium | `[ ]` |
+| 6 | `features/trimming/routes/TrimmingForm.tsx:400-401` | `js-cache-function-results` | coursesRaw/optionsRaw の inline .map() に useMemo なし → useMemo([coursesRaw]/[optionsRaw]) で修正済み | Medium | `[ ]` |
+| 7 | `components/shared/DataTable/`, `Pagination/`, `SidePeek/`, `NotionFilter/` | `rerender-memo` | 4 共有コンポーネントに memo() なし → memo() 追加済み | Medium | `[ ]` |
+| 8 | `components/shared/Layout/Sidebar.tsx:271,288,301` | `rendering-conditional-render` | `{!collapsed && <p>}` パターン3箇所 → 三項演算子 `? ... : null` に修正済み | Critical | `[ ]` |
+| 9 | `Sidebar.tsx`, `Layout.tsx`, `RequirePermission.tsx` + 18 features ファイル | `bundle-feature-indexing` | auth feature への deep import 21箇所 → `@/features/auth` index.ts 経由に修正。`usePermission` エクスポート追加 | Critical | `[ ]` |
+| 10 | `hooks/use-pet.ts`, `use-owner.ts`, `use-master-items.ts`, `use-pet-selection-page.ts` | `bundle-feature-indexing` | shared hooks から pets/owners/master feature への deep import 5箇所 → index.ts 経由に修正。owners/index.ts に `getOwner`/`useGetOwner` エクスポート追加 | Critical | `[ ]` |
+| 11 | `reservations/routes/ReservationManagement.tsx`, `components/ReservationDetailModal.tsx` | `bundle-feature-indexing` | master feature への deep import 2箇所 → `@/features/master` index.ts 経由に修正 | Critical | `[ ]` |
+| 12 | `components/shared/ConfirmDialog/ConfirmDialog.tsx:49` | `design-tokens` | `bg-[#37352F]` / `hover:bg-[#37352F]/90` ハードコード → `C.bgPrimary` / `C.hoverBgPrimaryDark` に修正済み | Medium | `[ ]` |
+| 13 | frontend/src/ 全体（72ファイル・339箇所） | `design-tokens` | `#37352F` hex ハードコード全箇所を `C` / `PALETTE` 定数に一括修正。design-tokens に `borderBPrimary`, `dataActiveBorderB`, `dataActiveText` 新トークン追加 | Medium | `[ ]` |
+| 14 | `hospitalization/components/HospitalizationBasicInfo.tsx`, `HospitalizationNoteCard.tsx`, `DailyRecord/DailyRecordTimeline.tsx` | `rerender-memo` | 大型コンポーネント3件に memo() 未適用 → memo() 追加済み | Medium | `[ ]` |
+| 15 | `hospital-settings/routes/ClinicMasterSettings.tsx` (PropertyRow) | `rerender-memo` | ループ内レンダリングされる内部コンポーネントに memo() 未適用 → memo() 追加済み | Medium | `[ ]` |
+| 16 | `NotionFilter/FilterRuleRow.tsx`, `NotionFilter/SortPopover.tsx` | `design-tokens` | `#F1F1EF`/`#E8E7E4` hex ハードコード4箇所 → `C.bgMutedBadge`/`C.hoverBgMutedBadge` に修正。`hoverBgMutedBadge` 新トークン追加 | Medium | `[ ]` |
+| 17 | `medical-records/components/MedicalRecordVaccination.tsx`, `CheckupsTab.tsx`, `StaffSelectionModal.tsx` | `bundle-feature-indexing` | medical-records → master への deep import 4箇所 → `@/features/master` index.ts 経由に修正。master/index.ts に `useGetAllVaccinesMaster`/`useGetAllCheckupTypes`/`useGetStaffs` エクスポート追加 | Critical | `[ ]` |
+| 18 | `components/shared/RequirePermission.tsx` | `bundle-feature-indexing` | `@/features/auth/types` → `@/features/auth` に修正 | Critical | `[ ]` |
+| 19 | `master/routes/StaffSettings.tsx`, `PermissionGroupSettings.tsx`, `ServiceTypeSettings.tsx`, `PermissionGroupSelector.tsx` | `design-tokens` | `#6B7280`/`#3B82F6`/`#e5e7eb` hex 9箇所 → `PALETTE.defaultGray`/`defaultBlue`/`borderUnselected` に修正 | Medium | `[ ]` |
+| 20 | `medical-records/components/VitalsTab/VitalsGraph.tsx` | `design-tokens` | `#E07B54`/`#9C6EDE`/`#4CAF82`/`#e8e6e3`/`#9B9B97` チャート色9箇所 → `PALETTE.chart*` 定数に修正 | Medium | `[ ]` |
+| 21 | 42ファイル（78箇所） | `design-tokens` | `#2EAADC`(13件), `#F7F6F3`(31件), `#2383E2`(14件), `#038B94`(8件) 等の残存 hex ハードコード → 全て `C`/`PALETTE` 定数に修正。新トークン19個追加（medical-blue系, brand系, accent-focus系, data-checked系, bgMuted） | Critical | `[ ]` |
+| 22 | `medical-records/components/VaccinationHistory.tsx:122` | `rendering-conditional-render` | `{!isLoading && filteredItems.map(...)}` → `? ... : null` に修正 | Critical | `[ ]` |
+| 23 | `hospitalization/hooks/use-hospitalization-list.ts`, `use-hospitalizations.ts` | `async-parallel` | 独立した `updateHospitalization` 2件の直列 await → `Promise.all` で並列化 | Medium | `[ ]` |
+| 24 | `medical-records/routes/MedicalRecordForm.tsx` | `rendering-hoist-jsx` | `VISIT_TYPE_OPTIONS` + `tabs` 静的配列をモジュール定数に巻き上げ | Medium | `[ ]` |
+| 25 | `hospitalization/components/DailyRecordsTab/DailyDateNav.tsx` | `rendering-hoist-jsx` | `weekDays` 静的配列をモジュール定数 `WEEK_DAYS` に巻き上げ | Medium | `[ ]` |
+| 26 | `hospitalization/components/CarePlanTab/CarePlanTab.tsx` | `rendering-hoist-jsx` | `["morning"]` 初期値をモジュール定数 `INITIAL_TIMING` に巻き上げ | Medium | `[ ]` |
+| 27 | `hospitalization/hooks/use-hospitalizations.ts` | `rerender-transitions` | 手動 `isLoading` 管理の死コード → ファイル削除（`useGetHospitalizations` React Query フックが既存） | Medium | `[ ]` |
+| 32 | `utils/constants/status-colors.ts:45-57` | `design-tokens` | `VISIT_TYPE_COLORS` の badge 系プロパティに `#D3E5EF`/`#183B56`/`#B8D4E3`/`#F7F6F3`/`#37352F`/`rgba(55,53,47,0.09)` ハードコード 6箇所 → `C.bgAccentLight60`/`textAccentDark90`/`borderAccentBadge50`/`bgPage60`/`text90`/`borderLight50` 新トークン 6 個追加して修正 | Medium | `[ ]` |
+| 33 | `features/inventory/routes/InventoryForm.tsx:59,133,207` | `design-tokens` | `border-[rgba(55,53,47,0.16)]` ハードコード 3箇所 → `C.borderMedium` に修正 | Medium | `[ ]` |
+| 34 | `features/hospitalization/styles.ts:9` | `design-tokens` | `text-[#37352F]/60` → `C.text60` に修正 | Medium | `[ ]` |
+| 35 | `features/master/hooks/use-service-type-color-map.ts:24-31` | `design-tokens` | DEFAULT_COLOR の inline style hex 5箇所 → `PALETTE.mutedBg`/`grayMedium`/`grayLight` に修正 | Medium | `[ ]` |
+| 36 | `features/master/api/permission-groups/permission-groups.ts:58` | `design-tokens` | デフォルト色 `#6B7280` → `PALETTE.defaultGray` に修正 | Medium | `[ ]` |
+| 37 | `shared/SidePeek/SidePeekTitleInput.tsx:45` | `design-tokens` | `placeholder:text-[rgba(55,53,47,0.15)]` → `C.textPlaceholderFaint` に修正 | Medium | `[ ]` |
+| 38 | `features/vaccinations/routes/VaccinationForm.tsx:186` | `design-tokens` | `border-[rgba(55,53,47,0.09)]` → `C.borderLight` に修正 | Medium | `[ ]` |
+| 39 | `shared/NotionFilter/FilterRuleRow.tsx:189` | `design-tokens` | `divide-[rgba(55,53,47,0.09)]` → `C.divideDivider` に修正 | Medium | `[ ]` |
 
 ---
 
