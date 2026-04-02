@@ -54,7 +54,7 @@ export function VaccinationCard({
         {vaccination.nextDate ? (
           <div
             className={`flex items-center gap-1.5 mt-1.5 text-sm ${
-              overdue ? "text-[#EB5757]" : C.text60
+              overdue ? C.danger : C.text60
             }`}
           >
             {overdue ? (

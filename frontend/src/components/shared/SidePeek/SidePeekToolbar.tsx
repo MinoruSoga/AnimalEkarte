@@ -19,7 +19,7 @@ export function SidePeekToolbar({ isNew, onClose, onDelete }: SidePeekToolbarPro
           <button
             type="button"
             onClick={onDelete}
-            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${C.danger} ${C.hoverBgDanger5}`}
           >
             <Trash2 className={ICON.toolbar} />
           </button>

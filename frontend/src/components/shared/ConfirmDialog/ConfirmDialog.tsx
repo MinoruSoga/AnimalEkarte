@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +20,8 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "default" | "destructive";
+  /** BUG-084: ref to the element that triggered the dialog; focus is restored here on close */
+  triggerRef?: React.RefObject<HTMLElement>;
 }
 
 export function ConfirmDialog({
@@ -30,10 +33,33 @@ export function ConfirmDialog({
   confirmLabel = "確認",
   cancelLabel = "キャンセル",
   variant = "default",
+  triggerRef,
 }: ConfirmDialogProps) {
+  // BUG-084: Track the element that had focus before the dialog opened so we can
+  // restore it when the dialog closes (Radix cannot do this automatically when
+  // the dialog is opened programmatically without an AlertDialogTrigger).
+  const previousFocusRef = useRef<Element | null>(null);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      previousFocusRef.current = document.activeElement;
+    } else {
+      onClose();
+    }
+  };
+
+  const handleCloseAutoFocus = (e: Event) => {
+    // Prefer the explicitly provided triggerRef, then the previously focused element.
+    const target = triggerRef?.current ?? previousFocusRef.current;
+    if (target instanceof HTMLElement) {
+      e.preventDefault();
+      target.focus();
+    }
+  };
+
   return (
-    <AlertDialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <AlertDialogContent>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+      <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description ? (
@@ -41,12 +67,12 @@ export function ConfirmDialog({
           ) : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onClose}>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             className={
               variant === "destructive"
-                ? "bg-red-600 text-white hover:bg-red-700"
+                ? `${C.bgDanger} text-white ${C.hoverBgDanger90}`
                 : `${C.bgPrimary} text-white ${C.hoverBgPrimaryDark}`
             }
           >
