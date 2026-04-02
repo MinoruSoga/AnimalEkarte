@@ -8217,3 +8217,52 @@
 | **ダッシュボード遷移** | ⚠️ **部分確認** | 予約表示は正常、ステータス自動遷移機能未確認（UI 仕様確認待ち） |
 | **E2E フロー全体** | ✅ **ほぼ PASS** | 予約→ダッシュボード→医療記録→治療追加→会計確定までの完全フロー成功。ステータス遷移は別フロー |
 
+
+## 47. UX 統一性テスト
+
+### 47.1 ナビゲーション・ボタン配置テスト
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| 全一覧ページ「新規登録」ボタンが右上に配置 | OK | PrimaryButton で青色統一。owners/vaccinations/trimming/accounting/estimates/shifts 全確認 |
+| 全フォームページ「← 一覧に戻る」ボタンが左上に配置 | OK | FormHeader onBack で ChevronLeft アイコン統一 |
+| 全フォームページ「保存」ボタンが SubmitButton | OK | React 19 Action パターン + useFormStatus で二重送信防止統一 |
+| 全テーブルの操作列が右端に配置 | OK | RowActionDropdown で編集/削除メニュー統一 |
+| 削除ボタンが赤色（destructive variant） | OK | ConfirmDialog + variant="destructive" で統一 |
+| ページネーションがテーブル下に配置 | OK | Pagination コンポーネント使用。owners/vaccinations/trimming/accounting 統一 |
+
+### 47.2 フィルタ・検索UIテスト
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| 全一覧ページで NotionFilter 使用 | OK | owners/vaccinations/trimming/accounting/inventory/examinations で統一 |
+| テーブルヘッダの SortableHeader 統一 | OK | 全テーブルでソート機能・見た目統一 |
+| 検索フィールドのプレースホルダー統一 | OK | 各ページで機能固有テキスト（「飼主名で検索」等） |
+
+### 47.3 フォームレイアウトテスト
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| Label + Input の上配置が統一 | OK | 全フォームで Label 上・Input 下の縦配置パターン |
+| 必須フィールドの「*」マーク統一 | OK | C.textRequired で赤色アスタリスク統一 |
+| エラーメッセージ配置（フィールド下） | OK | FormFieldError コンポーネントで統一 |
+| デザイントークン（C, STYLE）使用 | OK | hex ハードコード排除済み |
+
+### 47.4 モーダル・パネルパターンテスト
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| マスタ設定の編集が SidePeek パネル | OK | MasterSidePanel で全15マスタ統一 |
+| 削除確認が ConfirmDialog（AlertDialog） | OK | ConfirmDialog で全機能統一 |
+| ペット編集が Modal | OK | PetEditModal で飼主詳細から使用 |
+| トースト通知が右下に表示 | OK | Sonner (sonner.tsx) で position 統一 |
+| トーストに×ボタン（手動クローズ） | OK | closeButton prop 追加済み |
+
+### 47.5 空状態・ローディングテスト
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| データ0件時の空状態メッセージ表示 | OK | 「○○が見つかりません」フォーマット。DataTable emptyMessage prop |
+| ページロード中のスピナー表示 | OK | React Router loader + Suspense でフォールバック表示 |
+
+### 47.6 不統一箇所（既知）
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| 新規登録ボタンのテキストが統一されているか | 未確認 | 大半は「新規登録」だが EstimateList は「新規見積書作成」、AccountingList は「新規会計登録」 |
+| フォーム完了後の遷移先が統一されているか | 未確認 | 新規→詳細 vs 新規→一覧 の混在可能性あり |
+| EstimateList にページネーションがあるか | 未確認 | 他の一覧ページには Pagination あり。EstimateList は未確認 |
