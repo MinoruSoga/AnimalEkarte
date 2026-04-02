@@ -128,7 +128,6 @@ const FormFieldsSection = memo(function FormFieldsSection({
           value={formData.date ? formData.date.split("T")[0] : ""}
           onChange={(v) => onSetFormData({ date: v ? `${v}T00:00:00Z` : new Date().toISOString() })}
           disabledDays={{ after: new Date() }}
-          disabled={isConfirmed}
         />
       </div>
 
