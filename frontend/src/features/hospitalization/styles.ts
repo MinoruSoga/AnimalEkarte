@@ -1,12 +1,14 @@
+import { C } from "@/lib/design-tokens";
+
 // タブレットアクセシビリティ（高密度・大文字・小余白）のためのスタイル定数
 export const H_STYLES = {
   text: {
     base: "text-base leading-snug",
     sm: "text-sm leading-snug",
-    xs: "text-xs leading-tight", 
+    xs: "text-xs leading-tight",
     lg: "text-lg font-bold",
     xl: "text-xl font-bold",
-    muted: "text-[#37352F]/60",
+    muted: C.text60,
   },
   padding: {
     card: "p-2",

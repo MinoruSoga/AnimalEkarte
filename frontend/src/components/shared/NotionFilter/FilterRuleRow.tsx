@@ -186,7 +186,7 @@ const DateValueEditor = memo(function DateValueEditor({
   const toDisplay = hasTo ? format(dateRange!.to!, "M月d日") : "終了日";
 
   return (
-    <div className="flex divide-x divide-[rgba(55,53,47,0.09)]">
+    <div className={`flex divide-x ${C.divideDivider}`}>
       {/* Presets column */}
       <div className="w-[108px] py-1 shrink-0">
         {DATE_PRESETS.map((preset) => (

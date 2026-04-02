@@ -42,7 +42,7 @@ export function SidePeekTitleInput({
       <input
         id={id}
         type="text"
-        className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+        className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0`}
         style={{
           fontSize: LAYOUT.pageTitle.fontSize,
           fontWeight: LAYOUT.pageTitle.fontWeight,

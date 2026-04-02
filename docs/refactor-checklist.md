@@ -436,6 +436,12 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 27 | `hospitalization/hooks/use-hospitalizations.ts` | `rerender-transitions` | 手動 `isLoading` 管理の死コード → ファイル削除（`useGetHospitalizations` React Query フックが既存） | Medium | `[x]` |
 | 32 | `utils/constants/status-colors.ts:45-57` | `design-tokens` | `VISIT_TYPE_COLORS` の badge 系プロパティに `#D3E5EF`/`#183B56`/`#B8D4E3`/`#F7F6F3`/`#37352F`/`rgba(55,53,47,0.09)` ハードコード 6箇所 → `C.bgAccentLight60`/`textAccentDark90`/`borderAccentBadge50`/`bgPage60`/`text90`/`borderLight50` 新トークン 6 個追加して修正 | Medium | `[x]` |
 | 33 | `features/inventory/routes/InventoryForm.tsx:59,133,207` | `design-tokens` | `border-[rgba(55,53,47,0.16)]` ハードコード 3箇所 → `C.borderMedium` に修正 | Medium | `[x]` |
+| 34 | `features/hospitalization/styles.ts:9` | `design-tokens` | `text-[#37352F]/60` → `C.text60` に修正 | Medium | `[x]` |
+| 35 | `features/master/hooks/use-service-type-color-map.ts:24-31` | `design-tokens` | DEFAULT_COLOR の inline style hex 5箇所 → `PALETTE.mutedBg`/`grayMedium`/`grayLight` に修正 | Medium | `[x]` |
+| 36 | `features/master/api/permission-groups/permission-groups.ts:58` | `design-tokens` | デフォルト色 `#6B7280` → `PALETTE.defaultGray` に修正 | Medium | `[x]` |
+| 37 | `shared/SidePeek/SidePeekTitleInput.tsx:45` | `design-tokens` | `placeholder:text-[rgba(55,53,47,0.15)]` → `C.textPlaceholderFaint` に修正 | Medium | `[x]` |
+| 38 | `features/vaccinations/routes/VaccinationForm.tsx:186` | `design-tokens` | `border-[rgba(55,53,47,0.09)]` → `C.borderLight` に修正 | Medium | `[x]` |
+| 39 | `shared/NotionFilter/FilterRuleRow.tsx:189` | `design-tokens` | `divide-[rgba(55,53,47,0.09)]` → `C.divideDivider` に修正 | Medium | `[x]` |
 
 ---
 
@@ -459,3 +465,4 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 2026-04-02 | medical-records + hospitalization | `rendering-hoist-jsx` | MedicalRecordForm/DailyDateNav/CarePlanTab の静的配列をモジュール定数に巻き上げ | - |
 | 2026-04-02 | hospitalization | `rerender-transitions` | 死コード use-hospitalizations.ts 削除（React Query フック既存） | - |
 | 2026-04-02 | status-colors + inventory | `design-tokens` | status-colors.ts の VISIT_TYPE_COLORS badge hex 6箇所 + InventoryForm.tsx の rgba 3箇所 → C トークンに修正。新トークン 6 個追加（text90, bgPage60, bgAccentLight60, textAccentDark90, borderAccentBadge50, borderLight50） | - |
+| 2026-04-02 | hospitalization + master + shared + vaccinations | `design-tokens` | styles.ts/use-service-type-color-map.ts/permission-groups.ts の hex 7箇所 + SidePeekTitleInput/VaccinationForm/FilterRuleRow の rgba 3箇所 → C/PALETTE トークンに修正 | - |

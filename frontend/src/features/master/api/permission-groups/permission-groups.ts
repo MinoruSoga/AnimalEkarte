@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { PALETTE } from "@/lib/design-tokens";
 import type { PermissionGroup } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -55,7 +56,7 @@ export async function createPermissionGroup(
     {
       name: input.name,
       description: input.description ?? "",
-      color: input.color ?? "#6B7280",
+      color: input.color ?? PALETTE.defaultGray,
     },
     { params: { clinic_id: input.clinicId } },
   );
