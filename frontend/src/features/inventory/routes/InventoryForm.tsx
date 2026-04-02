@@ -3,7 +3,7 @@ import { useCallback, memo } from "react";
 import { useNavigate, useParams } from "react-router";
 
 // External
-import { Package, ArrowLeft, Save } from "lucide-react";
+import { Package, Save } from "lucide-react";
 
 // Internal
 import { C, ICON } from "@/lib/design-tokens";
@@ -336,16 +336,14 @@ export function InventoryForm() {
     <PageLayout
       title={isEdit ? "在庫編集" : "在庫登録"}
       icon={<Package className={`${ICON.page} ${C.text}`} />}
+      onBack={handleBack}
       headerAction={
-        <Button
-          variant="ghost"
-          type="button"
-          className="h-10 text-sm gap-2"
-          onClick={handleBack}
-        >
-          <ArrowLeft className={ICON.action} />
-          一覧に戻る
-        </Button>
+        canEdit ? (
+          <SubmitButton size="sm">
+            <Save className={`mr-1.5 ${ICON.action}`} />
+            {isEdit ? "更新" : "登録"}
+          </SubmitButton>
+        ) : null
       }
       maxWidth="max-w-3xl"
     >
@@ -379,14 +377,6 @@ export function InventoryForm() {
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10"
-            onClick={handleBack}
-          >
-            キャンセル
-          </Button>
           {canEdit ? (
             <SubmitButton className="h-10">
               <Save className={`mr-1.5 ${ICON.action}`} />

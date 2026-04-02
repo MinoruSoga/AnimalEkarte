@@ -8224,7 +8224,7 @@
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
 | 全一覧ページ「新規登録」ボタンが右上に配置 | OK | PrimaryButton で青色統一。owners/vaccinations/trimming/accounting/estimates/shifts 全確認 |
-| 全フォームページ「← 一覧に戻る」ボタンが左上に配置 | OK | FormHeader onBack で ChevronLeft アイコン統一 |
+| 全フォームページ「← 一覧に戻る」ボタンが左上に配置 | OK | PageLayout onBack で ChevronLeft アイコン統一。InventoryForm は右上 headerAction に配置されていたが onBack パターンに修正済み（2026-04-02） |
 | 全フォームページ「保存」ボタンが SubmitButton | OK | React 19 Action パターン + useFormStatus で二重送信防止統一 |
 | 全テーブルの操作列が右端に配置 | OK | RowActionDropdown で編集/削除メニュー統一 |
 | 削除ボタンが赤色（destructive variant） | OK | ConfirmDialog + variant="destructive" で統一 |
