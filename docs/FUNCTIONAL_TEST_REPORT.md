@@ -1,46 +1,9 @@
 # 機能テストレポート
 
-> **最終更新**: 2026-04-02 修正バグ検証完了 + 高リスク NG アイテム再検証 (全16セクション機能テスト完了 ✅ + 修正バグ11件検証完了 ✅ + 新規バグ2件修正確認 ✅ / BUG-EXAMINATION-DATE-INPUT-MISSING + BUG-INVENTORY-CROSS-FIELD-VALIDATION - 本番リリース判定: ✅ **GO**)
-> テスト環境: ローカル (localhost:3003) UI検証 ✅ / コード確認 ✅ + ステージング (stg.noah-karte.com)
+> **最終更新**: 2026-04-02
+> テスト環境: ローカル (localhost:3003) / ステージング (stg.noah-karte.com)
 > テストアカウント: admin@example.com (田中太郎 / 医院管理者) / vet@example.com (山田花子 / 一般)
-> **テスト範囲**: Sections 1-16 個別機能テスト完了 ✅ / 修正バグ検証完了 ✅ / 新規バグなし / 既知未実装機能のみ
-> **テスト完成度**: 100% (Master設定除く) / **本番リリース判定: ✅ GO**
-> **修正バグ検証結果** (2026-04-02):
->   - UI検証済み: BUG-066 ✅ / BUG-024 ✅ / BUG-044 ✅ / BUG-084 ✅
->   - コード確認済み: BUG-067 ✅ / BUG-068 ✅ / BUG-072 ✅ / BUG-057 ✅ / BUG-102 ✅ / BUG-109 ✅ / BUG-103 ✅
->   - 詳細: [docs/testing/BUG_FIX_VERIFICATION_2026-04-02.md](testing/BUG_FIX_VERIFICATION_2026-04-02.md)
->
-> ### 2026-04-02 高リスク NG アイテム再検証結果
-> **検証対象**: Section 19.1-19.5 の 7 つの高リスク NG バリデーション項目
-> **検証方法**: コード検査 + UI テスト
-> | 項目 | 状態 | 詳細 |
-> |------|------|------|
-> | 飼主名 maxLength | ✅ FIXED | OwnerForm.tsx:315 `maxLength={100}` |
-> | 郵便番号 format | ✅ FIXED | use-owner-form.ts:138 `/^\d{3}-?\d{4}$/` |
-> | 値引率 小数 | ✅ FIXED | OwnerForm.tsx:447 `step={1}` |
-> | ペット体重 上限 | ✅ FIXED | PetEditModal.tsx:224 `weight > 200` |
-> | 検査日 将来日付 | ✅ FIXED | ExaminationForm.tsx:127-133 NotionDatePicker に `disabledDays={{ after: new Date() }}` 実装。カレンダーで未来日付（4/3+）が disabled。UIテスト確認 ✅ |
-> | 在庫数 小数 | ✅ FIXED | InventoryForm.tsx:156 `step="1"` |
-> | 最低在庫クロスフィールド | ✅ FIXED | use-inventory-form.ts:51-68 `minStockLevel > quantity` チェック実装。エラー表示「最低在庫数は現在庫数以下で設定してください」。alert + toast で表示・フォーム送信ブロック。UIテスト確認 ✅ |
-> **修正完了**: 両バグとも実装・検証完了
-> - [BUG-EXAMINATION-DATE-INPUT-MISSING.md](tasks/BUG-EXAMINATION-DATE-INPUT-MISSING.md) - ExaminationForm に NotionDatePicker ベース検査日フィールド実装完了 ✅
-> - [BUG-INVENTORY-CROSS-FIELD-VALIDATION.md](tasks/BUG-INVENTORY-CROSS-FIELD-VALIDATION.md) - use-inventory-form に minStockLevel > quantity バリデーション実装完了 ✅
->
-> ### 2026-04-02 テスト実施内容（継続テスト・検査から認証まで）
-> - **予防接種 (Vaccination Tab)**: ワクチン選択・日付入力・次回予定設定フォーム全て機能確認。ワクチン混合3種（猫）・実施日2026-04-02・次回日2026-04-30で保存確認。履歴自動更新の遅延確認 ⚠️
-> - **定期健診 (Checkup Tab)**: 「記録を追加」ボタン→一般健診追加フォーム展開・日付選択・結果入力・「追加」クリック→一覧にレコード追加確認。通知「健診記録を追加しました」「保存しました」で保存成功確認 ✅
-> - **カルテ印刷 (Print Button)**: 印刷ボタンクリック→ブラウザ印刷ダイアログ・自動保存 ✅
-> - **画像ライトボックス (Image Lightbox)**: UI実装確認（アップロードボタン・検索フィルタ・ギャラリー表示）。サンプルデータ不足により詳細なlightbox動作確認不可 ⚠️
-> - **来院回数表示 (Visit Count)**: 医療記録リスト・詳細ページに来院回数フィールド未確認。カルテ患者情報カードに表示なし ⚠️
-> - **入院・ホテル管理 (Hospitalization)**: ケージボード表示✅・詳細フォーム表示✅・ケアプラン機能未実装⚠️・バイタル記録未実装⚠️・メモ記録未実装⚠️・入院情報編集保存✅
-> - **会計管理 (Accounting)**: 会計一覧表示✅・会計詳細表示✅・現金支払い✅・会計確定✅・診療明細書プレビュー表示✅・印刷ボタンタイムアウト⚠️
-> - **在庫管理 (Inventory)**: 在庫一覧表示✅(14件)・フィルタ/ソート UI表示✅・新規登録ボタンタイムアウト⚠️
-> - **シフト管理 (Shifts)**: カレンダーグリッド表示✅・スタッフ12名・2026年4月1-30日日付表示✅・シフト追加ボタン表示✅
-> - **検査管理 (Examinations - Section 5)**: ペット選択フロー✅・検査種別選択(CBC等5種)✅・担当医選択(14名)✅・新規検査作成・保存成功✅・検査一覧に自動反映(0→1件)✅
-> - **トリミング (Trimming - Section 9)**: 一覧表示✅(8件)・ステータス表示(完了/予約/進行中)✅・ペット選択フロー✅
-> - **定期健診 (Checkups - Section 10)**: 一覧表示✅(1件)・健診種別表示✅
-> - **見積書管理 (Estimates - Section 12)**: 空状態表示✅(0件)・新規見積書作成ボタン表示✅・フィルタUI表示✅
-> - **認証 (Authentication - Section 16)**: ログイン・ログアウト✅・デモアカウント8件表示✅・ユーザー切替成功(田中太郎→山田花子)✅・パスワード変更モーダル表示✅
+> **テスト完成度**: 未実施
 
 ## テスト凡例
 
@@ -7712,37 +7675,37 @@
 ### 43.1 can_create 制御（「新規登録」ボタン表示/非表示）
 | ページ | can_create=true | can_create=false | 備考 |
 |--------|-----------------|------------------|------|
-| 飼主一覧 `/owners` | OK ボタン表示 | N/A ボタン非表示 | 一般グループで「新規登録」確認。全グループcan_create=true for ownersのため非表示テスト不可（2026-03-29） |
-| カルテ一覧 `/medical-records` | OK ボタン表示 | OK ボタン非表示 | 一般グループ:「新規カルテ作成」表示、執行グループ(can_create=false):非表示確認（2026-03-29） |
-| 予約管理 `/reservations` | OK ボタン表示 | N/A ボタン非表示 | 一般グループで「新規予約」確認。全グループcan_create=true for reservationsのため非表示テスト不可（2026-03-29） |
-| 検査管理 `/examinations` | OK ボタン表示 | OK ボタン非表示 | 一般グループ:「新規検査登録」表示、執行グループ(can_create=false):非表示確認（2026-03-29） |
-| 会計管理 `/accounting` | OK ボタン表示 | OK ボタン非表示 | clinic_admin:新規登録表示、一般グループ(can_create=false):非表示確認（§12469, 2026-03-29） |
-| 入院管理 `/hospitalization` | OK ボタン表示 | N/A ボタン非表示 | 一般グループで「新規入院登録」確認。全グループcan_create=true for hospitalizationのため非表示テスト不可（2026-03-29） |
-| 予防接種 `/vaccinations` | OK ボタン表示 | OK ボタン非表示 | 一般グループ:「新規登録」表示、執行グループ(can_create=false):非表示確認（2026-03-29） |
-| トリミング `/trimming` | OK ボタン表示 | OK ボタン非表示 | 一般グループ:「新規登録」表示、執行グループ(can_create=false):非表示確認（2026-03-29） |
-| 在庫管理 `/inventory` | OK ボタン表示 | OK ボタン非表示 | clinic_admin:「新規登録」表示、一般グループ(can_create=false):非表示確認（2026-03-29） |
-| 見積管理 `/estimates` | OK ボタン表示 | OK ボタン非表示 | clinic_admin:「新規見積書作成」表示、一般グループ(can_create=false):非表示確認（2026-03-29） |
+| 飼主一覧 `/owners` | 未確認 | 未確認 | 一般グループで「新規登録」確認。全グループcan_create=true for ownersのため非表示テスト不可（2026-03-29） |
+| カルテ一覧 `/medical-records` | 未確認 | 未確認 | 一般グループ:「新規カルテ作成」表示、執行グループ(can_create=false):非表示確認（2026-03-29） |
+| 予約管理 `/reservations` | 未確認 | 未確認 | 一般グループで「新規予約」確認。全グループcan_create=true for reservationsのため非表示テスト不可（2026-03-29） |
+| 検査管理 `/examinations` | 未確認 | 未確認 | 一般グループ:「新規検査登録」表示、執行グループ(can_create=false):非表示確認（2026-03-29） |
+| 会計管理 `/accounting` | 未確認 | 未確認 | clinic_admin:新規登録表示、一般グループ(can_create=false):非表示確認（§12469, 2026-03-29） |
+| 入院管理 `/hospitalization` | 未確認 | 未確認 | 一般グループで「新規入院登録」確認。全グループcan_create=true for hospitalizationのため非表示テスト不可（2026-03-29） |
+| 予防接種 `/vaccinations` | 未確認 | 未確認 | 一般グループ:「新規登録」表示、執行グループ(can_create=false):非表示確認（2026-03-29） |
+| トリミング `/trimming` | 未確認 | 未確認 | 一般グループ:「新規登録」表示、執行グループ(can_create=false):非表示確認（2026-03-29） |
+| 在庫管理 `/inventory` | 未確認 | 未確認 | clinic_admin:「新規登録」表示、一般グループ(can_create=false):非表示確認（2026-03-29） |
+| 見積管理 `/estimates` | 未確認 | 未確認 | clinic_admin:「新規見積書作成」表示、一般グループ(can_create=false):非表示確認（2026-03-29） |
 
 ### 43.2 can_edit 制御（「編集」ボタン表示/非表示）
 | ページ | can_edit=true | can_edit=false | 備考 |
 |--------|---------------|----------------|------|
-| 飼主一覧 操作メニュー | OK 「編集」表示 | N/A 「編集」非表示 | 一般/執行グループ(can_edit=true):「編集」表示確認。全グループcan_edit=true for ownersのため非表示テスト不可（2026-03-29） |
-| カルテ一覧 操作メニュー | OK 「編集」表示 | OK 「編集」非表示 | clinic_admin:「編集」表示、執行グループ(can_edit=false):dropdown非表示確認（2026-03-29） |
-| 在庫一覧 操作メニュー | OK 「編集」表示 | OK 「編集」非表示 | clinic_admin:「編集」表示（バイパス）、一般グループ(can_edit=false):dropdown非表示確認（2026-03-29） |
-| 予防接種一覧 操作メニュー | OK 「編集」表示 | OK 「編集」非表示 | clinic_admin:バイパス、執行グループ(can_edit=false):dropdown非表示（RBAC機構一貫性確認, 2026-03-29） |
-| トリミング一覧 操作メニュー | OK 「編集」表示 | OK 「編集」非表示 | clinic_admin:バイパス、執行グループ(can_edit=false):dropdown非表示（RBAC機構一貫性確認, 2026-03-29） |
-| 検査一覧 操作メニュー | OK 「編集」表示 | OK 「編集」非表示 | clinic_admin:バイパス、執行グループ(can_edit=false):dropdown非表示（RBAC機構一貫性確認, 2026-03-29） |
-| 会計一覧 操作メニュー | OK 「編集」表示 | OK 「編集」非表示 | clinic_admin:「編集」表示（バイパス）、一般グループ(can_edit=false):「カルテを開く」のみ表示（2026-03-29） |
+| 飼主一覧 操作メニュー | 未確認 | 未確認 | 一般/執行グループ(can_edit=true):「編集」表示確認。全グループcan_edit=true for ownersのため非表示テスト不可（2026-03-29） |
+| カルテ一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:「編集」表示、執行グループ(can_edit=false):dropdown非表示確認（2026-03-29） |
+| 在庫一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:「編集」表示（バイパス）、一般グループ(can_edit=false):dropdown非表示確認（2026-03-29） |
+| 予防接種一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:バイパス、執行グループ(can_edit=false):dropdown非表示（RBAC機構一貫性確認, 2026-03-29） |
+| トリミング一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:バイパス、執行グループ(can_edit=false):dropdown非表示（RBAC機構一貫性確認, 2026-03-29） |
+| 検査一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:バイパス、執行グループ(can_edit=false):dropdown非表示（RBAC機構一貫性確認, 2026-03-29） |
+| 会計一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:「編集」表示（バイパス）、一般グループ(can_edit=false):「カルテを開く」のみ表示（2026-03-29） |
 
 ### 43.3 can_delete 制御（「削除」ボタン表示/非表示）
 | ページ | can_delete=true | can_delete=false | 備考 |
 |--------|-----------------|------------------|------|
-| 飼主一覧 操作メニュー | OK 「削除」表示 | OK 「削除」非表示 | clinic_admin:「削除」表示(§12842)、一般グループ(can_delete=false):「編集」のみ表示（2026-03-29） |
-| カルテ一覧 操作メニュー | OK 「削除」表示 | OK 「削除」非表示 | clinic_admin:「削除」表示、全グループcan_delete=false:dropdown非表示確認（2026-03-29） |
-| 在庫一覧 操作メニュー | OK 「削除」表示 | OK 「削除」非表示 | clinic_admin:バイパス、一般グループ(can_delete=false):dropdown非表示確認（2026-03-29） |
-| 予防接種一覧 操作メニュー | OK 「削除」表示 | OK 「削除」非表示 | clinic_admin:バイパス、全グループcan_delete=false:非表示（RBAC機構確認, 2026-03-29） |
-| トリミング一覧 操作メニュー | OK 「削除」表示 | OK 「削除」非表示 | clinic_admin:バイパス、全グループcan_delete=false:非表示（RBAC機構確認, 2026-03-29） |
-| 検査一覧 操作メニュー | OK 「削除」表示 | OK 「削除」非表示 | clinic_admin:バイパス、全グループcan_delete=false:非表示（RBAC機構確認, 2026-03-29） |
+| 飼主一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:「削除」表示(§12842)、一般グループ(can_delete=false):「編集」のみ表示（2026-03-29） |
+| カルテ一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:「削除」表示、全グループcan_delete=false:dropdown非表示確認（2026-03-29） |
+| 在庫一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:バイパス、一般グループ(can_delete=false):dropdown非表示確認（2026-03-29） |
+| 予防接種一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:バイパス、全グループcan_delete=false:非表示（RBAC機構確認, 2026-03-29） |
+| トリミング一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:バイパス、全グループcan_delete=false:非表示（RBAC機構確認, 2026-03-29） |
+| 検査一覧 操作メニュー | 未確認 | 未確認 | clinic_admin:バイパス、全グループcan_delete=false:非表示（RBAC機構確認, 2026-03-29） |
 
 ### 43.4 can_view=false のページアクセス制御
 | ページ | 期待動作 | 結果 | 備考 |

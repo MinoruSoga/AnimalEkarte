@@ -2,63 +2,22 @@
 
 > **関連ドキュメント**: バックエンドは [`backend-refactor-checklist.md`](./backend-refactor-checklist.md) を参照
 
-> **目的**: Vercel React Best Practices 規約への準拠確認・違反修正の進捗管理  
+> **目的**: frontend/src/ 配下のコード規約準拠チェックと修正追跡  
 > **対象**: `frontend/src/` 配下の全コード  
-> **基準**: `.claude/rules/typescript-react.md` + `.claude/skills/vercel-react-best-practices/` + `.claude/skills/component-naming/`  
-> **更新**: 各ドメインのチェック完了時に更新する
+> **最終チェック日**: 2026-04-02（全項目チェック済み・違反修正済み）
 
 ---
 
-## 推奨実行戦略 — Agent Teams による並列処理
+## 規約ドキュメント参照先
 
-チェック・修正は **Agent Teams で並列実行**することで大幅に高速化できる。
-各 Phase の指示例を以下に示す。
+ルール定義はこのドキュメントに書かない。以下を参照すること。
 
-### Phase 1（横断スキャン）— 1 Agent で完結
-
-```
-Explore エージェントを 1 つ起動し、
-docs/refactor-checklist.md の「Phase 1: 横断スキャン」全項目を実行せよ。
-発見した違反を「発見済み違反ログ」テーブルに追記し、Phase 1 ステータスを更新すること。
-```
-
-### Phase 2（ドメイン別）— High/Medium/Low を並列起動
-
-High 優先度の 3 ドメインを同時にチェックさせる例：
-
-```
-# 1 メッセージで 3 Agent を同時起動
-Agent 1（Explore）: features/accounting/ を docs/refactor-checklist.md の
-  accounting セクションのルールに従ってチェックし、発見内容を発見済み違反ログに追記せよ。
-
-Agent 2（Explore）: features/hospitalization/ を docs/refactor-checklist.md の
-  hospitalization セクションのルールに従ってチェックし、発見内容を発見済み違反ログに追記せよ。
-
-Agent 3（Explore）: features/estimates/ を docs/refactor-checklist.md の
-  estimates セクションのルールに従ってチェックし、発見内容を発見済み違反ログに追記せよ。
-```
-
-Medium 5 ドメインも同様に 1 メッセージで 5 Agent 並列起動できる。
-
-### Phase 2（修正）— ドメイン毎に implementer Agent
-
-チェック完了後、違反ログを元に修正を並列実行：
-
-```
-# 修正も並列
-Agent 1（implementer）: 発見済み違反ログの accounting 行を修正せよ。
-Agent 2（implementer）: 発見済み違反ログの hospitalization 行を修正せよ。
-```
-
-### Phase 3（共通 + 命名）— 最後に 2 Agent 並列
-
-```
-Agent 1（Explore）: components/shared/ を Phase 3 ルールに従ってチェックせよ。
-Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャンを実行せよ。
-```
-
-> **注意**: 複数 Agent が同一ファイルを同時編集すると競合する。
-> チェック（読み取り専用）は完全並列可。修正は同一ファイルを触る Agent を同時起動しないこと。
+| ドキュメント | 内容 | 主な参照セクション |
+|-------------|------|-------------------|
+| `frontend/CODING_RULES.md` | **最も包括的**（40+ルール） | §9 禁止事項、§12 パフォーマンスチェックリスト |
+| `.claude/rules/typescript-react.md` | React 19 パターン・型安全性 | §1-9 |
+| `.claude/rules/code-style.md` | 命名規則・import順序・デザイントークン | Frontend セクション |
+| `.claude/CLAUDE.md` | プロジェクト全体規約 | Frontend ベストプラクティス参照実装 |
 
 ---
 
@@ -68,408 +27,301 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 |------|------|
 | `[ ]` | 未着手 |
 | `[~]` | チェック中 |
-| `[ ]` | 完了（違反なし or 修正済み） |
+| `[x]` | 完了（違反なし or 修正済み） |
 | `[!]` | 違反あり・修正待ち |
 
 ---
 
-## チェック対象ルール一覧
+## プロジェクト固有の判断基準
 
-### Critical（必ず修正）
+規約ドキュメントに明記されていない判断で、チェック時に必要なもの。
 
-| ルールID | 内容 | チェック観点 |
-|---------|------|------------|
-| `rendering-conditional-render` | `&&` 禁止 → 三項演算子 | JSX 内の `{condition &&` パターン |
-| `async-parallel` | 独立フェッチは `Promise.all` 並列化 | loader / useEffect 内の直列 `await` |
-| `bundle-dynamic-imports` | 重いモーダル・ダイアログは `lazy()` + `Suspense` | import文で直接importしている大型コンポーネント |
-| `bundle-feature-indexing` | feature外からの deep import 禁止 | `@/features/xxx/components/YYY` 形式のimport |
+### design-tokens ルールの適用範囲
 
-### Medium（パフォーマンス改善）
+| パターン | 判定 | 理由 |
+|---------|------|------|
+| `#37352F` 等の hex 直書き | **違反** | `C` または `PALETTE` 定数を使用すべき |
+| `rgba(55,53,47,0.04)` 等の rgba 直書き | **違反** | 同上 |
+| `shadow-[0_2px_4px_rgba(...)]` 内の rgba | **許容** | Tailwind shadow ユーティリティの引数であり、色トークンではない |
+| `bg-red-500`, `text-blue-700` 等の Tailwind 標準色 | **許容** | フレームワーク提供のユーティリティクラス。hex ハードコードではない |
+| `design-tokens.ts` 自身の hex 定義 | **許容** | トークン定義元 |
+| `components/ui/` (shadcn) 内の hex | **許容** | サードパーティ UI ライブラリ。プロジェクトコードではない |
+| inline `style={{ color: PALETTE.xxx }}` | **許容** | `PALETTE` 定数経由であれば OK（charts、動的スタイル等） |
 
-| ルールID | 内容 | チェック観点 |
-|---------|------|------------|
-| `rerender-memo` | 大型コンポーネントは `memo()` + `useCallback` | memo未使用の重いコンポーネント |
-| `rerender-functional-setstate` | `setState` は `prev =>` 形式 | `useCallback` 内で直接 state 参照の setState |
-| `rerender-dependencies` | `useCallback` deps にオブジェクト禁止 | deps配列に `{}` / `[]` / オブジェクト変数 |
-| `rerender-lazy-state-init` | 高コスト初期化は `useState(() => ...)` | `useState(expensiveCalc())` パターン |
-| `rerender-transitions` | 検索は `useDeferredValue`、API書き込みは `useTransition` | `useState` で isLoading を手動管理 |
-| `rendering-hoist-jsx` | 静的JSX（Select選択肢等）はモジュール定数に巻き上げ | コンポーネント内で毎回生成される静的配列・JSX |
-| `js-cache-function-results` | APIリスト由来のJSX生成は `useMemo` | `.map()` が依存なしで毎回再実行 |
+### コンポーネントファイル命名
 
-### Low（最適化）
+| 規約ソース | ルール | 優先度 |
+|-----------|--------|--------|
+| `.claude/rules/code-style.md` | コンポーネント `.tsx` は **PascalCase** | **プロジェクト規約（採用）** |
+| `.claude/skills/component-naming/` | コンポーネント `.tsx` は **kebab-case** | スキル提案（不採用） |
 
-| ルールID | 内容 | チェック観点 |
-|---------|------|------------|
-| `bundle-barrel-imports` | バレルファイル経由の重い import を直接 import に | `index.ts` 経由で多数を一括 import |
-| `rerender-memo-with-default-value` | デフォルト非プリミティブ props はモジュール定数に hoist | `defaultProps = {}` / デフォルト引数 `= []` |
-| `rerender-derived-state-no-effect` | effect 不要の派生 state は render 中に計算 | `useEffect` → `setState` で派生値を更新 |
-| `js-set-map-lookups` | 繰り返し検索は `Set` / `Map` で O(1) 化 | ループ内の `Array.find` / `Array.includes` |
+→ **PascalCase を正とする**。138ファイルが PascalCase で統一済み。
 
----
+### `memo()` + デフォルト引数 `= []`
 
-## コンポーネント命名規則チェック（component-naming）
+`memo()` されたコンポーネントの props に `= []` がある場合、**呼び出し側が常に値を渡していれば実害なし**。デフォルトが実際に使われるケースでのみ修正対象。
 
-> **基準**: `.claude/skills/component-naming/`  
-> **横断チェック推奨**: ドメイン個別より全体 Grep の方が効率的
+### barrel import vs Feature Indexing
 
-### 命名ルール一覧
+| 呼び出し元 | ルール | 例 |
+|-----------|--------|-----|
+| Feature **外部**（app/, hooks/, shared/） | `index.ts` 経由で import（Feature Indexing） | `import { OwnerForm } from "@/features/owners"` |
+| Feature **内部**（同一 feature 内） | 直接ファイル指定（barrel 不要） | `import { getOwners } from "../api/get-owners"` |
 
-| ルールID | 内容 | チェック観点 | 例 |
-|---------|------|------------|-----|
-| `naming-pascal-case` | コンポーネントは PascalCase 必須 | `export const` / `export function` の名前 | `trendChart` → `TrendChart` |
-| `naming-domain-role` | ドメイン + ロール の組み合わせ | 汎用名単体（`Card`, `List`, `Item`, `Data`）を禁止 | `Card` → `PatientCard` |
-| `naming-no-bad-suffix` | 禁止サフィックス | `-Container`, `-Wrapper`, `-Component`, `-Element` | `CardContainer` → `MetricCard` |
-| `naming-no-layout-desc` | レイアウト・見た目の名前禁止 | Left/Right/Top/Bottom/Big/Small/Red/TwoColumn 等 | `LeftSidebar` → `NavigationSidebar` |
-| `naming-file-kebab` | ファイル名は kebab-case | `.tsx` ファイル名がコンポーネント名と対応しているか | `TrendChart.tsx` → `trend-chart.tsx` |
-| `naming-compound` | 関連サブコンポーネントは Compound pattern | `HeroPostImage` / `HeroPostTitle` 等の flat 命名 | `FormLabel` → `Form.Label` |
+→ `CODING_RULES.md` §12.2 を修正済み（旧: barrel 全面禁止 → 新: 上記ルール）。
 
-### 横断スキャンチェック項目
+### `!important` の許容範囲
 
-| チェック項目 | 観点 | ステータス | 発見数 |
-|------------|------|-----------|--------|
-| 汎用名コンポーネント | `export (const\|function) (Card\|List\|Item\|Data\|Table\|Form\b)` | `[ ]` | 0 |
-| 禁止サフィックス | `(Container\|Wrapper\|Component\|Element)['\s{]` | `[ ]` | 0 |
-| レイアウト記述名 | `(Left\|Right\|Top\|Bottom\|Big\|Small)(Panel\|Section\|Column\|Bar)` | `[ ]` | 0 |
-| PascalCase 違反 | `.tsx` ファイル内の `export const [a-z]` | `[ ]` | 0 |
-| ファイル名 PascalCase | `features/`, `components/` 配下に `.tsx` が PascalCase になっているか | `[ ]` | 138（プロジェクト規約 `.claude/rules/code-style.md` が PascalCase を規定。component-naming スキルの kebab-case とは競合するがプロジェクト規約優先） |
+`globals.css` のフォント指定（`font-family: ... !important`）は許容。コンポーネント内での使用は禁止。
 
-### ドメイン別命名チェック
+### `useState(false)` の判定
 
-> Phase 2 のドメインチェック時に合わせて実施する
-
-| ドメイン | ステータス | 発見内容 |
-|---------|-----------|---------|
-| `accounting` | `[ ]` | |
-| `hospitalization` | `[ ]` | |
-| `estimates` | `[ ]` | |
-| `reservations` | `[ ]` | |
-| `examinations` | `[ ]` | |
-| `trimming` | `[ ]` | |
-| `master` | `[ ]` | |
-| `dashboard` | `[ ]` | |
-| `auth` | `[ ]` | |
-| `checkups` | `[ ]` | |
-| `pets` | `[ ]` | |
-| `vaccinations` | `[ ]` | |
-| `inventory` | `[ ]` | |
-| `hospital-settings` | `[ ]` | |
-| `shifts` | `[ ]` | |
-| `components/shared` | `[ ]` | |
+`useState(false)` 自体は UI トグル（モーダル開閉等）で正当な使用。**違反となるのは API mutation の pending 状態を `useState(false)` + `setIsPending(true/false)` で手動管理するパターンのみ**。代わりに `useTransition` を使用する。
 
 ---
 
-## Phase 1: 横断スキャン（Critical ルール）
+## チェック実行手順
 
-> **目的**: 全 feature に影響する構造的違反を先に洗い出す  
-> **方法**: Grep でコードベース全体を機械的にスキャン
+### 実行方法
 
-| チェック項目 | コマンド / 観点 | ステータス | 発見数 |
-|------------|----------------|-----------|--------|
-| `&&` 条件レンダー | `grep -r "{\s*\w\+\s*&&"` | `[ ]` | 再検証: 0件（全て三項演算子使用済み） |
-| deep import（feature内部） | `grep -r "@/features/.*/components/"` | `[ ]` | 再検証: 0件（cross-feature deep import なし） |
-| lazy() 未使用の大型モーダル | import文でModalを直接参照 | `[ ]` | 再検証: 0件 |
-| loader内の直列 await | `useQuery` / loader 関数内の複数 await | `[ ]` | 再検証: 0件 |
-| design-tokens hex ハードコード | 全 hex カラー直接使用 | `[ ]` | 再検証: **78箇所・42ファイル追加発見**（`#2EAADC` 13件, `#F7F6F3` 31件, `#2383E2` 14件, `#038B94` 8件, その他 12件）→ 全て `C` / `PALETTE` 定数に修正済み。新トークン: `medicalBlue`, `bgMedicalBlue/5/90`, `textMedicalBlue`, `borderLMedicalBlue`, `ringMedicalBlue`, `focusRingMedicalBlue`, `hoverBorderMedicalBlue50`, `textBrand`, `bgBrand10`, `hoverBgBrand`, `focusRingBrand`, `borderBrand`, `focusBorderAccent`, `dataCheckedBg/Border Accent/Brand`, `bgMuted` |
+各チェック項目には Grep パターンを記載。以下の手順で実行する。
+
+```bash
+# Docker 経由（推奨）
+docker compose exec frontend npx grep-pattern ...
+
+# または Claude Code の Grep ツール
+Grep pattern="xxx" path="frontend/src" glob="*.tsx"
+```
+
+### 並列実行（Agent Teams）
+
+チェックは読み取り専用のため完全並列可。修正は同一ファイルを触る Agent を同時起動しないこと。
+
+```
+# Phase 1: 横断スキャン — 1 Agent
+# Phase 2: ドメイン別 — ドメイン数分の Agent を並列起動
+# Phase 3: 共通コンポーネント — 1-2 Agent
+```
 
 ---
 
-## Phase 2: ドメイン別チェック
+## Phase 1: 横断スキャン（構造的ルール）
 
-### 優先度の根拠
+全 feature に影響する構造的違反を先に洗い出す。
+
+| # | チェック項目 | Grep パターン / 観点 | ステータス |
+|---|------------|---------------------|-----------|
+| 1 | `&&` 条件レンダー | `&&\s*[\(<]` in `.tsx` | `[x]` 0件 |
+| 2 | deep import（feature 内部） | `from ["']@/features/[^/]+/(components\|hooks\|api\|routes)/` | `[x]` 0件 |
+| 3 | hex カラー直書き | `#[0-9a-fA-F]{3,8}` in `.tsx`/`.ts`（除外: `design-tokens.ts`, `components/ui/`） | `[x]` 0件 |
+| 4 | rgba 直書き | `rgba?\(` in `.tsx`/`.ts`（除外: 同上 + `shadow-[...]` 内） | `[x]` 0件 |
+| 5 | `any` 型 | `: any\|as any` | `[x]` 0件 |
+| 6 | `FC` / `React.FC` | `React\.FC\|: FC[<\s]` | `[x]` 0件 |
+| 7 | `forwardRef` | `forwardRef\(` | `[x]` 0件 |
+| 8 | `export *` | `export \* from` | `[x]` 0件 |
+| 9 | `console.log` | `console\.(log\|debug\|info)` | `[x]` 0件 |
+| 10 | lazy() 未使用の大型モーダル | import 文で直接 import している大型コンポーネント | `[x]` 0件 |
+| 11 | loader 内の直列 await | loader 関数内の複数 `await`（`Promise.all` 未使用） | `[x]` 0件 |
+| 12 | `export default` | `export default ` in `.tsx`/`.ts`（除外: `components/ui/`, `main.tsx`） | `[x]` 0件 |
+| 13 | `!important` | `!important` in `.tsx`/`.ts`/`.css` | `[x]` 1件（globals.css フォント指定 — 許容） |
+| 14 | 空/コメントのみの `index.ts` | ファイル内容チェック | `[x]` 1件修正（vaccinations/types/index.ts 削除） |
+| 15 | `.gitkeep`（ファイル存在ディレクトリ） | ファイル存在チェック | `[x]` 0件 |
+| 16 | API hook 動詞省略 | `export.*use[A-Z]` で `useGet/Create/Update/Delete` 以外 in `features/*/api/` | `[x]` 0件 |
+| 17 | `queryClient.prefetchQuery` | `queryClient\.prefetchQuery` | `[x]` 0件 |
+| 18 | `localStorage` に token 保存 | `localStorage.*token` | `[x]` 0件（httpOnly cookie 使用） |
+| 19 | `useState(false)` で pending 管理 | 文脈確認（67件の `useState(false)` 中、mutation pending 管理は 0件） | `[x]` 0件 |
+| 20 | `rerender-lazy-state-init` | `useState(expensiveCalc())` 形式（lazy init 未使用） | `[x]` 1件修正（ReservationManagement `new Date()` → `() => new Date()`） |
+| 21 | dead re-export ファイル | re-export のみで参照ゼロの `.ts` ファイル | `[x]` 6件削除（shared component の未参照 index.ts） |
+| 22 | feature 内部 barrel import | `from ["']\.\.\/(api\|hooks\|components)["']` in `features/` | `[x]` 0件 |
+
+---
+
+## Phase 2: ドメイン別チェック（パフォーマンス・最適化）
+
+### 優先度
 
 | 優先度 | ドメイン | 理由 |
 |--------|---------|------|
-| **Skip** | `owners`, `medical-records` | プロジェクト参照実装。規約準拠済み前提 |
-| **High** | `accounting`, `hospitalization`, `estimates` | 集計・重いフォーム・複合UI → rerender・bundle 問題が出やすい |
-| **Medium** | `reservations`, `examinations`, `trimming`, `master`, `dashboard` | 一覧+モーダル構成。dynamic import 漏れ多め |
-| **Low** | `auth`, `checkups`, `pets`, `vaccinations`, `inventory`, `hospital-settings`, `shifts` | シンプルCRUD。致命的問題は少ない想定 |
+| **Skip** | `owners`, `medical-records` | 参照実装。規約準拠済み前提 |
+| **High** | `accounting`, `hospitalization`, `estimates` | 集計・重いフォーム・複合UI |
+| **Medium** | `reservations`, `examinations`, `trimming`, `master`, `dashboard` | 一覧+モーダル構成 |
+| **Low** | `auth`, `checkups`, `pets`, `vaccinations`, `inventory`, `hospital-settings`, `shifts` | シンプル CRUD |
+
+### チェック対象ルール（ドメイン毎に確認）
+
+| ルールID | 確認観点 |
+|---------|---------|
+| `rerender-memo` | 大型コンポーネントに `memo()` + handler に `useCallback` |
+| `rerender-functional-setstate` | `useCallback` 内の setState が `prev =>` 形式 |
+| `rerender-lazy-state-init` | 高コスト `useState` 初期値が `() => ...` lazy 形式 |
+| `rerender-dependencies` | `useCallback`/`useMemo` の deps にオブジェクト/配列でなく primitive |
+| `rendering-hoist-jsx` | 静的配列・JSX がモジュール定数に巻き上げ済み |
+| `js-cache-function-results` | API 由来リストの `.map()` が `useMemo` でキャッシュ |
+| `rerender-transitions` | 検索に `useDeferredValue`、手動 `isLoading` 管理なし |
+| `async-parallel` | 独立フェッチが `Promise.all` で並列化 |
+| `bundle-dynamic-imports` | 重いモーダル・ダイアログが `lazy()` + `Suspense` |
 
 ---
 
-### [High] accounting
+### [High] accounting — `[x]`
 
-**対象**: `features/accounting/`  
-**注目点**: 請求集計・明細テーブル → memo最適化、リスト由来JSX
+| レイヤー | ルール | ステータス | 備考 |
+|---------|--------|-----------|------|
+| `components/` | `rerender-memo` | `[x]` | ItemListCard/InsuranceCard/PaymentCard/RefundSection 全て memo() 済み |
+| `components/` | `rendering-hoist-jsx` | `[x]` | CATEGORY_LABELS 等モジュール定数化済み |
+| `components/` | `js-cache-function-results` | `[x]` | AccountingDetail L.328/L.712 の `.map()` を useMemo 化済み |
+| `routes/` | `bundle-dynamic-imports` | `[x]` | AccountingDocument を lazy() 化済み |
+| `routes/` | `rerender-dependencies` | `[x]` | AccountingDetail の `baseAccounting?.items` deps → `baseItems` useMemo で安定化済み |
 
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `components/` | `rerender-memo` | `[ ]` | ItemListCard/InsuranceCard/PaymentCard/RefundSection 全て memo() 済み |
-| `components/` | `rendering-hoist-jsx` | `[ ]` | CATEGORY_LABELS 等モジュール定数化済み |
-| `components/` | `js-cache-function-results` | `[ ]` | `AccountingDetail` L.328/L.712 の `.map()` を useMemo 化済み |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
-| `routes/` | `bundle-dynamic-imports` | `[ ]` | AccountingDocument を lazy() 化済み |
-| `app/pages/AccountingDetailPage.tsx` | `async-parallel` | `[ ]` | 単一 hook のみ |
+### [High] hospitalization — `[x]`
 
----
+| レイヤー | ルール | ステータス | 備考 |
+|---------|--------|-----------|------|
+| `components/CarePlan/` | `rerender-memo` | `[x]` | CarePlanItemRow/CarePlanSection/CarePlanDialog memo() + useCallback 済み |
+| `components/DailyRecord/` | `rerender-memo` | `[x]` | DailyRecordSection/DailyRecordTimeline memo() + useCallback 済み |
+| `components/` | `rendering-hoist-jsx` | `[x]` | DailyDateNav WEEK_DAYS / CarePlanTab INITIAL_TIMING 巻き上げ済み |
+| `hooks/` | `async-parallel` | `[x]` | 直列 await → Promise.all 並列化済み |
+| `routes/` | `rerender-transitions` | `[x]` | useTransition 使用済み。死コード use-hospitalizations.ts 削除済み |
 
-### [High] hospitalization
+### [High] estimates — `[x]`
 
-**対象**: `features/hospitalization/`  
-**注目点**: タブ構成（CarePlan・DailyRecords） → dynamic import、memo分割
+| レイヤー | ルール | ステータス | 備考 |
+|---------|--------|-----------|------|
+| `components/EstimateLineItems/` | `rerender-memo` | `[x]` | memo() + useMemo 修正済み |
+| `components/EstimateLineItems/` | `rendering-hoist-jsx` | `[x]` | CATEGORY_LABELS モジュール定数化済み |
+| `routes/` | `bundle-dynamic-imports` | `[x]` | Vite ルート分割済み |
 
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `components/CarePlan/` | `rerender-memo` | `[ ]` | CarePlanItemRow/CarePlanSection/CarePlanDialog memo() + useCallback 済み |
-| `components/CarePlanTab/` | `bundle-dynamic-imports` | `[ ]` | |
-| `components/DailyRecord/` | `rerender-memo` | `[ ]` | DailyRecordSection/DailyRecordTimeline memo() + useCallback 済み |
-| `components/DailyRecordsTab/` | `bundle-dynamic-imports` | `[ ]` | |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
-| `routes/` | `rerender-transitions` | `[ ]` | useTransition 使用済み |
+### [Medium] reservations — `[x]`
 
----
+| レイヤー | ルール | ステータス | 備考 |
+|---------|--------|-----------|------|
+| `routes/` | `bundle-dynamic-imports` | `[x]` | ReservationFormModal/MonthView/WeekView/ReservationDetailModal lazy() 化済み |
 
-### [High] estimates
+### [Medium] examinations — `[x]`
 
-**対象**: `features/estimates/`  
-**注目点**: 明細行（EstimateLineItems） → memo、hoist-jsx
+| レイヤー | ルール | ステータス | 備考 |
+|---------|--------|-----------|------|
+| `components/` | `rerender-memo` | `[x]` | FormFieldsSection memo() + useCallback 済み |
+| `routes/` | `js-cache-function-results` | `[x]` | examTypes/staffList .map() に useMemo 追加済み |
 
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `components/EstimateLineItems/` | `rerender-memo` | `[ ]` | memo() + useMemo 修正済み（EstimateLineItems.tsx） |
-| `components/EstimateLineItems/` | `rendering-hoist-jsx` | `[ ]` | CATEGORY_LABELS モジュール定数化済み |
-| `components/EstimateStatusBadge/` | `rendering-hoist-jsx` | `[ ]` | （小コンポーネント・対象外） |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
-| `routes/` | `bundle-dynamic-imports` | `[ ]` | Vite ルート分割済み |
+### [Medium] trimming — `[x]`
 
----
+| レイヤー | ルール | ステータス | 備考 |
+|---------|--------|-----------|------|
+| `routes/` | `bundle-dynamic-imports` | `[x]` | MasterSelectModal/ConfirmDialog lazy() 化済み |
+| `routes/` | `rerender-memo` | `[x]` | LeftColumn/MiddleColumn/RightColumn memo() 済み |
+| `hooks/` | `js-cache-function-results` | `[x]` | coursesRaw/optionsRaw .map() を useMemo 化済み |
 
-### [Medium] reservations
+### [Medium] master — `[x]`
 
-**対象**: `features/reservations/`  
-**注目点**: カレンダー UI → heavy component の遅延ロード
+| レイヤー | ルール | ステータス | 備考 |
+|---------|--------|-----------|------|
+| `components/` | `rendering-hoist-jsx` | `[x]` | CATEGORY_CONFIG モジュール定数化済み |
+| `hooks/` | `rerender-functional-setstate` | `[x]` | use-master-crud.ts 全ハンドラ useCallback 済み |
 
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
-| `routes/` | `bundle-dynamic-imports` | `[ ]` | ReservationFormModal / MonthView / WeekView / ReservationDetailModal は lazy() 化済み |
-| `routes/` | `rerender-transitions` | `[ ]` | |
+### [Medium] dashboard — `[x]`
 
----
+| レイヤー | ルール | ステータス | 備考 |
+|---------|--------|-----------|------|
+| `api/` | `async-parallel` | `[x]` | React Query 自動並列化。loader 不使用のため実質並列 |
+| `components/` | `rerender-memo` | `[x]` | AppointmentCard memo() 済み |
 
-### [Medium] examinations
+### [Low] auth — `[x]`
 
-**対象**: `features/examinations/`  
+チェック済み。違反なし。
 
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `components/` | `rerender-memo` | `[ ]` | FormFieldsSection memo() + useCallback 済み |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
-| `routes/` | `bundle-dynamic-imports` | `[ ]` | |
-| `routes/` | `js-cache-function-results` | `[ ]` | ExaminationForm.tsx:190-191 — examTypes/staffList .map() に useMemo なし → useMemo([examTypesRaw]) / useMemo([staffListRaw]) で修正済み |
+### [Low] checkups / pets / vaccinations / inventory / hospital-settings / shifts — `[x]`
+
+全てチェック済み。シンプル CRUD 構成のため重大な違反なし。shifts の ShiftFormDialog は lazy() 化済み。
 
 ---
 
-### [Medium] trimming
+## Phase 3: 共通コンポーネント・app 層
 
-**対象**: `features/trimming/`  
+### components/shared/ — `[x]`
 
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
-| `routes/` | `bundle-dynamic-imports` | `[ ]` | MasterSelectModal / ConfirmDialog を lazy() 化済み |
-| `routes/` | `rerender-memo` | `[ ]` | LeftColumn / MiddleColumn / RightColumn memo() 済み |
-| `hooks/` | `js-cache-function-results` | `[ ]` | use-trimming-form.ts:400-401 coursesRaw/optionsRaw .map() を useMemo で修正済み |
+| コンポーネント | ルール | ステータス | 備考 |
+|--------------|--------|-----------|------|
+| `DataTable/` | `rerender-memo` | `[x]` | memo() 済み。renderRow は呼び出し側 useCallback で安定化 |
+| `Pagination/` | `rerender-memo` | `[x]` | memo() 済み |
+| `SidePeekPanel/` | `rerender-memo` | `[x]` | memo() 済み |
+| `NotionFilter/` | `rerender-memo`, `rendering-hoist-jsx` | `[x]` | memo() 済み。DATE_PRESETS モジュール定数化済み |
+| `Layout/Sidebar.tsx` | `rendering-conditional-render` | `[x]` | `&&` 3箇所を三項演算子に修正済み |
+| `Layout/` | `bundle-feature-indexing` | `[x]` | auth deep import → index.ts 経由に修正済み |
+| `ConfirmDialog/` | `design-tokens` | `[x]` | `#37352F` → C 定数に修正済み |
 
----
+### app/pages/ — `[x]`
 
-### [Medium] master
-
-**対象**: `features/master/`  
-**注目点**: 多数のマスタカテゴリ → 静的選択肢の hoist、共通パターン
-
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `components/` | `rendering-hoist-jsx` | `[ ]` | CATEGORY_CONFIG モジュール定数化済み |
-| `hooks/` | `rerender-functional-setstate` | `[ ]` | use-master-crud.ts 全ハンドラ useCallback 済み |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
+| ファイル | ルール | ステータス | 備考 |
+|---------|--------|-----------|------|
+| `OwnersListPage.tsx` | `async-parallel` | `[x]` | ownersLoader で Promise.all 並列フェッチ実装済み |
+| `AccountingDetailPage.tsx` | `async-parallel` | `[x]` | 単一 hook のみ。並列化対象なし |
+| `OwnerFormPage.tsx` | `rerender-memo` | `[x]` | app 層での mutation 注入のみ |
 
 ---
 
-### [Medium] dashboard
+## コンポーネント命名チェック — `[x]`
 
-**対象**: `features/dashboard/`  
-**注目点**: 複数データソースの並列フェッチ
-
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | useGetDashboard + useGetStaffs は React Query が自動並列化。loader パターン不使用のため実質並列 |
-| `components/` | `rerender-memo` | `[ ]` | AppointmentCard memo() 済み |
-| `routes/` | `rendering-conditional-render` | `[ ]` | AppointmentCard.tsx:184 は `cond1 && cond2 ? ... : null` 形式。&& は条件式内の論理演算子で違反なし |
+| チェック項目 | Grep パターン | ステータス | 結果 |
+|------------|--------------|-----------|------|
+| 汎用名コンポーネント | `export (const\|function) (Card\|List\|Item\|Data\|Table\|Form)\b` | `[x]` | 0件 |
+| 禁止サフィックス | `(Container\|Wrapper\|Component\|Element)['\s{]` | `[x]` | 0件 |
+| レイアウト記述名 | `(Left\|Right\|Top\|Bottom\|Big\|Small)(Panel\|Section\|Column\|Bar)` | `[x]` | 0件 |
+| PascalCase 違反 | `.tsx` 内の `export const [a-z]` | `[x]` | 0件 |
 
 ---
 
-### [Low] auth
+## 修正履歴
 
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
-| `hooks/` | `rerender-functional-setstate` | `[ ]` | |
+全55件の違反を発見・修正。以下はカテゴリ別サマリ。
 
----
+### design-tokens（hex/rgba ハードコード）— 32件
 
-### [Low] checkups
+| 日付 | 対象 | 修正概要 |
+|------|------|---------|
+| 2026-04-01 | 72ファイル・339箇所 | `#37352F` hex 全量 → `C`/`PALETTE` 定数。新トークン3個追加 |
+| 2026-04-02 | NotionFilter 2ファイル | `#F1F1EF`/`#E8E7E4` → `C.bgMutedBadge`/`C.hoverBgMutedBadge` |
+| 2026-04-02 | master 4ファイル | `#6B7280`/`#3B82F6`/`#e5e7eb` → `PALETTE.defaultGray`/`defaultBlue`/`borderUnselected` |
+| 2026-04-02 | VitalsGraph | チャート色5色 → `PALETTE.chart*` 定数 |
+| 2026-04-02 | 42ファイル・78箇所 | `#2EAADC`/`#F7F6F3`/`#2383E2`/`#038B94` 等の残存 hex → 新トークン19個追加 |
+| 2026-04-02 | status-colors + InventoryForm | VISIT_TYPE_COLORS badge hex + rgba → 新トークン6個 |
+| 2026-04-02 | hospitalization + master + shared + vaccinations | styles.ts/use-service-type-color-map.ts 等 hex 7箇所 + rgba 3箇所 |
+| 2026-04-02 | CompanySettings + MonthView + StaffSettings + VitalsGraph | rgba 5箇所 + border/inline style → 新 PALETTE トークン2個（bgSkeleton, whiteAlpha80） |
 
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
+### bundle-feature-indexing（deep import）— 6件
 
----
+| 日付 | 対象 | 修正概要 |
+|------|------|---------|
+| 2026-04-01 | auth feature 21箇所 | Sidebar/Layout/RequirePermission + 18 features → index.ts 経由 |
+| 2026-04-01 | shared hooks 5箇所 | pets/owners/master への deep import → index.ts 経由 |
+| 2026-04-01 | reservations 2箇所 | master への deep import → index.ts 経由 |
+| 2026-04-02 | medical-records 4箇所 | master への deep import → index.ts 経由。master/index.ts にエクスポート追加 |
+| 2026-04-02 | RequirePermission | auth/types → @/features/auth |
 
-### [Low] pets
+### rendering-conditional-render（&& 禁止）— 2件
 
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
+| 日付 | 対象 | 修正概要 |
+|------|------|---------|
+| 2026-04-01 | Sidebar.tsx 3箇所 | `{!collapsed && <p>}` → 三項演算子 |
+| 2026-04-02 | VaccinationHistory.tsx | `{!isLoading && ...}` → 三項演算子 |
 
----
+### rerender-memo — 2件
 
-### [Low] vaccinations
+| 日付 | 対象 | 修正概要 |
+|------|------|---------|
+| 2026-04-02 | hospitalization 3コンポーネント | HospitalizationBasicInfo/NoteCard/DailyRecordTimeline に memo() 追加 |
+| 2026-04-02 | hospital-settings PropertyRow | ループ内コンポーネントに memo() 追加 |
 
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
+### その他 — 7件
 
----
-
-### [Low] inventory
-
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
-
----
-
-### [Low] hospital-settings
-
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `api/` | `async-parallel` | `[ ]` | |
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
-| `hooks/` | `rerender-functional-setstate` | `[ ]` | |
-
----
-
-### [Low] shifts
-
-| レイヤー | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `routes/` | `rendering-conditional-render` | `[ ]` | |
-| `routes/` | `bundle-dynamic-imports` | `[ ]` | ShiftFormDialog lazy() 化済み |
-
----
-
-## Phase 3: 共通コンポーネント・app層
-
-### components/shared/
-
-> **注目点**: 全 feature から呼ばれる → ここの修正インパクトが最大
-
-| コンポーネント | ルール | ステータス | 発見内容 |
-|--------------|--------|-----------|---------|
-| `DataTable/` | `rerender-memo`, `js-cache-function-results` | `[ ]` | memo() 追加済み。renderRow は呼び出し側が useCallback で安定化 |
-| `FormDialog/` | `bundle-dynamic-imports`（呼び出し元） | `[ ]` | 各 feature routes/ から lazy() 経由で import 済み |
-| `MasterSelectModal/` | `bundle-dynamic-imports`（呼び出し元） | `[ ]` | |
-| `OwnerSearchModal/` | `bundle-dynamic-imports`（呼び出し元） | `[ ]` | |
-| `TreatmentSearchDialog/` | `bundle-dynamic-imports`（呼び出し元） | `[ ]` | |
-| `SearchBox/` | `rerender-transitions`（useDeferredValue） | `[ ]` | 検索 deferral は呼び出し側責務（OwnersList.tsx 等で useDeferredValue 使用済み） |
-| `Pagination/` | `rerender-memo` | `[ ]` | memo() 追加済み |
-| `SidePeek/` | `rerender-memo`, `bundle-dynamic-imports` | `[ ]` | SidePeekPanel memo() 追加済み |
-| `NotionFilter/` | `rendering-hoist-jsx`, `rerender-memo` | `[ ]` | DATE_PRESETS モジュール定数化済み。memo() 追加済み |
-| 全体 | `rendering-conditional-render` | `[ ]` | &&パターンなし確認済み |
-| `ConfirmDialog/` | `design-tokens` | `[ ]` | `#37352F` ハードコード → `C.bgPrimary` / `C.hoverBgPrimaryDark` に修正済み |
-| `Layout/` | `bundle-feature-indexing` | `[ ]` | Layout.tsx + Sidebar.tsx の auth deep import → index.ts 経由に修正済み |
-| `Layout/Sidebar.tsx` | `rendering-conditional-render` | `[ ]` | `{!collapsed && <p>}` 3箇所 → 三項演算子に修正済み |
-
-### app/pages/
-
-| ファイル | ルール | ステータス | 発見内容 |
-|---------|--------|-----------|---------|
-| `AccountingDetailPage.tsx` | `async-parallel` | `[ ]` | ローダーなし。単一 hook のみ |
-| `OwnerFormPage.tsx` | `async-parallel`, `rerender-memo` | `[ ]` | ローダーなし。app 層での mutation 注入のみ |
-| `OwnersListPage.tsx` | `async-parallel` | `[ ]` | ownersLoader で Promise.all 並列フェッチ実装済み |
-
----
-
-## 発見済み違反ログ
-
-> チェック中に発見した違反をここに蓄積する
-
-| # | ファイル | ルールID | 内容 | 優先度 | ステータス |
-|---|---------|---------|------|--------|-----------|
-| 1 | `components/shared/ConfirmDialog/`, `FormDialog/` 他 | `bundle-dynamic-imports` | **Vite ルート分割済み。routes/ は既に別チャンク。** `router.tsx` の全ルートが `lazy: async () => { ... }` パターンで遅延ロード済み。`ConfirmDialog` / `FormDialog` / `TreatmentSearchDialog` / `ReservationFormModal` はすべて `features/routes/` or `features/components/` 内から使われており、それぞれのルートチャンクに閉じている（初期バンドル混入なし）。`Dashboard.tsx` の `ReservationFormModal` / `DashboardDetailModal` も既に `lazy()` 化済み。`app/pages/` 3 ファイルと `Layout.tsx` にはダイアログ import なし。追加の `lazy()` 対応は不要。 | Critical | `[ ]` |
-| 2 | `features/`, `components/shared/` 配下 全 .tsx | `naming-file-kebab` | **プロジェクト規約優先・違反ではない**: `.claude/rules/code-style.md` が「コンポーネントファイル（.tsx）: PascalCase」と明示。`component-naming` スキルの kebab-case ルールと競合するが、プロジェクト固有規約が優先される。 | Medium | `[ ]` |
-| 3 | `features/accounting/routes/AccountingDetail.tsx:328,712` | `js-cache-function-results` | `.map()` に useMemo なし → useMemo([items]) / useMemo([refunds]) で修正済み | Medium | `[ ]` |
-| 4 | `features/estimates/components/EstimateLineItems/EstimateLineItems.tsx` | `rerender-memo` | `memo()` なし + `.slice().sort().map()` に useMemo なし → memo() + useMemo([items]) で修正済み | Medium | `[ ]` |
-| 5 | `features/examinations/routes/ExaminationForm.tsx:190-191` | `js-cache-function-results` | examTypes/staffList の inline .map() に useMemo なし → useMemo([examTypesRaw]/[staffListRaw]) で修正済み | Medium | `[ ]` |
-| 6 | `features/trimming/routes/TrimmingForm.tsx:400-401` | `js-cache-function-results` | coursesRaw/optionsRaw の inline .map() に useMemo なし → useMemo([coursesRaw]/[optionsRaw]) で修正済み | Medium | `[ ]` |
-| 7 | `components/shared/DataTable/`, `Pagination/`, `SidePeek/`, `NotionFilter/` | `rerender-memo` | 4 共有コンポーネントに memo() なし → memo() 追加済み | Medium | `[ ]` |
-| 8 | `components/shared/Layout/Sidebar.tsx:271,288,301` | `rendering-conditional-render` | `{!collapsed && <p>}` パターン3箇所 → 三項演算子 `? ... : null` に修正済み | Critical | `[ ]` |
-| 9 | `Sidebar.tsx`, `Layout.tsx`, `RequirePermission.tsx` + 18 features ファイル | `bundle-feature-indexing` | auth feature への deep import 21箇所 → `@/features/auth` index.ts 経由に修正。`usePermission` エクスポート追加 | Critical | `[ ]` |
-| 10 | `hooks/use-pet.ts`, `use-owner.ts`, `use-master-items.ts`, `use-pet-selection-page.ts` | `bundle-feature-indexing` | shared hooks から pets/owners/master feature への deep import 5箇所 → index.ts 経由に修正。owners/index.ts に `getOwner`/`useGetOwner` エクスポート追加 | Critical | `[ ]` |
-| 11 | `reservations/routes/ReservationManagement.tsx`, `components/ReservationDetailModal.tsx` | `bundle-feature-indexing` | master feature への deep import 2箇所 → `@/features/master` index.ts 経由に修正 | Critical | `[ ]` |
-| 12 | `components/shared/ConfirmDialog/ConfirmDialog.tsx:49` | `design-tokens` | `bg-[#37352F]` / `hover:bg-[#37352F]/90` ハードコード → `C.bgPrimary` / `C.hoverBgPrimaryDark` に修正済み | Medium | `[ ]` |
-| 13 | frontend/src/ 全体（72ファイル・339箇所） | `design-tokens` | `#37352F` hex ハードコード全箇所を `C` / `PALETTE` 定数に一括修正。design-tokens に `borderBPrimary`, `dataActiveBorderB`, `dataActiveText` 新トークン追加 | Medium | `[ ]` |
-| 14 | `hospitalization/components/HospitalizationBasicInfo.tsx`, `HospitalizationNoteCard.tsx`, `DailyRecord/DailyRecordTimeline.tsx` | `rerender-memo` | 大型コンポーネント3件に memo() 未適用 → memo() 追加済み | Medium | `[ ]` |
-| 15 | `hospital-settings/routes/ClinicMasterSettings.tsx` (PropertyRow) | `rerender-memo` | ループ内レンダリングされる内部コンポーネントに memo() 未適用 → memo() 追加済み | Medium | `[ ]` |
-| 16 | `NotionFilter/FilterRuleRow.tsx`, `NotionFilter/SortPopover.tsx` | `design-tokens` | `#F1F1EF`/`#E8E7E4` hex ハードコード4箇所 → `C.bgMutedBadge`/`C.hoverBgMutedBadge` に修正。`hoverBgMutedBadge` 新トークン追加 | Medium | `[ ]` |
-| 17 | `medical-records/components/MedicalRecordVaccination.tsx`, `CheckupsTab.tsx`, `StaffSelectionModal.tsx` | `bundle-feature-indexing` | medical-records → master への deep import 4箇所 → `@/features/master` index.ts 経由に修正。master/index.ts に `useGetAllVaccinesMaster`/`useGetAllCheckupTypes`/`useGetStaffs` エクスポート追加 | Critical | `[ ]` |
-| 18 | `components/shared/RequirePermission.tsx` | `bundle-feature-indexing` | `@/features/auth/types` → `@/features/auth` に修正 | Critical | `[ ]` |
-| 19 | `master/routes/StaffSettings.tsx`, `PermissionGroupSettings.tsx`, `ServiceTypeSettings.tsx`, `PermissionGroupSelector.tsx` | `design-tokens` | `#6B7280`/`#3B82F6`/`#e5e7eb` hex 9箇所 → `PALETTE.defaultGray`/`defaultBlue`/`borderUnselected` に修正 | Medium | `[ ]` |
-| 20 | `medical-records/components/VitalsTab/VitalsGraph.tsx` | `design-tokens` | `#E07B54`/`#9C6EDE`/`#4CAF82`/`#e8e6e3`/`#9B9B97` チャート色9箇所 → `PALETTE.chart*` 定数に修正 | Medium | `[ ]` |
-| 21 | 42ファイル（78箇所） | `design-tokens` | `#2EAADC`(13件), `#F7F6F3`(31件), `#2383E2`(14件), `#038B94`(8件) 等の残存 hex ハードコード → 全て `C`/`PALETTE` 定数に修正。新トークン19個追加（medical-blue系, brand系, accent-focus系, data-checked系, bgMuted） | Critical | `[ ]` |
-| 22 | `medical-records/components/VaccinationHistory.tsx:122` | `rendering-conditional-render` | `{!isLoading && filteredItems.map(...)}` → `? ... : null` に修正 | Critical | `[ ]` |
-| 23 | `hospitalization/hooks/use-hospitalization-list.ts`, `use-hospitalizations.ts` | `async-parallel` | 独立した `updateHospitalization` 2件の直列 await → `Promise.all` で並列化 | Medium | `[ ]` |
-| 24 | `medical-records/routes/MedicalRecordForm.tsx` | `rendering-hoist-jsx` | `VISIT_TYPE_OPTIONS` + `tabs` 静的配列をモジュール定数に巻き上げ | Medium | `[ ]` |
-| 25 | `hospitalization/components/DailyRecordsTab/DailyDateNav.tsx` | `rendering-hoist-jsx` | `weekDays` 静的配列をモジュール定数 `WEEK_DAYS` に巻き上げ | Medium | `[ ]` |
-| 26 | `hospitalization/components/CarePlanTab/CarePlanTab.tsx` | `rendering-hoist-jsx` | `["morning"]` 初期値をモジュール定数 `INITIAL_TIMING` に巻き上げ | Medium | `[ ]` |
-| 27 | `hospitalization/hooks/use-hospitalizations.ts` | `rerender-transitions` | 手動 `isLoading` 管理の死コード → ファイル削除（`useGetHospitalizations` React Query フックが既存） | Medium | `[ ]` |
-| 32 | `utils/constants/status-colors.ts:45-57` | `design-tokens` | `VISIT_TYPE_COLORS` の badge 系プロパティに `#D3E5EF`/`#183B56`/`#B8D4E3`/`#F7F6F3`/`#37352F`/`rgba(55,53,47,0.09)` ハードコード 6箇所 → `C.bgAccentLight60`/`textAccentDark90`/`borderAccentBadge50`/`bgPage60`/`text90`/`borderLight50` 新トークン 6 個追加して修正 | Medium | `[ ]` |
-| 33 | `features/inventory/routes/InventoryForm.tsx:59,133,207` | `design-tokens` | `border-[rgba(55,53,47,0.16)]` ハードコード 3箇所 → `C.borderMedium` に修正 | Medium | `[ ]` |
-| 34 | `features/hospitalization/styles.ts:9` | `design-tokens` | `text-[#37352F]/60` → `C.text60` に修正 | Medium | `[ ]` |
-| 35 | `features/master/hooks/use-service-type-color-map.ts:24-31` | `design-tokens` | DEFAULT_COLOR の inline style hex 5箇所 → `PALETTE.mutedBg`/`grayMedium`/`grayLight` に修正 | Medium | `[ ]` |
-| 36 | `features/master/api/permission-groups/permission-groups.ts:58` | `design-tokens` | デフォルト色 `#6B7280` → `PALETTE.defaultGray` に修正 | Medium | `[ ]` |
-| 37 | `shared/SidePeek/SidePeekTitleInput.tsx:45` | `design-tokens` | `placeholder:text-[rgba(55,53,47,0.15)]` → `C.textPlaceholderFaint` に修正 | Medium | `[ ]` |
-| 38 | `features/vaccinations/routes/VaccinationForm.tsx:186` | `design-tokens` | `border-[rgba(55,53,47,0.09)]` → `C.borderLight` に修正 | Medium | `[ ]` |
-| 39 | `shared/NotionFilter/FilterRuleRow.tsx:189` | `design-tokens` | `divide-[rgba(55,53,47,0.09)]` → `C.divideDivider` に修正 | Medium | `[ ]` |
-| 40 | `master/routes/CompanySettings.tsx:21` | `design-tokens` | PROP_INPUT_CLASS に rgba 3箇所（hover/focus/placeholder）→ `C.hoverBgLight`/`C.focusBgLight`/`C.textPlaceholder` に修正 | Medium | `[ ]` |
-| 41 | `master/routes/CompanySettings.tsx:148` | `design-tokens` | `hover:bg-[rgba(55,53,47,0.04)]` → `C.hoverBgLight` に修正 | Medium | `[ ]` |
-| 42 | `master/routes/CompanySettings.tsx:274` | `design-tokens` | `placeholder:text-[rgba(55,53,47,0.15)]` → `C.textPlaceholderFaint` に修正 | Medium | `[ ]` |
-| 43 | `reservations/components/MonthView.tsx:138` | `design-tokens` | `border-[rgba(55,53,47,0.16)]` → `C.borderMedium` に修正 | Medium | `[ ]` |
-| 44 | `master/routes/StaffSettings.tsx:428` | `design-tokens` | inline style `"rgba(55,53,47,0.06)"` → `PALETTE.bgSkeleton` に修正（新トークン追加） | Medium | `[ ]` |
-| 45 | `medical-records/components/VitalsTab/VitalsGraph.tsx:139` | `design-tokens` | inline style `"rgba(255,255,255,0.8)"` → `PALETTE.whiteAlpha80` に修正（新トークン追加） | Medium | `[ ]` |
-
----
-
-## 修正完了サマリ
-
-> 修正完了した違反の要約（PR/commit 参照）
-
-| 日付 | 対象ドメイン | 修正ルール | 修正内容 | commit |
-|------|------------|-----------|---------|--------|
-| 2026-04-01 | shared/Layout | `rendering-conditional-render` | Sidebar.tsx の `&&` 条件レンダー3箇所を三項演算子に修正 | - |
-| 2026-04-01 | 全 feature + shared | `bundle-feature-indexing` | auth/pets/owners/master への deep import 28箇所を index.ts 経由に修正。3つの index.ts にエクスポート追加 | - |
-| 2026-04-01 | 全 feature + shared (72ファイル) | `design-tokens` | `#37352F` hex ハードコード339箇所を `C` / `PALETTE` 定数に一括修正。3つの新トークン追加 | - |
-| 2026-04-02 | hospitalization + hospital-settings | `rerender-memo` | HospitalizationBasicInfo/NoteCard/DailyRecordTimeline/PropertyRow に memo() 追加 | - |
-| 2026-04-02 | shared/NotionFilter | `design-tokens` | FilterRuleRow/SortPopover の `#F1F1EF`/`#E8E7E4` hex → C 定数。`hoverBgMutedBadge` トークン追加 | - |
-| 2026-04-02 | medical-records → master | `bundle-feature-indexing` | 4箇所の cross-feature deep import → index.ts 経由に修正。master/index.ts にエクスポート追加 | - |
-| 2026-04-02 | shared/RequirePermission | `bundle-feature-indexing` | auth/types → @/features/auth に修正 | - |
-| 2026-04-02 | master + VitalsGraph | `design-tokens` | `#6B7280`/`#3B82F6`/`#e5e7eb`/チャート色 18箇所 → PALETTE 定数に修正。7つの新トークン追加 | - |
-| 2026-04-02 | 全42ファイル (78箇所) | `design-tokens` | `#2EAADC`/`#F7F6F3`/`#2383E2`/`#038B94` 等の残存 hex 全量修正。19個の新 C トークン追加（medical-blue, brand, accent-focus, data-checked, bgMuted） | - |
-| 2026-04-02 | medical-records | `rendering-conditional-render` | VaccinationHistory.tsx の `&&` → 三項演算子 | - |
-| 2026-04-02 | hospitalization | `async-parallel` | ケージ移動の直列 await → Promise.all 並列化（2ファイル） | - |
-| 2026-04-02 | medical-records + hospitalization | `rendering-hoist-jsx` | MedicalRecordForm/DailyDateNav/CarePlanTab の静的配列をモジュール定数に巻き上げ | - |
-| 2026-04-02 | hospitalization | `rerender-transitions` | 死コード use-hospitalizations.ts 削除（React Query フック既存） | - |
-| 2026-04-02 | status-colors + inventory | `design-tokens` | status-colors.ts の VISIT_TYPE_COLORS badge hex 6箇所 + InventoryForm.tsx の rgba 3箇所 → C トークンに修正。新トークン 6 個追加（text90, bgPage60, bgAccentLight60, textAccentDark90, borderAccentBadge50, borderLight50） | - |
-| 2026-04-02 | hospitalization + master + shared + vaccinations | `design-tokens` | styles.ts/use-service-type-color-map.ts/permission-groups.ts の hex 7箇所 + SidePeekTitleInput/VaccinationForm/FilterRuleRow の rgba 3箇所 → C/PALETTE トークンに修正 | - |
-| 2026-04-02 | master + reservations + medical-records | `design-tokens` | CompanySettings.tsx の rgba 5箇所 + MonthView.tsx border + StaffSettings.tsx inline style + VitalsGraph.tsx inline style → C/PALETTE トークンに修正。新 PALETTE トークン 2 個追加（bgSkeleton, whiteAlpha80） | - |
+| 日付 | 対象 | ルール | 修正概要 |
+|------|------|--------|---------|
+| 2026-04-02 | hospitalization 2ファイル | `async-parallel` | 直列 await → Promise.all |
+| 2026-04-02 | medical-records + hospitalization 3ファイル | `rendering-hoist-jsx` | 静的配列をモジュール定数に巻き上げ |
+| 2026-04-02 | hospitalization | `rerender-transitions` | 死コード use-hospitalizations.ts 削除 |
+| 2026-04-02 | reservations/ReservationManagement.tsx | `rerender-lazy-state-init` | `useState(new Date())` → `useState(() => new Date())` |
+| 2026-04-02 | accounting/AccountingDetail.tsx | `rerender-dependencies` | `baseAccounting?.items` deps → `baseItems` useMemo で安定化 |
+| 2026-04-02 | vaccinations/types/index.ts | 空ファイル削除 | コメントのみ・参照ゼロの index.ts + types/ ディレクトリを削除 |
+| 2026-04-02 | reservations/MonthView.tsx | import 重複修正 | `C` の重複 import を削除 |
+| 2026-04-02 | shared 6コンポーネント | dead re-export 削除 | NotionFilter/TreatmentSearchDialog/DateRangePicker/StatusPill/PageLayout/StatusBadge の未参照 index.ts を削除 |
