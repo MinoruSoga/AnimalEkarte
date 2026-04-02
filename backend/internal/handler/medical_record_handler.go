@@ -81,7 +81,18 @@ func (h *Handler) GetMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, record)
+
+	// Get visit count if pet_id exists
+	var visitCount int64 = 0
+	if record.PetID != nil {
+		visitCount, err = h.svc.MedicalRecord.CountByPetID(c.Request.Context(), clinicID, *record.PetID)
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, toMedicalRecordResponseWithVisitCount(record, visitCount))
 }
 
 // buildMedicalRecord はリクエストから MedicalRecord モデルを組み立てる純粋関数。
