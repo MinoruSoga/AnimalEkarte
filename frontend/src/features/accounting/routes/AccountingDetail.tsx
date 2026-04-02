@@ -766,13 +766,16 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
     };
   }, [id, fetchedAccounting, locationState, newPetId, newPetData]);
 
+  // baseAccounting.items の安定参照 — useCallback deps に配列オブジェクトを渡さないための useMemo
+  const baseItems = useMemo(() => baseAccounting?.items ?? [], [baseAccounting]);
+
   // ユーザー操作による追加・削除を管理するローカル明細
   const [localItems, setLocalItems] = useState<AccountingItem[] | null>(null);
 
   // 表示する明細: ローカル編集があればそちら優先
   const displayItems = useMemo(
-    () => localItems ?? baseAccounting?.items ?? [],
-    [localItems, baseAccounting?.items],
+    () => localItems ?? baseItems,
+    [localItems, baseItems],
   );
 
   // 決済完了フラグ（API 更新後に画面に反映するためのローカル状態）
@@ -960,7 +963,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
 
     // BUG-045: localItems が null (未編集) の場合は baseAccounting.items を seed として使用し、
     // 既存の治療明細を失わないようにする
-    setLocalItems((prev) => [...(prev ?? baseAccounting?.items ?? []), newItem]);
+    setLocalItems((prev) => [...(prev ?? baseItems), newItem]);
     setNewItemOpen(false);
     toast.success("明細を追加しました");
 
@@ -987,12 +990,12 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
         }
       });
     }
-  }, [id, queryClient, baseAccounting?.items]);
+  }, [id, queryClient, baseItems]);
 
   // BUG-045: 削除時も baseAccounting.items を seed として使用
   const handleDeleteItem = useCallback((itemId: string) => {
-    setLocalItems((prev) => (prev ?? baseAccounting?.items ?? []).filter((i) => i.id !== itemId));
-  }, [baseAccounting?.items]);
+    setLocalItems((prev) => (prev ?? baseItems).filter((i) => i.id !== itemId));
+  }, [baseItems]);
 
   const handleUpdateItemTax = useCallback(
     (itemId: string, taxType: TaxType, taxRate: number) => {

@@ -9,7 +9,6 @@ import { ja } from "date-fns/locale";
 // Internal
 import { C } from "@/lib/design-tokens";
 import { getReservationTypeColor } from "@/utils/status-helpers";
-import { C } from "@/lib/design-tokens";
 
 // Types
 import type { ReservationAppointment } from "@/types";

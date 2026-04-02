@@ -46,7 +46,7 @@ const VIEW_NAV_NEXT: Record<CalendarView, (d: Date) => Date> = {
 };
 
 export function ReservationManagement() {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const { canCreate } = usePermission("reservations");
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
