@@ -204,6 +204,7 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
       onDelete={item !== null ? onDeleteRequest : undefined}
       icon={<Stethoscope className={LAYOUT.pageIcon.innerIcon} />}
       titleError={nameError}
+      titleMaxLength={100}
     >
       <StatusToggleButton
         isActive={formData.isActive}

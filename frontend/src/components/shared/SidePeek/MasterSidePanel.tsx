@@ -21,6 +21,8 @@ interface MasterSidePanelProps {
   titlePlaceholder?: string;
   /** BUG-083: inline error message shown below the title field */
   titleError?: string;
+  /** Maximum number of characters allowed in the title field */
+  titleMaxLength?: number;
   /** When true, shows a navigation blocker dialog if the user tries to navigate away */
   isDirty?: boolean;
   children: ReactNode;
@@ -38,6 +40,7 @@ export function MasterSidePanel({
   isPending,
   titlePlaceholder,
   titleError,
+  titleMaxLength,
   isDirty = false,
   children,
 }: MasterSidePanelProps) {
@@ -86,6 +89,7 @@ export function MasterSidePanel({
           placeholder={titlePlaceholder}
           onSave={onSave}
           error={titleError}
+          maxLength={titleMaxLength}
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">{children}</div>

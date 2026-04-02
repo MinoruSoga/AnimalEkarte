@@ -89,7 +89,8 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
       onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Activity className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カラー">
         <div className="flex items-center gap-2">

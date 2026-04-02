@@ -11,6 +11,8 @@ interface SidePeekTitleInputProps {
   onSave?: () => void;
   /** BUG-083: inline error message displayed below the title field */
   error?: string;
+  /** Maximum number of characters allowed in the title field */
+  maxLength?: number;
 }
 
 export function SidePeekTitleInput({
@@ -21,6 +23,7 @@ export function SidePeekTitleInput({
   autoFocus = true,
   onSave,
   error,
+  maxLength,
 }: SidePeekTitleInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -50,6 +53,7 @@ export function SidePeekTitleInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        maxLength={maxLength}
         aria-invalid={!!error}
       />
       {error ? <FormFieldError message={error} /> : null}

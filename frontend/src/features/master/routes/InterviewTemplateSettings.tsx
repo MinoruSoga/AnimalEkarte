@@ -92,7 +92,8 @@ const SidePanel = memo(function SidePanel({
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       isDirty={isDirty}
       icon={<FileText className={LAYOUT.pageIcon.innerIcon} />}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カテゴリ">
         <input type="text" className={MASTER_INPUT_CLASS} value={f.category}

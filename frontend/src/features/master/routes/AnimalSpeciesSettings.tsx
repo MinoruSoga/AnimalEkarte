@@ -68,7 +68,8 @@ const SidePanel = memo(function SidePanel({
       onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<PawPrint className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
     </MasterSidePanel>
   );

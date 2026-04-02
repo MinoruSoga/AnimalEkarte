@@ -200,6 +200,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                     id="vaccination-date"
                     value={date}
                     onChange={(v) => { markDirty(); setDate(v); }}
+                    disabledDays={{ after: new Date() }}
                   />
                   <FormFieldError message={fieldErrors.date} />
                 </div>
@@ -240,6 +241,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                       value={lot1}
                       onChange={(e) => { markDirty(); setLot1(e.target.value); }}
                       placeholder="LOT番号 1"
+                      maxLength={50}
                     />
                   </div>
                   <div className="space-y-1">
@@ -248,6 +250,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                       value={lot2}
                       onChange={(e) => { markDirty(); setLot2(e.target.value); }}
                       placeholder="LOT番号 2"
+                      maxLength={50}
                     />
                   </div>
                   <div className="space-y-1">
@@ -256,6 +259,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                       value={lot3}
                       onChange={(e) => { markDirty(); setLot3(e.target.value); }}
                       placeholder="LOT番号 3"
+                      maxLength={50}
                     />
                   </div>
                   <div className="space-y-1">
@@ -264,6 +268,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                       value={lot4}
                       onChange={(e) => { markDirty(); setLot4(e.target.value); }}
                       placeholder="LOT番号 4"
+                      maxLength={50}
                     />
                   </div>
                 </div>

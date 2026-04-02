@@ -177,6 +177,7 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
       icon={<FolderTree className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
+      titleMaxLength={100}
     >
       <StatusToggleButton
         isActive={formData.isActive}
@@ -280,6 +281,7 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
       icon={<ClipboardList className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
+      titleMaxLength={100}
     >
       <StatusToggleButton
         isActive={formData.isActive}

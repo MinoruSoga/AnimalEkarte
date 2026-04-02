@@ -321,7 +321,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="address1" className={`text-sm ${C.text60}`}>住所1（会社）</Label>
-        <Input id="address1" value={ownerData.address1} onChange={(e) => onChange("address1", e.target.value)} className={STYLE.formInput} />
+        <Input id="address1" value={ownerData.address1} onChange={(e) => onChange("address1", e.target.value)} maxLength={200} className={STYLE.formInput} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>郵便番号(自宅)</Label>
@@ -386,17 +386,17 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="address2" className={`text-sm ${C.text60}`}>住所2（会社）</Label>
-        <Input id="address2" value={ownerData.address2} onChange={(e) => onChange("address2", e.target.value)} className={STYLE.formInput} />
+        <Input id="address2" value={ownerData.address2} onChange={(e) => onChange("address2", e.target.value)} maxLength={200} className={STYLE.formInput} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>住所1(自宅)</Label>
-        <Input id="homeAddress1" value={ownerData.homeAddress1} onChange={(e) => onChange("homeAddress1", e.target.value)} className={STYLE.formInput} />
+        <Input id="homeAddress1" value={ownerData.homeAddress1} onChange={(e) => onChange("homeAddress1", e.target.value)} maxLength={200} className={STYLE.formInput} />
       </div>
 
       {/* Row 4 */}
       <div className="space-y-1.5">
         <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>飼主生年月日</Label>
-        <NotionDatePicker id="birthDate" value={ownerData.birthDate} onChange={(val) => onChange("birthDate", val)} placeholder="生年月日を選択…" />
+        <NotionDatePicker id="birthDate" value={ownerData.birthDate} onChange={(val) => onChange("birthDate", val)} placeholder="生年月日を選択…" disabledDays={{ after: new Date() }} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="email" className={`text-sm ${C.text60}`}>メールアドレス</Label>
@@ -413,7 +413,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>住所2(自宅)</Label>
-        <Input id="homeAddress2" value={ownerData.homeAddress2} onChange={(e) => onChange("homeAddress2", e.target.value)} className={STYLE.formInput} />
+        <Input id="homeAddress2" value={ownerData.homeAddress2} onChange={(e) => onChange("homeAddress2", e.target.value)} maxLength={200} className={STYLE.formInput} />
       </div>
 
       {/* Row 5 */}

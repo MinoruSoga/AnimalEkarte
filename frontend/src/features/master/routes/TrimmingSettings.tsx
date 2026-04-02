@@ -165,6 +165,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Scissors className={LAYOUT.pageIcon.innerIcon} />}
       titleError={nameError}
+      titleMaxLength={100}
     >
       <PropertyRow label="ステータス">
         <button
@@ -364,6 +365,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Scissors className={LAYOUT.pageIcon.innerIcon} />}
       titleError={nameError}
+      titleMaxLength={100}
     >
       <PropertyRow label="ステータス">
         <button

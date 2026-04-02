@@ -140,6 +140,7 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
       titlePlaceholder="品目名"
       isDirty={isDirty}
       titleError={nameError}
+      titleMaxLength={100}
     >
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カテゴリ">

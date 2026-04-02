@@ -314,6 +314,7 @@ export function PetEditModal({
               <Input
                 id="petName"
                 value={formData.petName}
+                maxLength={100}
                 aria-invalid={!!fieldErrors.petName}
                 aria-describedby={fieldErrors.petName ? "petName-error" : undefined}
                 onChange={(e) => {
@@ -393,6 +394,7 @@ export function PetEditModal({
                   setFormData(prev => ({ ...prev, birthDate: val }));
                 }}
                 placeholder="生年月日を選択…"
+                disabledDays={{ after: new Date() }}
               />
             </div>
           </div>

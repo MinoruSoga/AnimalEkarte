@@ -108,7 +108,8 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
       onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Bed className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="対象体格">
         <Select value={f.bodySize} onValueChange={handleBodySizeChange}>

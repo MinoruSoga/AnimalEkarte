@@ -190,6 +190,7 @@ const GroupSidePanel = memo(function GroupSidePanel({
       isDirty={isDirty}
       titlePlaceholder="グループ名を入力"
       titleError={nameError}
+      titleMaxLength={100}
     >
       <PropertyRow label="カラー">
         <div className="flex items-center gap-2">

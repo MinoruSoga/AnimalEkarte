@@ -95,6 +95,7 @@ const JobTitleSidePanel = memo(function JobTitleSidePanel({
       icon={<Briefcase className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
+      titleMaxLength={100}
     >
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="説明">

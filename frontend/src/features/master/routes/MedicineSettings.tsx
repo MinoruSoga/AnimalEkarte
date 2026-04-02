@@ -294,6 +294,7 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
             icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
             titlePlaceholder="薬品名"
             titleError={nameError}
+            titleMaxLength={100}
           >
             {/* Properties */}
             {/* Parent category select */}

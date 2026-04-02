@@ -19,6 +19,11 @@ interface SingleDatePickerProps {
   placeholder?: string;
   className?: string;
   id?: string;
+  /**
+   * Dates that are disabled for selection.
+   * Pass `{ after: new Date() }` to disallow future dates.
+   */
+  disabledDays?: React.ComponentProps<typeof Calendar>["disabled"];
 }
 
 /** Range date picker props */
@@ -175,6 +180,7 @@ function SinglePicker({
   placeholder = "日付を選択…",
   className,
   id,
+  disabledDays,
 }: SingleDatePickerProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"calendar" | "monthGrid">("calendar");
@@ -336,6 +342,7 @@ function SinglePicker({
             onMonthChange={setDisplayMonth}
             selected={selected}
             onSelect={handleSelect}
+            disabled={disabledDays}
             locale={ja}
             className="rounded-md pt-0"
             classNames={SINGLE_CALENDAR_CLASSES}

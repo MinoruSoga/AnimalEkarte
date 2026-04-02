@@ -207,6 +207,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
       icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
+      titleMaxLength={100}
     >
       <StatusToggleButton
         isActive={f.isActive}

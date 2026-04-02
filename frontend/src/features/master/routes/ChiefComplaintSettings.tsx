@@ -80,7 +80,8 @@ const SidePanel = memo(function SidePanel({
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<MessageSquareText className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="説明">
         <textarea className={`${MASTER_INPUT_CLASS} min-h-[80px] resize-none`}

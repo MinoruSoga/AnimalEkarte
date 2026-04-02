@@ -103,7 +103,8 @@ const CageSidePanel = memo(function CageSidePanel({
       onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="エリア">
         <Select value={f.cageType} onValueChange={handleCageTypeChange}>

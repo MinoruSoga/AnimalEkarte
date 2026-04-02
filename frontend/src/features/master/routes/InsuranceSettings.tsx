@@ -87,7 +87,8 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="補償率(%)">
         <input type="number" min={0} max={100} className={MASTER_INPUT_CLASS}
