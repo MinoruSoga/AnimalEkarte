@@ -151,7 +151,7 @@ internal/
 | gorm import in service | `grep -r "gorm.io/gorm" internal/service/` | `[x]` | 0 |
 | handler が直接 repository を呼び出し | `grep -rn "h\.repos\." internal/handler/` (Audit 以外) | `[x]` | 0 |
 | WithContext なし GORM | `grep -rn "\.First\|\.Find\|\.Create\|\.Save\|\.Delete" internal/repository/` でチェック | `[x]` | 0 |
-| 裸の error return in repository | `grep -rn "return nil, err" internal/repository/` | `[x]` | 0（全て `apperrors.FromGORM` / `apperrors.Wrap` に変換済み） |
+| 裸の error return in repository | `grep -rn "return nil, err" internal/repository/` + `grep -rn "return err$"` | `[x]` | `return nil, err` 0件。`return err` 3件: permission_group/user_account はTransaction callback 内で外側Wrap済み（正当）、audit_repository はFromGORMに修正済み |
 | 裸の error return in service | `grep -rn "return nil, err" internal/service/` | `[x]` | 31件・7ファイル — 全て `validate*` 関数からの返り値。`validate*` は既に `apperrors.WrapInvalidInput()` を返すため再ラップ不要。正当なパターン |
 | slog in handler | `grep -rn "slog\." internal/handler/` | `[x]` | 6ファイル（全て正当: response.go=エラーレスポンスログ、audit_helper.go=監査、auth/medical_record/reservation=非致命的クリーンアップ警告、record_image=同左） |
 | slog in repository | `grep -rn "slog\." internal/repository/` | `[x]` | 0 |
@@ -403,6 +403,7 @@ internal/
 | 12 | 全 handler ファイル（30ファイル・82箇所） | `error-respond` | Python スクリプトで一括置換済み。`c.JSON(http.StatusBadRequest, gin.H{"error": X})` → `RespondError(c, apperrors.WrapInvalidInput(X))` に統一完了。company_handler.go に apperrors import 追加。`go build ./internal/handler/...` 通過確認 | High | `[x]` |
 | 13 | `internal/handler/auth_handler.go` (11箇所) | `error-respond` | 前回一括修正で StatusBadRequest のみ対象だったため、StatusUnauthorized(8箇所) / StatusInternalServerError(3箇所) が漏れていた。`WrapUnauthorized` / `WrapInternalServerError` を errors.go に追加し、RespondError 統一。response.go の ErrUnauthorized ケースも AppError.Message 抽出に対応 | High | `[x]` |
 | 14 | `internal/repository/vaccination_repository.go:80` | `error-from-gorm` | Create で `apperrors.Wrap` → `apperrors.FromGORM` に統一修正 | Low | `[x]` |
+| 15 | `internal/repository/audit_repository.go:28` | `error-from-gorm` | Create で `return err` 裸返却 → `apperrors.FromGORM(err, "audit_log", "")` に修正。apperrors import 追加 | Low | `[x]` |
 
 ---
 
@@ -412,3 +413,4 @@ internal/
 |------|------------|-----------|---------|--------|
 | 2026-04-02 | auth handler | `error-respond` | auth_handler.go 11箇所の c.JSON 直書き → RespondError 統一。WrapUnauthorized/WrapInternalServerError 追加 | - |
 | 2026-04-02 | vaccination repo | `error-from-gorm` | Create の Wrap → FromGORM 統一 | - |
+| 2026-04-02 | audit repo | `error-from-gorm` | Create の裸 return err → FromGORM に修正 | - |
