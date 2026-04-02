@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 // Internal
 import { useGetAllVaccinesMaster } from "@/features/master";
-import { useCreateVaccination } from "@/features/vaccinations/api/create-vaccination";
+import { useCreateVaccination } from "@/features/vaccinations";
 import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative

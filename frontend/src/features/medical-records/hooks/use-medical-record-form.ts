@@ -30,7 +30,7 @@ export function useMedicalRecordForm(recordId?: string) {
 
   const [activeTab, setActiveTab] = useState("問診");
   const [visitType, setVisitType] = useState("再診");
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, startCreateTransition] = useTransition();
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
 
   // --- Focus Management (Accessibility) ---
@@ -274,8 +274,7 @@ export function useMedicalRecordForm(recordId?: string) {
     if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;
     hasAutoCreatedRef.current = true;
 
-    const autoCreate = async () => {
-      setIsCreating(true);
+    startCreateTransition(async () => {
       try {
         const today = new Date().toISOString().split("T")[0];
         const record = await createMutation.mutateAsync({
@@ -289,12 +288,8 @@ export function useMedicalRecordForm(recordId?: string) {
       } catch (error) {
         handleApiError(error, "カルテ作成");
         hasAutoCreatedRef.current = false;
-      } finally {
-        setIsCreating(false);
       }
-    };
-
-    autoCreate();
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run only when isNewRecord or petId changes; createMutation/navigate/visitType are stable references
   }, [isNewRecord, selectedPet?.id]);
 

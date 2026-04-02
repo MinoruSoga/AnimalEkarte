@@ -112,7 +112,7 @@ export interface AuthContextValue {
   isSwitchingClinic: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  switchClinic: (clinicId: string) => Promise<void>;
+  switchClinic: (clinicId: string) => void;
   hasPermission: (resource: Resource, action: ResourceAction) => boolean;
   /** /me を再取得してユーザー（権限含む）を更新する */
   refreshPermissions: () => Promise<void>;

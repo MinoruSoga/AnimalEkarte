@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useCallback, useMemo, useDeferredValue, memo } from "react";
+import { useState, useCallback, useMemo, useDeferredValue, useTransition, memo } from "react";
 
 // External
 import { Search, Users } from "lucide-react";
@@ -47,24 +47,23 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
   const [owners, setOwners] = useState<OwnerSummary[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [isSearching, startSearchTransition] = useTransition();
   const [hasSearched, setHasSearched] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<OwnerSummary | null>(null);
 
-  const handleSearch = useCallback(async () => {
+  const handleSearch = useCallback(() => {
     if (!searchTerm.trim()) return;
-    setIsSearching(true);
     setHasSearched(true);
-    try {
-      const { data } = await axios.get<{ data: BackendOwner[] }>("/v1/owners", {
-        params: { search: searchTerm.trim() },
-      });
-      setOwners((data.data ?? []).map(transformOwner));
-    } catch {
-      setOwners([]);
-    } finally {
-      setIsSearching(false);
-    }
+    startSearchTransition(async () => {
+      try {
+        const { data } = await axios.get<{ data: BackendOwner[] }>("/v1/owners", {
+          params: { search: searchTerm.trim() },
+        });
+        setOwners((data.data ?? []).map(transformOwner));
+      } catch {
+        setOwners([]);
+      }
+    });
   }, [searchTerm]);
 
   const handleKeyDown = useCallback(
