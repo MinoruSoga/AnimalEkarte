@@ -996,6 +996,7 @@ export interface MedicalRecord {
   version: number /* int */;
   created_at: string;
   updated_at: string;
+  visit_count: number /* int64 */;
   /**
    * Relations
    */
