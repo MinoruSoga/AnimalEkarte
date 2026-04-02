@@ -180,6 +180,7 @@ export function LoginForm() {
               value={password}
               onChange={handlePasswordChange}
               placeholder="パスワードを入力"
+              minLength={6}
               className={`${INPUT_BASE} pl-2.5 pr-10`}
               aria-invalid={formState.error !== null}
               aria-describedby={formState.error ? "login-error" : undefined}

@@ -221,6 +221,8 @@ export function PetEditModal({
       const weightNum = parseFloat(formData.weight);
       if (!isNaN(weightNum) && weightNum < 0) {
         errors.weight = "体重は0以上の値を入力してください";
+      } else if (!isNaN(weightNum) && weightNum > 200) {
+        errors.weight = "体重は200kg以下で入力してください";
       }
     }
 
