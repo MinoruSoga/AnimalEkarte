@@ -1,6 +1,6 @@
 # 機能テストレポート
 
-> **最終更新**: 2026-04-02 修正バグ検証完了 + 高リスク NG アイテム再検証 (全16セクション機能テスト完了 ✅ + 修正バグ11件検証完了 ✅ + NG アイテム 6/7 修正確認 ✅ - 新規バグ 1件（在庫クロスフィールド） - 本番リリース判定: ✅ **GO**)
+> **最終更新**: 2026-04-02 修正バグ検証完了 + 高リスク NG アイテム再検証 (全16セクション機能テスト完了 ✅ + 修正バグ11件検証完了 ✅ + 新規バグ2件修正確認 ✅ / BUG-EXAMINATION-DATE-INPUT-MISSING + BUG-INVENTORY-CROSS-FIELD-VALIDATION - 本番リリース判定: ✅ **GO**)
 > テスト環境: ローカル (localhost:3003) UI検証 ✅ / コード確認 ✅ + ステージング (stg.noah-karte.com)
 > テストアカウント: admin@example.com (田中太郎 / 医院管理者) / vet@example.com (山田花子 / 一般)
 > **テスト範囲**: Sections 1-16 個別機能テスト完了 ✅ / 修正バグ検証完了 ✅ / 新規バグなし / 既知未実装機能のみ
@@ -19,11 +19,12 @@
 > | 郵便番号 format | ✅ FIXED | use-owner-form.ts:138 `/^\d{3}-?\d{4}$/` |
 > | 値引率 小数 | ✅ FIXED | OwnerForm.tsx:447 `step={1}` |
 > | ペット体重 上限 | ✅ FIXED | PetEditModal.tsx:224 `weight > 200` |
-> | 検査日 将来日付 | ⚠️ 要確認 | UI に日付入力フィールドが見当たらず |
+> | 検査日 将来日付 | ✅ FIXED | ExaminationForm.tsx:127-133 NotionDatePicker に `disabledDays={{ after: new Date() }}` 実装。カレンダーで未来日付（4/3+）が disabled。UIテスト確認 ✅ |
 > | 在庫数 小数 | ✅ FIXED | InventoryForm.tsx:156 `step="1"` |
-> | 最低在庫クロスフィールド | ❌ **NEW BUG** | [BUG-INVENTORY-CROSS-FIELD-VALIDATION.md](tasks/BUG-INVENTORY-CROSS-FIELD-VALIDATION.md) |
-> **追加発見**: 検査日フィールド未実装
-> - [BUG-EXAMINATION-DATE-INPUT-MISSING.md](tasks/BUG-EXAMINATION-DATE-INPUT-MISSING.md) - ExaminationForm に検査日入力フィールドが存在しない
+> | 最低在庫クロスフィールド | ✅ FIXED | use-inventory-form.ts:51-68 `minStockLevel > quantity` チェック実装。エラー表示「最低在庫数は現在庫数以下で設定してください」。alert + toast で表示・フォーム送信ブロック。UIテスト確認 ✅ |
+> **修正完了**: 両バグとも実装・検証完了
+> - [BUG-EXAMINATION-DATE-INPUT-MISSING.md](tasks/BUG-EXAMINATION-DATE-INPUT-MISSING.md) - ExaminationForm に NotionDatePicker ベース検査日フィールド実装完了 ✅
+> - [BUG-INVENTORY-CROSS-FIELD-VALIDATION.md](tasks/BUG-INVENTORY-CROSS-FIELD-VALIDATION.md) - use-inventory-form に minStockLevel > quantity バリデーション実装完了 ✅
 >
 > ### 2026-04-02 テスト実施内容（継続テスト・検査から認証まで）
 > - **予防接種 (Vaccination Tab)**: ワクチン選択・日付入力・次回予定設定フォーム全て機能確認。ワクチン混合3種（猫）・実施日2026-04-02・次回日2026-04-30で保存確認。履歴自動更新の遅延確認 ⚠️
@@ -4912,7 +4913,7 @@
 | 検査種別 未選択で「保存」 | OK | バリデーションエラー表示確認 |
 | 検査日 未入力で「保存」 | OK | バリデーションエラー表示確認 |
 | 担当医 未選択で「保存」 | OK | use-examination-form.ts L84: `!current.doctorId` → 「担当医を選択してください」エラー表示・保存ブロック。必須フィールド確認 |
-| 検査日 将来日付入力 | OK | use-examination-form.ts: date に将来日付バリデーションなし。未来の検査日で登録可能 |
+| 検査日 将来日付入力 | OK | ✅ FIXED (2026-04-02): ExaminationForm.tsx L127-133 に NotionDatePicker の `disabledDays={{ after: new Date() }}` で未来日付を disabled。カレンダーで4月3日以降が disabled として表示される |
 | 結果概要 最大文字数入力 | OK | 備考・所見テキストエリアのmaxLength未設定。BUG-023修正済みで保存は201成功するが、クライアント側文字数制限なし（BUG-066相当） |
 
 ### 19.5 在庫登録フォーム バリデーション
@@ -4925,7 +4926,7 @@
 | 在庫数 非数値入力（「abc」） | OK | InventoryForm.tsx: `type="number"` → ブラウザが非数値入力を自動防止 |
 | 在庫数 小数入力（「10.5」） | OK | ✅ FIXED (2026-04-02): InventoryForm.tsx L156 に `step="1"` 実装済み |
 | 最低在庫数 負の数入力 | OK | InventoryForm.tsx: `minStockLevel` に `min="0"` → ブラウザレベルで負の数をブロック |
-| 最低在庫数 在庫数より大きい値入力 | OK | InventoryForm.tsx・use-inventory-form.ts: クロスフィールドバリデーションなし。最低在庫数>在庫数でも登録可能 |
+| 最低在庫数 在庫数より大きい値入力 | OK | ✅ FIXED (2026-04-02): use-inventory-form.ts L51-68 に `minStockLevel > quantity` チェック実装。エラーメッセージ「最低在庫数は現在庫数以下で設定してください」を alert + toast で表示。フォーム送信ブロック確認 |
 
 ### 19.6 ワクチン登録フォーム バリデーション
 | テスト項目 | 結果 | 備考 |
