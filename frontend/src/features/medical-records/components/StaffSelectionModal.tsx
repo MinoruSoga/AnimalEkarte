@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useGetStaffs } from "@/features/master/api/staffs";
+import { useGetStaffs } from "@/features/master";
 import { C } from "@/lib/design-tokens";
 
 interface StaffSelectionModalProps {

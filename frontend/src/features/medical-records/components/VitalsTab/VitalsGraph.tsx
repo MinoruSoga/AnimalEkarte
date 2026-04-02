@@ -14,7 +14,7 @@ import {
 } from "recharts";
 
 // Internal
-import { C } from "@/lib/design-tokens";
+import { C, PALETTE } from "@/lib/design-tokens";
 
 // Relative
 import type { Vital } from "@/features/medical-records/types";
@@ -33,10 +33,10 @@ interface MetricDef {
 }
 
 const METRICS: MetricDef[] = [
-  { key: "temperature",      label: "体温",   unit: "℃",    color: "#E07B54", yAxisId: "left",  domain: [30, 45] },
-  { key: "heart_rate",       label: "心拍数", unit: "bpm",  color: "#2383E2", yAxisId: "right", domain: [0, "auto"] },
-  { key: "respiratory_rate", label: "呼吸数", unit: "/min", color: "#9C6EDE", yAxisId: "right", domain: [0, "auto"] },
-  { key: "body_weight",      label: "体重",   unit: "",     color: "#4CAF82", yAxisId: "left",  domain: [0, "auto"] },
+  { key: "temperature",      label: "体温",   unit: "℃",    color: PALETTE.chartTemperature, yAxisId: "left",  domain: [30, 45] },
+  { key: "heart_rate",       label: "心拍数", unit: "bpm",  color: "#2383E2",                  yAxisId: "right", domain: [0, "auto"] },
+  { key: "respiratory_rate", label: "呼吸数", unit: "/min", color: PALETTE.chartRespiratory,   yAxisId: "right", domain: [0, "auto"] },
+  { key: "body_weight",      label: "体重",   unit: "",     color: PALETTE.chartWeight,        yAxisId: "left",  domain: [0, "auto"] },
 ];
 
 // ── ユーティリティ ────────────────────────────────────────────────────
@@ -162,19 +162,19 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
       ) : (
         <ResponsiveContainer width="100%" height={260}>
           <LineChart data={chartData} margin={{ top: 4, right: 20, left: 0, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e8e6e3" />
+            <CartesianGrid strokeDasharray="3 3" stroke={PALETTE.chartGrid} />
             <XAxis
               dataKey="recorded_at"
-              tick={{ fontSize: 11, fill: "#9B9B97" }}
+              tick={{ fontSize: 11, fill: PALETTE.chartAxisText }}
               tickLine={false}
-              axisLine={{ stroke: "#e8e6e3" }}
+              axisLine={{ stroke: PALETTE.chartGrid }}
             />
             {/* 左 Y 軸（体温・体重） */}
             <YAxis
               yAxisId="left"
-              tick={{ fontSize: 11, fill: "#9B9B97" }}
+              tick={{ fontSize: 11, fill: PALETTE.chartAxisText }}
               tickLine={false}
-              axisLine={{ stroke: "#e8e6e3" }}
+              axisLine={{ stroke: PALETTE.chartGrid }}
               width={36}
             />
             {/* 右 Y 軸（心拍数・呼吸数） */}
@@ -182,9 +182,9 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
               <YAxis
                 yAxisId="right"
                 orientation="right"
-                tick={{ fontSize: 11, fill: "#9B9B97" }}
+                tick={{ fontSize: 11, fill: PALETTE.chartAxisText }}
                 tickLine={false}
-                axisLine={{ stroke: "#e8e6e3" }}
+                axisLine={{ stroke: PALETTE.chartGrid }}
                 width={36}
               />
             ) : null}

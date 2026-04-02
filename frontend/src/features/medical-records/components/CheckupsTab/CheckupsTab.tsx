@@ -16,9 +16,9 @@ import { useGetCheckups } from "@/features/medical-records/api/checkups";
 import { useCreateCheckup } from "@/features/medical-records/api/checkups";
 import { useUpdateCheckup } from "@/features/medical-records/api/checkups";
 import { useDeleteCheckup } from "@/features/medical-records/api/checkups";
-import { useGetAllCheckupTypes } from "@/features/master/api/checkup-types";
+import { useGetAllCheckupTypes } from "@/features/master";
 import type { Checkup, CreateCheckupInput, UpdateCheckupInput } from "@/features/medical-records/api/checkups";
-import type { CheckupTypeItem } from "@/features/master/api/checkup-types";
+import type { CheckupTypeItem } from "@/features/master";
 
 // ── 静的定数 ────────────────────────────────────────────────────────────
 

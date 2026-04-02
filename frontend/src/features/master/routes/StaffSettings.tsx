@@ -289,7 +289,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
                 />
                 <div
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: group.color ?? "#6B7280" }}
+                  style={{ backgroundColor: group.color ?? PALETTE.defaultGray }}
                 />
                 <span className="text-sm">{group.name}</span>
               </label>
@@ -437,7 +437,7 @@ export function StaffSettings() {
                       >
                         <span
                           className="size-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: g.color ?? "#6B7280" }}
+                          style={{ backgroundColor: g.color ?? PALETTE.defaultGray }}
                         />
                         {g.name}
                       </span>

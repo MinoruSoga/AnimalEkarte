@@ -423,6 +423,10 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 14 | `hospitalization/components/HospitalizationBasicInfo.tsx`, `HospitalizationNoteCard.tsx`, `DailyRecord/DailyRecordTimeline.tsx` | `rerender-memo` | 大型コンポーネント3件に memo() 未適用 → memo() 追加済み | Medium | `[x]` |
 | 15 | `hospital-settings/routes/ClinicMasterSettings.tsx` (PropertyRow) | `rerender-memo` | ループ内レンダリングされる内部コンポーネントに memo() 未適用 → memo() 追加済み | Medium | `[x]` |
 | 16 | `NotionFilter/FilterRuleRow.tsx`, `NotionFilter/SortPopover.tsx` | `design-tokens` | `#F1F1EF`/`#E8E7E4` hex ハードコード4箇所 → `C.bgMutedBadge`/`C.hoverBgMutedBadge` に修正。`hoverBgMutedBadge` 新トークン追加 | Medium | `[x]` |
+| 17 | `medical-records/components/MedicalRecordVaccination.tsx`, `CheckupsTab.tsx`, `StaffSelectionModal.tsx` | `bundle-feature-indexing` | medical-records → master への deep import 4箇所 → `@/features/master` index.ts 経由に修正。master/index.ts に `useGetAllVaccinesMaster`/`useGetAllCheckupTypes`/`useGetStaffs` エクスポート追加 | Critical | `[x]` |
+| 18 | `components/shared/RequirePermission.tsx` | `bundle-feature-indexing` | `@/features/auth/types` → `@/features/auth` に修正 | Critical | `[x]` |
+| 19 | `master/routes/StaffSettings.tsx`, `PermissionGroupSettings.tsx`, `ServiceTypeSettings.tsx`, `PermissionGroupSelector.tsx` | `design-tokens` | `#6B7280`/`#3B82F6`/`#e5e7eb` hex 9箇所 → `PALETTE.defaultGray`/`defaultBlue`/`borderUnselected` に修正 | Medium | `[x]` |
+| 20 | `medical-records/components/VitalsTab/VitalsGraph.tsx` | `design-tokens` | `#E07B54`/`#9C6EDE`/`#4CAF82`/`#e8e6e3`/`#9B9B97` チャート色9箇所 → `PALETTE.chart*` 定数に修正 | Medium | `[x]` |
 
 ---
 
@@ -437,3 +441,6 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 2026-04-01 | 全 feature + shared (72ファイル) | `design-tokens` | `#37352F` hex ハードコード339箇所を `C` / `PALETTE` 定数に一括修正。3つの新トークン追加 | - |
 | 2026-04-02 | hospitalization + hospital-settings | `rerender-memo` | HospitalizationBasicInfo/NoteCard/DailyRecordTimeline/PropertyRow に memo() 追加 | - |
 | 2026-04-02 | shared/NotionFilter | `design-tokens` | FilterRuleRow/SortPopover の `#F1F1EF`/`#E8E7E4` hex → C 定数。`hoverBgMutedBadge` トークン追加 | - |
+| 2026-04-02 | medical-records → master | `bundle-feature-indexing` | 4箇所の cross-feature deep import → index.ts 経由に修正。master/index.ts にエクスポート追加 | - |
+| 2026-04-02 | shared/RequirePermission | `bundle-feature-indexing` | auth/types → @/features/auth に修正 | - |
+| 2026-04-02 | master + VitalsGraph | `design-tokens` | `#6B7280`/`#3B82F6`/`#e5e7eb`/チャート色 18箇所 → PALETTE 定数に修正。7つの新トークン追加 | - |

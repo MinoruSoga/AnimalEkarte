@@ -164,6 +164,28 @@ export const PALETTE = {
   dotGray:    "#9B9A97",
   dotDefault: "#91918E",
 
+  /* ── Master settings default colors (DB-configurable) ── */
+  /** Default gray for permission group / badge when no color set */
+  defaultGray: "#6B7280",
+  /** Default blue for service type when no color set */
+  defaultBlue: "#3B82F6",
+  /** Light border for unselected items (Tailwind gray-200) */
+  borderUnselected: "#e5e7eb",
+
+  /* ── Chart colors (Recharts / VitalsGraph) ── */
+  /** Chart: temperature line */
+  chartTemperature: "#E07B54",
+  /** Chart: heart rate line */
+  chartHeartRate: "#37352F",
+  /** Chart: respiratory rate line */
+  chartRespiratory: "#9C6EDE",
+  /** Chart: body weight line */
+  chartWeight: "#4CAF82",
+  /** Chart: grid / axis stroke */
+  chartGrid: "#e8e6e3",
+  /** Chart: axis tick text fill */
+  chartAxisText: "#9B9B97",
+
   /* ── UI Primitive (checkbox, input, select, textarea) ── */
   /** Notion checkbox unchecked border */
   borderCheckbox:    "border-[#D3D1CB]",

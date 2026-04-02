@@ -20,3 +20,7 @@ export { UserAccountSettings } from "./routes/UserAccountSettings";
 export { useMasterItems } from "./hooks/use-master-items";
 export { useServiceTypeColorMap } from "./hooks/use-service-type-color-map";
 export { useGetCompany } from "./api/company";
+export { useGetAllVaccinesMaster } from "./api/vaccines-master";
+export { useGetAllCheckupTypes } from "./api/checkup-types";
+export type { CheckupTypeItem } from "./api/checkup-types";
+export { useGetStaffs } from "./api/staffs";

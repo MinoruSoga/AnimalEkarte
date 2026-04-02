@@ -10,7 +10,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton/RowActionBu
 import { MasterListPage } from "@/features/master/components/MasterListPage";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
 import { useAuth } from "@/features/auth";
 import { PermissionRuleTable } from "@/features/master/components/PermissionRuleTable";
 import { PERMISSION_RESOURCES } from "@/features/master/types/permission-resources";
@@ -85,7 +85,7 @@ const GroupSidePanel = memo(function GroupSidePanel({
 
   const [name, setName] = useState(() => group?.name ?? "");
   const [description, setDescription] = useState(() => group?.description ?? "");
-  const [color, setColor] = useState(() => group?.color ?? "#6B7280");
+  const [color, setColor] = useState(() => group?.color ?? PALETTE.defaultGray);
   const [rules, setRules] = useState<RuleInput[]>(() =>
     groupRulesToRuleInputs(group?.rules),
   );
@@ -250,7 +250,7 @@ const GroupRow = memo(function GroupRow({ group, onEdit }: GroupRowProps) {
         <div className="flex items-center gap-2">
           <div
             className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: group.color ?? "#6B7280" }}
+            style={{ backgroundColor: group.color ?? PALETTE.defaultGray }}
           />
           <span className="text-sm font-medium">{group.name}</span>
         </div>

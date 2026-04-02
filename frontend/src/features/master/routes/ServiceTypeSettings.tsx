@@ -13,7 +13,7 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
@@ -37,7 +37,7 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
   item, onClose, onSave, onDeleteRequest,
 }: { item: ServiceType | null; onClose: () => void; onSave: (d: ServiceTypeFormData) => void; onDeleteRequest: (i: ServiceType) => void; }) {
   const [f, setF] = useState<ServiceTypeFormData>(() => ({
-    name: item?.name ?? "", description: item?.description ?? "", color: item?.color ?? "#3B82F6", isActive: item?.isActive ?? true,
+    name: item?.name ?? "", description: item?.description ?? "", color: item?.color ?? PALETTE.defaultBlue, isActive: item?.isActive ?? true,
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");

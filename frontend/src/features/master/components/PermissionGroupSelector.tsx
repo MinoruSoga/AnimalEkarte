@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo } from "react";
 import type { PermissionGroup } from "@/types/generated/models";
+import { PALETTE } from "@/lib/design-tokens";
 
 interface PermissionGroupSelectorProps {
   availableGroups: PermissionGroup[];
@@ -36,8 +37,8 @@ export const PermissionGroupSelector = memo(function PermissionGroupSelector({
             className="px-3 py-1.5 rounded-full text-sm font-medium border transition-colors"
             style={
               isSelected
-                ? { backgroundColor: group.color ?? "#6B7280", borderColor: group.color ?? "#6B7280", color: "#fff" }
-                : { backgroundColor: "transparent", borderColor: "#e5e7eb", color: "inherit" }
+                ? { backgroundColor: group.color ?? PALETTE.defaultGray, borderColor: group.color ?? PALETTE.defaultGray, color: PALETTE.white }
+                : { backgroundColor: "transparent", borderColor: PALETTE.borderUnselected, color: "inherit" }
             }
           >
             {group.name}
