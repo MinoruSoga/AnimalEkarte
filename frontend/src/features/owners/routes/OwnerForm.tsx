@@ -312,6 +312,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
         <Input
           id="ownerName"
           value={ownerData.ownerName}
+          maxLength={100}
           aria-invalid={!!fieldErrors.ownerName}
           aria-describedby={fieldErrors.ownerName ? "ownerName-error" : undefined}
           onChange={(e) => { onChange("ownerName", e.target.value); onClearError("ownerName"); }}
@@ -363,6 +364,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           id="remarks"
           rows={6}
           value={ownerData.remarks}
+          maxLength={1000}
           onChange={(e) => onChange("remarks", e.target.value)}
           className={`text-sm ${C.text} min-h-[140px] resize-none ${C.borderMedium} p-3`}
         />
@@ -442,6 +444,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           id="discountRate"
           min={0}
           max={100}
+          step={1}
           value={ownerData.discountRate || ""}
           aria-invalid={!!fieldErrors.discountRate}
           aria-describedby={fieldErrors.discountRate ? "discountRate-error" : undefined}

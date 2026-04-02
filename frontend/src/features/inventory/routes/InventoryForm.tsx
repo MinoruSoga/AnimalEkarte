@@ -153,6 +153,7 @@ const StockInfoSection = memo(function StockInfoSection({
             name="quantity"
             type="number"
             min="0"
+            step="1"
             defaultValue={defaultQuantity ?? 0}
             className="mt-1"
             required
@@ -167,6 +168,7 @@ const StockInfoSection = memo(function StockInfoSection({
             name="minStockLevel"
             type="number"
             min="0"
+            step="1"
             defaultValue={defaultMinStockLevel ?? 0}
             className="mt-1"
             required

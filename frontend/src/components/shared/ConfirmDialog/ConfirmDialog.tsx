@@ -20,6 +20,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "default" | "destructive";
+  isPending?: boolean;
   /** BUG-084: ref to the element that triggered the dialog; focus is restored here on close */
   triggerRef?: React.RefObject<HTMLElement>;
 }
@@ -33,6 +34,7 @@ export function ConfirmDialog({
   confirmLabel = "確認",
   cancelLabel = "キャンセル",
   variant = "default",
+  isPending = false,
   triggerRef,
 }: ConfirmDialogProps) {
   // BUG-084: Track the element that had focus before the dialog opened so we can
@@ -70,6 +72,7 @@ export function ConfirmDialog({
           <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
+            disabled={isPending}
             className={
               variant === "destructive"
                 ? `${C.bgDanger} text-white ${C.hoverBgDanger90}`
