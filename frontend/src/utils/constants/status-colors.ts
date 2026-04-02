@@ -42,9 +42,9 @@ export const VISIT_TYPE_COLORS = {
     text: "text-red-700",
     dot: "bg-red-500",
     // AppointmentCard バッジ用カラー
-    badgeBg: "bg-[#D3E5EF]/60",
-    badgeText: "text-[#183B56]/90",
-    badgeBorder: "border-[#B8D4E3]/50",
+    badgeBg: C.bgAccentLight60,
+    badgeText: C.textAccentDark90,
+    badgeBorder: C.borderAccentBadge50,
   },
   再診: {
     border: "border-blue-200",
@@ -52,9 +52,9 @@ export const VISIT_TYPE_COLORS = {
     text: "text-blue-700",
     dot: "bg-blue-500",
     // AppointmentCard バッジ用カラー
-    badgeBg: "bg-[#F7F6F3]/60",
-    badgeText: "text-[#37352F]/90",
-    badgeBorder: "border-[rgba(55,53,47,0.09)]/50",
+    badgeBg: C.bgPage60,
+    badgeText: C.text90,
+    badgeBorder: C.borderLight50,
   },
 } as const;
 

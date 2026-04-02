@@ -208,6 +208,7 @@ export const PALETTE = {
 export const C = {
   /* ── Text ── */
   text:          "text-[#37352F]",
+  text90:        "text-[#37352F]/90",
   text80:        "text-[#37352F]/80",
   text70:        "text-[#37352F]/70",
   text65:        "text-[#37352F]/65",
@@ -226,6 +227,7 @@ export const C = {
 
   /* ── Background ── */
   bgPage:        "bg-[#F7F6F3]",
+  bgPage60:      "bg-[#F7F6F3]/60",
   bgPageHalf:    "bg-[#F7F6F3]/50",
   bgPage30:      "bg-[#F7F6F3]/30",
   bgInputLogin:  "bg-[rgba(242,241,238,0.6)]",
@@ -254,6 +256,7 @@ export const C = {
 
   /* ── Border ── */
   borderLight:   "border-[rgba(55,53,47,0.09)]",
+  borderLight50: "border-[rgba(55,53,47,0.09)]/50",
   borderMediumLight: "border-[rgba(55,53,47,0.12)]",
   borderMedium:  "border-[rgba(55,53,47,0.16)]",
   borderDivider: "border-[rgba(55,53,47,0.06)]",
@@ -271,9 +274,11 @@ export const C = {
   bgAccent:      "bg-[#2383E2]",
   bgAccentHover: "hover:bg-[#1B6EC2]",
   bgAccentLight: "bg-[#D3E5EF]",
+  bgAccentLight60: "bg-[#D3E5EF]/60",
   bgAccent5:     "bg-[#2383E2]/5",
   bgAccent8:     "bg-[#2383E2]/8",
   textAccentDark:"text-[#183B56]",
+  textAccentDark90:"text-[#183B56]/90",
   borderAccent:  "border-[#2383E2]",
   /** Light accent border for outline accent buttons */
   borderAccentLight: "border-[#2383E2]/30",
@@ -423,6 +428,7 @@ export const C = {
   /* ── Notion Accent-light (badge / pill) — for status-helpers ── */
   /** Additional Accent tokens for badge combos */
   borderAccentBadge: "border-[#B8D4E3]",
+  borderAccentBadge50: "border-[#B8D4E3]/50",
 
   /** Notion Brown — 入院 reservation card */
   bgBrown:        "bg-[#EEE0DA]",
