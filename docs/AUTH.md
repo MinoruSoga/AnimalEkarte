@@ -1218,6 +1218,6 @@ export function RequirePermission({
 | ドキュメント | パス | 関連箇所 |
 |---|---|---|
 | **仕様定義書** | `docs/SPECIFICATION.md` | Feature一覧、ルーティング構成、ロードマップ |
-| **画面仕様書** | `docs/SCREENS.md` | 全ルートの画面仕様（`/login` §15 追加済み） |
+| **画面仕様書** | `docs/screens/README.md` | 全ルートの画面仕様（`/login` §21 参照） |
 | **ER図** | `docs/ERD.md` | 全テーブル定義・ENUM型・インデックス（v27.0、57テーブル） |
 | **デザインシステム** | `docs/DESIGN_SYSTEM.md` | ログインページのUI仕様（§15 Login参照） |

@@ -24,7 +24,7 @@ docker compose exec frontend npm run type-check
 grep -r "console\.log\|console\.error" frontend/src --include="*.ts" --include="*.tsx"
 
 # シークレットが含まれていないか
-git diff main..HEAD | grep -iE "password|secret|token|key"
+git diff staging..HEAD | grep -iE "password|secret|token|key"
 
 ```
 
@@ -33,8 +33,8 @@ git diff main..HEAD | grep -iE "password|secret|token|key"
 ## デプロイ実行
 
 ```bash
-# 1. main ブランチを最新化
-git checkout main && git pull origin main
+# 1. staging ブランチを最新化
+git checkout staging && git pull origin staging
 
 # 2. feature ブランチをマージ
 git merge --no-ff feature/xxx

@@ -1,54 +1,7 @@
 # リクエスト〜レスポンス データフロー
 
 Owner CRUD を例にした、HTTPリクエストからレスポンスまでの全層の処理フロー。
-
----
-
-## 層の責務マップ
-
-```
-HTTP Request
-    │
-    ▼
-┌─────────────────────────────────────────────┐
-│ Middleware (middleware/)                     │
-│  JWT検証・claims抽出 → gin.Context に格納   │
-└─────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────┐
-│ Handler (handler/)                          │
-│  パラメータ抽出・バインド・型変換           │
-│  Service呼び出し → HTTPレスポンス書き込み   │
-└─────────────────────────────────────────────┘
-    │  *service.CreateOwnerInput (DTO pointer)
-    ▼
-┌─────────────────────────────────────────────┐
-│ Service (service/)                          │
-│  ビジネスバリデーション・DTO→Model変換      │
-│  slogによる構造化ログ                        │
-└─────────────────────────────────────────────┘
-    │  *model.Owner, []model.Pet
-    ▼
-┌─────────────────────────────────────────────┐
-│ Repository (repository/)                    │
-│  GORM操作・DBエラーのセンチネルエラー変換   │
-└─────────────────────────────────────────────┘
-    │  SQL
-    ▼
-┌─────────────────────────────────────────────┐
-│ PostgreSQL                                  │
-└─────────────────────────────────────────────┘
-```
-
-### 各層が「やらないこと」
-
-| 層 | やらないこと |
-|---|---|
-| Middleware | ビジネスロジック、DB操作 |
-| Handler | バリデーション（型チェック以外）、SQL、slog |
-| Service | HTTPの概念（ステータスコード等）、DB操作 |
-| Repository | ビジネスルール、slog、HTTP |
+層の責務概要は [architecture.md](./architecture.md) を参照。
 
 ---
 
@@ -88,8 +41,7 @@ Client
        c.Set("clinic_id", "1")
        c.Set("user_type", "staff")  // "system_admin" | "clinic_admin" | "staff"
   4. c.Next() で次のハンドラへ
-     ⚠️ BUG-061: DB の account_status を確認しない（停止アカウントが通過する）
-     ⚠️ BUG-063: deleted_at IS NULL を確認しない（論理削除済みユーザーが通過する）
+     （account_status / deleted_at チェック済み — BUG-061/063 修正完了）
 
 [Handler: ListOwners]
   1. extractClinicID(c)

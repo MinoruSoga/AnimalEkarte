@@ -17,23 +17,9 @@
 
 ---
 
-## 2. ドキュメント構成ガイド
+## 2. ドキュメント構成
 
-最新の情報は以下の各ドキュメントに維持されています。
-
-### 🎨 デザイン・UI/UX
-- **[デザインシステム (docs/DESIGN_SYSTEM.md)](./DESIGN_SYSTEM.md)**: カラーパレット、共通コンポーネント規約。
-- **[画面定義書一覧 (docs/SCREENS.md)](./SCREENS.md)**: 全ルートおよび画面構成のカタログ。
-- **[個別画面詳細 (docs/screens/)](./screens/README.md)**: 画面ごとの項目・ロジック・API詳細。
-
-### 🏗️ アーキテクチャ・開発
-- **[全体アーキテクチャ (docs/architecture.md)](./architecture.md)**: React/TypeScript フロントエンドおよび Go バックエンドの実装指針。
-- **[データフロー (docs/data-flow.md)](./data-flow.md)**: リクエスト〜レスポンスの詳細。
-- **[DB設計 (docs/ERD.md)](./ERD.md)**: エンティティ定義とリレーション。
-
-### ⚙️ 運用・品質
-- **[開発・運用ガイド (docs/OPERATIONS.md)](./OPERATIONS.md)**: Codegen、デプロイ、管理コマンド。
-
+ドキュメント一覧は [README.md](./README.md) を参照。
 
 ---
 
@@ -78,4 +64,4 @@
 
 ---
 
-**最終更新**: 2026-03-17
+**最終更新**: 2026-04-02
