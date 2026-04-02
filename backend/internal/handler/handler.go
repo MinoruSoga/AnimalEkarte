@@ -67,6 +67,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 
 	protected := api.Group("")
 	protected.Use(middleware.Auth(h.cfg.JWTSecret, h.repos.UserAccount))
+	protected.Use(middleware.SanitizeNullBytes()) // BUG-067: NULL バイト・制御文字を除去
 
 	protected.GET("/me", h.GetMe)
 
