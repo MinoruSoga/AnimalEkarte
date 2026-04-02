@@ -55,14 +55,17 @@ func main() {
 	svcs := service.NewServices(repos)
 
 	// ハンドラー初期化
-	h := handler.New(cfg, svcs)
+	h := handler.New(cfg, svcs, repos)
 
 	// ルーター設定
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(middleware.SecurityHeaders(cfg.GinMode == "release"))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.CORS())
 	r.Use(middleware.RequestLoggingMiddleware())
+	// BUG-067: POST/PATCH/PUT ボディから NULL バイトを除去（PostgreSQL エラー防止）
+	r.Use(middleware.SanitizeNullBytes())
 	h.RegisterRoutes(r)
 
 	// HTTPサーバー設定

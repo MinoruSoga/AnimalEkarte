@@ -5,10 +5,8 @@
  */
 
 // features（app層なので両 feature を import 可能）
-import { OwnerForm } from "@/features/owners/routes/OwnerForm";
-import { createPet, useCreatePet } from "@/features/pets/api/create-pet";
-import { useUpdatePet } from "@/features/pets/api/update-pet";
-import { useDeletePet } from "@/features/pets/api/delete-pet";
+import { OwnerForm } from "@/features/owners";
+import { createPet, useCreatePet, useUpdatePet, useDeletePet } from "@/features/pets";
 import type { PetMutations } from "@/types/pet";
 
 export function OwnerFormPage() {

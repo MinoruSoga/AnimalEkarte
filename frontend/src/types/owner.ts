@@ -1,5 +1,11 @@
-import { Pet } from "./index";
+/**
+ * Owner UI types (camelCase, string IDs) + API Request types (snake_case)
+ * Backend model: {@link import("./generated/models").Owner}
+ */
+import type { Owner as BackendOwner } from "./generated/models";
+import type { Pet } from "./index";
 
+/** UI-facing Owner type (camelCase, string IDs — post-transform) */
 export interface Owner {
   id: string;
   ownerName: string;
@@ -24,40 +30,21 @@ export interface Owner {
   pets?: Pet[];
 }
 
-export interface CreateOwnerRequest {
+/**
+ * 飼主作成リクエスト — models.ts Owner から導出（snake_case, API-facing）
+ * @see {@link BackendOwner}
+ */
+export type CreateOwnerRequest = Partial<
+  Omit<BackendOwner, 'id' | 'clinic_id' | 'created_at' | 'updated_at' | 'pets' | 'birth_date'>
+> & {
   owner_name: string;
-  owner_name_kana?: string;
-  company?: string;
-  postal_code?: string;
-  address1?: string;
-  address2?: string;
-  home_postal_code?: string;
-  home_address1?: string;
-  home_address2?: string;
-  phone?: string;
-  company_phone?: string;
-  email?: string;
-  remarks?: string;
-  is_dangerous?: boolean;
-  discount_rate?: number;
-  membership_type?: string;
-}
+  birth_date?: string;
+};
 
-export interface UpdateOwnerRequest {
-  owner_name?: string;
-  owner_name_kana?: string;
-  company?: string;
-  postal_code?: string;
-  address1?: string;
-  address2?: string;
-  home_postal_code?: string;
-  home_address1?: string;
-  home_address2?: string;
-  phone?: string;
-  company_phone?: string;
-  email?: string;
-  remarks?: string;
-  is_dangerous?: boolean;
-  discount_rate?: number;
-  membership_type?: string;
-}
+/**
+ * 飼主更新リクエスト — CreateOwnerRequest の全フィールド optional
+ * @see {@link BackendOwner}
+ */
+export type UpdateOwnerRequest = Partial<
+  Omit<BackendOwner, 'id' | 'clinic_id' | 'created_at' | 'updated_at' | 'pets'>
+>;

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Shift } from "../types";
 import { transformShift } from "./transforms";
 import type { BackendShift } from "./types";
@@ -22,5 +23,7 @@ export function useGetShifts(params: GetShiftsParams) {
   return useQuery({
     queryKey: ["shifts", params.date, params.staff_id],
     queryFn: () => getShifts(params),
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 }

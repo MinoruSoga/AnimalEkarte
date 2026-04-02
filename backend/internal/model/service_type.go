@@ -11,7 +11,7 @@ type ServiceType struct {
 	IsActive    bool      `gorm:"default:true"                                   json:"is_active"`
 	Description string    `gorm:"default:''"                                     json:"description"`
 	Color       string    `gorm:"default:'#3B82F6'"                              json:"color"`
-	SortOrder   int       `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder   int       `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }

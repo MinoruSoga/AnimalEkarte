@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -12,10 +11,10 @@ import (
 )
 
 type VaccinationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	Create(ctx context.Context, vaccination *model.Vaccination) error
-	Update(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -27,7 +26,7 @@ func NewVaccinationRepository(db *gorm.DB) VaccinationRepository {
 	return &vaccinationRepository{db: db}
 }
 
-func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
+func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.Vaccination{}).
 			Where("vaccinations.clinic_id = ?", clinicID)
@@ -36,6 +35,12 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		}
 		if ownerID != nil {
 			q = q.Joins("JOIN pets ON pets.id = vaccinations.pet_id").Where("pets.owner_id = ?", *ownerID)
+		}
+		if startDate != nil {
+			q = q.Where("vaccinations.date >= ?", *startDate)
+		}
+		if endDate != nil {
+			q = q.Where("vaccinations.date <= ?", *endDate)
 		}
 		return q
 	}
@@ -51,7 +56,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		Preload("Pet").
 		Preload("Pet.Owner").
 		Preload("Doctor").
-		Offset((page-1)*limit).Limit(limit).Order("vaccinations.date DESC, vaccinations.created_at DESC").
+		Offset((page - 1) * limit).Limit(limit).Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find vaccinations")
 	}
@@ -60,37 +65,35 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 
 func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 	var vaccination model.Vaccination
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Where("vaccinations.id = ? AND vaccinations.clinic_id = ?", id, clinicID).
 		Preload("Vaccine").Preload("Pet").Preload("Pet.Owner").Preload("Doctor").
-		First(&vaccination).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find vaccination by id")
+		First(&vaccination).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("%d", id))
 	}
 	return &vaccination, nil
 }
 
 func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.Vaccination) error {
 	if err := r.db.WithContext(ctx).Create(vaccination).Error; err != nil {
-		return apperrors.Wrap(err, "create vaccination")
+		return apperrors.FromGORM(err, "vaccination", "")
 	}
 	return nil
 }
 
-func (r *vaccinationRepository) Update(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error {
+func (r *vaccinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
-		Where("id = ? AND clinic_id = ?", vaccination.ID, clinicID).
-		Updates(vaccination)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update vaccination")
+		return nil, apperrors.Wrap(result.Error, "update vaccination")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", vaccination.ID))
+		return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

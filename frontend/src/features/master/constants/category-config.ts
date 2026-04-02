@@ -7,12 +7,15 @@ import Activity from "lucide-react/dist/esm/icons/activity";
 import Bed from "lucide-react/dist/esm/icons/bed";
 import Building2 from "lucide-react/dist/esm/icons/building-2";
 import Users from "lucide-react/dist/esm/icons/users";
+import UserCog from "lucide-react/dist/esm/icons/user-cog";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 import Scissors from "lucide-react/dist/esm/icons/scissors";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import ClipboardCheck from "lucide-react/dist/esm/icons/clipboard-check";
+import PawPrint from "lucide-react/dist/esm/icons/paw-print";
+import ShoppingBag from "lucide-react/dist/esm/icons/shopping-bag";
 
 // All master categories for the settings UI
 // Note: some of these have their own backend tables, but all appear in settings UI
@@ -32,7 +35,12 @@ export type MasterSettingsCategory =
   | "diagnosis_category"
   | "diagnosis_name"
   | "checkup"
-  | "job_title";
+  | "job_title"
+  | "animal_species"
+  | "inquiry_template"
+  | "permission_group"
+  | "user_account"
+  | "merchandise_item";
 
 export interface CategoryConfig {
   label: string;
@@ -193,6 +201,51 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     showPrice: false, showCode: true, showCategory: false, showParentItem: false,
     namePlaceholder: "獣医師", codePlaceholder: "veterinarian",
   },
+  animal_species: {
+    label: "動物種類マスタ",
+    description: "犬、猫、鳥などの動物種類を管理します",
+    settingsPath: "/settings/animal-species",
+    IconComponent: PawPrint,
+    labels: { code: "", name: "動物種類名", category: "" },
+    showPrice: false, showCode: false, showCategory: false, showParentItem: false,
+    namePlaceholder: "犬", codePlaceholder: "",
+  },
+  inquiry_template: {
+    label: "問診テンプレートマスタ",
+    description: "問診の質問項目テンプレートを管理します",
+    settingsPath: "/settings/inquiry-template",
+    IconComponent: FileText,
+    labels: { code: "コード", name: "テンプレート名", category: "分類" },
+    showPrice: false, showCode: false, showCategory: false, showParentItem: false,
+    namePlaceholder: "初診問診", codePlaceholder: "",
+  },
+  permission_group: {
+    label: "権限グループ設定",
+    description: "役割に応じた機能アクセスの権限を管理します",
+    settingsPath: "/settings/permissions",
+    IconComponent: ShieldCheck,
+    labels: { code: "", name: "グループ名", category: "" },
+    showPrice: false, showCode: false, showCategory: false, showParentItem: false,
+    namePlaceholder: "獣医師", codePlaceholder: "",
+  },
+  user_account: {
+    label: "ユーザーアカウント",
+    description: "システムを利用するユーザーのアカウント情報を管理します",
+    settingsPath: "/settings/users",
+    IconComponent: UserCog,
+    labels: { code: "", name: "表示名", category: "" },
+    showPrice: false, showCode: false, showCategory: false, showParentItem: false,
+    namePlaceholder: "山田 太郎", codePlaceholder: "",
+  },
+  merchandise_item: {
+    label: "商品マスタ",
+    description: "フード、サプリメント、グッズ等の販売品目を管理します",
+    settingsPath: "/settings/merchandise-items",
+    IconComponent: ShoppingBag,
+    labels: { code: "コード", name: "品目名", category: "カテゴリ" },
+    showPrice: true, showCode: false, showCategory: true, showParentItem: false,
+    namePlaceholder: "ロイヤルカナン", codePlaceholder: "",
+  },
 };
 
 // Mapping from camelCase route category names to CATEGORY_CONFIG keys
@@ -201,4 +254,8 @@ export const CATEGORY_ALIAS_MAP: Record<string, MasterSettingsCategory> = {
   trimmingOption: "trimming_option",
   diagnosisCategory: "diagnosis_category",
   diagnosisName: "diagnosis_name",
+  inquiryTemplate: "inquiry_template",
+  permissionGroup: "permission_group",
+  userAccount: "user_account",
+  merchandiseItem: "merchandise_item",
 };

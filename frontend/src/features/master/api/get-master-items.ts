@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { MasterItem } from "@/types";
 
 /** Common fields present in ALL backend master entities */
@@ -36,6 +37,7 @@ export const MASTER_CATEGORY_ENDPOINT: Record<string, string> = {
   diagnosisName: "/v1/masters/diagnosis-names",
   checkup: "/v1/masters/checkup-types",
   job_title: "/v1/masters/job-titles",
+  inquiryTemplate: "/v1/masters/inquiry-templates",
 };
 
 export function transformGenericMasterItem(data: GenericMasterBackendItem): MasterItem {
@@ -59,7 +61,7 @@ export const getMasterItemsByEndpoint = async (endpoint: string): Promise<Master
 export const useGetMasterItemsByCategory = (category: string) => {
   const endpoint = MASTER_CATEGORY_ENDPOINT[category];
   return useQuery({
-    queryKey: ["masterItems", category],
+    queryKey: queryKeys.masters.category(category),
     queryFn: () => getMasterItemsByEndpoint(endpoint),
     enabled: !!endpoint,
     staleTime: QUERY_STALE_TIMES.STATIC,

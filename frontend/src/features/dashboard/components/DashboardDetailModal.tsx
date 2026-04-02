@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -18,17 +18,11 @@ import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 
 // Internal
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { DASHBOARD_STATUS_COLORS, DASHBOARD_STATUS_COLOR_FALLBACK } from "@/utils/constants/status-colors";
 
 // Types
 import type { Appointment } from "@/types";
@@ -39,17 +33,10 @@ const DIVIDER_ROW = `flex items-center justify-between border-b ${C.borderLight}
 const ROW_ICON = `flex items-center gap-2 ${C.text60}`;
 
 const RELATED_BTN_BASE = "flex items-center gap-1.5 text-sm border rounded-md px-3 py-1.5 transition-colors group";
-const RELATED_BTN_KARTE      = `${RELATED_BTN_BASE} ${C.accent} bg-[#D3E5EF]/40 hover:bg-[#D3E5EF] ${C.borderAccentLight}`;
-const RELATED_BTN_ACCOUNTING = `${RELATED_BTN_BASE} ${C.textStatusGreen} bg-[#DDEDEA]/40 hover:bg-[#DDEDEA] ${C.borderStatusGreen}`;
-const RELATED_BTN_HOSPITAL   = `${RELATED_BTN_BASE} ${C.textStatusPurple} bg-[#EEE0F7]/40 hover:bg-[#EEE0F7] ${C.borderStatusPurple}`;
+const RELATED_BTN_KARTE      = `${RELATED_BTN_BASE} ${C.accent} ${C.bgAccentLight40} ${C.hoverBgAccentLight} ${C.borderAccentLight}`;
+const RELATED_BTN_ACCOUNTING = `${RELATED_BTN_BASE} ${C.textStatusGreen} ${C.bgStatusGreen40} ${C.hoverBgStatusGreen} ${C.borderStatusGreen}`;
+const RELATED_BTN_HOSPITAL   = `${RELATED_BTN_BASE} ${C.textStatusPurple} ${C.bgStatusPurple40} ${C.hoverBgStatusPurple} ${C.borderStatusPurple}`;
 
-const STATUS_COLOR: Record<string, string> = {
-  "受付予約": `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentLight}`,
-  "受付済":   `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen}`,
-  "診療中":   `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderStatusPurple}`,
-  "会計待ち": `${C.bgWarning50} ${C.textWarningIcon} ${C.borderWarning20}`,
-  "会計済":   `${C.bgActive} ${C.text} ${C.borderLight}`,
-};
 
 interface RelatedPagesProps {
   isTrimming: boolean;
@@ -79,9 +66,9 @@ function RelatedPages({
             else onCreateMedicalRecord();
           }}
         >
-          {isTrimming ? <Scissors className="size-3.5" /> : <FileText className="size-3.5" />}
+          {isTrimming ? <Scissors className={`${ICON.xs}`} /> : <FileText className={`${ICON.xs}`} />}
           <span>{isTrimming ? "施術" : "カルテ"}</span>
-          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
         </button>
 
         {/* 会計 */}
@@ -90,9 +77,9 @@ function RelatedPages({
           className={RELATED_BTN_ACCOUNTING}
           onClick={onCreateAccounting}
         >
-          <CreditCard className="size-3.5" />
+          <CreditCard className={`${ICON.xs}`} />
           <span>会計</span>
-          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
         </button>
 
         {/* 入院 */}
@@ -101,9 +88,9 @@ function RelatedPages({
           className={RELATED_BTN_HOSPITAL}
           onClick={onCreateHospitalization}
         >
-          <BedDouble className="size-3.5" />
+          <BedDouble className={`${ICON.xs}`} />
           <span>入院</span>
-          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
         </button>
       </div>
     </div>
@@ -143,7 +130,7 @@ function ActionButtons({
 }: ActionButtonsProps) {
   const ownerDetailBtn = (
     <Button variant="ghost" onClick={onOpenOwnerDetail} className={`h-10 text-sm ${C.text}`}>
-      <User className="size-4" />
+      <User className={ICON.action} />
       飼主詳細
     </Button>
   );
@@ -153,13 +140,13 @@ function ActionButtons({
       <>
         {onCancel ? (
           <Button variant="ghost" onClick={() => onCancel(appointment)} className={`h-10 text-sm ${C.danger} ${C.hoverBgDanger5}`}>
-            <Trash2 className="size-4" />
+            <Trash2 className={ICON.action} />
             取消
           </Button>
         ) : null}
         {onEdit ? (
           <Button variant="outline" onClick={() => onEdit(appointment)} className={`h-10 text-sm ${C.text} ${C.borderMedium}`}>
-            <Pencil className="size-4" />
+            <Pencil className={ICON.action} />
             編集
           </Button>
         ) : null}
@@ -183,7 +170,7 @@ function ActionButtons({
               onClick={() => { if (onConfirm) onConfirm(); onCreateMedicalRecord(); }}
               className={STYLE.confirmPrimary}
             >
-              <FileText className="size-4" />
+              <FileText className={ICON.action} />
               カルテ作成
             </Button>
             <span className="text-[10px] text-muted-foreground">※カルテ作成と同時に「診療中」へ移動します</span>
@@ -211,18 +198,18 @@ function ActionButtons({
         {isMedical ? (
           <>
             <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
-              <FileText className="size-4" />
+              <FileText className={ICON.action} />
               カルテ入力
             </Button>
             <Button variant="outline" onClick={() => onCreateMedicalRecord("test")} className={`h-10 text-sm ${C.text} ${C.borderMedium}`}>
-              <TestTube className="size-4" />
+              <TestTube className={ICON.action} />
               検査
             </Button>
           </>
         ) : null}
         {isTrimming ? (
           <Button onClick={onCreateTrimming} className={`h-10 text-sm ${C.bgDiscount} ${C.bgDiscountHover} text-white rounded-[4px] transition-colors shadow-none border-transparent`}>
-            <Scissors className="size-4" />
+            <Scissors className={ICON.action} />
             施術記録
           </Button>
         ) : null}
@@ -238,7 +225,7 @@ function ActionButtons({
           onClick={onCreateAccounting}
           className={STYLE.confirmPrimary}
         >
-          <CreditCard className="size-4" />
+          <CreditCard className={ICON.action} />
           会計へ進む
         </Button>
       </>
@@ -264,19 +251,19 @@ function ActionButtons({
       {ownerDetailBtn}
       {isMedical ? (
         <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
-          <FileText className="size-4" />
+          <FileText className={ICON.action} />
           カルテ確認
         </Button>
       ) : null}
       {isTrimming ? (
         <Button onClick={onCreateTrimming} className={STYLE.confirmPrimary}>
-          <Scissors className="size-4" />
+          <Scissors className={ICON.action} />
           トリミング
         </Button>
       ) : null}
       {isHospitalization ? (
         <Button onClick={onCreateHospitalization} className={STYLE.confirmPrimary}>
-          <BedDouble className="size-4" />
+          <BedDouble className={ICON.action} />
           入院登録
         </Button>
       ) : null}
@@ -299,7 +286,7 @@ interface DashboardDetailModalProps {
   currentStatus?: string;
 }
 
-export function DashboardDetailModal({
+export const DashboardDetailModal = memo(function DashboardDetailModal({
   isOpen,
   onClose,
   appointment,
@@ -374,7 +361,7 @@ export function DashboardDetailModal({
               </DialogTitle>
             </div>
             {currentStatus ? (
-              <Badge variant="outline" className={`${STATUS_COLOR[currentStatus] ?? "bg-gray-100 text-gray-600 border-gray-200"} px-3 py-1 text-sm font-medium border shrink-0`}>
+              <Badge variant="outline" className={`${DASHBOARD_STATUS_COLORS[currentStatus] ?? DASHBOARD_STATUS_COLOR_FALLBACK} px-3 py-1 text-sm font-medium border shrink-0`}>
                 {currentStatus}
               </Badge>
             ) : null}
@@ -386,14 +373,14 @@ export function DashboardDetailModal({
         <div className="p-5 space-y-4 overflow-y-auto">
           {/* Time */}
           <div className={`flex items-center gap-3 p-3 ${C.bgPage} rounded-lg`}>
-            <Clock className={`size-5 ${C.text60} shrink-0`} />
+            <Clock className={`${ICON.page} ${C.text60} shrink-0`} />
             <span className={`font-mono text-xl font-medium ${C.text}`}>{appointment.time}</span>
             {appointment.nextAppointment ? (
               <Badge
                 variant={appointment.nextAppointment === "精算未確認" ? "destructive" : "secondary"}
                 className="ml-auto flex items-center gap-1"
               >
-                {appointment.nextAppointment === "精算未確認" ? <AlertCircle className="size-3" /> : null}
+                {appointment.nextAppointment === "精算未確認" ? <AlertCircle className={ICON.xs} /> : null}
                 {appointment.nextAppointment}
               </Badge>
             ) : null}
@@ -404,7 +391,7 @@ export function DashboardDetailModal({
             <h3 className={SECTION_LABEL}>患者情報</h3>
             <div className={DIVIDER_ROW}>
               <div className={ROW_ICON}>
-                <Dog className="size-4" />
+                <Dog className={ICON.action} />
                 <span className="text-sm">ペット</span>
               </div>
               <div className="text-right">
@@ -414,7 +401,7 @@ export function DashboardDetailModal({
             </div>
             <div className={DIVIDER_ROW}>
               <div className={ROW_ICON}>
-                <User className="size-4" />
+                <User className={ICON.action} />
                 <span className="text-sm">飼い主</span>
               </div>
               <span className={`font-medium ${C.text}`}>{appointment.ownerName}</span>
@@ -426,7 +413,7 @@ export function DashboardDetailModal({
             <h3 className={SECTION_LABEL}>診療詳細</h3>
             <div className={DIVIDER_ROW}>
               <div className={ROW_ICON}>
-                <Stethoscope className="size-4" />
+                <Stethoscope className={ICON.action} />
                 <span className="text-sm">担当医</span>
               </div>
               <div className="flex items-center gap-2">
@@ -471,4 +458,4 @@ export function DashboardDetailModal({
       </DialogContent>
     </Dialog>
   );
-}
+});

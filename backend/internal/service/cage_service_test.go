@@ -13,12 +13,12 @@ import (
 
 // mockCageRepository は CageRepository のテスト用モック実装
 type mockCageRepository struct {
-	findAllFn  func(ctx context.Context, cageType *string) ([]model.Cage, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.Cage, error)
-	createFn   func(ctx context.Context, cage *model.Cage) error
-	updateFn   func(ctx context.Context, cage *model.Cage) error
-	deleteFn   func(ctx context.Context, id uint64) error
-	reorderFn  func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn      func(ctx context.Context, cageType *string) ([]model.Cage, error)
+	findByIDFn     func(ctx context.Context, id uint64) (*model.Cage, error)
+	createFn       func(ctx context.Context, cage *model.Cage) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
+	deleteFn       func(ctx context.Context, id uint64) error
+	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockCageRepository) FindAll(ctx context.Context, cageType *string) ([]model.Cage, error) {
@@ -33,8 +33,8 @@ func (m *mockCageRepository) Create(ctx context.Context, cage *model.Cage) error
 	return m.createFn(ctx, cage)
 }
 
-func (m *mockCageRepository) Update(ctx context.Context, cage *model.Cage) error {
-	return m.updateFn(ctx, cage)
+func (m *mockCageRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockCageRepository) Delete(ctx context.Context, id uint64) error {
@@ -46,6 +46,41 @@ func (m *mockCageRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 		return m.reorderFn(ctx, clinicID, ids)
 	}
 	return nil
+}
+
+// mockHospitalizationForCage は Cage テストで使用する HospitalizationRepository のスタブ
+type mockHospitalizationForCage struct {
+	existsByCageIDFn func(ctx context.Context, cageID uint64) (bool, error)
+}
+
+func (m *mockHospitalizationForCage) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Hospitalization, int64, error) {
+	return nil, 0, nil
+}
+func (m *mockHospitalizationForCage) FindByID(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+	return nil, nil
+}
+func (m *mockHospitalizationForCage) Create(_ context.Context, _ *model.Hospitalization) error {
+	return nil
+}
+func (m *mockHospitalizationForCage) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+	return nil, nil
+}
+func (m *mockHospitalizationForCage) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockHospitalizationForCage) ExistsByCageID(ctx context.Context, cageID uint64) (bool, error) {
+	if m.existsByCageIDFn != nil {
+		return m.existsByCageIDFn(ctx, cageID)
+	}
+	return false, nil
+}
+
+func (m *mockHospitalizationForCage) CountCarePlanItemsByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func newTestCageService(repo *mockCageRepository) CageService {
+	return NewCageService(repo, &mockHospitalizationForCage{})
 }
 
 func TestCageService_List(t *testing.T) {
@@ -103,7 +138,7 @@ func TestCageService_List(t *testing.T) {
 					return tt.repoCages, tt.repoErr
 				},
 			}
-			svc := NewCageService(repo)
+			svc := newTestCageService(repo)
 
 			cages, err := svc.List(context.Background(), tt.cageType)
 
@@ -118,7 +153,7 @@ func TestCageService_List(t *testing.T) {
 }
 
 func TestCageService_GetByID(t *testing.T) {
-	price := 5000.0
+	price := int64(5000)
 	tests := []struct {
 		name     string
 		id       uint64
@@ -166,7 +201,7 @@ func TestCageService_GetByID(t *testing.T) {
 					return tt.repoCage, tt.repoErr
 				},
 			}
-			svc := NewCageService(repo)
+			svc := newTestCageService(repo)
 
 			cage, err := svc.GetByID(context.Background(), tt.id)
 
@@ -184,7 +219,7 @@ func TestCageService_GetByID(t *testing.T) {
 }
 
 func TestCageService_Create(t *testing.T) {
-	price := 3000.0
+	price := int64(3000)
 	tests := []struct {
 		name    string
 		cage    *model.Cage
@@ -235,7 +270,7 @@ func TestCageService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewCageService(repo)
+			svc := newTestCageService(repo)
 
 			err := svc.Create(context.Background(), tt.cage)
 
@@ -249,56 +284,79 @@ func TestCageService_Create(t *testing.T) {
 }
 
 func TestCageService_Update(t *testing.T) {
-	price := 4500.0
+	price := int64(4500)
+	name := "更新後ケージ"
+	cageType := model.CageTypeDog
+	cageSize := model.CageSizeLarge
+	isActive := true
 	tests := []struct {
-		name    string
-		cage    *model.Cage
-		repoErr error
-		wantErr bool
+		name     string
+		clinicID uint64
+		id       uint64
+		input    UpdateCageInput
+		repoCage *model.Cage
+		repoErr  error
+		wantErr  bool
 	}{
 		{
-			name: "updates cage successfully",
-			cage: &model.Cage{
+			name:     "updates cage successfully",
+			clinicID: 1,
+			id:       1,
+			input: UpdateCageInput{
+				Name:     &name,
+				CageType: &cageType,
+				CageSize: &cageSize,
+				Price:    &price,
+				IsActive: &isActive,
+			},
+			repoCage: &model.Cage{
 				ID:       1,
 				ClinicID: 1,
-				Name:     "更新後ケージ",
-				CageType: model.CageTypeDog,
-				CageSize: model.CageSizeLarge,
+				Name:     name,
+				CageType: cageType,
+				CageSize: cageSize,
 				Price:    &price,
-				IsActive: true,
+				IsActive: isActive,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
-			name: "returns error on repository failure",
-			cage: &model.Cage{
-				ID:       999,
-				ClinicID: 1,
-				Name:     "エラーケージ",
-				CageType: model.CageTypeCat,
-				CageSize: model.CageSizeSmall,
-			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			name:     "returns error when no fields provided",
+			clinicID: 1,
+			id:       1,
+			input:    UpdateCageInput{},
+			repoErr:  nil,
+			wantErr:  true,
+		},
+		{
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			id:       999,
+			input:    UpdateCageInput{Name: &name},
+			repoCage: nil,
+			repoErr:  errors.New("db error"),
+			wantErr:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCageRepository{
-				updateFn: func(_ context.Context, _ *model.Cage) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Cage, error) {
+					return tt.repoCage, tt.repoErr
 				},
 			}
-			svc := NewCageService(repo)
+			svc := newTestCageService(repo)
 
-			err := svc.Update(context.Background(), tt.cage)
+			cage, err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, cage)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, cage)
 			}
 		})
 	}
@@ -340,7 +398,7 @@ func TestCageService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewCageService(repo)
+			svc := newTestCageService(repo)
 
 			err := svc.Delete(context.Background(), tt.id)
 

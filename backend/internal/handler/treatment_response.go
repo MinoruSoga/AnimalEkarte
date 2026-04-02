@@ -15,15 +15,16 @@ type treatmentResponse struct {
 	ProcedureID     *string   `json:"procedure_id,omitempty"`
 	MedicineID      *string   `json:"medicine_id,omitempty"`
 	InventoryID     *string   `json:"inventory_id,omitempty"`
-	UnitPrice       float64   `json:"unit_price"`
-	Quantity        int       `json:"quantity"`
+	UnitPrice       int64     `json:"unit_price"`
+	Quantity        float64   `json:"quantity"`
 	Selected        bool      `json:"selected"`
 	Status          string    `json:"status"`
 	Content         string    `json:"content"`
 	Memo            string    `json:"memo"`
+	AdminRoute      string    `json:"admin_route"`
 	Insurance       bool      `json:"insurance"`
 	DiscountRate    float64   `json:"discount_rate"`
-	DiscountAmount  float64   `json:"discount_amount"`
+	DiscountAmount  int64     `json:"discount_amount"`
 	SortOrder       int       `json:"sort_order"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
@@ -44,6 +45,7 @@ func toTreatmentResponse(t *model.Treatment) treatmentResponse {
 		Status:          string(t.Status),
 		Content:         t.Content,
 		Memo:            t.Memo,
+		AdminRoute:      t.AdminRoute,
 		Insurance:       t.Insurance,
 		DiscountRate:    t.DiscountRate,
 		DiscountAmount:  t.DiscountAmount,

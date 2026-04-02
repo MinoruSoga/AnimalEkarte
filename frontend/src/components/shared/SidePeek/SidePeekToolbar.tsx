@@ -1,6 +1,6 @@
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import X from "lucide-react/dist/esm/icons/x";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 
 interface SidePeekToolbarProps {
   isNew: boolean;
@@ -19,9 +19,9 @@ export function SidePeekToolbar({ isNew, onClose, onDelete }: SidePeekToolbarPro
           <button
             type="button"
             onClick={onDelete}
-            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${C.danger} ${C.hoverBgDanger5}`}
           >
-            <Trash2 className="size-4" />
+            <Trash2 className={ICON.toolbar} />
           </button>
         ) : null}
         <button
@@ -30,7 +30,7 @@ export function SidePeekToolbar({ isNew, onClose, onDelete }: SidePeekToolbarPro
           className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
           aria-label="閉じる"
         >
-          <X className="size-4" />
+          <X className={ICON.toolbar} />
         </button>
       </div>
     </div>

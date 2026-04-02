@@ -1,12 +1,5 @@
-import { ReactNode } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { memo, ReactNode } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { STYLE } from "@/lib/design-tokens";
 
 interface DataTableProps<T> {
@@ -21,7 +14,7 @@ interface DataTableProps<T> {
   className?: string;
 }
 
-export function DataTable<T>({
+export const DataTable = memo(function DataTable<T>({
   columns,
   data,
   renderRow,
@@ -31,7 +24,7 @@ export function DataTable<T>({
   return (
     <div className={`${STYLE.tableContainer} ${className}`}>
       <div className="flex-1 overflow-auto relative">
-        <Table className="min-w-[800px]">
+        <Table className="min-w-[640px]">
           <TableHeader className="sticky top-0 z-10">
             <TableRow className={STYLE.tableHeaderRow}>
               {columns.map((col, index) => (
@@ -65,4 +58,4 @@ export function DataTable<T>({
       </div>
     </div>
   );
-}
+}) as <T>(props: DataTableProps<T>) => React.ReactElement;

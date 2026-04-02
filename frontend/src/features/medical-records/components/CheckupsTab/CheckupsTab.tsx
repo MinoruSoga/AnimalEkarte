@@ -1,22 +1,24 @@
 // React/Framework
-import { useState, useCallback, memo, type ChangeEvent } from "react";
+import { useState, useCallback, memo, useMemo, type ChangeEvent } from "react";
 
 // External
-import { Pencil, Trash2, Plus, Check, X } from "lucide-react";
+import { Pencil, Plus, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { C, STYLE } from "@/lib/design-tokens";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
 // Relative
-import { useCheckups } from "../../api/checkups";
-import { useCreateCheckup } from "../../api/checkups";
-import { useUpdateCheckup } from "../../api/checkups";
-import { useDeleteCheckup } from "../../api/checkups";
-import { useGetAllCheckupTypes } from "../../../master/api/checkup-types";
-import type { Checkup, CreateCheckupInput, UpdateCheckupInput } from "../../api/checkups";
-import type { CheckupTypeItem } from "../../../master/api/checkup-types";
+import { useGetCheckups } from "@/features/medical-records/api/checkups";
+import { useCreateCheckup } from "@/features/medical-records/api/checkups";
+import { useUpdateCheckup } from "@/features/medical-records/api/checkups";
+import { useDeleteCheckup } from "@/features/medical-records/api/checkups";
+import { useGetAllCheckupTypes } from "@/features/master";
+import type { Checkup, CreateCheckupInput, UpdateCheckupInput } from "@/features/medical-records/api/checkups";
+import type { CheckupTypeItem } from "@/features/master";
 
 // ── 静的定数 ────────────────────────────────────────────────────────────
 
@@ -48,6 +50,15 @@ const EMPTY_ADD_FORM: AddFormState = {
   next_date: "",
   result: "",
 };
+
+// BUG-090: 実施日のデフォルト値として本日の日付を返す
+function todayISODate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function makeDefaultAddForm(): AddFormState {
+  return { ...EMPTY_ADD_FORM, date: todayISODate() };
+}
 
 // ── 編集行コンポーネント ───────────────────────────────────────────────
 
@@ -81,11 +92,11 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
   return (
     <tr className={`border-b ${C.borderLight} ${C.bgNotice40}`}>
       <td className="px-3 py-2">
-        <input
-          type="date"
+        <NotionDatePicker
           value={form.date ?? ""}
-          onChange={(e) => handleChange("date", e.target.value)}
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`}
+          onChange={(v) => handleChange("date", v)}
+          placeholder="日付"
+          className="h-8 w-full"
         />
       </td>
       <td className="px-3 py-2">
@@ -94,7 +105,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
           onChange={(e: ChangeEvent<HTMLSelectElement>) =>
             handleChange("checkup_type_id", e.target.value ? Number(e.target.value) : null)
           }
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`}
+          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         >
           <option value="">選択してください</option>
           {checkupTypes.map((type: CheckupTypeItem) => (
@@ -105,11 +116,11 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
         </select>
       </td>
       <td className="px-3 py-2">
-        <input
-          type="date"
+        <NotionDatePicker
           value={form.next_date ?? ""}
-          onChange={(e) => handleChange("next_date", e.target.value || null)}
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`}
+          onChange={(v) => handleChange("next_date", v || null)}
+          placeholder="次回日"
+          className="h-8 w-full"
         />
       </td>
       <td className="px-3 py-2">
@@ -121,7 +132,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
           value={form.result ?? ""}
           onChange={(e) => handleChange("result", e.target.value)}
           placeholder="結果を入力..."
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`}
+          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         />
       </td>
       <td className="px-2 py-2">
@@ -132,7 +143,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
             className={`size-8 flex items-center justify-center rounded-[3px] ${C.textStatusGreen} ${C.hoverBgStatusGreen} transition-colors`}
             title="保存"
           >
-            <Check className="size-3.5" />
+            <Check className={`${ICON.xs}`} />
           </button>
           <button
             onClick={onCancel}
@@ -140,7 +151,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
             className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverBgLight} transition-colors`}
             title="キャンセル"
           >
-            <X className="size-3.5" />
+            <X className={`${ICON.xs}`} />
           </button>
         </div>
       </td>
@@ -157,7 +168,7 @@ interface CheckupsTabProps {
 // ── Component ──────────────────────────────────────────────────────────
 
 export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
-  const { data: checkups, isLoading } = useCheckups(medicalRecordId);
+  const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const createMutation = useCreateCheckup(medicalRecordId);
   const updateMutation = useUpdateCheckup(medicalRecordId);
@@ -165,7 +176,19 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [addForm, setAddForm] = useState<AddFormState>(EMPTY_ADD_FORM);
+  // BUG-090: lazy init で本日日付をデフォルト値にセット
+  const [addForm, setAddForm] = useState<AddFormState>(() => makeDefaultAddForm());
+
+  // js-cache-function-results: checkupTypes 由来の option リストをキャッシュ
+  const checkupTypeOptions = useMemo(
+    () =>
+      checkupTypes.map((type: CheckupTypeItem) => (
+        <option key={type.id} value={type.id}>
+          {type.name}
+        </option>
+      )),
+    [checkupTypes],
+  );
 
   // ── handlers ──
 
@@ -189,7 +212,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
     };
     createMutation.mutate(input, {
       onSuccess: () => {
-        setAddForm(EMPTY_ADD_FORM);
+        setAddForm(makeDefaultAddForm());
         setIsAdding(false);
         toast.success("健診記録を追加しました");
       },
@@ -289,16 +312,12 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
                           className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
                           title="編集"
                         >
-                          <Pencil className="size-3.5" />
+                          <Pencil className={`${ICON.xs}`} />
                         </button>
-                        <button
+                        <DeleteIconButton
                           onClick={() => handleDelete(checkup.id)}
                           disabled={deleteMutation.isPending}
-                          className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
-                          title="削除"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
+                        />
                       </div>
                     </td>
                   </tr>
@@ -311,29 +330,25 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
         {/* インライン追加フォーム */}
         {isAdding ? (
           <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
-            <input
-              type="date"
+            <NotionDatePicker
               value={addForm.date}
-              onChange={(e) => handleAddFormChange("date", e.target.value)}
-              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-32`}
+              onChange={(v) => handleAddFormChange("date", v)}
+              placeholder="日付"
+              className="h-8 w-32"
             />
             <select
               value={addForm.checkup_type_id}
               onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("checkup_type_id", e.target.value)}
-              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-32`}
+              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-32`}
             >
               <option value="">選択</option>
-              {checkupTypes.map((type: CheckupTypeItem) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
+              {checkupTypeOptions}
             </select>
-            <input
-              type="date"
+            <NotionDatePicker
               value={addForm.next_date}
-              onChange={(e) => handleAddFormChange("next_date", e.target.value)}
-              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-32`}
+              onChange={(v) => handleAddFormChange("next_date", v)}
+              placeholder="次回日"
+              className="h-8 w-32"
             />
             <input
               autoFocus
@@ -345,7 +360,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
                 if (e.key === "Enter") handleAddSubmit();
                 if (e.key === "Escape") handleAddCancel();
               }}
-              className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2]`}
+              className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent}`}
             />
             <Button
               size="sm"
@@ -366,7 +381,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
           </div>
         ) : (
           <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
-            <Plus className="size-3.5" />
+            <Plus className={`${ICON.xs}`} />
             <span>記録を追加</span>
           </button>
         )}

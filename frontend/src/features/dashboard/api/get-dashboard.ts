@@ -27,7 +27,7 @@ export async function getDashboard(date: string): Promise<DashboardColumn[]> {
 }
 
 /** ダッシュボード用 React Query hook */
-export function useDashboardData(date: string = todayISO()) {
+export function useGetDashboard(date: string = todayISO()) {
   return useQuery({
     queryKey: ["dashboard", date],
     queryFn: () => getDashboard(date),

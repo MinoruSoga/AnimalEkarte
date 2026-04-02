@@ -26,7 +26,3 @@ root.render(
     <App />
   </StrictMode>
 );
-// Test for workflow
-// Retry test
-// Final test
-// Final workflow test

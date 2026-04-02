@@ -9,12 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ---- Checkup モック ----
 
 type mockCheckupRepository struct {
 	listByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error)
+	listByClinicFn          func(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error)
 	findByIDFn              func(ctx context.Context, checkupID uint64) (*model.Checkup, error)
 	createFn                func(ctx context.Context, checkup *model.Checkup) error
 	updateFn                func(ctx context.Context, checkupID uint64, fields map[string]any) error
@@ -23,6 +25,13 @@ type mockCheckupRepository struct {
 
 func (m *mockCheckupRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error) {
 	return m.listByMedicalRecordIDFn(ctx, medicalRecordID)
+}
+
+func (m *mockCheckupRepository) ListByClinic(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error) {
+	if m.listByClinicFn != nil {
+		return m.listByClinicFn(ctx, clinicID, filters)
+	}
+	return nil, nil
 }
 
 func (m *mockCheckupRepository) FindByID(ctx context.Context, checkupID uint64) (*model.Checkup, error) {
@@ -45,12 +54,12 @@ func (m *mockCheckupRepository) Delete(ctx context.Context, checkupID uint64) er
 
 func TestCheckupService_List(t *testing.T) {
 	tests := []struct {
-		name                string
-		medicalRecordID     uint64
-		repoCheckups        []model.Checkup
-		repoErr             error
-		wantLen             int
-		wantErr             bool
+		name            string
+		medicalRecordID uint64
+		repoCheckups    []model.Checkup
+		repoErr         error
+		wantLen         int
+		wantErr         bool
 	}{
 		{
 			name:            "returns checkups for medical record",
@@ -178,14 +187,14 @@ func TestCheckupService_Update(t *testing.T) {
 	newCheckupTypeID := uint64(2)
 
 	tests := []struct {
-		name                        string
-		medicalRecordID             uint64
-		checkupID                   uint64
-		input                       *UpdateCheckupInput
-		repoCheckupMedicalRecordID  uint64
-		repoUpdateErr               error
-		repoReturnCheckup           *model.Checkup
-		wantErr                     bool
+		name                       string
+		medicalRecordID            uint64
+		checkupID                  uint64
+		input                      *UpdateCheckupInput
+		repoCheckupMedicalRecordID uint64
+		repoUpdateErr              error
+		repoReturnCheckup          *model.Checkup
+		wantErr                    bool
 	}{
 		{
 			name:            "updates checkup successfully",
@@ -205,10 +214,10 @@ func TestCheckupService_Update(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:            "returns error when no fields provided",
-			medicalRecordID: 1,
-			checkupID:       1,
-			input:           &UpdateCheckupInput{},
+			name:                       "returns error when no fields provided",
+			medicalRecordID:            1,
+			checkupID:                  1,
+			input:                      &UpdateCheckupInput{},
 			repoCheckupMedicalRecordID: 1,
 			repoUpdateErr:              nil,
 			repoReturnCheckup:          nil,

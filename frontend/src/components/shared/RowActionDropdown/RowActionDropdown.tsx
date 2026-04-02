@@ -1,11 +1,7 @@
+import { C, ICON } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export interface RowActionDropdownAction {
   label: string;
@@ -29,10 +25,10 @@ export function RowActionDropdown({ actions }: RowActionDropdownProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-11 w-11 text-[#37352F]/60 hover:text-[#37352F]"
+            className={`h-11 w-11 ${C.text60} ${C.hoverText}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <MoreHorizontal className="h-5 w-5" />
+            <MoreHorizontal className={ICON.page} />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -51,7 +47,7 @@ export function RowActionDropdown({ actions }: RowActionDropdownProps) {
                     : ""
                 }
               >
-                {Icon ? <Icon className="mr-2 h-4 w-4" /> : null}
+                {Icon ? <Icon className={`mr-2 ${ICON.action}`} /> : null}
                 {action.label}
               </DropdownMenuItem>
             );

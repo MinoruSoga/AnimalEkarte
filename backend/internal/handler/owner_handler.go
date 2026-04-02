@@ -64,12 +64,13 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 	}
 	var req createOwnerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
 	pets := make([]service.CreatePetForOwnerInput, 0, len(req.Pets))
-	for _, p := range req.Pets {
+	for i := range req.Pets {
+		p := &req.Pets[i]
 		pets = append(pets, service.CreatePetForOwnerInput{
 			Name:            p.Name,
 			AnimalSpeciesID: p.AnimalSpeciesID,
@@ -131,7 +132,7 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 	}
 	var req updateOwnerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

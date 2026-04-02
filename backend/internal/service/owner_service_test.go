@@ -13,11 +13,14 @@ import (
 
 // mockOwnerRepository は OwnerRepository のテスト用モック実装
 type mockOwnerRepository struct {
-	findAllFn        func(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
-	findByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
-	createWithPetsFn func(ctx context.Context, owner *model.Owner, pets []model.Pet) error
-	updateFn         func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn         func(ctx context.Context, clinicID, id uint64) error
+	findAllFn            func(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
+	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	findByEmailFn        func(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
+	findByPhoneFn        func(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error)
+	createWithPetsFn     func(ctx context.Context, owner *model.Owner, pets []model.Pet) error
+	updateFn             func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn             func(ctx context.Context, clinicID, id uint64) error
+	countPetsByOwnerIDFn func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
 
 func (m *mockOwnerRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -26,6 +29,20 @@ func (m *mockOwnerRepository) FindAll(ctx context.Context, clinicID uint64, page
 
 func (m *mockOwnerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockOwnerRepository) FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error) {
+	if m.findByEmailFn != nil {
+		return m.findByEmailFn(ctx, clinicID, email)
+	}
+	return nil, nil
+}
+
+func (m *mockOwnerRepository) FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error) {
+	if m.findByPhoneFn != nil {
+		return m.findByPhoneFn(ctx, clinicID, phone)
+	}
+	return nil, nil
 }
 
 func (m *mockOwnerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
@@ -41,6 +58,13 @@ func (m *mockOwnerRepository) Update(ctx context.Context, clinicID, id uint64, f
 
 func (m *mockOwnerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockOwnerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	if m.countPetsByOwnerIDFn != nil {
+		return m.countPetsByOwnerIDFn(ctx, clinicID, ownerID)
+	}
+	return 0, nil
 }
 
 // ポインタヘルパー関数（ptrString は accounting_service_test.go で定義済み）
@@ -451,42 +475,63 @@ func TestOwnerService_Update(t *testing.T) {
 
 func TestOwnerService_Delete(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name              string
+		clinicID          uint64
+		id                uint64
+		petCount          int64
+		repoErr           error
+		wantErr           bool
+		wantNF            bool
+		wantConflict      bool
 	}{
 		{
-			name:     "deletes owner successfully",
-			clinicID: 1,
-			id:       10,
-			repoErr:  nil,
-			wantErr:  false,
-			wantNF:   false,
+			name:              "deletes owner successfully",
+			clinicID:          1,
+			id:                10,
+			petCount:          0,
+			repoErr:           nil,
+			wantErr:           false,
+			wantNF:            false,
+			wantConflict:      false,
 		},
 		{
-			name:     "returns not found error when owner does not exist",
-			clinicID: 1,
-			id:       999,
-			repoErr:  apperrors.WrapNotFound("owner", "999"),
-			wantErr:  true,
-			wantNF:   true,
+			name:              "returns not found error when owner does not exist",
+			clinicID:          1,
+			id:                999,
+			petCount:          0,
+			repoErr:           apperrors.WrapNotFound("owner", "999"),
+			wantErr:           true,
+			wantNF:            true,
+			wantConflict:      false,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			id:       10,
-			repoErr:  errors.New("db error"),
-			wantErr:  true,
-			wantNF:   false,
+			name:              "returns error on repository failure",
+			clinicID:          1,
+			id:                10,
+			petCount:          0,
+			repoErr:           errors.New("db error"),
+			wantErr:           true,
+			wantNF:            false,
+			wantConflict:      false,
+		},
+		{
+			name:              "returns conflict error when owner has pets",
+			clinicID:          1,
+			id:                10,
+			petCount:          2,
+			repoErr:           nil,
+			wantErr:           true,
+			wantNF:            false,
+			wantConflict:      true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockOwnerRepository{
+				countPetsByOwnerIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.petCount, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -499,6 +544,9 @@ func TestOwnerService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

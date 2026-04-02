@@ -1,6 +1,6 @@
 // React/Framework
-import { memo, useCallback, useEffect } from "react";
-import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router";
 
 // External
 import { Trash2 } from "lucide-react";
@@ -8,496 +8,352 @@ import { Trash2 } from "lucide-react";
 // Internal
 import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
-import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
+import { VaccinationCard } from "../components/VaccinationCard";
+import { useGetVaccinations } from "../api/get-vaccinations";
+import type { SortOrder } from "@/types";
 
 // Relative
-import { useVaccinationForm } from "../hooks/useVaccinationForm";
-import { useMasterItems } from "@/hooks/use-master-items";
+import { useVaccinationForm } from "../hooks/use-vaccination-form";
+import { usePermission } from "@/features/auth";
 
-// Mock Data for History (module-level constant — does not change between renders)
-const MOCK_HISTORY_ITEMS = [
-  { id: 1, name: "フィラリア薬", date: "24/4/6", next: "24/4/6" },
-  { id: 2, name: "ノミダニ予防薬", date: "25/6/15", next: "-" },
-  { id: 3, name: "ノミダニ予防薬", date: "25/1/15", next: "25/6/15" },
-  { id: 4, name: "ノミダニ予防薬", date: "25/1/15", next: "25/6/15" },
-  { id: 5, name: "狂犬病ワクチン", date: "25/1/20", next: "25/6/20" },
-  { id: 6, name: "ジステンパーワクチン", date: "25/1/25", next: "25/6/25" },
-  { id: 7, name: "パルボウイルスワクチン", date: "25/1/30", next: "25/6/30" },
-  { id: 8, name: "猫ウイルス性鼻気管炎ワクチン", date: "25/1/35", next: "25/6/35" },
-  { id: 9, name: "猫クラシウイルスワクチン", date: "25/1/40", next: "25/6/40" },
-  { id: 10, name: "レプトスピラワクチン", date: "25/1/45", next: "25/6/45" },
-  { id: 11, name: "コロナウイルスワクチン", date: "25/1/50", next: "25/6/50" },
-  { id: 12, name: "フェライン・レトロウイルスワクチン", date: "25/1/55", next: "25/6/55" },
-  { id: 13, name: "パルボウイルスキャリアワクチン", date: "25/1/60", next: "25/6/60" },
-];
-
-// ---- Memo sub-components ----
-
-interface VaccinationFormFieldsProps {
-  vaccineItems: { id: string; name: string }[];
-  vaccineId: string;
-  onVaccineIdChange: (v: string) => void;
-  date: string;
-  onDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  supplemental: string;
-  onSupplementalChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  lot1: string;
-  onLot1Change: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  lot2: string;
-  onLot2Change: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  lot3: string;
-  onLot3Change: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  lot4: string;
-  onLot4Change: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  nextScheduleType: string;
-  onNextScheduleTypeChange: (v: string) => void;
-  nextDate: string;
-  onNextDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  remarks: string;
-  onRemarksChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-}
-
-const VaccinationFormFields = memo(function VaccinationFormFields({
-  vaccineItems,
-  vaccineId,
-  onVaccineIdChange,
-  date,
-  onDateChange,
-  supplemental,
-  onSupplementalChange,
-  lot1,
-  onLot1Change,
-  lot2,
-  onLot2Change,
-  lot3,
-  onLot3Change,
-  lot4,
-  onLot4Change,
-  nextScheduleType,
-  onNextScheduleTypeChange,
-  nextDate,
-  onNextDateChange,
-  remarks,
-  onRemarksChange,
-}: VaccinationFormFieldsProps) {
-  return (
-    <div className="col-span-1 lg:col-span-6 flex flex-col gap-4">
-      <div className="bg-white rounded-lg p-4 border border-[rgba(55,53,47,0.16)] shadow-sm space-y-4">
-        {/* Vaccination Form Fields (Matching MedicalRecordVaccination) */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-sm text-[#37352F]/60">予防接種名</Label>
-            <Select value={vaccineId} onValueChange={onVaccineIdChange}>
-              <SelectTrigger className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]">
-                <SelectValue placeholder="選択してください" />
-              </SelectTrigger>
-              <SelectContent>
-                {vaccineItems.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-sm text-[#37352F]/60">予防接種日</Label>
-            <Input
-              type="date"
-              value={date}
-              onChange={onDateChange}
-              className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]"
-            />
-          </div>
-        </div>
-
-        {/* Supplemental */}
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-sm text-[#37352F]/60">補助説明</Label>
-          <Input
-            value={supplemental}
-            onChange={onSupplementalChange}
-            className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]"
-          />
-        </div>
-
-        {/* LOT Numbers */}
-        <div className="grid grid-cols-4 gap-2">
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-sm text-[#37352F]/60">LOT1</Label>
-            <Input
-              value={lot1}
-              onChange={onLot1Change}
-              className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-sm text-[#37352F]/60">LOT2</Label>
-            <Input
-              value={lot2}
-              onChange={onLot2Change}
-              className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-sm text-[#37352F]/60">LOT3</Label>
-            <Input
-              value={lot3}
-              onChange={onLot3Change}
-              className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-sm text-[#37352F]/60">LOT4</Label>
-            <Input
-              value={lot4}
-              onChange={onLot4Change}
-              className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]"
-            />
-          </div>
-        </div>
-
-        {/* Next Schedule Type */}
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-sm text-[#37352F]/60">次回予防接種予定設定</Label>
-          <RadioGroup
-            value={nextScheduleType}
-            onValueChange={onNextScheduleTypeChange}
-            className="flex flex-row gap-4 flex-wrap pt-1"
-          >
-            <div className="flex items-center space-x-1.5">
-              <RadioGroupItem value="3weeks" id="r1" className="text-[#37352F]" />
-              <Label htmlFor="r1" className="font-normal text-sm text-[#37352F]">3週間後</Label>
-            </div>
-            <div className="flex items-center space-x-1.5">
-              <RadioGroupItem value="4weeks" id="r2" className="text-[#37352F]" />
-              <Label htmlFor="r2" className="font-normal text-sm text-[#37352F]">4週間後</Label>
-            </div>
-            <div className="flex items-center space-x-1.5">
-              <RadioGroupItem value="1year" id="r3" className="text-[#37352F]" />
-              <Label htmlFor="r3" className="font-normal text-sm text-[#37352F]">1年後</Label>
-            </div>
-            <div className="flex items-center space-x-1.5">
-              <RadioGroupItem value="other" id="r4" className="text-[#37352F]" />
-              <Label htmlFor="r4" className="font-normal text-sm text-[#37352F]">以外</Label>
-            </div>
-          </RadioGroup>
-        </div>
-
-        {/* Next Date */}
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-sm text-[#37352F]/60">次回予定日</Label>
-          <Input
-            type="date"
-            value={nextDate}
-            onChange={onNextDateChange}
-            className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]"
-          />
-        </div>
-
-        {/* Remarks */}
-        <div className="flex flex-col gap-1.5 flex-1">
-          <Label className="text-sm text-[#37352F]/60">備考</Label>
-          <Textarea
-            value={remarks}
-            onChange={onRemarksChange}
-            className="resize-none bg-white border-[rgba(55,53,47,0.16)] min-h-[100px] text-sm text-[#37352F]"
-          />
-        </div>
-      </div>
-    </div>
-  );
-});
-
-interface HistorySectionProps {
-  selectedPetsCount: number;
-  filterStartDate: string;
-  onFilterStartDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  filterEndDate: string;
-  onFilterEndDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  historySearchTerm: string;
-  onHistorySearchTermChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  sortOrder: string;
-  onSortOrderChange: (v: string) => void;
-}
-
-const HistorySection = memo(function HistorySection({
-  selectedPetsCount,
-  filterStartDate,
-  onFilterStartDateChange,
-  filterEndDate,
-  onFilterEndDateChange,
-  historySearchTerm,
-  onHistorySearchTermChange,
-  sortOrder,
-  onSortOrderChange,
-}: HistorySectionProps) {
-  return (
-    <div className="col-span-1 lg:col-span-6 flex flex-col gap-3">
-      <h2 className="text-sm font-bold text-[#37352F]">予防接種履歴</h2>
-
-      {/* Filters */}
-      <div className="space-y-3 bg-white p-3 rounded-lg border border-[rgba(55,53,47,0.16)]">
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-sm text-[#37352F]/60">実施日</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              type="date"
-              value={filterStartDate}
-              onChange={onFilterStartDateChange}
-              className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]"
-            />
-            <span className="text-[#37352F] text-sm">〜</span>
-            <Input
-              type="date"
-              value={filterEndDate}
-              onChange={onFilterEndDateChange}
-              className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]"
-            />
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-sm text-[#37352F]/60">検索単語</Label>
-          <div className="flex gap-2">
-            <Input
-              value={historySearchTerm}
-              onChange={onHistorySearchTermChange}
-              className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]"
-              placeholder="検索..."
-            />
-            <Button variant="outline" className="h-10 text-sm bg-black text-white hover:bg-black/90 hover:text-white border-none">
-              クリア
-            </Button>
-            <Select value={sortOrder} onValueChange={onSortOrderChange}>
-              <SelectTrigger className="w-[80px] h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="desc">降順</SelectItem>
-                <SelectItem value="asc">昇順</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="border border-[rgba(55,53,47,0.16)] rounded-lg bg-white overflow-hidden flex flex-col min-h-[400px]">
-        {/* Header */}
-        <div className="flex items-center border-b border-[rgba(55,53,47,0.16)] bg-white text-sm font-bold text-[#0f172a] h-10 shrink-0 bg-[#F7F6F3]">
-          <div className="flex-1 px-3 text-center">予防接種名</div>
-          <div className="w-[100px] px-2 text-center border-l border-[rgba(55,53,47,0.16)]">実施日</div>
-          <div className="w-[100px] px-2 text-center border-l border-[rgba(55,53,47,0.16)]">次予定</div>
-          <div className="w-[80px] px-2 text-center border-l border-[rgba(55,53,47,0.16)]">操作</div>
-        </div>
-
-        {/* Scrollable Rows */}
-        <div className="flex-1 overflow-y-auto">
-          {selectedPetsCount > 0 ? (
-            MOCK_HISTORY_ITEMS.map((item) => (
-              <div key={item.id} className="flex items-center border-b border-[rgba(55,53,47,0.16)] bg-white text-sm text-[#0f172a] h-10 hover:bg-gray-50">
-                <div className="flex-1 px-3 truncate">{item.name}</div>
-                <div className="w-[100px] px-2 text-center border-l border-[rgba(55,53,47,0.16)] font-mono">{item.date}</div>
-                <div className="w-[100px] px-2 text-center border-l border-[rgba(55,53,47,0.16)] font-mono">{item.next}</div>
-                <div className="w-[80px] px-2 flex justify-center border-l border-[rgba(55,53,47,0.16)]">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-10 w-[50px] text-sm bg-black text-white hover:bg-black/90 hover:text-white border-none px-0"
-                  >
-                    複製
-                  </Button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              ペットを選択してください
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-});
-
-// ---- Main component ----
-
-export function VaccinationForm() {
+export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
-  const petId = searchParams.get("petId");
-
-  const { data: vaccineItems } = useMasterItems("vaccine");
+  const { canEdit, canDelete } = usePermission("vaccinations");
 
   const {
-      isEdit,
-      petSelection,
-      form,
-      historyFilter,
-      handleSave
+    isEdit,
+    petSelection,
+    form,
+    formAction,
+    formState,
+    isSaving,
+    fieldErrors,
+    handleDelete,
+    isDeleting,
+    historyFilter,
   } = useVaccinationForm(id);
+
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
+  // --- Focus Management (Accessibility) ---
+  useEffect(() => {
+    const errorFields = Object.keys(formState.fieldErrors || {});
+    if (errorFields.length === 0) return;
+
+    const PRIORITY_FIELDS = ["date", "vaccineId"];
+    const firstError = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
+
+    const idMap: Record<string, string> = {
+      date: "vaccination-date",
+      vaccineId: "vaccine-select",
+    };
+    const targetId = idMap[firstError] || firstError;
+
+    const element = document.getElementById(targetId);
+    if (element) {
+      element.focus();
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [formState.fieldErrors, formState.timestamp]);
+
+  // React 19 Action の成功を検知して遷移
+  useEffect(() => {
+    if (formState.success) {
+      markClean();
+      navigate(paths.vaccinations.getHref());
+    }
+  }, [formState.success, formState.timestamp, navigate, markClean]);
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
 
-  useEffect(() => {
-    // Redirect only if:
-    // 1. No pet is selected
-    // 2. Not in edit mode
-    // 3. No petId in URL (if petId exists, we wait for it to load)
-    if (!selectedPet && !isEdit && !petId) {
-        navigate(paths.vaccinations.selectPet.getHref());
-    }
-  }, [selectedPet, isEdit, navigate, petId]);
-
-  // ─── すべての hooks は早期 return より前に定義する（Rules of Hooks）───────
   const {
-      vaccineId, setVaccineId,
-      date, setDate,
-      supplemental, setSupplemental,
-      lot1, setLot1,
-      lot2, setLot2,
-      lot3, setLot3,
-      lot4, setLot4,
-      nextScheduleType, setNextScheduleType,
-      nextDate, setNextDate,
-      remarks, setRemarks
+    date, setDate,
+    vaccineId, setVaccineId,
+    nextScheduleType, setNextScheduleType,
+    nextDate, setNextDate,
+    supplemental, setSupplemental,
+    lot1, setLot1,
+    lot2, setLot2,
+    lot3, setLot3,
+    lot4, setLot4,
+    remarks, setRemarks,
   } = form;
 
-  const {
-      filterStartDate, setFilterStartDate,
-      filterEndDate, setFilterEndDate,
-      historySearchTerm, setHistorySearchTerm,
-      sortOrder, setSortOrder
-  } = historyFilter;
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  // rerender-dependencies: location.state (object) から primitive を抽出
-  const fromPath = location.state?.from as string | undefined;
   const handleBack = useCallback(() => {
-    navigate(fromPath ?? paths.vaccinations.getHref());
-  }, [fromPath, navigate]);
+    navigate(paths.vaccinations.getHref());
+  }, [navigate]);
 
-  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+  // --- 履歴セクション ---
+  const { data: allVaccinations = [] } = useGetVaccinations();
 
-  // Stable event handler callbacks for memo components
-  const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setDate(e.target.value); }, [markDirty, setDate]);
-  const handleSupplementalChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setSupplemental(e.target.value); }, [markDirty, setSupplemental]);
-  const handleLot1Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot1(e.target.value); }, [markDirty, setLot1]);
-  const handleLot2Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot2(e.target.value); }, [markDirty, setLot2]);
-  const handleLot3Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot3(e.target.value); }, [markDirty, setLot3]);
-  const handleLot4Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot4(e.target.value); }, [markDirty, setLot4]);
-  const handleNextDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setNextDate(e.target.value); }, [markDirty, setNextDate]);
-  const handleRemarksChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => { markDirty(); setRemarks(e.target.value); }, [markDirty, setRemarks]);
-  const handleFilterStartDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFilterStartDate(e.target.value), [setFilterStartDate]);
-  const handleFilterEndDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFilterEndDate(e.target.value), [setFilterEndDate]);
-  const handleHistorySearchTermChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setHistorySearchTerm(e.target.value), [setHistorySearchTerm]);
+  const petHistory = useMemo(() => {
+    if (!selectedPet) return [];
 
-  const handleVaccineIdChange = useCallback((v: string) => { markDirty(); setVaccineId(v); }, [markDirty, setVaccineId]);
-  const handleNextScheduleTypeChange = useCallback((v: string) => { markDirty(); setNextScheduleType(v); }, [markDirty, setNextScheduleType]);
+    let result = allVaccinations.filter(
+      (v) => v.petId === selectedPet.id && v.id !== id,
+    );
 
-  const handleSaveClick = useCallback(() => { markClean(); handleSave(); }, [markClean, handleSave]);
+    // キーワード検索
+    const term = historyFilter.historySearchTerm.toLowerCase();
+    if (term) {
+      result = result.filter((v) =>
+        v.vaccineName.toLowerCase().includes(term),
+      );
+    }
 
-  // 早期 return（hooks より後）
-  if (!selectedPet && !isEdit && petId) return null;
+    // 日付フィルタ
+    if (historyFilter.filterStartDate) {
+      result = result.filter((v) => v.date >= historyFilter.filterStartDate);
+    }
+    if (historyFilter.filterEndDate) {
+      result = result.filter((v) => v.date <= historyFilter.filterEndDate);
+    }
+
+    // ソート
+    result = [...result].sort((a, b) =>
+      historyFilter.sortOrder === "asc"
+        ? a.date.localeCompare(b.date)
+        : b.date.localeCompare(a.date),
+    );
+
+    return result;
+  }, [allVaccinations, selectedPet, id, historyFilter]);
+
   if (!selectedPet && !isEdit) return null;
 
   return (
-    <PageLayout
-      title={isEdit ? "予防接種詳細・編集" : "新規予防接種登録"}
-      onBack={handleBack}
-      maxWidth="max-w-[1440px]"
-      headerAction={
-        <div className="flex gap-2">
-            {isEdit ? (
-                <Button
-                    variant="ghost"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 px-4 h-10 text-sm"
-                >
-                    <Trash2 className="mr-1.5 size-4" />
-                    削除
-                </Button>
+    <form action={formAction}>
+      <PageLayout
+        title={isEdit ? "予防接種詳細・編集" : "新規予防接種登録"}
+        onBack={handleBack}
+        maxWidth="max-w-[1200px]"
+        headerAction={
+          <div className="flex gap-2">
+            {canDelete && isEdit ? (
+              <Button
+                variant="ghost"
+                type="button"
+                className={`${STYLE.btnDangerGhost} px-4 h-10 text-sm`}
+                onClick={() => setDeleteConfirmOpen(true)}
+                disabled={isDeleting}
+              >
+                <Trash2 className={`mr-1.5 ${ICON.action}`} />
+                {isDeleting ? "削除中..." : "削除"}
+              </Button>
             ) : null}
-            <Button
-                onClick={handleSaveClick}
-                className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white shadow-sm px-6 h-10 text-sm"
-            >
+            {canEdit ? (
+              <SubmitButton
+                className={`${C.bgAccent} ${C.bgAccentHover} text-white shadow-sm px-6 h-10 text-sm`}
+              >
                 保存
-            </Button>
-        </div>
-      }
-    >
-        <NavigationBlocker when={isDirty} />
+              </SubmitButton>
+            ) : null}
+          </div>
+        }
+      >
+        <NavigationBlocker when={isDirty && !isSaving} />
+
         {selectedPet ? (
-            <PatientInfoCard
-              ownerName={selectedPet.ownerName}
-              petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
-              petNumber={selectedPet.petNumber || selectedPet.id}
-              weight={selectedPet.weight || "-"}
-              staffName="医師A"
-              serviceType="予防接種"
-              petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
-              insuranceName={selectedPet.insuranceName || "保険情報未登録"}
-              insuranceDetails={selectedPet.insuranceDetails || "-"}
-              nextVisitDate="-"
-              nextVisitContent="-"
-              className="mb-4"
-            />
+          <PatientInfoCard
+            ownerName={selectedPet.ownerName}
+            petName={selectedPet.name}
+            petNumber={selectedPet.petNumber}
+            weight={selectedPet.weight}
+          />
         ) : null}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pb-16">
-            <VaccinationFormFields
-              vaccineItems={vaccineItems}
-              vaccineId={vaccineId}
-              onVaccineIdChange={handleVaccineIdChange}
-              date={date}
-              onDateChange={handleDateChange}
-              supplemental={supplemental}
-              onSupplementalChange={handleSupplementalChange}
-              lot1={lot1}
-              onLot1Change={handleLot1Change}
-              lot2={lot2}
-              onLot2Change={handleLot2Change}
-              lot3={lot3}
-              onLot3Change={handleLot3Change}
-              lot4={lot4}
-              onLot4Change={handleLot4Change}
-              nextScheduleType={nextScheduleType}
-              onNextScheduleTypeChange={handleNextScheduleTypeChange}
-              nextDate={nextDate}
-              onNextDateChange={handleNextDateChange}
-              remarks={remarks}
-              onRemarksChange={handleRemarksChange}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* ===== 左カラム: 入力フォーム ===== */}
+          <div className="lg:col-span-3">
+            <div className={`bg-white p-6 rounded-lg border ${C.borderLight} space-y-6`}>
+              {/* 接種日 / ワクチン */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="vaccination-date">
+                    接種日<span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <NotionDatePicker
+                    id="vaccination-date"
+                    value={date}
+                    onChange={(v) => { markDirty(); setDate(v); }}
+                    disabledDays={{ after: new Date() }}
+                  />
+                  <FormFieldError message={fieldErrors.date} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="vaccine-select">
+                    ワクチン<span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <Select value={vaccineId} onValueChange={(v) => { markDirty(); setVaccineId(v); }}>
+                    <SelectTrigger id="vaccine-select">
+                      <SelectValue placeholder="選択してください" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">混合ワクチン</SelectItem>
+                      <SelectItem value="2">狂犬病ワクチン</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormFieldError message={fieldErrors.vaccineId} />
+                </div>
+              </div>
+
+              {/* 補助説明 */}
+              <div className="space-y-2">
+                <Label>補助説明</Label>
+                <Input
+                  value={supplemental}
+                  onChange={(e) => { markDirty(); setSupplemental(e.target.value); }}
+                  placeholder="補助説明を入力"
+                />
+              </div>
+
+              {/* LOT番号 1〜4 */}
+              <div className="space-y-2">
+                <Label>LOT番号</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className={`text-xs ${C.text60}`}>LOT 1</Label>
+                    <Input
+                      value={lot1}
+                      onChange={(e) => { markDirty(); setLot1(e.target.value); }}
+                      placeholder="LOT番号 1"
+                      maxLength={50}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className={`text-xs ${C.text60}`}>LOT 2</Label>
+                    <Input
+                      value={lot2}
+                      onChange={(e) => { markDirty(); setLot2(e.target.value); }}
+                      placeholder="LOT番号 2"
+                      maxLength={50}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className={`text-xs ${C.text60}`}>LOT 3</Label>
+                    <Input
+                      value={lot3}
+                      onChange={(e) => { markDirty(); setLot3(e.target.value); }}
+                      placeholder="LOT番号 3"
+                      maxLength={50}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className={`text-xs ${C.text60}`}>LOT 4</Label>
+                    <Input
+                      value={lot4}
+                      onChange={(e) => { markDirty(); setLot4(e.target.value); }}
+                      placeholder="LOT番号 4"
+                      maxLength={50}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 次回予定 */}
+              <div className="space-y-2">
+                <Label>次回の予定</Label>
+                <div className="flex gap-3 items-center flex-wrap">
+                  <Select
+                    value={nextScheduleType}
+                    onValueChange={(v) => { markDirty(); setNextScheduleType(v); }}
+                  >
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3weeks">3週後</SelectItem>
+                      <SelectItem value="4weeks">4週後</SelectItem>
+                      <SelectItem value="1year">1年後</SelectItem>
+                      <SelectItem value="custom">以外（手動）</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <NotionDatePicker
+                    value={nextDate}
+                    onChange={(v) => { markDirty(); setNextDate(v); }}
+                    className="flex-1 min-w-[160px]"
+                  />
+                </div>
+                {/* BUG-096: 過去日付エラーメッセージ */}
+                <FormFieldError message={fieldErrors.nextDate} />
+              </div>
+
+              {/* 備考 */}
+              <div className="space-y-2">
+                <Label>備考</Label>
+                <Textarea
+                  value={remarks}
+                  onChange={(e) => { markDirty(); setRemarks(e.target.value); }}
+                  placeholder="備考を入力"
+                  className="min-h-[100px]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ===== 右カラム: 接種履歴 ===== */}
+          <div className="lg:col-span-2 flex flex-col gap-3">
+            <h3 className={`text-base font-semibold ${C.text}`}>過去の接種履歴</h3>
+
+            <HistoryFilterPanel
+              showDateRange
+              filterStartDate={historyFilter.filterStartDate}
+              onFilterStartDateChange={historyFilter.setFilterStartDate}
+              filterEndDate={historyFilter.filterEndDate}
+              onFilterEndDateChange={historyFilter.setFilterEndDate}
+              searchTerm={historyFilter.historySearchTerm}
+              onSearchTermChange={historyFilter.setHistorySearchTerm}
+              searchPlaceholder="ワクチン名で検索..."
+              sortOrder={historyFilter.sortOrder as SortOrder}
+              onSortOrderChange={historyFilter.setSortOrder}
+              onClear={historyFilter.handleClearHistoryFilter}
             />
 
-            <HistorySection
-              selectedPetsCount={selectedPets.length}
-              filterStartDate={filterStartDate}
-              onFilterStartDateChange={handleFilterStartDateChange}
-              filterEndDate={filterEndDate}
-              onFilterEndDateChange={handleFilterEndDateChange}
-              historySearchTerm={historySearchTerm}
-              onHistorySearchTermChange={handleHistorySearchTermChange}
-              sortOrder={sortOrder}
-              onSortOrderChange={setSortOrder}
-            />
+            <div className="flex flex-col gap-2 overflow-y-auto max-h-[600px]">
+              {petHistory.length === 0 ? (
+                <p className={`text-sm ${C.text45} py-4 text-center`}>履歴がありません</p>
+              ) : (
+                petHistory.map((v) => (
+                  <VaccinationCard key={v.id} vaccination={v} />
+                ))
+              )}
+            </div>
+          </div>
         </div>
-    </PageLayout>
+
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          onClose={() => setDeleteConfirmOpen(false)}
+          title="削除確認"
+          description="この予防接種情報を削除してもよろしいですか？"
+          confirmLabel="削除"
+          variant="destructive"
+          onConfirm={() => {
+            handleDelete(() => {
+              markClean();
+              navigate(paths.vaccinations.getHref());
+            });
+          }}
+        />
+      </PageLayout>
+    </form>
   );
-}
+});

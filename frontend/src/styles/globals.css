@@ -16,7 +16,7 @@
   --muted-foreground: #787774;
   --accent: #EBEAE8;
   --accent-foreground: #37352F;
-  --destructive: #EB5757;
+  --destructive: #C0392B;
   --destructive-foreground: #ffffff;
   --border: rgba(55, 53, 47, 0.09);
   --input: rgba(55, 53, 47, 0.16);
@@ -217,4 +217,20 @@ html {
 /* Override Tailwind preflight font-family */
 html, body {
   font-family: 'Noto Sans JP', sans-serif !important;
+}
+
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(-30%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1.5s infinite ease-in-out;
 }

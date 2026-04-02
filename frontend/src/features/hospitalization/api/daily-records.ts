@@ -42,7 +42,7 @@ const createDailyRecord = async (
     return data;
 };
 
-const addVitalRecord = async (
+export const addVitalRecord = async (
     hospitalizationId: string,
     date: string,
     payload: CreateVitalRecordRequest
@@ -54,7 +54,7 @@ const addVitalRecord = async (
     return data;
 };
 
-const addCareLogRecord = async (
+export const addCareLogRecord = async (
     hospitalizationId: string,
     date: string,
     payload: CreateCareLogRecordRequest
@@ -89,7 +89,7 @@ export const dailyRecordKeys = {
 
 // ---- Hooks ----
 
-export function useDailyRecords(hospitalizationId: string) {
+export function useGetDailyRecords(hospitalizationId: string) {
     return useQuery({
         queryKey: dailyRecordKeys.all(hospitalizationId),
         queryFn: () => listDailyRecords(hospitalizationId),

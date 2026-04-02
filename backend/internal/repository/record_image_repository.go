@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -62,13 +61,11 @@ func (r *recordImageRepository) Delete(ctx context.Context, id uint64) error {
 
 func (r *recordImageRepository) FindByID(ctx context.Context, id uint64) (*model.RecordImage, error) {
 	var image model.RecordImage
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Staff").
-		First(&image, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("record_image", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find record image by id")
+		First(&image, id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "record_image", fmt.Sprintf("%d", id))
 	}
 	return &image, nil
 }

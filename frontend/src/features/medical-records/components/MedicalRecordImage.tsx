@@ -1,37 +1,64 @@
 // React/Framework
-import React, { useDeferredValue, useState } from "react";
+import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
 
 // Relative
+import { useGetRecordImages } from "../api/get-record-images";
+import { useUploadImages, useDeleteImage } from "../api/record-images";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
+import { C } from "@/lib/design-tokens";
 
-export function MedicalRecordImage({ isNewRecord = false }: { isNewRecord?: boolean }) {
+interface MedicalRecordImageProps {
+  isNewRecord?: boolean;
+  medicalRecordId?: string;
+}
+
+export const MedicalRecordImage = memo(function MedicalRecordImage({
+  isNewRecord = false,
+  medicalRecordId,
+}: MedicalRecordImageProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  // Mock data for image groups
-  const imageGroups = isNewRecord ? [] : [
-    {
-      id: 1,
-      date: "2025/10/10 10:10:10",
-      images: [
-        { id: 1, name: "画像名", src: null, label: "画像1" },
-        { id: 2, name: "画像名", src: null, label: "画像2" },
-        { id: 3, name: "画像名", src: null, label: "画像3" },
-      ],
+  const resolvedId = isNewRecord ? undefined : medicalRecordId;
+
+  const { data: apiImageGroups = [], isLoading } = useGetRecordImages(resolvedId);
+
+  const uploadMutation = useUploadImages(resolvedId ?? "");
+  const deleteMutation = useDeleteImage(resolvedId ?? "");
+
+  const imageGroups = useMemo(
+    () =>
+      apiImageGroups.filter((g) =>
+        deferredSearch
+          ? g.images.some((img) => img.name.includes(deferredSearch))
+          : true,
+      ),
+    [apiImageGroups, deferredSearch],
+  );
+
+  const handleFilesSelected = useCallback(
+    (files: File[]) => {
+      if (!resolvedId) return;
+      uploadMutation.mutate(files);
     },
-    {
-      id: 2,
-      date: "2025/11/11 10:10:10",
-      images: [
-        { id: 4, name: "画像名", src: null, label: "画像4" },
-        { id: 5, name: "画像名", src: null, label: "画像5" },
-      ],
+    [resolvedId, uploadMutation],
+  );
+
+  const handleDeleteImage = useCallback(
+    (imageId: number) => {
+      if (!resolvedId) return;
+      setDeletingId(imageId);
+      deleteMutation.mutate(imageId, {
+        onSettled: () => setDeletingId(null),
+      });
     },
-  ];
+    [resolvedId, deleteMutation],
+  );
 
   return (
     <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-20 pr-1">
@@ -45,19 +72,37 @@ export function MedicalRecordImage({ isNewRecord = false }: { isNewRecord?: bool
         onDateEndChange={setDateEnd}
         sortOrder={sortOrder}
         onSortOrderChange={setSortOrder}
+        isUploading={uploadMutation.isPending}
+        onFilesSelected={handleFilesSelected}
       />
 
       {/* Results Title */}
       <div>
-         <h2 className="text-sm font-bold text-[#37352F] pl-1">検査結果</h2>
+        <h2 className={`text-sm font-bold ${C.text} pl-1`}>検査結果</h2>
       </div>
 
       {/* Image Groups */}
+      {isLoading ? (
+        <div className={`flex items-center justify-center h-24 text-sm ${C.text40} pl-1`}>
+          読み込み中...
+        </div>
+      ) : imageGroups.length === 0 ? (
+        <div className={`flex items-center justify-center h-24 text-sm ${C.text40} pl-1`}>
+          画像がありません
+        </div>
+      ) : null}
       <div className="flex flex-col gap-6 pl-1">
-        {imageGroups.map((group) => (
-          <ImageGalleryGroup key={group.id} group={group} />
-        ))}
+        {!isLoading
+          ? imageGroups.map((group) => (
+              <ImageGalleryGroup
+                key={group.id}
+                group={group}
+                onDeleteImage={resolvedId ? handleDeleteImage : undefined}
+                isDeletingId={deletingId}
+              />
+            ))
+          : null}
       </div>
     </div>
   );
-}
+});

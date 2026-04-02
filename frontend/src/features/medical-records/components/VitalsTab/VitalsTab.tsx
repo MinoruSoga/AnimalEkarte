@@ -2,23 +2,25 @@
 import { useState, useCallback, memo } from "react";
 
 // External
-import { Pencil, Trash2, Plus, Check, X } from "lucide-react";
+import { Pencil, Plus, Check, X, BarChart2, Table2 } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { C, STYLE } from "@/lib/design-tokens";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 
 // rendering-hoist-jsx: design token は定数なので module-level に巻き上げ
-const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`;
-const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2]`;
+const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`;
+const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent}`;
 
 // Relative
-import { useVitals } from "../../api/vitals";
-import { useCreateVital } from "../../api/vitals";
-import { useUpdateVital } from "../../api/vitals";
-import { useDeleteVital } from "../../api/vitals";
-import type { Vital, CreateVitalInput, UpdateVitalInput } from "../../types";
+import { VitalsGraph } from "./VitalsGraph";
+import { useGetVitals } from "@/features/medical-records/api/vitals";
+import { useCreateVital } from "@/features/medical-records/api/vitals";
+import { useUpdateVital } from "@/features/medical-records/api/vitals";
+import { useDeleteVital } from "@/features/medical-records/api/vitals";
+import type { Vital, CreateVitalInput, UpdateVitalInput, BodyWeightUnit } from "@/features/medical-records/types";
 
 // ── 静的定数 ─────────────────────────────────────────────────────────
 
@@ -29,7 +31,7 @@ const TABLE_HEADER = (
       <th className={`px-3 text-right text-xs font-medium ${C.text70} w-24`}>体温 (℃)</th>
       <th className={`px-3 text-right text-xs font-medium ${C.text70} w-24`}>心拍数 (bpm)</th>
       <th className={`px-3 text-right text-xs font-medium ${C.text70} w-24`}>呼吸数 (/min)</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-24`}>体重 (kg)</th>
+      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-32`}>体重</th>
       <th className={`px-3 text-left text-xs font-medium ${C.text70}`}>メモ</th>
       <th className={`px-2 text-right text-xs font-medium ${C.text70} w-24`}>操作</th>
     </tr>
@@ -59,6 +61,7 @@ interface AddFormState {
   heart_rate: string;
   respiratory_rate: string;
   body_weight: string;
+  weight_unit: BodyWeightUnit;
   note: string;
 }
 
@@ -68,6 +71,7 @@ const EMPTY_ADD_FORM: AddFormState = {
   heart_rate: "",
   respiratory_rate: "",
   body_weight: "",
+  weight_unit: "Kg",
   note: "",
 };
 
@@ -96,11 +100,12 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
     heart_rate: vital.heart_rate != null ? String(vital.heart_rate) : "",
     respiratory_rate: vital.respiratory_rate != null ? String(vital.respiratory_rate) : "",
     body_weight: vital.body_weight != null ? String(vital.body_weight) : "",
+    weight_unit: vital.weight_unit ?? "Kg",
     note: vital.note ?? "",
   });
 
   const handleChange = useCallback(
-    (field: keyof typeof form, value: string) => {
+    (field: string, value: string | BodyWeightUnit) => {
       setForm((prev) => ({ ...prev, [field]: value }));
     },
     []
@@ -111,12 +116,25 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
       toast.error("記録日時は必須です");
       return;
     }
+    const recordedDate = new Date(form.recorded_at);
+    if (recordedDate > new Date()) {
+      toast.error("未来の日時は入力できません");
+      return;
+    }
+
+    const temp = parseNumField(form.temperature);
+    if (temp !== null && (temp < 30 || temp > 45)) {
+      toast.error("体温は30〜45℃の範囲で入力してください");
+      return;
+    }
+
     const input: UpdateVitalInput = {
-      recorded_at: new Date(form.recorded_at).toISOString(),
-      temperature: parseNumField(form.temperature),
+      recorded_at: recordedDate.toISOString(),
+      temperature: temp,
       heart_rate: parseNumField(form.heart_rate),
       respiratory_rate: parseNumField(form.respiratory_rate),
       body_weight: parseNumField(form.body_weight),
+      weight_unit: form.weight_unit as BodyWeightUnit,
       note: form.note.trim() || null,
     };
     onSave(vital.id, input);
@@ -161,14 +179,23 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
         />
       </td>
       <td className="px-3 py-2">
-        <input
-          type="number"
-          step="0.01"
-          value={form.body_weight}
-          onChange={(e) => handleChange("body_weight", e.target.value)}
-          placeholder="-"
-          className={EDIT_INPUT_CLASS}
-        />
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            step="0.01"
+            value={form.body_weight}
+            onChange={(e) => handleChange("body_weight", e.target.value)}
+            placeholder="-"
+            className={`${EDIT_INPUT_CLASS} text-right`}
+          />
+          <button
+            type="button"
+            onClick={() => handleChange("weight_unit", form.weight_unit === "Kg" ? "g" : "Kg")}
+            className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} bg-gray-50 hover:bg-gray-100 min-w-[24px]`}
+          >
+            {form.weight_unit}
+          </button>
+        </div>
       </td>
       <td className="px-3 py-2">
         <input
@@ -187,7 +214,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
             className={`size-8 flex items-center justify-center rounded-[3px] ${C.textStatusGreen} ${C.hoverBgStatusGreen} transition-colors`}
             title="保存"
           >
-            <Check className="size-3.5" />
+            <Check className={`${ICON.xs}`} />
           </button>
           <button
             onClick={onCancel}
@@ -195,7 +222,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
             className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverBgLight} transition-colors`}
             title="キャンセル"
           >
-            <X className="size-3.5" />
+            <X className={`${ICON.xs}`} />
           </button>
         </div>
       </td>
@@ -251,7 +278,7 @@ interface VitalsTabProps {
 // ── Component ─────────────────────────────────────────────────────────
 
 export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
-  const { data: vitals, isLoading } = useVitals(medicalRecordId);
+  const { data: vitals, isLoading } = useGetVitals(medicalRecordId);
   const createMutation = useCreateVital(medicalRecordId);
   const updateMutation = useUpdateVital(medicalRecordId);
   const deleteMutation = useDeleteVital(medicalRecordId);
@@ -260,6 +287,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addForm, setAddForm] = useState<AddFormState>(EMPTY_ADD_FORM);
+  const [showGraph, setShowGraph] = useState(false);
 
   // recorded_at 昇順ソート済みリスト
   const sortedVitals: Vital[] = vitals
@@ -283,12 +311,34 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
       toast.error("記録日時は必須です");
       return;
     }
+    const recordedDate = new Date(addForm.recorded_at);
+    if (recordedDate > new Date()) {
+      toast.error("未来の日時は入力できません");
+      return;
+    }
+
+    const temp = parseNumField(addForm.temperature);
+    if (temp !== null && (temp < 30 || temp > 45)) {
+      toast.error("体温は30〜45℃の範囲で入力してください");
+      return;
+    }
+
+    // BUG-044: 数値フィールドがすべて未入力の場合は保存しない（サーバー500回避）
+    const heartRate = parseNumField(addForm.heart_rate);
+    const respiratoryRate = parseNumField(addForm.respiratory_rate);
+    const bodyWeight = parseNumField(addForm.body_weight);
+    if (temp === null && heartRate === null && respiratoryRate === null && bodyWeight === null) {
+      toast.error("体温・心拍数・呼吸数・体重のいずれかを入力してください");
+      return;
+    }
+
     const input: CreateVitalInput = {
-      recorded_at: new Date(addForm.recorded_at).toISOString(),
-      temperature: parseNumField(addForm.temperature),
-      heart_rate: parseNumField(addForm.heart_rate),
-      respiratory_rate: parseNumField(addForm.respiratory_rate),
-      body_weight: parseNumField(addForm.body_weight),
+      recorded_at: recordedDate.toISOString(),
+      temperature: temp,
+      heart_rate: heartRate,
+      respiratory_rate: respiratoryRate,
+      body_weight: bodyWeight,
+      weight_unit: addForm.weight_unit,
       note: addForm.note.trim() || null,
     };
     createMutation.mutate(input, {
@@ -350,6 +400,45 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
 
   return (
     <div className="flex flex-col gap-3 pb-24">
+      {/* ツールバー: 表示切り替え */}
+      {sortedVitals.length > 0 ? (
+        <div className="flex items-center justify-end">
+          <div className={`flex items-center border ${C.borderLight} rounded-[4px] overflow-hidden`}>
+            <button
+              type="button"
+              onClick={() => setShowGraph(false)}
+              className={[
+                "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors",
+                !showGraph
+                  ? `bg-white ${C.text} border-r ${C.borderLight}`
+                  : `${C.text60} ${C.hoverBgLight} border-r ${C.borderLight}`,
+              ].join(" ")}
+              title="テーブル表示"
+            >
+              <Table2 className={ICON.xs} />
+              テーブル
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowGraph(true)}
+              className={[
+                "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors",
+                showGraph ? `bg-white ${C.text}` : `${C.text60} ${C.hoverBgLight}`,
+              ].join(" ")}
+              title="グラフ表示"
+            >
+              <BarChart2 className={ICON.xs} />
+              グラフ
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* グラフ表示 */}
+      {showGraph && sortedVitals.length > 0 ? (
+        <VitalsGraph vitals={sortedVitals} />
+      ) : null}
+
       <div className={`${STYLE.tableContainer} overflow-x-auto`}>
         <table className="w-full">
           {TABLE_HEADER}
@@ -389,6 +478,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
                     </td>
                     <td className={`px-3 text-sm text-right ${C.text}`}>
                       {displayNum(vital.body_weight)}
+                      <span className="ml-0.5 text-[10px] text-gray-400">{vital.weight_unit}</span>
                     </td>
                     <td className={`px-3 text-sm ${C.text60}`}>
                       {vital.note ? vital.note : "-"}
@@ -400,16 +490,12 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
                           className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
                           title="編集"
                         >
-                          <Pencil className="size-3.5" />
+                          <Pencil className={`${ICON.xs}`} />
                         </button>
-                        <button
+                        <DeleteIconButton
                           onClick={() => setDeletingId(vital.id)}
                           disabled={deleteMutation.isPending}
-                          className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
-                          title="削除"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
+                        />
                       </div>
                     </td>
                   </tr>
@@ -451,14 +537,23 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
               placeholder="呼吸数"
               className={`${ADD_INPUT_CLASS} w-20`}
             />
-            <input
-              type="number"
-              step="0.01"
-              value={addForm.body_weight}
-              onChange={(e) => handleAddFormChange("body_weight", e.target.value)}
-              placeholder="体重"
-              className={`${ADD_INPUT_CLASS} w-20`}
-            />
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                step="0.01"
+                value={addForm.body_weight}
+                onChange={(e) => handleAddFormChange("body_weight", e.target.value)}
+                placeholder="体重"
+                className={`${ADD_INPUT_CLASS} w-20 text-right`}
+              />
+              <button
+                type="button"
+                onClick={() => handleAddFormChange("weight_unit", addForm.weight_unit === "Kg" ? "g" : "Kg")}
+                className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} bg-gray-50 hover:bg-gray-100 min-w-[24px]`}
+              >
+                {addForm.weight_unit}
+              </button>
+            </div>
             <input
               type="text"
               value={addForm.note}
@@ -489,7 +584,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
           </div>
         ) : (
           <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
-            <Plus className="size-3.5" />
+            <Plus className={`${ICON.xs}`} />
             <span>記録を追加</span>
           </button>
         )}

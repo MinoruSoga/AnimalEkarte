@@ -29,41 +29,44 @@
 
 ## 表示項目（検索フォーム）
 
-| フィールド名 | プレースホルダー例 | 備考 |
-|------------|-----------------|------|
-| 飼主No | 例: 30042 | `owners.id` |
-| 飼主名 | 例: 林 文明 | `owners.owner_name` |
-| 飼主名(カナ) | 例: ハヤシ フミアキ | `owners.owner_name_kana` |
-| 電話番号 | 例: 090-1234-5678 | `owners.phone` |
-| ペット名 | 例: Iris | `pets.name` |
-| ペット名(カナ) | 例: イリス | `pets.name_kana` |
-| 種別 | 例: 犬 | `pets.animal_species_id` → `animal_species` |
-| 住所 | 例: 東京都 | `owners.address1` / `owners.home_address1` |
+| フィールド名 | 項目ID | プレースホルダー例 | 備考 |
+|------------|--------|-----------------|------|
+| 飼主No | `ownerId` | 例: 30042 | `owners.id` |
+| 飼主名 | `ownerName` | 例: 林 文明 | `owners.owner_name` |
+| 飼主名(カナ) | `ownerNameKana` | 例: ハヤシ フミアキ | `owners.owner_name_kana` |
+| 電話番号 | `phone` | 例: 090-1234-5678 | `owners.phone` |
+| ペット名 | `petName` | 例: Iris | `pets.name` |
+| ペット名(カナ) | `petNameKana` | 例: イリス | `pets.name_kana` |
+| 種別 | `species` | 例: 犬 | `pets.animal_species_id` |
+| 住所 | `address` | 例: 東京都 | `owners.address1` |
 
 ## 表示項目（検索結果テーブル）
 
 | フィールド名 | 型 | 説明 | 備考 |
 |------------|-----|------|------|
-| 飼主No | string | 飼主ID番号 | `owners.id` |
-| 飼主名 | string | 飼い主氏名 | `owners.owner_name` |
-| ペット番号 | string | ペットの患者番号 | `pets.pet_number` |
-| ペット名 | string | ペットの名前 | `pets.name` |
-| 種 | string | 犬/猫等 | `pets.animal_species_id` → `animal_species` |
-| 生死 | enum | 生存/死亡ステータス | `pets.status` |
-| 生年月日 | date | ペットの誕生日 | `pets.birth_date` |
-| 担当医 | string | 担当獣医師名 | `staffs.name` |
+| 飼主No | string | 飼主ID番号 | `pet.ownerNumber` |
+| 飼主名 | string | 飼い主氏名 | `pet.ownerName` |
+| ペット番号 | string | ペットの患者番号 | `pet.petNumber` |
+| ペット名 | string | ペットの名前 | `pet.name` |
+| 生死 | enum | 生存/死亡ステータス | `pet.status` |
+| 種 | string | 犬/猫等 | `pet.species` |
+| 生年月日 | date | ペットの誕生日 | `pet.birthDate` |
+| 体重 | decimal | 最新体重(kg) | `pet.weight` |
+| 環境 | string | 飼育環境 | `pet.environment` |
+| 前回来院 | date | 最終来院日 | `pet.lastVisit` |
 
 ## UI コンポーネント
-- **`[S] PetSearchForm`**: 検索条件フォーム（8フィールドのグリッドレイアウト。条件入力後に「検索」ボタンで非同期検索。条件クリアボタン付き）
-- **`[S] PetSearchResultsTable`**: 検索結果テーブル（行クリックまたは「選択」ボタンでペット選択）
-- **`[H] usePetSearch`**: 検索状態管理フック（`searchParams`, `results`, `isSearching`, `hasSearched`）
+- **`[R] MedicalRecordPetSelection`**: カルテ用ペット選択ページ
+- **`[S] PetSelectionSearchForm`**: 共通検索条件フォーム
+- **`[S] PetSelectionResultsTable`**: 共通検索結果テーブル
+- **`[H] usePetSelectionPage`**: 検索・選択ロジックをカプセル化したフック
 - **`[S] PageLayout`**: ページコンテナ（戻るボタン付き）
 
 ## ユーザーアクション
 
 | アクション | トリガー | 処理内容 | 遷移先 |
 |-----------|---------|---------|--------|
-| 検索 | 「検索」ボタンまたはEnterキー | 条件に一致するペット一覧を取得 | 同画面（結果表示） |
+| 検索 | 「検索」ボタン | 条件に一致するペット一覧を取得 | 同画面（結果表示） |
 | クリア | 「クリア」ボタン | 検索条件をリセット | 同画面 |
 | ペット選択 | 行クリックまたは「選択」ボタン | 選択ペットIDをクエリパラメータに付与 | 遷移元の新規作成フォーム (`?petId=xxx`) |
 | 戻る | 戻るボタン | 遷移元画面に戻る | `/medical-records` 等 |
@@ -72,34 +75,42 @@
 
 | 遷移元 | 遷移先 | 条件 |
 |--------|--------|------|
-| カルテ一覧 `/medical-records` | カルテフォーム `/medical-records/new?petId=xxx` | ペット選択後 |
-| 入院一覧 `/hospitalization` | 入院フォーム `/hospitalization/new?petId=xxx` | ペット選択後 |
-| トリミング一覧 `/trimming` | トリミングフォーム `/trimming/new?petId=xxx` | ペット選択後 |
-| 会計一覧 `/accounting` | 会計精算 `/accounting/new?petId=xxx` | ペット選択後 |
+| 各一覧画面 | `/:feature/select-pet` | 新規作成ボタン |
+| ペット選択後 | `/:feature/new?petId=xxx` | ペット選択後 |
 
-## バリデーション
-- 検索ボタンは条件が1つ以上入力された場合のみ有効（`hasConditions` チェック）
-- 検索結果が0件の場合は「該当するペットが見つかりません」を表示
-- 検索実行中は「クリア」「検索」ボタンを disabled
+## 機能詳細
+
+### 1. 臨床安全ガード（死亡ペット対応）
+- **視覚的フィードバック**: ステータスが「死亡 (deceased)」のペットは、検索結果一覧において行全体がグレーアウトされ、不透明度が下げられます。
+- **選択不可**: 死亡ペットの行はクリックが無効化され、選択ボタンも非表示または無効（disabled）になります。これにより、死亡後のペットに対して誤ってカルテ、入院、トリミング、予防接種等の記録を作成することを物理的に防止します。
+
+### 2. 遷移元情報の保持と復元
+- どの機能から呼び出されたかを `location.state.from` で保持し、選択後に正しい新規作成画面（`/medical-records/new` 等）へ遷移させる。
+- 戻るボタン押下時も、この情報を元に元の機能の一覧画面へ戻る。
+
+### 2. 非同期検索ロジック
+- 検索ボタン押下時に API (`/api/v1/pets`) を呼び出す。
+- 入力値が空の場合は全件取得ではなく、検索条件の入力を促す（または初期状態で特定条件のリストを表示）。
+
+### 3. ステートの受け渡し
+- ペット選択時、`navigate` の `search` パラメータに `petId` を、`state` には `activeTab` などの補助情報を付与して遷移先に渡す。
 
 ## 状態管理
 
 | 状態 | 型 | 説明 |
 |------|-----|------|
-| `searchParams` | `PetSearchParams` | 8フィールドの検索条件オブジェクト |
-| `results` | `Pet[]` | 検索結果一覧 |
-| `isSearching` | `boolean` | 検索実行中フラグ |
-| `hasSearched` | `boolean` | 検索済みフラグ（初期状態と結果0件の表示切替に使用） |
+| `searchParams` | `PetSelectionSearchParams` | 8フィールドの検索条件オブジェクト |
+| `filteredPets` | `Pet[]` | 検索・フィルタ適用後のペット一覧 |
 
 ## API連携
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/pets` | ペット一覧取得（検索パラメータ付き） | 実装済 |
+| GET | `/api/v1/pets` | ペット一覧取得（検索パラメータ `owner_name`, `name` 等に対応） | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済（`[R] MedicalRecordPetSelection`、`[S] PetSearchForm` + `[S] PetSearchResultsTable` の共通コンポーネント使用）
-- バックエンドAPI: 実装済（`/pets` エンドポイント）
+- フロントエンド: 実装済（`features/medical-records/routes/MedicalRecordPetSelection.tsx` 等）
+- バックエンドAPI: 実装済（`handler/pet_handler.go`）
 
 ## 備考
 - 旧仕様のリアルタイム検索（テキスト入力毎にフィルタリング）から、**検索ボタン式の非同期検索**に変更されている

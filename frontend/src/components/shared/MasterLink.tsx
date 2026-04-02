@@ -1,3 +1,4 @@
+import { C, ICON } from "@/lib/design-tokens";
 import { Settings } from "lucide-react";
 import { Link } from "react-router";
 
@@ -53,9 +54,9 @@ export function MasterLink({ category, label = "マスタ管理", className }: M
   return (
     <Link
       to={path}
-      className={`inline-flex items-center gap-1 text-xs text-[#37352F]/40 hover:text-[#37352F]/70 transition-colors ${className || ""}`}
+      className={`inline-flex items-center gap-1 text-xs ${C.text40} ${C.hoverText}/70 transition-colors ${className || ""}`}
     >
-      <Settings className="size-3" />
+      <Settings className={ICON.xs} />
       <span>{label}</span>
     </Link>
   );

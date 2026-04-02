@@ -17,12 +17,12 @@ type TrimmingCourse struct {
 	ID          uint64      `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64      `gorm:"not null"                                       json:"clinic_id"`
 	Name        string      `gorm:"not null"                                       json:"name"`
-	Price       *float64    `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
+	Price       *int64      `gorm:"type:bigint"                                    json:"price,omitempty"`
 	IsActive    bool        `gorm:"default:true"                                   json:"is_active"`
 	Description string      `gorm:"default:''"                                     json:"description"`
 	TargetSize  *TargetSize `gorm:"type:target_size"                               json:"target_size,omitempty"`
 	Duration    *int        `gorm:"type:integer"                                   json:"duration,omitempty"`
-	SortOrder   int         `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder   int         `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt   time.Time   `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time   `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
@@ -33,12 +33,12 @@ type TrimmingOption struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`
 	Name        string    `gorm:"not null"                                       json:"name"`
-	Price       *float64  `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
+	Price       *int64    `gorm:"type:bigint"                                    json:"price,omitempty"`
 	IsActive    bool      `gorm:"default:true"                                   json:"is_active"`
 	Description string    `gorm:"default:''"                                     json:"description"`
 	Duration    *int      `gorm:"type:integer"                                   json:"duration,omitempty"`
 	Combinable  bool      `gorm:"default:true"                                   json:"combinable"`
-	SortOrder   int       `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder   int       `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }

@@ -5,6 +5,10 @@
 //////////
 // source: accounting.go
 
+export type TaxType = string;
+export const TaxTypeIncluded: TaxType = "included"; // 内税
+export const TaxTypeExcluded: TaxType = "excluded"; // 外税
+export const TaxTypeExempt: TaxType = "exempt"; // 非課税
 export type BillingStatus = string;
 export const BillingStatusWaiting: BillingStatus = "waiting";
 export const BillingStatusCompleted: BillingStatus = "completed";
@@ -45,6 +49,10 @@ export interface Billing {
   created_at: string;
   updated_at: string;
   /**
+   * 仮想フィールド（DB列なし）— FindAll のサブクエリで集計
+   */
+  total_refunded_amount: number /* int64 */;
+  /**
    * Relations
    */
   owner?: Owner;
@@ -52,14 +60,16 @@ export interface Billing {
   medical_record?: MedicalRecord;
   items?: BillingItem[];
   payments?: Payment[];
+  refunds?: BillingRefund[];
 }
 export interface BillingItem {
   id: number /* uint64 */;
   billing_id: number /* uint64 */;
   category: ItemCategory;
   name: string;
-  unit_price: number /* float64 */;
-  quantity: number /* int */;
+  unit_price: number /* int64 */;
+  quantity: number /* float64 */;
+  tax_type: TaxType;
   tax_rate: number /* float64 */;
   is_insurance_applicable: boolean;
   source: ItemSource;
@@ -69,16 +79,16 @@ export interface BillingItem {
 export interface Payment {
   id: number /* uint64 */;
   billing_id: number /* uint64 */;
-  subtotal: number /* float64 */;
-  tax_total: number /* float64 */;
-  total_amount: number /* float64 */;
+  subtotal: number /* int64 */;
+  tax_total: number /* int64 */;
+  total_amount: number /* int64 */;
   insurance_name: string;
   insurance_ratio: number /* float64 */;
-  insurance_amount: number /* float64 */;
-  discount_amount: number /* float64 */;
-  billing_amount: number /* float64 */;
-  received_amount: number /* float64 */;
-  change_amount: number /* float64 */;
+  insurance_amount: number /* int64 */;
+  discount_amount: number /* int64 */;
+  billing_amount: number /* int64 */;
+  received_amount: number /* int64 */;
+  change_amount: number /* int64 */;
   method: PaymentMethod;
   created_at: string;
   updated_at: string;
@@ -97,6 +107,97 @@ export interface AnimalSpecies {
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
+}
+
+//////////
+// source: audit_log.go
+
+/**
+ * AuditLog は権限変更・認証操作の記録。削除禁止テーブル。
+ */
+export interface AuditLog {
+  id: number /* uint64 */;
+  clinic_id?: number /* uint64 */;
+  actor_id?: number /* uint64 */;
+  actor_type: string;
+  action: string;
+  resource: string;
+  resource_id?: number /* uint64 */;
+  old_value: string /* []byte */;
+  new_value: string /* []byte */;
+  ip_address: string;
+  user_agent: string;
+  created_at: string;
+}
+/**
+ * 監査アクション定数
+ */
+export const AuditActionPermissionGroupCreate = "permission_group.create";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionPermissionGroupUpdate = "permission_group.update";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionPermissionGroupDelete = "permission_group.delete";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionPermissionRulesUpdate = "permission_rules.update";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionUserPermissionGroupSet = "user_permission_group.set";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionAuthLoginSuccess = "auth.login.success";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionAuthLoginFailure = "auth.login.failure";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionAuthLogout = "auth.logout";
+
+//////////
+// source: auth.go
+
+/**
+ * RefreshToken はリフレッシュトークンのDBモデル
+ */
+export interface RefreshToken {
+  id: number /* uint64 */;
+  user_id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  expires_at: string;
+  revoked_at?: string;
+  created_at: string;
+}
+/**
+ * PasswordResetToken はパスワードリセットトークンのDBモデル
+ */
+export interface PasswordResetToken {
+  id: number /* uint64 */;
+  user_id: number /* uint64 */;
+  expires_at: string;
+  used_at?: string;
+  created_at: string;
+}
+
+//////////
+// source: billing_refund.go
+
+export interface BillingRefund {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  billing_id: number /* uint64 */;
+  amount: number /* int64 */; // 返金額（正の整数、円）
+  reason: string;
+  refunded_at: string;
+  created_at: string;
 }
 
 //////////
@@ -148,7 +249,7 @@ export interface Cage {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   cage_type: CageType;
@@ -163,6 +264,7 @@ export interface Cage {
 
 export interface Checkup {
   id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
   medical_record_id: number /* uint64 */;
   pet_id?: number /* uint64 */;
   checkup_type_id: number /* uint64 */;
@@ -188,7 +290,7 @@ export interface CheckupType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   interval: string;
@@ -227,17 +329,6 @@ export type AccountStatus = string;
 export const AccountStatusActive: AccountStatus = "active";
 export const AccountStatusInactive: AccountStatus = "inactive";
 export const AccountStatusLocked: AccountStatus = "locked";
-export type PermissionType = string;
-export const PermissionAccountAdmin: PermissionType = "account_admin";
-export const PermissionMedical: PermissionType = "medical";
-export const PermissionMedicalRead: PermissionType = "medical_read";
-export const PermissionTrimming: PermissionType = "trimming";
-export const PermissionBilling: PermissionType = "billing";
-export const PermissionReception: PermissionType = "reception";
-export const PermissionHospitalization: PermissionType = "hospitalization";
-export const PermissionMasterAdmin: PermissionType = "master_admin";
-export const PermissionShiftAdmin: PermissionType = "shift_admin";
-export const PermissionInventory: PermissionType = "inventory";
 export interface Clinic {
   id: number /* uint64 */;
   company_id: number /* uint64 */;
@@ -252,6 +343,8 @@ export interface Clinic {
   website: string;
   logo_url: string;
   is_active: boolean;
+  standard_tax_rate: number /* float64 */;
+  reduced_tax_rate: number /* float64 */;
   created_at: string;
   updated_at: string;
 }
@@ -280,13 +373,41 @@ export interface UserClinicMembership {
   is_main: boolean;
   joined_at: string;
 }
-export interface UserPermission {
+/**
+ * PermissionGroup は権限グループ定義（company単位で管理）
+ */
+export interface PermissionGroup {
   id: number /* uint64 */;
+  company_id: number /* uint64 */;
+  name: string;
+  description: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
+  /**
+   * Relations
+   */
+  rules?: PermissionGroupRule[];
+}
+/**
+ * PermissionGroupRule はグループ×ページ×CRUD権限
+ */
+export interface PermissionGroupRule {
+  id: number /* uint64 */;
+  group_id: number /* uint64 */;
+  resource: Resource;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+}
+/**
+ * UserPermissionGroup はユーザー→グループ紐付け
+ */
+export interface UserPermissionGroup {
   user_id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  permission: PermissionType;
-  granted_by?: number /* uint64 */;
-  granted_at: string;
+  group_id: number /* uint64 */;
 }
 
 //////////
@@ -301,6 +422,8 @@ export interface ClinicalPlan {
   physical_exam: string;
   diagnosis_category_id?: number /* uint64 */;
   diagnosis_name_id?: number /* uint64 */;
+  diagnosis_2_category_id?: number /* uint64 */;
+  diagnosis_2_name_id?: number /* uint64 */;
   diagnosis_details: string;
   treatment_policy: string;
   created_at: string;
@@ -311,6 +434,8 @@ export interface ClinicalPlan {
   medical_record?: MedicalRecord;
   diagnosis_category?: DiagnosisCategory;
   diagnosis_name?: DiagnosisName;
+  diagnosis_2_category?: DiagnosisCategory;
+  diagnosis_2_name?: DiagnosisName;
 }
 
 //////////
@@ -330,6 +455,7 @@ export interface Company {
   website: string;
   director_name: string;
   registration_number: string;
+  invoice_registration_number: string;
   logo_url: string;
   created_at: string;
   updated_at: string;
@@ -342,12 +468,14 @@ export interface Consultation {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   time_condition: string;
   duration?: number /* int */;
   parent_id?: number /* uint64 */;
+  tax_type: TaxType;
+  tax_rate: number /* float64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -408,11 +536,11 @@ export interface Estimate {
   title: string;
   owner_id?: number /* uint64 */;
   status: EstimateStatus;
-  subtotal: number /* float64 */;
-  tax_total: number /* float64 */;
-  total_amount: number /* float64 */;
-  insurance_amount: number /* float64 */;
-  discount_amount: number /* float64 */;
+  subtotal: number /* int64 */;
+  tax_total: number /* int64 */;
+  total_amount: number /* int64 */;
+  insurance_amount: number /* int64 */;
+  discount_amount: number /* int64 */;
   valid_until?: string;
   comment: string;
   notes: string;
@@ -435,17 +563,19 @@ export interface EstimateItem {
   estimate_id: number /* uint64 */;
   name: string;
   category: ItemCategory;
-  unit_price: number /* float64 */;
-  quantity: number /* int */;
+  unit_price: number /* int64 */;
+  quantity: number /* float64 */;
+  tax_type: TaxType;
   tax_rate: number /* float64 */;
   discount_rate: number /* float64 */;
-  discount_amount: number /* float64 */;
+  discount_amount: number /* int64 */;
   is_insurance_applicable: boolean;
   consultation_id?: number /* uint64 */;
   procedure_id?: number /* uint64 */;
   medicine_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
+  updated_at: string;
   /**
    * Relations
    */
@@ -460,14 +590,17 @@ export interface EstimateItem {
 export type ExaminationStatus = string;
 export const ExaminationStatusPending: ExaminationStatus = "pending";
 export const ExaminationStatusInProgress: ExaminationStatus = "in_progress";
+export const ExaminationStatusResultEntered: ExaminationStatus = "result_entered";
 export const ExaminationStatusCompleted: ExaminationStatus = "completed";
+export const ExaminationStatusConfirmed: ExaminationStatus = "confirmed";
 export type ExaminationResultStatus = string;
 export const ExaminationResultStatusNormal: ExaminationResultStatus = "normal";
 export const ExaminationResultStatusHigh: ExaminationResultStatus = "high";
 export const ExaminationResultStatusLow: ExaminationResultStatus = "low";
 export interface Examination {
   id: number /* uint64 */;
-  medical_record_id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  medical_record_id?: number /* uint64 */;
   pet_id?: number /* uint64 */;
   exam_type_id: number /* uint64 */;
   doctor_id?: number /* uint64 */;
@@ -496,6 +629,9 @@ export interface ExaminationItem {
   result: string;
   unit: string;
   ref: string;
+  ref_min?: number /* float64 */;
+  ref_max?: number /* float64 */;
+  is_abnormal: boolean;
   status: ExaminationResultStatus;
   sort_order: number /* int */;
   created_at: string;
@@ -513,7 +649,7 @@ export interface ExaminationType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   parent_id?: number /* uint64 */;
@@ -531,8 +667,10 @@ export interface ExaminationTypeItem {
   name: string;
   inspection_value: string;
   normal_value: string;
+  unit: string;
   sort_order: number /* int */;
   created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -598,7 +736,7 @@ export interface CarePlanItem {
   medicine_id?: number /* uint64 */;
   procedure_id?: number /* uint64 */;
   hospitalization_plan_id?: number /* uint64 */;
-  unit_price: number /* float64 */;
+  unit_price: number /* int64 */;
   category: string;
   sort_order: number /* int */;
   created_at: string;
@@ -617,11 +755,11 @@ export interface TreatmentPlan {
   treatment_content: string;
   memo: string;
   insurance: boolean;
-  unit_price: number /* float64 */;
-  quantity: number /* int */;
+  unit_price: number /* int64 */;
+  quantity: number /* float64 */;
   discount_rate: number /* float64 */;
-  discount_amount: number /* float64 */;
-  subtotal: number /* float64 */;
+  discount_amount: number /* int64 */;
+  subtotal: number /* int64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -633,6 +771,7 @@ export interface TreatmentPlan {
 }
 export interface DailyRecord {
   id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
   hospitalization_id: number /* uint64 */;
   date: string;
   created_at: string;
@@ -643,22 +782,6 @@ export interface DailyRecord {
   vital_records?: VitalRecord[];
   care_log_records?: CareLogRecord[];
   staff_note_records?: StaffNoteRecord[];
-}
-export interface VitalRecord {
-  id: number /* uint64 */;
-  daily_record_id: number /* uint64 */;
-  time: string;
-  temperature?: number /* float64 */;
-  heart_rate?: number /* int */;
-  respiration_rate?: number /* int */;
-  weight?: number /* float64 */;
-  notes: string;
-  staff_id?: number /* uint64 */;
-  created_at: string;
-  /**
-   * Relations
-   */
-  staff?: Staff;
 }
 export type CareLogType = string;
 export const CareLogTypeFood: CareLogType = "food";
@@ -680,6 +803,7 @@ export interface CareLogRecord {
   staff_id?: number /* uint64 */;
   notes: string;
   created_at: string;
+  updated_at: string;
   /**
    * Relations
    */
@@ -692,6 +816,7 @@ export interface StaffNoteRecord {
   content: string;
   staff_id?: number /* uint64 */;
   created_at: string;
+  updated_at: string;
   /**
    * Relations
    */
@@ -712,11 +837,13 @@ export interface HospitalizationPlan {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   body_size?: BodySize;
   billing_unit?: BillingUnit;
+  tax_type: TaxType;
+  tax_rate: number /* float64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -866,8 +993,10 @@ export interface MedicalRecord {
   doctor_id?: number /* uint64 */;
   reservation_appointment_id?: number /* uint64 */;
   status: MedicalRecordStatus;
+  version: number /* int */;
   created_at: string;
   updated_at: string;
+  visit_count: number /* int64 */;
   /**
    * Relations
    */
@@ -877,7 +1006,7 @@ export interface MedicalRecord {
   clinical_plan?: ClinicalPlan;
   inquiry?: Inquiry;
   treatments?: Treatment[];
-  vitals?: Vital[];
+  vitals?: VitalRecord[];
   exams?: Examination[];
   vaccinations?: Vaccination[];
   checkups?: Checkup[];
@@ -905,13 +1034,15 @@ export interface Medicine {
   clinic_id: number /* uint64 */;
   name: string;
   parent_id?: number /* uint64 */;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   dosage_form?: DosageForm;
   medicine_unit?: MedicineUnit;
   inventory_id?: number /* uint64 */;
-  default_quantity: number /* int */;
+  default_quantity: number /* float64 */;
+  tax_type: TaxType;
+  tax_rate: number /* float64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -919,6 +1050,26 @@ export interface Medicine {
    * Relations
    */
   inventory?: InventoryItem;
+}
+
+//////////
+// source: merchandise_item.go
+
+/**
+ * MerchandiseItem は物販・フード・その他マスタアイテム
+ */
+export interface MerchandiseItem {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  category: ItemCategory;
+  unit_price: number /* int64 */;
+  tax_type: TaxType;
+  tax_rate: number /* float64 */;
+  is_active: boolean;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -956,6 +1107,29 @@ export interface Owner {
    */
   pets?: Pet[];
 }
+
+//////////
+// source: permission.go
+
+/**
+ * Resource はフロントエンドのページ識別子（権限管理用）
+ */
+export type Resource = string;
+export const ResourceDashboard: Resource = "dashboard";
+export const ResourceOwners: Resource = "owners";
+export const ResourceReservations: Resource = "reservations";
+export const ResourceMedicalRecords: Resource = "medical-records";
+export const ResourceHospitalization: Resource = "hospitalization";
+export const ResourceTrimming: Resource = "trimming";
+export const ResourceExaminations: Resource = "examinations";
+export const ResourceAccounting: Resource = "accounting";
+export const ResourceVaccinations: Resource = "vaccinations";
+export const ResourceCheckups: Resource = "checkups";
+export const ResourceInventory: Resource = "inventory";
+export const ResourceEstimates: Resource = "estimates";
+export const ResourceShifts: Resource = "shifts";
+export const ResourceMaster: Resource = "master";
+export const ResourceHospitalSettings: Resource = "hospital-settings";
 
 //////////
 // source: pet.go
@@ -1021,12 +1195,14 @@ export interface Procedure {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   duration?: number /* int */;
   anesthesia: AnesthesiaType;
   parent_id?: number /* uint64 */;
+  tax_type: TaxType;
+  tax_rate: number /* float64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -1204,15 +1380,16 @@ export interface Treatment {
   procedure_id?: number /* uint64 */;
   medicine_id?: number /* uint64 */;
   inventory_id?: number /* uint64 */;
-  unit_price: number /* float64 */;
-  quantity: number /* int */;
+  unit_price: number /* int64 */;
+  quantity: number /* float64 */;
   selected: boolean;
   status: TreatmentStatus;
   content: string;
   memo: string;
+  admin_route: string;
   insurance: boolean;
   discount_rate: number /* float64 */;
-  discount_amount: number /* float64 */;
+  discount_amount: number /* int64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -1233,9 +1410,6 @@ export type TrimmingStatus = string;
 export const TrimmingStatusCompleted: TrimmingStatus = "completed";
 export const TrimmingStatusReserved: TrimmingStatus = "reserved";
 export const TrimmingStatusInProgress: TrimmingStatus = "in_progress";
-export type BodyWeightUnit = string;
-export const BodyWeightUnitKg: BodyWeightUnit = "Kg";
-export const BodyWeightUnitG: BodyWeightUnit = "g";
 export interface TrimmingRecord {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -1243,12 +1417,11 @@ export interface TrimmingRecord {
   pet_id?: number /* uint64 */;
   staff_id?: number /* uint64 */;
   course_id?: number /* uint64 */;
-  weight: string;
   status: TrimmingStatus;
   style_request: string;
-  bw: string;
+  bw?: number /* float64 */;
   bw_unit: BodyWeightUnit;
-  bt: string;
+  bt?: number /* float64 */;
   used_shampoo: string;
   used_ribbon: string;
   remarks: string;
@@ -1269,6 +1442,8 @@ export interface TrimmingRecordOption {
   trimming_record_id: number /* uint64 */;
   option_id: number /* uint64 */;
   sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -1283,7 +1458,7 @@ export interface TrimmingCourse {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   target_size?: TargetSize;
@@ -1296,7 +1471,7 @@ export interface TrimmingOption {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   duration?: number /* int */;
@@ -1352,7 +1527,7 @@ export interface Vaccine {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   species?: VaccineSpecies;
@@ -1367,23 +1542,26 @@ export interface Vaccine {
 //////////
 // source: vital.go
 
-/**
- * Vital は外来バイタル記録
- */
-export interface Vital {
-  id: number /* uint64 */;
-  medical_record_id: number /* uint64 */;
-  recorded_at: string;
-  staff_id?: number /* uint64 */;
-  temperature?: number /* float64 */;
-  heart_rate?: number /* int */;
-  respiration_rate?: number /* int */;
-  weight?: number /* float64 */;
-  notes: string;
-  created_at: string;
-  /**
-   * Relations
-   */
-  medical_record?: MedicalRecord;
-  staff?: Staff;
+export type BodyWeightUnit = string;
+export const BodyWeightUnitKg: BodyWeightUnit = "Kg";
+export const BodyWeightUnitG: BodyWeightUnit = "g";
+export interface VitalRecord {
+  ID: number /* uint64 */;
+  PetID: number /* uint64 */;
+  MedicalRecordID?: number /* uint64 */;
+  DailyRecordID?: number /* uint64 */;
+  RecordedAt: string;
+  StaffID?: number /* uint64 */;
+  Temperature?: number /* float64 */;
+  HeartRate?: number /* int */;
+  RespirationRate?: number /* int */;
+  Weight?: number /* float64 */;
+  WeightUnit: BodyWeightUnit;
+  Notes: string;
+  CreatedAt: string;
+  UpdatedAt: string;
+  Pet?: Pet;
+  MedicalRecord?: MedicalRecord;
+  DailyRecord?: DailyRecord;
+  Staff?: Staff;
 }

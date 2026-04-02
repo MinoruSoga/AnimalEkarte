@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -33,30 +32,29 @@ func NewDailyRecordRepository(db *gorm.DB) DailyRecordRepository {
 
 func (r *dailyRecordRepository) ListByHospitalizationID(ctx context.Context, hospitalizationID uint64) ([]model.DailyRecord, error) {
 	records := make([]model.DailyRecord, 0)
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Where("hospitalization_id = ?", hospitalizationID).
 		Order("date DESC").
 		Preload("VitalRecords").
 		Preload("CareLogRecords").
 		Preload("StaffNoteRecords").
-		Find(&records).Error; err != nil {
-		return nil, apperrors.Wrap(err, "list daily records")
+		Find(&records).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "daily_record", "")
 	}
 	return records, nil
 }
 
 func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Context, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
 	var record model.DailyRecord
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Where("hospitalization_id = ? AND date = ?", hospitalizationID, date).
 		Preload("VitalRecords").
 		Preload("CareLogRecords").
 		Preload("StaffNoteRecords").
-		First(&record).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("daily_record", fmt.Sprintf("%d/%s", hospitalizationID, date.Format("2006-01-02")))
-		}
-		return nil, apperrors.Wrap(err, "find daily record by date")
+		First(&record).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("%d/%s", hospitalizationID, date.Format("2006-01-02")))
 	}
 	return &record, nil
 }
@@ -70,28 +68,31 @@ func (r *dailyRecordRepository) GetOrCreateByDate(ctx context.Context, hospitali
 		Where(model.DailyRecord{HospitalizationID: hospitalizationID, Date: date}).
 		FirstOrCreate(&record)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "get or create daily record")
+		return nil, apperrors.FromGORM(result.Error, "daily_record", "")
 	}
 	return &record, nil
 }
 
 func (r *dailyRecordRepository) CreateVitalRecord(ctx context.Context, vr *model.VitalRecord) error {
-	if err := r.db.WithContext(ctx).Create(vr).Error; err != nil {
-		return apperrors.Wrap(err, "create vital record")
+	err := r.db.WithContext(ctx).Create(vr).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "vital_record", "")
 	}
 	return nil
 }
 
 func (r *dailyRecordRepository) CreateCareLogRecord(ctx context.Context, cr *model.CareLogRecord) error {
-	if err := r.db.WithContext(ctx).Create(cr).Error; err != nil {
-		return apperrors.Wrap(err, "create care log record")
+	err := r.db.WithContext(ctx).Create(cr).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "care_log_record", "")
 	}
 	return nil
 }
 
 func (r *dailyRecordRepository) CreateStaffNoteRecord(ctx context.Context, sn *model.StaffNoteRecord) error {
-	if err := r.db.WithContext(ctx).Create(sn).Error; err != nil {
-		return apperrors.Wrap(err, "create staff note record")
+	err := r.db.WithContext(ctx).Create(sn).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "staff_note_record", "")
 	}
 	return nil
 }

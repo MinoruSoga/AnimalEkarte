@@ -9,21 +9,15 @@ import { FileText, Settings } from "lucide-react";
 import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { C, LAYOUT } from "@/lib/design-tokens";
+import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { C, LAYOUT, ICON, STYLE } from "@/lib/design-tokens";
 
 // Relative
 import { useGetChiefComplaintCategories } from "../api/get-chief-complaint-categories";
 
 interface InterviewChiefComplaintProps {
+  className?: string;
   chiefComplaint: string;
   setChiefComplaint: (value: string) => void;
   chiefComplaintCategoryId: number | null;
@@ -33,6 +27,7 @@ interface InterviewChiefComplaintProps {
 }
 
 export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
+  className,
   chiefComplaint,
   setChiefComplaint,
   chiefComplaintCategoryId,
@@ -44,14 +39,14 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   const { data: categories = [], isLoading } = useGetChiefComplaintCategories();
 
   return (
-    <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent gap-0">
-      <CardHeader className="p-0 pb-1.5">
-        <CardTitle className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
-          <FileText className="size-4" />
+    <div className={`flex flex-col ${className ?? ""}`}>
+      <div className="pb-1.5">
+        <h4 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
+          <FileText className={ICON.action} />
           主訴情報
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0 flex-1 flex flex-col gap-2 min-h-0">
+        </h4>
+      </div>
+      <div className="flex-1 flex flex-col gap-2 min-h-0">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label className={`text-sm ${C.text60}`}>主訴区分</Label>
@@ -60,7 +55,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
               className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
               type="button"
             >
-              <Settings className="size-3" />
+              <Settings className={ICON.xs} />
               マスタ編集
             </button>
           </div>
@@ -90,7 +85,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
               className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
               type="button"
             >
-              <Settings className="size-3" />
+              <Settings className={ICON.xs} />
               マスタ編集
             </button>
           </div>
@@ -111,13 +106,14 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
 
         <div className="flex-1 flex flex-col gap-1.5 min-h-0">
           <Label className={`text-sm ${C.text60}`}>主訴詳細</Label>
-          <Textarea
+          <CharCountTextarea
             value={chiefComplaint}
-            onChange={(e) => setChiefComplaint(e.target.value)}
-            className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 leading-relaxed font-mono`}
+            onChange={setChiefComplaint}
+            className="flex-1 min-h-0"
+            textareaClassName={`${STYLE.textarea} min-h-0`}
           />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 });

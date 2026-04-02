@@ -1,5 +1,5 @@
 // React/Framework
-import { useRef, useCallback, useMemo } from "react";
+import { memo, useRef, useCallback, useMemo } from "react";
 import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
 
 // External
@@ -10,7 +10,7 @@ import { motion } from "motion/react";
 // Internal
 import { getReservationTypeColor, getReservationTypeName } from "@/utils/status-helpers";
 import { C, PALETTE } from "@/lib/design-tokens";
-import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 // Types
 import type { ReservationAppointment, ReservationStatus } from "@/types";
@@ -106,12 +106,12 @@ const calculateEventLayout = (
       }
     });
 
-    const w = 100 / columns.length;
+    const columnWidth = 100 / columns.length;
     cluster.forEach((ev) => {
       const colIndex = eventColIndex[ev.id];
       styles[ev.id] = {
-        left: `${colIndex * w}%`,
-        width: `${w}%`,
+        left: `${colIndex * columnWidth}%`,
+        width: `${columnWidth}%`,
       };
     });
   });
@@ -120,9 +120,9 @@ const calculateEventLayout = (
 };
 
 // Sub-component: Time Sidebar
-function TimeSidebar() {
+const TimeSidebar = memo(function TimeSidebar() {
   return (
-    <div className={`w-12 flex-shrink-0 flex flex-col ${C.bgPage} border-r border-[rgba(55,53,47,0.16)] z-30 sticky left-0`}>
+    <div className={`w-12 flex-shrink-0 flex flex-col ${C.bgPage} border-r ${C.borderMedium} z-30 sticky left-0`}>
       {HOURS.map((hour) => (
         <div
           key={hour}
@@ -135,10 +135,10 @@ function TimeSidebar() {
       ))}
     </div>
   );
-}
+});
 
 // Sub-component: Appointment Card
-function AppointmentCard({
+const AppointmentCard = memo(function AppointmentCard({
   appointment,
   layoutStyle,
   onClick,
@@ -338,10 +338,10 @@ function AppointmentCard({
       ) : null}
     </motion.div>
   );
-}
+});
 
 // Sub-component: Day Column
-function DayColumn({
+const DayColumn = memo(function DayColumn({
   date,
   appointments,
   onAppointmentClick,
@@ -419,8 +419,8 @@ function DayColumn({
 
   return (
     <div
-      className={`flex-1 flex-shrink-0 border-r border-[rgba(55,53,47,0.16)] relative ${
-        isToday ? "bg-[#D3E5EF]/8" : ""
+      className={`flex-1 flex-shrink-0 border-r ${C.borderMedium} relative ${
+        isToday ? C.bgAccentLight8 : ""
       }`}
       style={{ minWidth: "20%" }}
       onClick={handleColumnClick}
@@ -432,7 +432,7 @@ function DayColumn({
         {HOURS.map((_, h) => (
           <div
             key={h}
-            className="border-b border-[rgba(55,53,47,0.06)] w-full"
+            className={`border-b ${C.borderDivider} w-full`}
             style={{ height: `${HOUR_HEIGHT}px` }}
           />
         ))}
@@ -461,7 +461,7 @@ function DayColumn({
       ))}
     </div>
   );
-}
+});
 
 // Main Component
 export function WeekView({
@@ -485,8 +485,8 @@ export function WeekView({
         return (
           <div
             key={i}
-            className={`flex-1 flex-shrink-0 text-center py-2 border-r border-b border-[rgba(55,53,47,0.16)] bg-white ${
-              isToday ? "bg-[#D3E5EF]/30" : ""
+            className={`flex-1 flex-shrink-0 text-center py-2 border-r border-b ${C.borderMedium} bg-white ${
+              isToday ? C.bgAccentLight30 : ""
             }`}
             style={{ minWidth: "20%" }}
           >
@@ -530,11 +530,11 @@ export function WeekView({
   }, [appointments]);
 
   return (
-    <div className={`flex-1 border border-[rgba(55,53,47,0.16)] rounded-lg bg-white overflow-auto relative`}>
+    <div className={`flex-1 border ${C.borderMedium} rounded-lg bg-white overflow-auto relative`}>
       <div style={{ minWidth: "100%" }}>
         {/* Week Header */}
-        <div className={`flex border-b border-[rgba(55,53,47,0.16)] sticky top-0 z-30 bg-white`}>
-          <div className={`w-12 flex-shrink-0 ${C.bgPage} border-r border-b border-[rgba(55,53,47,0.16)] sticky left-0 z-40`} />
+        <div className={`flex border-b ${C.borderMedium} sticky top-0 z-30 bg-white`}>
+          <div className={`w-12 flex-shrink-0 ${C.bgPage} border-r border-b ${C.borderMedium} sticky left-0 z-40`} />
           <div className="flex flex-1">{headerDays}</div>
         </div>
 

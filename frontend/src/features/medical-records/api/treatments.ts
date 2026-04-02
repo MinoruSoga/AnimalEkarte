@@ -23,7 +23,7 @@ export const getTreatments = async (medicalRecordId: string): Promise<Treatment[
   return data;
 };
 
-export const useTreatments = (medicalRecordId: string) => {
+export const useGetTreatments = (medicalRecordId: string) => {
   return useQuery({
     queryKey: ["treatments", medicalRecordId],
     queryFn: () => getTreatments(medicalRecordId),

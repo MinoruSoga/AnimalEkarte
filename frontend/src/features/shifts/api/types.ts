@@ -1,20 +1,10 @@
-import type { ShiftType } from "../types";
+/**
+ * Shifts API types
+ * Backend types: {@link ShiftEntry} from models.ts (tygo generated)
+ */
+import type { ShiftEntry } from "@/types/generated/models";
 
-// バックエンドレスポンス型（snake_case）
-export interface BackendShift {
-  id: string;
-  clinic_id: string;
-  staff_id: string;
+/** Backend response — ShiftEntry + API が追加で返す staff_name */
+export type BackendShift = ShiftEntry & {
   staff_name?: string;
-  date: string;
-  shift_type: ShiftType;
-  start_time: string;
-  end_time: string;
-  note: string;
-  created_at: string;
-  updated_at: string;
-  staff?: {
-    id: string;
-    name: string;
-  };
-}
+};

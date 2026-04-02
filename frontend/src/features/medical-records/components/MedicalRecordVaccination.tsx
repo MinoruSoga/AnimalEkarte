@@ -1,11 +1,25 @@
 // React/Framework
-import React, { useState } from "react";
+import { memo, useMemo, useState, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+// Internal
+import { useGetAllVaccinesMaster } from "@/features/master";
+import { useCreateVaccination } from "@/features/vaccinations";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
+import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
 import { VaccinationForm } from "./VaccinationForm";
 import { VaccinationHistory } from "./VaccinationHistory";
 
-export function MedicalRecordVaccination() {
+interface MedicalRecordVaccinationProps {
+  petId?: string;
+}
+
+export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
+  petId,
+}: MedicalRecordVaccinationProps) {
   const [vaccineName, setVaccineName] = useState("esophagitis");
   const [date, setDate] = useState("");
   const [supplemental, setSupplemental] = useState("");
@@ -17,27 +31,71 @@ export function MedicalRecordVaccination() {
   const [nextDate, setNextDate] = useState("");
   const [remarks, setRemarks] = useState("");
 
-  // Mock Data for History
-  const historyItems = [
-    { id: 1, name: "フィラリア薬", date: "24/4/6", next: "24/4/6" },
-    { id: 2, name: "ノミダニ予防薬", date: "25/6/15", next: "-" },
-    { id: 3, name: "ノミダニ予防薬", date: "25/1/15", next: "25/6/15" },
-    { id: 4, name: "ノミダニ予防薬", date: "25/1/15", next: "25/6/15" },
-    { id: 5, name: "狂犬病ワクチン", date: "25/1/20", next: "25/6/20" },
-    { id: 6, name: "ジステンパーワクチン", date: "25/1/25", next: "25/6/25" },
-    { id: 7, name: "パルボウイルスワクチン", date: "25/1/30", next: "25/6/30" },
-    { id: 8, name: "猫ウイルス性鼻気管炎ワクチン", date: "25/1/35", next: "25/6/35" },
-    { id: 9, name: "猫クラシウイルスワクチン", date: "25/1/40", next: "25/6/40" },
-    { id: 10, name: "レプトスピラワクチン", date: "25/1/45", next: "25/6/45" },
-    { id: 11, name: "コロナウイルスワクチン", date: "25/1/50", next: "25/6/50" },
-    { id: 12, name: "フェライン・レトロウイルスワクチン", date: "25/1/55", next: "25/6/55" },
-    { id: 13, name: "パルボウイルスキャリアワクチン", date: "25/1/60", next: "25/6/60" },
-  ];
+  const { data: historyItems = [], isLoading } = useGetPetVaccinations(petId);
+  const { data: vaccinesMaster = [] } = useGetAllVaccinesMaster();
+  const createVaccinationMutation = useCreateVaccination();
+  const queryClient = useQueryClient();
+
+  const vaccineOptions = useMemo(
+    () => vaccinesMaster.filter((v) => v.isActive).map((v) => ({ value: v.id, label: v.name })),
+    [vaccinesMaster]
+  );
+
+  const handleSave = useCallback(async () => {
+    if (!petId || !vaccineName || !date) {
+      toast.error("必須項目を入力してください");
+      return;
+    }
+
+    try {
+      await createVaccinationMutation.mutateAsync({
+        pet_id: Number(petId),
+        vaccine_id: Number(vaccineName),
+        date,
+        next_date: nextDate || null,
+        lot1: lot1 || undefined,
+        lot2: lot2 || undefined,
+        lot3: lot3 || undefined,
+        lot4: lot4 || undefined,
+        remarks: remarks || undefined,
+      });
+
+      toast.success("ワクチン記録を保存しました");
+      queryClient.invalidateQueries({ queryKey: ["vaccinations", "pet", petId] });
+
+      // Clear form
+      setVaccineName("esophagitis");
+      setDate("");
+      setSupplemental("");
+      setLot1("");
+      setLot2("");
+      setLot3("");
+      setLot4("");
+      setNextScheduleType("4weeks");
+      setNextDate("");
+      setRemarks("");
+    } catch (error) {
+      handleApiError(error, "ワクチン記録の保存");
+    }
+  }, [
+    petId,
+    vaccineName,
+    date,
+    nextDate,
+    lot1,
+    lot2,
+    lot3,
+    lot4,
+    remarks,
+    createVaccinationMutation,
+    queryClient,
+  ]);
 
   return (
     <div className="grid grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1">
       {/* Left Column: Form */}
       <VaccinationForm
+        vaccineOptions={vaccineOptions}
         vaccineName={vaccineName}
         setVaccineName={setVaccineName}
         date={date}
@@ -58,10 +116,12 @@ export function MedicalRecordVaccination() {
         setNextDate={setNextDate}
         remarks={remarks}
         setRemarks={setRemarks}
+        onSave={handleSave}
+        isSaving={createVaccinationMutation.isPending}
       />
 
       {/* Right Column: History */}
-      <VaccinationHistory historyItems={historyItems} />
+      <VaccinationHistory historyItems={historyItems} isLoading={isLoading} />
     </div>
   );
-}
+});

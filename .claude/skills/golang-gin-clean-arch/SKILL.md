@@ -117,10 +117,9 @@ func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*m
     err := r.db.WithContext(ctx).
         Preload("Pets").Preload("Pets.AnimalSpecies").
         First(&owner, "id = ? AND clinic_id = ?", id, clinicID).Error
-    if errors.Is(err, gorm.ErrRecordNotFound) {
-        return nil, apperrors.WrapNotFound("owner", strconv.FormatUint(id, 10))
+    if err != nil {
+        return nil, apperrors.FromGORM(err, "owner", strconv.FormatUint(id, 10))
     }
-    if err != nil { return nil, apperrors.Wrap(err, "find owner") }
     return &owner, nil
 }
 
@@ -395,15 +394,20 @@ func WrapInvalidInput(msg string) error {
 
 // handler/handler.go — RespondError で一元マッピング
 func RespondError(c *gin.Context, err error) {
-    switch {
-    case errors.Is(err, apperrors.ErrNotFound):      c.JSON(404, gin.H{"error": err.Error()})
-    case errors.Is(err, apperrors.ErrInvalidInput):  c.JSON(400, gin.H{"error": err.Error()})
-    case errors.Is(err, apperrors.ErrAlreadyExists): c.JSON(409, gin.H{"error": err.Error()})
-    case errors.Is(err, apperrors.ErrUnauthorized):  c.JSON(401, gin.H{"error": err.Error()})
-    case errors.Is(err, apperrors.ErrForbidden):     c.JSON(403, gin.H{"error": err.Error()})
-    default:
+    var appErr *apperrors.AppError
+    if errors.As(err, &appErr) {
+        switch {
+        case apperrors.IsNotFound(err):
+            c.JSON(http.StatusNotFound, gin.H{"error": appErr.Message})
+        case apperrors.IsInvalidInput(err):
+            c.JSON(http.StatusBadRequest, gin.H{"error": appErr.Message})
+        // ... 他のエラータイプも同様にマッピング
+        default:
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+        }
+    } else {
         slog.ErrorContext(c.Request.Context(), "unhandled error", "error", err)
-        c.JSON(500, gin.H{"error": "internal server error"})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
     }
 }
 ```
@@ -411,13 +415,11 @@ func RespondError(c *gin.Context, err error) {
 ```
 エラー伝播フロー:
 Repository
-  gorm.ErrRecordNotFound → WrapNotFound()      → ErrNotFound  → 404
-  unique constraint      → WrapAlreadyExists() → ErrAlreadyExists → 409
-  その他DBエラー          → Wrap(err, "msg")   → 500
+  gorm error             → FromGORM()         → ErrNotFound 等 → 404 等
+  その他DBエラー          → FromGORM() (default) → 500
 
 Service
   バリデーション失敗     → WrapInvalidInput() → ErrInvalidInput → 400
-  空フィールドPATCH      → WrapInvalidInput() → ErrInvalidInput → 400
 
 Handler
   JWT検証失敗            → middleware が直接返す → 401

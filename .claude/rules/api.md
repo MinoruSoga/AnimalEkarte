@@ -1,5 +1,7 @@
 ---
-paths: "backend/**/*.go"
+description: Go/Gin REST APIの設計・実装パターン
+alwaysApply: false
+globs: ["backend/**/*.go"]
 ---
 
 # API Development Rules (Go/Gin)

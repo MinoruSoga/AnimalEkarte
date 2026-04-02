@@ -1,132 +1,49 @@
 # Animal Ekarte - Claude 作業進捗
 
-**最終更新**: 2026-03-15
-**現在のブランチ**: main
-**最新コミット**: fd2ddd1
+**最終更新**: 2026-03-31
+**現在のブランチ**: main（staging と同期済み）
+**最新ステータス**: 全タスク完了・ステージング環境稼働中
 
 ---
 
-## ✅ 完了した作業
+## ✅ 完了済みタスク（2026-03-31）
 
-### フロントエンド アーキテクチャ刷新（2026-03-15）
-- `app/routes/` ディレクトリを廃止
-- 全ルートを `features/[feature]/routes/` に移管
-- `router.tsx` を inline lazy + Promise.all パターンに統合
-- `config/paths.ts` 追加（型安全 URL マップ）
-- `app/pages/OwnerFormPage.tsx` 追加（cross-feature合成パターン確立）
+### INFRA-001: ステージング環境構築（2026-03-31）
+- `stg.noah-karte.com` → Vercel カスタムドメイン設定
+- `api.stg.noah-karte.com` → CloudFront + ACM 証明書
+- AWS リソース名 `animalekarte-test-*` → `animalekarte-stg-*` 移行
+- RDS in-place リネーム（データ保持）
+- Vercel SSO 保護解除（stg ドメインから外部アクセス可能に）
+- GitHub Actions `backend-deploy.yml` stg 対応
+- 旧リソース全削除（ACM 2件・CloudWatch 3件・SSM 3件）
 
-### 共有コンポーネント追加（2026-03-15）
-- `components/shared/SidePeek/` — Panel / Body / Footer / TitleInput / Toolbar
-- `components/shared/DataTable/SortableDataTableRow.tsx` — D&D 並び替え行
-
-### マスタ設定ページ全面更新（2026-03-12〜15）
-完成済み（12ページ）:
-- MasterSettingsIndex（設定トップ）
-- StaffSettings（スタッフ）
-- DiagnosisSettings（診断名）
-- TreatmentItemsSettings（診察・処置項目）
-- TreatmentPlanMaster（治療プラン）
-- TrimmingSettings（トリミングコース/オプション）
-- MedicineSettings（薬剤）
-- ServiceTypeSettings（サービス種別）
-- HospitalizationSettings（入院種別）
-- CageSettings（ケージ）
-- InsuranceSettings（保険会社）★新規
-- JobTitleSettings（役職）★新規
-- InquiryTemplateSettings（問診テンプレート）★新規
-- CompanySettings（会社設定）
-削除: CheckupSettings（統合済み）
-
-### コーディング規約ドキュメント更新（2026-03-15）
-- `frontend/CLAUDE.md`: ディレクトリ構造・アーキテクチャルール全面更新
-- `frontend/CODING_RULES.md`: Section 1.1/1.2/1.3 を実コードに同期
-- bulletproof-react との意図的な差分を明文化
-
-### ドキュメント v3.0 全面更新（2026-03-12）
-- `docs/SCREENS.md` v3.0: 全42ルート・15セクション
-- `docs/DESIGN_SYSTEM.md` v3.0: Notionトークン、D&D、アクセシビリティ仕様
-- `docs/AUTH.md` 新規作成: RBAC・マルチクリニック・権限マトリクス
-- `docs/DB_DEFINITION.md` 新規作成: 45テーブル完全スキーマ
-- `docs/screens/settings/master-pages.md` 新規
-
-### DB設計（2026-03-11〜12）
-- 45テーブル完全スキーマ（master_items STI廃止 → 16専用マスタテーブル）
-- `backend/migrations/001_init.sql` (1062行)
-- `backend/migrations/002_seed_master.sql` マスタシーダー
-
-### バックエンド 全層実装（2026-03-12）
-- モデル層: 25ファイル
-- Repository層: 11ファイル
-- Service層: owner_service.go, pet_service.go 完成
-- Handler層: 各エンドポイント実装中
-- 最新: ケージ並び替えエンドポイント（9e8164a）
+### マイグレーションファイル統合（2026-03-31）
+- `002_seed_master.sql` / `003_seed_demo.sql` / `004_add_columns.sql` を廃止
+- `001_init.sql` に全統合（スキーマ + マスタデータ + デモデータ）
+- DB_RESET=true でステージング再デプロイ済み
 
 ---
 
-## 🚧 現在の作業状態
+## 🌐 ステージング環境
 
-### フロントエンド: 概ね完成（マスタ設定13ページ完成）
-- 残: 各機能ページの細かい修正・バグ対応
-- git status はクリーン（全変更コミット済み）
-
-### バックエンド: 部分実装
-**実装済み:**
-- ケージ並び替え API（9e8164a）
-- service-type CRUD・clinic_id フィルタ修正（6811d6a）
-- owner/pet CRUD 完全実装
-
-**未実装（backend/issues/open/ 参照）:**
-- Handler層の一部エンドポイント
-- Service層の一部（medical_record, reservation, hospitalization 等）
+| サービス | URL | 状態 |
+|---------|-----|------|
+| フロントエンド | https://stg.noah-karte.com | ✅ 200 |
+| バックエンド API | https://api.stg.noah-karte.com/health | ✅ {"status":"ok"} |
 
 ---
 
-## 📋 次のステップ（優先順位順）
+## 🔢 統計
 
-### 1. バックエンド未実装エンドポイントの確認
-```bash
-docker compose exec backend go build ./...
-```
-ビルドエラーから未実装箇所を特定。
-
-### 2. 残マスタ設定の動作確認
-- フロントエンドのマスタ設定ページをバックエンドAPIと結合テスト
-
-### 3. 電子カルテ機能の完成
-- medical-records の vitals/treatments/billing タブの最終調整
-- フォームバリデーション
-
-### 4. E2E 動作確認
-```bash
-make up
-# ブラウザで http://localhost:3000 を確認
-```
+| 項目 | 数値 |
+|------|------|
+| フロントエンドテスト | 272件 / 全pass |
+| TypeScript エラー | 0件 |
+| ESLint エラー | 0件 / 警告 14件 |
+| オープンイシュー | 0件 |
 
 ---
 
-## ⚠️ 注意事項
+## 📋 次のアクション候補
 
-### アーキテクチャ（フロントエンド）
-- Routes は `features/[feature]/routes/` に配置（`app/routes/` は廃止済み）
-- Cross-feature 合成は `app/pages/XxxPage.tsx` を作成して router.tsx から lazy import
-- AuthProvider は router.tsx の保護ルートにのみ配置（provider.tsx には置かない）
-- URL は `config/paths.ts` で一元管理
-
-### バックエンド
-- `main.go` は変更しない
-- AutoMigrate は無効（001_init.sql が正規定義）
-- BE コードは書かず `backend/issues/open/` にチケットを作成して止まる（フィードバック）
-
-### Docker
-- `npm/go コマンドはローカル実行禁止`
-- 必ず `docker compose exec` 経由で実行
-
----
-
-## 🔗 参照ドキュメント
-- [ERD](docs/ERD.md)
-- [DB定義](docs/DB_DEFINITION.md)
-- [画面仕様](docs/SCREENS.md)
-- [認証設計](docs/AUTH.md)
-- [マスタページパターン](docs/screens/settings/master-pages.md)
-- [フロントエンドパターン](frontend/src/features/master/PATTERNS.md)
+特になし。新規タスクの指示を待つ状態。

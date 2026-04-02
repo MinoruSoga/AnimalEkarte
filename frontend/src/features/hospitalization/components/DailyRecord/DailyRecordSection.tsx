@@ -1,17 +1,18 @@
-import { lazy, Suspense, useCallback, useState } from "react";
+import { C, ICON } from "@/lib/design-tokens";
+import { lazy, memo, Suspense, useCallback, useState } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { Activity, Sun, Moon, Coffee, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DateNavigation } from "./DateNavigation";
-import { TimingSection } from "./TimingSection";
-import { Timeline } from "./Timeline";
-import { SimpleNoteForm } from "./SimpleNoteForm";
-const VitalDialog = lazy(() => import("./VitalDialog").then((m) => ({ default: m.VitalDialog })));
-const LogDialog = lazy(() => import("./LogDialog").then((m) => ({ default: m.LogDialog })));
-const TaskCompleteDialog = lazy(() => import("./TaskCompleteDialog").then((m) => ({ default: m.TaskCompleteDialog })));
-import { useDailyRecordLogic } from "../../hooks/useDailyRecordLogic";
-import { H_STYLES } from "../../styles";
-import type { DailyRecord, CarePlanItem, CreateVitalDTO, CreateCareLogDTO, Task } from "../../types";
+import { DailyRecordDateNav } from "@/features/hospitalization/components/DailyRecord/DailyRecordDateNav";
+import { TimingSection } from "@/features/hospitalization/components/DailyRecord/TimingSection";
+import { DailyRecordTimeline } from "@/features/hospitalization/components/DailyRecord/DailyRecordTimeline";
+import { DailyCareNoteForm } from "@/features/hospitalization/components/DailyRecord/DailyCareNoteForm";
+const VitalDialog = lazy(() => import("@/features/hospitalization/components/DailyRecord/VitalDialog").then((m) => ({ default: m.VitalDialog })));
+const DailyCareLogDialog = lazy(() => import("@/features/hospitalization/components/DailyRecord/DailyCareLogDialog").then((m) => ({ default: m.DailyCareLogDialog })));
+const TaskCompleteDialog = lazy(() => import("@/features/hospitalization/components/DailyRecord/TaskCompleteDialog").then((m) => ({ default: m.TaskCompleteDialog })));
+import { useDailyRecordLogic } from "@/features/hospitalization/hooks/use-daily-record-logic";
+import { H_STYLES } from "@/features/hospitalization/styles";
+import type { DailyRecord, CarePlanItem, CreateVitalDTO, CreateCareLogDTO, Task } from "@/features/hospitalization/types";
 
 interface DailyRecordSectionProps {
     records: DailyRecord[];
@@ -20,8 +21,8 @@ interface DailyRecordSectionProps {
     onAddLog: (date: string, data: CreateCareLogDTO) => void;
 }
 
-export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }: DailyRecordSectionProps) {
-    const [selectedDate, setSelectedDate] = useState(new Date());
+export const DailyRecordSection = memo(function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }: DailyRecordSectionProps) {
+    const [selectedDate, setSelectedDate] = useState(() => new Date());
     const currentDateStr = format(selectedDate, "yyyy-MM-dd");
     const { tasks, groupedTasks, timelineItems } = useDailyRecordLogic(records, plans, currentDateStr);
     
@@ -52,16 +53,16 @@ export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }
 
     return (
         <div className="flex flex-col gap-4">
-            <DateNavigation 
-                date={selectedDate} 
-                onPrev={() => setSelectedDate(subDays(selectedDate, 1))} 
-                onNext={() => setSelectedDate(addDays(selectedDate, 1))} 
+            <DailyRecordDateNav
+                date={selectedDate}
+                onPrev={() => setSelectedDate(subDays(selectedDate, 1))}
+                onNext={() => setSelectedDate(addDays(selectedDate, 1))}
             />
 
             <div className="pr-4">
                 <div className="space-y-3">
                     {tasks.length === 0 ? (
-                        <div className="text-center py-6 text-xs text-[#37352F]/40 bg-[#F7F6F3] rounded border border-dashed border-[rgba(55,53,47,0.16)]">
+                        <div className={`text-center py-6 text-xs ${C.text40} ${C.bgPage} rounded border border-dashed ${C.borderMedium}`}>
                             予定なし
                         </div>
                     ) : null}
@@ -89,10 +90,10 @@ export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }
                     />
                 </div>
 
-                <div className="mt-1 pt-1 border-t border-[rgba(55,53,47,0.09)]">
+                <div className={`mt-1 pt-1 border-t ${C.borderLight}`}>
                     <div className="flex items-center justify-between mb-2">
-                        <h3 className={`font-bold text-[#37352F] flex items-center gap-2 ${H_STYLES.text.lg}`}>
-                            <Activity className="h-5 w-5" />
+                        <h3 className={`font-bold ${C.text} flex items-center gap-2 ${H_STYLES.text.lg}`}>
+                            <Activity className={ICON.page} />
                             その他・記録履歴
                         </h3>
                         <div className="flex gap-2">
@@ -108,9 +109,9 @@ export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }
                         </div>
                     </div>
 
-                    <SimpleNoteForm onSave={handleSaveLog} />
+                    <DailyCareNoteForm onSave={handleSaveLog} />
 
-                    <Timeline items={timelineItems} /> 
+                    <DailyRecordTimeline items={timelineItems} />
                 </div>
             </div>
 
@@ -120,7 +121,7 @@ export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }
                   onOpenChange={setIsVitalOpen}
                   onSave={handleSaveVital}
               />
-              <LogDialog
+              <DailyCareLogDialog
                   open={isLogOpen}
                   onOpenChange={setIsLogOpen}
                   type={logType}
@@ -135,4 +136,4 @@ export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }
             </Suspense>
         </div>
     );
-}
+});

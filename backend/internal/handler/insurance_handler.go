@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Insurance ----
@@ -51,7 +52,7 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 
 	var req createInsuranceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -89,28 +90,21 @@ func (h *Handler) UpdateInsurance(c *gin.Context) {
 	}
 	var req updateInsuranceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	coverageRate := 0
-	if req.CoverageRate != nil {
-		coverageRate = *req.CoverageRate
-	}
-	insurance := &model.Insurance{
-		ID:           id,
-		ClinicID:     clinicID,
+	svcInput := service.UpdateInsuranceInput{
 		Name:         req.Name,
+		IsActive:     req.IsActive,
 		Description:  req.Description,
-		CoverageRate: coverageRate,
+		CoverageRate: req.CoverageRate,
 		ContactPhone: req.ContactPhone,
 		SortOrder:    req.SortOrder,
 	}
-	if req.IsActive != nil {
-		insurance.IsActive = *req.IsActive
-	}
 
-	if err := h.svc.Insurance.Update(c.Request.Context(), insurance); err != nil {
+	insurance, err := h.svc.Insurance.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -139,7 +133,7 @@ func (h *Handler) ReorderInsurances(c *gin.Context) {
 	}
 	var req reorderInsuranceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.Insurance.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

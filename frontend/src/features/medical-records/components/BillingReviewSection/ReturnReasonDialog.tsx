@@ -2,15 +2,7 @@
 import { useState } from "react";
 
 // Internal
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { C } from "@/lib/design-tokens";
@@ -41,43 +33,29 @@ export function ReturnReasonDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>差し戻し理由</DialogTitle>
-          <DialogDescription>
-            差し戻しの理由を入力してください。
-          </DialogDescription>
-        </DialogHeader>
-        <div className="py-2 space-y-2">
-          <Label htmlFor="return-reason">
-            差し戻し理由 <span className={C.textRequired}>*</span>
-          </Label>
-          <Textarea
-            id="return-reason"
-            placeholder="差し戻しの理由を入力してください"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={4}
-          />
-        </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => handleOpenChange(false)}
-            disabled={isPending}
-          >
-            キャンセル
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!reason.trim() || isPending}
-            className={`${C.bgDanger} hover:bg-[#EB5757]/90 text-white`}
-          >
-            差し戻す
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      open={open}
+      onClose={() => handleOpenChange(false)}
+      title="差し戻し理由"
+      description="差し戻しの理由を入力してください。"
+      onSave={handleSubmit}
+      saveLabel="差し戻す"
+      saveClassName={`${C.bgDanger} ${C.hoverBgDanger90} text-white`}
+      isPending={isPending}
+      isSaveDisabled={!reason.trim()}
+    >
+      <div className="py-2 space-y-2">
+        <Label htmlFor="return-reason">
+          差し戻し理由 <span className={C.textRequired}>*</span>
+        </Label>
+        <Textarea
+          id="return-reason"
+          placeholder="差し戻しの理由を入力してください"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={4}
+        />
+      </div>
+    </FormDialog>
   );
 }

@@ -1,14 +1,18 @@
 // React/Framework
-import { type ReactNode, useState, useCallback, useDeferredValue } from "react";
-import { useNavigate } from "react-router";
+import { type ReactNode, useState, useCallback, useDeferredValue, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+
+// Hooks
+import { useSortableData } from "@/hooks/use-sortable-data";
+import { useModalState } from "@/hooks/use-modal-state";
 
 // External
-import { Plus, FileText, Edit, Trash2, Receipt } from "lucide-react";
+import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar, CircleDot, User, PawPrint } from "lucide-react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -16,45 +20,103 @@ import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
 import { Pagination } from "@/components/shared/Pagination";
-import { C, STYLE } from "@/lib/design-tokens";
+import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
-import { usePagination } from "@/hooks/usePagination";
-import { useTableSort } from "@/hooks/useTableSort";
-import type { MedicalRecord } from "@/types";
+import { usePagination } from "@/hooks/use-pagination";
+import { useStaffValidation } from "@/hooks/use-staff-validation";
 
 // Relative
-import { useMedicalRecords } from "../hooks/useMedicalRecords";
+import { useFilterMedicalRecords } from "../hooks/use-medical-records";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
+import { usePermission } from "@/features/auth";
 
-type SortKey = "date" | "ownerName" | "petName" | "species" | "doctor" | "status";
+// Types
+import type {
+  FilterProperty,
+  ActiveFilter,
+  SortProperty,
+} from "@/components/shared/NotionFilter/types";
+import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
+import type { MedicalRecordFilters } from "../api/get-medical-records";
 
-type SortDirection = "ascending" | "descending" | "none";
+// rendering-hoist-jsx: 静的フィルタプロパティ（担当医・種は動的オプションのためコンポーネント内で構築）
+const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
+  {
+    key: "date",
+    label: "診療日",
+    type: "date-range",
+    icon: Calendar,
+  },
+  {
+    key: "status",
+    label: "ステータス",
+    type: "select",
+    icon: CircleDot,
+    // medical_records.status DEFAULT 'draft' — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
+    options: [
+      { value: "作成中", label: "作成中" },
+      { value: "確定済", label: "確定済" },
+    ],
+  },
+];
 
-type TableColumn = {
-  header: ReactNode;
-  className?: string;
-  align?: "left" | "center" | "right";
-  sortDirection?: SortDirection;
-};
+// rendering-hoist-jsx: 静的ソートプロパティ定義
+const MEDICAL_RECORD_SORT_PROPERTIES: SortProperty[] = [
+  { key: "date", label: "診療日" },
+  { key: "ownerName", label: "飼主名" },
+  { key: "petName", label: "ペット名" },
+  { key: "species", label: "種" },
+  { key: "doctor", label: "担当医" },
+  { key: "status", label: "ステータス" },
+];
 
 export function MedicalRecords() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
-  const { data: filteredRecords, isLoading, isError } = useMedicalRecords(deferredSearch);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+
+  // activeFilters から日付フィルタのみを抽出してAPIに渡す
+  const apiFilters = useMemo<MedicalRecordFilters>(() => {
+    const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
+      | { from?: string; to?: string }
+      | undefined;
+    return {
+      startDate: dateFilter?.from,
+      endDate: dateFilter?.to,
+    };
+  }, [activeFilters]);
+
+  const { data: filteredRecords, allRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch, apiFilters, activeFilters);
+
+  // js-cache-function-results: ロード済みレコードから担当医・種の選択肢を動的生成
+  const filterProperties = useMemo<FilterProperty[]>(() => {
+    const doctorOptions = Array.from(new Set(allRecords.map((r) => r.doctor).filter(Boolean)))
+      .sort()
+      .map((d) => ({ value: d, label: d }));
+    const speciesOptions = Array.from(new Set(allRecords.map((r) => r.species).filter(Boolean)))
+      .sort()
+      .map((s) => ({ value: s, label: s }));
+    return [
+      ...STATIC_FILTER_PROPERTIES,
+      // medical_records.doctor_id nullable（未割当あり）
+      { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: CONDITIONS_WITH_EMPTY, options: doctorOptions },
+      // pets.animal_species_id NOT NULL — 空値は存在しない
+      { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: CONDITIONS_NO_EMPTY, options: speciesOptions },
+    ];
+  }, [allRecords]);
+  const deleteModal = useModalState<{ id: string; label: string }>();
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
+  const { isValidStaff } = useStaffValidation();
 
-  const accessor = useCallback(
-    (item: MedicalRecord, key: SortKey): string => String(item[key] ?? ""),
-    [],
-  );
-
-  const { sortedData, directionFor, toggleSort } = useTableSort<MedicalRecord, SortKey>(
-    filteredRecords,
-    { accessor },
-  );
+  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
+    useSortableData(filteredRecords);
 
   const {
     paginatedData,
@@ -64,9 +126,35 @@ export function MedicalRecords() {
     startIndex,
     endIndex,
     goToPage,
-    nextPage,
-    prevPage,
   } = usePagination(sortedData, { pageSize: 20, resetKey: searchTerm });
+
+  // FE-144: URLクエリパラメータからページ番号を読み取る
+  const urlPage = Number(searchParams.get("page") ?? 1);
+
+  // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  useEffect(() => {
+    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
+    if (clampedPage !== currentPage) {
+      goToPage(clampedPage);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlPage, totalPages]);
+
+  // FE-144: ページ変更時にURLクエリパラメータを更新
+  const handlePageChange = useCallback((page: number) => {
+    goToPage(page);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (page === 1) {
+        next.delete("page");
+      } else {
+        next.set("page", String(page));
+      }
+      return next;
+    }, { replace: true });
+  }, [goToPage, setSearchParams]);
+
+  const isFiltering = searchTerm !== deferredSearch;
 
   const handleNavigateToForm = useCallback((recordId?: string) => {
     navigate(
@@ -75,131 +163,143 @@ export function MedicalRecords() {
     );
   }, [navigate]);
 
-  if (isLoading) return (
-    <div className="flex justify-center items-center p-8">
-      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
-    </div>
-  );
-  if (isError) return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
-
-  const COLUMNS: TableColumn[] = [
+  // js-cache-function-results: directionFor/toggleSort に依存するカラム定義をメモ化
+  const COLUMNS = useMemo<{ header: ReactNode; className?: string; align?: "left" | "center" | "right" }[]>(() => [
     {
       header: <SortableHeader label="診療日" direction={directionFor("date")} onToggle={() => toggleSort("date")} />,
       className: "w-[120px]",
-      sortDirection: directionFor("date"),
     },
     {
       header: <SortableHeader label="飼主名" direction={directionFor("ownerName")} onToggle={() => toggleSort("ownerName")} />,
-      sortDirection: directionFor("ownerName"),
     },
     {
       header: <SortableHeader label="ペット名" direction={directionFor("petName")} onToggle={() => toggleSort("petName")} />,
-      sortDirection: directionFor("petName"),
     },
     {
       header: <SortableHeader label="種" direction={directionFor("species")} onToggle={() => toggleSort("species")} />,
-      className: "w-[80px]",
-      sortDirection: directionFor("species"),
+      className: "w-[80px] hidden lg:table-cell",
     },
     { header: "主訴" },
-    { header: "関連", className: "w-[100px]" },
+    { header: "関連", className: "w-[100px] hidden lg:table-cell" },
     {
       header: <SortableHeader label="担当医" direction={directionFor("doctor")} onToggle={() => toggleSort("doctor")} />,
       className: "w-[100px]",
-      sortDirection: directionFor("doctor"),
     },
     {
       header: <SortableHeader label="ステータス" direction={directionFor("status")} onToggle={() => toggleSort("status")} />,
       className: "w-[100px]",
-      sortDirection: directionFor("status"),
     },
     { header: "操作", className: "w-[100px]", align: "right" as const },
-  ];
+  ], [directionFor, toggleSort]);
+
+  if (isLoading) return <LoadingFallback />;
+  if (isError) return <ErrorFallback />;
 
   return (
     <PageLayout
       title="カルテ管理"
-      icon={<FileText className={`size-5 ${C.text}`} />}
+      icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
-        <PrimaryButton onClick={() => handleNavigateToForm()}>
-          <Plus className="size-4" />
-          新規カルテ作成
-        </PrimaryButton>
+        canCreate ? (
+          <PrimaryButton onClick={() => handleNavigateToForm()}>
+            <Plus className={ICON.action} />
+            新規カルテ作成
+          </PrimaryButton>
+        ) : null
       }
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* Search */}
-        <SearchFilterBar
+        <NotionFilter
+          properties={filterProperties}
+          activeFilters={activeFilters}
+          onFilterChange={setActiveFilters}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
-          placeholder="飼主名、ペット名、カルテNo、主訴で検索..."
+          searchPlaceholder="飼主名、ペット名、カルテNo、主訴で検索..."
           count={filteredRecords.length}
+          sortProperties={MEDICAL_RECORD_SORT_PROPERTIES}
+          activeSorts={activeSorts}
+          onSortChange={setActiveSorts}
         />
 
         {/* Table */}
-        <DataTable
-          columns={COLUMNS}
-          data={paginatedData}
-          emptyMessage="カルテデータが見つかりません"
-          renderRow={(r) => (
-            <DataTableRow
-              key={r.id}
-              onClick={() => handleNavigateToForm(r.id)}
-            >
-              <TableCell className={STYLE.tableCellMono}>{r.date}</TableCell>
-              <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
-              <TableCell className={STYLE.tableCell}>{r.petName}</TableCell>
-              <TableCell className={STYLE.tableCell}>{r.species}</TableCell>
-              <TableCell className={`text-sm ${C.text} max-w-[200px] truncate py-2`} title={r.chiefComplaint}>
-                {r.chiefComplaint}
-              </TableCell>
-              <TableCell className="py-2">
-                {r.accountingId ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/accounting/${r.accountingId}`);
-                    }}
-                    className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-[3px] border ${C.textSuccess} bg-[#10B981]/10 border-[#10B981]/30 hover:bg-[#10B981]/20 transition-colors`}
-                  >
-                    <Receipt className="size-3" />
-                    会計
-                  </button>
-                ) : (
-                  <span className={`text-sm ${C.text40}`}>—</span>
-                )}
-              </TableCell>
-              <TableCell className={STYLE.tableCell}>{r.doctor}</TableCell>
-              <TableCell className="py-2">
-                <StatusBadge colorClass={getMedicalRecordStatusColor(r.status)}>
-                  {r.status}
-                </StatusBadge>
-              </TableCell>
-              <TableCell className="text-right py-2">
-                <RowActionDropdown
-                  actions={[
-                    {
-                      label: "編集",
-                      icon: Edit,
-                      onClick: () => handleNavigateToForm(r.id),
-                    },
-                    {
-                      label: "削除",
-                      icon: Trash2,
-                      onClick: () =>
-                        setDeleteTarget({
-                          id: r.id,
-                          label: `${r.recordNo} ${r.petName}`,
-                        }),
-                      variant: "destructive",
-                    },
-                  ]}
-                />
-              </TableCell>
-            </DataTableRow>
-          )}
-        />
+        <FilteringIndicator isFiltering={isFiltering}>
+          <DataTable
+            columns={COLUMNS}
+            data={paginatedData}
+            emptyMessage="カルテデータが見つかりません"
+            renderRow={(r) => (
+              <DataTableRow
+                key={r.id}
+                onClick={() => handleNavigateToForm(r.id)}
+              >
+                <TableCell className={STYLE.tableCellMono}>{r.date}</TableCell>
+                <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
+                <TableCell className={STYLE.tableCell}>{r.petName}</TableCell>
+                <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{r.species}</TableCell>
+                <TableCell className={`text-base ${C.text} max-w-[200px] truncate py-2.5`} title={r.chiefComplaint}>
+                  {r.chiefComplaint}
+                </TableCell>
+                <TableCell className="py-2.5 hidden lg:table-cell">
+                  {r.accountingId ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/accounting/${r.accountingId}`);
+                      }}
+                      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-[3px] border ${C.textSuccess} ${C.bgSuccess10} ${C.borderSuccess30} ${C.hoverBgSuccess20} transition-colors`}
+                    >
+                      <Receipt className={ICON.xs} />
+                      会計
+                    </button>
+                  ) : (
+                    <span className={`text-sm ${C.text40}`}>—</span>
+                  )}
+                </TableCell>
+                <TableCell className={STYLE.tableCell}>
+                  <div className="flex items-center gap-1">
+                    <span className={!isValidStaff(r.doctor) ? "text-red-500 font-medium" : ""}>
+                      {r.doctor}
+                    </span>
+                    {!isValidStaff(r.doctor) ? (
+                      <span title="担当医が無効（退職等）に設定されています"><AlertTriangle className={`${ICON.xs} text-red-500`} /></span>
+                    ) : null}
+                  </div>
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <StatusBadge colorClass={getMedicalRecordStatusColor(r.status)}>
+                    {r.status}
+                  </StatusBadge>
+                </TableCell>
+                <TableCell className="text-right py-2.5">
+                  {(canEdit || canDelete) ? (
+                    <RowActionDropdown
+                      actions={[
+                        ...(canEdit ? [{
+                          label: "編集",
+                          icon: Edit,
+                          onClick: () => handleNavigateToForm(r.id),
+                        }] : []),
+                        ...(canDelete ? [{
+                          label: "削除",
+                          icon: Trash2,
+                          onClick: () =>
+                            deleteModal.open({
+                              id: r.id,
+                              label: `${r.recordNo} ${r.petName}`,
+                            }),
+                          variant: "destructive" as const,
+                        }] : []),
+                      ]}
+                    />
+                  ) : null}
+                </TableCell>
+              </DataTableRow>
+            )}
+          />
+        </FilteringIndicator>
 
         {totalPages > 1 ? (
           <Pagination
@@ -208,24 +308,24 @@ export function MedicalRecords() {
             totalCount={totalCount}
             startIndex={startIndex}
             endIndex={endIndex}
-            onPageChange={goToPage}
-            onPrev={prevPage}
-            onNext={nextPage}
+            onPageChange={handlePageChange}
+            onPrev={() => handlePageChange(currentPage - 1)}
+            onNext={() => handlePageChange(currentPage + 1)}
           />
         ) : null}
       </div>
 
       <ConfirmDialog
-        open={deleteTarget !== null}
-        onClose={() => setDeleteTarget(null)}
+        open={deleteModal.isOpen}
+        onClose={deleteModal.close}
         onConfirm={() => {
-          if (deleteTarget) {
-            deleteRecord(deleteTarget.id);
+          if (deleteModal.item) {
+            deleteRecord(deleteModal.item.id);
           }
-          setDeleteTarget(null);
+          deleteModal.close();
         }}
         title="カルテを削除しますか？"
-        description={`「${deleteTarget?.label ?? ""}」を削除します。関連する治療・検査データも削除されます。この操作は元に戻せません。`}
+        description={`「${deleteModal.item?.label ?? ""}」を削除します。関連する治療・検査データも削除されます。この操作は元に戻せません。`}
         confirmLabel="削除"
         variant="destructive"
       />

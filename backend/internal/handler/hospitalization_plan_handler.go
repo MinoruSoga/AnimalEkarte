@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- HospitalizationPlan ----
@@ -51,10 +52,18 @@ func (h *Handler) CreateHospitalizationPlan(c *gin.Context) {
 
 	var input createHospitalizationPlanRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != "" {
+		taxType = model.TaxType(input.TaxType)
+	}
+	taxRate := 0.10
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
+	}
 	plan := &model.HospitalizationPlan{
 		ClinicID:    clinicID,
 		Name:        input.Name,
@@ -62,6 +71,8 @@ func (h *Handler) CreateHospitalizationPlan(c *gin.Context) {
 		IsActive:    input.IsActive,
 		Description: input.Description,
 		SortOrder:   input.SortOrder,
+		TaxType:     taxType,
+		TaxRate:     taxRate,
 	}
 	if input.BodySize != "" {
 		bs := model.BodySize(input.BodySize)
@@ -92,31 +103,40 @@ func (h *Handler) UpdateHospitalizationPlan(c *gin.Context) {
 	}
 	var input updateHospitalizationPlanRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	plan := &model.HospitalizationPlan{
-		ID:          id,
-		ClinicID:    clinicID,
-		Name:        input.Name,
-		Price:       input.Price,
-		Description: input.Description,
-		SortOrder:   input.SortOrder,
+	var bodySize *model.BodySize
+	if input.BodySize != nil {
+		bs := model.BodySize(*input.BodySize)
+		bodySize = &bs
 	}
-	if input.IsActive != nil {
-		plan.IsActive = *input.IsActive
+	var billingUnit *model.BillingUnit
+	if input.BillingUnit != nil {
+		bu := model.BillingUnit(*input.BillingUnit)
+		billingUnit = &bu
 	}
-	if input.BodySize != "" {
-		bs := model.BodySize(input.BodySize)
-		plan.BodySize = &bs
-	}
-	if input.BillingUnit != "" {
-		bu := model.BillingUnit(input.BillingUnit)
-		plan.BillingUnit = &bu
+	var taxType *model.TaxType
+	if input.TaxType != nil {
+		tt := model.TaxType(*input.TaxType)
+		taxType = &tt
 	}
 
-	if err := h.svc.HospitalizationPlan.Update(c.Request.Context(), plan); err != nil {
+	svcInput := service.UpdateHospitalizationPlanInput{
+		Name:        input.Name,
+		Price:       input.Price,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		BodySize:    bodySize,
+		BillingUnit: billingUnit,
+		SortOrder:   input.SortOrder,
+		TaxType:     taxType,
+		TaxRate:     input.TaxRate,
+	}
+
+	plan, err := h.svc.HospitalizationPlan.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -145,7 +165,7 @@ func (h *Handler) ReorderHospitalizationPlans(c *gin.Context) {
 	}
 	var req reorderHospitalizationPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.HospitalizationPlan.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

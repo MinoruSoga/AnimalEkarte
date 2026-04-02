@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"context"
 	"io"
 	"log/slog"
 	"os"
@@ -53,20 +52,9 @@ func Default() *slog.Logger {
 	return defaultLogger
 }
 
-// WithContext はコンテキストからロガーを取得する（将来のリクエストID等の拡張用）
-func WithContext(ctx context.Context) *slog.Logger {
-	// 将来的にリクエストIDなどをコンテキストから取得して付与できる
-	return Default()
-}
-
 // Info はInfoレベルのログを出力する
 func Info(msg string, args ...any) {
 	Default().Info(msg, args...)
-}
-
-// Debug はDebugレベルのログを出力する
-func Debug(msg string, args ...any) {
-	Default().Debug(msg, args...)
 }
 
 // Warn はWarnレベルのログを出力する
@@ -77,19 +65,4 @@ func Warn(msg string, args ...any) {
 // Error はErrorレベルのログを出力する
 func Error(msg string, args ...any) {
 	Default().Error(msg, args...)
-}
-
-// InfoContext はコンテキスト付きInfoログを出力する
-func InfoContext(ctx context.Context, msg string, args ...any) {
-	WithContext(ctx).InfoContext(ctx, msg, args...)
-}
-
-// ErrorContext はコンテキスト付きErrorログを出力する
-func ErrorContext(ctx context.Context, msg string, args ...any) {
-	WithContext(ctx).ErrorContext(ctx, msg, args...)
-}
-
-// With は追加属性を持つロガーを返す
-func With(args ...any) *slog.Logger {
-	return Default().With(args...)
 }

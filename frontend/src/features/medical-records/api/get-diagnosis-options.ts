@@ -13,17 +13,34 @@ export interface DiagnosisNameOption {
   name: string;
 }
 
+interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getDiagnosisCategories = async (): Promise<DiagnosisCategoryOption[]> => {
-  const { data } = await axios.get<DiagnosisCategory[]>("/v1/masters/diagnosis-categories");
-  return data.map((item) => ({
+  const { data } = await axios.get<DiagnosisCategory[] | PaginatedResponse<DiagnosisCategory>>(
+    "/v1/masters/diagnosis-categories",
+    { params: { limit: 100 } },
+  );
+  const items = Array.isArray(data) ? data : (data.data ?? []);
+  return items.map((item) => ({
     id: Number(item.id ?? 0),
     name: item.name,
   }));
 };
 
-export const getDiagnosisNames = async (): Promise<DiagnosisNameOption[]> => {
-  const { data } = await axios.get<DiagnosisName[]>("/v1/masters/diagnosis-names");
-  return data.map((item) => ({
+export const getDiagnosisNames = async (categoryId?: number | null): Promise<DiagnosisNameOption[]> => {
+  const params: Record<string, unknown> = { limit: 100 };
+  if (categoryId) params.category_id = categoryId;
+  const { data } = await axios.get<DiagnosisName[] | PaginatedResponse<DiagnosisName>>(
+    "/v1/masters/diagnosis-names",
+    { params },
+  );
+  const items = Array.isArray(data) ? data : (data.data ?? []);
+  return items.map((item) => ({
     id: Number(item.id ?? 0),
     name: item.name,
   }));
@@ -37,10 +54,10 @@ export const useGetDiagnosisCategories = () =>
     gcTime: QUERY_GC_TIMES.LONG,
   });
 
-export const useGetDiagnosisNames = () =>
+export const useGetDiagnosisNames = (categoryId?: number | null) =>
   useQuery({
-    queryKey: ["masters", "diagnosis-names"],
-    queryFn: getDiagnosisNames,
+    queryKey: ["masters", "diagnosis-names", categoryId ?? null],
+    queryFn: () => getDiagnosisNames(categoryId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

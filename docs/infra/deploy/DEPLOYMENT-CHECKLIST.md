@@ -24,7 +24,7 @@ docker compose exec frontend npm run type-check
 grep -r "console\.log\|console\.error" frontend/src --include="*.ts" --include="*.tsx"
 
 # シークレットが含まれていないか
-git diff main..HEAD | grep -iE "password|secret|token|key"
+git diff staging..HEAD | grep -iE "password|secret|token|key"
 
 ```
 
@@ -33,12 +33,12 @@ git diff main..HEAD | grep -iE "password|secret|token|key"
 ## デプロイ実行
 
 ```bash
-# 1. main ブランチを最新化
-git checkout main && git pull origin main
+# 1. staging ブランチを最新化
+git checkout staging && git pull origin staging
 
 # 2. feature ブランチをマージ
 git merge --no-ff feature/xxx
-git push origin main
+git push origin staging
 
 # 3. 自動デプロイを監視
 gh run list --workflow=backend-deploy.yml --limit 1
@@ -53,18 +53,18 @@ gh run view <RUN_ID> --log
 export AWS_PROFILE=AnimalEkarte
 
 # Backend ヘルスチェック
-curl http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/health | jq .
+curl http://animalekarte-stg-alb-1915768826.us-east-1.elb.amazonaws.com/health | jq .
 
 # ECS 状態
 aws ecs describe-services \
-  --cluster animalekarte-test-cluster \
-  --services animalekarte-test-service \
+  --cluster animalekarte-stg-cluster \
+  --services animalekarte-stg-service \
   --region us-east-1 \
   --query 'services[0].{status,runningCount,desiredCount}'
 
 # エラーログ確認
 aws logs filter-log-events \
-  --log-group-name /ecs/animalekarte-test \
+  --log-group-name /ecs/animalekarte-stg \
   --filter-pattern "ERROR" \
   --region us-east-1
 ```
@@ -89,21 +89,21 @@ RDS は Private Subnet にあるため直接接続不可。**ECS Exec** でコ�
 export AWS_PROFILE=AnimalEkarte
 
 aws ecs update-service \
-  --cluster animalekarte-test-cluster \
-  --service animalekarte-test-service \
+  --cluster animalekarte-stg-cluster \
+  --service animalekarte-stg-service \
   --enable-execute-command \
   --region us-east-1
 
 # タスク再起動して設定を反映
 aws ecs update-service \
-  --cluster animalekarte-test-cluster \
-  --service animalekarte-test-service \
+  --cluster animalekarte-stg-cluster \
+  --service animalekarte-stg-service \
   --force-new-deployment \
   --region us-east-1
 
 aws ecs wait services-stable \
-  --cluster animalekarte-test-cluster \
-  --services animalekarte-test-service \
+  --cluster animalekarte-stg-cluster \
+  --services animalekarte-stg-service \
   --region us-east-1
 ```
 
@@ -112,23 +112,23 @@ aws ecs wait services-stable \
 認証情報は SSM Parameter Store に格納されている。
 
 ```bash
-aws ssm get-parameter --name /animalekarte/test/db/user --region us-east-1 --query 'Parameter.Value' --output text
-aws ssm get-parameter --name /animalekarte/test/db/password --with-decryption --region us-east-1 --query 'Parameter.Value' --output text
-aws ssm get-parameter --name /animalekarte/test/db/name --region us-east-1 --query 'Parameter.Value' --output text
+aws ssm get-parameter --name /animalekarte/stg/db/user --region us-east-1 --query 'Parameter.Value' --output text
+aws ssm get-parameter --name /animalekarte/stg/db/password --with-decryption --region us-east-1 --query 'Parameter.Value' --output text
+aws ssm get-parameter --name /animalekarte/stg/db/name --region us-east-1 --query 'Parameter.Value' --output text
 ```
 
 ### ステップ 2: ECS Exec でコンテナに入る
 
 ```bash
 TASK_ID=$(aws ecs list-tasks \
-  --cluster animalekarte-test-cluster \
-  --service-name animalekarte-test-service \
+  --cluster animalekarte-stg-cluster \
+  --service-name animalekarte-stg-service \
   --region us-east-1 \
   --query 'taskArns[0]' \
   --output text | awk -F'/' '{print $NF}')
 
 aws ecs execute-command \
-  --cluster animalekarte-test-cluster \
+  --cluster animalekarte-stg-cluster \
   --task $TASK_ID \
   --container api \
   --interactive \
@@ -140,7 +140,7 @@ aws ecs execute-command \
 
 ```bash
 # コンテナ内で実行（DB_USER は SSM から取得した値を使用）
-psql "host=animalekarte-test-db.cqbe28s44fta.us-east-1.rds.amazonaws.com \
+psql "host=animalekarte-stg-db.cqbe28s44fta.us-east-1.rds.amazonaws.com \
       port=5432 user=$DB_USER dbname=postgres sslmode=require"
 ```
 
@@ -165,13 +165,13 @@ ECS タスクを再デプロイすると GORM AutoMigrate が走り全テーブ�
 
 ```bash
 aws ecs update-service \
-  --cluster animalekarte-test-cluster \
-  --service animalekarte-test-service \
+  --cluster animalekarte-stg-cluster \
+  --service animalekarte-stg-service \
   --force-new-deployment \
   --region us-east-1
 
 # マイグレーションログを確認
-aws logs tail /ecs/animalekarte-test --follow --region us-east-1
+aws logs tail /ecs/animalekarte-stg --follow --region us-east-1
 ```
 
 ### 注意
@@ -179,7 +179,7 @@ aws logs tail /ecs/animalekarte-test --follow --region us-east-1
 - **全データが消える。** 実行前に必ず RDS スナップショットを取得すること。
   ```bash
   aws rds create-db-snapshot \
-    --db-instance-identifier animalekarte-test-db \
+    --db-instance-identifier animalekarte-stg-db \
     --db-snapshot-identifier ekarte-backup-$(date +%Y%m%d) \
     --region us-east-1
   ```

@@ -14,15 +14,16 @@ import (
 
 // mockExaminationRepository は ExaminationRepository のテスト用モック実装
 type mockExaminationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Examination, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
-	createFn   func(ctx context.Context, exam *model.Examination) error
-	updateFn   func(ctx context.Context, clinicID uint64, exam *model.Examination) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn            func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	createFn             func(ctx context.Context, exam *model.Examination) error
+	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
+	deleteFn             func(ctx context.Context, clinicID, id uint64) error
+	countItemsByExamIDFn func(ctx context.Context, clinicID, examID uint64) (int64, error)
 }
 
-func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Examination, int64, error) {
-	return m.findAllFn(ctx, clinicID, petID, ownerID, status, page, limit)
+func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+	return m.findAllFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 }
 
 func (m *mockExaminationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
@@ -33,12 +34,19 @@ func (m *mockExaminationRepository) Create(ctx context.Context, exam *model.Exam
 	return m.createFn(ctx, exam)
 }
 
-func (m *mockExaminationRepository) Update(ctx context.Context, clinicID uint64, exam *model.Examination) error {
-	return m.updateFn(ctx, clinicID, exam)
+func (m *mockExaminationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockExaminationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockExaminationRepository) CountItemsByExamID(ctx context.Context, clinicID, examID uint64) (int64, error) {
+	if m.countItemsByExamIDFn == nil {
+		return 0, nil
+	}
+	return m.countItemsByExamIDFn(ctx, clinicID, examID)
 }
 
 func TestExaminationService_List(t *testing.T) {
@@ -67,8 +75,8 @@ func TestExaminationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoItems: []model.Examination{
-				{ID: 1, MedicalRecordID: 10, ExamTypeID: 1, Status: model.ExaminationStatusPending},
-				{ID: 2, MedicalRecordID: 11, ExamTypeID: 2, Status: model.ExaminationStatusCompleted},
+				{ID: 1, MedicalRecordID: ptrUint64(10), ExamTypeID: 1, Status: model.ExaminationStatusPending},
+				{ID: 2, MedicalRecordID: ptrUint64(11), ExamTypeID: 2, Status: model.ExaminationStatusCompleted},
 			},
 			repoTotal: 2,
 			wantLen:   2,
@@ -93,7 +101,7 @@ func TestExaminationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoItems: []model.Examination{
-				{ID: 1, MedicalRecordID: 10, ExamTypeID: 1},
+				{ID: 1, MedicalRecordID: ptrUint64(10), ExamTypeID: 1},
 			},
 			repoTotal: 1,
 			wantLen:   1,
@@ -107,7 +115,7 @@ func TestExaminationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoItems: []model.Examination{
-				{ID: 1, MedicalRecordID: 10, ExamTypeID: 1},
+				{ID: 1, MedicalRecordID: ptrUint64(10), ExamTypeID: 1},
 			},
 			repoTotal: 1,
 			wantLen:   1,
@@ -121,7 +129,7 @@ func TestExaminationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoItems: []model.Examination{
-				{ID: 2, MedicalRecordID: 11, ExamTypeID: 2, Status: model.ExaminationStatusCompleted},
+				{ID: 2, MedicalRecordID: ptrUint64(11), ExamTypeID: 2, Status: model.ExaminationStatusCompleted},
 			},
 			repoTotal: 1,
 			wantLen:   1,
@@ -145,13 +153,13 @@ func TestExaminationService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExaminationRepository{
-				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _ *string, _, _ int) ([]model.Examination, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
 					return tt.repoItems, tt.repoTotal, tt.repoErr
 				},
 			}
 			svc := NewExaminationService(repo)
 
-			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, tt.page, tt.limit)
+			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -181,7 +189,7 @@ func TestExaminationService_GetByID(t *testing.T) {
 			id:       10,
 			repoItem: &model.Examination{
 				ID:              10,
-				MedicalRecordID: 5,
+				MedicalRecordID: ptrUint64(5),
 				ExamTypeID:      1,
 				Date:            now,
 				Status:          model.ExaminationStatusPending,
@@ -243,7 +251,7 @@ func TestExaminationService_Create(t *testing.T) {
 		{
 			name: "creates exam successfully",
 			exam: &model.Examination{
-				MedicalRecordID: 5,
+				MedicalRecordID: ptrUint64(5),
 				ExamTypeID:      1,
 				Date:            now,
 				Status:          model.ExaminationStatusPending,
@@ -254,7 +262,7 @@ func TestExaminationService_Create(t *testing.T) {
 		{
 			name: "returns error on repository failure",
 			exam: &model.Examination{
-				MedicalRecordID: 5,
+				MedicalRecordID: ptrUint64(5),
 				ExamTypeID:      1,
 				Date:            now,
 			},
@@ -285,47 +293,44 @@ func TestExaminationService_Create(t *testing.T) {
 
 func TestExaminationService_Update(t *testing.T) {
 	now := time.Now()
+	statusCompleted := model.ExaminationStatusCompleted
+	resultSummary := "正常範囲内"
 	tests := []struct {
-		name     string
-		clinicID uint64
-		exam     *model.Examination
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name    string
+		input   UpdateExaminationInput
+		repoErr error
+		wantErr bool
+		wantNF  bool
 	}{
 		{
-			name:     "updates exam successfully",
-			clinicID: 1,
-			exam: &model.Examination{
-				ID:              1,
-				MedicalRecordID: 5,
-				ExamTypeID:      1,
-				Date:            now,
-				Status:          model.ExaminationStatusCompleted,
-				ResultSummary:   "正常範囲内",
+			name: "updates exam successfully",
+			input: UpdateExaminationInput{
+				Date:          &now,
+				Status:        &statusCompleted,
+				ResultSummary: &resultSummary,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
-			name:     "returns not found error when exam does not exist",
-			clinicID: 1,
-			exam: &model.Examination{
-				ID:              999,
-				MedicalRecordID: 5,
-				ExamTypeID:      1,
-				Date:            now,
+			name:    "returns error when no fields provided",
+			input:   UpdateExaminationInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns not found error when exam does not exist",
+			input: UpdateExaminationInput{
+				Status: &statusCompleted,
 			},
 			repoErr: apperrors.WrapNotFound("exam", "999"),
 			wantErr: true,
 			wantNF:  true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			exam: &model.Examination{
-				ID:              1,
-				MedicalRecordID: 5,
+			name: "returns error on repository failure",
+			input: UpdateExaminationInput{
+				ResultSummary: &resultSummary,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -335,21 +340,32 @@ func TestExaminationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExaminationRepository{
-				updateFn: func(_ context.Context, _ uint64, _ *model.Examination) error {
-					return tt.repoErr
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+					if tt.wantNF {
+						return nil, tt.repoErr
+					}
+					return &model.Examination{ID: 1, Status: model.ExaminationStatusPending}, nil
+				},
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.Examination{ID: 1}, nil
 				},
 			}
 			svc := NewExaminationService(repo)
 
-			err := svc.Update(context.Background(), tt.clinicID, tt.exam)
+			exam, err := svc.Update(context.Background(), 1, 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, exam)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, exam)
 			}
 		})
 	}
@@ -357,40 +373,71 @@ func TestExaminationService_Update(t *testing.T) {
 
 func TestExaminationService_Delete(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name         string
+		clinicID     uint64
+		id           uint64
+		itemCount    int64
+		countItemErr error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
-			name:     "deletes exam successfully",
-			clinicID: 1,
-			id:       10,
-			repoErr:  nil,
-			wantErr:  false,
+			name:         "deletes exam successfully when no items exist",
+			clinicID:     1,
+			id:           10,
+			itemCount:    0,
+			countItemErr: nil,
+			repoErr:      nil,
+			wantErr:      false,
 		},
 		{
-			name:     "returns not found error when exam does not exist",
-			clinicID: 1,
-			id:       999,
-			repoErr:  apperrors.WrapNotFound("exam", "999"),
-			wantErr:  true,
-			wantNF:   true,
+			name:         "returns conflict error when exam has items",
+			clinicID:     1,
+			id:           10,
+			itemCount:    5,
+			countItemErr: nil,
+			repoErr:      nil,
+			wantErr:      true,
+			wantConflict: true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			id:       10,
-			repoErr:  errors.New("db error"),
-			wantErr:  true,
+			name:         "returns error when item count check fails",
+			clinicID:     1,
+			id:           10,
+			itemCount:    0,
+			countItemErr: errors.New("db error"),
+			repoErr:      nil,
+			wantErr:      true,
+		},
+		{
+			name:         "returns not found error when exam does not exist",
+			clinicID:     1,
+			id:           999,
+			itemCount:    0,
+			countItemErr: nil,
+			repoErr:      apperrors.WrapNotFound("exam", "999"),
+			wantErr:      true,
+			wantNF:       true,
+		},
+		{
+			name:         "returns error on repository failure",
+			clinicID:     1,
+			id:           10,
+			itemCount:    0,
+			countItemErr: nil,
+			repoErr:      errors.New("db error"),
+			wantErr:      true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExaminationRepository{
+				countItemsByExamIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.itemCount, tt.countItemErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -403,6 +450,9 @@ func TestExaminationService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

@@ -27,11 +27,11 @@ type CreateEstimateInput struct {
 	Title           string
 	OwnerID         *uint64
 	Status          model.EstimateStatus
-	Subtotal        float64
-	TaxTotal        float64
-	TotalAmount     float64
-	InsuranceAmount float64
-	DiscountAmount  float64
+	Subtotal        int64
+	TaxTotal        int64
+	TotalAmount     int64
+	InsuranceAmount int64
+	DiscountAmount  int64
 	ValidUntil      *time.Time
 	Comment         string
 	Notes           string
@@ -42,11 +42,11 @@ type CreateEstimateInput struct {
 type UpdateEstimateInput struct {
 	Title           *string
 	Status          *model.EstimateStatus
-	Subtotal        *float64
-	TaxTotal        *float64
-	TotalAmount     *float64
-	InsuranceAmount *float64
-	DiscountAmount  *float64
+	Subtotal        *int64
+	TaxTotal        *int64
+	TotalAmount     *int64
+	InsuranceAmount *int64
+	DiscountAmount  *int64
 	ValidUntil      *time.Time
 	ClearValidUntil bool
 	Comment         *string
@@ -94,7 +94,7 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 
 	if err := s.repo.Create(ctx, estimate); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create estimate")
 	}
 	slog.InfoContext(ctx, "estimate created",
 		slog.Uint64("estimate_id", estimate.ID),
@@ -108,7 +108,7 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update estimate")
 	}
 	slog.InfoContext(ctx, "estimate updated",
 		slog.Uint64("estimate_id", id),
@@ -118,7 +118,7 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 
 func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to delete estimate")
 	}
 	slog.InfoContext(ctx, "estimate deleted",
 		slog.Uint64("estimate_id", id),

@@ -54,7 +54,7 @@ func (h *Handler) CreateServiceType(c *gin.Context) {
 	}
 	var req createServiceTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	st, err := h.svc.ServiceType.Create(c.Request.Context(), clinicID, &service.CreateServiceTypeInput{
@@ -79,12 +79,12 @@ func (h *Handler) UpdateServiceType(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var req updateServiceTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	st, err := h.svc.ServiceType.Update(c.Request.Context(), clinicID, id, &service.UpdateServiceTypeInput{
@@ -109,7 +109,7 @@ func (h *Handler) DeleteServiceType(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.ServiceType.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -127,7 +127,7 @@ func (h *Handler) ReorderServiceTypes(c *gin.Context) {
 	}
 	var req reorderServiceTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.ServiceType.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

@@ -1,1 +1,0 @@
-export { SearchFilterBar } from "./SearchFilterBar";

@@ -6,6 +6,7 @@ import { Settings, LogOut } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { usePermission } from "@/features/auth";
 
 // Relative
 import { H_STYLES } from "../styles";
@@ -20,27 +21,30 @@ interface HospitalizationDetailActionsProps {
 
 export function HospitalizationDetailActions({ hospitalization, onDischargeClick }: HospitalizationDetailActionsProps) {
     const navigate = useNavigate();
+    const { canEdit, canDelete } = usePermission("hospitalization");
 
     return (
         <div className={`flex ${H_STYLES.gap.default}`}>
-            {hospitalization.status !== "退院済" ? (
+            {canDelete && hospitalization.status !== "退院済" ? (
                 <Button
-                    variant="outline"
-                    className={`gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 ${H_STYLES.button.action}`}
+                    variant="ghost-danger"
+                    className={`gap-2 border border-red-200 ${H_STYLES.button.action}`}
                     onClick={onDischargeClick}
                 >
                     <LogOut className={H_STYLES.button.icon} />
                     退院処理
                 </Button>
             ) : null}
-            <Button 
-                variant="outline" 
-                onClick={() => navigate(`/hospitalization/${hospitalization.id}/edit`)}
-                className={`gap-2 ${H_STYLES.button.action}`}
-            >
-                <Settings className={H_STYLES.button.icon} />
-                入院情報の編集
-            </Button>
+            {canEdit ? (
+                <Button
+                    variant="outline"
+                    onClick={() => navigate(`/hospitalization/${hospitalization.id}/edit`)}
+                    className={`gap-2 ${H_STYLES.button.action}`}
+                >
+                    <Settings className={H_STYLES.button.icon} />
+                    入院情報の編集
+                </Button>
+            ) : null}
         </div>
     );
 }

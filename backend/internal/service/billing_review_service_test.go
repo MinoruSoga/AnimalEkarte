@@ -115,14 +115,14 @@ func TestBillingReviewService_Confirm(t *testing.T) {
 	memo := "Confirmed by physician"
 
 	tests := []struct {
-		name              string
-		medicalRecordID   uint64
-		input             *ConfirmBillingReviewInput
-		repoReview        *model.BillingReview
-		repoFindErr       error
-		repoUpdateErr     error
-		repoReturnReview  *model.BillingReview
-		wantErr           bool
+		name             string
+		medicalRecordID  uint64
+		input            *ConfirmBillingReviewInput
+		repoReview       *model.BillingReview
+		repoFindErr      error
+		repoUpdateErr    error
+		repoReturnReview *model.BillingReview
+		wantErr          bool
 	}{
 		{
 			name:            "confirms billing review successfully",
@@ -213,14 +213,14 @@ func TestBillingReviewService_Return(t *testing.T) {
 	memo := "Please revise"
 
 	tests := []struct {
-		name              string
-		medicalRecordID   uint64
-		input             *ReturnBillingReviewInput
-		repoReview        *model.BillingReview
-		repoFindErr       error
-		repoUpdateErr     error
-		repoReturnReview  *model.BillingReview
-		wantErr           bool
+		name             string
+		medicalRecordID  uint64
+		input            *ReturnBillingReviewInput
+		repoReview       *model.BillingReview
+		repoFindErr      error
+		repoUpdateErr    error
+		repoReturnReview *model.BillingReview
+		wantErr          bool
 	}{
 		{
 			name:            "returns billing review successfully",

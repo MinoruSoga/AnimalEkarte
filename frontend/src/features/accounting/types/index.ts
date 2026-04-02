@@ -1,15 +1,51 @@
-export type AccountingStatus = "waiting" | "completed" | "cancelled" | "pending";
-export type PaymentMethod = "cash" | "credit_card" | "electronic_money";
-export type ItemCategory =
-  | "examination"
-  | "test"
-  | "procedure"
-  | "surgery"
-  | "medicine"
-  | "food"
-  | "goods"
-  | "other";
+/**
+ * Accounting feature types (UI-facing: camelCase, string IDs)
+ * Backend types: {@link Billing}, {@link BillingItem}, {@link Payment} from models.ts
+ */
+import {
+  BillingStatusWaiting,
+  BillingStatusCompleted,
+  BillingStatusCancelled,
+  BillingStatusPending,
+  PaymentMethodCash,
+  PaymentMethodCreditCard,
+  PaymentMethodElectronicMoney,
+  ItemCategoryExamination,
+  ItemCategoryTest,
+  ItemCategoryProcedure,
+  ItemCategorySurgery,
+  ItemCategoryMedicine,
+  ItemCategoryFood,
+  ItemCategoryGoods,
+  ItemCategoryOther,
+} from "@/types/generated/models";
+import type { TaxType } from "@/types/generated/models";
 
+/** @see {@link import("@/types/generated/models").BillingStatus} */
+export type AccountingStatus =
+  | typeof BillingStatusWaiting
+  | typeof BillingStatusCompleted
+  | typeof BillingStatusCancelled
+  | typeof BillingStatusPending;
+
+/** @see {@link import("@/types/generated/models").PaymentMethod} */
+export type PaymentMethod =
+  | typeof PaymentMethodCash
+  | typeof PaymentMethodCreditCard
+  | typeof PaymentMethodElectronicMoney;
+
+/** @see {@link import("@/types/generated/models").ItemCategory} */
+export type ItemCategory =
+  | typeof ItemCategoryExamination
+  | typeof ItemCategoryTest
+  | typeof ItemCategoryProcedure
+  | typeof ItemCategorySurgery
+  | typeof ItemCategoryMedicine
+  | typeof ItemCategoryFood
+  | typeof ItemCategoryGoods
+  | typeof ItemCategoryOther;
+
+/** @see {@link import("@/types/generated/models").BillingItem} */
 export interface AccountingItem {
   id: string;
   code?: string;
@@ -17,11 +53,15 @@ export interface AccountingItem {
   name: string;
   unitPrice: number;
   quantity: number;
-  taxRate: 0.1 | 0.08; // 10% or 8%
+  taxType: TaxType;
+  taxRate: number;
+  taxAmount: number; // BE が計算して返す
+  subtotal: number;  // unit_price × quantity（税抜）
   isInsuranceApplicable: boolean;
   source: "medical_record" | "manual"; // カルテ連携か手動追加か
 }
 
+/** @see {@link import("@/types/generated/models").Payment} */
 export interface PaymentInfo {
   subtotal: number; // 税抜小計
   taxTotal: number; // 消費税合計
@@ -36,6 +76,17 @@ export interface PaymentInfo {
   method: PaymentMethod;
 }
 
+/** @see {@link import("@/types/generated/models").BillingRefund} */
+export interface Refund {
+  id: string;
+  billingId: string;
+  amount: number;
+  reason: string;
+  refundedAt: string;
+  createdAt: string;
+}
+
+/** @see {@link import("@/types/generated/models").Billing} */
 export interface Accounting {
   id: string;
   medicalRecordId?: string;
@@ -49,5 +100,6 @@ export interface Accounting {
   completedAt?: string; // 会計完了日時
   items: AccountingItem[];
   payment?: PaymentInfo;
+  totalRefundedAmount: number; // 返金合計（0の場合はバッジ非表示）
   memo?: string;
 }

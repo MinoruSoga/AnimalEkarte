@@ -15,11 +15,11 @@ import (
 // ---- ShiftEntry モック ----
 
 type mockShiftEntryRepository struct {
-	listFn       func(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error)
-	findByIDFn   func(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error)
-	createFn     func(ctx context.Context, entry *model.ShiftEntry) error
-	updateFn     func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn     func(ctx context.Context, clinicID, id uint64) error
+	listFn     func(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error)
+	createFn   func(ctx context.Context, entry *model.ShiftEntry) error
+	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockShiftEntryRepository) List(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
@@ -42,18 +42,22 @@ func (m *mockShiftEntryRepository) Delete(ctx context.Context, clinicID, id uint
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockShiftEntryRepository) ExistsByStaffID(_ context.Context, _ uint64) (bool, error) {
+	return false, nil
+}
+
 // ---- Tests ----
 
 func TestShiftEntryService_List(t *testing.T) {
 	tests := []struct {
-		name          string
-		clinicID      uint64
-		yearMonth     string
-		staffID       *uint64
-		repoEntries   []model.ShiftEntry
-		repoErr       error
-		wantLen       int
-		wantErr       bool
+		name        string
+		clinicID    uint64
+		yearMonth   string
+		staffID     *uint64
+		repoEntries []model.ShiftEntry
+		repoErr     error
+		wantLen     int
+		wantErr     bool
 	}{
 		{
 			name:      "returns shifts for clinic without filter",
@@ -69,14 +73,14 @@ func TestShiftEntryService_List(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:      "returns empty list when no shifts exist",
-			clinicID:  1,
-			yearMonth: "2024-03",
-			staffID:   nil,
+			name:        "returns empty list when no shifts exist",
+			clinicID:    1,
+			yearMonth:   "2024-03",
+			staffID:     nil,
 			repoEntries: []model.ShiftEntry{},
-			repoErr:   nil,
-			wantLen:   0,
-			wantErr:   false,
+			repoErr:     nil,
+			wantLen:     0,
+			wantErr:     false,
 		},
 		{
 			name:        "returns error on invalid yearMonth format",
@@ -132,16 +136,20 @@ func TestShiftEntryService_Create(t *testing.T) {
 	date := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
 	startTime := "09:00:00"
 	endTime := "18:00:00"
+	// BUG-028: end_time <= start_time のテスト用
+	sameTime := "09:00:00"
+	earlierTime := "08:00:00"
 
 	tests := []struct {
-		name    string
-		clinicID uint64
-		input   *CreateShiftEntryInput
-		repoErr error
-		wantErr bool
+		name             string
+		clinicID         uint64
+		input            *CreateShiftEntryInput
+		repoErr          error
+		wantErr          bool
+		wantInvalidInput bool
 	}{
 		{
-			name:    "creates shift entry successfully",
+			name:     "creates shift entry successfully",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
@@ -151,11 +159,12 @@ func TestShiftEntryService_Create(t *testing.T) {
 				EndTime:   &endTime,
 				Note:      "Regular shift",
 			},
-			repoErr: nil,
-			wantErr: false,
+			repoErr:          nil,
+			wantErr:          false,
+			wantInvalidInput: false,
 		},
 		{
-			name:    "creates shift without times",
+			name:     "creates shift without times",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
@@ -163,19 +172,66 @@ func TestShiftEntryService_Create(t *testing.T) {
 				ShiftType: model.ShiftTypeOff,
 				Note:      "Day off",
 			},
-			repoErr: nil,
-			wantErr: false,
+			repoErr:          nil,
+			wantErr:          false,
+			wantInvalidInput: false,
 		},
 		{
-			name:    "returns error when repository fails",
+			// BUG-028: paid_leave は時刻不要なので end_time <= start_time でもエラーなし
+			name:     "creates paid_leave shift without time validation",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: model.ShiftTypePaidLeave,
+				StartTime: &sameTime,
+				EndTime:   &sameTime,
+			},
+			repoErr:          nil,
+			wantErr:          false,
+			wantInvalidInput: false,
+		},
+		{
+			// BUG-028: end_time == start_time は InvalidInput
+			name:     "returns invalid input when end_time equals start_time",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: model.ShiftTypeFull,
+				StartTime: &sameTime,
+				EndTime:   &sameTime,
+			},
+			repoErr:          nil,
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
+		{
+			// BUG-028: end_time < start_time は InvalidInput
+			name:     "returns invalid input when end_time is before start_time",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: model.ShiftTypeMorning,
+				StartTime: &startTime,
+				EndTime:   &earlierTime,
+			},
+			repoErr:          nil,
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
+		{
+			name:     "returns error when repository fails",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
 				ShiftType: model.ShiftTypeMorning,
 			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			repoErr:          errors.New("db error"),
+			wantErr:          true,
+			wantInvalidInput: false,
 		},
 	}
 
@@ -196,6 +252,10 @@ func TestShiftEntryService_Create(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, entry)
+				if tt.wantInvalidInput {
+					// apperrors パッケージを直接importしていないが、エラーメッセージで確認
+					assert.Contains(t, err.Error(), "end_time must be after start_time")
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, entry)
@@ -210,18 +270,18 @@ func TestShiftEntryService_Update(t *testing.T) {
 	newNote := "Updated note"
 
 	tests := []struct {
-		name          string
-		clinicID      uint64
-		id            uint64
-		input         *UpdateShiftEntryInput
-		repoUpdateErr error
+		name            string
+		clinicID        uint64
+		id              uint64
+		input           *UpdateShiftEntryInput
+		repoUpdateErr   error
 		repoReturnEntry *model.ShiftEntry
-		wantErr       bool
+		wantErr         bool
 	}{
 		{
-			name:    "updates shift entry successfully",
+			name:     "updates shift entry successfully",
 			clinicID: 1,
-			id:      1,
+			id:       1,
 			input: &UpdateShiftEntryInput{
 				ShiftType: &newShiftType,
 				StartTime: &newStartTime,
@@ -235,18 +295,18 @@ func TestShiftEntryService_Update(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "returns error when no fields provided",
-			clinicID: 1,
-			id:      1,
-			input:   &UpdateShiftEntryInput{},
-			repoUpdateErr: nil,
+			name:            "returns error when no fields provided",
+			clinicID:        1,
+			id:              1,
+			input:           &UpdateShiftEntryInput{},
+			repoUpdateErr:   nil,
 			repoReturnEntry: nil,
-			wantErr: true,
+			wantErr:         true,
 		},
 		{
-			name:    "returns error when update fails",
+			name:     "returns error when update fails",
 			clinicID: 1,
-			id:      1,
+			id:       1,
 			input: &UpdateShiftEntryInput{
 				Note: &newNote,
 			},
@@ -258,11 +318,25 @@ func TestShiftEntryService_Update(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// FindByID は2回呼ばれる: 1回目はバリデーション用（既存レコード取得）、2回目は更新後の取得
+			// バリデーション用に常に有効なエントリを返す基底エントリを用意する
+			baseEntry := &model.ShiftEntry{
+				ID:        1,
+				ClinicID:  1,
+				ShiftType: model.ShiftTypeFull,
+			}
+			callCount := 0
 			repo := &mockShiftEntryRepository{
 				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoUpdateErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ShiftEntry, error) {
+					callCount++
+					if callCount == 1 {
+						// 1回目: バリデーション用の既存レコード
+						return baseEntry, nil
+					}
+					// 2回目: 更新後のレコード取得
 					return tt.repoReturnEntry, nil
 				},
 			}

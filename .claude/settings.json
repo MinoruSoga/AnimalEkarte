@@ -3,29 +3,14 @@
   "alwaysThinkingEnabled": true,
   "attribution": {
     "enabled": true,
-    "format": "Co-Authored-By: Claude <noreply@anthropic.com>"
+    "format": "Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
   },
   "outputStyle": "senior-engineer",
   "env": {
-    "USE_DOCKER": "true",
-    "DOCKER_PROJECT": "your-project-name",
-    "MAX_THINKING_TOKENS": "10000",
-    "BASH_DEFAULT_TIMEOUT_MS": "60000",
     "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
-    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "teammateMode": "in-process",
-  "plansPath": ".claude/plans",
-  "sessionsPath": ".claude/sessions",
-  "fileHistoryPath": ".claude/file-history",
-  "outputStylesPath": ".claude/output-styles",
-  "skillsPath": ".claude/skills",
-  "agentsPath": ".claude/agents",
-  "designSystemPath": ".claude/design_system",
-  "docsPath": ".claude/docs",
-  "readmePath": ".claude/README.md",
-  "claudePath": ".claude",
   "enableAllProjectMcpServers": true,
   "permissions": {
     "deny": [
@@ -33,6 +18,7 @@
       "Bash(pnpm:*)",
       "Bash(yarn:*)",
       "Bash(node:*)",
+      "Bash(go:*)",
       "Bash(wget:*)",
       "Bash(rm -rf:*)",
       "Bash(*|bash:*)",
@@ -74,10 +60,17 @@
     ],
     "allow": [
       "Bash(make:*)",
+      "Bash(make up:*)",
+      "Bash(make down:*)",
+      "Bash(make logs:*)",
+      "Bash(make db:*)",
+      "Bash(make codegen:*)",
       "Bash(docker ps:*)",
       "Bash(docker logs:*)",
       "Bash(docker images:*)",
       "Bash(docker inspect:*)",
+      "Bash(docker compose exec:*)",
+      "Bash(docker compose logs:*)",
       "Bash(gh:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
@@ -85,26 +78,34 @@
       "Bash(git branch:*)",
       "Bash(git show:*)",
       "Bash(git stash:*)",
-      "Bash(cat:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
       "Bash(ls:*)",
       "Bash(pwd:*)",
-      "Bash(echo:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
       "Bash(head:*)",
       "Bash(tail:*)",
-      "Bash(wc:*)",
-      "Bash(grep:*)",
-      "Bash(find:*)",
-      "Read(src/**)",
+      "Bash(chmod:*)",
+      "Read(.claude/rules/**)",
+      "Read(.claude/hooks/**)",
+      "Read(frontend/src/**)",
+      "Read(backend/**)",
       "Read(public/**)",
       "Read(tests/**)",
       "Read(docs/**)",
-      "Write(src/**)",
+      "Write(.claude/rules/**)",
+      "Write(.claude/hooks/**)",
+      "Write(frontend/src/**)",
+      "Write(backend/**)",
       "Write(tests/**)"
     ],
     "ask": [
       "Bash(rm:*)",
       "Bash(make clean:*)",
-      "Bash(docker-compose down:*)",
+      "Bash(docker compose down:*)",
       "Bash(docker stop:*)",
       "Bash(docker rm:*)",
       "Bash(docker restart:*)",
@@ -118,8 +119,6 @@
     ],
     "defaultMode": "default"
   },
-  "cleanupPeriodDays": 30,
-  "includeCoAuthoredBy": true,
   "hooks": {
     "PreToolUse": [
       {
@@ -127,62 +126,64 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-dangerous.sh"
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-block-dangerous.js"
           }
-        ]
-      }
-    ],
-    "PostToolUse": [
+        ],
+        "description": "Block destructive shell commands (rm -rf /, dd, mkfs)"
+      },
       {
         "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/log-commands.sh"
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-git-push-reminder.js"
           }
-        ]
+        ],
+        "description": "Remind to review changes before git push"
       },
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Write",
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/auto-format.sh"
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-write-large-file-block.js"
           }
-        ]
+        ],
+        "description": "Block creation of files larger than 800 lines"
       }
     ],
-    "Notification": [
+    "PostToolUse": [
       {
-        "matcher": ".*",
+        "matcher": "Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/notify-slack.sh"
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-console-warn.js"
           }
-        ]
+        ],
+        "description": "Warn about console.log statements after edits"
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-format-go.js"
+          }
+        ],
+        "description": "Auto-format Go files with gofmt after edits"
       }
     ],
     "SessionStart": [
       {
-        "matcher": ".*",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-init.sh"
           }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/cleanup.sh"
-          }
-        ]
+        ],
+        "description": "Log session start and detect project type"
       }
     ]
   }

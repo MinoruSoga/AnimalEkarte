@@ -23,17 +23,3 @@ output "cloudwatch_log_group_arn" {
   value       = aws_cloudwatch_log_group.ecs.arn
 }
 
-output "db_user_parameter_arn" {
-  description = "SSM Parameter ARN for DB user"
-  value       = aws_ssm_parameter.db_user.arn
-}
-
-output "db_password_parameter_arn" {
-  description = "SSM Parameter ARN for DB password"
-  value       = aws_ssm_parameter.db_password.arn
-}
-
-output "db_name_parameter_arn" {
-  description = "SSM Parameter ARN for DB name"
-  value       = aws_ssm_parameter.db_name.arn
-}

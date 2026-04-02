@@ -1,3 +1,5 @@
+import { C, ICON } from "@/lib/design-tokens";
+import { memo, useMemo } from "react";
 // External
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -19,7 +21,7 @@ interface KanbanColumnProps {
   onCardClick: (appointment: Appointment) => void;
 }
 
-export function KanbanColumn({
+export const KanbanColumn = memo(function KanbanColumn({
   data,
   onAddClick,
   onCardClick
@@ -31,12 +33,27 @@ export function KanbanColumn({
     data: { columnTitle: data.title },
   });
 
-  const itemIds = data.appointments.map(appt => appt.id);
+  const itemIds = useMemo(
+    () => data.appointments.map(appt => appt.id),
+    [data.appointments]
+  );
+
+  const appointmentItems = useMemo(
+    () => data.appointments.map((appointment) => (
+      <AppointmentCard
+        key={appointment.id}
+        appointment={appointment}
+        columnTitle={data.title}
+        onCardClick={onCardClick}
+      />
+    )),
+    [data.appointments, data.title, onCardClick]
+  );
 
   return (
     <div
       ref={setNodeRef}
-      className={`${colors.bg} rounded-md p-2 flex flex-col gap-3 w-full lg:flex-1 lg:min-w-[220px] xl:min-w-[280px] transition-colors shadow-sm ${isOver ? 'ring-2 ring-[#37352F]/20 bg-[#EAE9E5]' : ''}`}
+      className={`${colors.bg} rounded-md p-2 flex flex-col gap-3 w-full lg:flex-1 lg:min-w-[220px] xl:min-w-[280px] transition-colors shadow-sm ${isOver ? `ring-2 ${C.ringPrimary20} ${C.bgActive}` : ''}`}
       role="region"
       aria-label={`${data.title} — ${data.appointments.length}件`}
     >
@@ -47,14 +64,7 @@ export function KanbanColumn({
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-2 flex-1 overflow-y-auto min-h-[100px] lg:min-h-[50px]">
-          {data.appointments.map((appointment) => (
-            <AppointmentCard
-              key={appointment.id}
-              appointment={appointment}
-              columnTitle={data.title}
-              onCardClick={onCardClick}
-            />
-          ))}
+          {appointmentItems}
           {/* Spacer for drop target at end of column */}
           <div className="flex-1 min-h-[2rem]" />
         </div>
@@ -66,10 +76,10 @@ export function KanbanColumn({
           className={`w-full justify-start gap-2 h-10 ${colors.text60} ${colors.hoverBgPage} ${colors.hoverText} -mx-1 px-2`}
           onClick={onAddClick}
         >
-          <Plus className="size-5" />
+          <Plus className={ICON.page} />
           <span className="text-sm">新規追加</span>
         </Button>
       ) : null}
     </div>
   );
-}
+});

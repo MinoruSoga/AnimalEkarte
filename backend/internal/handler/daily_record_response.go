@@ -53,10 +53,14 @@ type dailyRecordResponse struct {
 }
 
 func toVitalRecordResponse(vr *model.VitalRecord) vitalRecordResponse {
+	dailyRecordID := ""
+	if vr.DailyRecordID != nil {
+		dailyRecordID = strconv.FormatUint(*vr.DailyRecordID, 10)
+	}
 	r := vitalRecordResponse{
 		ID:              strconv.FormatUint(vr.ID, 10),
-		DailyRecordID:   strconv.FormatUint(vr.DailyRecordID, 10),
-		Time:            vr.Time.Format("15:04:05"),
+		DailyRecordID:   dailyRecordID,
+		Time:            vr.RecordedAt.Format("15:04:05"),
 		Temperature:     vr.Temperature,
 		HeartRate:       vr.HeartRate,
 		RespirationRate: vr.RespirationRate,
@@ -93,7 +97,7 @@ func toStaffNoteRecordResponse(sn *model.StaffNoteRecord) staffNoteRecordRespons
 	r := staffNoteRecordResponse{
 		ID:            strconv.FormatUint(sn.ID, 10),
 		DailyRecordID: strconv.FormatUint(sn.DailyRecordID, 10),
-		Time:          sn.Time,
+		Time:          sn.Time.Format("15:04:05"),
 		Content:       sn.Content,
 		CreatedAt:     sn.CreatedAt,
 	}

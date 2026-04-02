@@ -48,7 +48,7 @@ func (s *jobTitleService) GetByID(ctx context.Context, id uint64) (*model.JobTit
 
 func (s *jobTitleService) Create(ctx context.Context, jobTitle *model.JobTitle) error {
 	if err := s.repo.Create(ctx, jobTitle); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to create job title")
 	}
 	slog.InfoContext(ctx, "job title created",
 		slog.Uint64("job_title_id", jobTitle.ID),
@@ -62,7 +62,7 @@ func (s *jobTitleService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update job title")
 	}
 	slog.InfoContext(ctx, "job title updated",
 		slog.Uint64("job_title_id", id),
@@ -71,6 +71,13 @@ func (s *jobTitleService) Update(ctx context.Context, clinicID, id uint64, input
 }
 
 func (s *jobTitleService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.repo.CountStaffsByJobTitleID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check job title dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この役職はスタッフ情報で使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, id)
 }
 

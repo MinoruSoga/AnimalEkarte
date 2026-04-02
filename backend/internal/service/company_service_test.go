@@ -29,10 +29,10 @@ func (m *mockCompanyRepository) Update(ctx context.Context, fields map[string]an
 
 func TestCompanyService_Get(t *testing.T) {
 	tests := []struct {
-		name      string
-		repoData  *model.Company
-		repoErr   error
-		wantErr   bool
+		name     string
+		repoData *model.Company
+		repoErr  error
+		wantErr  bool
 	}{
 		{
 			name: "returns company information",
@@ -119,10 +119,10 @@ func TestCompanyService_Update(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:     "returns error when no fields provided",
-			input:    &UpdateCompanyInput{},
-			repoErr:  nil,
-			wantErr:  true,
+			name:    "returns error when no fields provided",
+			input:   &UpdateCompanyInput{},
+			repoErr: nil,
+			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",

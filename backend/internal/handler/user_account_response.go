@@ -10,15 +10,15 @@ import (
 // userResponse はユーザーアカウントの API レスポンス
 // password_hash は絶対に含めない
 type userResponse struct {
-	ID          string     `json:"id"`
-	Email       string     `json:"email"`
-	DisplayName string     `json:"display_name"`
-	UserType    string     `json:"user_type"`
-	StaffID     *string    `json:"staff_id,omitempty"`
-	AvatarURL   string     `json:"avatar_url"`
-	Status      string     `json:"status"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          string    `json:"id"`
+	Email       string    `json:"email"`
+	DisplayName string    `json:"display_name"`
+	UserType    string    `json:"user_type"`
+	StaffID     *string   `json:"staff_id,omitempty"`
+	AvatarURL   string    `json:"avatar_url"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // userMembershipResponse は所属クリニック情報の API レスポンス
@@ -27,15 +27,11 @@ type userMembershipResponse struct {
 	IsMain   bool   `json:"is_main"`
 }
 
-// userDetailResponse はユーザー詳細（所属クリニック含む）の API レスポンス
+// userDetailResponse はユーザー詳細（所属クリニック・権限グループ含む）の API レスポンス
 type userDetailResponse struct {
 	userResponse
-	Memberships []userMembershipResponse `json:"memberships"`
-}
-
-// userPermissionResponse は権限の API レスポンス
-type userPermissionResponse struct {
-	Permission string `json:"permission"`
+	Memberships        []userMembershipResponse `json:"memberships"`
+	PermissionGroupIDs []uint64                 `json:"permission_group_ids"`
 }
 
 // toUserResponse は model.UserAccount を userResponse に変換する

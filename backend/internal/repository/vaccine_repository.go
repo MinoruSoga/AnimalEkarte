@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -18,9 +17,10 @@ type VaccineRepository interface {
 	FindAll(ctx context.Context, species *string) ([]model.Vaccine, error)
 	FindByID(ctx context.Context, id uint64) (*model.Vaccine, error)
 	Create(ctx context.Context, vaccine *model.Vaccine) error
-	Update(ctx context.Context, vaccine *model.Vaccine) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error)
 }
 
 type vaccineRepository struct{ db *gorm.DB }
@@ -41,11 +41,9 @@ func (r *vaccineRepository) FindAll(ctx context.Context, species *string) ([]mod
 
 func (r *vaccineRepository) FindByID(ctx context.Context, id uint64) (*model.Vaccine, error) {
 	var vaccine model.Vaccine
-	if err := r.db.WithContext(ctx).First(&vaccine, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("vaccine", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find vaccine by id")
+	err := r.db.WithContext(ctx).First(&vaccine, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", id))
 	}
 	return &vaccine, nil
 }
@@ -53,25 +51,25 @@ func (r *vaccineRepository) FindByID(ctx context.Context, id uint64) (*model.Vac
 func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {
 	if err := r.db.WithContext(ctx).Create(vaccine).Error; err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("vaccine", vaccine.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.Wrap(err, "create vaccine")
 	}
 	return nil
 }
 
-func (r *vaccineRepository) Update(ctx context.Context, vaccine *model.Vaccine) error {
+func (r *vaccineRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccine{}).
-		Where("id = ? AND clinic_id = ?", vaccine.ID, vaccine.ClinicID).
-		Updates(vaccine)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update vaccine")
+		return nil, apperrors.Wrap(result.Error, "update vaccine")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update vaccine")
+		return nil, apperrors.WrapNotFound("vaccine", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *vaccineRepository) Delete(ctx context.Context, id uint64) error {
@@ -86,7 +84,7 @@ func (r *vaccineRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.Vaccine{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -99,5 +97,20 @@ func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "reorder vaccines")
+	}
+	return nil
+}
+
+// CountUsageByVaccineID はワクチンマスタを参照している vaccination_records の件数を返す（BUG-107）
+func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Vaccination{}).
+		Where("vaccine_id = ?", vaccineID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "vaccination_record", "")
+	}
+	return count, nil
 }

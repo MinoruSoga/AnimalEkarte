@@ -1,42 +1,52 @@
 // External
+import { useMemo } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 
-// Shared Hooks
-import { useAuth } from "@/features/auth/hooks/useAuth";
-
 // Types
-import type { Accounting } from "../types";
+import type { Accounting, PaymentInfo } from "../types";
 
-interface PaymentInfo {
-  totalAmount: number;
-  insuranceAmount: number;
-  billingAmount: number;
-  receivedAmount: number;
-  changeAmount: number;
+type DocumentPaymentInfo = Pick<
+  PaymentInfo,
+  "totalAmount" | "insuranceAmount" | "billingAmount" | "receivedAmount" | "changeAmount"
+>;
+
+interface ClinicInfo {
+  name?: string;
+  postalCode?: string;
+  address?: string;
+  phoneNumber?: string;
+  registrationNumber?: string;
+  invoiceRegistrationNumber?: string;
 }
 
 interface AccountingDocumentProps {
   type: "receipt" | "statement";
   accounting: Accounting;
-  paymentInfo: PaymentInfo;
+  paymentInfo: DocumentPaymentInfo;
+  clinic: ClinicInfo | null;
 }
 
-export function AccountingDocument({ type, accounting, paymentInfo }: AccountingDocumentProps) {
-  const { user } = useAuth();
-  const clinic = user?.clinic ?? null;
+export function AccountingDocument({ type, accounting, paymentInfo, clinic }: AccountingDocumentProps) {
+  const currentDate = useMemo(
+    () => format(new Date(), "yyyy年MM月dd日", { locale: ja }),
+    [],
+  );
 
-  const currentDate = format(new Date(), "yyyy年MM月dd日", { locale: ja });
-  
-  // Calculate tax breakdown
-  const tax10Items = accounting.items.filter(i => i.taxRate === 0.1);
-  const tax8Items = accounting.items.filter(i => i.taxRate === 0.08);
-  
-  const tax10Base = tax10Items.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
-  const tax8Base = tax8Items.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
-  
-  const tax10Amount = Math.floor(tax10Base * 0.1);
-  const tax8Amount = Math.floor(tax8Base * 0.08);
+  const taxBreakdown = useMemo(() => {
+    const tax10Items = accounting.items.filter(i => i.taxRate === 0.1);
+    const tax8Items = accounting.items.filter(i => i.taxRate === 0.08);
+
+    const tax10Base = tax10Items.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
+    const tax8Base = tax8Items.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
+
+    return {
+      tax10Base,
+      tax8Base,
+      tax10Amount: Math.floor(tax10Base * 0.1),
+      tax8Amount: Math.floor(tax8Base * 0.08),
+    };
+  }, [accounting.items]);
 
   if (type === "receipt") {
     return (
@@ -54,8 +64,8 @@ export function AccountingDocument({ type, accounting, paymentInfo }: Accounting
         </div>
 
         <div className="py-6 text-center bg-gray-50 my-2">
-            <p className="text-xs text-gray-500 mb-1">領収金額</p>
-            <p className="text-2xl font-bold">¥{paymentInfo.billingAmount.toLocaleString()}-</p>
+          <p className="text-xs text-gray-500 mb-1">領収金額</p>
+          <p className="text-2xl font-bold">¥{paymentInfo.billingAmount.toLocaleString()}-</p>
         </div>
 
         <div className="space-y-2 text-xs">
@@ -87,34 +97,35 @@ export function AccountingDocument({ type, accounting, paymentInfo }: Accounting
           <p className="font-bold text-sm text-black mb-1">{clinic?.name}</p>
           <p>〒{clinic?.postalCode} {clinic?.address}</p>
           <p>TEL: {clinic?.phoneNumber}</p>
-          {clinic?.registrationNumber ? <p>登録番号: {clinic.registrationNumber}</p> : null}
+          {clinic?.invoiceRegistrationNumber ? <p>登録番号: {clinic.invoiceRegistrationNumber}</p> : null}
         </div>
       </div>
     );
   }
 
-  // Statement (A4 or A5 usually, but responsive here)
+  // Statement (A4)
   return (
     <div className="bg-white p-8 text-sm font-sans flex flex-col gap-6 border mx-auto max-w-2xl print:max-w-none print:w-full print:border-none print:p-0">
       <div className="flex justify-between items-end border-b pb-4">
         <div>
-           <h1 className="text-2xl font-bold mb-2">診療明細書</h1>
-           <p className="text-gray-600">No. {accounting.id}</p>
-           <p className="text-gray-600">発行日: {currentDate}</p>
+          <h1 className="text-2xl font-bold mb-2">診療明細書</h1>
+          <p className="text-gray-600">No. {accounting.id}</p>
+          <p className="text-gray-600">発行日: {currentDate}</p>
         </div>
         <div className="text-right text-xs text-gray-600">
           <p className="font-bold text-base text-black mb-1">{clinic?.name}</p>
           <p>〒{clinic?.postalCode} {clinic?.address}</p>
           <p>TEL: {clinic?.phoneNumber}</p>
+          {clinic?.invoiceRegistrationNumber ? <p>登録番号: {clinic.invoiceRegistrationNumber}</p> : null}
         </div>
       </div>
 
       <div className="flex justify-between items-start">
         <div className="space-y-1">
-           <div className="text-xl border-b border-black mb-2 pb-1 inline-block min-w-[250px]">
-             {accounting.ownerName} 様
-           </div>
-           <p>ペット名: {accounting.petName} ({accounting.petSpecies})</p>
+          <div className="text-xl border-b border-black mb-2 pb-1 inline-block min-w-[250px]">
+            {accounting.ownerName} 様
+          </div>
+          <p>ペット名: {accounting.petName} ({accounting.petSpecies})</p>
         </div>
       </div>
 
@@ -128,8 +139,8 @@ export function AccountingDocument({ type, accounting, paymentInfo }: Accounting
           </tr>
         </thead>
         <tbody className="divide-y">
-          {accounting.items.map((item, i) => (
-            <tr key={i}>
+          {accounting.items.map((item) => (
+            <tr key={item.id}>
               <td className="py-2">
                 <div className="font-medium">{item.name}</div>
                 {item.category ? <span className="text-xs text-gray-500">{item.category}</span> : null}
@@ -144,35 +155,35 @@ export function AccountingDocument({ type, accounting, paymentInfo }: Accounting
 
       <div className="flex justify-end mt-4">
         <div className="w-64 space-y-2">
-            <div className="flex justify-between font-bold border-b pb-1">
-                <span>合計金額 (税込)</span>
-                <span>¥{paymentInfo.totalAmount.toLocaleString()}</span>
-            </div>
-            
-            <div className="text-xs text-gray-500 space-y-1 pt-2">
-                <div className="flex justify-between">
-                    <span>10%対象額</span>
-                    <span>¥{tax10Base.toLocaleString()} (税 ¥{tax10Amount.toLocaleString()})</span>
-                </div>
-                {tax8Base > 0 ? (
-                    <div className="flex justify-between">
-                        <span>8%対象額</span>
-                        <span>¥{tax8Base.toLocaleString()} (税 ¥{tax8Amount.toLocaleString()})</span>
-                    </div>
-                ) : null}
-            </div>
+          <div className="flex justify-between font-bold border-b pb-1">
+            <span>合計金額 (税込)</span>
+            <span>¥{paymentInfo.totalAmount.toLocaleString()}</span>
+          </div>
 
-            {paymentInfo.insuranceAmount < 0 ? (
-                <div className="flex justify-between text-green-700 border-b pb-1 pt-2">
-                    <span>保険適用</span>
-                    <span>{paymentInfo.insuranceAmount.toLocaleString()}</span>
-                </div>
-            ) : null}
-            
-            <div className="flex justify-between font-bold text-lg pt-2 border-t border-black">
-                <span>請求金額</span>
-                <span>¥{paymentInfo.billingAmount.toLocaleString()}</span>
+          <div className="text-xs text-gray-500 space-y-1 pt-2">
+            <div className="flex justify-between">
+              <span>10%対象額</span>
+              <span>¥{taxBreakdown.tax10Base.toLocaleString()} (税 ¥{taxBreakdown.tax10Amount.toLocaleString()})</span>
             </div>
+            {taxBreakdown.tax8Base > 0 ? (
+              <div className="flex justify-between">
+                <span>8%対象額</span>
+                <span>¥{taxBreakdown.tax8Base.toLocaleString()} (税 ¥{taxBreakdown.tax8Amount.toLocaleString()})</span>
+              </div>
+            ) : null}
+          </div>
+
+          {paymentInfo.insuranceAmount < 0 ? (
+            <div className="flex justify-between text-green-700 border-b pb-1 pt-2">
+              <span>保険適用</span>
+              <span>{paymentInfo.insuranceAmount.toLocaleString()}</span>
+            </div>
+          ) : null}
+
+          <div className="flex justify-between font-bold text-lg pt-2 border-t border-black">
+            <span>請求金額</span>
+            <span>¥{paymentInfo.billingAmount.toLocaleString()}</span>
+          </div>
         </div>
       </div>
     </div>

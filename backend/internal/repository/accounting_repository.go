@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -12,11 +11,12 @@ import (
 )
 
 type AccountingRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
-	Update(ctx context.Context, clinicID uint64, accounting *model.Billing) error
+	UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	CountItemsByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error)
 }
 
 type accountingRepository struct {
@@ -27,7 +27,7 @@ func NewAccountingRepository(db *gorm.DB) AccountingRepository {
 	return &accountingRepository{db: db}
 }
 
-func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error) {
+func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
 	billings := make([]model.Billing, 0)
 	var total int64
 
@@ -41,29 +41,68 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 	if status != nil {
 		q = q.Where("status = ?", *status)
 	}
+	if startDate != nil {
+		q = q.Where("scheduled_date >= ?", *startDate)
+	}
+	if endDate != nil {
+		q = q.Where("scheduled_date <= ?", *endDate)
+	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count billings")
 	}
 	if err := q.Preload("Owner").Preload("Pet").Preload("Payments").Preload("Items").
-		Offset((page-1)*limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
+		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find billings")
+	}
+
+	// 返金合計をサブクエリで一括取得
+	if len(billings) > 0 {
+		ids := make([]uint64, 0, len(billings))
+		for i := range billings {
+			ids = append(ids, billings[i].ID)
+		}
+		type refundSum struct {
+			BillingID uint64
+			Total     int64
+		}
+		var sums []refundSum
+		if err := r.db.WithContext(ctx).
+			Model(&model.BillingRefund{}).
+			Select("billing_id, COALESCE(SUM(amount), 0) AS total").
+			Where("billing_id IN ?", ids).
+			Group("billing_id").
+			Scan(&sums).Error; err != nil {
+			return nil, 0, apperrors.Wrap(err, "sum refunds")
+		}
+		sumMap := make(map[uint64]int64, len(sums))
+		for _, s := range sums {
+			sumMap[s.BillingID] = s.Total
+		}
+		for i := range billings {
+			billings[i].TotalRefundedAmount = sumMap[billings[i].ID]
+		}
 	}
 	return billings, total, nil
 }
 
 func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	var billing model.Billing
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Items").
 		Preload("Payments").
+		Preload("Refunds").
 		Preload("Owner").
 		Preload("Pet").
-		First(&billing, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("billing", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find billing by id")
+		First(&billing, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
 	}
+	// Preload した Refunds から TotalRefundedAmount を計算（FindAll と同じ算出ロジック）
+	var total int64
+	for i := range billing.Refunds {
+		total += billing.Refunds[i].Amount
+	}
+	billing.TotalRefundedAmount = total
 	return &billing, nil
 }
 
@@ -78,19 +117,26 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 	return nil
 }
 
-func (r *accountingRepository) Update(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
-	accounting.ClinicID = clinicID
+// UpdateFields は指定フィールドのみを更新し、更新後のレコードを返す。
+// map[string]any を使うことで GORM のゼロ値スキップ問題を回避する。
+func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
-		Where("id = ? AND clinic_id = ?", accounting.ID, clinicID).
-		Updates(accounting)
+		Where("clinic_id = ? AND id = ?", clinicID, billingID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update billing")
+		return nil, apperrors.Wrap(result.Error, fmt.Sprintf("update billing id=%d", billingID))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", accounting.ID))
+		return nil, apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
 	}
-	return nil
+	var billing model.Billing
+	if err := r.db.WithContext(ctx).
+		Preload("Items").Preload("Payments").Preload("Refunds").Preload("Owner").Preload("Pet").
+		First(&billing, "clinic_id = ? AND id = ?", clinicID, billingID).Error; err != nil {
+		return nil, apperrors.Wrap(err, fmt.Sprintf("find billing after update id=%d", billingID))
+	}
+	return &billing, nil
 }
 
 func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -102,4 +148,17 @@ func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uint64) 
 		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *accountingRepository) CountItemsByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.BillingItem{}).
+		Joins("JOIN billings ON billing_items.billing_id = billings.id").
+		Where("billings.clinic_id = ? AND billing_items.billing_id = ?", clinicID, billingID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("billing_id=%d", billingID))
+	}
+	return count, nil
 }

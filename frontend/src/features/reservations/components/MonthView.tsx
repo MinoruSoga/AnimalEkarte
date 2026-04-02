@@ -1,5 +1,5 @@
 // React/Framework
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type React from "react";
 
 // External
@@ -7,6 +7,7 @@ import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, format, isSameMonth, 
 import { ja } from "date-fns/locale";
 
 // Internal
+import { C } from "@/lib/design-tokens";
 import { getReservationTypeColor } from "@/utils/status-helpers";
 
 // Types
@@ -22,18 +23,20 @@ interface MonthViewProps {
   currentDate: Date;
   appointments: ReservationAppointment[];
   onAppointmentClick: (appointment: ReservationAppointment) => void;
+  /** BUG-076: 日付セルクリックで週表示に遷移するコールバック */
+  onDateClick?: (date: Date) => void;
   dynamicColorMap?: Map<string, ServiceTypeColor>;
 }
 
 const DAYS_OF_WEEK = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
 const HEADER_ROW = (
-  <div className="grid grid-cols-7 border-b border-[rgba(55,53,47,0.16)] bg-[#F7F6F3]">
+  <div className={`grid grid-cols-7 border-b ${C.borderMedium} ${C.bgPage}`}>
     {DAYS_OF_WEEK.map((d, i) => (
       <div
         key={d}
         className={`py-3 text-sm font-bold text-center ${
-          i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-[#37352F]/60"
+          i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : C.text60
         }`}
       >
         {d}
@@ -42,7 +45,7 @@ const HEADER_ROW = (
   </div>
 );
 
-export function MonthView({ currentDate, appointments, onAppointmentClick, dynamicColorMap }: MonthViewProps) {
+export const MonthView = memo(function MonthView({ currentDate, appointments, onAppointmentClick, onDateClick, dynamicColorMap }: MonthViewProps) {
 
   const rows = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -65,15 +68,23 @@ export function MonthView({ currentDate, appointments, onAppointmentClick, dynam
         days.push(
           <div
             key={day.toString()}
-            className={`h-full min-h-[140px] bg-white border-b border-r border-[rgba(55,53,47,0.09)] p-2 transition-colors hover:bg-[#F7F6F3] cursor-pointer flex flex-col
-              ${!isSameMonth(day, monthStart) ? "bg-[#F7F6F3]/30 text-[#37352F]/30" : "text-[#37352F]"}
+            className={`h-full min-h-[140px] bg-white border-b border-r ${C.borderLight} p-2 transition-colors ${C.hoverBgPage} cursor-pointer flex flex-col
+              ${!isSameMonth(day, monthStart) ? `${C.bgPage30} ${C.text30}` : C.text}
               ${isSameDay(day, new Date()) ? "bg-blue-50/30" : ""}
             `}
           >
             <div className="flex justify-between items-start mb-2">
-                <span className={`text-base font-bold size-7 flex items-center justify-center rounded-full ${isSameDay(day, new Date()) ? "bg-blue-600 text-white shadow-sm" : ""}`}>
-                    {formattedDate}
-                </span>
+                <button
+                  type="button"
+                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, new Date()) ? "bg-blue-600 text-white shadow-sm" : "hover:bg-blue-100 hover:text-blue-700"}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDateClick?.(cloneDay);
+                  }}
+                  aria-label={`${format(cloneDay, "M月d日")}の週表示へ`}
+                >
+                  {formattedDate}
+                </button>
             </div>
             <div className="space-y-1.5 flex-1 overflow-hidden">
                 {dayAppointments.slice(0, 4).map(app => {
@@ -103,7 +114,7 @@ export function MonthView({ currentDate, appointments, onAppointmentClick, dynam
                     );
                 })}
                 {dayAppointments.length > 4 ? (
-                    <div className="text-sm text-[#37352F]/60 pl-1">
+                    <div className={`text-sm ${C.text60} pl-1`}>
                         他 {dayAppointments.length - 4} 件
                     </div>
                 ) : null}
@@ -121,14 +132,14 @@ export function MonthView({ currentDate, appointments, onAppointmentClick, dynam
     }
 
     return result;
-  }, [currentDate, appointments, dynamicColorMap, onAppointmentClick]);
+  }, [currentDate, appointments, dynamicColorMap, onAppointmentClick, onDateClick]);
 
   return (
-    <div className="flex flex-col h-full border-l border-t border-[rgba(55,53,47,0.16)] rounded-lg overflow-hidden bg-white shadow-sm">
+    <div className={`flex flex-col h-full border-l border-t ${C.borderMedium} rounded-lg overflow-hidden bg-white shadow-sm`}>
       {HEADER_ROW}
       <div className="flex-1 flex flex-col">
         {rows}
       </div>
     </div>
   );
-}
+});

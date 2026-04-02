@@ -15,10 +15,15 @@ export interface Task {
     type: string;
     name: string;
     description: string;
-    masterId?: string;
+    masterId?: string | null;
     completedLog?: {
+        id: string;
         time: string;
-        staff: string;
+        type?: string;
+        status?: string;
+        value?: string;
+        notes?: string;
+        staff?: string;
     };
 }
 

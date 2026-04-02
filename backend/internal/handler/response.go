@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // RespondError はエラーを適切なHTTPステータスコードとメッセージにマッピングして返す。
@@ -41,7 +43,12 @@ func RespondError(c *gin.Context, err error) {
 		}
 		c.JSON(http.StatusConflict, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrUnauthorized):
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		var appErr *apperrors.AppError
+		msg := "unauthorized"
+		if errors.As(err, &appErr) {
+			msg = appErr.Message
+		}
+		c.JSON(http.StatusUnauthorized, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrForbidden):
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 	default:
@@ -96,6 +103,19 @@ func camelToSnake(s string) string {
 	return b.String()
 }
 
+// parseDateQuery はクエリパラメータから YYYY-MM-DD 形式の日付を安全にパースする。
+// 空文字列の場合は nil を返す。不正な形式の場合はエラーを返す。
+func parseDateQuery(c *gin.Context, key string) (*string, error) {
+	s := c.Query(key)
+	if s == "" {
+		return nil, nil
+	}
+	if _, err := time.Parse("2006-01-02", s); err != nil {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s must be YYYY-MM-DD format", key))
+	}
+	return &s, nil
+}
+
 // extractClinicID はJWT認証済みコンテキストから clinic_id を取得してパースする。
 // 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
 // 呼び出し元はfalse時に即return すること。
@@ -116,6 +136,40 @@ func extractClinicID(c *gin.Context) (uint64, bool) {
 		return 0, false
 	}
 	return clinicID, true
+}
+
+// extractUserID はJWT認証済みコンテキストから user_id を uint64 で取得するヘルパー。
+// 取得失敗時はゼロ値を返す（監査ログなどのベストエフォート用）。
+func extractUserID(c *gin.Context) (uint64, bool) {
+	val, exists := c.Get("user_id")
+	if !exists {
+		return 0, false
+	}
+	s, ok := val.(string)
+	if !ok {
+		return 0, false
+	}
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return id, true
+}
+
+// extractUserType はJWT認証済みコンテキストから user_type を取得する。
+// 取得失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
+func extractUserType(c *gin.Context) (model.UserType, bool) {
+	val, exists := c.Get("user_type")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		return "", false
+	}
+	ut, ok := val.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		return "", false
+	}
+	return model.UserType(ut), true
 }
 
 // parsePagination はページネーションパラメータを安全にパースする。

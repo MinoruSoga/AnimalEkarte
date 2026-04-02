@@ -1,11 +1,6 @@
 ---
 name: context-engineering
 description: コンテキスト管理とトークン効率化
-triggers:
-  - "コンテキスト"
-  - "トークン"
-  - "効率化"
-  - "圧縮"
 ---
 
 # コンテキストエンジニアリング

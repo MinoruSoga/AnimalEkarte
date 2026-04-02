@@ -1,13 +1,14 @@
 package handler
 
 import (
-	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListHospitalizations godoc
@@ -26,7 +27,7 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 	if s := c.Query("pet_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
 			return
 		}
 		petID = &id
@@ -35,7 +36,7 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 	if s := c.Query("owner_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
 			return
 		}
 		ownerID = &id
@@ -46,7 +47,18 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 		status = &s
 	}
 
-	hospitalizations, total, err := h.svc.Hospitalization.List(c.Request.Context(), clinicID, petID, ownerID, status, page, limit)
+	startDate, err := parseDateQuery(c, "start_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	endDate, err := parseDateQuery(c, "end_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	hospitalizations, total, err := h.svc.Hospitalization.List(c.Request.Context(), clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -62,7 +74,7 @@ func (h *Handler) GetHospitalization(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	hospitalization, err := h.svc.Hospitalization.GetByID(c.Request.Context(), clinicID, id)
@@ -81,7 +93,7 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 	}
 	var input createHospitalizationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -90,7 +102,7 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 		model.HospitalizationTypeHotel,
 	)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid hospitalization_type: " + err.Error()})
+		RespondError(c, apperrors.WrapInvalidInput("invalid hospitalization_type: "+err.Error()))
 		return
 	}
 
@@ -114,7 +126,7 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 			model.HospitalizationStatusReserved,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
 		hospitalization.Status = status
@@ -125,9 +137,6 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "hospitalization created",
-		slog.Uint64("hospitalization_id", hospitalization.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusCreated, hospitalization)
 }
 
@@ -139,69 +148,87 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateHospitalizationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	hospitalization := &model.Hospitalization{
-		ID:           id,
-		ClinicID:     clinicID,
+	svcInput := service.UpdateHospitalizationInput{
+		OwnerID:      input.OwnerID,
+		PetID:        input.PetID,
+		StartDate:    input.StartDate,
+		EndDate:      input.EndDate,
 		CageID:       input.CageID,
 		DoctorID:     input.DoctorID,
 		Memo:         input.Memo,
 		OwnerRequest: input.OwnerRequest,
 		StaffNotes:   input.StaffNotes,
 	}
-	if input.OwnerID != nil {
-		hospitalization.OwnerID = *input.OwnerID
-	}
-	if input.PetID != nil {
-		hospitalization.PetID = *input.PetID
-	}
-	if input.HospitalizationType != "" {
-		hospType, err := validateEnum(input.HospitalizationType,
+	if input.HospitalizationType != nil {
+		hospType, err := validateEnum(*input.HospitalizationType,
 			model.HospitalizationTypeInpatient,
 			model.HospitalizationTypeHotel,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid hospitalization_type: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid hospitalization_type: "+err.Error()))
 			return
 		}
-		hospitalization.HospitalizationType = hospType
+		svcInput.HospitalizationType = &hospType
 	}
-	if input.StartDate != nil {
-		hospitalization.StartDate = *input.StartDate
-	}
-	if input.EndDate != nil {
-		hospitalization.EndDate = *input.EndDate
-	}
-	if input.Status != "" {
-		status, err := validateEnum(input.Status,
+	if input.Status != nil {
+		status, err := validateEnum(*input.Status,
 			model.HospitalizationStatusAdmitted,
 			model.HospitalizationStatusDischarged,
 			model.HospitalizationStatusReserved,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
-		hospitalization.Status = status
+		svcInput.Status = &status
 	}
 
 	ctx := c.Request.Context()
-	if err := h.svc.Hospitalization.Update(ctx, hospitalization); err != nil {
+	hosp, err := h.svc.Hospitalization.Update(ctx, clinicID, id, &svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "hospitalization updated",
-		slog.Uint64("hospitalization_id", hospitalization.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
-	c.JSON(http.StatusOK, hospitalization)
+	c.JSON(http.StatusOK, hosp)
+}
+
+// DischargeWithBilling godoc
+// POST /hospitalizations/:id/discharge-with-billing
+func (h *Handler) DischargeWithBilling(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	var req dischargeWithBillingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	result, err := h.svc.Hospitalization.DischargeWithBilling(c.Request.Context(), clinicID, id, service.DischargeWithBillingInput{
+		DischargeDate:    req.DischargeDate,
+		CreateAccounting: req.CreateAccounting,
+	})
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 // DeleteHospitalization godoc
@@ -212,7 +239,7 @@ func (h *Handler) DeleteHospitalization(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Hospitalization.Delete(c.Request.Context(), clinicID, id); err != nil {

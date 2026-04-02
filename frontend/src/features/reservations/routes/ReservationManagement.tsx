@@ -1,31 +1,27 @@
+import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { getCalendarViewLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import type { CalendarView } from "../types";
+import type { CalendarView, ReservationAppointment } from "../types";
 import { CALENDAR_VIEW_VALUES } from "../types";
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
     default: m.ReservationFormModal,
   })),
 );
-import { useReservationManagement } from "../hooks/useReservationManagement";
-import { useServiceTypeColorMap } from "@/hooks/use-service-type-color-map";
+import { useReservationManagement } from "../hooks/use-reservation-management";
+import { useServiceTypeColorMap } from "@/features/master";
+import { usePermission } from "@/features/auth";
 
 const MonthView = lazy(() =>
   import("../components/MonthView").then((m) => ({ default: m.MonthView })),
@@ -50,7 +46,8 @@ const VIEW_NAV_NEXT: Record<CalendarView, (d: Date) => Date> = {
 };
 
 export function ReservationManagement() {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const { canCreate } = usePermission("reservations");
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
 
@@ -81,6 +78,28 @@ export function ReservationManagement() {
     handlePetSelectConfirm,
   } = useReservationManagement();
 
+  // BUG-069: ReservationAppointment → ReservationFormData 変換を行うラッパー
+  // handleOpenForm は ReservationFormData を期待するが、詳細モーダルからは ReservationAppointment が来る
+  const handleOpenFormFromAppointment = useCallback(
+    (appointment: ReservationAppointment) => {
+      handleOpenForm({
+        id: appointment.id,
+        start: appointment.start,
+        end: appointment.end,
+        ownerName: appointment.ownerName,
+        petName: appointment.petName,
+        visitType: appointment.visitType,
+        type: appointment.serviceTypeId ?? "",
+        doctor: appointment.doctorId ?? "",
+        isDesignated: appointment.isDesignated,
+        status: appointment.status,
+        notes: appointment.notes,
+        petId: appointment.petId,
+      });
+    },
+    [handleOpenForm],
+  );
+
   const doctorNames = useMemo(
     () =>
       Array.from(
@@ -107,18 +126,26 @@ export function ReservationManagement() {
     [view],
   );
 
+  // BUG-076: 月表示の日付セルクリックで週表示に遷移
+  const handleMonthDateClick = useCallback((date: Date) => {
+    setCurrentDate(date);
+    setView("week");
+  }, []);
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#F7F6F3] min-w-0 w-full">
+    <div className={`flex-1 flex flex-col h-full ${C.bgPage} min-w-0 w-full`}>
       <FormHeader
         title="予約管理"
-        icon={<CalendarIcon className="size-5 text-[#37352F]" />}
+        icon={<CalendarIcon className={`${ICON.page} ${C.text}`} />}
         action={
           <div className="flex items-center gap-2">
-            <PrimaryButton className="gap-2" onClick={() => handleOpenForm()}>
-              <Plus className="size-4" />
-              <span className="hidden sm:inline">新規予約</span>
-              <span className="sm:hidden">予約</span>
-            </PrimaryButton>
+            {canCreate ? (
+              <PrimaryButton className="gap-2" onClick={() => handleOpenForm()}>
+                <Plus className={ICON.action} />
+                <span className="hidden sm:inline">新規予約</span>
+                <span className="sm:hidden">予約</span>
+              </PrimaryButton>
+            ) : null}
           </div>
         }
       />
@@ -127,19 +154,19 @@ export function ReservationManagement() {
         {/* Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-4">
-            <div className="flex items-center bg-white rounded-md border border-[rgba(55,53,47,0.16)] p-1 shadow-sm">
+            <div className={`flex items-center bg-white rounded-md border ${C.borderMedium} p-1 shadow-sm`}>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-10 w-10"
                 onClick={navigatePrevious}
               >
-                <ChevronLeft className="size-5" />
+                <ChevronLeft className={ICON.page} />
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-10 px-4 text-sm font-medium"
+                className="h-10 px-4 text-base font-medium"
                 onClick={navigateToday}
               >
                 今日
@@ -150,10 +177,10 @@ export function ReservationManagement() {
                 className="h-10 w-10"
                 onClick={navigateNext}
               >
-                <ChevronRight className="size-5" />
+                <ChevronRight className={ICON.page} />
               </Button>
             </div>
-            <h2 className="text-xl font-bold text-[#37352F] flex items-center gap-2">
+            <h2 className={`text-xl font-bold ${C.text} flex items-center gap-2`}>
               {format(currentDate, "yyyy年 M月", { locale: ja })}
             </h2>
           </div>
@@ -161,7 +188,7 @@ export function ReservationManagement() {
           <div className="flex items-center gap-2">
             {/* Doctor Filter */}
             <Select value={doctorFilter} onValueChange={setDoctorFilter}>
-              <SelectTrigger className="w-[160px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
+              <SelectTrigger className={`w-[160px] bg-white ${C.borderMedium} h-10 text-base`}>
                 <SelectValue placeholder="担当医で絞込" />
               </SelectTrigger>
               <SelectContent>
@@ -178,7 +205,7 @@ export function ReservationManagement() {
               value={view}
               onValueChange={typedSetter(setView, CALENDAR_VIEW_VALUES)}
             >
-              <SelectTrigger className="w-[140px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
+              <SelectTrigger className={`w-[140px] bg-white ${C.borderMedium} h-10 text-base`}>
                 <SelectValue placeholder="表示切替" />
               </SelectTrigger>
               <SelectContent>
@@ -200,7 +227,7 @@ export function ReservationManagement() {
                 className="w-2.5 h-2.5 rounded-full"
                 style={entry.color.dotStyle}
               />
-              <span className="text-xs text-[#37352F]/60">{entry.name}</span>
+              <span className={`text-base ${C.text60}`}>{entry.name}</span>
             </div>
           ))}
         </div>
@@ -211,8 +238,8 @@ export function ReservationManagement() {
             fallback={
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
-                  <p className="mt-2 text-[#37352F]/60 text-sm">
+                  <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
+                  <p className={`mt-2 ${C.text60} text-base`}>
                     読み込み中...
                   </p>
                 </div>
@@ -224,6 +251,7 @@ export function ReservationManagement() {
                 currentDate={currentDate}
                 appointments={filteredAppointments}
                 onAppointmentClick={handleOpenDetail}
+                onDateClick={handleMonthDateClick}
                 dynamicColorMap={dynamicColorMap}
               />
             ) : (
@@ -254,7 +282,7 @@ export function ReservationManagement() {
           isOpen={isDetailOpen}
           onClose={handleCloseDetail}
           appointment={detailAppointment}
-          onEdit={handleOpenForm}
+          onEdit={handleOpenFormFromAppointment}
           onDelete={handleDelete}
           onCreateRecord={handleCreateRecord}
           onStatusChange={handleStatusChange}

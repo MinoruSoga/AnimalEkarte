@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -54,11 +53,9 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *st
 
 func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	var staff model.Staff
-	if err := r.db.WithContext(ctx).First(&staff, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find staff by id")
+	err := r.db.WithContext(ctx).First(&staff, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", id))
 	}
 	return &staff, nil
 }
@@ -118,7 +115,7 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.Staff{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -131,5 +128,8 @@ func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []ui
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "reorder staff")
+	}
+	return nil
 }

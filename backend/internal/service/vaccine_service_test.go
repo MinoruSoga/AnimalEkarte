@@ -13,11 +13,12 @@ import (
 
 // mockVaccineRepository は VaccineRepository のテスト用モック実装
 type mockVaccineRepository struct {
-	findAllFn  func(ctx context.Context, species *string) ([]model.Vaccine, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.Vaccine, error)
-	createFn   func(ctx context.Context, vaccine *model.Vaccine) error
-	updateFn   func(ctx context.Context, vaccine *model.Vaccine) error
-	deleteFn   func(ctx context.Context, id uint64) error
+	findAllFn               func(ctx context.Context, species *string) ([]model.Vaccine, error)
+	findByIDFn              func(ctx context.Context, id uint64) (*model.Vaccine, error)
+	createFn                func(ctx context.Context, vaccine *model.Vaccine) error
+	updateFieldsFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
+	deleteFn                func(ctx context.Context, id uint64) error
+	countUsageByVaccineIDFn func(ctx context.Context, vaccineID uint64) (int64, error)
 }
 
 func (m *mockVaccineRepository) FindAll(ctx context.Context, species *string) ([]model.Vaccine, error) {
@@ -32,8 +33,8 @@ func (m *mockVaccineRepository) Create(ctx context.Context, vaccine *model.Vacci
 	return m.createFn(ctx, vaccine)
 }
 
-func (m *mockVaccineRepository) Update(ctx context.Context, vaccine *model.Vaccine) error {
-	return m.updateFn(ctx, vaccine)
+func (m *mockVaccineRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockVaccineRepository) Delete(ctx context.Context, id uint64) error {
@@ -42,6 +43,13 @@ func (m *mockVaccineRepository) Delete(ctx context.Context, id uint64) error {
 
 func (m *mockVaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return nil
+}
+
+func (m *mockVaccineRepository) CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error) {
+	if m.countUsageByVaccineIDFn == nil {
+		return 0, nil
+	}
+	return m.countUsageByVaccineIDFn(ctx, vaccineID)
 }
 
 func TestVaccineService_List(t *testing.T) {
@@ -232,35 +240,39 @@ func TestVaccineService_Create(t *testing.T) {
 }
 
 func TestVaccineService_Update(t *testing.T) {
+	name := "更新後ワクチン名"
 	tests := []struct {
 		name    string
-		vaccine *model.Vaccine
+		input   UpdateVaccineInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "updates vaccine successfully",
-			vaccine: &model.Vaccine{
-				ID:   1,
-				Name: "更新後ワクチン名",
+			input: UpdateVaccineInput{
+				Name: &name,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
+			name:    "returns error when no fields provided",
+			input:   UpdateVaccineInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
 			name: "returns not found error when vaccine does not exist",
-			vaccine: &model.Vaccine{
-				ID:   999,
-				Name: "存在しないワクチン",
+			input: UpdateVaccineInput{
+				Name: &name,
 			},
 			repoErr: apperrors.WrapNotFound("vaccine", "999"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			vaccine: &model.Vaccine{
-				ID:   1,
-				Name: "エラーケース",
+			input: UpdateVaccineInput{
+				Name: &name,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -270,18 +282,23 @@ func TestVaccineService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccineRepository{
-				updateFn: func(_ context.Context, _ *model.Vaccine) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Vaccine, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.Vaccine{ID: 1, ClinicID: 1}, nil
 				},
 			}
 			svc := NewVaccineService(repo)
 
-			err := svc.Update(context.Background(), tt.vaccine)
+			vaccine, err := svc.Update(context.Background(), 1, 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, vaccine)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, vaccine)
 			}
 		})
 	}
@@ -289,38 +306,65 @@ func TestVaccineService_Update(t *testing.T) {
 
 func TestVaccineService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name          string
+		id            uint64
+		usageCount    int64
+		countUsageErr error
+		repoErr       error
+		wantErr       bool
+		wantNF        bool
+		wantConflict  bool
 	}{
 		{
-			name:    "deletes vaccine successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
-			wantNF:  false,
+			name:          "deletes vaccine successfully when no vaccinations use it",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       nil,
+			wantErr:       false,
 		},
 		{
-			name:    "returns not found error when vaccine does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("vaccine", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:          "returns conflict error when vaccine is used in vaccination records",
+			id:            1,
+			usageCount:    5,
+			countUsageErr: nil,
+			repoErr:       nil,
+			wantErr:       true,
+			wantConflict:  true,
 		},
 		{
-			name:    "returns error on repository failure",
-			id:      1,
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			name:          "returns error when usage count check fails",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: errors.New("db error"),
+			repoErr:       nil,
+			wantErr:       true,
+		},
+		{
+			name:          "returns not found error when vaccine does not exist",
+			id:            999,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       apperrors.WrapNotFound("vaccine", "999"),
+			wantErr:       true,
+			wantNF:        true,
+		},
+		{
+			name:          "returns error on repository failure",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       errors.New("db error"),
+			wantErr:       true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccineRepository{
+				countUsageByVaccineIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.usageCount, tt.countUsageErr
+				},
 				deleteFn: func(_ context.Context, _ uint64) error {
 					return tt.repoErr
 				},
@@ -333,6 +377,9 @@ func TestVaccineService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

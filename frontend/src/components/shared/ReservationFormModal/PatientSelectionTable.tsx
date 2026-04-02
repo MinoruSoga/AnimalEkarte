@@ -1,4 +1,5 @@
 // React/Framework
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback } from "react";
 
 // External
@@ -8,15 +9,8 @@ import { Check, Search, SearchX, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { usePetSearch } from "@/hooks/use-pet";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useSearchPets } from "@/hooks/use-pet";
 
 // Types
 import type { Pet } from "@/types";
@@ -50,7 +44,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
   });
   const [hasSearched, setHasSearched] = useState(false);
 
-  const { pets: allPets, isLoading } = usePetSearch();
+  const { pets: allPets, isLoading } = useSearchPets();
 
   const hasSearchConditions = useMemo(
     () => Object.values(searchParams).some((value) => value.trim() !== ""),
@@ -98,11 +92,11 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* Search Criteria */}
-      <div className="rounded-lg bg-white p-3 shadow-sm border border-[rgba(55,53,47,0.16)] shrink-0">
+      <div className={`rounded-lg bg-white p-3 shadow-sm border ${C.borderMedium} shrink-0`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
           {FIELDS.map((field) => (
             <div key={field.key} className="space-y-0.5">
-              <Label htmlFor={field.key} className="text-[12px] text-[#37352F]/60">
+              <Label htmlFor={field.key} className={`text-[12px] ${C.text60}`}>
                 {field.label}
               </Label>
               <Input
@@ -118,7 +112,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
                     handleSearch();
                   }
                 }}
-                className="text-[12px] h-9 bg-white border-[rgba(55,53,47,0.12)] text-[#37352F]"
+                className={`text-[12px] h-9 bg-white ${C.borderMediumLight} ${C.text}`}
               />
             </div>
           ))}
@@ -127,9 +121,9 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
           <Button
             size="sm"
             onClick={handleSearch}
-            className="h-9 text-sm bg-[#37352F] text-white hover:bg-[#37352F]/90"
+            className={`h-9 text-sm ${C.bgPrimary} text-white ${C.hoverBgPrimaryDark}`}
           >
-            <Search className="mr-1.5 size-3" />
+            <Search className={`mr-1.5 ${ICON.xs}`} />
             検索
           </Button>
           {hasSearchConditions ? (
@@ -137,9 +131,9 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
               size="sm"
               variant="outline"
               onClick={handleClear}
-              className="h-9 text-sm border-[rgba(55,53,47,0.12)]"
+              className={`h-9 text-sm ${C.borderMediumLight}`}
             >
-              <RotateCcw className="mr-1.5 size-3" />
+              <RotateCcw className={`mr-1.5 ${ICON.xs}`} />
               クリア
             </Button>
           ) : null}
@@ -147,74 +141,80 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
       </div>
 
       {/* Results Table */}
-      <div className="flex-1 rounded-lg bg-white overflow-hidden shadow-sm border border-[rgba(55,53,47,0.16)] min-h-0">
+      <div className={`flex-1 rounded-lg bg-white overflow-hidden shadow-sm border ${C.borderMedium} min-h-0`}>
         <div className="overflow-auto h-full flex flex-col">
           {!hasSearched ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
-              <Search className="size-8 text-[#37352F]/20" />
-              <div className="text-sm text-[#37352F]/40">検索条件を入力して検索してください</div>
+              <Search className={`${ICON.xl} ${C.text20}`} />
+              <div className={`text-sm ${C.text40}`}>検索条件を入力して検索してください</div>
             </div>
           ) : isLoading ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
               <div className="animate-spin">
-                <Search className="size-8 text-[#37352F]/20" />
+                <Search className={`${ICON.xl} ${C.text20}`} />
               </div>
-              <div className="text-sm text-[#37352F]/40">検索中...</div>
+              <div className={`text-sm ${C.text40}`}>検索中...</div>
             </div>
           ) : filteredPets.length === 0 ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
-              <SearchX className="size-8 text-[#37352F]/20" />
-              <div className="text-sm text-[#37352F]/40">該当する患者が見つかりませんでした</div>
+              <SearchX className={`${ICON.xl} ${C.text20}`} />
+              <div className={`text-sm ${C.text40}`}>該当する患者が見つかりませんでした</div>
             </div>
           ) : (
             <Table>
-              <TableHeader className="bg-[#F7F6F3] sticky top-0 z-10">
-                <TableRow className="border-b border-[rgba(55,53,47,0.16)] h-9 hover:bg-[#F7F6F3]">
-                  <TableHead className="min-w-[80px] text-[12px] text-[#37352F]/40 h-9">飼主No</TableHead>
-                  <TableHead className="min-w-[120px] text-[12px] text-[#37352F]/40 h-9">飼主名</TableHead>
-                  <TableHead className="min-w-[100px] text-[12px] text-[#37352F]/40 h-9">ペット名</TableHead>
-                  <TableHead className="min-w-[60px] text-[12px] text-[#37352F]/40 h-9">種別</TableHead>
-                  <TableHead className="min-w-[60px] text-[12px] text-[#37352F]/40 h-9">性別</TableHead>
-                  <TableHead className="min-w-[80px] text-[12px] text-[#37352F]/40 h-9">生年月日</TableHead>
-                  <TableHead className="min-w-[60px] text-[12px] text-[#37352F]/40 h-9">体重</TableHead>
-                  <TableHead className="min-w-[60px] text-[12px] text-[#37352F]/40 h-9">操作</TableHead>
+              <TableHeader className={`${C.bgPage} sticky top-0 z-10`}>
+                <TableRow className={`border-b ${C.borderMedium} h-9 ${C.hoverBgPage}`}>
+                  <TableHead className={`min-w-[80px] text-[12px] ${C.text40} h-9`}>飼主No</TableHead>
+                  <TableHead className={`min-w-[120px] text-[12px] ${C.text40} h-9`}>飼主名</TableHead>
+                  <TableHead className={`min-w-[100px] text-[12px] ${C.text40} h-9`}>ペット名</TableHead>
+                  <TableHead className={`min-w-[60px] text-[12px] ${C.text40} h-9`}>種別</TableHead>
+                  <TableHead className={`min-w-[60px] text-[12px] ${C.text40} h-9`}>性別</TableHead>
+                  <TableHead className={`min-w-[80px] text-[12px] ${C.text40} h-9`}>生年月日</TableHead>
+                  <TableHead className={`min-w-[60px] text-[12px] ${C.text40} h-9`}>体重</TableHead>
+                  <TableHead className={`min-w-[60px] text-[12px] ${C.text40} h-9`}>操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPets.map((pet) => (
-                  <TableRow
-                    key={pet.id}
-                    className={`transition-colors hover:bg-[rgba(55,53,47,0.06)] cursor-pointer h-9 ${
-                      isSelected(pet) ? "bg-[#F7F6F3]" : ""
-                    }`}
-                    onClick={() => onSelect(pet)}
-                  >
-                    <TableCell className="text-sm py-1 font-mono text-[#37352F]">{pet.ownerId}</TableCell>
-                    <TableCell className="text-sm py-1 font-medium text-[#37352F]">{pet.ownerName}</TableCell>
-                    <TableCell className="text-sm py-1 font-bold text-[#37352F]">{pet.name}</TableCell>
-                    <TableCell className="text-sm py-1 text-[#37352F]">{pet.species}</TableCell>
-                    <TableCell className="text-sm py-1 text-[#37352F]">{pet.gender || "-"}</TableCell>
-                    <TableCell className="text-sm py-1 font-mono text-[#37352F]">{pet.birthDate || "-"}</TableCell>
-                    <TableCell className="text-sm py-1 font-mono text-[#37352F]">{pet.weight || "-"}</TableCell>
-                    <TableCell className="py-1">
-                      <Button
-                        size="sm"
-                        className={`h-9 gap-1 text-sm px-2 transition-colors ${
-                          isSelected(pet)
-                            ? "bg-[#37352F] text-white hover:bg-[#37352F]/90"
-                            : "bg-white border border-[rgba(55,53,47,0.12)] text-[#37352F] hover:bg-[#FAFAF8]"
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelect(pet);
-                        }}
-                      >
-                        <Check className={`size-3 ${isSelected(pet) ? "" : "opacity-0"}`} />
-                        {isSelected(pet) ? "選択中" : "選択"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredPets.map((pet) => {
+                  const isDeceased = pet.status === "死亡";
+                  return (
+                    <TableRow
+                      key={pet.id}
+                      className={`transition-colors ${C.hoverBgLight} cursor-pointer h-9 ${
+                        isSelected(pet) ? C.bgPage : ""
+                      } ${isDeceased ? "opacity-50 grayscale-[0.5]" : ""}`}
+                      onClick={() => !isDeceased && onSelect(pet)}
+                    >
+                      <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.ownerId}</TableCell>
+                      <TableCell className={`text-sm py-1 font-medium ${C.text}`}>{pet.ownerName}</TableCell>
+                      <TableCell className={`text-sm py-1 font-bold ${C.text}`}>{pet.name}</TableCell>
+                      <TableCell className={`text-sm py-1 ${C.text}`}>{pet.species}</TableCell>
+                      <TableCell className={`text-sm py-1 ${C.text}`}>{pet.gender || "-"}</TableCell>
+                      <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.birthDate || "-"}</TableCell>
+                      <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.weight || "-"}</TableCell>
+                      <TableCell className="py-1">
+                        <Button
+                          size="sm"
+                          disabled={isDeceased}
+                          className={`h-9 gap-1 text-sm px-2 transition-colors ${
+                            isDeceased
+                              ? "bg-gray-100 text-gray-400 border-transparent cursor-not-allowed"
+                              : isSelected(pet)
+                              ? `${C.bgPrimary} text-white ${C.hoverBgPrimaryDark}`
+                              : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isDeceased) onSelect(pet);
+                          }}
+                        >
+                          <Check className={`${ICON.xs} ${isSelected(pet) ? "" : "opacity-0"}`} />
+                          {isDeceased ? "死亡" : isSelected(pet) ? "選択中" : "選択"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

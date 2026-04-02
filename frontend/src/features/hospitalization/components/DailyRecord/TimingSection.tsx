@@ -1,4 +1,5 @@
 // External
+import { C, ICON } from "@/lib/design-tokens";
 import { Check, Clock } from "lucide-react";
 
 // Internal
@@ -6,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 // Relative
-import { H_STYLES } from "../../styles";
+import { H_STYLES } from "@/features/hospitalization/styles";
 
 // Types
 import type { LucideIcon } from "lucide-react";
-import type { Task } from "../../types";
+import type { Task } from "@/features/hospitalization/types";
 
 interface TimingSectionProps {
     title: string;
@@ -26,7 +27,7 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
     return (
         <div className={H_STYLES.layout.card_mb}>
             <div className={`flex items-center ${H_STYLES.gap.default} mb-1 font-bold ${colorClass}`}>
-                <Icon className="h-5 w-5" />
+                <Icon className={ICON.page} />
                 <span className={H_STYLES.text.lg}>{title}</span>
                 <span className={`${H_STYLES.text.sm} font-normal opacity-70 ml-2`}>({tasks.length}件の予定)</span>
             </div>
@@ -34,9 +35,9 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
                 {tasks.map((task, idx) => (
                     <Card key={idx} className={`
                         ${H_STYLES.padding.card} border transition-all duration-200
-                        ${task.completedLog 
-                            ? "bg-[#F7F6F3] border-transparent opacity-80" 
-                            : "bg-white border-[rgba(55,53,47,0.16)] hover:shadow-sm hover:border-[#2EAADC]/50"}
+                        ${task.completedLog
+                            ? `${C.bgPage} border-transparent opacity-80`
+                            : `bg-white ${C.borderMedium} hover:shadow-sm ${C.hoverBorderMedicalBlue50}`}
                     `}>
                         <div className="flex items-center justify-between">
                             <div className={`flex items-center ${H_STYLES.gap.default}`}>
@@ -44,13 +45,13 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
                                     w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0
                                     ${task.completedLog ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-400"}
                                 `}>
-                                    {task.completedLog ? <Check className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                                    {task.completedLog ? <Check className={ICON.page} /> : <Clock className={ICON.page} />}
                                 </div>
                                 <div>
-                                    <div className={`font-bold ${H_STYLES.text.base} leading-tight ${task.completedLog ? "text-[#37352F]/60 line-through" : "text-[#37352F]"}`}>
+                                    <div className={`font-bold ${H_STYLES.text.base} leading-tight ${task.completedLog ? `${C.text60} line-through` : C.text}`}>
                                         {task.name}
                                     </div>
-                                    <div className={`${H_STYLES.text.sm} text-[#37352F]/60 leading-tight mt-0.5`}>
+                                    <div className={`${H_STYLES.text.sm} ${C.text60} leading-tight mt-0.5`}>
                                         {task.description}
                                     </div>
                                 </div>
@@ -61,14 +62,15 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
                                     <div className={`${H_STYLES.text.sm} font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded`}>
                                         {task.completedLog.time} 実施済
                                     </div>
-                                    <div className={`${H_STYLES.text.xs} text-[#37352F]/40 mt-0.5`}>
+                                    <div className={`${H_STYLES.text.xs} ${C.text40} mt-0.5`}>
                                         {task.completedLog.staff}
                                     </div>
                                 </div>
                             ) : (
                                 <Button 
                                     size="sm" 
-                                    className={`bg-[#2EAADC] hover:bg-[#2EAADC]/90 text-white shadow-sm flex-shrink-0 ${H_STYLES.button.action}`}
+                                    variant="primary"
+                                    className={`shadow-sm flex-shrink-0 ${H_STYLES.button.action}`}
                                     onClick={() => onTaskClick(task)}
                                 >
                                     実施する

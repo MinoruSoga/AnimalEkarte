@@ -152,7 +152,7 @@ func (h *Handler) AddCareLogRecord(c *gin.Context) {
 
 	var req addCareLogRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -197,12 +197,18 @@ func (h *Handler) AddStaffNoteRecord(c *gin.Context) {
 
 	var req addStaffNoteRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	parsedStaffNoteTime, err := time.Parse("15:04:05", req.Time)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid time format, expected HH:MM:SS"))
 		return
 	}
 
 	input := &service.CreateStaffNoteRecordInput{
-		Time:    req.Time,
+		Time:    parsedStaffNoteTime,
 		Content: req.Content,
 		StaffID: req.StaffID,
 	}

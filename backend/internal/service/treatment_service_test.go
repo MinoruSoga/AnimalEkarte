@@ -51,12 +51,12 @@ func (m *mockTreatmentRepository) BulkUpdateSortOrder(ctx context.Context, updat
 
 func TestTreatmentService_List(t *testing.T) {
 	tests := []struct {
-		name              string
-		medicalRecordID   uint64
-		repoTreatments    []model.Treatment
-		repoErr           error
-		wantLen           int
-		wantErr           bool
+		name            string
+		medicalRecordID uint64
+		repoTreatments  []model.Treatment
+		repoErr         error
+		wantLen         int
+		wantErr         bool
 	}{
 		{
 			name:            "returns treatments for medical record",
@@ -93,7 +93,10 @@ func TestTreatmentService_List(t *testing.T) {
 					return tt.repoTreatments, tt.repoErr
 				},
 			}
-			svc := NewTreatmentService(repo)
+			svc := NewTreatmentService(&repository.Repositories{
+				Treatment: repo,
+				Inventory: &mockInventoryRepository{},
+			})
 
 			treatments, err := svc.List(context.Background(), tt.medicalRecordID)
 
@@ -109,9 +112,9 @@ func TestTreatmentService_List(t *testing.T) {
 
 func TestTreatmentService_Create(t *testing.T) {
 	procedureID := uint64(1)
-	unitPrice := 10000.0
+	unitPrice := int64(10000)
 	discountRate := 0.1
-	quantity := 1
+	quantity := 1.0
 
 	tests := []struct {
 		name            string
@@ -189,7 +192,16 @@ func TestTreatmentService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewTreatmentService(repo)
+			invRepo := &mockInventoryRepository{}
+			// TransactionFn: DB 不要でトランザクションをインライン実行
+			repos := &repository.Repositories{
+				Treatment: repo,
+				Inventory: invRepo,
+			}
+			repos.TransactionFn = func(fn func(*repository.Repositories) error) error {
+				return fn(repos)
+			}
+			svc := NewTreatmentService(repos)
 
 			treatment, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 
@@ -207,21 +219,21 @@ func TestTreatmentService_Create(t *testing.T) {
 }
 
 func TestTreatmentService_Update(t *testing.T) {
-	newUnitPrice := 15000.0
-	newQuantity := 2
+	newUnitPrice := int64(15000)
+	newQuantity := 2.0
 	newStatus := string(model.TreatmentStatusCompleted)
 	newMemo := "Updated treatment"
 
 	tests := []struct {
-		name              string
-		medicalRecordID   uint64
-		treatmentID       uint64
-		input             *UpdateTreatmentInput
-		repoTreatment     *model.Treatment
-		findByIDErr       error
-		updateErr         error
-		wantErr           bool
-		wantErrSubstring  string
+		name             string
+		medicalRecordID  uint64
+		treatmentID      uint64
+		input            *UpdateTreatmentInput
+		repoTreatment    *model.Treatment
+		findByIDErr      error
+		updateErr        error
+		wantErr          bool
+		wantErrSubstring string
 	}{
 		{
 			name:            "updates treatment successfully",
@@ -340,7 +352,10 @@ func TestTreatmentService_Update(t *testing.T) {
 					return tt.updateErr
 				},
 			}
-			svc := NewTreatmentService(repo)
+			svc := NewTreatmentService(&repository.Repositories{
+				Treatment: repo,
+				Inventory: &mockInventoryRepository{},
+			})
 
 			treatment, err := svc.Update(context.Background(), tt.medicalRecordID, tt.treatmentID, tt.input)
 
@@ -421,7 +436,10 @@ func TestTreatmentService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewTreatmentService(repo)
+			svc := NewTreatmentService(&repository.Repositories{
+				Treatment: repo,
+				Inventory: &mockInventoryRepository{},
+			})
 
 			err := svc.Delete(context.Background(), tt.medicalRecordID, tt.treatmentID)
 
@@ -484,7 +502,10 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewTreatmentService(repo)
+			svc := NewTreatmentService(&repository.Repositories{
+				Treatment: repo,
+				Inventory: &mockInventoryRepository{},
+			})
 
 			err := svc.BulkUpdateSortOrder(context.Background(), tt.medicalRecordID, tt.input)
 

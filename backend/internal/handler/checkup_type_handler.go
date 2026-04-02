@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- CheckupType ----
@@ -47,7 +48,7 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 
 	var input createCheckupTypeRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -83,30 +84,24 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 	}
 	var input updateCheckupTypeRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	checkupType := &model.CheckupType{
-		ID:          id,
-		ClinicID:    clinicID,
-		Name:        input.Name,
-		Price:       input.Price,
-		Description: input.Description,
-		Interval:    input.Interval,
-		TargetAge:   input.TargetAge,
-		SortOrder:   input.SortOrder,
-	}
-	if input.IsActive != nil {
-		checkupType.IsActive = *input.IsActive
-	}
-	if input.ClearParentID {
-		checkupType.ParentID = nil
-	} else if input.ParentID != nil {
-		checkupType.ParentID = input.ParentID
+	svcInput := service.UpdateCheckupTypeInput{
+		Name:          input.Name,
+		Price:         input.Price,
+		IsActive:      input.IsActive,
+		Description:   input.Description,
+		Interval:      input.Interval,
+		TargetAge:     input.TargetAge,
+		ParentID:      input.ParentID,
+		ClearParentID: input.ClearParentID,
+		SortOrder:     input.SortOrder,
 	}
 
-	if err := h.svc.CheckupType.Update(c.Request.Context(), checkupType); err != nil {
+	checkupType, err := h.svc.CheckupType.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -121,7 +116,7 @@ func (h *Handler) ReorderCheckupTypes(c *gin.Context) {
 	}
 	var req reorderCheckupTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.CheckupType.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

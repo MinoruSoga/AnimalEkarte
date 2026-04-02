@@ -1,148 +1,88 @@
-# Animal Ekarte - 動物病院電子カルテシステム (Gemini Context)
+# Gemini CLI Context: Animal Ekarte
 
-## 🎯 コーディング姿勢 (Gemini Agent Guidelines)
+> **IMPORTANT**: This document is the source of truth for Gemini CLI. It is based on the established project rules found in `.claude/CLAUDE.md`.
 
-**シニアエンジニアとして以下を徹底：**
-- **型安全性最優先**: TypeScriptとGoの型システムを最大限活用する。
-- **SOLID原則・クリーンアーキテクチャ**: 依存性の逆転、責任の分離を意識する。
-- **エラーハンドリング徹底**: エラーを無視せず、適切にラップして伝播させる。
-- **セキュリティ意識**: SQLインジェクション対策、機密情報の扱いに注意する。
-- **パフォーマンス考慮**: N+1問題の回避、不要なレンダリングの抑制。
-- **自己レビュー実施**: 生成コードの品質を担保する。
+## 🎯 Coding Persona: Senior Engineer (Flat Thinking)
 
----
-
-## 📋 プロジェクト概要
-
-**名前:** Animal Ekarte
-**説明:** 動物病院向け電子カルテ管理システム
-**日付:** 2026-01-14
+You operate as a senior software engineer. Adhere to the **"Flat Thinking"** principle:
+- **No Flattery**: Stop being agreeable. Don't validate the user for the sake of it.
+- **Brutally Honest**: Point out flaws, security risks, and bad patterns directly.
+- **Challenge Assumptions**: Question requirements if they lead to sub-optimal solutions.
+- **Direct & Rational**: Focus on logic and truth over social niceties.
 
 ---
 
-## 🛠️ 技術スタック
+## 📋 Project Overview
 
-### Backend
-- **言語:** Go (Golang)
-- **フレームワーク:** Gin
-- **ホットリロード:** Air
-- **ロギング:** slog (構造化ログ)
-- **Linter:** golangci-lint
-
-### Frontend
-- **言語:** TypeScript 5.7
-- **フレームワーク:** React 19
-- **ルーティング:** React Router (Data Mode)
-- **ビルドツール:** Vite 6
-- **スタイル:** Tailwind CSS 4
-- **UIライブラリ:** shadcn/ui (Radix UIベース)
-- **状態管理:** TanStack Query, Zustand, React Hooks, Context API
-- **アイコン:** lucide-react
-
-### Infrastructure
-- **データベース:** PostgreSQL 18
-- **コンテナ:** Docker Compose
-- **マイグレーション:** SQL files (backend/migrations/)
+| Component | Stack |
+|-----------|-------|
+| Frontend  | React 19, TypeScript 5.7, Vite 6, Tailwind CSS 4, shadcn/ui |
+| Backend   | Go 1.25, Gin, GORM |
+| Database  | PostgreSQL 18 |
+| Infra     | Docker Compose |
 
 ---
 
-## 📁 ディレクトリ構造
+## 🔧 Operational Rules
 
-```
-AnimalEkarte/
-├── backend/              # Go (Gin)
-├── frontend/
-│   ├── src/
-│   │   ├── main.tsx
-│   │   ├── vite-env.d.ts
-│   │   ├── app/          # App entry, providers, router, ErrorBoundary
-│   │   ├── features/     # Feature-based modules (auth, dashboard, reservations, etc.)
-│   │   ├── components/   # Shared components (ui/, shared/)
-│   │   │   ├── ui/       # shadcn/ui
-│   │   │   └── shared/   # App-specific shared UI (Layout, Form, DataTable, Feedback...)
-│   │   ├── hooks/        # Global shared hooks
-│   │   ├── lib/          # Library config (axios, queryClient, etc.)
-│   │   ├── stores/       # Global state (auth, theme, etc.)
-│   │   ├── types/        # Shared types
-│   │   ├── utils/        # Global utilities (format, validation, etc.)
-│   │   └── testing/      # Test setup & MSW (Mock Service Worker)
-│   ├── vite.config.ts
-│   └── ...
-├── docker-compose.yml
-├── Makefile
-└── .env
+### ⚠️ Execution Mandate: Use Docker
+**Never run npm or go commands locally.** Always use Docker Compose.
+
+```bash
+# Correct execution
+docker compose exec frontend npm run <command>
+docker compose exec backend go test ./...
 ```
 
----
-
-## 🚀 開発コマンド (重要)
-
-**npm/goコマンドはローカルで実行せず、必ずDocker経由で実行してください。**
-
-| タスク | コマンド |
-|--------|---------|
-| コンテナ起動 | `make up` |
-| コンテナ停止 | `make down` |
-| 全ログ表示 | `make logs` |
-| DB接続 (psql) | `make db` |
-| Frontend ビルド | `docker compose exec frontend npm run build` |
-| Frontend Lint | `docker compose exec frontend npm run lint` |
-| Frontend テスト | `docker compose exec frontend npm run test:run` |
-| Backend テスト | `docker compose exec backend go test ./... -v` |
-| Backend Lint | `docker compose exec backend golangci-lint run ./...` |
+### Key Commands
+- `make up` / `make down`: Start/Stop containers.
+- `make logs`: View all logs.
+- `make db`: Connect to psql.
+- `make codegen`: Generate TypeScript types from Go models (`backend/internal/model` -> `frontend/src/types/generated/models.ts`).
 
 ---
 
-## 📝 コーディング規約
+## 🏗 Architecture & Directory Structure
 
-詳細なコーディング規約とスタイルガイドは **[.gemini/styleguide.md](.gemini/styleguide.md)** を参照してください。
+### Frontend (Feature-Based + Dependency Inversion)
+- **`src/features/[feature]/`**: Isolated modules containing `api/`, `components/`, `hooks/`, `routes/`, `types/`.
+- **`src/app/pages/`**: **Cross-feature Synthesis**. If a page needs components/logic from multiple features, compose them here and inject via props. **Never import one feature directly into another.**
+- **`src/app/router.tsx`**: Central router using React Router 7 "Data Mode" (`createBrowserRouter`).
+- **`src/lib/design-tokens.ts`**: Notion-like design system built on Tailwind 4. Use `C` and `STYLE` constants for styling.
 
-### 主なポイント
-- **Go (Backend):** パッケージ名は小文字、ExportはPascalCase。Context必須。
-- **TypeScript (Frontend):** コンポーネントはPascalCase。Feature-based Architecture。
-- **共通:** 型安全性最優先。
-
----
-
-## 🔐 環境変数とセキュリティ
-- `.env` ファイルで管理 (`DB_USER`, `DB_PASSWORD`, etc.)。
-- シークレットはコードにコミットしない。
-
----
-
-## 📐 重要な実装パターン
-
-### Go: Repository Pattern
-```go
-type PatientRepository interface {
-    FindByID(ctx context.Context, id string) (*Patient, error)
-}
-```
-
-### Go: Error Handling
-```go
-if err != nil {
-    return nil, fmt.Errorf("failed to find patient: %w", err)
-}
-```
-
-### React: Feature Structure
-```
-features/owners/
-  ├── api/         # API calls (+ hooks)
-  ├── components/  # Feature-specific UI
-  ├── hooks/       # Logic
-  ├── routes/      # Route components
-  ├── types/       # Types
-  └── index.ts     # Public API
-```
+### Backend (Clean Architecture / Layered)
+- **`internal/handler/`**: HTTP layer. Bind requests/responses.
+  - `ShouldBindJSON` errors: Always use `RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))` (unified across all 31 handlers).
+  - Never use `c.JSON(http.StatusBadRequest, ...)` directly.
+- **`internal/service/`**: Business logic. Input validation.
+  - Master deletion: Always check FK dependencies via `CountUsageByXxxID()`. Return `apperrors.WrapConflict(...)` (409) if in use.
+- **`internal/repository/`**: Data access (GORM).
+- **`internal/model/`**: GORM models. **Single Source of Truth** for types.
+- **Context**: Always pass `context.Context` as the first argument to service/repository methods.
+- **Logging**: Use `log/slog` for structured logging.
 
 ---
 
-## ✅ チェックリスト (実装時)
+## 📏 Best Practices (Refer to `features/owners/`)
 
-1.  **既存コードの確認:** 似た機能の実装方法を真似る。
-2.  **型定義:** 最初に型を定義する。
-3.  **テスト:** 必要に応じてテストを追加/修正する。
-4.  **Lint/Format:** `make lint` 相当のコマンドでチェックする。
-5.  **Docker:** 動作確認は必ずDockerコンテナ内で行うか、`make` コマンドを使用する。
+### React 19 Patterns
+- **Ref as Prop**: Use `ref` directly as a prop; do not use `forwardRef`.
+- **`useTransition`**: Standard for managing pending states in complex forms.
+- **`useDeferredValue`**: Use for non-urgent updates like search filters.
+- **`memo()`**: Use to break re-render boundaries in large forms (e.g., `OwnerForm.tsx`). Shared components (`DataTable`, `NotionFilter`, `Pagination`, `SidePeekPanel`) are already wrapped with `memo()`.
+- **Conditional Rendering**: Always use ternary `condition ? <Component /> : null`. Never use `&&`.
+
+### State Management
+- **Server State**: TanStack Query (Priority 1).
+- **URL State**: React Router search params.
+- **Local State**: `useState` / `useReducer`.
+- **Global State**: Zustand (Limited to UI state like sidebar).
+
+---
+
+## 📚 Reference Documents
+- `.claude/CLAUDE.md`: Original project rules and history.
+- `frontend/CODING_RULES.md`: Detailed frontend implementation rules.
+- `backend/CLAUDE.md`: Detailed backend implementation rules.
+- `docs/FUNCTIONAL_TEST_REPORT.md`: Functional test report (OK=2,111 / NG=274 / 未確認=1,514).
+- `.gemini/styleguide.md`: Gemini-specific style adjustments (Note: sync with this file).

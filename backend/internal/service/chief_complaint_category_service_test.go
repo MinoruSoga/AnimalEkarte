@@ -7,13 +7,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ---- ChiefComplaintCategory モック ----
 
 type mockChiefComplaintCategoryRepository struct {
-	findAllFn func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error)
+	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error)
 	findByIDFn func(ctx context.Context, id uint64) (*model.ChiefComplaintCategory, error)
 	createFn   func(ctx context.Context, category *model.ChiefComplaintCategory) error
 	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -38,6 +39,21 @@ func (m *mockChiefComplaintCategoryRepository) Update(ctx context.Context, clini
 
 func (m *mockChiefComplaintCategoryRepository) Delete(ctx context.Context, id uint64) error {
 	return m.deleteFn(ctx, id)
+}
+
+// ---- InquiryRepository モック ----
+
+type mockInquiryRepository struct {
+	upsertFn func(ctx context.Context, inquiry *model.Inquiry) (*model.Inquiry, error)
+	countFn  func(ctx context.Context, categoryID uint64) (int64, error)
+}
+
+func (m *mockInquiryRepository) UpsertByMedicalRecordID(ctx context.Context, inquiry *model.Inquiry) (*model.Inquiry, error) {
+	return m.upsertFn(ctx, inquiry)
+}
+
+func (m *mockInquiryRepository) CountByChiefComplaintCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
+	return m.countFn(ctx, categoryID)
 }
 
 // ---- Tests ----
@@ -86,7 +102,8 @@ func TestChiefComplaintCategoryService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewChiefComplaintCategoryService(repo)
+			inquiryRepo := &mockInquiryRepository{}
+			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
 
 			categories, err := svc.List(context.Background(), tt.clinicID)
 
@@ -136,7 +153,8 @@ func TestChiefComplaintCategoryService_GetByID(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewChiefComplaintCategoryService(repo)
+			inquiryRepo := &mockInquiryRepository{}
+			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
 
 			category, err := svc.GetByID(context.Background(), tt.id)
 
@@ -187,7 +205,8 @@ func TestChiefComplaintCategoryService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewChiefComplaintCategoryService(repo)
+			inquiryRepo := &mockInquiryRepository{}
+			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
 
 			err := svc.Create(context.Background(), tt.input)
 
@@ -223,9 +242,9 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 				SortOrder: &newSortOrder,
 			},
 			repoData: &model.ChiefComplaintCategory{
-				ID:       1,
-				ClinicID: 1,
-				Name:     newName,
+				ID:        1,
+				ClinicID:  1,
+				Name:      newName,
 				SortOrder: newSortOrder,
 			},
 			repoErr: nil,
@@ -269,7 +288,8 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 					return tt.repoData, nil
 				},
 			}
-			svc := NewChiefComplaintCategoryService(repo)
+			inquiryRepo := &mockInquiryRepository{}
+			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
 
 			category, err := svc.Update(context.Background(), tt.clinicID, tt.categoryID, tt.input)
 
@@ -285,22 +305,46 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 
 func TestChiefComplaintCategoryService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
+		name          string
+		id            uint64
+		inquiryCount  int64
+		inquiryErr    error
+		repoErr       error
+		wantErr       bool
+		wantConflict  bool
 	}{
 		{
-			name:    "deletes category successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
+			name:         "deletes category successfully",
+			id:           1,
+			inquiryCount: 0,
+			inquiryErr:   nil,
+			repoErr:      nil,
+			wantErr:      false,
 		},
 		{
-			name:    "returns error when category not found",
-			id:      999,
-			repoErr: errors.New("not found"),
-			wantErr: true,
+			name:         "returns conflict when inquiries reference category",
+			id:           2,
+			inquiryCount: 3,
+			inquiryErr:   nil,
+			repoErr:      nil,
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name:         "returns error when inquiry count check fails",
+			id:           3,
+			inquiryCount: 0,
+			inquiryErr:   errors.New("db error"),
+			repoErr:      nil,
+			wantErr:      true,
+		},
+		{
+			name:         "returns error when category not found",
+			id:           999,
+			inquiryCount: 0,
+			inquiryErr:   nil,
+			repoErr:      errors.New("not found"),
+			wantErr:      true,
 		},
 	}
 
@@ -311,12 +355,21 @@ func TestChiefComplaintCategoryService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewChiefComplaintCategoryService(repo)
+			inquiryRepo := &mockInquiryRepository{
+				countFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.inquiryCount, tt.inquiryErr
+				},
+			}
+			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
 
 			err := svc.Delete(context.Background(), tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, errors.Is(err, apperrors.ErrAlreadyExists),
+						"expected conflict error, got: %v", err)
+				}
 			} else {
 				assert.NoError(t, err)
 			}

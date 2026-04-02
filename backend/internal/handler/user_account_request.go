@@ -8,6 +8,8 @@ type createUserRequest struct {
 	UserType    string  `json:"user_type"    binding:"required"`
 	StaffID     *uint64 `json:"staff_id"`
 	IsMain      bool    `json:"is_main"`
+	// BUG-095: 作成時に権限グループを同時割当する（省略可）
+	GroupIDs []uint64 `json:"group_ids"`
 }
 
 // updateUserRequest はユーザー更新のバインド struct
@@ -17,9 +19,4 @@ type updateUserRequest struct {
 	StaffID     *uint64 `json:"staff_id"`
 	AvatarURL   *string `json:"avatar_url"`
 	Status      *string `json:"status"`
-}
-
-// setPermissionsRequest は権限一括更新のバインド struct
-type setPermissionsRequest struct {
-	Permissions []string `json:"permissions" binding:"required"`
 }

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -12,7 +11,7 @@ import (
 )
 
 type TrimmingRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
 	Create(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
 	Update(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
@@ -28,7 +27,7 @@ func NewTrimmingRepository(db *gorm.DB) TrimmingRepository {
 	return &trimmingRepository{db: db}
 }
 
-func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
+func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error) {
 	trimmings := make([]model.TrimmingRecord, 0)
 	var total int64
 
@@ -37,7 +36,14 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 		q = q.Where("trimming_records.pet_id = ?", petID)
 	}
 	if ownerID != nil {
-		q = q.Joins("JOIN pets ON pets.id = trimming_records.pet_id").Where("pets.owner_id = ?", *ownerID)
+		q = q.Select("trimming_records.*").
+			Joins("JOIN pets ON pets.id = trimming_records.pet_id").Where("pets.owner_id = ?", *ownerID)
+	}
+	if startDate != nil {
+		q = q.Where("trimming_records.date >= ?", *startDate)
+	}
+	if endDate != nil {
+		q = q.Where("trimming_records.date <= ?", *endDate)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count trimming records")
@@ -49,7 +55,7 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 		Preload("Staff").
 		Preload("Course").
 		Preload("Options").
-		Offset((page-1)*limit).Limit(limit).Order("date DESC, created_at DESC").
+		Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").
 		Find(&trimmings).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find trimming records")
 	}
@@ -58,16 +64,14 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 
 func (r *trimmingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error) {
 	var trimming model.TrimmingRecord
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Pet").
 		Preload("Staff").
 		Preload("Course").
 		Preload("Options").
-		First(&trimming, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("trimming_record", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find trimming record by id")
+		First(&trimming, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "trimming_record", fmt.Sprintf("%d", id))
 	}
 	return &trimming, nil
 }
@@ -110,7 +114,7 @@ func (r *trimmingRepository) Delete(ctx context.Context, clinicID, id uint64) er
 }
 
 func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, optionIDs []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		record := &model.TrimmingRecord{ID: recordID}
 		if err := tx.Model(record).Association("Options").Unscoped().Clear(); err != nil {
 			return apperrors.Wrap(err, "failed to clear trimming options")
@@ -126,5 +130,8 @@ func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, op
 			return apperrors.Wrap(err, "failed to set trimming options")
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "set options trimming record")
+	}
+	return nil
 }

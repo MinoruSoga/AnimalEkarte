@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 
 export interface CreateEstimateRequest {
   medical_record_id?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export const useCreateEstimate = (recordId: string) => {

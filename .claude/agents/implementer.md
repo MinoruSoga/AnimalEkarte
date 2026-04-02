@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: 機能実装、テスト作成、ドキュメント作成。実装、コード作成、機能追加時に使用。
-tools: Read, Edit, Write, Grep, Glob, Bash
+tools: ["Read", "Edit", "Write", "Grep", "Glob", "Bash"]
 model: sonnet
 ---
 
@@ -27,18 +27,19 @@ model: sonnet
 
 ## コーディング原則
 
-- TypeScript strict mode
-- SOLID原則
-- DRY（Don't Repeat Yourself）
-- 関数は単一責任
+- **React 19 Actions**: Use `useActionState` and `<form action>` for all data mutations.
+- **Feature Indexing**: Always export/import via feature `index.ts`. No deep imports.
+- **Design Tokens**: Mandatory use of `C` and `STYLE` constants for all styling.
+- **Backend Errors**: Use `apperrors.FromGORM` in repositories and `apperrors.Wrap` in services.
+- **Flat Thinking**: Be direct, rational, and unfiltered.
 
 ## 技術スタック
 
-- Next.js 14 (App Router, Server Components)
-- TypeScript
-- Prisma
-- Tailwind CSS + shadcn/ui
-- Jest / Vitest
+- Frontend: React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui / React Router 7
+- Backend: Go 1.25 / Gin / GORM / PostgreSQL 18
+- Architecture: Layered (handler → service → repository) + Feature-Based (FE)
+- Testing: Vitest + MSW (FE) / go test (BE)
+- Infrastructure: Docker Compose
 
 ## ワークフロー
 

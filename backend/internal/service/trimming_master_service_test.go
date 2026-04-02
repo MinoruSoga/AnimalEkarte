@@ -14,12 +14,12 @@ import (
 // ---- TrimmingCourse モック ----
 
 type mockTrimmingCourseRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.TrimmingCourse, error)
-	createFn   func(ctx context.Context, course *model.TrimmingCourse) error
-	updateFn   func(ctx context.Context, course *model.TrimmingCourse) error
-	deleteFn   func(ctx context.Context, id uint64) error
-	reorderErr error
+	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
+	findByIDFn     func(ctx context.Context, id uint64) (*model.TrimmingCourse, error)
+	createFn       func(ctx context.Context, course *model.TrimmingCourse) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
+	deleteFn       func(ctx context.Context, id uint64) error
+	reorderErr     error
 }
 
 func (m *mockTrimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
@@ -34,8 +34,8 @@ func (m *mockTrimmingCourseRepository) Create(ctx context.Context, course *model
 	return m.createFn(ctx, course)
 }
 
-func (m *mockTrimmingCourseRepository) Update(ctx context.Context, course *model.TrimmingCourse) error {
-	return m.updateFn(ctx, course)
+func (m *mockTrimmingCourseRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockTrimmingCourseRepository) Delete(ctx context.Context, id uint64) error {
@@ -46,15 +46,19 @@ func (m *mockTrimmingCourseRepository) Reorder(_ context.Context, _ uint64, _ []
 	return m.reorderErr
 }
 
+func (m *mockTrimmingCourseRepository) CountRecordsByCourseID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- TrimmingOption モック ----
 
 type mockTrimmingOptionRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.TrimmingOption, error)
-	createFn   func(ctx context.Context, option *model.TrimmingOption) error
-	updateFn   func(ctx context.Context, option *model.TrimmingOption) error
-	deleteFn   func(ctx context.Context, id uint64) error
-	reorderErr error
+	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
+	findByIDFn     func(ctx context.Context, id uint64) (*model.TrimmingOption, error)
+	createFn       func(ctx context.Context, option *model.TrimmingOption) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
+	deleteFn       func(ctx context.Context, id uint64) error
+	reorderErr     error
 }
 
 func (m *mockTrimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
@@ -69,8 +73,8 @@ func (m *mockTrimmingOptionRepository) Create(ctx context.Context, option *model
 	return m.createFn(ctx, option)
 }
 
-func (m *mockTrimmingOptionRepository) Update(ctx context.Context, option *model.TrimmingOption) error {
-	return m.updateFn(ctx, option)
+func (m *mockTrimmingOptionRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockTrimmingOptionRepository) Delete(ctx context.Context, id uint64) error {
@@ -246,27 +250,34 @@ func TestTrimmingCourseService_Create(t *testing.T) {
 }
 
 func TestTrimmingCourseService_Update(t *testing.T) {
+	name := "更新後コース名"
 	tests := []struct {
 		name    string
-		course  *model.TrimmingCourse
+		input   UpdateTrimmingCourseInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name:    "updates course successfully",
-			course:  &model.TrimmingCourse{ID: 1, Name: "更新後コース名"},
+			input:   UpdateTrimmingCourseInput{Name: &name},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
+			name:    "returns error when no fields provided",
+			input:   UpdateTrimmingCourseInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
 			name:    "returns not found error when course does not exist",
-			course:  &model.TrimmingCourse{ID: 999, Name: "存在しないコース"},
+			input:   UpdateTrimmingCourseInput{Name: &name},
 			repoErr: apperrors.WrapNotFound("trimming_course", "999"),
 			wantErr: true,
 		},
 		{
 			name:    "returns error on repository failure",
-			course:  &model.TrimmingCourse{ID: 1, Name: "エラーケース"},
+			input:   UpdateTrimmingCourseInput{Name: &name},
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
@@ -275,18 +286,23 @@ func TestTrimmingCourseService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseRepository{
-				updateFn: func(_ context.Context, _ *model.TrimmingCourse) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.TrimmingCourse, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.TrimmingCourse{ID: 1, Name: name}, nil
 				},
 			}
 			svc := NewTrimmingCourseService(repo)
 
-			err := svc.Update(context.Background(), tt.course)
+			course, err := svc.Update(context.Background(), 1, 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, course)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, course)
 			}
 		})
 	}
@@ -548,27 +564,34 @@ func TestTrimmingOptionService_Create(t *testing.T) {
 }
 
 func TestTrimmingOptionService_Update(t *testing.T) {
+	optName := "更新後オプション名"
 	tests := []struct {
 		name    string
-		option  *model.TrimmingOption
+		input   UpdateTrimmingOptionInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name:    "updates option successfully",
-			option:  &model.TrimmingOption{ID: 1, Name: "更新後オプション名"},
+			input:   UpdateTrimmingOptionInput{Name: &optName},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
+			name:    "returns error when no fields provided",
+			input:   UpdateTrimmingOptionInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
 			name:    "returns not found error when option does not exist",
-			option:  &model.TrimmingOption{ID: 999, Name: "存在しないオプション"},
+			input:   UpdateTrimmingOptionInput{Name: &optName},
 			repoErr: apperrors.WrapNotFound("trimming_option", "999"),
 			wantErr: true,
 		},
 		{
 			name:    "returns error on repository failure",
-			option:  &model.TrimmingOption{ID: 1, Name: "エラーケース"},
+			input:   UpdateTrimmingOptionInput{Name: &optName},
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
@@ -577,18 +600,23 @@ func TestTrimmingOptionService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingOptionRepository{
-				updateFn: func(_ context.Context, _ *model.TrimmingOption) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.TrimmingOption, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.TrimmingOption{ID: 1, Name: optName}, nil
 				},
 			}
 			svc := NewTrimmingOptionService(repo)
 
-			err := svc.Update(context.Background(), tt.option)
+			option, err := svc.Update(context.Background(), 1, 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, option)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, option)
 			}
 		})
 	}

@@ -3,16 +3,18 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { useGetShifts } from "../api/get-shifts";
 import { useStaffsForShift } from "../api/get-staffs";
 import { ShiftCalendar as ShiftCalendarGrid } from "../components/ShiftCalendar/ShiftCalendar";
+import { usePermission } from "@/features/auth";
 
 function getInitialYearMonth(): string {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
 }
 
 export function ShiftCalendarPage() {
   const [yearMonth, setYearMonth] = useState<string>(getInitialYearMonth);
+  const { canCreate, canEdit } = usePermission("shifts");
   const [selectedStaffId, setSelectedStaffId] = useState<string>("all");
 
   const shiftsQuery = useGetShifts({
@@ -24,17 +26,17 @@ export function ShiftCalendarPage() {
 
   const handlePrevMonth = useCallback(() => {
     setYearMonth((prev) => {
-      const [y, m] = prev.split("-").map(Number);
-      const d = new Date(y, m - 2, 1);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const [year, month] = prev.split("-").map(Number);
+      const date = new Date(year, month - 2, 1);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     });
   }, []);
 
   const handleNextMonth = useCallback(() => {
     setYearMonth((prev) => {
-      const [y, m] = prev.split("-").map(Number);
-      const d = new Date(y, m, 1);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const [year, month] = prev.split("-").map(Number);
+      const date = new Date(year, month, 1);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     });
   }, []);
 
@@ -57,6 +59,8 @@ export function ShiftCalendarPage() {
           shifts={shifts}
           staffs={staffs}
           selectedStaffId={selectedStaffId}
+          canCreate={canCreate}
+          canEdit={canEdit}
           onPrevMonth={handlePrevMonth}
           onNextMonth={handleNextMonth}
           onStaffChange={handleStaffChange}

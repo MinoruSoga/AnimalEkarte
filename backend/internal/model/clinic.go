@@ -22,21 +22,6 @@ const (
 	AccountStatusLocked   AccountStatus = "locked"
 )
 
-type PermissionType string
-
-const (
-	PermissionAccountAdmin    PermissionType = "account_admin"
-	PermissionMedical         PermissionType = "medical"
-	PermissionMedicalRead     PermissionType = "medical_read"
-	PermissionTrimming        PermissionType = "trimming"
-	PermissionBilling         PermissionType = "billing"
-	PermissionReception       PermissionType = "reception"
-	PermissionHospitalization PermissionType = "hospitalization"
-	PermissionMasterAdmin     PermissionType = "master_admin"
-	PermissionShiftAdmin      PermissionType = "shift_admin"
-	PermissionInventory       PermissionType = "inventory"
-)
-
 type Clinic struct {
 	ID                 uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	CompanyID          uint64    `gorm:"not null"                                       json:"company_id"`
@@ -51,6 +36,8 @@ type Clinic struct {
 	Website            string    `gorm:"default:''"                                     json:"website"`
 	LogoURL            string    `gorm:"default:''"                                     json:"logo_url"`
 	IsActive           bool      `gorm:"default:true"                                   json:"is_active"`
+	StandardTaxRate    float64   `gorm:"type:numeric;not null;default:0.10"             json:"standard_tax_rate"`
+	ReducedTaxRate     float64   `gorm:"type:numeric;not null;default:0.08"             json:"reduced_tax_rate"`
 	CreatedAt          time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt          time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
@@ -89,13 +76,40 @@ type UserClinicMembership struct {
 
 func (UserClinicMembership) TableName() string { return "user_clinic_memberships" }
 
-type UserPermission struct {
-	ID         uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	UserID     uint64         `gorm:"not null"                                       json:"user_id"`
-	ClinicID   uint64         `gorm:"not null"                                       json:"clinic_id"`
-	Permission PermissionType `gorm:"type:permission_type;not null"                  json:"permission"`
-	GrantedBy  *uint64        `                                                      json:"granted_by,omitempty"`
-	GrantedAt  time.Time      `gorm:"default:now()"                                  json:"granted_at"`
+// PermissionGroup は権限グループ定義（company単位で管理）
+type PermissionGroup struct {
+	ID          uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
+	CompanyID   uint64         `gorm:"not null"                 json:"company_id"`
+	Name        string         `gorm:"not null"                 json:"name"`
+	Description string         `gorm:"default:''"               json:"description"`
+	Color       string         `gorm:"default:'#6B7280'"        json:"color"`
+	CreatedAt   time.Time      `gorm:"autoCreateTime"           json:"created_at"`
+	UpdatedAt   time.Time      `gorm:"autoUpdateTime"           json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `                                json:"deleted_at,omitempty"`
+
+	// Relations
+	Rules []PermissionGroupRule `gorm:"foreignKey:GroupID" json:"rules,omitempty"`
 }
 
-func (UserPermission) TableName() string { return "user_permissions" }
+func (PermissionGroup) TableName() string { return "permission_groups" }
+
+// PermissionGroupRule はグループ×ページ×CRUD権限
+type PermissionGroupRule struct {
+	ID        uint64   `gorm:"primaryKey;autoIncrement" json:"id"`
+	GroupID   uint64   `gorm:"not null"                 json:"group_id"`
+	Resource  Resource `gorm:"not null"                 json:"resource"`
+	CanView   bool     `gorm:"not null;default:false"   json:"can_view"`
+	CanCreate bool     `gorm:"not null;default:false"   json:"can_create"`
+	CanEdit   bool     `gorm:"not null;default:false"   json:"can_edit"`
+	CanDelete bool     `gorm:"not null;default:false"   json:"can_delete"`
+}
+
+func (PermissionGroupRule) TableName() string { return "permission_group_rules" }
+
+// UserPermissionGroup はユーザー→グループ紐付け
+type UserPermissionGroup struct {
+	UserID  uint64 `gorm:"primaryKey" json:"user_id"`
+	GroupID uint64 `gorm:"primaryKey" json:"group_id"`
+}
+
+func (UserPermissionGroup) TableName() string { return "user_permission_groups" }

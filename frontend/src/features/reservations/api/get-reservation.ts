@@ -1,15 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ReservationAppointment } from "@/types";
 import { transformReservation } from "./transforms";
 import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
-
-interface ReservationListResponse {
-  data: BackendReservation[];
-  total: number;
-  page: number;
-  limit: number;
-}
 
 export const getReservation = async (
   id: string
@@ -25,41 +19,8 @@ export const useGetReservation = (id: string) => {
     queryKey: ["reservation", id],
     queryFn: () => getReservation(id),
     enabled: !!id,
+    staleTime: QUERY_STALE_TIMES.REALTIME, // 予約は高頻度変更
+    gcTime: QUERY_GC_TIMES.SHORT,
   });
 };
 
-// Fetch reservations by pet ID
-export const getReservationsByPetId = async (
-  petId: string
-): Promise<ReservationAppointment[]> => {
-  const { data } = await axios.get<ReservationListResponse>("/v1/reservations", {
-    params: { pet_id: petId },
-  });
-  return data.data.map(transformReservation);
-};
-
-export const useGetReservationsByPetId = (petId: string) => {
-  return useQuery({
-    queryKey: ["reservations", "pet", petId],
-    queryFn: () => getReservationsByPetId(petId),
-    enabled: !!petId,
-  });
-};
-
-// Fetch reservations by owner ID
-export const getReservationsByOwnerId = async (
-  ownerId: string
-): Promise<ReservationAppointment[]> => {
-  const { data } = await axios.get<ReservationListResponse>("/v1/reservations", {
-    params: { owner_id: ownerId },
-  });
-  return data.data.map(transformReservation);
-};
-
-export const useGetReservationsByOwnerId = (ownerId: string) => {
-  return useQuery({
-    queryKey: ["reservations", "owner", ownerId],
-    queryFn: () => getReservationsByOwnerId(ownerId),
-    enabled: !!ownerId,
-  });
-};

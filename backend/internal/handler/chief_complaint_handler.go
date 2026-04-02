@@ -52,7 +52,7 @@ func (h *Handler) CreateChiefComplaint(c *gin.Context) {
 
 	var req createChiefComplaintRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -84,7 +84,7 @@ func (h *Handler) UpdateChiefComplaint(c *gin.Context) {
 
 	var req updateChiefComplaintRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

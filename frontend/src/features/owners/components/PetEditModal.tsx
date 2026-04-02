@@ -1,40 +1,50 @@
-import { useState, useCallback, useMemo } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
-import {
-  PET_GENDER_VALUES,
-  ACQUISITION_TYPE_VALUES,
-  DANGER_LEVEL_VALUES,
-  PetFormData,
-} from "../types";
+import { PET_GENDER_VALUES, ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES, PetFormData } from "../types";
 import { useGetAnimalSpecies } from "../api/get-animal-species";
 import { useGetInsurances } from "../api/get-insurances";
 
 import { isOneOf } from "@/lib/type-utils";
 
+const OwnerSearchModal = lazy(() =>
+  import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal }))
+);
+
 const LABEL_CLS = `text-sm ${C.text60}`;
 const INPUT_CLS = STYLE.formInput;
+
+// BUG-100: 動物種別ごとの品種サジェスト（ハードコード）
+// 動物種別名（animalSpeciesList から取得した name）をキーとする
+const BREED_SUGGESTIONS: Record<string, string[]> = {
+  "犬": [
+    "柴犬", "トイプードル", "チワワ", "ダックスフンド", "フレンチブルドッグ",
+    "ゴールデンレトリバー", "ラブラドールレトリバー", "ポメラニアン", "ビーグル",
+    "シバイヌ(赤)", "シバイヌ(黒)", "ミニチュアシュナウザー", "マルチーズ",
+    "ヨークシャーテリア", "シーズー", "ボーダーコリー", "コーギー", "ハスキー",
+    "サモエド", "柴ミックス", "雑種",
+  ],
+  "猫": [
+    "アメリカンショートヘア", "スコティッシュフォールド", "ロシアンブルー",
+    "メインクーン", "ペルシャ", "ノルウェージャンフォレストキャット", "ラグドール",
+    "ベンガル", "マンチカン", "ヒマラヤン", "アビシニアン", "バーマン",
+    "ブリティッシュショートヘア", "日本猫", "雑種",
+  ],
+  "鳥": ["セキセイインコ", "オカメインコ", "コザクラインコ", "文鳥", "カナリア", "その他"],
+  "ウサギ": ["ネザーランドドワーフ", "ホーランドロップ", "ミニレッキス", "その他"],
+  "ハムスター": ["ゴールデンハムスター", "ジャンガリアン", "キャンベル", "その他"],
+  "フェレット": ["フェレット"],
+};
 
 // rendering-hoist-jsx: 静的 SelectItem リストはコンポーネント外に定数として定義し
 // キー入力のたびに JSX ノードを再生成するコストを排除する
@@ -56,6 +66,7 @@ interface PetEditModalProps {
   ownerName?: string;
   petData?: PetFormData;
   onSave: (data: PetFormData) => void;
+  onChangeOwner?: (newOwner: { id: string; name: string }) => void;
 }
 
 export function PetEditModal({
@@ -64,6 +75,7 @@ export function PetEditModal({
   ownerName = "飼主名",
   petData,
   onSave,
+  onChangeOwner,
 }: PetEditModalProps) {
   const { data: animalSpeciesList = [], isLoading: isLoadingSpecies } = useGetAnimalSpecies();
   const { data: insuranceList = [], isLoading: isLoadingInsurances } = useGetInsurances();
@@ -101,6 +113,39 @@ export function PetEditModal({
     });
   }, []);
 
+  // FE-147: open が true になるたびに formData・fieldErrors を petData で再初期化する。
+  // キャンセル・ESC・背景クリック・保存後など、どの閉じ方をしても次回オープン時に
+  // クリーンな状態で始まることを保証する。
+  useEffect(() => {
+    if (!open) return;
+    setFormData({
+      id: petData?.id || "",
+      petNumber: petData?.petNumber || "",
+      petName: petData?.petName || "",
+      petNameKana: petData?.petNameKana || "",
+      species: petData?.species || "",
+      animalSpeciesId: petData?.animalSpeciesId || "",
+      gender: petData?.gender || "",
+      birthDate: petData?.birthDate || "",
+      breed: petData?.breed || "",
+      color: petData?.color || "",
+      weight: petData?.weight || "",
+      neuteredDate: petData?.neuteredDate || "",
+      acquisitionType: (petData?.acquisitionType || "購入") as typeof ACQUISITION_TYPE_VALUES[number],
+      dangerLevel: (petData?.dangerLevel || "低") as typeof DANGER_LEVEL_VALUES[number],
+      food: petData?.food || "",
+      environment: petData?.environment || "",
+      status: petData?.status || "生存",
+      remarks: petData?.remarks || "",
+      insuranceId: petData?.insuranceId || "",
+      insuranceName: petData?.insuranceName,
+      insuranceDetails: petData?.insuranceDetails,
+    });
+    setFieldErrors({});
+  // petData の各フィールドではなく petData 参照自体の変化（open トリガー）で十分
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   // rerender-memo + js-cache-function-results:
   // animalSpeciesList / insuranceList は React Query でキャッシュされた API マスタデータ。
   // formData のキー入力ごとにモーダルが再レンダーされるが、リストが変わらない限り
@@ -129,6 +174,8 @@ export function PetEditModal({
       ...prev,
       animalSpeciesId: value,
       species: selected?.name ?? prev.species,
+      // BUG-100: 種別変更時に品種をリセット
+      breed: "",
     }));
     clearFieldError("animalSpeciesId");
   }, [animalSpeciesList, clearFieldError]);
@@ -153,6 +200,14 @@ export function PetEditModal({
     if (!formData.petName.trim()) errors.petName = "ペット名を入力してください";
     if (!formData.animalSpeciesId) errors.animalSpeciesId = "動物種を選択してください";
     if (!formData.gender) errors.gender = "性別を選択してください";
+    if (formData.weight !== "" && formData.weight !== undefined) {
+      const weightNum = parseFloat(formData.weight);
+      if (!isNaN(weightNum) && weightNum < 0) {
+        errors.weight = "体重は0以上の値を入力してください";
+      } else if (!isNaN(weightNum) && weightNum > 200) {
+        errors.weight = "体重は200kg以下で入力してください";
+      }
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -171,20 +226,49 @@ export function PetEditModal({
     }
   };
 
+  // FE-147: フォームリセットは useEffect(open) が担うため、
+  // handleCancel はモーダルを閉じるだけでよい。
+  const handleCancel = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
+
   const isEdit = !!petData?.id;
+  const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
+
+  const handleOwnerChange = useCallback(
+    (newOwner: { id: string; name: string }) => {
+      setIsOwnerSearchOpen(false);
+      onChangeOwner?.(newOwner);
+    },
+    [onChangeOwner],
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`${LAYOUT.modal.xl} overflow-y-auto`}>
         <DialogHeader>
-          <DialogTitle className={`text-sm font-bold ${C.text}`}>
-            {isEdit ? `${ownerName}のペット情報編集` : `${ownerName}のペット新規登録`}
-          </DialogTitle>
-          <DialogDescription className={`text-sm ${C.text60}`}>
-            {isEdit
-              ? "ペットの情報を編集してください。"
-              : "ペットの基本情報を入力してください。"}
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className={`text-sm font-bold ${C.text}`}>
+                {isEdit ? `${ownerName}のペット情報編集` : `${ownerName}のペット新規登録`}
+              </DialogTitle>
+              <DialogDescription className={`text-sm ${C.text60}`}>
+                {isEdit
+                  ? "ペットの情報を編集してください。"
+                  : "ペットの基本情報を入力してください。"}
+              </DialogDescription>
+            </div>
+            {isEdit && onChangeOwner ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsOwnerSearchOpen(true)}
+                className={`h-8 text-xs ${C.borderMedium}`}
+              >
+                飼主変更
+              </Button>
+            ) : null}
+          </div>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -194,14 +278,18 @@ export function PetEditModal({
               <Label htmlFor="petNumber" className={LABEL_CLS}>
                 ペットNo
               </Label>
-              <Input
-                id="petNumber"
-                value={formData.petNumber}
-                onChange={(e) =>
-                  setFormData(prev => ({ ...prev, petNumber: e.target.value }))
-                }
-                className={INPUT_CLS}
-              />
+              {petData ? (
+                <Input
+                  id="petNumber"
+                  value={formData.petNumber}
+                  disabled
+                  className={`${INPUT_CLS} disabled:opacity-50`}
+                />
+              ) : (
+                <p className={`flex h-9 items-center px-3 text-sm ${C.text40} italic`}>
+                  登録時に自動採番されます
+                </p>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -211,6 +299,7 @@ export function PetEditModal({
               <Input
                 id="petName"
                 value={formData.petName}
+                maxLength={100}
                 aria-invalid={!!fieldErrors.petName}
                 aria-describedby={fieldErrors.petName ? "petName-error" : undefined}
                 onChange={(e) => {
@@ -290,6 +379,7 @@ export function PetEditModal({
                   setFormData(prev => ({ ...prev, birthDate: val }));
                 }}
                 placeholder="生年月日を選択…"
+                disabledDays={{ after: new Date() }}
               />
             </div>
           </div>
@@ -300,14 +390,24 @@ export function PetEditModal({
               <Label htmlFor="breed" className={LABEL_CLS}>
                 品種
               </Label>
+              {/* BUG-100: 種別に応じたサジェスト付き datalist + 自由テキスト */}
               <Input
                 id="breed"
+                list={BREED_SUGGESTIONS[formData.species] ? "breed-suggestions" : undefined}
                 value={formData.breed || ""}
                 onChange={(e) =>
                   setFormData(prev => ({ ...prev, breed: e.target.value }))
                 }
+                placeholder={BREED_SUGGESTIONS[formData.species] ? "品種を選択または入力..." : undefined}
                 className={INPUT_CLS}
               />
+              {BREED_SUGGESTIONS[formData.species] ? (
+                <datalist id="breed-suggestions">
+                  {BREED_SUGGESTIONS[formData.species].map((b) => (
+                    <option key={b} value={b} />
+                  ))}
+                </datalist>
+              ) : null}
             </div>
 
             <div className="space-y-1">
@@ -328,17 +428,21 @@ export function PetEditModal({
               <Label htmlFor="weight" className={LABEL_CLS}>
                 体重(kg)
               </Label>
-              <Input
+              <NumberInput
                 id="weight"
-                type="number"
-                min="0"
-                step="0.1"
+                min={0}
+                step={0.1}
                 value={formData.weight || ""}
-                onChange={(e) =>
-                  setFormData(prev => ({ ...prev, weight: e.target.value }))
-                }
-                className={INPUT_CLS}
+                aria-invalid={!!fieldErrors.weight}
+                aria-describedby={fieldErrors.weight ? "weight-error" : undefined}
+                onChange={(v) => {
+                  setFormData(prev => ({ ...prev, weight: v }));
+                  clearFieldError("weight");
+                }}
+                suffix="kg"
+                className={`${INPUT_CLS} ${fieldErrors.weight ? STYLE.formInputError : ""}`}
               />
+              <FormFieldError id="weight-error" message={fieldErrors.weight} />
             </div>
 
             <div className="space-y-1">
@@ -443,6 +547,35 @@ export function PetEditModal({
               </Select>
             </div>
 
+            {/* BUG-036: ペット生死ステータス */}
+            <div className="space-y-1">
+              <Label className={LABEL_CLS}>生死ステータス</Label>
+              <div className="flex gap-4 h-9 items-center">
+                <label className={`flex items-center gap-1.5 text-sm cursor-pointer ${C.text}`}>
+                  <input
+                    type="radio"
+                    name="petStatus"
+                    value="生存"
+                    checked={formData.status === "生存"}
+                    onChange={() => setFormData(prev => ({ ...prev, status: "生存" }))}
+                    className="accent-current"
+                  />
+                  生存
+                </label>
+                <label className={`flex items-center gap-1.5 text-sm cursor-pointer ${C.text}`}>
+                  <input
+                    type="radio"
+                    name="petStatus"
+                    value="死亡"
+                    checked={formData.status === "死亡"}
+                    onChange={() => setFormData(prev => ({ ...prev, status: "死亡" }))}
+                    className="accent-current"
+                  />
+                  死亡
+                </label>
+              </div>
+            </div>
+
             <div className="space-y-1">
               <Label htmlFor="remarks" className={LABEL_CLS}>
                 備考・特記事項
@@ -464,7 +597,7 @@ export function PetEditModal({
           <Button
             variant="outline"
             className={`h-11 text-sm ${C.borderMedium}`}
-            onClick={() => onOpenChange(false)}
+            onClick={handleCancel}
           >
             キャンセル
           </Button>
@@ -476,6 +609,18 @@ export function PetEditModal({
           </Button>
         </div>
       </DialogContent>
+
+      {/* Owner Search Modal (edit mode only) */}
+      {isEdit && onChangeOwner ? (
+        <Suspense fallback={null}>
+          <OwnerSearchModal
+            open={isOwnerSearchOpen}
+            onOpenChange={setIsOwnerSearchOpen}
+            currentOwnerName={ownerName}
+            onSelect={handleOwnerChange}
+          />
+        </Suspense>
+      ) : null}
     </Dialog>
   );
 }

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -12,12 +11,12 @@ import (
 )
 
 type MedicalRecordRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-	FindByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
-	Update(ctx context.Context, record *model.MedicalRecord) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
 }
 
 type medicalRecordRepository struct {
@@ -28,7 +27,7 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
-func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
 	records := make([]model.MedicalRecord, 0)
 	var total int64
 
@@ -39,105 +38,83 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 	if ownerID != nil {
 		q = q.Where("owner_id = ?", *ownerID)
 	}
+	if startDate != nil {
+		q = q.Where("date >= ?", *startDate)
+	}
+	if endDate != nil {
+		q = q.Where("date <= ?", *endDate)
+	}
 	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count medical records")
+		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	if err := q.Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").
 		Preload("Owner").Preload("Pet.AnimalSpecies").Preload("Doctor").Preload("Inquiry").Preload("Billing").
 		Find(&records).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find medical records")
+		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	return records, total, nil
 }
 
 func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Treatments").
 		Preload("Vitals").
 		Preload("Doctor").
 		Preload("Owner").
 		Preload("Pet.AnimalSpecies").
-		First(&record, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find medical record by id")
-	}
-	return &record, nil
-}
-
-func (r *medicalRecordRepository) FindByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error) {
-	var record model.MedicalRecord
-	if err := r.db.WithContext(ctx).
-		Preload("Treatments").
-		Preload("Vitals").
-		Preload("Doctor").
-		First(&record, "record_no = ? AND clinic_id = ?", recordNo, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("medical_record", recordNo)
-		}
-		return nil, apperrors.Wrap(err, "find medical record by record_no")
+		First(&record, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
 	}
 	return &record, nil
 }
 
 func (r *medicalRecordRepository) Create(ctx context.Context, record *model.MedicalRecord) error {
-	if err := r.db.WithContext(ctx).Create(record).Error; err != nil {
+	err := r.db.WithContext(ctx).Create(record).Error
+	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("medical_record", record.RecordNo)
 		}
-		return apperrors.Wrap(err, "create medical record")
+		return apperrors.FromGORM(err, "medical_record", "")
 	}
 	return nil
 }
 
-// buildMedicalRecordUpdateFields は MedicalRecord から非ゼロ値/非nilフィールドのみを map に変換する。
-// GORM の zero-value スキップ問題を回避し、PATCH セマンティクスを実現する。
-func buildMedicalRecordUpdateFields(record *model.MedicalRecord) map[string]any {
-	fields := make(map[string]any)
-	if !record.Date.IsZero() {
-		fields["date"] = record.Date
-	}
-	if record.Status != "" {
-		fields["status"] = record.Status
-	}
-	if record.OwnerID != nil {
-		fields["owner_id"] = record.OwnerID
-	}
-	if record.PetID != nil {
-		fields["pet_id"] = record.PetID
-	}
-	if record.DoctorID != nil {
-		fields["doctor_id"] = record.DoctorID
-	}
-	if record.ReservationAppointmentID != nil {
-		fields["reservation_appointment_id"] = record.ReservationAppointmentID
-	}
-	return fields
-}
-
-func (r *medicalRecordRepository) Update(ctx context.Context, record *model.MedicalRecord) error {
+func (r *medicalRecordRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
-		Where("id = ? AND clinic_id = ?", record.ID, record.ClinicID).
-		Updates(buildMedicalRecordUpdateFields(record))
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update medical record")
+		return nil, apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", record.ID))
+		return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.MedicalRecord{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete medical record")
+		return apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountByPetID は指定されたペットに関連するカルテ数を返す
+func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.MedicalRecord{}).
+		Where("clinic_id = ? AND pet_id = ?", clinicID, petID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.Wrap(err, "count medical records by pet")
+	}
+	return count, nil
 }

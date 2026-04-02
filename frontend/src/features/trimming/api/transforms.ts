@@ -1,8 +1,8 @@
-import type { TrimmingRecord } from "@/types";
+import type { TrimmingUI } from "@/types";
 import type { BackendTrimming } from "@/types/trimming";
 
-export function transformTrimming(data: BackendTrimming): TrimmingRecord {
-  const statusMap: Record<string, TrimmingRecord["status"]> = {
+export function transformTrimming(data: BackendTrimming): TrimmingUI {
+  const statusMap: Record<string, TrimmingUI["status"]> = {
     completed: "完了",
     reserved: "予約",
     in_progress: "進行中",
@@ -25,9 +25,9 @@ export function transformTrimming(data: BackendTrimming): TrimmingRecord {
     staffId: data.staff?.id != null ? String(data.staff.id) : "",
     courseId: data.course?.id != null ? String(data.course.id) : "",
     optionIds: data.options?.map((o) => String(o.id)) ?? [],
-    bw: data.bw ?? "",
+    bw: data.bw != null ? String(data.bw) : "",
     bwUnit: (data.bw_unit as "Kg" | "g") || "Kg",
-    bt: data.bt ?? "",
+    bt: data.bt != null ? String(data.bt) : "",
     usedShampoo: data.used_shampoo ?? "",
     usedRibbon: data.used_ribbon ?? "",
     remarks: data.remarks ?? "",

@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Vaccine ----
@@ -51,7 +52,7 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 
 	var input createVaccineRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -90,33 +91,27 @@ func (h *Handler) UpdateVaccine(c *gin.Context) {
 	}
 	var input updateVaccineRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	vaccine := &model.Vaccine{
-		ID:          id,
-		ClinicID:    clinicID,
-		Name:        input.Name,
-		Price:       input.Price,
-		Description: input.Description,
-		Interval:    input.Interval,
-		SortOrder:   input.SortOrder,
+	svcInput := service.UpdateVaccineInput{
+		Name:          input.Name,
+		Price:         input.Price,
+		IsActive:      input.IsActive,
+		Description:   input.Description,
+		Interval:      input.Interval,
+		ParentID:      input.ParentID,
+		ClearParentID: input.ClearParentID,
+		SortOrder:     input.SortOrder,
 	}
-	if input.IsActive != nil {
-		vaccine.IsActive = *input.IsActive
-	}
-	if input.Species != "" {
-		s := model.VaccineSpecies(input.Species)
-		vaccine.Species = &s
-	}
-	if input.ClearParentID {
-		vaccine.ParentID = nil
-	} else if input.ParentID != nil {
-		vaccine.ParentID = input.ParentID
+	if input.Species != nil {
+		s := model.VaccineSpecies(*input.Species)
+		svcInput.Species = &s
 	}
 
-	if err := h.svc.Vaccine.Update(c.Request.Context(), vaccine); err != nil {
+	vaccine, err := h.svc.Vaccine.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -131,7 +126,7 @@ func (h *Handler) ReorderVaccines(c *gin.Context) {
 	}
 	var req reorderVaccineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.Vaccine.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

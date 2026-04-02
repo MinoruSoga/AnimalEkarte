@@ -1,15 +1,21 @@
-import type { AccountingRecord } from "@/types";
-import type { Accounting, AccountingItem, PaymentInfo } from "../types";
+import type { Accounting, AccountingItem, PaymentInfo, Refund } from "../types";
 import type { BackendAccounting, BackendAccountingItem } from "./types";
+import type { BillingRefund } from "@/types/generated/models";
 
 function transformAccountingItem(item: BackendAccountingItem): AccountingItem {
+  const unitPrice = item.unit_price ?? 0;
+  const quantity = item.quantity ?? 1;
+  const taxRate = item.tax_rate ?? 0.1;
   return {
     id: String(item.id ?? 0),
     category: item.category as AccountingItem["category"],
     name: item.name,
-    unitPrice: item.unit_price ?? 0,
-    quantity: item.quantity,
-    taxRate: (item.tax_rate === 0.08 ? 0.08 : 0.1) as 0.1 | 0.08,
+    unitPrice,
+    quantity,
+    taxType: item.tax_type ?? "excluded",
+    taxRate,
+    taxAmount: item.tax_amount ?? 0,
+    subtotal: item.subtotal ?? Math.round(unitPrice * quantity),
     isInsuranceApplicable: item.is_insurance_applicable,
     source: item.source as "medical_record" | "manual",
   };
@@ -35,7 +41,18 @@ function buildPaymentInfo(data: BackendAccounting): PaymentInfo | undefined {
   };
 }
 
-// Backend → フロントエンド Accounting 型（詳細画面用）
+export function transformToRefund(r: BillingRefund): Refund {
+  return {
+    id: String(r.id ?? 0),
+    billingId: String(r.billing_id ?? 0),
+    amount: r.amount,
+    reason: r.reason,
+    refundedAt: r.refunded_at,
+    createdAt: r.created_at,
+  };
+}
+
+// Backend → フロントエンド Accounting 型（一覧・詳細共通）
 export function transformToAccounting(data: BackendAccounting): Accounting {
   return {
     id: String(data.id ?? 0),
@@ -50,37 +67,7 @@ export function transformToAccounting(data: BackendAccounting): Accounting {
     completedAt: data.completed_at ?? undefined,
     items: (data.items ?? []).map(transformAccountingItem),
     payment: buildPaymentInfo(data),
+    totalRefundedAmount: data.total_refunded_amount ?? 0,
     memo: data.memo || undefined,
-  };
-}
-
-// Backend → AccountingRecord 型（一覧表示用）
-export function transformAccounting(data: BackendAccounting): AccountingRecord {
-  const payment = data.payments?.[0];
-
-  const methodMap: Record<string, AccountingRecord["method"]> = {
-    cash: "現金",
-    credit_card: "クレジットカード",
-    electronic_money: "電子マネー",
-  };
-  const method = methodMap[payment?.method ?? ""] ?? "-";
-
-  const statusMap: Record<string, AccountingRecord["status"]> = {
-    waiting: "会計待ち",
-    pending: "会計待ち",
-    completed: "会計済",
-    cancelled: "キャンセル",
-  };
-  const status = statusMap[data.status] ?? "会計待ち";
-
-  return {
-    id: String(data.id ?? 0),
-    date: data.scheduled_date.slice(0, 10),
-    ownerName: data.owner?.owner_name ?? "",
-    petName: data.pet?.name ?? "",
-    amount: data.total_amount ?? payment?.billing_amount ?? 0,
-    method,
-    status,
-    note: data.memo || undefined,
   };
 }

@@ -13,13 +13,24 @@ import {
   getMasterStatusColor,
 } from './status-helpers';
 
+// Notion カラーパレット hex 値（status-helpers.ts の N 定数と一致させること）
+const HEX = {
+  blue:   'D3E5EF',
+  green:  'DDEDEA',
+  purple: 'EEE0F7',
+  orange: 'FAEBDD',
+  yellow: 'FDECC8',
+  red:    'FFE2DD',
+  gray:   'EBECED',
+} as const;
+
 describe('getMedicalRecordStatusColor', () => {
   it('returns blue for 作成中', () => {
-    expect(getMedicalRecordStatusColor('作成中')).toContain('blue');
+    expect(getMedicalRecordStatusColor('作成中')).toContain(HEX.blue);
   });
 
   it('returns gray for 確定済', () => {
-    expect(getMedicalRecordStatusColor('確定済')).toContain('gray');
+    expect(getMedicalRecordStatusColor('確定済')).toContain(HEX.gray);
   });
 
   it('returns empty string for unknown status', () => {
@@ -29,83 +40,85 @@ describe('getMedicalRecordStatusColor', () => {
 
 describe('getHospitalizationStatusColor', () => {
   it('returns blue for 入院中', () => {
-    expect(getHospitalizationStatusColor('入院中')).toContain('blue');
+    expect(getHospitalizationStatusColor('入院中')).toContain(HEX.blue);
   });
 
   it('returns gray for 退院済', () => {
-    expect(getHospitalizationStatusColor('退院済')).toContain('gray');
+    expect(getHospitalizationStatusColor('退院済')).toContain(HEX.gray);
   });
 
   it('returns green for 予約', () => {
-    expect(getHospitalizationStatusColor('予約')).toContain('green');
+    expect(getHospitalizationStatusColor('予約')).toContain(HEX.green);
   });
 });
 
 describe('getHospitalizationTypeColor', () => {
-  it('returns red for 入院', () => {
-    expect(getHospitalizationTypeColor('入院')).toContain('red');
+  // 実装: 入院 → purple, ホテル → blue
+  it('returns purple for 入院', () => {
+    expect(getHospitalizationTypeColor('入院')).toContain(HEX.purple);
   });
 
-  it('returns purple for ホテル', () => {
-    expect(getHospitalizationTypeColor('ホテル')).toContain('purple');
+  it('returns blue for ホテル', () => {
+    expect(getHospitalizationTypeColor('ホテル')).toContain(HEX.blue);
   });
 });
 
 describe('getDashboardColumnColor', () => {
-  it('returns correct colors for 受付予約', () => {
+  // dot 値は design-tokens.ts の C.bgXxx 値と一致する
+  it('returns gray dot for 受付予約', () => {
     const result = getDashboardColumnColor('受付予約');
-    expect(result.dot).toContain('gray');
+    expect(result.dot).toContain('9B9A97'); // C.bgStatusGrayMedium
   });
 
-  it('returns correct colors for 受付済', () => {
+  it('returns blue dot for 受付済', () => {
     const result = getDashboardColumnColor('受付済');
-    expect(result.dot).toContain('blue');
+    expect(result.dot).toContain('2383E2'); // C.bgAccent
   });
 
-  it('returns correct colors for 診療中', () => {
+  it('returns purple dot for 診療中', () => {
     const result = getDashboardColumnColor('診療中');
-    expect(result.dot).toContain('yellow');
+    expect(result.dot).toContain('6940A5'); // C.bgStatusPurpleDot
   });
 
-  it('returns correct colors for 会計待ち', () => {
+  it('returns orange dot for 会計待ち', () => {
     const result = getDashboardColumnColor('会計待ち');
-    expect(result.dot).toContain('orange');
+    expect(result.dot).toContain('D9730D'); // C.bgDiscount
   });
 
-  it('returns correct colors for 会計済', () => {
+  it('returns green dot for 会計済', () => {
     const result = getDashboardColumnColor('会計済');
-    expect(result.dot).toContain('green');
+    expect(result.dot).toContain('0F7B6C'); // C.bgStatusGreenDot
   });
 
-  it('returns default colors for unknown column', () => {
+  it('returns gray dot for unknown column', () => {
     const result = getDashboardColumnColor('unknown');
-    expect(result.dot).toContain('gray');
+    expect(result.dot).toContain('9B9A97'); // C.bgStatusGrayMedium (default)
   });
 });
 
 describe('getReservationTypeColor', () => {
   it('returns blue for 診療', () => {
-    expect(getReservationTypeColor('診療')).toContain('blue');
+    expect(getReservationTypeColor('診療')).toContain(HEX.blue);
   });
 
   it('returns green for 検診', () => {
-    expect(getReservationTypeColor('検診')).toContain('green');
+    expect(getReservationTypeColor('検診')).toContain(HEX.green);
   });
 
   it('returns red for 手術', () => {
-    expect(getReservationTypeColor('手術')).toContain('red');
+    expect(getReservationTypeColor('手術')).toContain(HEX.red);
   });
 
   it('returns orange for トリミング', () => {
-    expect(getReservationTypeColor('トリミング')).toContain('orange');
+    expect(getReservationTypeColor('トリミング')).toContain(HEX.orange);
   });
 
   it('returns purple for ワクチン', () => {
-    expect(getReservationTypeColor('ワクチン')).toContain('purple');
+    expect(getReservationTypeColor('ワクチン')).toContain(HEX.purple);
   });
 
   it('returns gray for unknown type', () => {
-    expect(getReservationTypeColor('unknown')).toContain('gray');
+    expect(getReservationTypeColor('unknown')).toContain(HEX.gray);
   });
 });
 
@@ -141,62 +154,63 @@ describe('getReservationTypeName', () => {
 
 describe('getExaminationStatusColor', () => {
   it('returns yellow for 依頼中', () => {
-    expect(getExaminationStatusColor('依頼中')).toContain('yellow');
+    expect(getExaminationStatusColor('依頼中')).toContain(HEX.yellow);
   });
 
   it('returns blue for 検査中', () => {
-    expect(getExaminationStatusColor('検査中')).toContain('blue');
+    expect(getExaminationStatusColor('検査中')).toContain(HEX.blue);
   });
 
   it('returns green for 完了', () => {
-    expect(getExaminationStatusColor('完了')).toContain('green');
+    expect(getExaminationStatusColor('完了')).toContain(HEX.green);
   });
 });
 
 describe('getAccountingStatusColor', () => {
-  it('returns red for 未収', () => {
-    expect(getAccountingStatusColor('未収')).toContain('red');
+  // 実装のステータス値: 会計待ち/会計済/キャンセル
+  it('returns orange for 会計待ち', () => {
+    expect(getAccountingStatusColor('会計待ち')).toContain(HEX.orange);
   });
 
-  it('returns green for 回収済', () => {
-    expect(getAccountingStatusColor('回収済')).toContain('green');
+  it('returns green for 会計済', () => {
+    expect(getAccountingStatusColor('会計済')).toContain(HEX.green);
   });
 
   it('returns gray for キャンセル', () => {
-    expect(getAccountingStatusColor('キャンセル')).toContain('gray');
+    expect(getAccountingStatusColor('キャンセル')).toContain(HEX.gray);
   });
 });
 
 describe('getTrimmingStatusColor', () => {
   it('returns green for 完了', () => {
-    expect(getTrimmingStatusColor('完了')).toContain('E8F5E9');
+    expect(getTrimmingStatusColor('完了')).toContain(HEX.green);
   });
 
   it('returns blue for 予約', () => {
-    expect(getTrimmingStatusColor('予約')).toContain('E3F2FD');
+    expect(getTrimmingStatusColor('予約')).toContain(HEX.blue);
   });
 
   it('returns orange for 進行中', () => {
-    expect(getTrimmingStatusColor('進行中')).toContain('FFF3E0');
+    expect(getTrimmingStatusColor('進行中')).toContain(HEX.orange);
   });
 });
 
 describe('getPetStatusColor', () => {
   it('returns green for 生存', () => {
-    expect(getPetStatusColor('生存')).toContain('DDEDEA');
+    expect(getPetStatusColor('生存')).toContain(HEX.green);
   });
 
   it('returns gray for other status', () => {
-    expect(getPetStatusColor('死亡')).toContain('EBECED');
+    expect(getPetStatusColor('死亡')).toContain(HEX.gray);
   });
 });
 
 describe('getMasterStatusColor', () => {
   it('returns green for active', () => {
-    expect(getMasterStatusColor('active')).toContain('green');
+    expect(getMasterStatusColor('active')).toContain(HEX.green);
   });
 
   it('returns gray for inactive', () => {
-    expect(getMasterStatusColor('inactive')).toContain('gray');
+    expect(getMasterStatusColor('inactive')).toContain(HEX.gray);
   });
 });

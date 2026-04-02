@@ -34,16 +34,17 @@ type Treatment struct {
 	ProcedureID     *uint64           `                                                      json:"procedure_id,omitempty"`
 	MedicineID      *uint64           `                                                      json:"medicine_id,omitempty"`
 	InventoryID     *uint64           `                                                      json:"inventory_id,omitempty"`
-	UnitPrice       float64           `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
-	Quantity        int               `gorm:"default:1"                                      json:"quantity"`
+	UnitPrice       int64             `gorm:"default:0"                                      json:"unit_price"`
+	Quantity        float64           `gorm:"type:numeric(10,1);default:1"                   json:"quantity"`
 	Selected        bool              `gorm:"default:false"                                  json:"selected"`
 	Status          TreatmentStatus   `gorm:"type:treatment_status;default:'pending'"          json:"status"`
 	Content         string            `gorm:"not null;default:''"                            json:"content"`
 	Memo            string            `gorm:"default:''"                                     json:"memo"`
+	AdminRoute      string            `gorm:"column:admin_route;type:varchar(50);default:''" json:"admin_route"`
 	Insurance       bool              `gorm:"default:false"                                  json:"insurance"`
 	DiscountRate    float64           `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
-	DiscountAmount  float64           `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
-	SortOrder       int               `gorm:"default:0"                                      json:"sort_order"`
+	DiscountAmount  int64             `gorm:"default:0"                                      json:"discount_amount"`
+	SortOrder       int               `gorm:"type:integer;default:0"                         json:"sort_order"`
 	DeletedAt       gorm.DeletedAt    `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`

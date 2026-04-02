@@ -36,15 +36,17 @@ func (h *Handler) UpdateClinicalPlan(c *gin.Context) {
 	}
 	var req updateClinicalPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	input := &service.UpdateClinicalPlanInput{
-		PhysicalExam:        req.PhysicalExam,
-		DiagnosisCategoryID: req.DiagnosisCategoryID,
-		DiagnosisNameID:     req.DiagnosisNameID,
-		DiagnosisDetails:    req.DiagnosisDetails,
-		TreatmentPolicy:     req.TreatmentPolicy,
+		PhysicalExam:         req.PhysicalExam,
+		DiagnosisCategoryID:  req.DiagnosisCategoryID,
+		DiagnosisNameID:      req.DiagnosisNameID,
+		DiagnosisDetails:     req.DiagnosisDetails,
+		TreatmentPolicy:      req.TreatmentPolicy,
+		Diagnosis2CategoryID: req.Diagnosis2CategoryID,
+		Diagnosis2NameID:     req.Diagnosis2NameID,
 	}
 	plan, err := h.svc.ClinicalPlan.Update(c.Request.Context(), medicalRecordID, input)
 	if err != nil {
@@ -71,7 +73,7 @@ func (h *Handler) DeleteClinicalPlan(c *gin.Context) {
 
 // RegisterClinicalPlanRoutes はClinicalPlan関連のルートを登録する
 func (h *Handler) RegisterClinicalPlanRoutes(rg *gin.RouterGroup) {
-	rg.GET("/:id/clinical-plan",    h.GetClinicalPlan)
-	rg.PATCH("/:id/clinical-plan",  h.UpdateClinicalPlan)
+	rg.GET("/:id/clinical-plan", h.GetClinicalPlan)
+	rg.PATCH("/:id/clinical-plan", h.UpdateClinicalPlan)
 	rg.DELETE("/:id/clinical-plan", h.DeleteClinicalPlan)
 }

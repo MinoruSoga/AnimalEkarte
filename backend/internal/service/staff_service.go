@@ -3,8 +3,8 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -50,24 +50,41 @@ type StaffService interface {
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-type staffService struct{ repo repository.StaffRepository }
+type staffService struct {
+	repo            repository.StaffRepository
+	reservationRepo repository.ReservationRepository
+	shiftEntryRepo  repository.ShiftEntryRepository
+}
 
-func NewStaffService(repo repository.StaffRepository) StaffService {
-	return &staffService{repo: repo}
+func NewStaffService(repo repository.StaffRepository, reservationRepo repository.ReservationRepository, shiftEntryRepo repository.ShiftEntryRepository) StaffService {
+	return &staffService{repo: repo, reservationRepo: reservationRepo, shiftEntryRepo: shiftEntryRepo}
 }
 
 func (s *staffService) List(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, role, page, limit)
+	staff, total, err := s.repo.FindAll(ctx, clinicID, role, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list staff")
+	}
+	return staff, total, nil
 }
 
 func (s *staffService) GetByID(ctx context.Context, id uint64) (*model.Staff, error) {
-	return s.repo.FindByID(ctx, id)
+	staff, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get staff")
+	}
+	return staff, nil
 }
 
 func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaffInput) (*model.Staff, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	input.Name = strings.TrimSpace(input.Name)
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
+		return nil, apperrors.Wrap(err, "hash password")
 	}
 
 	staff := &model.Staff{
@@ -94,13 +111,20 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	}
 
 	if err := s.repo.CreateWithAccount(ctx, staff, account, membership); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create staff with account")
 	}
 
 	return staff, nil
 }
 
 func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error) {
+	if input.Name != nil {
+		if err := validateRequiredName(*input.Name); err != nil {
+			return nil, err
+		}
+		trimmed := strings.TrimSpace(*input.Name)
+		input.Name = &trimmed
+	}
 	if input.StaffRole != nil {
 		if err := validateStaffRole(*input.StaffRole); err != nil {
 			return nil, err
@@ -111,10 +135,14 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update staff")
 	}
 	slog.InfoContext(ctx, "staff updated", slog.Uint64("staff_id", id))
-	return s.repo.FindByID(ctx, id)
+	updated, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get updated staff")
+	}
+	return updated, nil
 }
 
 func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
@@ -141,12 +169,32 @@ func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
 }
 
 func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return s.repo.Delete(ctx, clinicID, id)
+	reservationExists, err := s.reservationRepo.ExistsByStaffID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check reservation dependency")
+	}
+	if reservationExists {
+		return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
+	}
+	shiftExists, err := s.shiftEntryRepo.ExistsByStaffID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check shift dependency")
+	}
+	if shiftExists {
+		return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
+	}
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete staff")
+	}
+	return nil
 }
 
 func (s *staffService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder staff")
+	}
+	return nil
 }

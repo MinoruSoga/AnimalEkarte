@@ -11,11 +11,13 @@ import (
 
 // UpdateClinicalPlanInput は診察所見・診断・治療方針更新の入力DTO（nil = 未送信フィールド）
 type UpdateClinicalPlanInput struct {
-	PhysicalExam        *string
-	DiagnosisCategoryID *uint64
-	DiagnosisNameID     *uint64
-	DiagnosisDetails    *string
-	TreatmentPolicy     *string
+	PhysicalExam         *string
+	DiagnosisCategoryID  *uint64
+	DiagnosisNameID      *uint64
+	Diagnosis2CategoryID *uint64
+	Diagnosis2NameID     *uint64
+	DiagnosisDetails     *string
+	TreatmentPolicy      *string
 }
 
 // ClinicalPlanService は診察所見・診断・治療方針のビジネスロジックインターフェース
@@ -38,14 +40,14 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, medicalRecordID u
 	plan, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to get clinical plan")
 		}
 		// 存在しない場合は空レコードを自動作成
 		plan = &model.ClinicalPlan{
 			MedicalRecordID: medicalRecordID,
 		}
 		if err := s.repo.Create(ctx, plan); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to create clinical plan")
 		}
 		slog.InfoContext(ctx, "clinical_plan created",
 			slog.Uint64("clinical_plan_id", plan.ID),
@@ -58,28 +60,33 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, medicalRecordID u
 func (s *clinicalPlanService) Update(ctx context.Context, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
 	plan, err := s.GetOrCreate(ctx, medicalRecordID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to get or create clinical plan")
 	}
 	fields := buildClinicalPlanUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		// 全フィールドが未指定の場合は no-op として現在のレコードをそのまま返す
+		return plan, nil
 	}
 	if err := s.repo.Update(ctx, plan.ID, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update clinical plan")
 	}
 	slog.InfoContext(ctx, "clinical_plan updated",
 		slog.Uint64("clinical_plan_id", plan.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-	return s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	updated, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get updated clinical plan")
+	}
+	return updated, nil
 }
 
 func (s *clinicalPlanService) Delete(ctx context.Context, medicalRecordID uint64) error {
 	plan, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
 	if err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to get clinical plan")
 	}
 	if err := s.repo.Delete(ctx, plan.ID); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to delete clinical plan")
 	}
 	slog.InfoContext(ctx, "clinical_plan deleted",
 		slog.Uint64("clinical_plan_id", plan.ID),
@@ -89,11 +96,27 @@ func (s *clinicalPlanService) Delete(ctx context.Context, medicalRecordID uint64
 
 func buildClinicalPlanUpdateFields(input *UpdateClinicalPlanInput) map[string]any {
 	fields := map[string]any{}
-	if input.PhysicalExam != nil        { fields["physical_exam"] = *input.PhysicalExam }
-	if input.DiagnosisCategoryID != nil { fields["diagnosis_category_id"] = *input.DiagnosisCategoryID }
-	if input.DiagnosisNameID != nil     { fields["diagnosis_name_id"] = *input.DiagnosisNameID }
-	if input.DiagnosisDetails != nil    { fields["diagnosis_details"] = *input.DiagnosisDetails }
-	if input.TreatmentPolicy != nil     { fields["treatment_policy"] = *input.TreatmentPolicy }
+	if input.PhysicalExam != nil {
+		fields["physical_exam"] = *input.PhysicalExam
+	}
+	if input.DiagnosisCategoryID != nil {
+		fields["diagnosis_category_id"] = *input.DiagnosisCategoryID
+	}
+	if input.DiagnosisNameID != nil {
+		fields["diagnosis_name_id"] = *input.DiagnosisNameID
+	}
+	if input.Diagnosis2CategoryID != nil {
+		fields["diagnosis_2_category_id"] = *input.Diagnosis2CategoryID
+	}
+	if input.Diagnosis2NameID != nil {
+		fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
+	}
+	if input.DiagnosisDetails != nil {
+		fields["diagnosis_details"] = *input.DiagnosisDetails
+	}
+	if input.TreatmentPolicy != nil {
+		fields["treatment_policy"] = *input.TreatmentPolicy
+	}
 	return fields
 }
 

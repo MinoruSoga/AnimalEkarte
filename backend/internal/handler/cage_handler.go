@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Cage ----
@@ -50,7 +51,7 @@ func (h *Handler) CreateCage(c *gin.Context) {
 	}
 	var input createCageRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -85,29 +86,33 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 	}
 	var input updateCageRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	cage := &model.Cage{
-		ID:          id,
-		ClinicID:    clinicID,
+	var cageType *model.CageType
+	if input.CageType != nil {
+		ct := model.CageType(*input.CageType)
+		cageType = &ct
+	}
+	var cageSize *model.CageSize
+	if input.CageSize != nil {
+		cs := model.CageSize(*input.CageSize)
+		cageSize = &cs
+	}
+
+	svcInput := service.UpdateCageInput{
 		Name:        input.Name,
+		CageType:    cageType,
+		CageSize:    cageSize,
 		Price:       input.Price,
+		IsActive:    input.IsActive,
 		Description: input.Description,
 		SortOrder:   input.SortOrder,
 	}
-	if input.CageType != "" {
-		cage.CageType = model.CageType(input.CageType)
-	}
-	if input.CageSize != "" {
-		cage.CageSize = model.CageSize(input.CageSize)
-	}
-	if input.IsActive != nil {
-		cage.IsActive = *input.IsActive
-	}
 
-	if err := h.svc.Cage.Update(c.Request.Context(), cage); err != nil {
+	cage, err := h.svc.Cage.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -122,7 +127,7 @@ func (h *Handler) ReorderCages(c *gin.Context) {
 	}
 	var req reorderCageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.Cage.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

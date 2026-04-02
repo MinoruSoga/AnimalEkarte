@@ -23,7 +23,7 @@ type CreateCarePlanItemInput struct {
 	MedicineID            *uint64
 	ProcedureID           *uint64
 	HospitalizationPlanID *uint64
-	UnitPrice             float64
+	UnitPrice             int64
 	Category              string
 	SortOrder             int
 }
@@ -39,7 +39,7 @@ type UpdateCarePlanItemInput struct {
 	MedicineID            *uint64
 	ProcedureID           *uint64
 	HospitalizationPlanID *uint64
-	UnitPrice             *float64
+	UnitPrice             *int64
 	Category              *string
 	SortOrder             *int
 }
@@ -62,7 +62,11 @@ func NewCarePlanItemService(repo repository.CarePlanItemRepository) CarePlanItem
 }
 
 func (s *carePlanItemService) List(ctx context.Context, hospitalizationID uint64) ([]model.CarePlanItem, error) {
-	return s.repo.ListByHospitalizationID(ctx, hospitalizationID)
+	items, err := s.repo.ListByHospitalizationID(ctx, hospitalizationID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list care plan items")
+	}
+	return items, nil
 }
 
 func (s *carePlanItemService) Create(ctx context.Context, hospitalizationID uint64, input *CreateCarePlanItemInput) (*model.CarePlanItem, error) {
@@ -96,21 +100,25 @@ func (s *carePlanItemService) Create(ctx context.Context, hospitalizationID uint
 		SortOrder:             input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, item); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create care plan item")
 	}
 
 	slog.InfoContext(ctx, "care plan item created",
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("care_plan_item_id", item.ID))
 
-	return s.repo.FindByID(ctx, item.ID)
+	created, err := s.repo.FindByID(ctx, item.ID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get created care plan item")
+	}
+	return created, nil
 }
 
 func (s *carePlanItemService) Update(ctx context.Context, hospitalizationID, itemID uint64, input *UpdateCarePlanItemInput) (*model.CarePlanItem, error) {
 	// Verify item belongs to this hospitalization
 	existing, err := s.repo.FindByID(ctx, itemID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to get care plan item")
 	}
 	if existing.HospitalizationID != hospitalizationID {
 		return nil, apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", itemID))
@@ -133,27 +141,31 @@ func (s *carePlanItemService) Update(ctx context.Context, hospitalizationID, ite
 	}
 
 	if err := s.repo.Update(ctx, itemID, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update care plan item")
 	}
 
 	slog.InfoContext(ctx, "care plan item updated",
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("care_plan_item_id", itemID))
 
-	return s.repo.FindByID(ctx, itemID)
+	updated, err := s.repo.FindByID(ctx, itemID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get updated care plan item")
+	}
+	return updated, nil
 }
 
 func (s *carePlanItemService) Delete(ctx context.Context, hospitalizationID, itemID uint64) error {
 	existing, err := s.repo.FindByID(ctx, itemID)
 	if err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to get care plan item")
 	}
 	if existing.HospitalizationID != hospitalizationID {
 		return apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", itemID))
 	}
 
 	if err := s.repo.Delete(ctx, itemID); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to delete care plan item")
 	}
 
 	slog.InfoContext(ctx, "care plan item deleted",

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useGetPets } from "@/features/pets/api/get-pets";
+import { useGetPets } from "@/features/pets";
 import type { Pet } from "@/types";
 import type { PetSelectionSearchParams } from "@/components/shared/PetSelection/PetSelectionSearchForm";
 
@@ -54,6 +54,10 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
   // フィルタはリアクティブ（useMemo）のため、ボタン押下時の追加処理は不要
   const handleSearch = useCallback(() => {}, []);
 
+  const handleClear = useCallback(() => {
+    setSearchParams(INITIAL_SEARCH_PARAMS);
+  }, []);
+
   const handleSelect = useCallback((pet: Pet) => {
     navigate(`${config.selectPath}?petId=${pet.id}`);
   }, [navigate, config.selectPath]);
@@ -67,6 +71,7 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
     setSearchParams,
     filteredPets,
     handleSearch,
+    handleClear,
     handleSelect,
     handleBack,
   };

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListReservations godoc
@@ -130,7 +132,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 			model.ReservationStatusCompleted,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
 		reservation.Status = status
@@ -141,9 +143,6 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "reservation created",
-		slog.Uint64("reservation_id", reservation.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusCreated, reservation)
 }
 
@@ -155,48 +154,27 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateReservationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	// DoctorID の型変換（文字列 → uint64）
-	var doctorID *uint64
-	if input.DoctorID != nil {
-		// 数値として解析を試みる
-		docID, err := strconv.ParseUint(*input.DoctorID, 10, 64)
-		if err == nil {
-			// 数値として有効
-			doctorID = &docID
-		} else {
-			// 医師名として扱う場合は、フロントエンド側で修正が必要
-			// 現在はエラーとして返す
-			RespondError(c, apperrors.WrapInvalidInput("doctor_id must be a numeric ID, not a name"))
-			return
-		}
-	}
-
-	reservation := &model.ReservationAppointment{
-		ID:            id,
-		ClinicID:      clinicID,
+	svcInput := service.UpdateReservationInput{
+		StartTime:     input.StartTime,
+		EndTime:       input.EndTime,
 		OwnerID:       input.OwnerID,
 		PetID:         input.PetID,
 		ServiceTypeID: input.ServiceTypeID,
-		DoctorID:      doctorID,
+		DoctorID:      input.DoctorID,
+		IsDesignated:  input.IsDesignated,
 		Notes:         input.Notes,
 	}
-	if input.StartTime != nil {
-		reservation.StartTime = *input.StartTime
-	}
-	if input.EndTime != nil {
-		reservation.EndTime = *input.EndTime
-	}
-	if input.VisitType != "" {
-		vt, err := validateEnum(input.VisitType,
+	if input.VisitType != nil {
+		vt, err := validateEnum(*input.VisitType,
 			model.VisitTypeFirst,
 			model.VisitTypeRevisit,
 		)
@@ -204,10 +182,10 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 			RespondError(c, apperrors.WrapInvalidInput("invalid visit_type: "+err.Error()))
 			return
 		}
-		reservation.VisitType = vt
+		svcInput.VisitType = &vt
 	}
-	if input.Status != "" {
-		status, err := validateEnum(input.Status,
+	if input.Status != nil {
+		status, err := validateEnum(*input.Status,
 			model.ReservationStatusConfirmed,
 			model.ReservationStatusPending,
 			model.ReservationStatusCancelled,
@@ -217,24 +195,83 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 			model.ReservationStatusCompleted,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
-		reservation.Status = status
-	}
-	if input.IsDesignated != nil {
-		reservation.IsDesignated = *input.IsDesignated
+		svcInput.Status = &status
 	}
 
 	ctx := c.Request.Context()
-	if err := h.svc.Reservation.Update(ctx, reservation); err != nil {
+	reservation, err := h.svc.Reservation.Update(ctx, clinicID, id, &svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "reservation updated",
-		slog.Uint64("reservation_id", reservation.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
+
+	// 受付済みに変更された場合はカルテを best-effort で自動作成する（BE-reception-auto-create-medical-record）
+	if svcInput.Status != nil && *svcInput.Status == model.ReservationStatusCheckedIn {
+		h.autoCreateMedicalRecord(ctx, clinicID, reservation)
+	}
+
 	c.JSON(http.StatusOK, reservation)
+}
+
+// autoCreateMedicalRecord は受付済みステータス変更時にカルテを best-effort で自動作成する。
+// 失敗してもメイン処理（予約更新）には影響しない。
+// 同日同ペットのカルテが既に存在する場合はスキップする（重複防止）。
+func (h *Handler) autoCreateMedicalRecord(ctx context.Context, clinicID uint64, reservation *model.ReservationAppointment) {
+	if reservation.PetID == nil || reservation.OwnerID == nil {
+		slog.WarnContext(ctx, "autoCreateMedicalRecord: skipped — reservation has no pet_id or owner_id",
+			slog.Uint64("reservation_id", reservation.ID))
+		return
+	}
+
+	// 同日同ペットのカルテ存在チェック（重複防止）
+	dateStr := reservation.StartTime.Format("2006-01-02")
+	_, total, err := h.svc.MedicalRecord.List(ctx, clinicID, reservation.PetID, nil, &dateStr, &dateStr, 1, 1)
+	if err != nil {
+		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to check existing records",
+			slog.Uint64("reservation_id", reservation.ID),
+			slog.String("error", err.Error()))
+		return
+	}
+	if total > 0 {
+		slog.InfoContext(ctx, "autoCreateMedicalRecord: skipped — same-day record already exists",
+			slog.Uint64("pet_id", *reservation.PetID),
+			slog.String("date", dateStr))
+		return
+	}
+
+	record := &model.MedicalRecord{
+		ClinicID:                 clinicID,
+		Date:                     reservation.StartTime,
+		OwnerID:                  reservation.OwnerID,
+		PetID:                    reservation.PetID,
+		ReservationAppointmentID: &reservation.ID,
+		Status:                   model.MedicalRecordStatusDraft,
+	}
+	if reservation.DoctorID != nil {
+		record.DoctorID = reservation.DoctorID
+	}
+
+	if err := h.svc.MedicalRecord.Create(ctx, record); err != nil {
+		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to create medical record",
+			slog.Uint64("reservation_id", reservation.ID),
+			slog.String("error", err.Error()))
+		return
+	}
+
+	// サブテーブル（inquiry, clinical_plan）を空レコードで作成（best-effort）
+	if _, err := h.svc.Inquiry.Upsert(ctx, service.UpsertInquiryInput{MedicalRecordID: record.ID}); err != nil {
+		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to upsert inquiry",
+			slog.Uint64("medical_record_id", record.ID),
+			slog.String("error", err.Error()))
+	}
+	if _, err := h.svc.ClinicalPlan.GetOrCreate(ctx, record.ID); err != nil {
+		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to get or create clinical plan",
+			slog.Uint64("medical_record_id", record.ID),
+			slog.String("error", err.Error()))
+	}
 }
 
 // DeleteReservation godoc
@@ -245,7 +282,7 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Reservation.Delete(c.Request.Context(), clinicID, id); err != nil {

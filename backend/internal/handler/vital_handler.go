@@ -7,15 +7,23 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListVitals は指定カルテIDのバイタル一覧を返す
 // GET /medical-records/:id/vitals
 func (h *Handler) ListVitals(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+		return
+	}
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 
@@ -35,25 +43,39 @@ func (h *Handler) ListVitals(c *gin.Context) {
 // CreateVital は指定カルテIDにバイタルを追加する
 // POST /medical-records/:id/vitals
 func (h *Handler) CreateVital(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
 		return
 	}
-
-	var req createVitalRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+	mr, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID)
+	if !ok {
 		return
 	}
 
+	var req createVitalRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	var petID uint64
+	if mr.PetID != nil {
+		petID = *mr.PetID
+	}
 	input := &service.CreateVitalInput{
+		PetID:           petID,
 		RecordedAt:      req.RecordedAt,
 		StaffID:         req.StaffID,
 		Temperature:     req.Temperature,
 		HeartRate:       req.HeartRate,
 		RespirationRate: req.RespirationRate,
 		Weight:          req.Weight,
+		WeightUnit:      toBodyWeightUnit(req.WeightUnit),
 		Notes:           req.Notes,
 	}
 
@@ -68,9 +90,16 @@ func (h *Handler) CreateVital(c *gin.Context) {
 // UpdateVital は指定バイタルを部分更新する
 // PATCH /medical-records/:id/vitals/:vitalId
 func (h *Handler) UpdateVital(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+		return
+	}
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 
@@ -82,7 +111,7 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 
 	var req updateVitalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -93,6 +122,7 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 		HeartRate:       req.HeartRate,
 		RespirationRate: req.RespirationRate,
 		Weight:          req.Weight,
+		WeightUnit:      toBodyWeightUnit(req.WeightUnit),
 		Notes:           req.Notes,
 	}
 
@@ -107,9 +137,16 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 // DeleteVital は指定バイタルを削除する
 // DELETE /medical-records/:id/vitals/:vitalId
 func (h *Handler) DeleteVital(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+		return
+	}
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 
@@ -124,6 +161,16 @@ func (h *Handler) DeleteVital(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// toBodyWeightUnit は文字列ポインタを *model.BodyWeightUnit に変換するヘルパー。
+// nil の場合は nil を返し、サービス層でデフォルト値（Kg）が適用される。
+func toBodyWeightUnit(s *string) *model.BodyWeightUnit {
+	if s == nil {
+		return nil
+	}
+	u := model.BodyWeightUnit(*s)
+	return &u
 }
 
 // RegisterVitalRoutes はバイタル関連のルートをmedical-recordsグループに登録する

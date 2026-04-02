@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { toast } from "sonner";
 import type { MasterItem } from "@/types";
+import { handleApiError } from "@/lib/handle-api-error";
 import { useGetMasterItemsByCategory } from "../api/get-master-items";
 import { useCreateMasterItem } from "../api/create-master-item";
 import { useUpdateMasterItem } from "../api/update-master-item";
@@ -79,8 +80,8 @@ export function useMasterItems(category?: string, searchTerm?: string) {
   const remove = (id: string, callbacks?: MutationCallbacks) => {
     deleteMutation.mutate(id, {
       onSuccess: callbacks?.onSuccess,
-      onError: () => {
-        toast.error("削除に失敗しました");
+      onError: (error) => {
+        handleApiError(error, "削除");
         callbacks?.onError?.();
       },
     });

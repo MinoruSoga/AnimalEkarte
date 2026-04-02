@@ -2,6 +2,8 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type InventoryCategory string
@@ -26,9 +28,9 @@ type InventoryItem struct {
 	ClinicID      uint64            `gorm:"not null"                                       json:"clinic_id"`
 	Name          string            `gorm:"not null"                                        json:"name"`
 	Category      InventoryCategory `gorm:"type:inventory_category;not null"                json:"category"`
-	Quantity      int               `gorm:"default:0"                                       json:"quantity"`
+	Quantity      int               `gorm:"type:integer;default:0"                          json:"quantity"`
 	Unit          string            `gorm:"not null;default:''"                             json:"unit"`
-	MinStockLevel int               `gorm:"default:0"                                       json:"min_stock_level"`
+	MinStockLevel int               `gorm:"type:integer;default:0"                          json:"min_stock_level"`
 	Location      string            `gorm:"default:''"                                      json:"location"`
 	ExpiryDate    *time.Time        `gorm:"type:date"                                       json:"expiry_date,omitempty"`
 	Supplier      string            `gorm:"default:''"                                      json:"supplier"`
@@ -36,6 +38,7 @@ type InventoryItem struct {
 	Status        InventoryStatus   `gorm:"type:inventory_status;default:'sufficient'"      json:"status"`
 	CreatedAt     time.Time         `gorm:"autoCreateTime"                                  json:"created_at"`
 	UpdatedAt     time.Time         `gorm:"autoUpdateTime"                                  json:"updated_at"`
+	DeletedAt     gorm.DeletedAt    `                                                       json:"-" swaggerignore:"true"`
 }
 
 func (InventoryItem) TableName() string { return "inventory_items" }

@@ -1,6 +1,5 @@
 /**
- * @deprecated Import directly from @/features/master/hooks/use-master-items
+ * @deprecated Import directly from @/features/master
  * This re-export exists for backward compatibility.
- * Architecture note: features/master serves as a shared data-service feature.
  */
-export { useMasterItems } from "@/features/master/hooks/use-master-items";
+export { useMasterItems } from "@/features/master";

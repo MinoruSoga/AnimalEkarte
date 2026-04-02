@@ -1,7 +1,7 @@
 import { Calendar, FlaskConical, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BADGE, C } from "@/lib/design-tokens";
+import { BADGE, C, ICON } from "@/lib/design-tokens";
 import type { ExaminationRecord } from "@/types";
 
 interface ExaminationCardProps {
@@ -12,12 +12,16 @@ interface ExaminationCardProps {
 
 function getStatusBadge(status: ExaminationRecord["status"]): string {
   switch (status) {
-    case "完了":
+    case "確定":
       return BADGE.green;
-    case "検査中":
+    case "完了":
       return BADGE.blue;
-    case "依頼中":
+    case "結果入力済み":
+      return BADGE.blue;
+    case "検査中":
       return BADGE.yellow;
+    case "依頼中":
+      return BADGE.gray;
     default:
       return BADGE.gray;
   }
@@ -30,14 +34,14 @@ export function ExaminationCard({
 }: ExaminationCardProps) {
   return (
     <Card
-      className={`bg-white border ${C.borderLight} shadow-none rounded-[4px] hover:bg-[#F7F6F3] transition-colors ${onClick ? "cursor-pointer" : ""} ${className ?? ""}`}
+      className={`bg-white border ${C.borderLight} shadow-none rounded-[4px] ${C.hoverBgPage} transition-colors ${onClick ? "cursor-pointer" : ""} ${className ?? ""}`}
       onClick={onClick}
     >
       <CardContent className="px-4 py-3">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <FlaskConical className={`size-4 shrink-0 ${C.text45}`} />
+            <FlaskConical className={`${ICON.action} shrink-0 ${C.text45}`} />
             <span className={`text-base font-medium ${C.text} truncate`}>
               {examination.testType}
             </span>
@@ -53,12 +57,12 @@ export function ExaminationCard({
         {/* Meta row */}
         <div className={`flex items-center gap-4 mt-1.5 text-sm ${C.text60} flex-wrap`}>
           <span className="flex items-center gap-1">
-            <Calendar className="size-3 shrink-0" />
+            <Calendar className={`${ICON.xs} shrink-0`} />
             {examination.date}
           </span>
           {examination.doctor ? (
             <span className="flex items-center gap-1">
-              <User className="size-3 shrink-0" />
+              <User className={`${ICON.xs} shrink-0`} />
               {examination.doctor}
             </span>
           ) : null}

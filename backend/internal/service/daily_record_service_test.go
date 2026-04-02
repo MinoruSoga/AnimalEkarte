@@ -14,12 +14,12 @@ import (
 // ---- DailyRecord モック ----
 
 type mockDailyRecordRepository struct {
-	listByHospitalizationIDFn       func(ctx context.Context, hospitalizationID uint64) ([]model.DailyRecord, error)
-	getOrCreateByDateFn             func(ctx context.Context, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
+	listByHospitalizationIDFn        func(ctx context.Context, hospitalizationID uint64) ([]model.DailyRecord, error)
+	getOrCreateByDateFn              func(ctx context.Context, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
 	findByHospitalizationIDAndDateFn func(ctx context.Context, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
-	createVitalRecordFn             func(ctx context.Context, vr *model.VitalRecord) error
-	createCareLogRecordFn           func(ctx context.Context, cr *model.CareLogRecord) error
-	createStaffNoteRecordFn         func(ctx context.Context, sn *model.StaffNoteRecord) error
+	createVitalRecordFn              func(ctx context.Context, vr *model.VitalRecord) error
+	createCareLogRecordFn            func(ctx context.Context, cr *model.CareLogRecord) error
+	createStaffNoteRecordFn          func(ctx context.Context, sn *model.StaffNoteRecord) error
 }
 
 func (m *mockDailyRecordRepository) ListByHospitalizationID(ctx context.Context, hospitalizationID uint64) ([]model.DailyRecord, error) {
@@ -52,12 +52,12 @@ func TestDailyRecordService_List(t *testing.T) {
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 
 	tests := []struct {
-		name                string
-		hospitalizationID   uint64
-		repoRecords         []model.DailyRecord
-		repoErr             error
-		wantLen             int
-		wantErr             bool
+		name              string
+		hospitalizationID uint64
+		repoRecords       []model.DailyRecord
+		repoErr           error
+		wantLen           int
+		wantErr           bool
 	}{
 		{
 			name:              "returns daily records for hospitalization",
@@ -377,7 +377,7 @@ func TestDailyRecordService_AddStaffNoteRecord(t *testing.T) {
 			hospitalizationID: 1,
 			date:              today,
 			input: &CreateStaffNoteRecordInput{
-				Time:    "09:00",
+				Time:    today.Add(9 * time.Hour),
 				Content: "Patient showing improvement",
 				StaffID: &staffID,
 			},
@@ -389,7 +389,7 @@ func TestDailyRecordService_AddStaffNoteRecord(t *testing.T) {
 			hospitalizationID: 1,
 			date:              today,
 			input: &CreateStaffNoteRecordInput{
-				Time:    "14:30",
+				Time:    today.Add(14*time.Hour + 30*time.Minute),
 				Content: "Brief note",
 			},
 			repoErr: nil,
@@ -400,7 +400,7 @@ func TestDailyRecordService_AddStaffNoteRecord(t *testing.T) {
 			hospitalizationID: 1,
 			date:              today,
 			input: &CreateStaffNoteRecordInput{
-				Time:    "09:00",
+				Time:    today.Add(9 * time.Hour),
 				Content: "Test note",
 			},
 			repoErr: errors.New("db error"),

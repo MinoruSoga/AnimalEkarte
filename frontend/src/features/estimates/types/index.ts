@@ -1,5 +1,22 @@
-export type EstimateStatus = 'draft' | 'sent' | 'approved' | 'rejected';
+/**
+ * Estimates feature types (UI-facing: camelCase, string IDs)
+ * Backend types: {@link Estimate as BackendEstimate}, {@link EstimateItem as BackendEstimateItem} from models.ts
+ */
+import {
+  EstimateStatusDraft,
+  EstimateStatusSent,
+  EstimateStatusApproved,
+  EstimateStatusRejected,
+} from "@/types/generated/models";
 
+/** @see {@link import("@/types/generated/models").EstimateStatus} */
+export type EstimateStatus =
+  | typeof EstimateStatusDraft
+  | typeof EstimateStatusSent
+  | typeof EstimateStatusApproved
+  | typeof EstimateStatusRejected;
+
+/** UI-facing estimate (camelCase, string IDs — post-transform) */
 export interface Estimate {
   id: string;
   clinicId: string;
@@ -23,6 +40,7 @@ export interface Estimate {
   updatedAt: string;
 }
 
+/** @see {@link import("@/types/generated/models").EstimateItem} */
 export interface EstimateLineItem {
   id: string;
   estimateId: string;

@@ -124,7 +124,7 @@ func (h *Handler) ReorderJobTitles(c *gin.Context) {
 	}
 	var req reorderJobTitleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.JobTitle.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

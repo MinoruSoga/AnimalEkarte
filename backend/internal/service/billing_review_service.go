@@ -43,7 +43,7 @@ func (s *billingReviewService) GetOrCreate(ctx context.Context, medicalRecordID 
 	review, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to get billing review")
 		}
 		// 存在しない場合はpendingで新規作成
 		review = &model.BillingReview{
@@ -51,7 +51,7 @@ func (s *billingReviewService) GetOrCreate(ctx context.Context, medicalRecordID 
 			Status:          model.BillingReviewStatusPending,
 		}
 		if err := s.repo.Create(ctx, review); err != nil {
-			return nil, err
+			return nil, apperrors.Wrap(err, "failed to create billing review")
 		}
 		slog.InfoContext(ctx, "billing_review created",
 			slog.Uint64("billing_review_id", review.ID),
@@ -63,7 +63,7 @@ func (s *billingReviewService) GetOrCreate(ctx context.Context, medicalRecordID 
 func (s *billingReviewService) Confirm(ctx context.Context, medicalRecordID uint64, input *ConfirmBillingReviewInput) (*model.BillingReview, error) {
 	review, err := s.GetOrCreate(ctx, medicalRecordID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to get or create billing review")
 	}
 	if review.Status == model.BillingReviewStatusConfirmed {
 		return nil, apperrors.WrapInvalidInput("billing review is already confirmed")
@@ -77,19 +77,23 @@ func (s *billingReviewService) Confirm(ctx context.Context, medicalRecordID uint
 		"memo":         input.Memo,
 	}
 	if err := s.repo.Update(ctx, review.ID, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update billing review")
 	}
 	slog.InfoContext(ctx, "billing_review confirmed",
 		slog.Uint64("billing_review_id", review.ID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Uint64("confirmed_by", input.ConfirmedBy))
-	return s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	confirmed, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get confirmed billing review")
+	}
+	return confirmed, nil
 }
 
 func (s *billingReviewService) Return(ctx context.Context, medicalRecordID uint64, input *ReturnBillingReviewInput) (*model.BillingReview, error) {
 	review, err := s.GetOrCreate(ctx, medicalRecordID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to get or create billing review")
 	}
 
 	now := time.Now()
@@ -101,11 +105,15 @@ func (s *billingReviewService) Return(ctx context.Context, medicalRecordID uint6
 		"memo":          input.Memo,
 	}
 	if err := s.repo.Update(ctx, review.ID, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update billing review")
 	}
 	slog.InfoContext(ctx, "billing_review returned",
 		slog.Uint64("billing_review_id", review.ID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Uint64("returned_by", input.ReturnedBy))
-	return s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	returned, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get returned billing review")
+	}
+	return returned, nil
 }

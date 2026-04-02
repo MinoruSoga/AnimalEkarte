@@ -43,7 +43,7 @@ func (h *Handler) CreateCarePlanItem(c *gin.Context) {
 
 	var req createCarePlanItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -87,7 +87,7 @@ func (h *Handler) UpdateCarePlanItem(c *gin.Context) {
 
 	var req updateCarePlanItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

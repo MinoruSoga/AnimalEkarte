@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -87,7 +86,7 @@ func (h *Handler) CreateEstimate(c *gin.Context) {
 
 	var req createEstimateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -115,9 +114,6 @@ func (h *Handler) CreateEstimate(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "estimate created",
-		slog.Uint64("estimate_id", estimate.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusCreated, toEstimateResponse(estimate))
 }
 
@@ -136,7 +132,7 @@ func (h *Handler) UpdateEstimate(c *gin.Context) {
 
 	var req updateEstimateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -163,9 +159,6 @@ func (h *Handler) UpdateEstimate(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "estimate updated",
-		slog.Uint64("estimate_id", estimate.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusOK, toEstimateResponse(estimate))
 }
 
