@@ -165,11 +165,11 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 
 | チェック項目 | コマンド / 観点 | ステータス | 発見数 |
 |------------|----------------|-----------|--------|
-| `&&` 条件レンダー | `grep -r "{\s*\w\+\s*&&"` | `[x]` | 3 → 修正済み（Sidebar.tsx:271,288,301） |
-| deep import（feature内部） | `grep -r "@/features/.*/components/"` | `[x]` | 27箇所 → 修正済み（auth 18件 + shared hooks 4件 + Layout 1件 + Sidebar 3件 + reservations 2件）。index.ts エクスポート追加含む |
-| lazy() 未使用の大型モーダル | import文でModalを直接参照 | `[x]` | 0（全ルートが Vite lazy 分割済み。routes/ 内での静的 import はチャンク内に閉じており問題なし） |
-| loader内の直列 await | `useQuery` / loader 関数内の複数 await | `[x]` | 0（owners/loaders.ts は1ページ目の total に依存して残りページ数を決定するため直列は正当） |
-| design-tokens hex ハードコード | `#37352F` 直接使用 | `[x]` | **339箇所・72ファイル** → 全て `C` / `PALETTE` 定数に修正済み。design-tokens に `borderBPrimary`, `dataActiveBorderB`, `dataActiveText` トークン追加 |
+| `&&` 条件レンダー | `grep -r "{\s*\w\+\s*&&"` | `[x]` | 再検証: 0件（全て三項演算子使用済み） |
+| deep import（feature内部） | `grep -r "@/features/.*/components/"` | `[x]` | 再検証: 0件（cross-feature deep import なし） |
+| lazy() 未使用の大型モーダル | import文でModalを直接参照 | `[x]` | 再検証: 0件 |
+| loader内の直列 await | `useQuery` / loader 関数内の複数 await | `[x]` | 再検証: 0件 |
+| design-tokens hex ハードコード | 全 hex カラー直接使用 | `[x]` | 再検証: **78箇所・42ファイル追加発見**（`#2EAADC` 13件, `#F7F6F3` 31件, `#2383E2` 14件, `#038B94` 8件, その他 12件）→ 全て `C` / `PALETTE` 定数に修正済み。新トークン: `medicalBlue`, `bgMedicalBlue/5/90`, `textMedicalBlue`, `borderLMedicalBlue`, `ringMedicalBlue`, `focusRingMedicalBlue`, `hoverBorderMedicalBlue50`, `textBrand`, `bgBrand10`, `hoverBgBrand`, `focusRingBrand`, `borderBrand`, `focusBorderAccent`, `dataCheckedBg/Border Accent/Brand`, `bgMuted` |
 
 ---
 
@@ -427,6 +427,7 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 18 | `components/shared/RequirePermission.tsx` | `bundle-feature-indexing` | `@/features/auth/types` → `@/features/auth` に修正 | Critical | `[x]` |
 | 19 | `master/routes/StaffSettings.tsx`, `PermissionGroupSettings.tsx`, `ServiceTypeSettings.tsx`, `PermissionGroupSelector.tsx` | `design-tokens` | `#6B7280`/`#3B82F6`/`#e5e7eb` hex 9箇所 → `PALETTE.defaultGray`/`defaultBlue`/`borderUnselected` に修正 | Medium | `[x]` |
 | 20 | `medical-records/components/VitalsTab/VitalsGraph.tsx` | `design-tokens` | `#E07B54`/`#9C6EDE`/`#4CAF82`/`#e8e6e3`/`#9B9B97` チャート色9箇所 → `PALETTE.chart*` 定数に修正 | Medium | `[x]` |
+| 21 | 42ファイル（78箇所） | `design-tokens` | `#2EAADC`(13件), `#F7F6F3`(31件), `#2383E2`(14件), `#038B94`(8件) 等の残存 hex ハードコード → 全て `C`/`PALETTE` 定数に修正。新トークン19個追加（medical-blue系, brand系, accent-focus系, data-checked系, bgMuted） | Critical | `[x]` |
 
 ---
 
@@ -444,3 +445,4 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 2026-04-02 | medical-records → master | `bundle-feature-indexing` | 4箇所の cross-feature deep import → index.ts 経由に修正。master/index.ts にエクスポート追加 | - |
 | 2026-04-02 | shared/RequirePermission | `bundle-feature-indexing` | auth/types → @/features/auth に修正 | - |
 | 2026-04-02 | master + VitalsGraph | `design-tokens` | `#6B7280`/`#3B82F6`/`#e5e7eb`/チャート色 18箇所 → PALETTE 定数に修正。7つの新トークン追加 | - |
+| 2026-04-02 | 全42ファイル (78箇所) | `design-tokens` | `#2EAADC`/`#F7F6F3`/`#2383E2`/`#038B94` 等の残存 hex 全量修正。19個の新 C トークン追加（medical-blue, brand, accent-focus, data-checked, bgMuted） | - |
