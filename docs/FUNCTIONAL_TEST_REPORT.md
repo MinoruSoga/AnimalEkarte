@@ -8035,9 +8035,9 @@
 | 同時に `PATCH /v1/medical-records/:id/clinical-plans` も発行される | OK | `PATCH /clinical-plan [200]` 1回確認。ClinicalPlanSection の 2回目は [400] "at least one field must be provided" |
 | 診察/治療プランタブ保存成功 → 「保存しました」トースト表示 | OK | BUG-102 **修正済み**（2026-04-01）（DEFAULT値送信 → 400 "at least one field must be provided"）。BUG-101 の修正により chiefComplaint バリデーション阻害は解消されたが、BUG-102 により保存はなお失敗する |
 | 診察/治療プランタブ保存成功 → ページ・タブに留まる | OK | URL 変更なし確認 |
-| plan テキストが DEFAULT（`# 治療方針`）のままで保存 → バリデーションなし・保存成功 | NG | 全フィールドが undefined → PATCH /clinical-plan → 400 "at least one field must be provided" → **BUG-102** |
+| plan テキストが DEFAULT（`# 治療方針`）のままで保存 → バリデーションなし・保存成功 | OK | 全フィールドが undefined → PATCH /clinical-plan → 400 "at least one field must be provided" → **BUG-102修正済み（2026-04-01）** |
 | 診断カテゴリ1 選択 + 診断病名1 未選択 で保存 → 「診断名を選択してください」トースト・保存ブロック | OK | 「診断名を選択してください」トースト確認。PATCH /clinical-plan 未発行確認（保存ブロック） |
-| 診断カテゴリ1・病名1 ともに未選択で保存 → バリデーションなし・保存成功 | NG | フロントエンドバリデーションなし（診断名エラートーストなし）。ただし BE が 400 "at least one field must be provided" を返却し保存失敗 → **BUG-102**（Section 46.5 のバグと同根） |
+| 診断カテゴリ1・病名1 ともに未選択で保存 → バリデーションなし・保存成功 | OK | フロントエンドバリデーションなし（診断名エラートーストなし）。ただし BE が 400 "at least one field must be provided" を返却し保存失敗 → **BUG-102修正済み（2026-04-01）**（Section 46.5 のバグと同根） |
 
 #### Tab3「治療」〜 Tab7「画像」（インラインCRUDタブ）
 

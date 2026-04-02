@@ -139,9 +139,10 @@ export const TreatmentTable = memo(function TreatmentTable({
                 )}
               </Cell>
               <Cell>
-                {/* BUG-072: 単価は0以上・上限9億円 */}
+                {/* BUG-072: 単価は0以上の整数・上限9億円 */}
                 <TableInput
                   type="number"
+                  step="1"
                   min="0"
                   max="999999999"
                   value={item.unitPrice}
@@ -153,12 +154,16 @@ export const TreatmentTable = memo(function TreatmentTable({
               </Cell>
               <Cell>
                 {/* BUG-TRT-001: min="0.1" → min="1" に変更（float32精度 0.10000000149011612 問題の回避） */}
+                {/* BUG-068: 0以下の入力は1にクランプ */}
                 <TableInput
                   type="number"
                   step="1"
                   min="1"
                   value={item.quantity}
-                  onChange={(val) => onUpdate(item.id, "quantity", Number(val))}
+                  onChange={(val) => {
+                    const n = Number(val);
+                    onUpdate(item.id, "quantity", n <= 0 ? 1 : n);
+                  }}
                   align="right"
                   className="font-mono"
                   disabled={disabled}

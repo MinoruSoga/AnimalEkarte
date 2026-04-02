@@ -342,6 +342,7 @@ const ItemListCard = memo(function ItemListCard({
                   <Input
                     id="manual-price"
                     type="number"
+                    step={1}
                     min={0}
                     value={manualPrice}
                     onChange={(e) => setManualPrice(e.target.value)}
@@ -673,6 +674,7 @@ const RefundSection = memo(function RefundSection({
                   <Label>返金金額（円）</Label>
                   <Input
                     type="number"
+                    step={1}
                     min={1}
                     value={refundAmount}
                     onChange={(e) => setRefundAmount(e.target.value)}
