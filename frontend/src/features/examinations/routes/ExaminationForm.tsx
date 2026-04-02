@@ -11,6 +11,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
@@ -119,6 +120,16 @@ const FormFieldsSection = memo(function FormFieldsSection({
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className={`text-sm ${C.text60}`}>検査日</Label>
+        <NotionDatePicker
+          value={formData.date ? formData.date.split("T")[0] : ""}
+          onChange={(v) => onSetFormData({ date: v ? `${v}T00:00:00Z` : new Date().toISOString() })}
+          disabledDays={{ after: new Date() }}
+          disabled={isConfirmed}
+        />
       </div>
 
       <div className="space-y-1.5">

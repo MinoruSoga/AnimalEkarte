@@ -15,6 +15,7 @@ import type {
 interface FormState {
   success: boolean;
   timestamp: number;
+  fieldErrors?: Record<string, string>;
 }
 
 export function useInventoryForm(id?: string) {
@@ -52,6 +53,19 @@ export function useInventoryForm(id?: string) {
       const expiryDateStr = formData.get("expiryDate") as string;
       const lastRestockedStr = formData.get("lastRestocked") as string;
       const resolvedCategory = category || "medicine";
+
+      // Validate: minStockLevel must be <= quantity
+      const quantity = quantityStr ? Number(quantityStr) : 0;
+      const minStockLevel = minStockLevelStr ? Number(minStockLevelStr) : 0;
+
+      if (minStockLevel > quantity) {
+        toast.error("最低在庫数は現在庫数以下で設定してください");
+        return {
+          success: false,
+          timestamp: Date.now(),
+          fieldErrors: { minStockLevel: "最低在庫数は現在庫数以下で設定してください" },
+        };
+      }
 
       try {
         if (isEdit && id) {
@@ -92,7 +106,7 @@ export function useInventoryForm(id?: string) {
         return { success: false, timestamp: Date.now() };
       }
     },
-    { success: false, timestamp: 0 }
+    { success: false, timestamp: 0, fieldErrors: {} }
   );
 
   return {

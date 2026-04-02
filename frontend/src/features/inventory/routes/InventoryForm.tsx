@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -128,6 +129,7 @@ interface StockInfoSectionProps {
   resolvedExpiry: string;
   onExpiryChange: (v: string) => void;
   onMarkDirty: () => void;
+  minStockLevelError?: string;
 }
 
 // rerender-memo: 在庫情報セクションを memo 化して仕入先情報や基本情報の変更による
@@ -139,6 +141,7 @@ const StockInfoSection = memo(function StockInfoSection({
   resolvedExpiry,
   onExpiryChange,
   onMarkDirty,
+  minStockLevelError,
 }: StockInfoSectionProps) {
   return (
     <div className="bg-white rounded-lg border border-[rgba(55,53,47,0.16)] p-6">
@@ -173,6 +176,7 @@ const StockInfoSection = memo(function StockInfoSection({
             className="mt-1"
             required
           />
+          <FormFieldError id="minStockLevel-error" message={minStockLevelError} />
         </div>
         <div>
           <Label htmlFor="location" className={`text-sm ${C.text}`}>
@@ -363,6 +367,7 @@ export function InventoryForm() {
           resolvedExpiry={resolvedExpiry}
           onExpiryChange={handleExpiryChange}
           onMarkDirty={markDirty}
+          minStockLevelError={formState.fieldErrors?.minStockLevel}
         />
 
         <SupplierInfoSection
