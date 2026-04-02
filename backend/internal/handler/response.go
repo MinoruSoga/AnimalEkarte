@@ -43,7 +43,12 @@ func RespondError(c *gin.Context, err error) {
 		}
 		c.JSON(http.StatusConflict, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrUnauthorized):
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		var appErr *apperrors.AppError
+		msg := "unauthorized"
+		if errors.As(err, &appErr) {
+			msg = appErr.Message
+		}
+		c.JSON(http.StatusUnauthorized, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrForbidden):
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 	default:

@@ -77,7 +77,7 @@ func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 
 func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.Vaccination) error {
 	if err := r.db.WithContext(ctx).Create(vaccination).Error; err != nil {
-		return apperrors.Wrap(err, "create vaccination")
+		return apperrors.FromGORM(err, "vaccination", "")
 	}
 	return nil
 }

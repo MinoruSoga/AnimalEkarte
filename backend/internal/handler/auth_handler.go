@@ -127,7 +127,7 @@ func (h *Handler) Login(c *gin.Context) {
 	account, err := h.svc.UserAccount.FindByEmail(ctx, input.Email)
 	if err != nil {
 		if apperrors.IsNotFound(err) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "メールアドレスまたはパスワードが正しくありません"})
+			RespondError(c, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません"))
 			return
 		}
 		RespondError(c, err)
@@ -136,7 +136,7 @@ func (h *Handler) Login(c *gin.Context) {
 
 	// アカウント状態チェック
 	if account.Status != "active" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "アカウントが無効です"})
+		RespondError(c, apperrors.WrapUnauthorized("アカウントが無効です"))
 		return
 	}
 
@@ -144,7 +144,7 @@ func (h *Handler) Login(c *gin.Context) {
 	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(input.Password)); err != nil {
 		h.writeAuditLog(c, model.AuditActionAuthLoginFailure, "auth", nil,
 			repository.MarshalAuditJSON(map[string]string{"email": input.Email}))
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "メールアドレスまたはパスワードが正しくありません"})
+		RespondError(c, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません"))
 		return
 	}
 
@@ -314,13 +314,13 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 
 	rawRefreshToken, err := c.Cookie(refreshTokenCookieName)
 	if err != nil || rawRefreshToken == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token required"})
+		RespondError(c, apperrors.WrapUnauthorized("refresh token required"))
 		return
 	}
 
 	userID, clinicID, newRawRefreshToken, err := h.svc.Auth.RefreshToken(ctx, rawRefreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired refresh token"})
+		RespondError(c, apperrors.WrapUnauthorized("invalid or expired refresh token"))
 		return
 	}
 
@@ -333,7 +333,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 
 	// アカウント状態を確認
 	if userData.UserAccount.Status != model.AccountStatusActive {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "account is disabled"})
+		RespondError(c, apperrors.WrapUnauthorized("account is disabled"))
 		return
 	}
 
@@ -389,12 +389,12 @@ func (h *Handler) GetMe(c *gin.Context) {
 
 	userIDVal, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		RespondError(c, apperrors.WrapUnauthorized("missing user context"))
 		return
 	}
 	userIDStr, ok := userIDVal.(string)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		RespondError(c, apperrors.WrapInternalServerError("invalid user context"))
 		return
 	}
 	mainClinicIDVal, _ := c.Get("clinic_id")
@@ -464,17 +464,17 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 func (h *Handler) ChangeMyPassword(c *gin.Context) {
 	userIDVal, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		RespondError(c, apperrors.WrapUnauthorized("missing user context"))
 		return
 	}
 	userIDStr, ok := userIDVal.(string)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		RespondError(c, apperrors.WrapInternalServerError("invalid user context"))
 		return
 	}
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id"})
+		RespondError(c, apperrors.WrapInternalServerError("invalid user id"))
 		return
 	}
 

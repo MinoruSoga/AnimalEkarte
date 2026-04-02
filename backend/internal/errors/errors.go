@@ -105,6 +105,24 @@ func WrapForbidden(message string) error {
 	}
 }
 
+// WrapUnauthorized は認証エラーを生成する
+func WrapUnauthorized(message string) error {
+	return &AppError{
+		Code:    "UNAUTHORIZED",
+		Message: message,
+		Err:     ErrUnauthorized,
+	}
+}
+
+// WrapInternalServerError は内部サーバーエラーを生成する
+func WrapInternalServerError(message string) error {
+	return &AppError{
+		Code:    "INTERNAL",
+		Message: message,
+		Err:     errors.New("internal server error"),
+	}
+}
+
 // FromGORM は GORM のエラーを AppError に変換する
 func FromGORM(err error, resource string, id string) error {
 	if err == nil {
