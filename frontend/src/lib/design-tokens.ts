@@ -50,6 +50,11 @@ export const PALETTE = {
   /** Hover overlay – used for scrollbar thumb hover */
   hoverStrong: "rgba(55,53,47,0.35)",
 
+  /** Skeleton / light background fill (6% primary) */
+  bgSkeleton: "rgba(55,53,47,0.06)",
+  /** Semi-transparent white (80%) — toggle dot on active chart buttons */
+  whiteAlpha80: "rgba(255,255,255,0.8)",
+
   /** Notion blue accent */
   accent: "#2383E2",
   /** Accent hover */

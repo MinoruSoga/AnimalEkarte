@@ -442,6 +442,12 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 37 | `shared/SidePeek/SidePeekTitleInput.tsx:45` | `design-tokens` | `placeholder:text-[rgba(55,53,47,0.15)]` → `C.textPlaceholderFaint` に修正 | Medium | `[ ]` |
 | 38 | `features/vaccinations/routes/VaccinationForm.tsx:186` | `design-tokens` | `border-[rgba(55,53,47,0.09)]` → `C.borderLight` に修正 | Medium | `[ ]` |
 | 39 | `shared/NotionFilter/FilterRuleRow.tsx:189` | `design-tokens` | `divide-[rgba(55,53,47,0.09)]` → `C.divideDivider` に修正 | Medium | `[ ]` |
+| 40 | `master/routes/CompanySettings.tsx:21` | `design-tokens` | PROP_INPUT_CLASS に rgba 3箇所（hover/focus/placeholder）→ `C.hoverBgLight`/`C.focusBgLight`/`C.textPlaceholder` に修正 | Medium | `[ ]` |
+| 41 | `master/routes/CompanySettings.tsx:148` | `design-tokens` | `hover:bg-[rgba(55,53,47,0.04)]` → `C.hoverBgLight` に修正 | Medium | `[ ]` |
+| 42 | `master/routes/CompanySettings.tsx:274` | `design-tokens` | `placeholder:text-[rgba(55,53,47,0.15)]` → `C.textPlaceholderFaint` に修正 | Medium | `[ ]` |
+| 43 | `reservations/components/MonthView.tsx:138` | `design-tokens` | `border-[rgba(55,53,47,0.16)]` → `C.borderMedium` に修正 | Medium | `[ ]` |
+| 44 | `master/routes/StaffSettings.tsx:428` | `design-tokens` | inline style `"rgba(55,53,47,0.06)"` → `PALETTE.bgSkeleton` に修正（新トークン追加） | Medium | `[ ]` |
+| 45 | `medical-records/components/VitalsTab/VitalsGraph.tsx:139` | `design-tokens` | inline style `"rgba(255,255,255,0.8)"` → `PALETTE.whiteAlpha80` に修正（新トークン追加） | Medium | `[ ]` |
 
 ---
 
@@ -466,3 +472,4 @@ Agent 2（Explore）: frontend/src/ 全体の component-naming 横断スキャ�
 | 2026-04-02 | hospitalization | `rerender-transitions` | 死コード use-hospitalizations.ts 削除（React Query フック既存） | - |
 | 2026-04-02 | status-colors + inventory | `design-tokens` | status-colors.ts の VISIT_TYPE_COLORS badge hex 6箇所 + InventoryForm.tsx の rgba 3箇所 → C トークンに修正。新トークン 6 個追加（text90, bgPage60, bgAccentLight60, textAccentDark90, borderAccentBadge50, borderLight50） | - |
 | 2026-04-02 | hospitalization + master + shared + vaccinations | `design-tokens` | styles.ts/use-service-type-color-map.ts/permission-groups.ts の hex 7箇所 + SidePeekTitleInput/VaccinationForm/FilterRuleRow の rgba 3箇所 → C/PALETTE トークンに修正 | - |
+| 2026-04-02 | master + reservations + medical-records | `design-tokens` | CompanySettings.tsx の rgba 5箇所 + MonthView.tsx border + StaffSettings.tsx inline style + VitalsGraph.tsx inline style → C/PALETTE トークンに修正。新 PALETTE トークン 2 個追加（bgSkeleton, whiteAlpha80） | - |

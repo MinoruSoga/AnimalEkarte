@@ -136,7 +136,7 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
             >
               <span
                 className="size-2 rounded-full shrink-0"
-                style={{ backgroundColor: active ? "rgba(255,255,255,0.8)" : m.color }}
+                style={{ backgroundColor: active ? PALETTE.whiteAlpha80 : m.color }}
               />
               {m.label}
               {m.unit ? <span className="opacity-70">({m.unit})</span> : null}

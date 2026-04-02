@@ -425,7 +425,7 @@ export function StaffSettings() {
                         key={g.id}
                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[3px] text-xs"
                         style={{
-                          backgroundColor: g.color ? `${g.color}18` : "rgba(55,53,47,0.06)",
+                          backgroundColor: g.color ? `${g.color}18` : PALETTE.bgSkeleton,
                           color: g.color ?? PALETTE.primary,
                         }}
                       >

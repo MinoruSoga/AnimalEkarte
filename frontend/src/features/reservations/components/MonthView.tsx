@@ -7,6 +7,7 @@ import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, format, isSameMonth, 
 import { ja } from "date-fns/locale";
 
 // Internal
+import { C } from "@/lib/design-tokens";
 import { getReservationTypeColor } from "@/utils/status-helpers";
 import { C } from "@/lib/design-tokens";
 
@@ -135,7 +136,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
   }, [currentDate, appointments, dynamicColorMap, onAppointmentClick, onDateClick]);
 
   return (
-    <div className="flex flex-col h-full border-l border-t border-[rgba(55,53,47,0.16)] rounded-lg overflow-hidden bg-white shadow-sm">
+    <div className={`flex flex-col h-full border-l border-t ${C.borderMedium} rounded-lg overflow-hidden bg-white shadow-sm`}>
       {HEADER_ROW}
       <div className="flex-1 flex flex-col">
         {rows}

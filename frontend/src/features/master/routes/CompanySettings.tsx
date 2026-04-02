@@ -18,7 +18,7 @@ import type { UpdateCompanyRequest } from "@/features/master/api/company";
 // Constants
 // ─────────────────────────────────────────────────
 
-const PROP_INPUT_CLASS = `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`;
+const PROP_INPUT_CLASS = `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
 
 // ─────────────────────────────────────────────────
 // Form state
@@ -145,7 +145,7 @@ export function CompanySettings() {
               <button
                 type="button"
                 onClick={handleEdit}
-                className={`px-4 py-[7px] text-base ${C.text65} hover:bg-[rgba(55,53,47,0.04)] border ${C.borderMedium} rounded-[3px] transition-colors cursor-pointer`}
+                className={`px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} border ${C.borderMedium} rounded-[3px] transition-colors cursor-pointer`}
               >
                 編集
               </button>
@@ -271,7 +271,7 @@ export function CompanySettings() {
               <div className="pb-1 mb-4">
                 <input
                   type="text"
-                  className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+                  className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0`}
                   style={{
                     fontSize: LAYOUT.pageTitle.fontSize,
                     fontWeight: LAYOUT.pageTitle.fontWeight,
