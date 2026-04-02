@@ -1,12 +1,5 @@
 import { memo, ReactNode } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { STYLE } from "@/lib/design-tokens";
 
 interface DataTableProps<T> {

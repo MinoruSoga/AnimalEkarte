@@ -2,18 +2,8 @@ import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandEmpty,
-} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandItem, CommandList, CommandEmpty } from "@/components/ui/command";
 import type { SortProperty, ActiveSort } from "./types";
 
 // ─── Sort Rule Row ───────────────────────────────────────────

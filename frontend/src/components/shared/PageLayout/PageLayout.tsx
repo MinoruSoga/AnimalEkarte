@@ -1,5 +1,6 @@
 import { ReactNode, type RefObject } from "react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
+import { C } from "@/lib/design-tokens";
 
 interface PageLayoutProps {
   children: ReactNode;
@@ -29,7 +30,7 @@ export function PageLayout({
 }: PageLayoutProps) {
   return (
     <div
-      className={`flex flex-col h-full bg-[#F7F6F3] overflow-hidden ${className || ""}`}
+      className={`flex flex-col h-full ${C.bgPage} overflow-hidden ${className || ""}`}
     >
       <FormHeader
         title={title}

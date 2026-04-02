@@ -2,31 +2,9 @@ import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback, useMemo } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { cn } from "@/components/ui/utils";
-import {
-  format,
-  startOfDay,
-  endOfDay,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  startOfYear,
-  endOfYear,
-  subDays,
-  subWeeks,
-  subMonths,
-  subYears,
-  addDays,
-  addWeeks,
-  addMonths,
-  addYears,
-} from "date-fns";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays, subWeeks, subMonths, subYears, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { ja } from "date-fns/locale";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
 import { FILTER_CONDITIONS } from "./types";

@@ -1,18 +1,8 @@
 import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback } from "react";
 import { ArrowUp, ArrowDown, ChevronDown, X } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandEmpty,
-} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandItem, CommandList, CommandEmpty } from "@/components/ui/command";
 import type { SortProperty, ActiveSort } from "./types";
 
 interface SortPillProps {

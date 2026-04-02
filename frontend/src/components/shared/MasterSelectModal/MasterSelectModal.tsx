@@ -1,11 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { Search, X, Check } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { C, ICON } from "@/lib/design-tokens";
 

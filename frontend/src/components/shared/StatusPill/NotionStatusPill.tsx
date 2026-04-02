@@ -5,15 +5,15 @@ import { C } from "@/lib/design-tokens";
 
 const STATUS_CONFIG = {
   active: {
-    dot: "bg-[#2383E2]",
+    dot: `${C.bgAccent}`,
     label: "有効",
-    bg: "bg-[#D3E5EF]",
-    text: "text-[#183B56]",
+    bg: `${C.bgAccentLight}`,
+    text: `${C.textAccentDark}`,
   },
   inactive: {
     dot: C.bgPrimary10,
     label: "無効",
-    bg: "bg-[#E3E2E0]",
+    bg: `${C.bgInactive}`,
     text: C.text60,
   },
 } as const;

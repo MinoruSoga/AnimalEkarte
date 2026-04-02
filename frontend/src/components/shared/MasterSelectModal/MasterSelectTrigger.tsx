@@ -34,7 +34,7 @@ export function MasterSelectTrigger({
         <div
           id={id}
           onClick={onClick}
-          className={`p-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer hover:bg-[#F7F6F3]/80 transition-colors`}
+          className={`p-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors`}
         >
           <div className="flex items-center justify-between">
             <div>
@@ -61,7 +61,7 @@ export function MasterSelectTrigger({
       <div
         id={id}
         onClick={onClick}
-        className={`h-11 px-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer hover:bg-[#F7F6F3]/80 transition-colors flex items-center justify-between`}
+        className={`h-11 px-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors flex items-center justify-between`}
       >
         <div className="flex items-center gap-2 min-w-0">
           <span className={`text-sm ${C.text} truncate`}>
@@ -88,7 +88,7 @@ export function MasterSelectTrigger({
         id={id}
         type="button"
         onClick={onClick}
-        className={`w-full p-3 border-2 border-dashed ${C.borderMedium} rounded-md ${C.bgPage} hover:bg-[rgba(55,53,47,0.08)] transition-colors text-center cursor-pointer`}
+        className={`w-full p-3 border-2 border-dashed ${C.borderMedium} rounded-md ${C.bgPage} ${C.hoverBgMedium} transition-colors text-center cursor-pointer`}
       >
         <div className="flex flex-col items-center">
           <span className={`${C.text30} mb-1`}>{icon}</span>

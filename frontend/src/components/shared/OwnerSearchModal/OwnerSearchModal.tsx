@@ -6,13 +6,7 @@ import { useState, useCallback, useMemo, useDeferredValue, memo } from "react";
 import { Search, Users } from "lucide-react";
 
 // Internal
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -140,7 +134,7 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="飼主名 / 飼主No / 電話番号"
-                className="pl-9 h-10 text-base bg-[#F7F6F3] border-[rgba(55,53,47,0.16)] focus:border-[#2383E2] rounded-[4px]"
+                className={`pl-9 h-10 text-base ${C.bgPage} ${C.borderMedium} ${C.focusBorderAccent} rounded-[4px]`}
               />
             </div>
             <Button
@@ -161,7 +155,7 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
             ) : filteredOwners.length > 0 ? (
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[rgba(55,53,47,0.09)] bg-[#F7F6F3]">
+                  <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
                     <th className={`px-3 py-2 text-left text-xs font-medium ${C.text60}`}>飼主No</th>
                     <th className={`px-3 py-2 text-left text-xs font-medium ${C.text60}`}>飼主名</th>
                     <th className={`px-3 py-2 text-left text-xs font-medium ${C.text60}`}>電話番号</th>
@@ -173,7 +167,7 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                     <tr
                       key={owner.id}
                       onClick={() => handleRowClick(owner)}
-                      className="border-b border-[rgba(55,53,47,0.06)] cursor-pointer hover:bg-[rgba(55,53,47,0.04)] transition-colors"
+                      className={`border-b ${C.borderDivider} cursor-pointer ${C.hoverBgLight} transition-colors`}
                     >
                       <td className={`px-3 py-2.5 text-sm ${C.text60} font-mono`}>{owner.id}</td>
                       <td className={`px-3 py-2.5 text-sm font-medium ${C.text}`}>{owner.name}</td>

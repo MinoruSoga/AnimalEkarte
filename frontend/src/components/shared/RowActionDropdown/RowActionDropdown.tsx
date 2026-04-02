@@ -1,12 +1,7 @@
 import { C, ICON } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export interface RowActionDropdownAction {
   label: string;

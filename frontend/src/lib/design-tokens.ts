@@ -172,6 +172,10 @@ export const PALETTE = {
   /** Light border for unselected items (Tailwind gray-200) */
   borderUnselected: "#e5e7eb",
 
+  /* ── Medical accent blue (karte / hospitalization) ── */
+  /** Medical accent blue — used for focus rings, active states, board borders */
+  medicalBlue: "#2EAADC",
+
   /* ── Chart colors (Recharts / VitalsGraph) ── */
   /** Chart: temperature line */
   chartTemperature: "#E07B54",
@@ -240,8 +244,13 @@ export const C = {
   bgLight:       "bg-[rgba(55,53,47,0.09)]",
 
   /* ── Brand (Hospital teal) ── */
+  textBrand:     "text-[#038B94]",
   bgBrand:       "bg-[#038B94]",
+  bgBrand10:     "bg-[#038B94]/10",
   bgBrandDot:    "bg-[#038B94]",
+  hoverBgBrand:  "hover:bg-[#027A82]",
+  focusRingBrand:"focus:ring-[#038B94]",
+  borderBrand:   "border-[#038B94]",
 
   /* ── Border ── */
   borderLight:   "border-[rgba(55,53,47,0.09)]",
@@ -275,8 +284,14 @@ export const C = {
   /** Darker accent text on hover — use for outline accent buttons */
   hoverTextAccent: "hover:text-[#1B6EC2]",
   hoverBorderAccent40: "hover:border-[#2383E2]/40",
+  focusBorderAccent: "focus:border-[#2383E2]",
   focusRingAccent: "focus-visible:ring-[#2383E2]",
   focusRingAccent40: "focus-visible:ring-[#2383E2]/40",
+  /** data-state checked (Radix Checkbox) */
+  dataCheckedBgAccent: "data-[state=checked]:bg-[#2383E2]",
+  dataCheckedBorderAccent: "data-[state=checked]:border-[#2383E2]",
+  dataCheckedBgBrand: "data-[state=checked]:bg-[#038B94]",
+  dataCheckedBorderBrand: "data-[state=checked]:border-[#038B94]",
 
   /* ── Destructive — BUG-084: updated to #C0392B (7.1:1 contrast on white, WCAG AA) ── */
   danger:        "text-[#C0392B]",
@@ -322,9 +337,11 @@ export const C = {
   /* ── Success / Emerald green (会計リンク等) ── */
   textSuccess:       "text-[#10B981]",
   bgSuccess:         "bg-[#10B981]",
+  bgSuccess10:       "bg-[#10B981]/10",
   bgSuccessHover:    "hover:bg-[#059669]",
   borderSuccess30:   "border-[#10B981]/30",
   hoverBgSuccess10:  "hover:bg-[#10B981]/10",
+  hoverBgSuccess20:  "hover:bg-[#10B981]/20",
 
   /* ── Notion Yellow / Notice (注意・アラート) ── */
   textNotice:        "text-[#C29243]",
@@ -372,6 +389,7 @@ export const C = {
   /* ── Hover utilities ── */
   hoverBgPage:   "hover:bg-[#F7F6F3]",
   hoverBgPageHalf: "hover:bg-[#F7F6F3]/50",
+  hoverBgPage60: "hover:bg-[#F7F6F3]/60",
   hoverBgLight:  "hover:bg-[rgba(55,53,47,0.04)]",
   hoverBgMedium: "hover:bg-[rgba(55,53,47,0.08)]",
   hoverBgPrimary4:  "hover:bg-[#37352F]/4",
@@ -382,6 +400,7 @@ export const C = {
   hoverBorderPrimary30: "hover:border-[#37352F]/30",
   hoverBorderPrimary40: "hover:border-[#37352F]/40",
   hoverBorderMedium: "hover:border-[rgba(55,53,47,0.24)]",
+  hoverBorderMedium40: "hover:border-[rgba(55,53,47,0.40)]",
   hoverBgSubtle: "hover:bg-[#FAFAF8]",
 
   /** Search input hover bg (slightly darker page) */
@@ -416,6 +435,7 @@ export const C = {
   borderPink:     "border-[#ECCBDA]",
 
   /** Notion muted (default fallback badge) */
+  bgMuted:        "bg-[#F1F0EE]",
   bgMutedBadge:   "bg-[#F1F1EF]",
   hoverBgMutedBadge: "hover:bg-[#E8E7E4]",
   bgMutedBadgeActive: "bg-[#E8E7E4]",
@@ -436,11 +456,18 @@ export const C = {
   borderOrangeBadge: "border-[#F0C9A8]",
 
   /* ── Dashboard Kanban column opacity variants ── */
+  bgAccentLight8:        "bg-[#D3E5EF]/8",
+  bgAccentLight30:       "bg-[#D3E5EF]/30",
+  bgAccentLight40:       "bg-[#D3E5EF]/40",
   bgAccentLight50:       "bg-[#D3E5EF]/50",
+  hoverBgAccentLight:    "hover:bg-[#D3E5EF]",
+  hoverBgAccentLight60:  "hover:bg-[#D3E5EF]/60",
   textAccentDark60:      "text-[#183B56]/60",
   hoverBgAccentBadge40:  "hover:bg-[#B8D4E3]/40",
   hoverTextAccentDark:   "hover:text-[#183B56]",
 
+  bgStatusPurple30:      "bg-[#EEE0F7]/30",
+  bgStatusPurple40:      "bg-[#EEE0F7]/40",
   bgStatusPurple60:      "bg-[#EEE0F7]/60",
   textStatusPurple60:    "text-[#6940A5]/60",
   hoverBgPurpleLight40:  "hover:bg-[#D6C6E1]/40",
@@ -451,6 +478,10 @@ export const C = {
   hoverBgOrangeBadge40:  "hover:bg-[#F0C9A8]/40",
   hoverTextDiscount:     "hover:text-[#D9730D]",
 
+  bgStatusGreen30:       "bg-[#DDEDEA]/30",
+  bgStatusGreen40:       "bg-[#DDEDEA]/40",
+  hoverBgStatusGreenLight60: "hover:bg-[#DDEDEA]/60",
+  hoverBgStatusPurpleLight60: "hover:bg-[#EEE0F7]/60",
   bgStatusGreen60:       "bg-[#DDEDEA]/60",
   textStatusGreen60:     "text-[#0F7B6C]/60",
   hoverBgGreenBadge40:   "hover:bg-[#C3DFC3]/40",
@@ -479,6 +510,17 @@ export const C = {
   dotBrown:   "bg-[#937264]",
   dotGray:    "bg-[#9B9A97]",
   dotDefault: "bg-[#91918E]",
+
+  /* ── Medical accent blue (karte / hospitalization) ── */
+  bgMedicalBlue:          "bg-[#2EAADC]",
+  bgMedicalBlue5:         "bg-[#2EAADC]/5",
+  textMedicalBlue:        "text-[#2EAADC]",
+  borderMedicalBlue:      "border-[#2EAADC]",
+  borderLMedicalBlue:     "border-l-[#2EAADC]",
+  hoverBgMedicalBlue90:   "hover:bg-[#2EAADC]/90",
+  hoverBorderMedicalBlue50: "hover:border-[#2EAADC]/50",
+  ringMedicalBlue:        "ring-[#2EAADC]",
+  focusRingMedicalBlue:   "focus-visible:ring-[#2EAADC]",
 
   /* ── Data-state active (Radix Tabs) ── */
   dataActiveBorderB: "data-[state=active]:border-b-[#37352F]",

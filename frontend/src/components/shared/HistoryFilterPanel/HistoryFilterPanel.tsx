@@ -3,13 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SortOrder } from "@/types";
 import { SORT_ORDER_VALUES } from "@/types";
 import { getSortOrderLabel } from "@/utils/status-helpers";
@@ -48,7 +42,7 @@ export const HistoryFilterPanel = React.memo(function HistoryFilterPanel({
   onClear,
 }: HistoryFilterPanelProps) {
   return (
-    <div className="space-y-3 bg-white p-3 rounded-lg border border-[rgba(55,53,47,0.16)] shadow-sm">
+    <div className={`space-y-3 bg-white p-3 rounded-lg border ${C.borderMedium} shadow-sm`}>
       {showDateRange ? (
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm ${C.text60}`}>実施日</Label>
@@ -75,12 +69,12 @@ export const HistoryFilterPanel = React.memo(function HistoryFilterPanel({
           <Input
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
-            className={`flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm ${C.text}`}
+            className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
             placeholder={searchPlaceholder}
           />
           <Button
             variant="outline"
-            className={`h-10 text-sm ${C.text60} ${C.hoverText} hover:bg-[#F7F6F3] border-[rgba(55,53,47,0.16)]`}
+            className={`h-10 text-sm ${C.text60} ${C.hoverText} ${C.hoverBgPage} ${C.borderMedium}`}
             onClick={onClear}
           >
             クリア
@@ -90,7 +84,7 @@ export const HistoryFilterPanel = React.memo(function HistoryFilterPanel({
               onSortOrderChange(val);
             }
           }}>
-            <SelectTrigger className={`w-[80px] h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] ${C.text}`}>
+            <SelectTrigger className={`w-[80px] h-10 text-sm bg-white ${C.borderMedium} ${C.text}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
