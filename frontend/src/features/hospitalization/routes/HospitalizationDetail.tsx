@@ -19,14 +19,7 @@ export function HospitalizationDetail() {
 
     const {
         hospitalization,
-        plans,
-        records,
         isLoading,
-        handleAddPlan,
-        handleUpdatePlan,
-        handleDeletePlan,
-        handleAddVital,
-        handleAddLog,
         dischargeHospitalization
     } = useHospitalizationDetail(id);
 
@@ -50,17 +43,6 @@ export function HospitalizationDetail() {
         return <div className="p-8 text-center text-gray-500">読み込み中...</div>;
     }
 
-    const expandedViewProps = {
-        hospitalization,
-        plans,
-        records,
-        onAddPlan: handleAddPlan,
-        onUpdatePlan: handleUpdatePlan,
-        onDeletePlan: handleDeletePlan,
-        onAddVital: handleAddVital,
-        onAddLog: handleAddLog
-    };
-
     return (
         <PageLayout
             title="入院詳細・カルテ"
@@ -74,12 +56,12 @@ export function HospitalizationDetail() {
             maxWidth="max-w-[1600px]"
         >
             <div>
-                <HospitalizationExpandedView {...expandedViewProps} />
+                <HospitalizationExpandedView hospitalization={hospitalization} />
                 <HospitalizationTabbedView hospitalization={hospitalization} />
             </div>
 
-            <DischargeAlertDialog 
-                open={showDischargeDialog} 
+            <DischargeAlertDialog
+                open={showDischargeDialog}
                 onOpenChange={setShowDischargeDialog}
                 onConfirm={handleDischargeConfirm}
             />
