@@ -1,6 +1,6 @@
 // React/Framework
 import { ICON, C } from "@/lib/design-tokens";
-import { useState, useMemo, useCallback, memo, useTransition, Suspense, useDeferredValue, useActionState, useEffect } from "react";
+import { useState, useMemo, useCallback, memo, useTransition, useDeferredValue, useActionState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
@@ -1117,14 +1117,12 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
             <div className="flex-1 bg-gray-100 overflow-auto p-8 flex items-center justify-center">
               <div className="shadow-lg transform scale-100 origin-top">
                 {accounting.payment ? (
-                  <Suspense fallback={<div className="p-8 text-center text-sm text-gray-400">読み込み中...</div>}>
-                    <AccountingDocument
-                      type={previewType}
-                      accounting={accounting}
-                      paymentInfo={accounting.payment}
-                      clinic={clinicForDocument}
-                    />
-                  </Suspense>
+                  <AccountingDocument
+                    type={previewType}
+                    accounting={accounting}
+                    paymentInfo={accounting.payment}
+                    clinic={clinicForDocument}
+                  />
                 ) : null}
               </div>
             </div>
