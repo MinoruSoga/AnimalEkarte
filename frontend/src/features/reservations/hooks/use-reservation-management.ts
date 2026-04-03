@@ -300,8 +300,17 @@ export function useReservationManagement() {
     (appointment: ReservationAppointment) => {
       const targetPath = RECORD_PATH[appointment.type] || "/medical-records/new";
 
+      // Build query params: petId + doctorId (if available from reservation)
+      const queryParams = new URLSearchParams();
       if (appointment.petId) {
-        navigate(`${targetPath}?petId=${appointment.petId}`, { state: { from: "/reservations" } });
+        queryParams.append("petId", appointment.petId);
+      }
+      if (appointment.doctorId) {
+        queryParams.append("doctorId", appointment.doctorId);
+      }
+
+      if (appointment.petId) {
+        navigate(`${targetPath}?${queryParams.toString()}`, { state: { from: "/reservations" } });
       } else {
         const selectPath = SELECT_PATH[appointment.type] || "/medical-records/select-pet";
         setPetSelectPath(selectPath);
