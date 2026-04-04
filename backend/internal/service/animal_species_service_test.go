@@ -60,42 +60,7 @@ func (m *mockAnimalSpeciesRepository) Reorder(ctx context.Context, ids []uint64)
 	return nil
 }
 
-// ---- Pet モック ----
-
-type mockPetRepository struct {
-	countByAnimalSpeciesIDFn func(ctx context.Context, speciesID uint64) (int64, error)
-}
-
-func (m *mockPetRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
-	return nil, 0, nil
-}
-
-func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
-	return nil, nil
-}
-
-func (m *mockPetRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockPetRepository) CountByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {
-	if m.countByAnimalSpeciesIDFn != nil {
-		return m.countByAnimalSpeciesIDFn(ctx, speciesID)
-	}
-	return 0, nil
-}
-
-func (m *mockPetRepository) Create(ctx context.Context, pet *model.Pet) error {
-	return nil
-}
-
-func (m *mockPetRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return nil
-}
-
-func (m *mockPetRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return nil
-}
+// Note: mockPetRepository is defined in pet_service_test.go (shared across tests in this package)
 
 // ---- Tests ----
 
