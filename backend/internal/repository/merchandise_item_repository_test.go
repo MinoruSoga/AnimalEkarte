@@ -1,12 +1,9 @@
 package repository
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 // TestCountUsageByMerchandiseItemID - マーチャンダイズアイテムの使用数をカウント
