@@ -15,12 +15,13 @@ import (
 
 // mockStaffRepository は StaffRepository のテスト用モック実装
 type mockStaffRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.Staff, error)
-	createFn   func(ctx context.Context, staff *model.Staff) error
-	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
-	reorderErr error
+	findAllFn         func(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
+	findByIDFn        func(ctx context.Context, id uint64) (*model.Staff, error)
+	findByAccountIDFn func(ctx context.Context, accountID uint64) (*model.Staff, error)
+	createFn          func(ctx context.Context, staff *model.Staff) error
+	updateFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn          func(ctx context.Context, clinicID, id uint64) error
+	reorderErr        error
 }
 
 func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
@@ -29,6 +30,13 @@ func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, role
 
 func (m *mockStaffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	return m.findByIDFn(ctx, id)
+}
+
+func (m *mockStaffRepository) FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error) {
+	if m.findByAccountIDFn != nil {
+		return m.findByAccountIDFn(ctx, accountID)
+	}
+	return nil, apperrors.WrapNotFound("staff", "account_id")
 }
 
 func (m *mockStaffRepository) Create(ctx context.Context, staff *model.Staff) error {
@@ -129,8 +137,8 @@ func TestStaffService_List(t *testing.T) {
 			clinicID: 1,
 			role:     nil,
 			repoStaffs: []model.Staff{
-				{ID: 1, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
-				{ID: 2, ClinicID: 1, Name: "鈴木 花子", StaffRole: model.StaffRoleNurse},
+				{ID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
+				{ID: 2, Name: "鈴木 花子", StaffRole: model.StaffRoleNurse},
 			},
 			repoTotal: 2,
 			repoErr:   nil,
@@ -143,7 +151,7 @@ func TestStaffService_List(t *testing.T) {
 			clinicID: 1,
 			role:     ptrString("veterinarian"),
 			repoStaffs: []model.Staff{
-				{ID: 1, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
+				{ID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
 			},
 			repoTotal: 1,
 			repoErr:   nil,
@@ -219,9 +227,9 @@ func TestStaffService_GetByID(t *testing.T) {
 		{
 			name:      "returns staff when found",
 			id:        10,
-			repoStaff: &model.Staff{ID: 10, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
+			repoStaff: &model.Staff{ID: 10, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
 			repoErr:   nil,
-			wantStaff: &model.Staff{ID: 10, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
+			wantStaff: &model.Staff{ID: 10, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
 			wantErr:   nil,
 		},
 		{
@@ -293,7 +301,6 @@ func TestStaffService_Create_Success(t *testing.T) {
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		ClinicID:  1,
 		Name:      "新規 スタッフ",
 		StaffRole: model.StaffRoleVeterinarian,
 	}
@@ -316,7 +323,6 @@ func TestStaffService_Create_RepositoryError(t *testing.T) {
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		ClinicID:  1,
 		Name:      "エラー スタッフ",
 		StaffRole: model.StaffRoleNurse,
 	}
@@ -336,7 +342,6 @@ func TestStaffService_Create_DuplicateName(t *testing.T) {
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		ClinicID:  1,
 		Name:      "重複 スタッフ",
 		StaffRole: model.StaffRoleReception,
 	}
