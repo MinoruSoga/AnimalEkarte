@@ -14,6 +14,8 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- -----------------------------------------------------------------------------
 
 -- 認証関連
+CREATE TYPE user_type AS ENUM ('system_admin', 'clinic_admin', 'staff');
+CREATE TYPE account_status AS ENUM ('active', 'inactive', 'locked');
 
 -- ペット関連
 CREATE TYPE pet_status AS ENUM ('alive', 'deceased');
@@ -170,7 +172,7 @@ CREATE TABLE accounts (
 CREATE INDEX idx_accounts_email ON accounts(email) WHERE deleted_at IS NULL;
 
 -- ------------------------------------
--- 6. staffs（スタッフマスタ）
+-- 5b. staffs（スタッフマスタ）
 -- ------------------------------------
 CREATE TABLE staffs (
     id             BIGSERIAL   PRIMARY KEY,
@@ -189,7 +191,383 @@ CREATE TABLE staffs (
 CREATE INDEX idx_staffs_account ON staffs(account_id);
 
 -- ------------------------------------
--- 7. staff_clinic_assignments（スタッフ-クリニック中間テーブル）
+-- 7. owners（飼主情報）
+-- ------------------------------------
+CREATE TABLE owners (
+    id               BIGSERIAL       PRIMARY KEY,
+    clinic_id        bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_name       text            NOT NULL,
+    owner_name_kana  text            NOT NULL DEFAULT '',
+    birth_date       date,
+    company          text            NOT NULL DEFAULT '',
+    postal_code      text            NOT NULL DEFAULT '',
+    address1         text            NOT NULL DEFAULT '',
+    address2         text            NOT NULL DEFAULT '',
+    home_postal_code text            NOT NULL DEFAULT '',
+    home_address1    text            NOT NULL DEFAULT '',
+    home_address2    text            NOT NULL DEFAULT '',
+    phone            text            NOT NULL DEFAULT '',
+    company_phone    text            NOT NULL DEFAULT '',
+    email            text            NOT NULL DEFAULT '',
+    remarks          text            NOT NULL DEFAULT '',
+    is_dangerous     boolean         NOT NULL DEFAULT false,
+    discount_rate    numeric(5,2)    NOT NULL DEFAULT 0,
+    membership_type  membership_type NOT NULL DEFAULT 'non_member',
+    created_at       timestamptz     NOT NULL DEFAULT now(),
+    updated_at       timestamptz     NOT NULL DEFAULT now(),
+    deleted_at       timestamptz
+);
+
+-- ------------------------------------
+-- 8. inventory_items（在庫管理）
+-- ------------------------------------
+CREATE TABLE inventory_items (
+    id              BIGSERIAL          PRIMARY KEY,
+    clinic_id       bigint             NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name            text               NOT NULL,
+    category        inventory_category NOT NULL,
+    quantity        integer                     DEFAULT 0,
+    unit            text               NOT NULL DEFAULT '',
+    min_stock_level integer                     DEFAULT 0,
+    location        text               NOT NULL DEFAULT '',
+    expiry_date     date,
+    supplier        text               NOT NULL DEFAULT '',
+    last_restocked  date,
+    status          inventory_status            DEFAULT 'sufficient',
+    created_at      timestamptz        NOT NULL DEFAULT now(),
+    updated_at      timestamptz        NOT NULL DEFAULT now(),
+    deleted_at      timestamptz
+);
+
+-- ------------------------------------
+-- 9. exam_types（検査種別マスタ）
+-- ------------------------------------
+CREATE TABLE exam_types (
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text        NOT NULL,
+    price       bigint,
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    parent_id   bigint               REFERENCES exam_types(id) ON DELETE SET NULL,
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 10. exam_type_items（検査項目定義）
+-- ------------------------------------
+CREATE TABLE exam_type_items (
+    id               BIGSERIAL   PRIMARY KEY,
+    exam_type_id     bigint      NOT NULL REFERENCES exam_types(id) ON DELETE CASCADE,
+    name             text        NOT NULL,
+    inspection_value text        NOT NULL DEFAULT '',
+    normal_value     text        NOT NULL DEFAULT '',
+    unit             text        NOT NULL DEFAULT '',
+    sort_order       integer              DEFAULT 0,
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    updated_at       timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 11. vaccines（ワクチンマスタ）
+-- ------------------------------------
+CREATE TABLE vaccines (
+    id           BIGSERIAL       PRIMARY KEY,
+    clinic_id    bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name         text            NOT NULL,
+    price        bigint,
+    is_active    boolean         NOT NULL DEFAULT true,
+    description  text            NOT NULL DEFAULT '',
+    species      vaccine_species,
+    interval     text            NOT NULL DEFAULT '',
+    inventory_id bigint                   REFERENCES inventory_items(id) ON DELETE SET NULL,
+    parent_id    bigint                   REFERENCES vaccines(id) ON DELETE SET NULL,
+    sort_order   integer                  DEFAULT 0,
+    created_at   timestamptz     NOT NULL DEFAULT now(),
+    updated_at   timestamptz     NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 12. medicines（薬剤マスタ）
+-- ------------------------------------
+CREATE TABLE medicines (
+    id               BIGSERIAL     PRIMARY KEY,
+    clinic_id        bigint        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name             text          NOT NULL,
+    price            bigint,
+    is_active        boolean       NOT NULL DEFAULT true,
+    description      text          NOT NULL DEFAULT '',
+    parent_id        bigint                 REFERENCES medicines(id) ON DELETE SET NULL,
+    dosage_form      dosage_form,
+    medicine_unit    medicine_unit,
+    inventory_id     bigint                 REFERENCES inventory_items(id) ON DELETE SET NULL,
+    default_quantity numeric(10,1)          DEFAULT 1,
+    tax_type         tax_type      NOT NULL DEFAULT 'excluded',
+    tax_rate         numeric       NOT NULL DEFAULT 0.10,
+    sort_order       integer                DEFAULT 0,
+    created_at       timestamptz   NOT NULL DEFAULT now(),
+    updated_at       timestamptz   NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 13. insurances（保険マスタ）
+-- ------------------------------------
+CREATE TABLE insurances (
+    id            BIGSERIAL   PRIMARY KEY,
+    clinic_id     bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name          text        NOT NULL,
+    is_active     boolean     NOT NULL DEFAULT true,
+    description   text        NOT NULL DEFAULT '',
+    coverage_rate integer     NOT NULL DEFAULT 0 CHECK (coverage_rate >= 0 AND coverage_rate <= 100),
+    contact_phone text        NOT NULL DEFAULT '',
+    sort_order    integer              DEFAULT 0,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    updated_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 14. cages（ケージマスタ）
+-- ------------------------------------
+CREATE TABLE cages (
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text        NOT NULL,
+    price       bigint,
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    cage_type   cage_type   NOT NULL,
+    cage_size   cage_size   NOT NULL,
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 15. service_types（サービス種別マスタ）
+-- ------------------------------------
+CREATE TABLE service_types (
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text        NOT NULL,
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    color       text        NOT NULL DEFAULT '#3B82F6',
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 16. consultations（診察項目マスタ）
+-- ------------------------------------
+CREATE TABLE consultations (
+    id             BIGSERIAL   PRIMARY KEY,
+    clinic_id      bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name           text        NOT NULL,
+    price          bigint,
+    is_active      boolean     NOT NULL DEFAULT true,
+    description    text        NOT NULL DEFAULT '',
+    time_condition text        NOT NULL DEFAULT '',
+    duration       integer,
+    parent_id      bigint               REFERENCES consultations(id) ON DELETE SET NULL,
+    tax_type       tax_type    NOT NULL DEFAULT 'excluded',
+    tax_rate       numeric     NOT NULL DEFAULT 0.10,
+    sort_order     integer              DEFAULT 0,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at     timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 17. procedures（処置項目マスタ）
+-- ------------------------------------
+CREATE TABLE procedures (
+    id          BIGSERIAL       PRIMARY KEY,
+    clinic_id   bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text            NOT NULL,
+    price       bigint,
+    is_active   boolean         NOT NULL DEFAULT true,
+    description text            NOT NULL DEFAULT '',
+    duration    integer,
+    anesthesia  anesthesia_type          DEFAULT 'none',
+    parent_id   bigint                   REFERENCES procedures(id) ON DELETE SET NULL,
+    tax_type    tax_type        NOT NULL DEFAULT 'excluded',
+    tax_rate    numeric         NOT NULL DEFAULT 0.10,
+    sort_order  integer                  DEFAULT 0,
+    created_at  timestamptz     NOT NULL DEFAULT now(),
+    updated_at  timestamptz     NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 18. hospitalization_plans（入院プランマスタ）
+-- ------------------------------------
+CREATE TABLE hospitalization_plans (
+    id           BIGSERIAL    PRIMARY KEY,
+    clinic_id    bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name         text         NOT NULL,
+    price        bigint,
+    is_active    boolean      NOT NULL DEFAULT true,
+    description  text         NOT NULL DEFAULT '',
+    body_size    body_size,
+    billing_unit billing_unit          DEFAULT 'per_day',
+    tax_type     tax_type     NOT NULL DEFAULT 'excluded',
+    tax_rate     numeric      NOT NULL DEFAULT 0.10,
+    sort_order   integer               DEFAULT 0,
+    created_at   timestamptz  NOT NULL DEFAULT now(),
+    updated_at   timestamptz  NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 19. trimming_courses（トリミングコースマスタ）
+-- ------------------------------------
+CREATE TABLE trimming_courses (
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text        NOT NULL,
+    price       bigint,
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    target_size target_size,
+    duration    integer,
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 20. trimming_options（トリミングオプションマスタ）
+-- ------------------------------------
+CREATE TABLE trimming_options (
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text        NOT NULL,
+    price       bigint,
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    duration    integer,
+    combinable  boolean     NOT NULL DEFAULT true,
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 21. diagnosis_categories（診断カテゴリマスタ）
+-- ------------------------------------
+CREATE TABLE diagnosis_categories (
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text        NOT NULL,
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 22. diagnosis_names（診断病名マスタ）
+-- ------------------------------------
+CREATE TABLE diagnosis_names (
+    id                    BIGSERIAL   PRIMARY KEY,
+    clinic_id             bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name                  text        NOT NULL,
+    is_active             boolean     NOT NULL DEFAULT true,
+    description           text        NOT NULL DEFAULT '',
+    diagnosis_category_id bigint      NOT NULL REFERENCES diagnosis_categories(id) ON DELETE CASCADE,
+    sort_order            integer              DEFAULT 0,
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 23. checkup_types（健診種別マスタ）
+-- ------------------------------------
+CREATE TABLE checkup_types (
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text        NOT NULL,
+    price       bigint,
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    interval    text        NOT NULL DEFAULT '',
+    target_age  text        NOT NULL DEFAULT '',
+    parent_id   bigint               REFERENCES checkup_types(id) ON DELETE SET NULL,
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
+);
+
+-- ------------------------------------
+-- 24. chief_complaint_categories（主訴区分マスタ）
+-- ------------------------------------
+CREATE TABLE chief_complaint_categories (
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text        NOT NULL,
+    description text        NOT NULL DEFAULT '',
+    is_active   boolean     NOT NULL DEFAULT true,
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 25. inquiry_templates（問診定型文マスタ）
+-- ------------------------------------
+CREATE TABLE inquiry_templates (
+    id         BIGSERIAL   PRIMARY KEY,
+    clinic_id  bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    category   text        NOT NULL DEFAULT '',
+    title      text        NOT NULL,
+    content    text        NOT NULL DEFAULT '',
+    is_active  boolean     NOT NULL DEFAULT true,
+    sort_order integer              DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- ==========================================================================
+-- レイヤー3: owners/staffs/animal_species等依存
+-- ==========================================================================
+
+-- ------------------------------------
+-- 26. pets（ペット情報）
+-- ------------------------------------
+CREATE TABLE pets (
+    id                BIGSERIAL       PRIMARY KEY,
+    clinic_id         bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id          bigint          NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
+    pet_number        text            NOT NULL DEFAULT '',
+    name              text            NOT NULL,
+    pet_name_kana     text            NOT NULL DEFAULT '',
+    animal_species_id bigint          NOT NULL REFERENCES animal_species(id) ON DELETE RESTRICT,
+    gender            pet_gender      NOT NULL DEFAULT 'unknown',
+    status            pet_status      NOT NULL DEFAULT 'alive',
+    birth_date        date,
+    breed             text            NOT NULL DEFAULT '',
+    color             text            NOT NULL DEFAULT '',
+    weight            numeric(6,2),
+    neutered_date     date,
+    acquisition_type  acquisition_type,
+    danger_level      danger_level    NOT NULL DEFAULT 'low',
+    food              text            NOT NULL DEFAULT '',
+    environment       text            NOT NULL DEFAULT '',
+    phone             text            NOT NULL DEFAULT '',
+    last_visit        date,
+    insurance_id      bigint                   REFERENCES insurances(id) ON DELETE SET NULL,
+    remarks           text            NOT NULL DEFAULT '',
+    created_at        timestamptz     NOT NULL DEFAULT now(),
+    updated_at        timestamptz     NOT NULL DEFAULT now(),
+    deleted_at        timestamptz
+);
+
+-- ------------------------------------
+-- 27. user_clinic_memberships（ユーザー所属クリニック）
+-- ------------------------------------
+-- 6a. staff_clinic_assignments（スタッフ-クリニック中間テーブル）
 -- ------------------------------------
 CREATE TABLE staff_clinic_assignments (
     id             BIGSERIAL   PRIMARY KEY,
@@ -204,6 +582,958 @@ CREATE TABLE staff_clinic_assignments (
 CREATE INDEX idx_staff_clinic_staff ON staff_clinic_assignments(staff_id);
 CREATE INDEX idx_staff_clinic_clinic ON staff_clinic_assignments(clinic_id);
 CREATE INDEX idx_staff_clinic_main ON staff_clinic_assignments(staff_id, is_main);
+
+-- ------------------------------------
+-- Deleted: permission_groups, permission_group_rules, user_permission_groups, refresh_tokens
+-- These were removed in auth refactor (Account-based authentication)
+
+
+-- ==========================================================================
+-- レイヤー4: pets依存
+-- ==========================================================================
+
+-- ------------------------------------
+-- 29. reservation_appointments（予約）
+-- ------------------------------------
+CREATE TABLE reservation_appointments (
+    id              BIGSERIAL          PRIMARY KEY,
+    clinic_id       bigint             NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    start_time      timestamptz        NOT NULL,
+    end_time        timestamptz        NOT NULL,
+    owner_id        bigint                      REFERENCES owners(id) ON DELETE SET NULL,
+    pet_id          bigint                      REFERENCES pets(id) ON DELETE SET NULL,
+    visit_type      visit_type         NOT NULL DEFAULT 'revisit',
+    service_type_id bigint             NOT NULL REFERENCES service_types(id) ON DELETE RESTRICT,
+    doctor_id       bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
+    is_designated   boolean                     DEFAULT false,
+    status          reservation_status          DEFAULT 'pending',
+    notes           text               NOT NULL DEFAULT '',
+    created_at      timestamptz        NOT NULL DEFAULT now(),
+    updated_at      timestamptz        NOT NULL DEFAULT now(),
+    deleted_at      timestamptz,
+    CONSTRAINT chk_reservation_times CHECK (end_time >= start_time)
+);
+
+-- ------------------------------------
+-- 30. hospitalizations（入院/ホテル管理）
+-- ------------------------------------
+CREATE TABLE hospitalizations (
+    id                   BIGSERIAL              PRIMARY KEY,
+    clinic_id            bigint                 NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id             bigint                 NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
+    pet_id               bigint                 NOT NULL REFERENCES pets(id) ON DELETE RESTRICT,
+    hospitalization_type hospitalization_type   NOT NULL,
+    start_date           date                   NOT NULL,
+    end_date             date                   NOT NULL,
+    status               hospitalization_status          DEFAULT 'reserved',
+    cage_id              bigint                          REFERENCES cages(id) ON DELETE SET NULL,
+    doctor_id            bigint                          REFERENCES staffs(id) ON DELETE SET NULL,
+    memo                 text                   NOT NULL DEFAULT '',
+    owner_request        text                   NOT NULL DEFAULT '',
+    staff_notes          text                   NOT NULL DEFAULT '',
+    created_at           timestamptz            NOT NULL DEFAULT now(),
+    updated_at           timestamptz            NOT NULL DEFAULT now(),
+    deleted_at           timestamptz,
+    CONSTRAINT chk_hospitalizations_dates CHECK (end_date >= start_date)
+);
+
+-- ------------------------------------
+-- 31. trimming_records（トリミング記録）
+-- ------------------------------------
+CREATE TABLE trimming_records (
+    id              BIGSERIAL        PRIMARY KEY,
+    clinic_id       bigint           NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    date            date             NOT NULL,
+    pet_id          bigint                    REFERENCES pets(id) ON DELETE RESTRICT,
+    style_request   text             NOT NULL DEFAULT '',
+    staff_id        bigint                    REFERENCES staffs(id) ON DELETE SET NULL,
+    status          trimming_status           DEFAULT 'reserved',
+    course_id       bigint                    REFERENCES trimming_courses(id) ON DELETE SET NULL,
+    bw              numeric(6,2),             -- 体重（body weight）
+    bw_unit         body_weight_unit          DEFAULT 'Kg',
+    bt              numeric(4,1),             -- 体温（body temperature, ℃）
+    used_shampoo    text             NOT NULL DEFAULT '',
+    used_ribbon     text             NOT NULL DEFAULT '',
+    remarks         text             NOT NULL DEFAULT '',
+    style_image     text             NOT NULL DEFAULT '',
+    completed_image text             NOT NULL DEFAULT '',
+    created_at      timestamptz      NOT NULL DEFAULT now(),
+    updated_at      timestamptz      NOT NULL DEFAULT now(),
+    deleted_at      timestamptz
+);
+
+-- ------------------------------------
+-- 32. medical_records（電子カルテ）
+-- ------------------------------------
+CREATE TABLE medical_records (
+    id                         BIGSERIAL             PRIMARY KEY,
+    clinic_id                  bigint                NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    record_no                  text                  NOT NULL,
+    date                       date                  NOT NULL,
+    owner_id                   bigint                         REFERENCES owners(id) ON DELETE RESTRICT,
+    pet_id                     bigint                         REFERENCES pets(id) ON DELETE RESTRICT,
+    doctor_id                  bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
+    reservation_appointment_id bigint                         REFERENCES reservation_appointments(id) ON DELETE SET NULL,
+    status                     medical_record_status          DEFAULT 'draft',
+    version                    INTEGER               NOT NULL DEFAULT 1,
+    created_at                 timestamptz           NOT NULL DEFAULT now(),
+    updated_at                 timestamptz           NOT NULL DEFAULT now(),
+    deleted_at                 timestamptz
+);
+
+-- ------------------------------------
+-- 33. vaccinations（予防接種記録）
+-- ------------------------------------
+CREATE TABLE vaccinations (
+    id                 BIGSERIAL          PRIMARY KEY,
+    clinic_id          bigint             NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    medical_record_id  bigint                      REFERENCES medical_records(id) ON DELETE CASCADE,
+    pet_id             bigint                      REFERENCES pets(id) ON DELETE RESTRICT,
+    vaccine_id         bigint             NOT NULL REFERENCES vaccines(id) ON DELETE RESTRICT,
+    date               date               NOT NULL,
+    next_date          date,
+    next_schedule_type next_schedule_type,
+    doctor_id          bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
+    supplemental       text               NOT NULL DEFAULT '',
+    lot1               text               NOT NULL DEFAULT '',
+    lot2               text               NOT NULL DEFAULT '',
+    lot3               text               NOT NULL DEFAULT '',
+    lot4               text               NOT NULL DEFAULT '',
+    remarks            text               NOT NULL DEFAULT '',
+    created_at         timestamptz        NOT NULL DEFAULT now(),
+    updated_at         timestamptz        NOT NULL DEFAULT now(),
+    deleted_at         timestamptz
+);
+
+-- ------------------------------------
+-- 34. checkups（定期健診記録）
+-- ------------------------------------
+CREATE TABLE checkups (
+    id                BIGSERIAL     PRIMARY KEY,
+    medical_record_id bigint        NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    clinic_id         bigint        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    pet_id            bigint                 REFERENCES pets(id) ON DELETE RESTRICT,
+    checkup_type_id   bigint        NOT NULL REFERENCES checkup_types(id) ON DELETE RESTRICT,
+    date              date          NOT NULL,
+    next_date         date,
+    doctor_id         bigint                 REFERENCES staffs(id) ON DELETE SET NULL,
+    result            text          NOT NULL DEFAULT '',
+    created_at        timestamptz   NOT NULL DEFAULT now(),
+    updated_at        timestamptz   NOT NULL DEFAULT now(),
+    deleted_at        timestamptz
+);
+
+-- ------------------------------------
+-- 35. exams（検査記録）
+-- ------------------------------------
+CREATE TABLE exams (
+    id                BIGSERIAL          PRIMARY KEY,
+    medical_record_id bigint                      REFERENCES medical_records(id) ON DELETE CASCADE,
+    clinic_id         bigint             NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    pet_id            bigint                      REFERENCES pets(id) ON DELETE RESTRICT,
+    date              date               NOT NULL,
+    exam_type_id      bigint             NOT NULL REFERENCES exam_types(id) ON DELETE RESTRICT,
+    doctor_id         bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
+    status            examination_status          DEFAULT 'pending',
+    result_summary    text               NOT NULL DEFAULT '',
+    machine           text               NOT NULL DEFAULT '',
+    created_at        timestamptz        NOT NULL DEFAULT now(),
+    updated_at        timestamptz        NOT NULL DEFAULT now(),
+    deleted_at        timestamptz
+);
+
+-- ==========================================================================
+-- レイヤー5: medical_records/hospitalizations依存
+-- ==========================================================================
+
+-- ------------------------------------
+-- 36. inquiries（問診タブ: medical_recordsと1:1）
+-- ------------------------------------
+CREATE TABLE inquiries (
+    id                          BIGSERIAL          PRIMARY KEY,
+    medical_record_id           bigint             NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
+    chief_complaint_category_id bigint                      REFERENCES chief_complaint_categories(id) ON DELETE SET NULL,
+    chief_complaint             text               NOT NULL DEFAULT '',
+    history                     text               NOT NULL DEFAULT '',
+    current_medications         text               NOT NULL DEFAULT '',
+    allergy_info                text               NOT NULL DEFAULT '',
+    last_meal                   text               NOT NULL DEFAULT '',
+    last_defecation             text               NOT NULL DEFAULT '',
+    last_urination              text               NOT NULL DEFAULT '',
+    appetite                    appetite_level,
+    water_intake                water_intake_level,
+    owner_observations          text               NOT NULL DEFAULT '',
+    notes                       text               NOT NULL DEFAULT '',
+    staff_id                    bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
+    created_at                  timestamptz        NOT NULL DEFAULT now(),
+    updated_at                  timestamptz        NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 37. clinical_plans（診察/治療タブ: medical_recordsと1:1）
+-- ------------------------------------
+CREATE TABLE clinical_plans (
+    id                    BIGSERIAL   PRIMARY KEY,
+    medical_record_id     bigint      NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
+    physical_exam         text        NOT NULL DEFAULT '',
+    diagnosis_category_id bigint               REFERENCES diagnosis_categories(id) ON DELETE SET NULL,
+    diagnosis_name_id     bigint               REFERENCES diagnosis_names(id) ON DELETE SET NULL,
+    diagnosis_2_category_id bigint             REFERENCES diagnosis_categories(id) ON DELETE SET NULL,
+    diagnosis_2_name_id   bigint               REFERENCES diagnosis_names(id) ON DELETE SET NULL,
+    diagnosis_details     text        NOT NULL DEFAULT '',
+    treatment_policy      text        NOT NULL DEFAULT '',
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 38. (vital_records は daily_records 依存のため 45 の後に定義)
+
+-- ------------------------------------
+-- 39. treatments（治療明細）
+-- ------------------------------------
+CREATE TABLE treatments (
+    id                BIGSERIAL           PRIMARY KEY,
+    medical_record_id bigint              NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    item_type         treatment_item_type NOT NULL DEFAULT 'other',
+    consultation_id   bigint                       REFERENCES consultations(id) ON DELETE SET NULL,
+    procedure_id      bigint                       REFERENCES procedures(id) ON DELETE SET NULL,
+    medicine_id       bigint                       REFERENCES medicines(id) ON DELETE SET NULL,
+    selected          boolean                      DEFAULT false,
+    status            treatment_status             DEFAULT 'pending',
+    content           text                NOT NULL DEFAULT '',
+    memo              text                NOT NULL DEFAULT '',
+    admin_route       varchar(50)         NOT NULL DEFAULT '',
+    insurance         boolean                      DEFAULT false,
+    unit_price        bigint                       DEFAULT 0,
+    quantity          numeric(10,1)                DEFAULT 1,
+    discount_rate     numeric(5,2)                 DEFAULT 0,
+    discount_amount   bigint                       DEFAULT 0,
+    inventory_id      bigint                       REFERENCES inventory_items(id) ON DELETE SET NULL,
+    sort_order        integer                      DEFAULT 0,
+    created_at        timestamptz         NOT NULL DEFAULT now(),
+    updated_at        timestamptz         NOT NULL DEFAULT now(),
+    deleted_at        timestamptz,
+    CONSTRAINT chk_treatment_item_ref CHECK (
+        (item_type = 'consultation' AND procedure_id IS NULL AND medicine_id IS NULL) OR
+        (item_type = 'procedure'    AND consultation_id IS NULL AND medicine_id IS NULL) OR
+        (item_type = 'medicine'     AND consultation_id IS NULL AND procedure_id IS NULL) OR
+        (item_type = 'other'        AND consultation_id IS NULL AND procedure_id IS NULL AND medicine_id IS NULL)
+    ),
+    CONSTRAINT chk_treatment_quantity CHECK (quantity > 0)
+);
+
+-- ------------------------------------
+-- 40. treatment_plans（治療プラン: 外来・入院共用）
+-- ------------------------------------
+CREATE TABLE treatment_plans (
+    id                 BIGSERIAL   PRIMARY KEY,
+    medical_record_id  bigint               REFERENCES medical_records(id) ON DELETE CASCADE,
+    hospitalization_id bigint               REFERENCES hospitalizations(id) ON DELETE CASCADE,
+    treatment_content  text        NOT NULL DEFAULT '',
+    memo               text        NOT NULL DEFAULT '',
+    insurance          boolean              DEFAULT false,
+    unit_price         bigint               DEFAULT 0,
+    quantity           numeric(10,1)        DEFAULT 1,
+    discount_rate      numeric(5,2)         DEFAULT 0,
+    discount_amount    bigint               DEFAULT 0,
+    subtotal           bigint               DEFAULT 0,
+    sort_order         integer              DEFAULT 0,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now(),
+    deleted_at         timestamptz,
+    CONSTRAINT chk_treatment_plans_ref CHECK (
+        (medical_record_id IS NOT NULL AND hospitalization_id IS NULL) OR
+        (medical_record_id IS NULL AND hospitalization_id IS NOT NULL)
+    )
+);
+
+-- ------------------------------------
+-- 41. record_images（画像タブ）
+-- ------------------------------------
+CREATE TABLE record_images (
+    id                BIGSERIAL          PRIMARY KEY,
+    medical_record_id bigint             NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    image_url         text               NOT NULL DEFAULT '',
+    thumbnail_url     text               NOT NULL DEFAULT '',
+    file_name         text               NOT NULL DEFAULT '',
+    file_size         bigint                      DEFAULT 0,
+    mime_type         text               NOT NULL DEFAULT '',
+    image_type        medical_image_type NOT NULL DEFAULT 'other',
+    description       text               NOT NULL DEFAULT '',
+    taken_at          timestamptz,
+    exam_id           bigint                      REFERENCES exams(id) ON DELETE SET NULL,
+    staff_id          bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
+    sort_order        integer                     DEFAULT 0,
+    created_at        timestamptz        NOT NULL DEFAULT now(),
+    updated_at        timestamptz        NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 42. billing_reviews（会計医師確認タブ: medical_recordsと1:1）
+-- ------------------------------------
+CREATE TABLE billing_reviews (
+    id                BIGSERIAL             PRIMARY KEY,
+    medical_record_id bigint                NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
+    status            billing_review_status          DEFAULT 'pending',
+    confirmed_by      bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
+    confirmed_at      timestamptz,
+    returned_by       bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
+    returned_at       timestamptz,
+    return_reason     text                  NOT NULL DEFAULT '',
+    memo              text                  NOT NULL DEFAULT '',
+    created_at        timestamptz           NOT NULL DEFAULT now(),
+    updated_at        timestamptz           NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 43. estimates（見積書）
+-- ------------------------------------
+CREATE TABLE estimates (
+    id                BIGSERIAL       PRIMARY KEY,
+    clinic_id         bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    estimate_no       text            NOT NULL,
+    medical_record_id bigint                   REFERENCES medical_records(id) ON DELETE RESTRICT,
+    title             text            NOT NULL DEFAULT '',
+    owner_id          bigint                   REFERENCES owners(id) ON DELETE SET NULL,
+    status            estimate_status          DEFAULT 'draft',
+    subtotal          bigint          NOT NULL DEFAULT 0,
+    tax_total         bigint          NOT NULL DEFAULT 0,
+    total_amount      bigint          NOT NULL DEFAULT 0,
+    insurance_amount  bigint                   DEFAULT 0,
+    discount_amount   bigint                   DEFAULT 0,
+    valid_until       date,
+    comment           text            NOT NULL DEFAULT '',
+    notes             text            NOT NULL DEFAULT '',
+    created_by        bigint                   REFERENCES staffs(id) ON DELETE SET NULL,
+    created_at        timestamptz     NOT NULL DEFAULT now(),
+    updated_at        timestamptz     NOT NULL DEFAULT now(),
+    deleted_at        timestamptz
+);
+
+-- ------------------------------------
+-- 44. exam_items（検査結果明細）
+-- ------------------------------------
+CREATE TABLE exam_items (
+    id                BIGSERIAL                  PRIMARY KEY,
+    exam_id           bigint                     NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+    exam_type_item_id bigint                              REFERENCES exam_type_items(id) ON DELETE SET NULL,
+    name              text                       NOT NULL DEFAULT '',
+    inspection_value  text                       NOT NULL DEFAULT '',
+    normal_value      text                       NOT NULL DEFAULT '',
+    result            text                       NOT NULL DEFAULT '',
+    unit              text                       NOT NULL DEFAULT '',
+    ref               text                       NOT NULL DEFAULT '',
+    ref_min           decimal(10,4),
+    ref_max           decimal(10,4),
+    is_abnormal       boolean                             DEFAULT false,
+    status            examination_result_status           DEFAULT 'normal',
+    sort_order        integer                             DEFAULT 0,
+    created_at        timestamptz                NOT NULL DEFAULT now(),
+    updated_at        timestamptz                NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 45. daily_records（入院日次記録）
+-- ------------------------------------
+CREATE TABLE daily_records (
+    id                 BIGSERIAL   PRIMARY KEY,
+    hospitalization_id bigint      NOT NULL REFERENCES hospitalizations(id) ON DELETE CASCADE,
+    clinic_id          bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    date               date        NOT NULL,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- ------------------------------------
+-- 45b. vital_records（バイタル記録: 外来・入院統合）
+--      daily_records 依存のためここに定義
+-- ------------------------------------
+CREATE TABLE vital_records (
+    id                BIGSERIAL   PRIMARY KEY,
+    pet_id            bigint      NOT NULL REFERENCES pets(id) ON DELETE CASCADE,
+    medical_record_id bigint               REFERENCES medical_records(id) ON DELETE CASCADE,  -- 外来時
+    daily_record_id   bigint               REFERENCES daily_records(id) ON DELETE CASCADE,    -- 入院時
+    recorded_at       timestamptz NOT NULL DEFAULT now(),
+    staff_id          bigint               REFERENCES staffs(id) ON DELETE SET NULL,
+    temperature       numeric,
+    heart_rate        integer,
+    respiration_rate  integer,
+    weight            numeric,
+    weight_unit       body_weight_unit     DEFAULT 'Kg',
+    notes             text        NOT NULL DEFAULT '',
+    created_at        timestamptz NOT NULL DEFAULT now(),
+    updated_at        timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT chk_vital_records_context CHECK (
+        (medical_record_id IS NOT NULL) OR (daily_record_id IS NOT NULL)
+    ),
+    CONSTRAINT chk_vital_temperature CHECK (temperature IS NULL OR (temperature >= 30.0 AND temperature <= 50.0)),
+    CONSTRAINT chk_vital_heart_rate CHECK (heart_rate IS NULL OR (heart_rate > 0 AND heart_rate < 500)),
+    CONSTRAINT chk_vital_respiration CHECK (respiration_rate IS NULL OR (respiration_rate > 0 AND respiration_rate < 200)),
+    CONSTRAINT chk_vital_weight CHECK (weight IS NULL OR weight > 0)
+);
+
+-- ------------------------------------
+-- 46. care_plan_items（ケアプラン項目）
+-- ------------------------------------
+CREATE TABLE care_plan_items (
+    id                      BIGSERIAL        PRIMARY KEY,
+    hospitalization_id      bigint           NOT NULL REFERENCES hospitalizations(id) ON DELETE CASCADE,
+    type                    care_plan_type   NOT NULL,
+    name                    text             NOT NULL DEFAULT '',
+    description             text             NOT NULL DEFAULT '',
+    timing                  plan_timing[]             DEFAULT '{}',
+    status                  care_plan_status          DEFAULT 'active',
+    notes                   text             NOT NULL DEFAULT '',
+    medicine_id             bigint                    REFERENCES medicines(id) ON DELETE SET NULL,
+    procedure_id            bigint                    REFERENCES procedures(id) ON DELETE SET NULL,
+    hospitalization_plan_id bigint                    REFERENCES hospitalization_plans(id) ON DELETE SET NULL,
+    unit_price              bigint                    DEFAULT 0,
+    category                text             NOT NULL DEFAULT '',
+    sort_order              integer                   DEFAULT 0,
+    created_at              timestamptz      NOT NULL DEFAULT now(),
+    updated_at              timestamptz      NOT NULL DEFAULT now(),
+    CONSTRAINT chk_care_plan_item_ref CHECK (
+        (type = 'medicine'    AND medicine_id IS NOT NULL) OR
+        (type = 'treatment'   AND procedure_id IS NOT NULL) OR
+        (type = 'item'        AND hospitalization_plan_id IS NOT NULL) OR
+        (type IN ('food', 'instruction'))
+    )
+);
+
+-- ==========================================================================
+-- レイヤー6: estimates/treatments等依存
+-- ==========================================================================
+
+-- ------------------------------------
+-- 47. estimate_items（見積明細）
+-- ------------------------------------
+CREATE TABLE estimate_items (
+    id                      BIGSERIAL     PRIMARY KEY,
+    estimate_id             bigint        NOT NULL REFERENCES estimates(id) ON DELETE CASCADE,
+    name                    text          NOT NULL DEFAULT '',
+    category                item_category NOT NULL,
+    unit_price              bigint        NOT NULL DEFAULT 0,
+    quantity                numeric(10,1) NOT NULL DEFAULT 1,
+    tax_type                tax_type               NOT NULL DEFAULT 'excluded',
+    tax_rate                numeric(3,2)           DEFAULT 0.10,
+    discount_rate           numeric(5,2)           DEFAULT 0,
+    discount_amount         bigint                 DEFAULT 0,
+    is_insurance_applicable boolean                DEFAULT false,
+    consultation_id         bigint                 REFERENCES consultations(id) ON DELETE SET NULL,
+    procedure_id            bigint                 REFERENCES procedures(id) ON DELETE SET NULL,
+    medicine_id             bigint                 REFERENCES medicines(id) ON DELETE SET NULL,
+    sort_order              integer                DEFAULT 0,
+    created_at              timestamptz   NOT NULL DEFAULT now(),
+    updated_at              timestamptz   NOT NULL DEFAULT now(),
+    CONSTRAINT chk_estimate_item_quantity CHECK (quantity > 0)
+);
+
+-- ------------------------------------
+-- 48. care_log_records（ケアログ）
+-- ------------------------------------
+CREATE TABLE care_log_records (
+    id              BIGSERIAL       PRIMARY KEY,
+    daily_record_id bigint          NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
+    time            time            NOT NULL,
+    type            care_log_type   NOT NULL,
+    status          care_log_status NOT NULL DEFAULT 'completed',
+    value           text            NOT NULL DEFAULT '',
+    staff_id        bigint                   REFERENCES staffs(id) ON DELETE SET NULL,
+    notes           text            NOT NULL DEFAULT '',
+    created_at      timestamptz     NOT NULL DEFAULT now(),
+    updated_at      timestamptz     NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 49. (vital_records は 38 に統合済み)
+
+-- ------------------------------------
+-- 50. staff_note_records（スタッフノート）
+-- ------------------------------------
+CREATE TABLE staff_note_records (
+    id              BIGSERIAL   PRIMARY KEY,
+    daily_record_id bigint      NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
+    time            time        NOT NULL,
+    content         text        NOT NULL DEFAULT '',
+    staff_id        bigint               REFERENCES staffs(id) ON DELETE SET NULL,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 51. trimming_record_options（トリミングオプション適用）
+-- ------------------------------------
+CREATE TABLE trimming_record_options (
+    id                 BIGSERIAL PRIMARY KEY,
+    trimming_record_id bigint    NOT NULL REFERENCES trimming_records(id) ON DELETE CASCADE,
+    option_id          bigint    NOT NULL REFERENCES trimming_options(id) ON DELETE RESTRICT,
+    sort_order         integer            DEFAULT 0,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- ==========================================================================
+-- レイヤー7: billings
+-- ==========================================================================
+
+-- ------------------------------------
+-- 52. billings（会計）
+-- ------------------------------------
+CREATE TABLE billings (
+    id                 BIGSERIAL      PRIMARY KEY,
+    clinic_id          bigint         NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    medical_record_id  bigint                  REFERENCES medical_records(id) ON DELETE SET NULL,
+    hospitalization_id bigint                  REFERENCES hospitalizations(id) ON DELETE SET NULL,
+    owner_id           bigint                  REFERENCES owners(id) ON DELETE SET NULL,
+    pet_id             bigint                  REFERENCES pets(id) ON DELETE SET NULL,
+    subtotal           bigint         NOT NULL DEFAULT 0,
+    tax_total          bigint         NOT NULL DEFAULT 0,
+    total_amount       bigint         NOT NULL DEFAULT 0,
+    has_insurance      boolean        NOT NULL DEFAULT false,
+    status             billing_status          DEFAULT 'waiting',
+    scheduled_date     date           NOT NULL,
+    completed_at       timestamptz,
+    memo               text           NOT NULL DEFAULT '',
+    created_at         timestamptz    NOT NULL DEFAULT now(),
+    updated_at         timestamptz    NOT NULL DEFAULT now(),
+    deleted_at         timestamptz,
+    CONSTRAINT chk_billings_amounts CHECK (subtotal >= 0 AND tax_total >= 0 AND total_amount >= 0)
+);
+
+-- ------------------------------------
+-- 53. billing_items（会計明細）
+-- ------------------------------------
+CREATE TABLE billing_items (
+    id                      BIGSERIAL     PRIMARY KEY,
+    billing_id              bigint        NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
+    category                item_category NOT NULL,
+    name                    text          NOT NULL DEFAULT '',
+    unit_price              bigint        NOT NULL DEFAULT 0,
+    quantity                numeric(10,1) NOT NULL DEFAULT 1,
+    tax_type                tax_type               NOT NULL DEFAULT 'excluded',
+    tax_rate                numeric(3,2)           DEFAULT 0.10,
+    is_insurance_applicable boolean                DEFAULT false,
+    source                  item_source            DEFAULT 'manual',
+    sort_order              integer                DEFAULT 0,
+    created_at              timestamptz   NOT NULL DEFAULT now(),
+    deleted_at              timestamptz,
+    CONSTRAINT chk_billing_item_quantity CHECK (quantity > 0)
+);
+
+-- ------------------------------------
+-- 54. payments（支払い: billingsと1:1）
+-- ------------------------------------
+CREATE TABLE payments (
+    id               BIGSERIAL      PRIMARY KEY,
+    billing_id       bigint         NOT NULL UNIQUE REFERENCES billings(id) ON DELETE CASCADE,
+    subtotal         bigint         NOT NULL DEFAULT 0,
+    tax_total        bigint         NOT NULL DEFAULT 0,
+    total_amount     bigint         NOT NULL DEFAULT 0,
+    insurance_name   text           NOT NULL DEFAULT '',
+    insurance_ratio  numeric(3,2)            DEFAULT 0,  -- 保険比率は小数（例: 0.7）
+    insurance_amount bigint                  DEFAULT 0,
+    discount_amount  bigint                  DEFAULT 0,
+    billing_amount   bigint         NOT NULL DEFAULT 0,
+    received_amount  bigint                  DEFAULT 0,
+    change_amount    bigint                  DEFAULT 0,
+    method           payment_method          DEFAULT 'cash',
+    created_at       timestamptz    NOT NULL DEFAULT now(),
+    updated_at       timestamptz    NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 55. billing_refunds（返金レコード）
+-- ------------------------------------
+CREATE TABLE billing_refunds (
+    id           BIGSERIAL   PRIMARY KEY,
+    clinic_id    bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    billing_id   bigint      NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
+    amount       bigint      NOT NULL CHECK (amount > 0),
+    reason       text        NOT NULL DEFAULT '',
+    refunded_at  timestamptz NOT NULL DEFAULT now(),
+    created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 56. shift_entries（シフト管理）
+-- ------------------------------------
+CREATE TABLE shift_entries (
+    id         BIGSERIAL   PRIMARY KEY,
+    clinic_id  bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    staff_id   bigint      NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    date       date        NOT NULL,
+    shift_type shift_type  NOT NULL,
+    start_time time,
+    end_time   time,
+    note       text        NOT NULL DEFAULT '',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 57. merchandise_items（物販・フード・その他マスタ）
+-- ------------------------------------
+CREATE TABLE merchandise_items (
+    id          BIGSERIAL     PRIMARY KEY,
+    clinic_id   bigint        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text          NOT NULL DEFAULT '',
+    category    item_category NOT NULL DEFAULT 'goods',
+    unit_price  bigint        NOT NULL DEFAULT 0,
+    tax_type    tax_type      NOT NULL DEFAULT 'excluded',
+    tax_rate    numeric       NOT NULL DEFAULT 0.10,
+    is_active   boolean       NOT NULL DEFAULT true,
+    sort_order  integer       NOT NULL DEFAULT 0,
+    created_at  timestamptz   NOT NULL DEFAULT now(),
+    updated_at  timestamptz   NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
+);
+
+-- =============================================================================
+-- 4. インデックス定義
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- 4.1 UNIQUE制約・インデックス
+-- -----------------------------------------------------------------------------
+
+-- カルテ番号の一意性（医院スコープ）
+CREATE UNIQUE INDEX idx_medical_records_clinic_record_no ON medical_records(clinic_id, record_no);
+
+-- 見積書番号の一意性（医院スコープ）
+CREATE UNIQUE INDEX idx_estimates_clinic_estimate_no ON estimates(clinic_id, estimate_no);
+
+-- 入院日次記録: 同一入院の同一日付は1件のみ
+CREATE UNIQUE INDEX idx_daily_records_hosp_date ON daily_records(hospitalization_id, date);
+
+-- シフト: 1スタッフ1日1シフト
+CREATE UNIQUE INDEX idx_shift_entries_staff_date ON shift_entries(staff_id, date);
+
+-- Deleted: Indexes for user_clinic_memberships and permission_groups
+-- These were removed in the auth refactor (Account-based authentication)
+-- New indexes for staff_clinic_assignments are defined in section 4.2
+
+-- 飼主: clinic内でemail重複不可（論理削除を除く・空文字除く）
+CREATE UNIQUE INDEX uk_owners_clinic_email ON owners(clinic_id, email) WHERE deleted_at IS NULL AND email IS NOT NULL AND email != '';
+
+-- Deleted: user_permission_groups index (auth refactor)
+
+-- トリミングオプション: 重複防止
+CREATE UNIQUE INDEX idx_trimming_record_options_unique ON trimming_record_options(trimming_record_id, option_id);
+
+-- billings: medical_record_idがある場合は1対1
+CREATE UNIQUE INDEX idx_billings_medical_record_id_unique ON billings(medical_record_id) WHERE medical_record_id IS NOT NULL;
+
+-- -----------------------------------------------------------------------------
+-- 4.4 基本FKインデックス
+-- -----------------------------------------------------------------------------
+
+-- マスタテーブル clinic_id
+-- Deleted: idx_staffs_clinic_id (staffs now uses account_id; clinic membership tracked via staff_clinic_assignments)
+CREATE INDEX idx_job_titles_clinic_id ON job_titles(clinic_id);
+CREATE INDEX idx_inventory_items_clinic_id ON inventory_items(clinic_id);
+CREATE INDEX idx_exam_types_clinic_id ON exam_types(clinic_id);
+CREATE INDEX idx_exam_types_parent_id ON exam_types(parent_id);
+CREATE INDEX idx_vaccines_clinic_id ON vaccines(clinic_id);
+CREATE INDEX idx_vaccines_parent_id ON vaccines(parent_id);
+CREATE INDEX idx_medicines_clinic_id ON medicines(clinic_id);
+CREATE INDEX idx_medicines_parent_id ON medicines(parent_id);
+CREATE INDEX idx_insurances_clinic_id ON insurances(clinic_id);
+CREATE INDEX idx_cages_clinic_id ON cages(clinic_id);
+CREATE INDEX idx_service_types_clinic_id ON service_types(clinic_id);
+CREATE INDEX idx_consultations_clinic_id ON consultations(clinic_id);
+CREATE INDEX idx_consultations_parent_id ON consultations(parent_id);
+CREATE INDEX idx_procedures_clinic_id ON procedures(clinic_id);
+CREATE INDEX idx_procedures_parent_id ON procedures(parent_id);
+CREATE INDEX idx_hospitalization_plans_clinic_id ON hospitalization_plans(clinic_id);
+CREATE INDEX idx_trimming_courses_clinic_id ON trimming_courses(clinic_id);
+CREATE INDEX idx_trimming_options_clinic_id ON trimming_options(clinic_id);
+CREATE INDEX idx_diagnosis_categories_clinic_id ON diagnosis_categories(clinic_id);
+CREATE INDEX idx_diagnosis_names_clinic_id ON diagnosis_names(clinic_id);
+CREATE INDEX idx_checkup_types_clinic_id ON checkup_types(clinic_id);
+CREATE INDEX idx_checkup_types_parent_id ON checkup_types(parent_id);
+CREATE INDEX idx_checkup_types_deleted_at ON checkup_types(deleted_at);
+CREATE INDEX idx_chief_complaint_categories_clinic_id ON chief_complaint_categories(clinic_id);
+CREATE INDEX idx_inquiry_templates_clinic_id ON inquiry_templates(clinic_id);
+CREATE INDEX idx_inquiry_templates_clinic_category ON inquiry_templates(clinic_id, category);
+
+-- コアテーブル clinic_id
+CREATE INDEX idx_owners_clinic_id ON owners(clinic_id);
+CREATE INDEX idx_pets_clinic_id ON pets(clinic_id);
+
+-- 診療テーブル clinic_id
+CREATE INDEX idx_medical_records_clinic_id ON medical_records(clinic_id);
+CREATE INDEX idx_reservation_appointments_clinic_id ON reservation_appointments(clinic_id);
+CREATE INDEX idx_hospitalizations_clinic_id ON hospitalizations(clinic_id);
+CREATE INDEX idx_trimming_records_clinic_id ON trimming_records(clinic_id);
+CREATE INDEX idx_billings_clinic_id ON billings(clinic_id);
+CREATE INDEX idx_shift_entries_clinic_id ON shift_entries(clinic_id);
+CREATE INDEX idx_estimates_clinic_id ON estimates(clinic_id);
+
+-- merchandise_items インデックス
+CREATE INDEX idx_merchandise_items_clinic ON merchandise_items(clinic_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_merchandise_items_category ON merchandise_items(clinic_id, category) WHERE deleted_at IS NULL;
+CREATE INDEX idx_merchandise_items_sort ON merchandise_items(clinic_id, sort_order);
+
+-- 予約 FK インデックス
+CREATE INDEX idx_reservation_appointments_owner_id ON reservation_appointments(owner_id);
+CREATE INDEX idx_reservation_appointments_pet_id ON reservation_appointments(pet_id);
+CREATE INDEX idx_reservation_appointments_service_type_id ON reservation_appointments(service_type_id);
+CREATE INDEX idx_reservation_appointments_doctor_id ON reservation_appointments(doctor_id);
+
+-- medical_records 子テーブル FK インデックス
+CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
+CREATE INDEX idx_vital_records_medical_record_id ON vital_records(medical_record_id);
+CREATE INDEX idx_vital_records_daily_record_id ON vital_records(daily_record_id);
+CREATE INDEX idx_vital_records_pet_id ON vital_records(pet_id);
+CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id);
+CREATE INDEX idx_exams_pet_id ON exams(pet_id);
+CREATE INDEX idx_vaccinations_clinic_id ON vaccinations(clinic_id);
+CREATE INDEX idx_vaccinations_medical_record_id ON vaccinations(medical_record_id);
+CREATE INDEX idx_vaccinations_pet_id ON vaccinations(pet_id);
+CREATE INDEX idx_checkups_medical_record_id ON checkups(medical_record_id);
+CREATE INDEX idx_checkups_pet_id ON checkups(pet_id);
+CREATE INDEX idx_clinical_plans_medical_record_id ON clinical_plans(medical_record_id);
+CREATE INDEX idx_inquiries_medical_record_id ON inquiries(medical_record_id);
+CREATE INDEX idx_record_images_medical_record_id ON record_images(medical_record_id);
+CREATE INDEX idx_treatment_plans_medical_record_id ON treatment_plans(medical_record_id);
+CREATE INDEX idx_treatment_plans_hospitalization_id ON treatment_plans(hospitalization_id);
+
+-- hospitalization 子テーブル FK インデックス
+CREATE INDEX idx_hospitalizations_pet_id ON hospitalizations(pet_id);
+CREATE INDEX idx_hospitalizations_owner_id ON hospitalizations(owner_id);
+CREATE INDEX idx_hospitalizations_cage_id ON hospitalizations(cage_id);
+CREATE INDEX idx_care_plan_items_hospitalization_id ON care_plan_items(hospitalization_id);
+CREATE INDEX idx_daily_records_hospitalization_id ON daily_records(hospitalization_id);
+
+-- billing 子テーブル FK インデックス
+CREATE INDEX idx_billing_items_billing_id ON billing_items(billing_id);
+CREATE INDEX idx_billing_items_deleted_at ON billing_items(deleted_at);
+CREATE INDEX idx_billings_pet_id ON billings(pet_id);
+CREATE INDEX idx_billings_owner_id ON billings(owner_id);
+CREATE INDEX idx_billings_medical_record_id ON billings(medical_record_id);
+
+CREATE INDEX idx_billing_refunds_billing ON billing_refunds(billing_id);
+CREATE INDEX idx_billing_refunds_clinic_billing ON billing_refunds(clinic_id, billing_id);
+
+-- 担当医 FK インデックス（staffs）
+CREATE INDEX idx_vital_records_staff_id ON vital_records(staff_id);
+CREATE INDEX idx_trimming_records_staff_id ON trimming_records(staff_id);
+
+-- record_images インデックス
+CREATE INDEX idx_record_images_image_type ON record_images(image_type);
+CREATE INDEX idx_record_images_taken_at ON record_images(taken_at DESC);
+CREATE INDEX idx_record_images_exam_id ON record_images(exam_id) WHERE exam_id IS NOT NULL;
+
+-- estimates インデックス
+CREATE INDEX idx_estimates_medical_record_id ON estimates(medical_record_id);
+CREATE INDEX idx_estimates_status ON estimates(status);
+CREATE INDEX idx_estimates_owner_id ON estimates(owner_id);
+
+-- estimate_items インデックス
+CREATE INDEX idx_estimate_items_estimate_id ON estimate_items(estimate_id);
+
+-- billing_reviews インデックス
+CREATE INDEX idx_billing_reviews_status ON billing_reviews(status);
+
+-- -----------------------------------------------------------------------------
+-- 4.5 全文検索インデックス（pg_trgm GIN）
+-- -----------------------------------------------------------------------------
+CREATE INDEX idx_owners_name_trgm ON owners USING gin (owner_name gin_trgm_ops) WHERE deleted_at IS NULL;
+CREATE INDEX idx_owners_name_kana_trgm ON owners USING gin (owner_name_kana gin_trgm_ops) WHERE deleted_at IS NULL;
+CREATE INDEX idx_pets_name_trgm ON pets USING gin (name gin_trgm_ops) WHERE deleted_at IS NULL;
+
+-- -----------------------------------------------------------------------------
+-- 4.6 パフォーマンス最適化インデックス（論理削除考慮）
+-- -----------------------------------------------------------------------------
+
+-- ダッシュボード・カレンダー（最高頻度）
+CREATE INDEX idx_reservation_appointments_clinic_date
+  ON reservation_appointments(clinic_id, start_time)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_reservation_appointments_clinic_status
+  ON reservation_appointments(clinic_id, status)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_reservation_appointments_pet_date
+  ON reservation_appointments(pet_id, start_time)
+  WHERE deleted_at IS NULL;
+
+-- カルテ一覧・検索
+CREATE INDEX idx_medical_records_clinic_date
+  ON medical_records(clinic_id, date DESC)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_medical_records_clinic_pet
+  ON medical_records(clinic_id, pet_id)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_medical_records_clinic_owner
+  ON medical_records(clinic_id, owner_id)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_medical_records_clinic_status
+  ON medical_records(clinic_id, status)
+  WHERE deleted_at IS NULL;
+
+-- ペット一覧（飼主別）
+CREATE INDEX idx_pets_owner_id
+  ON pets(owner_id)
+  WHERE deleted_at IS NULL;
+
+-- 会計一覧
+CREATE INDEX idx_billings_clinic_date
+  ON billings(clinic_id, scheduled_date)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_billings_clinic_status
+  ON billings(clinic_id, status)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_billings_has_insurance
+  ON billings(clinic_id, has_insurance)
+  WHERE deleted_at IS NULL;
+
+-- 入院管理
+CREATE INDEX idx_hospitalizations_clinic_status
+  ON hospitalizations(clinic_id, status)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_hospitalizations_clinic_doctor
+  ON hospitalizations(clinic_id, doctor_id)
+  WHERE deleted_at IS NULL;
+
+-- トリミング一覧
+CREATE INDEX idx_trimming_records_clinic_date
+  ON trimming_records(clinic_id, date DESC)
+  WHERE deleted_at IS NULL;
+
+-- BE-033: 追加インデックス（検索パフォーマンス改善）
+CREATE INDEX idx_owners_phone_trgm ON owners USING gin (phone gin_trgm_ops) WHERE deleted_at IS NULL;
+CREATE INDEX idx_staffs_staff_role ON staffs(staff_role) WHERE deleted_at IS NULL;
+CREATE INDEX idx_inventory_items_category ON inventory_items(category) WHERE deleted_at IS NULL;
+
+-- 追加FKインデックス
+-- Deleted: idx_user_accounts_staff_id, idx_user_accounts_job_title_id (user_accounts table removed)
+CREATE INDEX idx_staffs_job_title_id ON staffs(job_title_id);
+CREATE INDEX idx_pets_animal_species_id ON pets(animal_species_id);
+CREATE INDEX idx_pets_insurance_id ON pets(insurance_id) WHERE insurance_id IS NOT NULL;
+CREATE INDEX idx_diagnosis_names_category_id ON diagnosis_names(diagnosis_category_id);
+CREATE INDEX idx_medical_records_doctor_id ON medical_records(doctor_id) WHERE doctor_id IS NOT NULL;
+CREATE INDEX idx_treatments_consultation_id ON treatments(consultation_id) WHERE consultation_id IS NOT NULL;
+CREATE INDEX idx_treatments_procedure_id ON treatments(procedure_id) WHERE procedure_id IS NOT NULL;
+CREATE INDEX idx_treatments_medicine_id ON treatments(medicine_id) WHERE medicine_id IS NOT NULL;
+CREATE INDEX idx_treatments_inventory_id ON treatments(inventory_id) WHERE inventory_id IS NOT NULL;
+CREATE INDEX idx_care_plan_items_medicine_id ON care_plan_items(medicine_id) WHERE medicine_id IS NOT NULL;
+CREATE INDEX idx_care_plan_items_procedure_id ON care_plan_items(procedure_id) WHERE procedure_id IS NOT NULL;
+CREATE INDEX idx_care_plan_items_plan_id ON care_plan_items(hospitalization_plan_id) WHERE hospitalization_plan_id IS NOT NULL;
+CREATE INDEX idx_vaccines_inventory_id ON vaccines(inventory_id) WHERE inventory_id IS NOT NULL;
+CREATE INDEX idx_medicines_inventory_id ON medicines(inventory_id) WHERE inventory_id IS NOT NULL;
+
+-- clinic_id の新規追加分インデックス
+CREATE INDEX idx_checkups_clinic_id ON checkups(clinic_id);
+CREATE INDEX idx_exams_clinic_id ON exams(clinic_id);
+CREATE INDEX idx_daily_records_clinic_id ON daily_records(clinic_id);
+
+-- マスタテーブル重複登録防止（同一クリニック内で同名マスタを防ぐ）
+-- Deleted: idx_staffs_clinic_name (staffs no longer has clinic_id directly)
+CREATE UNIQUE INDEX idx_exam_types_clinic_name ON exam_types(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_vaccines_clinic_name ON vaccines(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_medicines_clinic_name ON medicines(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_consultations_clinic_name ON consultations(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_procedures_clinic_name ON procedures(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_cages_clinic_name ON cages(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_service_types_clinic_name ON service_types(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_diagnosis_categories_clinic_name ON diagnosis_categories(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_trimming_courses_clinic_name ON trimming_courses(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_trimming_options_clinic_name ON trimming_options(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_insurance_clinic_name ON insurances(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_checkup_types_clinic_name ON checkup_types(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_hospitalization_plans_clinic_name ON hospitalization_plans(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_job_titles_clinic_name ON job_titles(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_chief_complaint_categories_clinic_name ON chief_complaint_categories(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_animal_species_name ON animal_species(name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_merchandise_items_clinic_name ON merchandise_items(clinic_id, name) WHERE is_active = true AND deleted_at IS NULL;
+
+-- =============================================================================
+-- 5. テーブルコメント
+-- =============================================================================
+
+COMMENT ON TABLE company IS '法人情報（シングルトン）';
+COMMENT ON TABLE clinics IS '医院情報';
+COMMENT ON TABLE animal_species IS 'ペット種類マスタ（システム共通）';
+COMMENT ON TABLE accounts IS '認証用アカウント';
+COMMENT ON TABLE job_titles IS '職種マスタ';
+COMMENT ON TABLE staffs IS 'スタッフマスタ';
+COMMENT ON TABLE owners IS '飼主情報';
+COMMENT ON TABLE inventory_items IS '在庫アイテム';
+COMMENT ON TABLE exam_types IS '検査種別マスタ';
+COMMENT ON TABLE exam_type_items IS '検査項目定義マスタ';
+COMMENT ON TABLE vaccines IS 'ワクチンマスタ';
+COMMENT ON TABLE medicines IS '薬剤マスタ';
+COMMENT ON TABLE insurances IS '保険マスタ';
+COMMENT ON TABLE cages IS 'ケージマスタ';
+COMMENT ON TABLE service_types IS 'サービス種別マスタ';
+COMMENT ON TABLE consultations IS '診察項目マスタ';
+COMMENT ON TABLE procedures IS '処置項目マスタ';
+COMMENT ON TABLE hospitalization_plans IS '入院プランマスタ';
+COMMENT ON TABLE trimming_courses IS 'トリミングコースマスタ';
+COMMENT ON TABLE trimming_options IS 'トリミングオプションマスタ';
+COMMENT ON TABLE diagnosis_categories IS '診断カテゴリマスタ';
+COMMENT ON TABLE diagnosis_names IS '診断病名マスタ';
+COMMENT ON TABLE checkup_types IS '健診種別マスタ';
+COMMENT ON TABLE chief_complaint_categories IS '主訴区分マスタ';
+COMMENT ON TABLE inquiry_templates IS '問診定型文マスタ';
+COMMENT ON TABLE pets IS 'ペット情報';
+-- Deleted: COMMENT ON TABLE user_clinic_memberships, permission_groups, permission_group_rules, user_permission_groups
+COMMENT ON TABLE reservation_appointments IS '予約';
+COMMENT ON TABLE hospitalizations IS '入院・ホテル管理';
+COMMENT ON TABLE trimming_records IS 'トリミング記録';
+COMMENT ON TABLE medical_records IS '電子カルテ（診療記録）';
+COMMENT ON TABLE vaccinations IS 'ワクチン接種記録';
+COMMENT ON TABLE checkups IS '定期健診記録';
+COMMENT ON TABLE exams IS '検査記録';
+COMMENT ON TABLE inquiries IS '問診情報';
+COMMENT ON TABLE clinical_plans IS '診察所見・診断・治療方針';
+COMMENT ON TABLE vital_records IS 'バイタル記録（外来・入院統合）';
+COMMENT ON TABLE treatments IS '治療明細（処置・診察・薬剤）';
+COMMENT ON TABLE treatment_plans IS '治療プラン（外来・入院共用）';
+COMMENT ON TABLE record_images IS '診療画像';
+COMMENT ON TABLE billing_reviews IS '会計医師確認';
+COMMENT ON TABLE estimates IS '見積書';
+COMMENT ON TABLE exam_items IS '検査結果項目';
+COMMENT ON TABLE daily_records IS '入院日次記録';
+COMMENT ON TABLE care_plan_items IS 'ケアプラン項目';
+COMMENT ON TABLE estimate_items IS '見積書明細';
+COMMENT ON TABLE care_log_records IS 'ケアログ';
+COMMENT ON TABLE staff_note_records IS 'スタッフノート';
+COMMENT ON TABLE trimming_record_options IS 'トリミングオプション適用';
+COMMENT ON TABLE billings IS '会計';
+COMMENT ON TABLE billing_items IS '会計明細';
+COMMENT ON TABLE payments IS '支払い情報';
+COMMENT ON TABLE billing_refunds IS '返金レコード（Stripe モデル）';
+COMMENT ON TABLE shift_entries IS 'スタッフシフト';
+COMMENT ON TABLE merchandise_items IS '物販・フード・その他マスタ';
+
+-- ------------------------------------
+-- 50. audit_logs（権限変更・認証操作の監査ログ）
+-- ------------------------------------
+CREATE TABLE audit_logs (
+    id           BIGSERIAL    PRIMARY KEY,
+    clinic_id    bigint       NULL,
+    actor_id     bigint       NULL,
+    actor_type   varchar(30)  NOT NULL,
+    action       varchar(50)  NOT NULL,
+    resource     varchar(50)  NOT NULL,
+    resource_id  bigint       NULL,
+    old_value    jsonb        NULL,
+    new_value    jsonb        NULL,
+    ip_address   inet         NULL,
+    user_agent   text         NULL,
+    created_at   timestamptz  NOT NULL DEFAULT now()
+);
 
 CREATE INDEX idx_audit_logs_clinic   ON audit_logs(clinic_id, created_at DESC);
 CREATE INDEX idx_audit_logs_actor    ON audit_logs(actor_id, created_at DESC);
@@ -267,153 +1597,88 @@ SELECT setval(pg_get_serial_sequence('job_titles', 'id'), (SELECT MAX(id) FROM j
 
 -- -----------------------------------------------------------------------------
 -- 5. staffs（スタッフ: 12件）
+-- account_id は accounts INSERT 後に UPDATE で設定される
+-- clinic_id は staff_clinic_assignments で管理される
 -- -----------------------------------------------------------------------------
-INSERT INTO staffs (id, clinic_id, name, is_active, staff_role, license_number, job_title_id, sort_order) VALUES
-    (1,  3, '山田 太郎',   true, 'veterinarian', 'V-10001', 1, 1),
-    (2,  3, '高橋 健一',   true, 'veterinarian', 'V-10002', 1, 2),
-    (3,  3, '渡辺 博',     true, 'manager',      '',        5, 3),
-    (4,  3, '佐藤 花子',   true, 'nurse',        '',        2, 4),
-    (5,  3, '伊藤 さくら', true, 'nurse',        '',        2, 5),
-    (6,  3, '木村 健太',   true, 'trimmer',      '',        3, 6),
-    (7,  3, '田中 美咲',   true, 'reception',    '',        4, 7),
+INSERT INTO staffs (id, account_id, name, is_active, staff_role, license_number, job_title_id, sort_order) VALUES
+    (1,  NULL, '山田 太郎',   true, 'veterinarian', 'V-10001', 1, 1),
+    (2,  NULL, '高橋 健一',   true, 'veterinarian', 'V-10002', 1, 2),
+    (3,  NULL, '渡辺 博',     true, 'manager',      '',        5, 3),
+    (4,  NULL, '佐藤 花子',   true, 'nurse',        '',        2, 4),
+    (5,  NULL, '伊藤 さくら', true, 'nurse',        '',        2, 5),
+    (6,  NULL, '木村 健太',   true, 'trimmer',      '',        3, 6),
+    (7,  NULL, '田中 美咲',   true, 'reception',    '',        4, 7),
     -- デモアカウント用スタッフ（八王子院）
-    (8,  3, '田中 太郎',   true, 'veterinarian', 'V-20001', 1, 1),
-    (9,  3, '山田 花子',   true, 'veterinarian', 'V-20002', 1, 2),
-    (10, 3, '佐藤 美咲',   true, 'nurse',        '',        2, 3),
-    (11, 3, '鈴木 一郎',   true, 'reception',    '',        4, 4),
-    (12, 3, '高橋 さくら', true, 'trimmer',      '',        3, 5),
+    (8,  NULL, '田中 太郎',   true, 'veterinarian', 'V-20001', 1, 1),
+    (9,  NULL, '山田 花子',   true, 'veterinarian', 'V-20002', 1, 2),
+    (10, NULL, '佐藤 美咲',   true, 'nurse',        '',        2, 3),
+    (11, NULL, '鈴木 一郎',   true, 'reception',    '',        4, 4),
+    (12, NULL, '高橋 さくら', true, 'trimmer',      '',        3, 5),
     -- 管理者・執行グループ デモアカウント用スタッフ
-    (13, 3, '渡辺 院長',   true, 'manager',      '',        5, 6),
-    (14, 3, '小林 部長',   true, 'manager',      '',        5, 7)
+    (13, NULL, '渡辺 院長',   true, 'manager',      '',        5, 6),
+    (14, NULL, '小林 部長',   true, 'manager',      '',        5, 7)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
 
 -- -----------------------------------------------------------------------------
--- 6. user_accounts（ユーザーアカウント: 9件）
+-- 6. accounts（認証用アカウント: 11件）
 -- password_hash: bcrypt("password", cost=10)
+-- staff_id mapping from old user_accounts:
+--   1→3, 2→NULL, 3→1, 4→8, 5→9, 6→10, 7→11, 8→12, 9→NULL, 10→13, 11→14
+-- account id will be auto-incremented; we'll use UPDATE to set staff.account_id
 -- -----------------------------------------------------------------------------
-INSERT INTO user_accounts (id, email, display_name, display_name_kana, user_type, job_title_id, status, staff_id, password_hash) VALUES
-    -- 渋谷院・新宿院スタッフ
-    (1, 'admin@noavet.jp',   'システム管理者', 'システムカンリシャ',   'system_admin', 5, 'active', 3,    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
-    (2, 'clinic1@noavet.jp', '渋谷院管理者',   'シブヤインカンリシャ', 'clinic_admin', 5, 'active', NULL, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
-    (3, 'yamada@noavet.jp',  '山田 太郎',      'ヤマダ タロウ',        'staff',        1, 'active', 1,    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
+INSERT INTO accounts (id, email, password_hash, is_active) VALUES
+    -- 既存スタッフ
+    (1, 'admin@noavet.jp',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
+    (2, 'clinic1@noavet.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
+    (3, 'yamada@noavet.jp',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
     -- デモアカウント（八王子院・frontend mock-data.ts 対応）
-    (4, 'admin@example.com',     '田中 太郎',  'タナカ タロウ',    'clinic_admin', 1, 'active', 8,    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
-    (5, 'vet@example.com',       '山田 花子',  'ヤマダ ハナコ',    'staff',        1, 'active', 9,    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
-    (6, 'nurse@example.com',     '佐藤 美咲',  'サトウ ミサキ',    'staff',        2, 'active', 10,   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
-    (7, 'reception@example.com', '鈴木 一郎',  'スズキ イチロウ',  'staff',        4, 'active', 11,   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
-    (8, 'trimmer@example.com',   '高橋 さくら','タカハシ サクラ',  'staff',        3, 'active', 12,   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
-    (9,  'system@example.com',   '本部 管理者', 'ホンブ カンリシャ','system_admin', 5, 'active', NULL, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
+    (4, 'admin@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
+    (5, 'vet@example.com',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
+    (6, 'nurse@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
+    (7, 'reception@example.com','$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
+    (8, 'trimmer@example.com',  '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
+    (9, 'system@example.com',   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
     -- 管理者・執行グループ デモアカウント
-    (10, 'manager@example.com',  '渡辺 院長',  'ワタナベ インチョウ','staff',        5, 'active', 13, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
-    (11, 'exec@example.com',     '小林 部長',  'コバヤシ ブチョウ', 'staff',        5, 'active', 14, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6')
+    (10, 'manager@example.com', '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
+    (11, 'exec@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('user_accounts', 'id'), (SELECT MAX(id) FROM user_accounts));
+SELECT setval(pg_get_serial_sequence('accounts', 'id'), (SELECT MAX(id) FROM accounts));
+
+-- Update staffs.account_id with corresponding accounts
+-- Old mapping (account_id → staff_id): 1→3, 2→NULL, 3→1, 4→8, 5→9, 6→10, 7→11, 8→12, 9→NULL, 10→13, 11→14
+UPDATE staffs SET account_id = 1 WHERE id = 3;  -- account 1 → staff 3
+UPDATE staffs SET account_id = 3 WHERE id = 1;  -- account 3 → staff 1
+UPDATE staffs SET account_id = 4 WHERE id = 8;  -- account 4 → staff 8
+UPDATE staffs SET account_id = 5 WHERE id = 9;  -- account 5 → staff 9
+UPDATE staffs SET account_id = 6 WHERE id = 10; -- account 6 → staff 10
+UPDATE staffs SET account_id = 7 WHERE id = 11; -- account 7 → staff 11
+UPDATE staffs SET account_id = 8 WHERE id = 12; -- account 8 → staff 12
+UPDATE staffs SET account_id = 10 WHERE id = 13;-- account 10 → staff 13
+UPDATE staffs SET account_id = 11 WHERE id = 14;-- account 11 → staff 14
 
 -- -----------------------------------------------------------------------------
--- 7. user_clinic_memberships（ユーザー所属クリニック: 8件）
+-- 7. staff_clinic_assignments（スタッフ・クリニック割当: 7件）
+-- Mapping from old user_clinic_memberships (user_id → staff_id)
+-- user_id 4→staff 8, 5→9, 6→10, 7→11, 8→12, 9→NULL, 10→13, 11→14
+-- Note: account 9 (system@example.com) has no staff, so skipped
+-- Note: account 1,3 had no explicit clinic assignments in old system
 -- -----------------------------------------------------------------------------
-INSERT INTO user_clinic_memberships (id, user_id, clinic_id, is_main) VALUES
-    -- デモアカウント（system=本部管理者: 全3院、他: 八王子院のみ）
-    (5,  4, 3, true),
-    (6,  5, 3, true),
-    (7,  6, 3, true),
-    (8,  7, 3, true),
-    (9,  8, 3, true),
-    (10, 9, 3, true),
-    (11, 9, 4, false),
-    (12, 9, 5, false),
-    -- 管理者・執行グループ ユーザー（八王子院）
-    (13, 10, 3, true),
-    (14, 11, 3, true)
+INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
+    (8,  3, true),  -- admin@example.com (account 4, staff 8)
+    (9,  3, true),  -- vet@example.com (account 5, staff 9)
+    (10, 3, true),  -- nurse@example.com (account 6, staff 10)
+    (11, 3, true),  -- reception@example.com (account 7, staff 11)
+    (12, 3, true),  -- trimmer@example.com (account 8, staff 12)
+    (13, 3, true),  -- manager@example.com (account 10, staff 13)
+    (14, 3, true)   -- exec@example.com (account 11, staff 14)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('user_clinic_memberships', 'id'), (SELECT MAX(id) FROM user_clinic_memberships));
-
--- -----------------------------------------------------------------------------
--- 7b. permission_groups（権限グループ）& user_permission_groups（割当）
--- -----------------------------------------------------------------------------
--- ノア動物病院 (company_id=1): 管理者・執行・一般 の3グループ
-INSERT INTO permission_groups (id, company_id, name, description, color) VALUES
-    (1, 1, '管理者', '全機能フルアクセス・権限設定管理', '#EF4444'),
-    (2, 1, '執行',   '業務全般閲覧・権限設定変更',       '#6366F1'),
-    (3, 1, '一般',   '基本的な業務操作',                 '#10B981')
-ON CONFLICT DO NOTHING;
-
--- グループルール（管理者: 全リソースフルアクセス）
-INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
-    (1, 'dashboard',        true, false, false, false),
-    (1, 'owners',           true, true,  true,  true),
-    (1, 'reservations',     true, true,  true,  true),
-    (1, 'medical-records',  true, true,  true,  true),
-    (1, 'hospitalization',  true, true,  true,  true),
-    (1, 'trimming',         true, true,  true,  true),
-    (1, 'examinations',     true, true,  true,  true),
-    (1, 'accounting',       true, true,  true,  true),
-    (1, 'vaccinations',     true, true,  true,  true),
-    (1, 'checkups',         true, true,  true,  true),
-    (1, 'inventory',        true, true,  true,  true),
-    (1, 'estimates',        true, true,  true,  true),
-    (1, 'shifts',           true, true,  true,  true),
-    (1, 'master',           true, true,  true,  true),
-    (1, 'hospital-settings',true, true,  true,  true)
-ON CONFLICT DO NOTHING;
-
--- グループルール（執行: 業務全般閲覧＋権限設定変更）
-INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
-    (2, 'dashboard',        true, false, false, false),
-    (2, 'owners',           true, true,  true,  false),
-    (2, 'reservations',     true, true,  true,  false),
-    (2, 'medical-records',  true, false, false, false),
-    (2, 'hospitalization',  true, true,  true,  false),
-    (2, 'trimming',         true, false, false, false),
-    (2, 'examinations',     true, false, false, false),
-    (2, 'accounting',       true, true,  true,  false),
-    (2, 'vaccinations',     true, false, false, false),
-    (2, 'checkups',         true, false, false, false),
-    (2, 'inventory',        true, true,  true,  false),
-    (2, 'estimates',        true, true,  true,  false),
-    (2, 'shifts',           true, true,  true,  false),
-    (2, 'master',           true, true,  true,  false),
-    (2, 'hospital-settings',true, false, false, false)
-ON CONFLICT DO NOTHING;
-
--- グループルール（一般: 基本的な業務操作）
-INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
-    (3, 'dashboard',        true, false, false, false),
-    (3, 'owners',           true, true,  true,  false),
-    (3, 'reservations',     true, true,  true,  false),
-    (3, 'medical-records',  true, true,  true,  false),
-    (3, 'hospitalization',  true, true,  true,  false),
-    (3, 'trimming',         true, true,  true,  false),
-    (3, 'examinations',     true, true,  true,  false),
-    (3, 'accounting',       true, false, false, false),
-    (3, 'vaccinations',     true, true,  true,  false),
-    (3, 'checkups',         true, false, false, false),
-    (3, 'inventory',        true, false, false, false),
-    (3, 'estimates',        true, false, false, false),
-    (3, 'shifts',           true, true,  true,  false),
-    (3, 'master',           true, false, false, false),
-    (3, 'hospital-settings',true, false, false, false)
-ON CONFLICT DO NOTHING;
-
--- ユーザーへのグループ割当
--- manager@example.com (user_id=10) → 管理者
-INSERT INTO user_permission_groups (user_id, group_id) VALUES (10, 1) ON CONFLICT DO NOTHING;
--- exec@example.com (user_id=11) → 執行
-INSERT INTO user_permission_groups (user_id, group_id) VALUES (11, 2) ON CONFLICT DO NOTHING;
--- vet@example.com (user_id=5) → 一般
-INSERT INTO user_permission_groups (user_id, group_id) VALUES (5, 3) ON CONFLICT DO NOTHING;
--- nurse@example.com (user_id=6) → 一般
-INSERT INTO user_permission_groups (user_id, group_id) VALUES (6, 3) ON CONFLICT DO NOTHING;
--- reception@example.com (user_id=7) → 一般
-INSERT INTO user_permission_groups (user_id, group_id) VALUES (7, 3) ON CONFLICT DO NOTHING;
--- trimmer@example.com (user_id=8) → 一般
-INSERT INTO user_permission_groups (user_id, group_id) VALUES (8, 3) ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('permission_groups', 'id'), (SELECT MAX(id) FROM permission_groups));
+-- Deleted: permission_groups, permission_group_rules, user_permission_groups
+-- These tables were removed in the auth refactor (Account-based authentication)
+-- Permission management has been replaced with simpler staff_role-based access control
 
 -- -----------------------------------------------------------------------------
 -- 8. service_types（サービス種別: 7件）
