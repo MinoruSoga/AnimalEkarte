@@ -73,6 +73,7 @@ export interface BillingItem {
   tax_rate: number /* float64 */;
   is_insurance_applicable: boolean;
   source: ItemSource;
+  merchandise_item_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
 }
@@ -573,6 +574,7 @@ export interface EstimateItem {
   consultation_id?: number /* uint64 */;
   procedure_id?: number /* uint64 */;
   medicine_id?: number /* uint64 */;
+  merchandise_item_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;

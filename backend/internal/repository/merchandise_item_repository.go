@@ -116,11 +116,25 @@ func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64
 }
 
 // CountUsageByMerchandiseItemID は物販品目を参照している billing_items と estimate_items の件数の合計を返す（BUG-109）
-// 注意: 現在のスキーマでは billing_items/estimate_items は物販品目への FK を持たず、
-// 名称・価格をコピーして保持する設計のため、常に 0 を返す。
-// 将来 FK カラムが追加された際はここでカウントクエリを追加すること。
-func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(_ context.Context, _ uint64) (int64, error) {
-	return 0, nil
+// Migration 002 でFK カラムが追加された後、このメソッドで依存チェックを実行する
+func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Context, merchandiseItemID uint64) (int64, error) {
+	var billingCount int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.BillingItem{}).
+		Where("merchandise_item_id = ? AND deleted_at IS NULL", merchandiseItemID).
+		Count(&billingCount).Error; err != nil {
+		return 0, apperrors.Wrap(err, "count billing items by merchandise_item_id")
+	}
+
+	var estimateCount int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.EstimateItem{}).
+		Where("merchandise_item_id = ? AND deleted_at IS NULL", merchandiseItemID).
+		Count(&estimateCount).Error; err != nil {
+		return 0, apperrors.Wrap(err, "count estimate items by merchandise_item_id")
+	}
+
+	return billingCount + estimateCount, nil
 }
 
 func (r *merchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {

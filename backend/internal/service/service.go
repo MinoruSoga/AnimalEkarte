@@ -61,7 +61,7 @@ type Services struct {
 func NewServices(repos *repository.Repositories) *Services {
 	return &Services{
 		Auth:                   NewAuthService(repos.Auth, repos.UserAccount),
-		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies),
+		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
 		Owner:                  NewOwnerService(repos.Owner),
 		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
 		Reservation:            NewReservationService(repos.Reservation),

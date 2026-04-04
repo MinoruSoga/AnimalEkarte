@@ -67,6 +67,7 @@ interface GroupSidePanelProps {
   clinicId: string;
   onClose: () => void;
   onDeleteRequest: (group: PermissionGroup) => void;
+  isAdmin: boolean;
 }
 
 const GroupSidePanel = memo(function GroupSidePanel({
@@ -74,6 +75,7 @@ const GroupSidePanel = memo(function GroupSidePanel({
   clinicId,
   onClose,
   onDeleteRequest,
+  isAdmin,
 }: GroupSidePanelProps) {
   const isNew = group === null;
 
@@ -178,7 +180,7 @@ const GroupSidePanel = memo(function GroupSidePanel({
       onTitleChange={handleNameChange}
       onClose={handleClose}
       action={handleSave}
-      onDelete={isNew ? undefined : handleDelete}
+      onDelete={isAdmin && !isNew ? handleDelete : undefined}
       icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
       isPending={isSavePending}
       isDirty={isDirty}
@@ -223,23 +225,24 @@ const GroupSidePanel = memo(function GroupSidePanel({
 interface GroupRowProps {
   group: PermissionGroup;
   onEdit: (group: PermissionGroup) => void;
+  isAdmin: boolean;
 }
 
-const GroupRow = memo(function GroupRow({ group, onEdit }: GroupRowProps) {
+const GroupRow = memo(function GroupRow({ group, onEdit, isAdmin }: GroupRowProps) {
   const handleEdit = useCallback(
     (e: { stopPropagation: () => void }) => {
       e.stopPropagation();
-      onEdit(group);
+      if (isAdmin) onEdit(group);
     },
-    [group, onEdit],
+    [group, onEdit, isAdmin],
   );
 
   const handleRowClick = useCallback(() => {
-    onEdit(group);
-  }, [group, onEdit]);
+    if (isAdmin) onEdit(group);
+  }, [group, onEdit, isAdmin]);
 
   return (
-    <DataTableRow className="cursor-pointer" onClick={handleRowClick}>
+    <DataTableRow className={isAdmin ? "cursor-pointer" : ""} onClick={handleRowClick}>
       <TableCell>
         <div className="flex items-center gap-2">
           <div
@@ -253,7 +256,7 @@ const GroupRow = memo(function GroupRow({ group, onEdit }: GroupRowProps) {
         {group.description ? group.description : "-"}
       </TableCell>
       <TableCell className="text-right">
-        <RowActionButton onClick={handleEdit} />
+        {isAdmin ? <RowActionButton onClick={handleEdit} /> : null}
       </TableCell>
     </DataTableRow>
   );
@@ -264,8 +267,11 @@ const GroupRow = memo(function GroupRow({ group, onEdit }: GroupRowProps) {
 // ─────────────────────────────────────────────────
 
 export function PermissionGroupSettings() {
-  const { currentClinicId } = useAuth();
+  const { currentClinicId, user } = useAuth();
   const clinicId = currentClinicId ?? "";
+
+  // BUG-019: Only admin users can create/edit/delete permission groups
+  const isAdmin = user?.userType === "system_admin" || user?.userType === "clinic_admin";
 
   const { data: groups = [], isLoading } = useGetPermissionGroups(clinicId);
   const deleteMutation = useDeletePermissionGroup(clinicId);
@@ -289,21 +295,24 @@ export function PermissionGroupSettings() {
   );
 
   const handleNew = useCallback(() => {
+    if (!isAdmin) return;
     setPanelGroup(null);
-  }, []);
+  }, [isAdmin]);
 
   const handleEdit = useCallback((group: PermissionGroup) => {
+    if (!isAdmin) return;
     setPanelGroup(group);
-  }, []);
+  }, [isAdmin]);
 
   const handleClose = useCallback(() => {
     setPanelGroup(undefined);
   }, []);
 
   const handleDeleteRequest = useCallback((group: PermissionGroup) => {
+    if (!isAdmin) return;
     setPendingDelete(group);
     setPanelGroup(undefined);
-  }, []);
+  }, [isAdmin]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
@@ -331,7 +340,7 @@ export function PermissionGroupSettings() {
       onSearchChange={setSearchTerm}
       searchPlaceholder="グループ名を検索..."
       count={filteredGroups.length}
-      onNew={handleNew}
+      onNew={isAdmin ? handleNew : undefined}
       sidePanel={
         panelGroup !== undefined ? (
           <GroupSidePanel
@@ -339,6 +348,7 @@ export function PermissionGroupSettings() {
             clinicId={clinicId}
             onClose={handleClose}
             onDeleteRequest={handleDeleteRequest}
+            isAdmin={isAdmin}
           />
         ) : null
       }
@@ -356,7 +366,7 @@ export function PermissionGroupSettings() {
           data={filteredGroups}
           emptyMessage="権限グループがありません。「新規登録」から追加してください。"
           renderRow={(g: PermissionGroup) => (
-            <GroupRow key={g.id} group={g} onEdit={handleEdit} />
+            <GroupRow key={g.id} group={g} onEdit={handleEdit} isAdmin={isAdmin} />
           )}
         />
       )}
