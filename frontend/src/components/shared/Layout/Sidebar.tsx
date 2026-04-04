@@ -277,7 +277,6 @@ export function Sidebar() {
                 { icon: <Bed          className={ICON.toolbar} />, label: "入院・ケージ", path: paths.settings.hospitalization.getHref() },
                 { icon: <Scissors     className={ICON.toolbar} />, label: "トリミング", path: paths.settings.trimming.getHref() },
                 { icon: <Users        className={ICON.toolbar} />, label: "スタッフ管理", path: paths.settings.staff.getHref() },
-                { icon: <Shield       className={ICON.toolbar} />, label: "権限グループ", path: paths.settings.permissionGroups.getHref() },
                 { icon: <ShieldCheck  className={ICON.toolbar} />, label: "保険マスタ", path: paths.settings.insurance.getHref() },
                 { icon: <Package      className={ICON.toolbar} />, label: "物販・フード", path: paths.settings.merchandiseItems.getHref() },
               ]
