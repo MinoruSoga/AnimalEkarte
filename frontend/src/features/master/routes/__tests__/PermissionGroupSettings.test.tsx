@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { PermissionGroupSettings } from '../PermissionGroupSettings';
-import * as AuthContext from '@/features/auth/context/auth-context';
+import { useAuth } from '@/features/auth/context/auth-context';
 
 // Mock useAuth
 vi.mock('@/features/auth/context/auth-context', () => ({
@@ -47,13 +46,14 @@ describe('PermissionGroupSettings - RBAC Visibility (#19)', () => {
   });
 
   it('admin ユーザーには編集ボタンが表示される', () => {
-    (AuthContext.useAuth as any).mockReturnValue({
+    const mockedUseAuth = vi.mocked(useAuth);
+    mockedUseAuth.mockReturnValue({
       user: {
         id: 1,
         name: 'Admin User',
         userType: 'system_admin', // Admin role
       },
-    });
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(<PermissionGroupSettings />);
 
@@ -64,13 +64,14 @@ describe('PermissionGroupSettings - RBAC Visibility (#19)', () => {
   });
 
   it('non-admin ユーザーには編集ボタンが表示されない', () => {
-    (AuthContext.useAuth as any).mockReturnValue({
+    const mockedUseAuth = vi.mocked(useAuth);
+    mockedUseAuth.mockReturnValue({
       user: {
         id: 2,
         name: 'Regular User',
         userType: 'clinic_staff', // Non-admin role
       },
-    });
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(<PermissionGroupSettings />);
 
@@ -79,17 +80,17 @@ describe('PermissionGroupSettings - RBAC Visibility (#19)', () => {
     expect(screen.getByRole('heading')).toBeDefined();
   });
 
-  it('非管理者ユーザーが編集をクリックしても状態が変わらない', async () => {
-    const user = userEvent.setup();
+  it('非管理者ユーザーが編集をクリックしても状態が変わらない', () => {
+    const mockedUseAuth = vi.mocked(useAuth);
     const mockMutate = vi.fn();
 
-    (AuthContext.useAuth as any).mockReturnValue({
+    mockedUseAuth.mockReturnValue({
       user: {
         id: 2,
         name: 'Regular User',
         userType: 'clinic_staff',
       },
-    });
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(<PermissionGroupSettings />);
 
@@ -99,24 +100,26 @@ describe('PermissionGroupSettings - RBAC Visibility (#19)', () => {
   });
 
   it('system_admin と clinic_admin の両方が編集可能', () => {
+    const mockedUseAuth = vi.mocked(useAuth);
+
     // System admin
-    (AuthContext.useAuth as any).mockReturnValue({
+    mockedUseAuth.mockReturnValue({
       user: {
         id: 1,
         userType: 'system_admin',
       },
-    });
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(<PermissionGroupSettings />);
     expect(screen.getByRole('heading')).toBeDefined();
 
     // Clinic admin
-    (AuthContext.useAuth as any).mockReturnValue({
+    mockedUseAuth.mockReturnValue({
       user: {
         id: 2,
         userType: 'clinic_admin',
       },
-    });
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(<PermissionGroupSettings />);
     expect(screen.getByRole('heading')).toBeDefined();

@@ -34,8 +34,12 @@ vi.mock('@/features/accounting/api/update-accounting', () => ({
   })),
 }));
 
+interface MockAccountingDocumentProps {
+  ref?: React.Ref<HTMLDivElement>;
+}
+
 vi.mock('@/features/accounting/components/AccountingDocument', () => ({
-  AccountingDocument: ({ ref }: any) => (
+  AccountingDocument: ({ ref }: MockAccountingDocumentProps) => (
     <div ref={ref} data-testid="accounting-document">
       Mock Document
     </div>
@@ -49,10 +53,6 @@ describe('AccountingDetail - Print Performance (#20)', () => {
 
   it('AccountingDocument が Suspense ラッパーなしで直接レンダリングされる', () => {
     const { container } = render(<AccountingDetail />);
-
-    // Suspenseラッパーが存在しないことを確認
-    // （Suspenseが存在すれば、fallback要素が表示される可能性がある）
-    const suspenseElements = container.querySelectorAll('[role="status"]');
 
     // AccountingDocumentが直接マウントされていることを確認
     const accountingDoc = container.querySelector('[data-testid="accounting-document"]');
@@ -84,7 +84,7 @@ describe('AccountingDetail - Print Performance (#20)', () => {
   });
 
   it('ドキュメント要素が DOM に即座に挿入される（遅延ロードなし）', async () => {
-    const { container, findByTestId } = render(<AccountingDetail />);
+    const { findByTestId } = render(<AccountingDetail />);
 
     // Suspenseラッパーがないため、findByTestId が即座に成功すべき
     const doc = await findByTestId('accounting-document', {}, { timeout: 100 });

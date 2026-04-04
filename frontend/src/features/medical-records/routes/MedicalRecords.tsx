@@ -203,7 +203,7 @@ export function MedicalRecords() {
         canCreate ? (
           <PrimaryButton onClick={() => handleNavigateToForm()}>
             <Plus className={ICON.action} />
-            新規カルテ作成
+            新規カルテ登録
           </PrimaryButton>
         ) : null
       }

@@ -1,6 +1,7 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
 import * as React from "react";
+import { useMemo } from "react";
 
 // External
 import { X } from "lucide-react";
@@ -9,6 +10,10 @@ import { X } from "lucide-react";
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandSeparator } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useGetAllConsultations } from "@/features/master/api/consultations";
+import { useGetAllProcedures } from "@/features/master/api/procedures";
+import { useGetAllVaccinesMaster } from "@/features/master/api/vaccines-master";
+import { useGetAllCheckupTypes } from "@/features/master/api/checkup-types";
 
 // --- Types ---
 export type TreatmentMasterItem = {
@@ -27,26 +32,6 @@ interface TreatmentSearchDialogProps {
 
 // --- Constants ---
 const CATEGORY_ORDER = ["診察", "検査", "処置", "予防", "入院", "薬剤"];
-
-const TREATMENT_MASTER: TreatmentMasterItem[] = [
-  { id: "1001", code: "1001", name: "再診料(再診)", unitPrice: 800, category: "診察" },
-  { id: "1002", code: "1002", name: "初診料", unitPrice: 1500, category: "診察" },
-  { id: "1003", code: "1003", name: "時間外診察料", unitPrice: 2000, category: "診察" },
-  { id: "2001", code: "2001", name: "混合ワクチン(5種)", unitPrice: 6000, category: "予防" },
-  { id: "2002", code: "2002", name: "混合ワクチン(7種)", unitPrice: 8000, category: "予防" },
-  { id: "2003", code: "2003", name: "狂犬病予防注射", unitPrice: 3000, category: "予防" },
-  { id: "3001", code: "3001", name: "血液検査セットA", unitPrice: 5000, category: "検査" },
-  { id: "3002", code: "3002", name: "血液検査セットB(生化学)", unitPrice: 7000, category: "検査" },
-  { id: "3003", code: "3003", name: "X線検査(2枚)", unitPrice: 4000, category: "検査" },
-  { id: "3004", code: "3004", name: "超音波検査(腹部)", unitPrice: 3000, category: "検査" },
-  { id: "4001", code: "4001", name: "爪切り", unitPrice: 500, category: "処置" },
-  { id: "4002", code: "4002", name: "耳掃除", unitPrice: 800, category: "処置" },
-  { id: "4003", code: "4003", name: "肛門腺絞り", unitPrice: 500, category: "処置" },
-  { id: "5001", code: "5001", name: "入院料(小型)", unitPrice: 3000, category: "入院" },
-  { id: "5002", code: "5002", name: "入院料(中型)", unitPrice: 4000, category: "入院" },
-  { id: "6001", code: "6001", name: "内服薬A(抗生剤)", unitPrice: 100, category: "薬剤" },
-  { id: "6002", code: "6002", name: "内服薬B(消炎剤)", unitPrice: 80, category: "薬剤" },
-];
 
 // --- Sub-Components ---
 
@@ -122,12 +107,77 @@ export function TreatmentSearchDialog({
 }: TreatmentSearchDialogProps) {
   const [activeCategory, setActiveCategory] = React.useState<string | null>(null);
 
+  // Fetch master data from APIs
+  const { data: consultations = [] } = useGetAllConsultations();
+  const { data: procedures = [] } = useGetAllProcedures();
+  const { data: vaccines = [] } = useGetAllVaccinesMaster();
+  const { data: checkupTypes = [] } = useGetAllCheckupTypes();
+
   // Reset category when dialog closes
   React.useEffect(() => {
     if (!open) {
       setActiveCategory(null);
     }
   }, [open]);
+
+  // Build treatment master from API data (動的・実データ使用)
+  const TREATMENT_MASTER = useMemo(() => {
+    const items: TreatmentMasterItem[] = [];
+
+    // Consultations → 診察
+    consultations.forEach((c, idx) => {
+      if (c.isActive) {
+        items.push({
+          id: c.id,
+          code: `1${String(idx + 1).padStart(3, "0")}`,
+          name: c.name,
+          unitPrice: c.price,
+          category: "診察",
+        });
+      }
+    });
+
+    // Procedures → 処置
+    procedures.forEach((p, idx) => {
+      if (p.isActive) {
+        items.push({
+          id: p.id,
+          code: `4${String(idx + 1).padStart(3, "0")}`,
+          name: p.name,
+          unitPrice: p.price,
+          category: "処置",
+        });
+      }
+    });
+
+    // Vaccines → 予防
+    vaccines.forEach((v, idx) => {
+      if (v.isActive) {
+        items.push({
+          id: v.id,
+          code: `2${String(idx + 1).padStart(3, "0")}`,
+          name: v.name,
+          unitPrice: v.price,
+          category: "予防",
+        });
+      }
+    });
+
+    // CheckupTypes → 検査
+    checkupTypes.forEach((ct, idx) => {
+      if (ct.isActive) {
+        items.push({
+          id: ct.id,
+          code: `3${String(idx + 1).padStart(3, "0")}`,
+          name: ct.name,
+          unitPrice: ct.price,
+          category: "検査",
+        });
+      }
+    });
+
+    return items;
+  }, [consultations, procedures, vaccines, checkupTypes]);
 
   // Memoize grouped items calculation
   const groupedItems = React.useMemo(() => {
@@ -136,7 +186,7 @@ export function TreatmentSearchDialog({
       acc[item.category].push(item);
       return acc;
     }, {} as Record<string, TreatmentMasterItem[]>);
-  }, []);
+  }, [TREATMENT_MASTER]);
 
   // Calculate all categories once
   const allCategories = React.useMemo(() => {
