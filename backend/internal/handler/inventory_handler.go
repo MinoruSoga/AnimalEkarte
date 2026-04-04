@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -75,6 +76,18 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 		return
 	}
 
+	// Parse dates with fallback: YYYY-MM-DD → RFC3339
+	expiryDate, err := parseDate(input.ExpiryDate)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid expiry_date: %v", err)))
+		return
+	}
+	lastRestocked, err := parseDate(input.LastRestocked)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid last_restocked: %v", err)))
+		return
+	}
+
 	item := &model.InventoryItem{
 		ClinicID:      clinicID,
 		Name:          input.Name,
@@ -83,9 +96,9 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 		Unit:          input.Unit,
 		MinStockLevel: input.MinStockLevel,
 		Location:      input.Location,
-		ExpiryDate:    input.ExpiryDate,
+		ExpiryDate:    expiryDate,
 		Supplier:      input.Supplier,
-		LastRestocked: input.LastRestocked,
+		LastRestocked: lastRestocked,
 	}
 	if input.Status != "" {
 		item.Status = model.InventoryStatus(input.Status)
@@ -127,6 +140,18 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 		status = &s
 	}
 
+	// Parse dates with fallback: YYYY-MM-DD → RFC3339
+	expiryDate, err := parseDate(input.ExpiryDate)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid expiry_date: %v", err)))
+		return
+	}
+	lastRestocked, err := parseDate(input.LastRestocked)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid last_restocked: %v", err)))
+		return
+	}
+
 	svcInput := service.UpdateInventoryInput{
 		Name:          input.Name,
 		Category:      category,
@@ -134,9 +159,9 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 		Unit:          input.Unit,
 		MinStockLevel: input.MinStockLevel,
 		Location:      input.Location,
-		ExpiryDate:    input.ExpiryDate,
+		ExpiryDate:    expiryDate,
 		Supplier:      input.Supplier,
-		LastRestocked: input.LastRestocked,
+		LastRestocked: lastRestocked,
 		Status:        status,
 	}
 

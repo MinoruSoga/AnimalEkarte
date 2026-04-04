@@ -18,9 +18,9 @@ ADD COLUMN merchandise_item_id BIGINT
 REFERENCES merchandise_items(id) ON DELETE SET NULL;
 
 -- Step 4: Add index for FK lookup performance
+-- Note: estimate_items does not have deleted_at column, so index without WHERE clause
 CREATE INDEX idx_estimate_items_merchandise_item_id
-ON estimate_items(merchandise_item_id)
-WHERE deleted_at IS NULL;
+ON estimate_items(merchandise_item_id);
 
 -- Note: Existing rows will have NULL merchandise_item_id (value-copied from before migration)
 -- New rows created after migration will have merchandise_item_id populated
