@@ -4,8 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // RequireClinicAdmin は clinic_admin または system_admin のみアクセスを許可するミドルウェア
@@ -24,8 +22,7 @@ func RequireClinicAdmin() gin.HandlerFunc {
 			return
 		}
 
-		ut := model.UserType(userType)
-		if ut != model.UserTypeSystemAdmin && ut != model.UserTypeClinicAdmin {
+		if userType != "system_admin" && userType != "clinic_admin" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "clinic admin or above required"})
 			c.Abort()
 			return

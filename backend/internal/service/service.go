@@ -6,7 +6,6 @@ import (
 
 // Services はすべてのサービスを保持するDIコンテナ
 type Services struct {
-	Auth                   AuthService
 	AnimalSpecies          AnimalSpeciesService
 	Owner                  OwnerService
 	Pet                    PetService
@@ -32,7 +31,6 @@ type Services struct {
 	DiagnosisName          DiagnosisNameService
 	CheckupType            CheckupTypeService
 	Clinic                 ClinicService
-	UserAccount            UserAccountService
 	Examination            ExaminationService
 	Vaccination            VaccinationService
 	JobTitle               JobTitleService
@@ -54,13 +52,11 @@ type Services struct {
 	MerchandiseItem        MerchandiseItemService
 	BillingItem            BillingItemService
 	Refund                 RefundService
-	PermissionGroup        PermissionGroupService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
 func NewServices(repos *repository.Repositories) *Services {
 	return &Services{
-		Auth:                   NewAuthService(repos.Auth, repos.UserAccount),
 		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
 		Owner:                  NewOwnerService(repos.Owner),
 		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
@@ -86,7 +82,6 @@ func NewServices(repos *repository.Repositories) *Services {
 		DiagnosisName:          NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisCategory),
 		CheckupType:            NewCheckupTypeService(repos.CheckupType),
 		Clinic:                 NewClinicService(repos.Clinic),
-		UserAccount:            NewUserAccountService(repos.UserAccount, repos.PermissionGroup),
 		Examination:            NewExaminationService(repos.Examination),
 		Vaccination:            NewVaccinationService(repos.Vaccination),
 		JobTitle:               NewJobTitleService(repos.JobTitle),
@@ -108,6 +103,5 @@ func NewServices(repos *repository.Repositories) *Services {
 		MerchandiseItem:        NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:            NewBillingItemService(repos.BillingItem),
 		Refund:                 NewRefundService(repos.Refund, repos.Accounting),
-		PermissionGroup:        NewPermissionGroupService(repos.PermissionGroup),
 	}
 }

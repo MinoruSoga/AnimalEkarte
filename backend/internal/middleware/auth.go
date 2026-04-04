@@ -1,15 +1,11 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // JWTClaims はJWTのペイロード
@@ -20,21 +16,11 @@ type JWTClaims struct {
 	jwt.RegisteredClaims
 }
 
-// ActiveUserFinder はアクティブなユーザーをIDで取得するインターフェース（循環インポート回避）
-type ActiveUserFinder interface {
-	FindActiveByID(ctx context.Context, id uint64) (*model.UserAccount, error)
-}
-
 // Auth はJWTトークンを検証する認証ミドルウェア。
 // httpOnly Cookie を優先して読み、なければ Authorization Bearer ヘッダにフォールバックする。
 // secret には config.Config.JWTSecret を渡す。
-// userRepo を指定するとJWT検証後にDBのアカウント状態もチェックする（BUG-061対応）。
-func Auth(secret string, userRepo ...ActiveUserFinder) gin.HandlerFunc {
+func Auth(secret string) gin.HandlerFunc {
 	key := []byte(secret)
-	var repo ActiveUserFinder
-	if len(userRepo) > 0 {
-		repo = userRepo[0]
-	}
 	return func(c *gin.Context) {
 		var tokenStr string
 
@@ -76,21 +62,6 @@ func Auth(secret string, userRepo ...ActiveUserFinder) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 			c.Abort()
 			return
-		}
-
-		// DBのアカウント状態をチェックする（BUG-061: アカウント停止・削除ユーザーの遮断）
-		if repo != nil {
-			userIDUint, parseErr := strconv.ParseUint(claims.UserID, 10, 64)
-			if parseErr != nil {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
-				c.Abort()
-				return
-			}
-			if _, err := repo.FindActiveByID(c.Request.Context(), userIDUint); err != nil {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "account is disabled or deleted"})
-				c.Abort()
-				return
-			}
 		}
 
 		// err == nil が確定しているためクレームを安全に格納

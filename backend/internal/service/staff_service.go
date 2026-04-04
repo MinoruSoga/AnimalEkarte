@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"strings"
 
-	"golang.org/x/crypto/bcrypt"
-
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -16,18 +14,13 @@ import (
 // ---- StaffService ----
 
 // CreateStaffInput はスタッフ登録時の入力データ。
-// スタッフ情報とシステムアカウント情報を同時に受け取る。
 type CreateStaffInput struct {
-	// Staff fields
 	ClinicID      uint64
 	Name          string
 	StaffRole     model.StaffRole
 	LicenseNumber string
 	JobTitleID    *uint64
 	SortOrder     int
-	// Account fields
-	Email    string
-	Password string
 }
 
 // UpdateStaffInput はスタッフ部分更新の入力DTO。nil = 未送信フィールド。
@@ -43,8 +36,8 @@ type UpdateStaffInput struct {
 type StaffService interface {
 	List(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
 	GetByID(ctx context.Context, id uint64) (*model.Staff, error)
-	// CreateWithAccount はスタッフとシステムアカウントをアトミックに作成する。
-	CreateWithAccount(ctx context.Context, input *CreateStaffInput) (*model.Staff, error)
+	// Create はスタッフを作成する。
+	Create(ctx context.Context, input *CreateStaffInput) (*model.Staff, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -76,16 +69,11 @@ func (s *staffService) GetByID(ctx context.Context, id uint64) (*model.Staff, er
 	return staff, nil
 }
 
-func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaffInput) (*model.Staff, error) {
+func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*model.Staff, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
 	input.Name = strings.TrimSpace(input.Name)
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "hash password")
-	}
 
 	staff := &model.Staff{
 		ClinicID:      input.ClinicID,
@@ -97,21 +85,8 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 		IsActive:      true,
 	}
 
-	account := &model.UserAccount{
-		Email:        input.Email,
-		DisplayName:  input.Name,
-		UserType:     model.UserTypeStaff,
-		Status:       model.AccountStatusActive,
-		PasswordHash: string(hash),
-	}
-
-	membership := &model.UserClinicMembership{
-		ClinicID: input.ClinicID,
-		IsMain:   true,
-	}
-
-	if err := s.repo.CreateWithAccount(ctx, staff, account, membership); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create staff with account")
+	if err := s.repo.Create(ctx, staff); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create staff")
 	}
 
 	return staff, nil

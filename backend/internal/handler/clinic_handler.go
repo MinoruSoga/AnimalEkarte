@@ -19,7 +19,7 @@ func (h *Handler) ListClinics(c *gin.Context) {
 		return
 	}
 
-	if userType == model.UserTypeSystemAdmin {
+	if userType == "system_admin" {
 		clinics, err := h.svc.Clinic.ListClinics(c.Request.Context())
 		if err != nil {
 			RespondError(c, err)
@@ -54,7 +54,7 @@ func (h *Handler) GetClinic(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if userType != model.UserTypeSystemAdmin {
+	if userType != "system_admin" {
 		clinicID, ok := extractClinicID(c)
 		if !ok {
 			return
@@ -84,7 +84,7 @@ func (h *Handler) UpdateClinic(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if userType != model.UserTypeSystemAdmin {
+	if userType != "system_admin" {
 		clinicID, ok := extractClinicID(c)
 		if !ok {
 			return
@@ -130,7 +130,7 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if userType != model.UserTypeSystemAdmin {
+	if userType != "system_admin" {
 		RespondError(c, apperrors.WrapForbidden("clinic creation requires system_admin"))
 		return
 	}
@@ -167,7 +167,7 @@ func (h *Handler) DeleteClinic(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if userType != model.UserTypeSystemAdmin {
+	if userType != "system_admin" {
 		RespondError(c, apperrors.WrapForbidden("clinic deletion requires system_admin"))
 		return
 	}

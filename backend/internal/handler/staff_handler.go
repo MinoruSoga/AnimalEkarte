@@ -48,12 +48,10 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 		return
 	}
 
-	staff, err := h.svc.Staff.CreateWithAccount(c.Request.Context(), &service.CreateStaffInput{
+	staff, err := h.svc.Staff.Create(c.Request.Context(), &service.CreateStaffInput{
 		ClinicID:      clinicID,
 		Name:          req.Name,
 		StaffRole:     req.StaffRole,
-		Email:         req.Email,
-		Password:      req.Password,
 		LicenseNumber: req.LicenseNumber,
 		JobTitleID:    req.JobTitleID,
 		SortOrder:     req.SortOrder,

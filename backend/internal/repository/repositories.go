@@ -10,7 +10,6 @@ type Repositories struct {
 	// TransactionFn はテスト時に差し替え可能なトランザクション関数。
 	// nil の場合は db.Transaction() を使用する（本番動作）。
 	TransactionFn          func(fn func(*Repositories) error) error
-	Auth                   AuthRepository
 	AnimalSpecies          AnimalSpeciesRepository
 	Owner                  OwnerRepository
 	Pet                    PetRepository
@@ -36,7 +35,6 @@ type Repositories struct {
 	DiagnosisName          DiagnosisNameRepository
 	CheckupType            CheckupTypeRepository
 	Clinic                 ClinicRepository
-	UserAccount            UserAccountRepository
 	Examination            ExaminationRepository
 	Vaccination            VaccinationRepository
 	JobTitle               JobTitleRepository
@@ -58,7 +56,6 @@ type Repositories struct {
 	MerchandiseItem        MerchandiseItemRepository
 	BillingItem            BillingItemRepository
 	Refund                 RefundRepository
-	PermissionGroup        PermissionGroupRepository
 	Audit                  AuditRepository
 }
 
@@ -66,7 +63,6 @@ type Repositories struct {
 func NewRepositories(db *gorm.DB) *Repositories {
 	return &Repositories{
 		db:                     db,
-		Auth:                   NewAuthRepository(db),
 		AnimalSpecies:          NewAnimalSpeciesRepository(db),
 		Owner:                  NewOwnerRepository(db),
 		Pet:                    NewPetRepository(db),
@@ -92,7 +88,6 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		DiagnosisName:          NewDiagnosisNameRepository(db),
 		CheckupType:            NewCheckupTypeRepository(db),
 		Clinic:                 NewClinicRepository(db),
-		UserAccount:            NewUserAccountRepository(db),
 		Examination:            NewExaminationRepository(db),
 		Vaccination:            NewVaccinationRepository(db),
 		JobTitle:               NewJobTitleRepository(db),
@@ -114,7 +109,6 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		MerchandiseItem:        NewMerchandiseItemRepository(db),
 		BillingItem:            NewBillingItemRepository(db),
 		Refund:                 NewRefundRepository(db),
-		PermissionGroup:        NewPermissionGroupRepository(db),
 		Audit:                  NewAuditRepository(db),
 	}
 }

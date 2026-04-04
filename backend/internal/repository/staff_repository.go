@@ -16,8 +16,8 @@ import (
 type StaffRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
 	FindByID(ctx context.Context, id uint64) (*model.Staff, error)
-	// CreateWithAccount はスタッフ・ユーザーアカウント・クリニック所属を単一トランザクションで作成する。
-	CreateWithAccount(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
+	// Create はスタッフを作成する。
+	Create(ctx context.Context, staff *model.Staff) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -60,31 +60,12 @@ func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff
 	return &staff, nil
 }
 
-func (r *staffRepository) CreateWithAccount(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(staff).Error; err != nil {
-			if isUniqueConstraintErr(err) {
-				return apperrors.WrapAlreadyExists("staff", staff.Name)
-			}
-			return apperrors.Wrap(err, "create staff")
+func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error {
+	if err := r.db.WithContext(ctx).Create(staff).Error; err != nil {
+		if isUniqueConstraintErr(err) {
+			return apperrors.WrapAlreadyExists("staff", staff.Name)
 		}
-
-		account.StaffID = &staff.ID
-		if err := tx.Create(account).Error; err != nil {
-			if isUniqueConstraintErr(err) {
-				return apperrors.WrapAlreadyExists("user_account", account.Email)
-			}
-			return apperrors.Wrap(err, "create user account")
-		}
-
-		membership.UserID = account.ID
-		if err := tx.Create(membership).Error; err != nil {
-			return apperrors.Wrap(err, "create user clinic membership")
-		}
-
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "create staff with account transaction")
+		return apperrors.Wrap(err, "create staff")
 	}
 	return nil
 }

@@ -20,6 +20,8 @@ type Staff struct {
 	ID            uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID      uint64         `gorm:"not null"                                       json:"clinic_id"`
 	Name          string         `gorm:"not null"                                       json:"name"`
+	Email         string         `gorm:"default:''"                                     json:"email"`
+	PasswordHash  string         `gorm:"default:''"                                     json:"-" swaggerignore:"true"`
 	IsActive      bool           `gorm:"default:true"                                   json:"is_active"`
 	StaffRole     StaffRole      `gorm:"type:staff_role;not null"                       json:"staff_role"`
 	JobTitleID    *uint64        `                                                      json:"job_title_id,omitempty"`

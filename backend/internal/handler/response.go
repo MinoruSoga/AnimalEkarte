@@ -14,7 +14,6 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // RespondError はエラーを適切なHTTPステータスコードとメッセージにマッピングして返す。
@@ -158,7 +157,7 @@ func extractUserID(c *gin.Context) (uint64, bool) {
 
 // extractUserType はJWT認証済みコンテキストから user_type を取得する。
 // 取得失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
-func extractUserType(c *gin.Context) (model.UserType, bool) {
+func extractUserType(c *gin.Context) (string, bool) {
 	val, exists := c.Get("user_type")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
@@ -169,7 +168,7 @@ func extractUserType(c *gin.Context) (model.UserType, bool) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
 		return "", false
 	}
-	return model.UserType(ut), true
+	return ut, true
 }
 
 // parsePagination はページネーションパラメータを安全にパースする。

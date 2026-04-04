@@ -15,12 +15,12 @@ import (
 
 // mockStaffRepository は StaffRepository のテスト用モック実装
 type mockStaffRepository struct {
-	findAllFn           func(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
-	findByIDFn          func(ctx context.Context, id uint64) (*model.Staff, error)
-	createWithAccountFn func(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
-	updateFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn            func(ctx context.Context, clinicID, id uint64) error
-	reorderErr          error
+	findAllFn  func(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
+	findByIDFn func(ctx context.Context, id uint64) (*model.Staff, error)
+	createFn   func(ctx context.Context, staff *model.Staff) error
+	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	reorderErr error
 }
 
 func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
@@ -31,8 +31,8 @@ func (m *mockStaffRepository) FindByID(ctx context.Context, id uint64) (*model.S
 	return m.findByIDFn(ctx, id)
 }
 
-func (m *mockStaffRepository) CreateWithAccount(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error {
-	return m.createWithAccountFn(ctx, staff, account, membership)
+func (m *mockStaffRepository) Create(ctx context.Context, staff *model.Staff) error {
+	return m.createFn(ctx, staff)
 }
 
 func (m *mockStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
@@ -281,10 +281,10 @@ func TestStaffService_GetByID_NotFound(t *testing.T) {
 	assert.True(t, apperrors.IsNotFound(err))
 }
 
-// TestStaffService_CreateWithAccount_Success は bcrypt を呼び出すため正常ケースのみテストする。
-func TestStaffService_CreateWithAccount_Success(t *testing.T) {
+// TestStaffService_Create_Success はスタッフ作成の正常ケースをテストする。
+func TestStaffService_Create_Success(t *testing.T) {
 	repo := &mockStaffRepository{
-		createWithAccountFn: func(_ context.Context, staff *model.Staff, _ *model.UserAccount, _ *model.UserClinicMembership) error {
+		createFn: func(_ context.Context, staff *model.Staff) error {
 			// IDをシミュレート
 			staff.ID = 1
 			return nil
@@ -296,11 +296,9 @@ func TestStaffService_CreateWithAccount_Success(t *testing.T) {
 		ClinicID:  1,
 		Name:      "新規 スタッフ",
 		StaffRole: model.StaffRoleVeterinarian,
-		Email:     "new@example.com",
-		Password:  "securepassword123",
 	}
 
-	staff, err := svc.CreateWithAccount(context.Background(), input)
+	staff, err := svc.Create(context.Background(), input)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, staff)
@@ -309,9 +307,9 @@ func TestStaffService_CreateWithAccount_Success(t *testing.T) {
 	assert.True(t, staff.IsActive)
 }
 
-func TestStaffService_CreateWithAccount_RepositoryError(t *testing.T) {
+func TestStaffService_Create_RepositoryError(t *testing.T) {
 	repo := &mockStaffRepository{
-		createWithAccountFn: func(_ context.Context, _ *model.Staff, _ *model.UserAccount, _ *model.UserClinicMembership) error {
+		createFn: func(_ context.Context, _ *model.Staff) error {
 			return errors.New("db connection error")
 		},
 	}
@@ -321,20 +319,18 @@ func TestStaffService_CreateWithAccount_RepositoryError(t *testing.T) {
 		ClinicID:  1,
 		Name:      "エラー スタッフ",
 		StaffRole: model.StaffRoleNurse,
-		Email:     "error@example.com",
-		Password:  "password123",
 	}
 
-	staff, err := svc.CreateWithAccount(context.Background(), input)
+	staff, err := svc.Create(context.Background(), input)
 
 	assert.Error(t, err)
 	assert.Nil(t, staff)
 }
 
-func TestStaffService_CreateWithAccount_DuplicateEmail(t *testing.T) {
+func TestStaffService_Create_DuplicateName(t *testing.T) {
 	repo := &mockStaffRepository{
-		createWithAccountFn: func(_ context.Context, _ *model.Staff, _ *model.UserAccount, _ *model.UserClinicMembership) error {
-			return apperrors.WrapAlreadyExists("user_account", "existing@example.com")
+		createFn: func(_ context.Context, _ *model.Staff) error {
+			return apperrors.WrapAlreadyExists("staff", "existing@example.com")
 		},
 	}
 	svc := newTestStaffService(repo)
@@ -343,11 +339,9 @@ func TestStaffService_CreateWithAccount_DuplicateEmail(t *testing.T) {
 		ClinicID:  1,
 		Name:      "重複 スタッフ",
 		StaffRole: model.StaffRoleReception,
-		Email:     "existing@example.com",
-		Password:  "password123",
 	}
 
-	staff, err := svc.CreateWithAccount(context.Background(), input)
+	staff, err := svc.Create(context.Background(), input)
 
 	assert.Error(t, err)
 	assert.Nil(t, staff)
