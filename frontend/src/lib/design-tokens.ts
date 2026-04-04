@@ -170,7 +170,7 @@ export const PALETTE = {
   dotDefault: "#91918E",
 
   /* ── Master settings default colors (DB-configurable) ── */
-  /** Default gray for permission group / badge when no color set */
+  /** Default gray for badge when no color set */
   defaultGray: "#6B7280",
   /** Default blue for service type when no color set */
   defaultBlue: "#3B82F6",
