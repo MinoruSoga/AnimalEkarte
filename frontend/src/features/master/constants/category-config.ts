@@ -7,6 +7,7 @@ import Activity from "lucide-react/dist/esm/icons/activity";
 import Bed from "lucide-react/dist/esm/icons/bed";
 import Building2 from "lucide-react/dist/esm/icons/building-2";
 import Users from "lucide-react/dist/esm/icons/users";
+import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 import Scissors from "lucide-react/dist/esm/icons/scissors";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
