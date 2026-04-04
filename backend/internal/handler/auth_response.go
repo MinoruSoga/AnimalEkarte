@@ -2,24 +2,24 @@ package handler
 
 // LoginResponse はログインレスポンスの構造
 type LoginResponse struct {
-	Token     string     `json:"token"`
-	ExpiresAt int64      `json:"expires_at"`
-	UserType  string     `json:"user_type"`
+	Token     string      `json:"token"`
+	ExpiresAt int64       `json:"expires_at"`
+	UserType  string      `json:"user_type"`
 	User      *MeResponse `json:"user"`
 }
 
 // MeResponse はユーザー情報レスポンスの構造
 type MeResponse struct {
-	ID           string                 `json:"id"`
-	Email        string                 `json:"email"`
-	DisplayName  string                 `json:"display_name"`
-	UserType     string                 `json:"user_type"`
-	StaffRole    *string                `json:"staff_role,omitempty"`
-	JobTitle     *string                `json:"job_title,omitempty"`
-	MainClinicID string                 `json:"main_clinic_id"`
-	Clinic       *MeClinicInfo          `json:"clinic,omitempty"`
-	Clinics      []MeClinicMembership   `json:"clinics,omitempty"`
-	Permissions  EffectivePermissions   `json:"permissions"`
+	ID           string               `json:"id"`
+	Email        string               `json:"email"`
+	DisplayName  string               `json:"display_name"`
+	UserType     string               `json:"user_type"`
+	StaffRole    *string              `json:"staff_role,omitempty"`
+	JobTitle     *string              `json:"job_title,omitempty"`
+	MainClinicID string               `json:"main_clinic_id"`
+	Clinic       *MeClinicInfo        `json:"clinic,omitempty"`
+	Clinics      []MeClinicMembership `json:"clinics,omitempty"`
+	Permissions  EffectivePermissions `json:"permissions"`
 }
 
 // MeClinicInfo はユーザー所属クリニックの詳細情報

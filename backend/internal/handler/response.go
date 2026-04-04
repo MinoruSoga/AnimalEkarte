@@ -137,24 +137,6 @@ func extractClinicID(c *gin.Context) (uint64, bool) {
 	return clinicID, true
 }
 
-// extractUserID はJWT認証済みコンテキストから user_id を uint64 で取得するヘルパー。
-// 取得失敗時はゼロ値を返す（監査ログなどのベストエフォート用）。
-func extractUserID(c *gin.Context) (uint64, bool) {
-	val, exists := c.Get("user_id")
-	if !exists {
-		return 0, false
-	}
-	s, ok := val.(string)
-	if !ok {
-		return 0, false
-	}
-	id, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		return 0, false
-	}
-	return id, true
-}
-
 // extractUserType はJWT認証済みコンテキストから user_type を取得する。
 // 取得失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
 func extractUserType(c *gin.Context) (string, bool) {
