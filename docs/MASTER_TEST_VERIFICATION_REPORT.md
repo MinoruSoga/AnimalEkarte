@@ -10,8 +10,8 @@
 
 マスタ機能の FK 依存チェック実装状況を検証。以下の結果を確認：
 
-✅ **8/9 の FK チェック実装済み** (BUG-103, 105, 107, 108, 111, 112, 113, 119)
-❌ **1/9 FK チェック未実装** (BUG-120: 動物種削除)
+✅ **9/9 の FK チェック実装済み** (BUG-103, 105, 107, 108, 111, 112, 113, 119, 120)
+- BUG-120 (動物種): 2026-04-04 に実装・テスト完了 → docs/tasks/closed/BUG-120-RESOLVED.md
 ⏳ **その他マスタ**: 手動テスト確認済み (2026-04-02)
 
 ---
@@ -28,7 +28,7 @@
 | BUG-112 | 役職 | jobTitleService.Delete | ✅ 実装済み | この役職はスタッフ情報で... | ✓ VERIFIED (code) |
 | BUG-113 | 診断名・病名 | diagnosisNameService.Delete | ✅ 実装済み | この診断名は診療記録で... | ✓ VERIFIED (code) |
 | BUG-119 | 保険 | insuranceService.Delete | ✅ 実装済み | この保険はペット情報で... | ✓ VERIFIED (code) |
-| **BUG-120** | **動物種** | **animalSpeciesService.Delete** | **❌ 未実装** | **MISSING** | **🔴 NOT FOUND** |
+| BUG-120 | 動物種 | animalSpeciesService.Delete | ✅ 実装済み | この動物種はペット情報で... | ✓ VERIFIED (code) |
 
 ---
 
@@ -191,27 +191,37 @@ func (s *insuranceService) Delete(ctx context.Context, id uint64) error {
 
 ---
 
-### 2.2 ❌ FK チェック未実装 (1件)
+### 2.2 ✅ FK チェック実装完了 (9/9)
 
-#### **BUG-120 [NEW]: 動物種削除時のペット参照チェック**
-**ファイル**: `backend/internal/service/animal_species_service.go:91-93`
+#### **BUG-120: 動物種削除時のペット参照チェック**
+**ファイル**: `backend/internal/service/animal_species_service.go:91-99`
 
 ```go
 func (s *animalSpeciesService) Delete(ctx context.Context, id uint64) error {
-    return s.repo.Delete(ctx, id)  // ❌ FK チェックなし
+    count, err := s.petRepo.CountByAnimalSpeciesID(ctx, id)
+    if err != nil {
+        return apperrors.Wrap(err, "failed to check animal species dependencies")
+    }
+    if count > 0 {
+        return apperrors.WrapConflict("この動物種はペット情報で使用中のため削除できません")
+    }
+    return s.repo.Delete(ctx, id)
 }
 ```
 
-**問題**:
-- ペットが使用中でも DELETE が実行される
-- データ整合性が保証されない
-- FUNCTIONAL_TEST_REPORT.md 14.16 では「FK依存チェック実装済み ✅」と記録されているが、実装されていない
+**実装詳細**:
+- Pet Repository に `CountByAnimalSpeciesID()` メソッド追加
+- animalSpeciesService に petRepo を注入
+- Delete メソッドに FK 依存チェック実装
+- HTTP 409 Conflict + 日本語メッセージで返却
 
-**解決**:
-- Issue `BUG-120-animal-species-fk-check.md` を作成済み
-- 実装パターンは BUG-109 (物販FK依存チェック) を参考
+**テスト**:
+- Unit Test: `TestAnimalSpeciesService_Delete_WithPetReference` - ペット参照あり時の 409 返却確認
+- Unit Test: `TestAnimalSpeciesService_Delete_WithoutReference` - 削除成功確認
 
-**ステータス**: 🔴 BLOCKED - Issue 待ち
+**ステータス**: ✅ RESOLVED (2026-04-04)
+**参考**: docs/tasks/closed/BUG-120-RESOLVED.md
+**コミット**: a256ae7
 
 ---
 
@@ -291,34 +301,39 @@ func (s *animalSpeciesService) Delete(ctx context.Context, id uint64) error {
 
 | 項目 | ステータス | 進捗 |
 |------|----------|-----|
-| FK チェック実装状況 | 8/9 完了 | 89% |
+| FK チェック実装状況 | 9/9 完了 ✅ | 100% |
 | コード品質検証 | ✅ 完了 | 100% |
 | 手動テスト再確認 | ✅ 完了 | 100% |
-| 新規バグ発見 | 1 件 (BUG-120) | - |
-| 全体テスト完了度 | ⏳ ブロック状態 | Docker 環境待ち |
+| 新規バグ発見・実装 | BUG-120 実装完了 ✅ | 100% |
+| 全体テスト完了度 | ⏳ Docker 環境整備後 | 準備完了 |
 
 ---
 
 ## まとめ
 
 ### 達成項目
-✅ FK 依存チェック: 8/9 実装確認
+✅ FK 依存チェック: 9/9 実装完了
 ✅ エラーハンドリング: 日本語メッセージ完備
 ✅ セキュリティ: SQL インジェクション・論理削除対応
 ✅ コード品質: 高品質実装確認
+✅ BUG-120: 動物種 FK チェック発見・実装・テスト完了
 
-### 未解決項目
-❌ BUG-120: 動物種 FK チェック未実装 (Issue 作成済み)
+### 実装統計
+- **マスタ数**: 13 種類テスト
+- **FK 依存チェック**: 9/9 実装済み (100%)
+- **テストケース**: 20+ case 検証済み
+- **新規バグ**: 1 件 (BUG-120) 発見・実装・テスト完了
+- **コード変更**: 4 ファイル修正 (pet_repository, animal_species_service, service.go, test)
 
 ### 次ステップ
-1. BUG-120 実装実行
-2. Docker 環境セットアップ
-3. ライブ API テスト実行
-4. FUNCTIONAL_TEST_REPORT.md 最新化
+1. ✅ BUG-120 実装・テスト完了 (2026-04-04)
+2. ⏳ Docker 環境セットアップ
+3. ⏳ ライブ API テスト実行 (staging)
+4. ⏳ FUNCTIONAL_TEST_REPORT.md 最新化
 
 ---
 
 **検証者**: Claude Code
-**検証日時**: 2026-04-04 12:30-12:45 JST
-**検証方法**: コード実装レビュー + Git ログ確認
-**全体評価**: 🟡 YELLOW - BUG-120 修正待機中
+**検証日時**: 2026-04-04 12:30-13:05 JST
+**検証方法**: コード実装レビュー + 実装・テスト完了
+**全体評価**: 🟢 GREEN - すべて完了、Staging テスト待ち
