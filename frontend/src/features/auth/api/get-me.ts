@@ -12,15 +12,11 @@ export async function getMe(): Promise<AuthUser> {
 }
 
 /**
- * /me を定期ポーリングして権限を最新に保つ。
+ * /me を定期ポーリングして認証ユーザー情報を最新に保つ。
  * - staleTime: 10秒（別セッションからの権限変更を素早く反映）
  * - refetchInterval: 30秒（バックグラウンドでは停止）
  * - refetchOnWindowFocus: true（タブアクティブ時に即座に再取得）
  * - 401 時はポーリング停止（ログインページへの無限リダイレクト防止）
- *
- * BUG-057: 権限変更の即時反映。
- * 同セッション: setUserPermissionGroups mutation が ME_QUERY_KEY を invalidate → 即時反映。
- * 別セッション: staleTime 10秒 + refetchInterval 30秒で最大30秒以内に反映。
  *
  * @param enabled - 認証済みの場合のみ true を渡す（デフォルト: true）
  */
