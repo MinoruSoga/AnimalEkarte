@@ -44,12 +44,13 @@ type AnimalSpeciesService interface {
 }
 
 type animalSpeciesService struct {
-	repo repository.AnimalSpeciesRepository
+	repo    repository.AnimalSpeciesRepository
+	petRepo repository.PetRepository
 }
 
 // NewAnimalSpeciesService はAnimalSpeciesServiceを初期化して返す
-func NewAnimalSpeciesService(repo repository.AnimalSpeciesRepository) AnimalSpeciesService {
-	return &animalSpeciesService{repo: repo}
+func NewAnimalSpeciesService(repo repository.AnimalSpeciesRepository, petRepo repository.PetRepository) AnimalSpeciesService {
+	return &animalSpeciesService{repo: repo, petRepo: petRepo}
 }
 
 func (s *animalSpeciesService) List(ctx context.Context) ([]model.AnimalSpecies, error) {
@@ -89,6 +90,13 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 }
 
 func (s *animalSpeciesService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.petRepo.CountByAnimalSpeciesID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check animal species dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この動物種はペット情報で使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, id)
 }
 

@@ -60,6 +60,43 @@ func (m *mockAnimalSpeciesRepository) Reorder(ctx context.Context, ids []uint64)
 	return nil
 }
 
+// ---- Pet モック ----
+
+type mockPetRepository struct {
+	countByAnimalSpeciesIDFn func(ctx context.Context, speciesID uint64) (int64, error)
+}
+
+func (m *mockPetRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
+	return nil, 0, nil
+}
+
+func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+	return nil, nil
+}
+
+func (m *mockPetRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockPetRepository) CountByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {
+	if m.countByAnimalSpeciesIDFn != nil {
+		return m.countByAnimalSpeciesIDFn(ctx, speciesID)
+	}
+	return 0, nil
+}
+
+func (m *mockPetRepository) Create(ctx context.Context, pet *model.Pet) error {
+	return nil
+}
+
+func (m *mockPetRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return nil
+}
+
+func (m *mockPetRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return nil
+}
+
 // ---- Tests ----
 
 func TestAnimalSpeciesService_List(t *testing.T) {
@@ -105,7 +142,8 @@ func TestAnimalSpeciesService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewAnimalSpeciesService(repo)
+			petRepo := &mockPetRepository{}
+			svc := NewAnimalSpeciesService(repo, petRepo)
 
 			species, err := svc.List(context.Background())
 
@@ -126,7 +164,8 @@ func TestAnimalSpeciesService_Create(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewAnimalSpeciesService(repo)
+	petRepo := &mockPetRepository{}
+	svc := NewAnimalSpeciesService(repo, petRepo)
 
 	species, err := svc.Create(context.Background(), &CreateAnimalSpeciesInput{
 		Name:      "フェレット",
@@ -141,7 +180,8 @@ func TestAnimalSpeciesService_Create(t *testing.T) {
 
 func TestAnimalSpeciesService_Update_EmptyFields(t *testing.T) {
 	repo := &mockAnimalSpeciesRepository{}
-	svc := NewAnimalSpeciesService(repo)
+	petRepo := &mockPetRepository{}
+	svc := NewAnimalSpeciesService(repo, petRepo)
 
 	_, err := svc.Update(context.Background(), 1, &UpdateAnimalSpeciesInput{})
 	assert.Error(t, err)
@@ -149,8 +189,55 @@ func TestAnimalSpeciesService_Update_EmptyFields(t *testing.T) {
 
 func TestAnimalSpeciesService_Reorder_EmptyIDs(t *testing.T) {
 	repo := &mockAnimalSpeciesRepository{}
-	svc := NewAnimalSpeciesService(repo)
+	petRepo := &mockPetRepository{}
+	svc := NewAnimalSpeciesService(repo, petRepo)
 
 	err := svc.Reorder(context.Background(), []uint64{})
 	assert.Error(t, err)
+}
+
+func TestAnimalSpeciesService_Delete_WithPetReference(t *testing.T) {
+	tests := []struct {
+		name      string
+		petCount  int64
+		wantError bool
+		wantCode  string
+	}{
+		{
+			name:      "returns 409 when animal species is referenced by pets",
+			petCount:  2,
+			wantError: true,
+			wantCode:  "CONFLICT",
+		},
+		{
+			name:      "succeeds when animal species has no pet references",
+			petCount:  0,
+			wantError: false,
+			wantCode:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockAnimalSpeciesRepository{
+				deleteFn: func(_ context.Context, _ uint64) error {
+					return nil
+				},
+			}
+			petRepo := &mockPetRepository{
+				countByAnimalSpeciesIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.petCount, nil
+				},
+			}
+			svc := NewAnimalSpeciesService(repo, petRepo)
+
+			err := svc.Delete(context.Background(), 1)
+
+			if tt.wantError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
