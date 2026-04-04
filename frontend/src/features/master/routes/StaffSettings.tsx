@@ -17,7 +17,6 @@ import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import { useGetStaffs, useCreateStaff, useUpdateStaff, useDeleteStaff, STAFF_ROLE_LABELS } from "@/features/master/api/staffs";
 import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
-import { useAuth } from "@/features/auth";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -221,9 +220,6 @@ const StaffSidePanel = memo(function StaffSidePanel({
 // ─────────────────────────────────────────────────
 
 export function StaffSettings() {
-  const { currentClinicId } = useAuth();
-  const clinicId = currentClinicId ?? "";
-
   const { data } = useGetStaffs();
   const createMutation = useCreateStaff();
   const updateMutation = useUpdateStaff();
