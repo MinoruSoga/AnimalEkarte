@@ -1,15 +1,14 @@
-import { memo, useState, useMemo, useCallback } from "react";
-import { UserRound, Shield } from "lucide-react";
+import { memo, useState, useCallback } from "react";
+import { UserRound } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, STYLE, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
@@ -18,9 +17,6 @@ import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import { useGetStaffs, useCreateStaff, useUpdateStaff, useDeleteStaff, STAFF_ROLE_LABELS } from "@/features/master/api/staffs";
 import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
-import { useGetUsers, useGetUser, useSetUserPermissionGroups } from "@/features/master/api/user-accounts";
-import { useGetPermissionGroups } from "@/features/master/api/permission-groups/permission-groups";
-import type { PermissionGroup } from "@/types/generated/models";
 import { useAuth } from "@/features/auth";
 
 // ─────────────────────────────────────────────────
@@ -30,7 +26,6 @@ import { useAuth } from "@/features/auth";
 const COLUMNS = [
   { header: "氏名", className: "flex-1" },
   { header: "職種", className: "w-[130px]" },
-  { header: "権限グループ", className: "w-[200px]" },
   { header: "ステータス", className: "w-[90px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
@@ -87,12 +82,6 @@ interface StaffSidePanelProps {
   onClose: () => void;
   onSave: (d: StaffFormData) => void;
   onDeleteRequest: (i: Staff) => void;
-  /** All permission groups available in this clinic */
-  allGroups: PermissionGroup[];
-  /** user_accounts.id linked to this staff (null if new or not yet linked) */
-  linkedUserId: string | null;
-  /** Called when groups should be saved for this user */
-  onSaveGroups: (userId: string, groupIds: number[]) => void;
 }
 
 const StaffSidePanel = memo(function StaffSidePanel({
@@ -100,9 +89,6 @@ const StaffSidePanel = memo(function StaffSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
-  allGroups,
-  linkedUserId,
-  onSaveGroups,
 }: StaffSidePanelProps) {
   const isNew = item === null;
 
@@ -117,30 +103,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  // ── Permission groups state ──────────────────────
-  // null = ユーザーがまだ編集していない（サーバーデータを使用）
-  const [userEditedGroupIds, setUserEditedGroupIds] = useState<number[] | null>(null);
-
-  const { data: userDetail } = useGetUser(linkedUserId);
-
-  // サーバーデータ優先、ユーザー編集があればそちらを使用
-  const groupIds = useMemo(
-    () => userEditedGroupIds ?? userDetail?.permissionGroupIds ?? [],
-    [userEditedGroupIds, userDetail?.permissionGroupIds],
-  );
-
   // ── Handlers ─────────────────────────────────────
-  const handleGroupToggle = useCallback(
-    (groupId: number, checked: boolean) => {
-      setUserEditedGroupIds((prev) => {
-        const current = prev ?? userDetail?.permissionGroupIds ?? [];
-        return checked ? [...current, groupId] : current.filter((id) => id !== groupId);
-      });
-      setIsDirty(true);
-    },
-    [userDetail?.permissionGroupIds],
-  );
-
   const handleSave = useCallback(() => {
     if (!f.name.trim()) {
       setNameError("氏名を入力してください");
@@ -148,11 +111,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
     }
     setNameError("");
     onSave(f);
-    if (!isNew && linkedUserId) {
-      onSaveGroups(linkedUserId, groupIds);
-    }
     setIsDirty(false);
-  }, [f, isNew, linkedUserId, groupIds, onSave, onSaveGroups]);
+  }, [f, onSave]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -252,45 +212,6 @@ const StaffSidePanel = memo(function StaffSidePanel({
           </PropertyRow>
         </>
       ) : null}
-
-      {/* ── Permission groups ─────────────────────── */}
-      <div className="mt-4 border-t pt-4">
-        <div className="flex items-center gap-1.5 mb-2">
-          <Shield className={`${ICON.xs} text-muted-foreground`} />
-          <p className="text-xs font-medium text-muted-foreground">権限グループ</p>
-        </div>
-
-        {isNew ? (
-          <p className="text-xs text-muted-foreground pl-0.5">
-            スタッフ登録後に権限グループを設定できます
-          </p>
-        ) : allGroups.length === 0 ? (
-          <p className="text-xs text-muted-foreground pl-0.5">
-            権限グループが登録されていません
-          </p>
-        ) : (
-          <div className="space-y-0.5">
-            {allGroups.map((group) => (
-              <label
-                key={group.id}
-                className="flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer hover:bg-muted/40 transition-colors"
-              >
-                <Checkbox
-                  checked={groupIds.includes(group.id)}
-                  onCheckedChange={(checked) =>
-                    handleGroupToggle(group.id, checked === true)
-                  }
-                />
-                <div
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: group.color ?? PALETTE.defaultGray }}
-                />
-                <span className="text-sm">{group.name}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
     </MasterSidePanel>
   );
 });
@@ -307,36 +228,6 @@ export function StaffSettings() {
   const createMutation = useCreateStaff();
   const updateMutation = useUpdateStaff();
   const deleteMutation = useDeleteStaff();
-
-  // User accounts — needed to find linked userId per staff
-  const { data: users = [] } = useGetUsers(clinicId);
-
-  // Permission groups — shown as checkboxes in the panel
-  const { data: allGroups = [] } = useGetPermissionGroups(clinicId);
-
-  // Group assignment mutation
-  const setGroupsMutation = useSetUserPermissionGroups(clinicId);
-
-  // staff.id → user.id lookup map
-  const usersByStaffId = new Map<string, string>(
-    users
-      .filter((u) => u.staff_id != null)
-      .map((u) => [u.staff_id as string, u.id]),
-  );
-
-  // staff.id → PermissionGroup[] lookup map（テーブル表示用）
-  const groupsByStaffId = useMemo(
-    () =>
-      new Map<string, PermissionGroup[]>(
-        users
-          .filter((u) => u.staff_id != null)
-          .map((u) => [
-            u.staff_id as string,
-            allGroups.filter((g) => u.permissionGroupIds?.includes(g.id)),
-          ]),
-      ),
-    [users, allGroups],
-  );
 
   const crud = useMasterCRUD<Staff>({
     data,
@@ -388,12 +279,6 @@ export function StaffSettings() {
     }),
   });
 
-  const handleSaveGroups = useCallback(
-    (userId: string, groupIds: number[]) => {
-      setGroupsMutation.mutate({ userId, groupIds });
-    },
-    [setGroupsMutation],
-  );
 
   return (
     <MasterCRUDPage
@@ -406,67 +291,27 @@ export function StaffSettings() {
       handleSave={handleSave}
       columns={COLUMNS}
       filterProperties={STAFF_FILTER_PROPERTIES}
-      renderRow={(item, onEdit) => {
-        const groups = groupsByStaffId.get(item.id) ?? [];
-        const visibleGroups = groups.slice(0, 2);
-        const extraCount = groups.length - visibleGroups.length;
-        return (
-          <DataTableRow key={item.id} onClick={() => onEdit(item)}>
-            <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-            <TableCell className={`text-base ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
-            <TableCell>
-              <div className="flex flex-wrap items-center gap-1">
-                {visibleGroups.length === 0 ? (
-                  <span className={`text-sm ${C.text40}`}>—</span>
-                ) : (
-                  <>
-                    {visibleGroups.map((g) => (
-                      <span
-                        key={g.id}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[3px] text-xs"
-                        style={{
-                          backgroundColor: g.color ? `${g.color}18` : PALETTE.bgSkeleton,
-                          color: g.color ?? PALETTE.primary,
-                        }}
-                      >
-                        <span
-                          className="size-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: g.color ?? PALETTE.defaultGray }}
-                        />
-                        {g.name}
-                      </span>
-                    ))}
-                    {extraCount > 0 ? (
-                      <span className={`text-xs ${C.text40}`}>+{extraCount}</span>
-                    ) : null}
-                  </>
-                )}
-              </div>
-            </TableCell>
-            <TableCell className="text-center">
-              <NotionStatusPill isActive={item.isActive} />
-            </TableCell>
-            <TableCell className="p-0 text-right">
-              <RowActionButton onClick={() => onEdit(item)} />
-            </TableCell>
-          </DataTableRow>
-        );
-      }}
-      renderSidePanel={({ item, onClose, onSave, onDeleteRequest }) => {
-        const linkedUserId = item ? (usersByStaffId.get(item.id) ?? null) : null;
-        return (
-          <StaffSidePanel
-            key={item?.id ?? "new"}
-            item={item}
-            onClose={onClose}
-            onSave={onSave}
-            onDeleteRequest={onDeleteRequest}
-            allGroups={allGroups}
-            linkedUserId={linkedUserId}
-            onSaveGroups={handleSaveGroups}
-          />
-        );
-      }}
+      renderRow={(item, onEdit) => (
+        <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={`text-base ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
+          <TableCell className="text-center">
+            <NotionStatusPill isActive={item.isActive} />
+          </TableCell>
+          <TableCell className="p-0 text-right">
+            <RowActionButton onClick={() => onEdit(item)} />
+          </TableCell>
+        </DataTableRow>
+      )}
+      renderSidePanel={({ item, onClose, onSave, onDeleteRequest }) => (
+        <StaffSidePanel
+          key={item?.id ?? "new"}
+          item={item}
+          onClose={onClose}
+          onSave={onSave}
+          onDeleteRequest={onDeleteRequest}
+        />
+      )}
     />
   );
 }

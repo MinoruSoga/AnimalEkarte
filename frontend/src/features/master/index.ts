@@ -10,12 +10,10 @@ export { InterviewTemplateSettings } from "./routes/InterviewTemplateSettings";
 export { JobTitleSettings } from "./routes/JobTitleSettings";
 export { MedicineSettings } from "./routes/MedicineSettings";
 export { MerchandiseItemSettings } from "./routes/MerchandiseItemSettings";
-export { PermissionGroupSettings } from "./routes/PermissionGroupSettings";
 export { ServiceTypeSettings } from "./routes/ServiceTypeSettings";
 export { StaffSettings } from "./routes/StaffSettings";
 export { TreatmentPlanMaster } from "./routes/TreatmentPlanMaster";
 export { TrimmingSettings } from "./routes/TrimmingSettings";
-export { UserAccountSettings } from "./routes/UserAccountSettings";
 
 export { useMasterItems } from "./hooks/use-master-items";
 export { useServiceTypeColorMap } from "./hooks/use-service-type-color-map";

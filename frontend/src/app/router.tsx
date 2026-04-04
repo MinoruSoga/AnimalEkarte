@@ -744,22 +744,6 @@ export const router = createBrowserRouter([
               return { Component: InterviewTemplateSettings };
             },
           },
-          // ── User Accounts（権限グループ割当） ──
-          {
-            path: "user-accounts",
-            lazy: async () => {
-              const { UserAccountSettings } = await import("@/features/master");
-              return { Component: UserAccountSettings };
-            },
-          },
-          // ── Permission Groups ──
-          {
-            path: "permission-groups",
-            lazy: async () => {
-              const { PermissionGroupSettings } = await import("@/features/master");
-              return { Component: PermissionGroupSettings };
-            },
-          },
         ],
       },
 
