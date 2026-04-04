@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react';
+import { vi } from 'vitest';
 import { useExaminationForm } from '../use-examination-form';
 import { useSearchParams } from 'react-router';
 
@@ -45,7 +46,8 @@ describe('useExaminationForm - Doctor ID Auto-Population (#21)', () => {
 
   it('医師IDがクエリパラメータから抽出される', () => {
     const mockSearchParams = new URLSearchParams('doctorId=123');
-    (useSearchParams as any).mockReturnValue([mockSearchParams]);
+    const mockedUseSearchParams = vi.mocked(useSearchParams);
+    mockedUseSearchParams.mockReturnValue([mockSearchParams]);
 
     const { result } = renderHook(() => useExaminationForm());
 
@@ -55,7 +57,8 @@ describe('useExaminationForm - Doctor ID Auto-Population (#21)', () => {
 
   it('doctorIdなしの場合、フォームは空の医師フィールドで初期化', () => {
     const mockSearchParams = new URLSearchParams('');
-    (useSearchParams as any).mockReturnValue([mockSearchParams]);
+    const mockedUseSearchParams = vi.mocked(useSearchParams);
+    mockedUseSearchParams.mockReturnValue([mockSearchParams]);
 
     const { result } = renderHook(() => useExaminationForm());
 
@@ -65,7 +68,8 @@ describe('useExaminationForm - Doctor ID Auto-Population (#21)', () => {
 
   it('複数のクエリパラメータが存在する場合、doctorIdを正確に抽出', () => {
     const mockSearchParams = new URLSearchParams('petId=456&doctorId=789&medicalRecordId=101');
-    (useSearchParams as any).mockReturnValue([mockSearchParams]);
+    const mockedUseSearchParams = vi.mocked(useSearchParams);
+    mockedUseSearchParams.mockReturnValue([mockSearchParams]);
 
     const { result } = renderHook(() => useExaminationForm());
 
