@@ -142,7 +142,7 @@ export function ReservationManagement() {
             {canCreate ? (
               <PrimaryButton className="gap-2" onClick={() => handleOpenForm()}>
                 <Plus className={ICON.action} />
-                <span className="hidden sm:inline">新規予約</span>
+                <span className="hidden sm:inline">新規予約登録</span>
                 <span className="sm:hidden">予約</span>
               </PrimaryButton>
             ) : null}

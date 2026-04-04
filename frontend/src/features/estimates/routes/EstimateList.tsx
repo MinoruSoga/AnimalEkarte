@@ -240,7 +240,7 @@ export function EstimateList() {
         canCreate ? (
           <PrimaryButton onClick={() => navigate("/estimates/new")}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
-            新規見積書作成
+            新規見積書登録
           </PrimaryButton>
         ) : null
       }
@@ -262,7 +262,7 @@ export function EstimateList() {
 
         <DataTable
           columns={COLUMNS}
-          data={pagination.currentData}
+          data={pagination.paginatedData}
           emptyMessage="見積書が見つかりません"
           renderRow={renderRow}
         />
@@ -271,7 +271,12 @@ export function EstimateList() {
           <Pagination
             currentPage={pagination.currentPage}
             totalPages={pagination.totalPages}
+            totalCount={pagination.totalCount}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
             onPageChange={pagination.goToPage}
+            onPrev={pagination.prevPage}
+            onNext={pagination.nextPage}
           />
         )}
       </div>

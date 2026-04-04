@@ -286,7 +286,7 @@ export function Dashboard() {
                             className={`${STYLE.confirmPrimary} h-11 text-base tracking-[var(--tracking-notion)]`}
                             onClick={() => navigate(paths.reservations.getHref())}
                         >
-                            新規予約
+                            新規予約登録
                         </Button>
                     </div>
                 }
