@@ -16,6 +16,7 @@ import (
 type StaffRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
 	FindByID(ctx context.Context, id uint64) (*model.Staff, error)
+	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
 	// Create はスタッフを作成する。
 	Create(ctx context.Context, staff *model.Staff) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -56,6 +57,15 @@ func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff
 	err := r.db.WithContext(ctx).First(&staff, "id = ?", id).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", id))
+	}
+	return &staff, nil
+}
+
+func (r *staffRepository) FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error) {
+	var staff model.Staff
+	err := r.db.WithContext(ctx).First(&staff, "account_id = ?", accountID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("account_id=%d", accountID))
 	}
 	return &staff, nil
 }

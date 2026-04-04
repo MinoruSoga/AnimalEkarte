@@ -18,7 +18,6 @@ type jobTitleInStaffResponse struct {
 
 type staffResponse struct {
 	ID            uint64                   `json:"id"`
-	ClinicID      uint64                   `json:"clinic_id"`
 	Name          string                   `json:"name"`
 	IsActive      bool                     `json:"is_active"`
 	StaffRole     string                   `json:"staff_role"`
@@ -48,7 +47,6 @@ func toJobTitleInStaffResponse(jt *model.JobTitle) *jobTitleInStaffResponse {
 func toStaffResponse(s *model.Staff) staffResponse {
 	return staffResponse{
 		ID:            s.ID,
-		ClinicID:      s.ClinicID,
 		Name:          s.Name,
 		IsActive:      s.IsActive,
 		StaffRole:     string(s.StaffRole),

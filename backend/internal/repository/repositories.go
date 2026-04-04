@@ -10,6 +10,8 @@ type Repositories struct {
 	// TransactionFn はテスト時に差し替え可能なトランザクション関数。
 	// nil の場合は db.Transaction() を使用する（本番動作）。
 	TransactionFn          func(fn func(*Repositories) error) error
+	Account                AccountRepository
+	StaffClinicAssignment  StaffClinicAssignmentRepository
 	AnimalSpecies          AnimalSpeciesRepository
 	Owner                  OwnerRepository
 	Pet                    PetRepository
@@ -63,6 +65,8 @@ type Repositories struct {
 func NewRepositories(db *gorm.DB) *Repositories {
 	return &Repositories{
 		db:                     db,
+		Account:                NewAccountRepository(db),
+		StaffClinicAssignment:  NewStaffClinicAssignmentRepository(db),
 		AnimalSpecies:          NewAnimalSpeciesRepository(db),
 		Owner:                  NewOwnerRepository(db),
 		Pet:                    NewPetRepository(db),

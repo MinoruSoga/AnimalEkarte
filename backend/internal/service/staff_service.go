@@ -76,7 +76,6 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 	input.Name = strings.TrimSpace(input.Name)
 
 	staff := &model.Staff{
-		ClinicID:      input.ClinicID,
 		Name:          input.Name,
 		StaffRole:     input.StaffRole,
 		LicenseNumber: input.LicenseNumber,

@@ -155,14 +155,27 @@ CREATE TABLE job_titles (
 );
 
 -- ------------------------------------
--- 5. staffs（スタッフマスタ）
+-- 5. accounts（認証用アカウント）
+-- ------------------------------------
+CREATE TABLE accounts (
+    id             BIGSERIAL   PRIMARY KEY,
+    email          text        NOT NULL UNIQUE,
+    password_hash  text        NOT NULL,
+    is_active      boolean     NOT NULL DEFAULT true,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at     timestamptz NOT NULL DEFAULT now(),
+    deleted_at     timestamptz
+);
+
+CREATE INDEX idx_accounts_email ON accounts(email) WHERE deleted_at IS NULL;
+
+-- ------------------------------------
+-- 6. staffs（スタッフマスタ）
 -- ------------------------------------
 CREATE TABLE staffs (
     id             BIGSERIAL   PRIMARY KEY,
-    clinic_id      bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    account_id     bigint               REFERENCES accounts(id) ON DELETE SET NULL,
     name           text        NOT NULL,
-    email          text        NOT NULL DEFAULT '',
-    password_hash  text        NOT NULL DEFAULT '',
     is_active      boolean     NOT NULL DEFAULT true,
     staff_role     staff_role  NOT NULL,
     license_number text        NOT NULL DEFAULT '',
@@ -170,13 +183,27 @@ CREATE TABLE staffs (
     sort_order     integer              DEFAULT 0,
     created_at     timestamptz NOT NULL DEFAULT now(),
     updated_at     timestamptz NOT NULL DEFAULT now(),
-    deleted_at     timestamptz,
-    CONSTRAINT uk_staffs_email UNIQUE (clinic_id, email) WHERE deleted_at IS NULL
+    deleted_at     timestamptz
 );
 
+CREATE INDEX idx_staffs_account ON staffs(account_id);
+
 -- ------------------------------------
--- 6. user_accounts（ユーザーアカウント）
+-- 7. staff_clinic_assignments（スタッフ-クリニック中間テーブル）
 -- ------------------------------------
+CREATE TABLE staff_clinic_assignments (
+    id             BIGSERIAL   PRIMARY KEY,
+    staff_id       bigint      NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
+    clinic_id      bigint      NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    is_main        boolean     NOT NULL DEFAULT false,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at     timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uk_staff_clinic UNIQUE (staff_id, clinic_id)
+);
+
+CREATE INDEX idx_staff_clinic_staff ON staff_clinic_assignments(staff_id);
+CREATE INDEX idx_staff_clinic_clinic ON staff_clinic_assignments(clinic_id);
+CREATE INDEX idx_staff_clinic_main ON staff_clinic_assignments(staff_id, is_main);
 
 CREATE INDEX idx_audit_logs_clinic   ON audit_logs(clinic_id, created_at DESC);
 CREATE INDEX idx_audit_logs_actor    ON audit_logs(actor_id, created_at DESC);

@@ -52,9 +52,15 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 
 	api := r.Group("/api/v1")
 
+	// 認証関連（保護なし）
+	api.POST("/login", h.Login)
+	api.POST("/logout", h.Logout)
+
 	protected := api.Group("")
 	protected.Use(middleware.Auth(h.cfg.JWTSecret))
 	protected.Use(middleware.SanitizeNullBytes()) // BUG-067: NULL バイト・制御文字を除去
+
+	protected.GET("/me", h.GetMe)
 
 	// BUG-020: 各リソースの write 操作に権限チェックを適用
 	h.registerOwnerRoutesWithAuth(protected)

@@ -13,46 +13,30 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 const (
 	accessTokenCookieName  = "access_token"
 	refreshTokenCookieName = "refresh_token"
-	// 後方互換のため旧Cookie名も読み込む
-	legacyCookieName = "auth_token"
+	legacyCookieName       = "auth_token"
 )
 
-// buildMeResponse はユーザーデータと補助情報からMeResponseを構築する。
-// clinicNameMap はクリニックID（string）→クリニック名のマップ。
-// mainClinicID はJWTクレームまたはログイン時のメインクリニックID（string）。
-func buildMeResponse(data *repository.UserAccountWithMemberships, mainClinicID string, clinicNameMap map[string]string, allClinics []model.Clinic) *MeResponse {
-	meClinicList := make([]MeClinicMembership, 0, len(data.Memberships))
-	for _, m := range data.Memberships {
-		clIDStr := strconv.FormatUint(m.ClinicID, 10)
-		meClinicList = append(meClinicList, MeClinicMembership{
-			ClinicID:   clIDStr,
-			ClinicName: clinicNameMap[clIDStr],
-			IsMain:     clIDStr == mainClinicID,
-		})
-	}
-
-	// 実効権限マップを構築する（company単位のフラット構造）
-	// system_admin / clinic_admin は全リソース全CRUD true（DB問い合わせ不要）
-	permMap := make(EffectivePermissions)
-	if data.UserAccount.UserType == model.UserTypeSystemAdmin || data.UserAccount.UserType == model.UserTypeClinicAdmin {
-		permMap = buildAllPermissions()
-	} else {
-		// staff はグループのUNIONで実効権限を計算（DBから取得済み）
-		for _, row := range data.EffectivePermRows {
-			permMap[row.Resource] = ResourcePermission{
-				View:   row.CanView,
-				Create: row.CanCreate,
-				Edit:   row.CanEdit,
-				Delete: row.CanDelete,
-			}
+// buildMeResponse はスタッフデータと補助情報からMeResponseを構築する。
+func buildMeResponse(staff *model.Staff, account *model.Account, mainClinicID string, clinicNameMap map[string]string, allClinics []model.Clinic) *MeResponse {
+	meClinicList := make([]MeClinicMembership, 0)
+	if staff != nil && len(staff.ClinicAssignments) > 0 {
+		for _, asg := range staff.ClinicAssignments {
+			clIDStr := strconv.FormatUint(asg.ClinicID, 10)
+			meClinicList = append(meClinicList, MeClinicMembership{
+				ClinicID:   clIDStr,
+				ClinicName: clinicNameMap[clIDStr],
+				IsMain:     clIDStr == mainClinicID,
+			})
 		}
 	}
+
+	// 全リソースに対してアクセス許可
+	permMap := buildAllPermissions()
 
 	var meClinic *MeClinicInfo
 	for i := range allClinics {
@@ -81,29 +65,28 @@ func buildMeResponse(data *repository.UserAccountWithMemberships, mainClinicID s
 	}
 
 	var jobTitle *string
-	if data.UserAccount.JobTitle != nil {
-		jt := data.UserAccount.JobTitle.Name
+	if staff != nil && staff.JobTitle != nil {
+		jt := staff.JobTitle.Name
 		jobTitle = &jt
 	}
 	var staffRole *string
-	if data.UserAccount.Staff != nil {
-		sr := string(data.UserAccount.Staff.StaffRole)
+	if staff != nil {
+		sr := string(staff.StaffRole)
 		staffRole = &sr
 	}
-	var avatarURL *string
-	if data.UserAccount.AvatarURL != "" {
-		av := data.UserAccount.AvatarURL
-		avatarURL = &av
+
+	staffID := uint64(0)
+	if staff != nil {
+		staffID = staff.ID
 	}
 
 	return &MeResponse{
-		ID:           strconv.FormatUint(data.UserAccount.ID, 10),
-		Email:        data.UserAccount.Email,
-		DisplayName:  data.UserAccount.DisplayName,
-		UserType:     string(data.UserAccount.UserType),
+		ID:           strconv.FormatUint(staffID, 10),
+		Email:        account.Email,
+		DisplayName:  staff.Name,
+		UserType:     "staff",
 		StaffRole:    staffRole,
 		JobTitle:     jobTitle,
-		AvatarURL:    avatarURL,
 		MainClinicID: mainClinicID,
 		Clinic:       meClinic,
 		Clinics:      meClinicList,
@@ -113,18 +96,18 @@ func buildMeResponse(data *repository.UserAccountWithMemberships, mainClinicID s
 
 // Login godoc
 // Login はメール/パスワードで認証してJWTトークンを返す。
-// user_accounts.password_hash を bcrypt で検証する。
+// accounts.password_hash を bcrypt で検証する。
 func (h *Handler) Login(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	var input LoginInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	// DB からユーザーを取得
-	account, err := h.svc.UserAccount.FindByEmail(ctx, input.Email)
+	// accounts テーブルからアカウントを取得
+	account, err := h.repos.Account.FindByEmail(ctx, input.Email)
 	if err != nil {
 		if apperrors.IsNotFound(err) {
 			RespondError(c, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません"))
@@ -135,41 +118,53 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// アカウント状態チェック
-	if account.Status != "active" {
+	if !account.IsActive {
 		RespondError(c, apperrors.WrapUnauthorized("アカウントが無効です"))
 		return
 	}
 
 	// パスワード検証
 	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(input.Password)); err != nil {
-		h.writeAuditLog(c, model.AuditActionAuthLoginFailure, "auth", nil,
-			repository.MarshalAuditJSON(map[string]string{"email": input.Email}))
+		slog.WarnContext(ctx, "login: password mismatch", slog.String("email", input.Email))
 		RespondError(c, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません"))
 		return
 	}
 
-	// 所属クリニックを取得してメインクリニックIDを決定
-	memberships, mErr := h.svc.UserAccount.GetMemberships(ctx, account.ID)
-	mainClinicID := ""
-	if mErr == nil {
-		for _, m := range memberships {
-			if m.IsMain {
-				mainClinicID = strconv.FormatUint(m.ClinicID, 10)
-				break
-			}
-		}
-		// isMain がなければ先頭を使う
-		if mainClinicID == "" && len(memberships) > 0 {
-			mainClinicID = strconv.FormatUint(memberships[0].ClinicID, 10)
-		}
+	// staff を取得
+	staff, err := h.repos.Staff.FindByAccountID(ctx, account.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "login: failed to find staff", slog.String("error", err.Error()))
+		RespondError(c, apperrors.Wrap(err, "スタッフ情報の取得に失敗しました"))
+		return
 	}
 
-	// アクセストークン: 15分
+	// clinic assignments を取得
+	assignments, err := h.repos.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "login: failed to find clinic assignments", slog.String("error", err.Error()))
+		RespondError(c, apperrors.Wrap(err, "所属クリニック情報の取得に失敗しました"))
+		return
+	}
+	staff.ClinicAssignments = assignments
+
+	// メインクリニックを決定
+	mainClinicID := ""
+	for _, asg := range assignments {
+		if asg.IsMain {
+			mainClinicID = strconv.FormatUint(asg.ClinicID, 10)
+			break
+		}
+	}
+	if mainClinicID == "" && len(assignments) > 0 {
+		mainClinicID = strconv.FormatUint(assignments[0].ClinicID, 10)
+	}
+
+	// アクセストークン生成（15分）
 	expiresAt := time.Now().Add(15 * time.Minute)
 	claims := &middleware.JWTClaims{
-		UserID:   strconv.FormatUint(account.ID, 10),
+		UserID:   strconv.FormatUint(staff.ID, 10),
 		ClinicID: mainClinicID,
-		UserType: string(account.UserType), //nolint:unconvert // model.UserType is a named string type; explicit cast required
+		UserType: "staff",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -183,45 +178,13 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	// リフレッシュトークン: 7日
-	var mainClinicIDUint uint64
-	if mainClinicID != "" {
-		if parsed, parseErr := strconv.ParseUint(mainClinicID, 10, 64); parseErr == nil {
-			mainClinicIDUint = parsed
-		}
-	}
-	rawRefreshToken, err := h.svc.Auth.CreateRefreshToken(ctx, account.ID, mainClinicIDUint)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-
-	// ユーザー詳細情報を取得（ログインレスポンスに含めて /me 呼び出しを不要にする）
-	userData, err := h.svc.UserAccount.GetWithMemberships(ctx, strconv.FormatUint(account.ID, 10))
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	allClinics, err := h.svc.Clinic.ListClinics(ctx)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	clinicNameMap := make(map[string]string, len(allClinics))
-	for i := range allClinics {
-		cl := &allClinics[i]
-		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
-	}
-
-	// httpOnly Cookie でトークンをセット（XSS によるトークン盗難を防ぐ）
-	// net/http.SetCookie を直接使用して SameSite を含む全属性を確実に設定する
-	// （Gin の SetCookie は SameSite 非対応のため使わない）
+	// Cookie 設定
 	isProduction := h.cfg.GinMode == "release"
 	sameSite := http.SameSiteLaxMode
 	if isProduction {
 		sameSite = http.SameSiteNoneMode
 	}
-	// アクセストークン Cookie（15分）
+
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     accessTokenCookieName,
 		Value:    accessTokenStr,
@@ -231,44 +194,36 @@ func (h *Handler) Login(c *gin.Context) {
 		Secure:   isProduction,
 		SameSite: sameSite,
 	})
-	// リフレッシュトークン Cookie（7日、/api/v1/auth/refresh のみ送信）
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     refreshTokenCookieName,
-		Value:    rawRefreshToken,
-		Path:     "/api/v1/auth/refresh",
-		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
 
-	h.writeAuditLog(c, model.AuditActionAuthLoginSuccess, "auth", nil, nil)
+	// クリニック一覧を取得してレスポンス構築
+	allClinics, err := h.svc.Clinic.ListClinics(ctx)
+	if err != nil {
+		slog.WarnContext(ctx, "login: failed to list clinics", slog.String("error", err.Error()))
+	}
+	clinicNameMap := make(map[string]string)
+	for i := range allClinics {
+		cl := &allClinics[i]
+		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
+	}
+
+	slog.InfoContext(ctx, "login successful", slog.String("email", account.Email), slog.Uint64("staff_id", staff.ID))
+
 	c.JSON(http.StatusOK, LoginResponse{
-		Token:     accessTokenStr, // 後方互換のため残す（Cookie 移行完了後に削除可）
+		Token:     accessTokenStr,
 		ExpiresAt: expiresAt.Unix(),
-		UserType:  claims.UserType,
-		User:      buildMeResponse(userData, mainClinicID, clinicNameMap, allClinics),
+		UserType:  "staff",
+		User:      buildMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics),
 	})
 }
 
 // Logout godoc
-// httpOnly Cookie を MaxAge=-1 でクリアする。リフレッシュトークンも無効化する。
 func (h *Handler) Logout(c *gin.Context) {
-	ctx := c.Request.Context()
 	isProduction := h.cfg.GinMode == "release"
 	sameSite := http.SameSiteLaxMode
 	if isProduction {
 		sameSite = http.SameSiteNoneMode
 	}
 
-	// リフレッシュトークンを無効化する（best-effort: 失敗してもログアウト処理は続行）
-	if rawRefreshToken, err := c.Cookie(refreshTokenCookieName); err == nil && rawRefreshToken != "" {
-		if err := h.svc.Auth.RevokeRefreshToken(ctx, rawRefreshToken); err != nil {
-			slog.WarnContext(ctx, "logout: failed to revoke refresh token", slog.String("error", err.Error()))
-		}
-	}
-
-	// アクセストークン Cookie をクリア
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     accessTokenCookieName,
 		Value:    "",
@@ -278,7 +233,6 @@ func (h *Handler) Logout(c *gin.Context) {
 		Secure:   isProduction,
 		SameSite: sameSite,
 	})
-	// 旧Cookie名もクリア（後方互換）
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     legacyCookieName,
 		Value:    "",
@@ -288,7 +242,6 @@ func (h *Handler) Logout(c *gin.Context) {
 		Secure:   isProduction,
 		SameSite: sameSite,
 	})
-	// リフレッシュトークン Cookie をクリア
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     refreshTokenCookieName,
 		Value:    "",
@@ -298,92 +251,12 @@ func (h *Handler) Logout(c *gin.Context) {
 		Secure:   isProduction,
 		SameSite: sameSite,
 	})
-	h.writeAuditLog(c, model.AuditActionAuthLogout, "auth", nil, nil)
+
+	slog.InfoContext(c.Request.Context(), "logout successful")
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
-// RefreshToken godoc
-// POST /api/v1/auth/refresh — リフレッシュトークンを検証して新しいアクセストークンを発行する
-func (h *Handler) RefreshToken(c *gin.Context) {
-	ctx := c.Request.Context()
-	isProduction := h.cfg.GinMode == "release"
-	sameSite := http.SameSiteLaxMode
-	if isProduction {
-		sameSite = http.SameSiteNoneMode
-	}
-
-	rawRefreshToken, err := c.Cookie(refreshTokenCookieName)
-	if err != nil || rawRefreshToken == "" {
-		RespondError(c, apperrors.WrapUnauthorized("refresh token required"))
-		return
-	}
-
-	userID, clinicID, newRawRefreshToken, err := h.svc.Auth.RefreshToken(ctx, rawRefreshToken)
-	if err != nil {
-		RespondError(c, apperrors.WrapUnauthorized("invalid or expired refresh token"))
-		return
-	}
-
-	// ユーザー情報を取得して新しいアクセストークンを発行
-	userData, err := h.svc.UserAccount.GetWithMemberships(ctx, strconv.FormatUint(userID, 10))
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-
-	// アカウント状態を確認
-	if userData.UserAccount.Status != model.AccountStatusActive {
-		RespondError(c, apperrors.WrapUnauthorized("account is disabled"))
-		return
-	}
-
-	mainClinicID := strconv.FormatUint(clinicID, 10)
-	expiresAt := time.Now().Add(15 * time.Minute)
-	claims := &middleware.JWTClaims{
-		UserID:   strconv.FormatUint(userID, 10),
-		ClinicID: mainClinicID,
-		UserType: string(userData.UserAccount.UserType),
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
-
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	accessTokenStr, err := accessToken.SignedString([]byte(h.cfg.JWTSecret))
-	if err != nil {
-		RespondError(c, apperrors.Wrap(err, "failed to sign jwt"))
-		return
-	}
-
-	// アクセストークン Cookie を更新
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     accessTokenCookieName,
-		Value:    accessTokenStr,
-		Path:     "/",
-		MaxAge:   int(time.Until(expiresAt).Seconds()),
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
-	// ローテーション済みリフレッシュトークン Cookie を更新
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     refreshTokenCookieName,
-		Value:    newRawRefreshToken,
-		Path:     "/api/v1/auth/refresh",
-		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
-
-	c.JSON(http.StatusOK, gin.H{
-		"expires_at": expiresAt.Unix(),
-	})
-}
-
 // GetMe godoc
-// GetMe はJWTクレームからログインユーザー情報を返す。
 func (h *Handler) GetMe(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -400,13 +273,36 @@ func (h *Handler) GetMe(c *gin.Context) {
 	mainClinicIDVal, _ := c.Get("clinic_id")
 	mainClinicIDStr, _ := mainClinicIDVal.(string)
 
-	data, err := h.svc.UserAccount.GetWithMemberships(ctx, userIDStr)
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInternalServerError("invalid user id"))
+		return
+	}
+
+	// staff を取得
+	staff, err := h.repos.Staff.FindByID(ctx, userID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 
-	// クリニック情報（全クリニック名を解決するため Clinic サービス経由）
+	// account を取得
+	var account *model.Account
+	if staff.AccountID != nil {
+		account, err = h.repos.Account.GetByID(ctx, *staff.AccountID)
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+	}
+
+	// clinic assignments を取得
+	assignments, err := h.repos.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	if err == nil {
+		staff.ClinicAssignments = assignments
+	}
+
+	// クリニック一覧を取得
 	allClinics, err := h.svc.Clinic.ListClinics(ctx)
 	if err != nil {
 		RespondError(c, err)
@@ -418,75 +314,14 @@ func (h *Handler) GetMe(c *gin.Context) {
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
 
-	c.JSON(http.StatusOK, buildMeResponse(data, mainClinicIDStr, clinicNameMap, allClinics))
+	c.JSON(http.StatusOK, buildMeResponse(staff, account, mainClinicIDStr, clinicNameMap, allClinics))
 }
 
 // buildAllPermissions は全リソースに対して全CRUD true のマップを返す。
-// system_admin / clinic_admin はグループ設定に関係なく全権限を持つ。
 func buildAllPermissions() EffectivePermissions {
 	m := make(EffectivePermissions, len(model.AllResources))
 	for _, res := range model.AllResources {
 		m[string(res)] = ResourcePermission{View: true, Create: true, Edit: true, Delete: true}
 	}
 	return m
-}
-
-// ForgotPassword godoc
-// POST /api/v1/auth/forgot-password — パスワードリセットトークンを発行する
-func (h *Handler) ForgotPassword(c *gin.Context) {
-	var req forgotPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-		return
-	}
-	// セキュリティ: アカウントが存在しなくても同じレスポンスを返す
-	_ = h.svc.Auth.ForgotPassword(c.Request.Context(), req.Email)
-	c.JSON(http.StatusOK, gin.H{"message": "if the email exists, a reset link has been sent"})
-}
-
-// ResetPassword godoc
-// POST /api/v1/auth/reset-password — パスワードリセットトークンを使ってパスワードを更新する
-func (h *Handler) ResetPassword(c *gin.Context) {
-	var req resetPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-		return
-	}
-	if err := h.svc.Auth.ResetPassword(c.Request.Context(), req.Token, req.NewPassword); err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "password has been reset successfully"})
-}
-
-// ChangeMyPassword godoc
-// PUT /api/v1/users/me/password — 自分のパスワードを変更する（BUG-062）
-func (h *Handler) ChangeMyPassword(c *gin.Context) {
-	userIDVal, exists := c.Get("user_id")
-	if !exists {
-		RespondError(c, apperrors.WrapUnauthorized("missing user context"))
-		return
-	}
-	userIDStr, ok := userIDVal.(string)
-	if !ok {
-		RespondError(c, apperrors.WrapInternalServerError("invalid user context"))
-		return
-	}
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInternalServerError("invalid user id"))
-		return
-	}
-
-	var req changePasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-		return
-	}
-
-	if err := h.svc.Auth.ChangePassword(c.Request.Context(), userID, req.CurrentPassword, req.NewPassword); err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "password changed successfully"})
 }
