@@ -1,6 +1,6 @@
 /**
  * Authentication & Authorization types.
- * Backend types: {@link UserAccount}, {@link UserClinicMembership}, {@link Clinic} from models.ts
+ * Backend types: {@link Account}, {@link StaffClinicAssignment}, {@link Clinic} from models.ts
  */
 import type { ReactNode } from "react";
 import {
@@ -66,7 +66,7 @@ export interface ResourcePermission {
 /** resource → CRUD（バックエンドが UNION 計算済みのフラット実効権限） */
 export type ResourcePermissions = Record<string, ResourcePermission>;
 
-/** @see {@link import("@/types/generated/models").UserClinicMembership} */
+/** @see {@link import("@/types/generated/models").StaffClinicAssignment} */
 export interface ClinicMembership {
   clinicId: string;
   clinicName: string;
@@ -88,7 +88,7 @@ export interface AuthClinic {
   logoUrl: string | null;
 }
 
-/** @see {@link import("@/types/generated/models").UserAccount} */
+/** @see {@link import("@/types/generated/models").Account} */
 export interface AuthUser {
   id: string;
   email: string;
