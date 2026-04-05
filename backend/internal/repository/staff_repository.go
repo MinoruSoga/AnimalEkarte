@@ -33,9 +33,14 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *st
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.Staff{}).Where("clinic_id = ?", clinicID)
+		// staffs テーブルに clinic_id は存在しない。
+		// staff_clinic_assignments を経由して clinic_id でフィルタ
+		q := r.db.WithContext(ctx).Model(&model.Staff{}).
+			Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id").
+			Where("staff_clinic_assignments.clinic_id = ?", clinicID).
+			Where("staffs.deleted_at IS NULL")
 		if role != nil {
-			q = q.Where("staff_role = ?", *role)
+			q = q.Where("staffs.staff_role = ?", *role)
 		}
 		return q
 	}
@@ -44,8 +49,10 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *st
 		return nil, 0, apperrors.Wrap(err, "count staffs")
 	}
 	if err := buildBase().
+		Preload("Account").
 		Offset((page - 1) * limit).Limit(limit).
-		Order("sort_order ASC, name ASC").
+		Order("staffs.sort_order ASC, staffs.name ASC").
+		Distinct("staffs.*").
 		Find(&staffs).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find staffs")
 	}
@@ -54,7 +61,7 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *st
 
 func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	var staff model.Staff
-	err := r.db.WithContext(ctx).First(&staff, "id = ?", id).Error
+	err := r.db.WithContext(ctx).Preload("Account").First(&staff, "id = ?", id).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", id))
 	}
@@ -81,9 +88,12 @@ func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error 
 }
 
 func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	// staffs テーブルに clinic_id は存在しない。
+	// staff_clinic_assignments を経由して clinic_id でフィルタ
 	result := r.db.WithContext(ctx).
 		Model(&model.Staff{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Where("staffs.id = ?", id).
+		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?)", clinicID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update staff")
@@ -95,7 +105,13 @@ func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, field
 }
 
 func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Staff{}, "id = ? AND clinic_id = ?", id, clinicID)
+	// staffs テーブルに clinic_id は存在しない。
+	// staff_clinic_assignments を経由して clinic_id でフィルタ
+	result := r.db.WithContext(ctx).
+		Model(&model.Staff{}).
+		Where("id = ?", id).
+		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?)", clinicID).
+		Update("deleted_at", gorm.Expr("now()"))
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete staff")
 	}
@@ -108,8 +124,11 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
+			// staffs テーブルに clinic_id は存在しない。
+			// staff_clinic_assignments を経由して clinic_id でフィルタ
 			result := tx.Model(&model.Staff{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Where("staffs.id = ?", id).
+				Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?)", clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
 				return apperrors.Wrap(result.Error, "reorder staff")

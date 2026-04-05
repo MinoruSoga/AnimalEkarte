@@ -96,7 +96,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
     staffRole: item?.staffRole ?? "veterinarian",
     licenseNumber: item?.licenseNumber ?? "",
     isActive: item?.isActive ?? true,
-    email: "",
+    email: item?.email ?? "",
     password: "",
   }));
   const [isDirty, setIsDirty] = useState(false);
@@ -189,27 +189,27 @@ const StaffSidePanel = memo(function StaffSidePanel({
         />
       </PropertyRow>
 
+      <PropertyRow label="メールアドレス">
+        <input
+          type="email"
+          className={MASTER_INPUT_CLASS}
+          value={f.email}
+          onChange={isNew ? handleEmailChange : undefined}
+          disabled={!isNew}
+          placeholder="例: staff@clinic.com"
+        />
+      </PropertyRow>
+
       {isNew ? (
-        <>
-          <PropertyRow label="メールアドレス">
-            <input
-              type="email"
-              className={MASTER_INPUT_CLASS}
-              value={f.email}
-              onChange={handleEmailChange}
-              placeholder="例: staff@clinic.com"
-            />
-          </PropertyRow>
-          <PropertyRow label="パスワード">
-            <input
-              type="password"
-              className={MASTER_INPUT_CLASS}
-              value={f.password}
-              onChange={handlePasswordChange}
-              placeholder="8文字以上"
-            />
-          </PropertyRow>
-        </>
+        <PropertyRow label="パスワード">
+          <input
+            type="password"
+            className={MASTER_INPUT_CLASS}
+            value={f.password}
+            onChange={handlePasswordChange}
+            placeholder="8文字以上"
+          />
+        </PropertyRow>
       ) : null}
     </MasterSidePanel>
   );

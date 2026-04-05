@@ -24,6 +24,7 @@ type staffResponse struct {
 	JobTitleID    *uint64                  `json:"job_title_id,omitempty"`
 	LicenseNumber string                   `json:"license_number"`
 	SortOrder     int                      `json:"sort_order"`
+	Email         string                   `json:"email"`
 	JobTitle      *jobTitleInStaffResponse `json:"job_title,omitempty"`
 	CreatedAt     time.Time                `json:"created_at"`
 	UpdatedAt     time.Time                `json:"updated_at"`
@@ -45,6 +46,10 @@ func toJobTitleInStaffResponse(jt *model.JobTitle) *jobTitleInStaffResponse {
 }
 
 func toStaffResponse(s *model.Staff) staffResponse {
+	email := ""
+	if s.Account != nil {
+		email = s.Account.Email
+	}
 	return staffResponse{
 		ID:            s.ID,
 		Name:          s.Name,
@@ -53,6 +58,7 @@ func toStaffResponse(s *model.Staff) staffResponse {
 		JobTitleID:    s.JobTitleID,
 		LicenseNumber: s.LicenseNumber,
 		SortOrder:     s.SortOrder,
+		Email:         email,
 		JobTitle:      toJobTitleInStaffResponse(s.JobTitle),
 		CreatedAt:     s.CreatedAt,
 		UpdatedAt:     s.UpdatedAt,

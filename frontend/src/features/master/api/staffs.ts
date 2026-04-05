@@ -53,11 +53,13 @@ export const STAFF_ROLE_LABELS: Record<StaffRoleValue, string> = {
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformStaff(data: ModelStaff) {
+function transformStaff(data: ModelStaff & { email?: string }) {
   // Staff 型には clinic_id は存在しない（clinic_assignments で管理される）
   // メインクリニック ID を clinic_assignments から取得
   const mainClinicAssignment = data.clinic_assignments?.find((a) => a.is_main);
   const clinicId = mainClinicAssignment?.clinic_id ?? null;
+  // API が直接 email フィールドを返す（Account Preload された場合）
+  const email = data.email ?? data.account?.email ?? "";
 
   return {
     id: String(data.id ?? 0),
@@ -68,6 +70,7 @@ function transformStaff(data: ModelStaff) {
     jobTitleId: data.job_title_id ? String(data.job_title_id) : null,
     licenseNumber: data.license_number,
     sortOrder: data.sort_order,
+    email,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
