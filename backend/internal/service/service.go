@@ -6,6 +6,8 @@ import (
 
 // Services はすべてのサービスを保持するDIコンテナ
 type Services struct {
+	Account                AccountService
+	StaffClinicAssignment  StaffClinicAssignmentService
 	AnimalSpecies          AnimalSpeciesService
 	Owner                  OwnerService
 	Pet                    PetService
@@ -57,6 +59,8 @@ type Services struct {
 // NewServices はリポジトリからすべてのサービスを初期化して返す
 func NewServices(repos *repository.Repositories) *Services {
 	return &Services{
+		Account:                NewAccountService(repos.Account),
+		StaffClinicAssignment:  NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
 		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
 		Owner:                  NewOwnerService(repos.Owner),
 		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),

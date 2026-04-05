@@ -107,7 +107,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// accounts テーブルからアカウントを取得
-	account, err := h.repos.Account.FindByEmail(ctx, input.Email)
+	account, err := h.svc.Account.FindByEmail(ctx, input.Email)
 	if err != nil {
 		if apperrors.IsNotFound(err) {
 			RespondError(c, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません"))
@@ -139,7 +139,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// clinic assignments を取得
-	assignments, err := h.repos.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "login: failed to find clinic assignments", slog.String("error", err.Error()))
 		RespondError(c, apperrors.Wrap(err, "所属クリニック情報の取得に失敗しました"))
@@ -289,7 +289,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	// account を取得
 	var account *model.Account
 	if staff.AccountID != nil {
-		account, err = h.repos.Account.GetByID(ctx, *staff.AccountID)
+		account, err = h.svc.Account.GetByID(ctx, *staff.AccountID)
 		if err != nil {
 			RespondError(c, err)
 			return
@@ -297,7 +297,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 
 	// clinic assignments を取得
-	assignments, err := h.repos.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
 	if err == nil {
 		staff.ClinicAssignments = assignments
 	}
