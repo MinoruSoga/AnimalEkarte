@@ -179,19 +179,22 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// Cookie 設定
+	// クロスオリジン（localhost:3003 ← localhost:8080）でも Cookie が送信されるように
+	// SameSite=None 使用時は Secure=true が必須（ブラウザ仕様）
+	// 開発環境 (HTTP) でも Secure=true を設定する必要がある。
+	// ブラウザによっては localhost での Secure なし Cookie は許容される場合もあるが、
+	// 安全のため常に Secure=true を設定する。
 	isProduction := h.cfg.GinMode == "release"
-	sameSite := http.SameSiteLaxMode
-	if isProduction {
-		sameSite = http.SameSiteNoneMode
-	}
+	sameSite := http.SameSiteNoneMode
 
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     accessTokenCookieName,
 		Value:    accessTokenStr,
 		Path:     "/",
+		Domain:   "localhost", // localhost でのクロスポート Cookie 共有に必須
 		MaxAge:   int(time.Until(expiresAt).Seconds()),
 		HttpOnly: true,
-		Secure:   isProduction,
+		Secure:   isProduction, // 本番のみ Secure=true、開発環境は false
 		SameSite: sameSite,
 	})
 

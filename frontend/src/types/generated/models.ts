@@ -5,10 +5,18 @@
 //////////
 // source: account.go
 
+/**
+ * UserType defines authorization levels in the system
+ */
+export type UserType = string;
+export const UserTypeSystemAdmin: UserType = "system_admin";
+export const UserTypeClinicAdmin: UserType = "clinic_admin";
+export const UserTypeStaff: UserType = "staff";
 export interface Account {
   id: number /* uint64 */;
   email: string;
   is_active: boolean;
+  user_type: string;
   created_at: string;
   updated_at: string;
   /**

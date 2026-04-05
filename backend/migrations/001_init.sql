@@ -164,12 +164,15 @@ CREATE TABLE accounts (
     email          text        NOT NULL UNIQUE,
     password_hash  text        NOT NULL,
     is_active      boolean     NOT NULL DEFAULT true,
+    user_type      user_type   NOT NULL DEFAULT 'staff',
     created_at     timestamptz NOT NULL DEFAULT now(),
     updated_at     timestamptz NOT NULL DEFAULT now(),
     deleted_at     timestamptz
 );
 
 CREATE INDEX idx_accounts_email ON accounts(email) WHERE deleted_at IS NULL;
+CREATE INDEX idx_accounts_user_type ON accounts(user_type);
+CREATE INDEX idx_accounts_active_user_type ON accounts(is_active, user_type) WHERE deleted_at IS NULL;
 
 -- ------------------------------------
 -- 5b. staffs（スタッフマスタ）
@@ -1628,21 +1631,21 @@ SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staff
 --   1→3, 2→NULL, 3→1, 4→8, 5→9, 6→10, 7→11, 8→12, 9→NULL, 10→13, 11→14
 -- account id will be auto-incremented; we'll use UPDATE to set staff.account_id
 -- -----------------------------------------------------------------------------
-INSERT INTO accounts (id, email, password_hash, is_active) VALUES
+INSERT INTO accounts (id, email, password_hash, is_active, user_type) VALUES
     -- 既存スタッフ
-    (1, 'admin@noavet.jp',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
-    (2, 'clinic1@noavet.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
-    (3, 'yamada@noavet.jp',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
+    (1, 'admin@noavet.jp',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'system_admin'),
+    (2, 'clinic1@noavet.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'clinic_admin'),
+    (3, 'yamada@noavet.jp',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
     -- デモアカウント（八王子院・frontend mock-data.ts 対応）
-    (4, 'admin@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
-    (5, 'vet@example.com',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
-    (6, 'nurse@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
-    (7, 'reception@example.com','$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
-    (8, 'trimmer@example.com',  '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
-    (9, 'system@example.com',   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
+    (4, 'admin@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'clinic_admin'),
+    (5, 'vet@example.com',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
+    (6, 'nurse@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
+    (7, 'reception@example.com','$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
+    (8, 'trimmer@example.com',  '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
+    (9, 'system@example.com',   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
     -- 管理者・執行グループ デモアカウント
-    (10, 'manager@example.com', '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true),
-    (11, 'exec@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true)
+    (10, 'manager@example.com', '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
+    (11, 'exec@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff')
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('accounts', 'id'), (SELECT MAX(id) FROM accounts));
