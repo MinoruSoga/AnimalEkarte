@@ -8,6 +8,7 @@ import (
 type Services struct {
 	Account                AccountService
 	StaffClinicAssignment  StaffClinicAssignmentService
+	Audit                  AuditService
 	AnimalSpecies          AnimalSpeciesService
 	Owner                  OwnerService
 	Pet                    PetService
@@ -61,6 +62,7 @@ func NewServices(repos *repository.Repositories) *Services {
 	return &Services{
 		Account:                NewAccountService(repos.Account),
 		StaffClinicAssignment:  NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
+		Audit:                  NewAuditService(repos.Audit),
 		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
 		Owner:                  NewOwnerService(repos.Owner),
 		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),

@@ -1647,8 +1647,15 @@ ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('accounts', 'id'), (SELECT MAX(id) FROM accounts));
 
+-- Add staff for account 2 (clinic1@noavet.jp)
+INSERT INTO staffs (id, account_id, name, is_active, staff_role, license_number, job_title_id, sort_order) VALUES
+    (15, 2, '院長補佐',       true, 'manager',      '',        5, 8)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
+
 -- Update staffs.account_id with corresponding accounts
--- Old mapping (account_id → staff_id): 1→3, 2→NULL, 3→1, 4→8, 5→9, 6→10, 7→11, 8→12, 9→NULL, 10→13, 11→14
+-- Old mapping (account_id → staff_id): 1→3, 2→15 (new), 3→1, 4→8, 5→9, 6→10, 7→11, 8→12, 9→NULL, 10→13, 11→14
 UPDATE staffs SET account_id = 1 WHERE id = 3;  -- account 1 → staff 3
 UPDATE staffs SET account_id = 3 WHERE id = 1;  -- account 3 → staff 1
 UPDATE staffs SET account_id = 4 WHERE id = 8;  -- account 4 → staff 8
@@ -1659,21 +1666,26 @@ UPDATE staffs SET account_id = 8 WHERE id = 12; -- account 8 → staff 12
 UPDATE staffs SET account_id = 10 WHERE id = 13;-- account 10 → staff 13
 UPDATE staffs SET account_id = 11 WHERE id = 14;-- account 11 → staff 14
 
+-- NOTE: account 2 has new staff 15 which will be assigned in staff_clinic_assignments below
+
 -- -----------------------------------------------------------------------------
--- 7. staff_clinic_assignments（スタッフ・クリニック割当: 7件）
+-- 7. staff_clinic_assignments（スタッフ・クリニック割当: 10件）
 -- Mapping from old user_clinic_memberships (user_id → staff_id)
 -- user_id 4→staff 8, 5→9, 6→10, 7→11, 8→12, 9→NULL, 10→13, 11→14
+-- New: account 1→staff 3, account 2→staff 15, account 3→staff 1 (all to clinic 3)
 -- Note: account 9 (system@example.com) has no staff, so skipped
--- Note: account 1,3 had no explicit clinic assignments in old system
 -- -----------------------------------------------------------------------------
 INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
+    (1,  3, true),  -- yamada@noavet.jp (account 3, staff 1)
+    (3,  3, true),  -- admin@noavet.jp (account 1, staff 3)
     (8,  3, true),  -- admin@example.com (account 4, staff 8)
     (9,  3, true),  -- vet@example.com (account 5, staff 9)
     (10, 3, true),  -- nurse@example.com (account 6, staff 10)
     (11, 3, true),  -- reception@example.com (account 7, staff 11)
     (12, 3, true),  -- trimmer@example.com (account 8, staff 12)
     (13, 3, true),  -- manager@example.com (account 10, staff 13)
-    (14, 3, true)   -- exec@example.com (account 11, staff 14)
+    (14, 3, true),  -- exec@example.com (account 11, staff 14)
+    (15, 3, true)   -- clinic1@noavet.jp (account 2, staff 15)
 ON CONFLICT DO NOTHING;
 
 -- Deleted: permission_groups, permission_group_rules, user_permission_groups
