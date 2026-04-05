@@ -111,4 +111,20 @@ func toJobTitleResponse(jt *model.JobTitle) jobTitleResponse {
 ## クローズ条件
 - ✅ job_title_response に description 追加・テスト確認
 - ✅ chief_complaint_response に description 追加・テスト確認
-- テスト環境での検証（ブラウザでデータ表示確認）
+- ✅ テスト環境での検証（ブラウザでデータ表示確認）
+
+## 検証完了（2026-04-06 深夜）
+
+### ブラウザテスト実施
+- ✅ **職種マスタ** (`/settings/job-title`)
+  - 説明列表示: OK
+  - 5件データ表示: 獣医師、動物看護師、トリマー、受付、管理者
+  - 説明未入力のため「-」表示: 正常
+
+- ✅ **質問カテゴリ** (`/settings/interview/chief-complaint`)
+  - 説明列表示: OK
+  - 6件データ表示: 食欲不振、嘔吐・下痢、皮膚・被毛異常、呼吸困難、排尿・排泄異常、外傷・骨折
+  - 説明未入力のため空白表示: 正常
+
+### 結論
+修正が完全に機能しています。API応答から説明フィールドが正しく返され、フロントエンドで正常にレンダリングされていることが確認されました。
