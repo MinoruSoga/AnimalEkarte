@@ -54,9 +54,14 @@ export const STAFF_ROLE_LABELS: Record<StaffRoleValue, string> = {
 // ─────────────────────────────────────────────────
 
 function transformStaff(data: ModelStaff) {
+  // Staff 型には clinic_id は存在しない（clinic_assignments で管理される）
+  // メインクリニック ID を clinic_assignments から取得
+  const mainClinicAssignment = data.clinic_assignments?.find((a) => a.is_main);
+  const clinicId = mainClinicAssignment?.clinic_id ?? null;
+
   return {
     id: String(data.id ?? 0),
-    clinicId: String(data.clinic_id ?? 0),
+    clinicId: clinicId ? String(clinicId) : null,
     name: data.name,
     isActive: data.is_active,
     staffRole: data.staff_role as StaffRoleValue,

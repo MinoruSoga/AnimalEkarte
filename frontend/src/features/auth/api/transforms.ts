@@ -47,7 +47,7 @@ export const backendMeResponseSchema = z.object({
   staff_role: z.string().nullable(),
   // job_title は後方互換のため残存（現在は staff_role を優先使用）
   job_title: z.string().nullable().optional(),
-  avatar_url: z.string().nullable(),
+  avatar_url: z.string().nullable().optional(),
   main_clinic_id: z.string(),
   // clinic は /me レスポンスのメイン医院詳細。未所属の場合は null
   clinic: meClinicInfoSchema.nullable().optional(),

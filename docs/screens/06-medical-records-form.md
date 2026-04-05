@@ -1,5 +1,8 @@
 # カルテ入力/編集 仕様書
 
+![カルテ入力画面](./images/06-medical-records-form.png)
+![カルテ詳細画面](./images/06-medical-records-detail.png)
+
 ## 概要
 - **画面の目的**: 9タブ構成の診療記録（電子カルテ）を作成・編集する
 - **URLパターン**:
