@@ -3,6 +3,34 @@
 // DO NOT EDIT manually — run `make codegen` to regenerate
 
 //////////
+// source: account.go
+
+export interface Account {
+  id: number /* uint64 */;
+  email: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  staff?: Staff;
+}
+export interface StaffClinicAssignment {
+  id: number /* uint64 */;
+  staff_id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  is_main: boolean;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  staff?: Staff;
+  clinic?: Clinic;
+}
+
+//////////
 // source: accounting.go
 
 export type TaxType = string;
@@ -322,14 +350,6 @@ export interface ChiefComplaintCategory {
 //////////
 // source: clinic.go
 
-export type UserType = string;
-export const UserTypeSystemAdmin: UserType = "system_admin";
-export const UserTypeClinicAdmin: UserType = "clinic_admin";
-export const UserTypeStaff: UserType = "staff";
-export type AccountStatus = string;
-export const AccountStatusActive: AccountStatus = "active";
-export const AccountStatusInactive: AccountStatus = "inactive";
-export const AccountStatusLocked: AccountStatus = "locked";
 export interface Clinic {
   id: number /* uint64 */;
   company_id: number /* uint64 */;
@@ -348,67 +368,6 @@ export interface Clinic {
   reduced_tax_rate: number /* float64 */;
   created_at: string;
   updated_at: string;
-}
-export interface UserAccount {
-  id: number /* uint64 */;
-  email: string;
-  display_name: string;
-  display_name_kana: string;
-  user_type: UserType;
-  job_title_id?: number /* uint64 */;
-  status: AccountStatus;
-  avatar_url: string;
-  staff_id?: number /* uint64 */;
-  created_at: string;
-  updated_at: string;
-  /**
-   * Relations
-   */
-  staff?: Staff;
-  job_title?: JobTitle;
-}
-export interface UserClinicMembership {
-  id: number /* uint64 */;
-  user_id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  is_main: boolean;
-  joined_at: string;
-}
-/**
- * PermissionGroup は権限グループ定義（company単位で管理）
- */
-export interface PermissionGroup {
-  id: number /* uint64 */;
-  company_id: number /* uint64 */;
-  name: string;
-  description: string;
-  color: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at?: string | null;
-  /**
-   * Relations
-   */
-  rules?: PermissionGroupRule[];
-}
-/**
- * PermissionGroupRule はグループ×ページ×CRUD権限
- */
-export interface PermissionGroupRule {
-  id: number /* uint64 */;
-  group_id: number /* uint64 */;
-  resource: Resource;
-  can_view: boolean;
-  can_create: boolean;
-  can_edit: boolean;
-  can_delete: boolean;
-}
-/**
- * UserPermissionGroup はユーザー→グループ紐付け
- */
-export interface UserPermissionGroup {
-  user_id: number /* uint64 */;
-  group_id: number /* uint64 */;
 }
 
 //////////
@@ -1316,7 +1275,7 @@ export const StaffRoleReception: StaffRole = "reception";
 export const StaffRoleManager: StaffRole = "manager";
 export interface Staff {
   id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
+  account_id?: number /* uint64 */;
   name: string;
   is_active: boolean;
   staff_role: StaffRole;
@@ -1328,7 +1287,9 @@ export interface Staff {
   /**
    * Relations
    */
+  account?: Account;
   job_title?: JobTitle;
+  clinic_assignments?: StaffClinicAssignment[];
 }
 export type ShiftType = string;
 export const ShiftTypeFull: ShiftType = "full";
