@@ -127,9 +127,10 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 	}
 
 	var estimateCount int64
+	// BUG-154: estimate_items に deleted_at カラムがないため条件を削除
 	if err := r.db.WithContext(ctx).
 		Model(&model.EstimateItem{}).
-		Where("merchandise_item_id = ? AND deleted_at IS NULL", merchandiseItemID).
+		Where("merchandise_item_id = ?", merchandiseItemID).
 		Count(&estimateCount).Error; err != nil {
 		return 0, apperrors.Wrap(err, "count estimate items by merchandise_item_id")
 	}

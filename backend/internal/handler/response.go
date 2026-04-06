@@ -113,18 +113,19 @@ func parseBindError(err error) string {
 }
 
 func formatValidationError(fe validator.FieldError) string {
-	// BUG-135: フィールド名を除去し、汎化メッセージを返す（内部構造の漏洩防止）
+	// BUG-155: json タグに近い snake_case フィールド名を返す（API 仕様として公開情報）
+	field := camelToSnake(fe.Field())
 	switch fe.Tag() {
 	case "required":
-		return "必須項目が入力されていません"
+		return fmt.Sprintf("%s は必須です", field)
 	case "min":
-		return fmt.Sprintf("%s 以上で入力してください", fe.Param())
+		return fmt.Sprintf("%s は %s 以上で入力してください", field, fe.Param())
 	case "max":
-		return fmt.Sprintf("%s 以下で入力してください", fe.Param())
+		return fmt.Sprintf("%s は %s 以下で入力してください", field, fe.Param())
 	case "oneof":
-		return fmt.Sprintf("次のいずれかで指定してください: %s", strings.ReplaceAll(fe.Param(), " ", ", "))
+		return fmt.Sprintf("%s は次のいずれかで指定してください: %s", field, strings.ReplaceAll(fe.Param(), " ", ", "))
 	default:
-		return "入力値が正しくありません"
+		return fmt.Sprintf("%s の値が正しくありません", field)
 	}
 }
 

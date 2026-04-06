@@ -30,6 +30,7 @@ import type {
   UpdateClinicRequest,
 } from "@/features/hospital-settings/api/clinics";
 import { ResourceHospitalSettings } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -140,6 +141,7 @@ const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none b
 
 export function ClinicMasterSettings() {
   const navigate = useNavigate();
+  const { canCreate } = usePermission(ResourceHospitalSettings);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Clinic | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -292,10 +294,12 @@ export function ClinicMasterSettings() {
             icon={<Building2 className={`${ICON.page} ${C.text}`} />}
             onBack={() => navigate(paths.settings.getHref())}
             headerAction={
-              <PrimaryButton onClick={handleCreate}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
+              canCreate ? (
+                <PrimaryButton onClick={handleCreate}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null
             }
             maxWidth="max-w-full"
           >
@@ -336,14 +340,16 @@ export function ClinicMasterSettings() {
                   </DataTableRow>
                 )}
               />
-              <button
-                type="button"
-                onClick={handleCreate}
-                className={`flex items-center gap-1.5 w-full px-3 py-2 text-sm ${C.text40} ${C.hoverText60} ${C.hoverBgLight} transition-colors rounded`}
-              >
-                <Plus className={`${ICON.xs}`} />
-                新しい医院を追加...
-              </button>
+              {canCreate ? (
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  className={`flex items-center gap-1.5 w-full px-3 py-2 text-sm ${C.text40} ${C.hoverText60} ${C.hoverBgLight} transition-colors rounded`}
+                >
+                  <Plus className={`${ICON.xs}`} />
+                  新しい医院を追加...
+                </button>
+              ) : null}
             </div>
           </PageLayout>
         </div>

@@ -95,11 +95,20 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+
+	// BUG-153: 現在のクリニックに自動割り当て
+	if asgErr := h.svc.StaffClinicAssignment.Create(ctx, &model.StaffClinicAssignment{
+		StaffID:  staff.ID,
+		ClinicID: clinicID,
+		IsMain:   true,
+	}); asgErr != nil {
+		RespondError(c, apperrors.Wrap(asgErr, "failed to assign staff to clinic"))
+		return
+	}
+
 	// Account を Preload して email を返すため再取得する
-	if accountID != nil {
-		if reloaded, reloadErr := h.repos.Staff.FindByID(ctx, staff.ID); reloadErr == nil {
-			staff = reloaded
-		}
+	if reloaded, reloadErr := h.repos.Staff.FindByID(ctx, staff.ID); reloadErr == nil {
+		staff = reloaded
 	}
 	c.JSON(http.StatusCreated, toStaffResponse(staff))
 }
