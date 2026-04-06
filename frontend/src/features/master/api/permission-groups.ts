@@ -74,22 +74,17 @@ const PERMISSION_GROUPS_QUERY_KEY = ["masters", "permission-groups"] as const;
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listPermissionGroups(): Promise<PermissionGroup[]> {
+async function listPermissionGroups(): Promise<PermissionGroup[]> {
   const { data } = await axios.get<ModelPermissionGroup[]>("/v1/masters/permission-groups");
   return data.map(transformPermissionGroup);
 }
 
-export async function getPermissionGroup(id: string): Promise<PermissionGroup> {
-  const { data } = await axios.get<ModelPermissionGroup>(`/v1/masters/permission-groups/${id}`);
-  return transformPermissionGroup(data);
-}
-
-export async function createPermissionGroup(req: CreatePermissionGroupRequest): Promise<PermissionGroup> {
+async function createPermissionGroup(req: CreatePermissionGroupRequest): Promise<PermissionGroup> {
   const { data } = await axios.post<ModelPermissionGroup>("/v1/masters/permission-groups", req);
   return transformPermissionGroup(data);
 }
 
-export async function updatePermissionGroup(
+async function updatePermissionGroup(
   id: string,
   req: UpdatePermissionGroupRequest,
 ): Promise<PermissionGroup> {
@@ -100,11 +95,11 @@ export async function updatePermissionGroup(
   return transformPermissionGroup(data);
 }
 
-export async function deletePermissionGroup(id: string): Promise<void> {
+async function deletePermissionGroup(id: string): Promise<void> {
   await axios.delete(`/v1/masters/permission-groups/${id}`);
 }
 
-export async function setPermissionGroupRules(
+async function setPermissionGroupRules(
   id: string,
   req: SetPermissionGroupRulesRequest,
 ): Promise<PermissionGroup> {
@@ -115,7 +110,7 @@ export async function setPermissionGroupRules(
   return transformPermissionGroup(data);
 }
 
-export async function reorderPermissionGroups(ids: string[]): Promise<void> {
+async function reorderPermissionGroups(ids: string[]): Promise<void> {
   await axios.patch("/v1/masters/permission-groups/reorder", {
     ids: ids.map((id) => parseInt(id, 10)),
   });
@@ -129,15 +124,6 @@ export function useGetPermissionGroups() {
   return useQuery({
     queryKey: PERMISSION_GROUPS_QUERY_KEY,
     queryFn: listPermissionGroups,
-    staleTime: QUERY_STALE_TIMES.STATIC,
-    gcTime: QUERY_GC_TIMES.LONG,
-  });
-}
-
-export function useGetPermissionGroup(id: string) {
-  return useQuery({
-    queryKey: [...PERMISSION_GROUPS_QUERY_KEY, id],
-    queryFn: () => getPermissionGroup(id),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });
