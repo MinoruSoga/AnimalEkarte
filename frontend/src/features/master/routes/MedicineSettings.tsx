@@ -45,6 +45,7 @@ import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSele
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import type { TaxType } from "@/types/generated/models";
 import { ResourceMasterMedical } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type { Medicine } from "@/types";
@@ -402,6 +403,7 @@ function isCategoryMedicine(m: Medicine | null): boolean {
 
 export function MedicineSettings() {
   const navigate = useNavigate();
+  const { canCreate } = usePermission(ResourceMasterMedical);
   const reduced = useReducedMotion();
   const panelDuration = reduced ? 0 : 0.2;
 
@@ -888,10 +890,12 @@ export function MedicineSettings() {
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
-              <PrimaryButton onClick={() => handleCreate()}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
+              canCreate ? (
+                <PrimaryButton onClick={() => handleCreate()}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null
             }
           >
             <div className="flex flex-col gap-4">

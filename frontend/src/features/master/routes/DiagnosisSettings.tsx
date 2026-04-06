@@ -45,6 +45,7 @@ import type {
   UpdateDiagnosisNameRequest,
 } from "@/types/diagnosis";
 import { ResourceMasterMedical } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // ─────────────────────────────────────────────────
 // Columns
@@ -470,6 +471,7 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: Diagn
 
 export function DiagnosisSettings() {
   const navigate = useNavigate();
+  const { canCreate } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "diagnosis_category";
 
@@ -599,13 +601,15 @@ export function DiagnosisSettings() {
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
-              <PrimaryButton onClick={() => {
-                if (activeTab === "diagnosis_category") catCrud.handleNew();
-                else nameCrud.handleNew();
-              }}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
+              canCreate ? (
+                <PrimaryButton onClick={() => {
+                  if (activeTab === "diagnosis_category") catCrud.handleNew();
+                  else nameCrud.handleNew();
+                }}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null
             }
           >
             <TabsPrimitive.Root
