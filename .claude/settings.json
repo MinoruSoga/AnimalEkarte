@@ -221,6 +221,17 @@
           }
         ],
         "description": "Warn when file exceeds 500/800 lines after edit (catches gradual growth)"
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-typecheck-ts.js",
+            "timeout": 35000
+          }
+        ],
+        "description": "TypeScript type check via Docker after editing .ts/.tsx files (non-blocking warning)"
       }
     ],
     "PreCompact": [

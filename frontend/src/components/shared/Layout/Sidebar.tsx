@@ -181,6 +181,9 @@ export function Sidebar() {
     ?? user?.clinic?.name
     ?? "";
 
+  // 所属医院が1つの場合は選択UIを無効化
+  const hasMultipleClinics = (user?.clinics.length ?? 0) > 1;
+
   // 切替先のクリニック名
   const pendingSwitchClinicName = pendingSwitchClinicId
     ? user?.clinics.find((c) => c.clinicId === pendingSwitchClinicId)?.clinicName ?? ""
@@ -219,37 +222,44 @@ export function Sidebar() {
       <div className={`h-[53px] flex items-center px-2.5 border-b ${C.borderDivider}`}>
         {!collapsed ? (
           <div className="flex items-center justify-between w-full">
-            <Popover open={clinicPopoverOpen} onOpenChange={setClinicPopoverOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className={`flex items-center gap-1 min-w-0 text-base font-semibold ${C.text} ${C.hoverBgLight} rounded-[3px] px-1.5 py-1 transition-colors outline-none`}
-                >
-                  <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
-                  <span className="truncate">{clinicName}</span>
-                  <ChevronDown className={`${ICON.xs} opacity-40 shrink-0`} />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-[200px] p-1">
-                {user?.clinics.map((c) => (
+            {hasMultipleClinics ? (
+              <Popover open={clinicPopoverOpen} onOpenChange={setClinicPopoverOpen}>
+                <PopoverTrigger asChild>
                   <button
-                    key={c.clinicId}
                     type="button"
-                    onClick={() => handleRequestSwitch(c.clinicId)}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-[3px] text-sm transition-colors flex items-center gap-2 ${
-                      c.clinicId === currentClinicId
-                        ? `font-medium ${C.text} ${C.bgBrand10}`
-                        : `${C.text65} ${C.hoverBgLight}`
-                    }`}
+                    className={`flex items-center gap-1 min-w-0 text-base font-semibold ${C.text} ${C.hoverBgLight} rounded-[3px] px-1.5 py-1 transition-colors outline-none`}
                   >
-                    <span className={`size-1.5 rounded-full shrink-0 ${
-                      c.clinicId === currentClinicId ? C.bgBrand : C.bgInactive
-                    }`} />
-                    {c.clinicName}
+                    <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
+                    <span className="truncate">{clinicName}</span>
+                    <ChevronDown className={`${ICON.xs} opacity-40 shrink-0`} />
                   </button>
-                ))}
-              </PopoverContent>
-            </Popover>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[200px] p-1">
+                  {user?.clinics.map((c) => (
+                    <button
+                      key={c.clinicId}
+                      type="button"
+                      onClick={() => handleRequestSwitch(c.clinicId)}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-[3px] text-sm transition-colors flex items-center gap-2 ${
+                        c.clinicId === currentClinicId
+                          ? `font-medium ${C.text} ${C.bgBrand10}`
+                          : `${C.text65} ${C.hoverBgLight}`
+                      }`}
+                    >
+                      <span className={`size-1.5 rounded-full shrink-0 ${
+                        c.clinicId === currentClinicId ? C.bgBrand : C.bgInactive
+                      }`} />
+                      {c.clinicName}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <div className={`flex items-center gap-1 min-w-0 text-base font-semibold px-1.5 py-1 ${C.text}`}>
+                <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
+                <span className="truncate">{clinicName}</span>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setCollapsed(true)}
