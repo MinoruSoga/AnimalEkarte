@@ -116,6 +116,10 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	if input.ScheduledDate.IsZero() {
 		return nil, apperrors.WrapInvalidInput("scheduled_date is required")
 	}
+	// BUG-142: 金額バリデーション
+	if input.TotalAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("金額は0以上で指定してください")
+	}
 	billing := &model.Billing{
 		ClinicID:          input.ClinicID,
 		MedicalRecordID:   input.MedicalRecordID,
@@ -141,6 +145,10 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 }
 
 func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error) {
+	// BUG-142: 金額バリデーション
+	if input.TotalAmount != nil && *input.TotalAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("金額は0以上で指定してください")
+	}
 	fields := buildBillingUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("no fields to update")
