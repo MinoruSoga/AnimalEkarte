@@ -223,6 +223,27 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+
+	// BUG-144: staff_id のクリニック所属チェック（Update時も）
+	if svcInput.DoctorID != nil {
+		assignments, asgErr := h.svc.StaffClinicAssignment.FindByStaffID(ctx, *svcInput.DoctorID)
+		if asgErr != nil {
+			RespondError(c, apperrors.Wrap(asgErr, "failed to verify staff assignment"))
+			return
+		}
+		assigned := false
+		for _, a := range assignments {
+			if a.ClinicID == clinicID {
+				assigned = true
+				break
+			}
+		}
+		if !assigned {
+			RespondError(c, apperrors.WrapInvalidInput("指定されたスタッフはこのクリニックに所属していません"))
+			return
+		}
+	}
+
 	reservation, err := h.svc.Reservation.Update(ctx, clinicID, id, &svcInput)
 	if err != nil {
 		RespondError(c, err)

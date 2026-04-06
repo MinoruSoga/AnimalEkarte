@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
@@ -51,6 +52,10 @@ func RespondError(c *gin.Context, err error) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrForbidden):
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+	case isPgError(err):
+		// BUG-138: FromGORM を経由しなかった PostgreSQL エラーをここでキャッチ
+		pgMsg := classifyPgError(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": pgMsg})
 	default:
 		slog.ErrorContext(c.Request.Context(), "internal server error",
 			slog.String("error", err.Error()),
@@ -58,6 +63,30 @@ func RespondError(c *gin.Context, err error) {
 			slog.String("method", c.Request.Method))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
+}
+
+// isPgError はエラーチェーンに pgconn.PgError が含まれるか判定する
+func isPgError(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr)
+}
+
+// classifyPgError は PostgreSQL エラーコードに基づいてユーザー向けメッセージを返す
+func classifyPgError(err error) string {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23503": // foreign_key_violation
+			return "参照先が存在しません"
+		case "23505": // unique_violation
+			return "既に登録されています"
+		case "22003": // numeric_value_out_of_range
+			return "数値が範囲外です"
+		case "22P02": // invalid_text_representation
+			return "入力値の形式が正しくありません"
+		}
+	}
+	return "入力値が正しくありません"
 }
 
 // parseBindError は validator.ValidationErrors を人間可読メッセージに変換する。
@@ -84,19 +113,18 @@ func parseBindError(err error) string {
 }
 
 func formatValidationError(fe validator.FieldError) string {
-	// BUG-135: Go 構造体フィールド名ではなく json タグに近い snake_case を使用
-	field := camelToSnake(fe.Field())
+	// BUG-135: フィールド名を除去し、汎化メッセージを返す（内部構造の漏洩防止）
 	switch fe.Tag() {
 	case "required":
-		return field + " は必須です"
+		return "必須項目が入力されていません"
 	case "min":
-		return fmt.Sprintf("%s は %s 以上で入力してください", field, fe.Param())
+		return fmt.Sprintf("%s 以上で入力してください", fe.Param())
 	case "max":
-		return fmt.Sprintf("%s は %s 以下で入力してください", field, fe.Param())
+		return fmt.Sprintf("%s 以下で入力してください", fe.Param())
 	case "oneof":
-		return fmt.Sprintf("%s は次のいずれかで指定してください: %s", field, strings.ReplaceAll(fe.Param(), " ", ", "))
+		return fmt.Sprintf("次のいずれかで指定してください: %s", strings.ReplaceAll(fe.Param(), " ", ", "))
 	default:
-		return fmt.Sprintf("%s の値が正しくありません", field)
+		return "入力値が正しくありません"
 	}
 }
 
@@ -202,7 +230,11 @@ func (h *Handler) RequirePermission(resource, action string) gin.HandlerFunc {
 // page: 1以上の整数, limit: 1〜100の整数
 func parsePagination(c *gin.Context) (page, limit int, err error) {
 	pageStr := c.DefaultQuery("page", "1")
-	limitStr := c.DefaultQuery("limit", "20")
+	// BUG-143: limit と per_page の両方をサポート（per_page は limit のエイリアス）
+	limitStr := c.DefaultQuery("limit", "")
+	if limitStr == "" {
+		limitStr = c.DefaultQuery("per_page", "20")
+	}
 
 	page, err = strconv.Atoi(pageStr)
 	if err != nil || page < 1 {

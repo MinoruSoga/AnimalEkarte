@@ -175,6 +175,8 @@ export function Dashboard() {
 
     const addClickHandlers = useMemo(() => {
         const handlers = new Map<string, (() => void) | undefined>();
+        // BUG-132: create 権限がない場合は「新規追加」ボタンを非表示
+        if (!canCreateReservation) return handlers;
         for (const column of filteredColumns) {
             handlers.set(
                 column.title,
@@ -182,7 +184,7 @@ export function Dashboard() {
             );
         }
         return handlers;
-    }, [filteredColumns, handleAddClick]);
+    }, [filteredColumns, handleAddClick, canCreateReservation]);
 
     const handleCardClick = useCallback((appointment: Appointment) => {
         setSelectedAppointment(appointment);
