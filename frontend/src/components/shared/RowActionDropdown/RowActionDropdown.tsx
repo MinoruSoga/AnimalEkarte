@@ -25,6 +25,7 @@ export function RowActionDropdown({ actions }: RowActionDropdownProps) {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="操作"
             className={`h-11 w-11 ${C.text60} ${C.hoverText}`}
             onClick={(e) => e.stopPropagation()}
           >
