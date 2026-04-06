@@ -22,4 +22,5 @@ export { useGetCompany } from "./api/company";
 export { useGetAllVaccinesMaster } from "./api/vaccines-master";
 export { useGetAllCheckupTypes } from "./api/checkup-types";
 export type { CheckupTypeItem } from "./api/checkup-types";
-export { useGetStaffs } from "./api/staffs";
+export { useGetStaffs, STAFF_ROLE_LABELS } from "./api/staffs";
+export type { StaffRoleValue } from "./api/staffs";
