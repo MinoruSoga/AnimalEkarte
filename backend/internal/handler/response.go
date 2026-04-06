@@ -84,18 +84,19 @@ func parseBindError(err error) string {
 }
 
 func formatValidationError(fe validator.FieldError) string {
+	// BUG-135: Go 構造体フィールド名ではなく json タグに近い snake_case を使用
 	field := camelToSnake(fe.Field())
 	switch fe.Tag() {
 	case "required":
-		return field + " is required"
+		return field + " は必須です"
 	case "min":
-		return fmt.Sprintf("%s must be at least %s", field, fe.Param())
+		return fmt.Sprintf("%s は %s 以上で入力してください", field, fe.Param())
 	case "max":
-		return fmt.Sprintf("%s must be at most %s", field, fe.Param())
+		return fmt.Sprintf("%s は %s 以下で入力してください", field, fe.Param())
 	case "oneof":
-		return fmt.Sprintf("%s must be one of: %s", field, strings.ReplaceAll(fe.Param(), " ", ", "))
+		return fmt.Sprintf("%s は次のいずれかで指定してください: %s", field, strings.ReplaceAll(fe.Param(), " ", ", "))
 	default:
-		return fmt.Sprintf("%s is invalid (%s)", field, fe.Tag())
+		return fmt.Sprintf("%s の値が正しくありません", field)
 	}
 }
 

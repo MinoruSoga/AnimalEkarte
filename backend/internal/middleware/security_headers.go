@@ -13,6 +13,9 @@ func SecurityHeaders(isProduction bool) gin.HandlerFunc {
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header("Content-Security-Policy", "default-src 'none'")
 		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+		// BUG-137: API レスポンスのキャッシュを禁止（個人データ保護）
+		c.Header("Cache-Control", "no-store, no-cache, must-revalidate")
+		c.Header("Pragma", "no-cache")
 		if isProduction {
 			// HSTS は HTTPS 環境のみ有効にする
 			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")

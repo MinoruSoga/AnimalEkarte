@@ -142,6 +142,13 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
+	// BUG-134: スタッフの有効性チェック（退職者・一時停止アカウント防止）
+	if !staff.IsActive {
+		slog.WarnContext(ctx, "login: inactive staff attempted login", slog.Uint64("staff_id", staff.ID))
+		RespondError(c, apperrors.WrapUnauthorized("このアカウントは無効です"))
+		return
+	}
+
 	// clinic assignments を取得
 	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
 	if err != nil {
