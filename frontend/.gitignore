@@ -13,4 +13,4 @@ coverage/
 
 # OS
 .DS_Store
-frontend/.env.local
+.env.local
