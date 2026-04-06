@@ -12,6 +12,7 @@ import { HospitalizationExpandedView } from "../components/HospitalizationExpand
 import { HospitalizationTabbedView } from "../components/HospitalizationTabbedView";
 import { useHospitalizationDetail } from "../hooks/use-hospitalization-detail";
 import { paths } from "@/config/paths";
+import { ResourceHospitalization } from "@/types/generated/models";
 
 export function HospitalizationDetail() {
     const { id } = useParams();
@@ -47,6 +48,7 @@ export function HospitalizationDetail() {
         <PageLayout
             title="入院詳細・カルテ"
             onBack={() => navigate(paths.hospitalization.getHref())}
+            resource={ResourceHospitalization}
             headerAction={
                 <HospitalizationDetailActions
                     hospitalization={hospitalization}

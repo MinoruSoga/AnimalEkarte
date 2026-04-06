@@ -39,6 +39,7 @@ import { useAuth, usePermission } from "@/features/auth";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
+import { ResourceMedicalRecords } from "@/types/generated/models";
 
 const VISIT_TYPE_OPTIONS = ["初診", "再診", "緊急", "往診"] as const;
 
@@ -265,6 +266,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     <PageLayout
       title={recordId ? "カルテ編集" : "カルテ入力"}
       onBack={handleBack}
+      resource={ResourceMedicalRecords}
       maxWidth="max-w-[1440px]"
       scrollContainerRef={scrollContainerRef}
     >

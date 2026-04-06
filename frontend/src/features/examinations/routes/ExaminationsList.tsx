@@ -38,6 +38,7 @@ import type {
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
 import type { ExaminationRecord } from "@/types";
+import { ResourceExaminations } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（検査種別は動的オプションのためコンポーネント内で構築）
 const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
@@ -241,6 +242,7 @@ export function ExaminationsList() {
   return (
     <PageLayout
       title="検査管理"
+      resource={ResourceExaminations}
       icon={<TestTube className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">

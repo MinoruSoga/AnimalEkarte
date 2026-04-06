@@ -3,6 +3,7 @@ import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
+import { ResourceMasterTrimming } from "@/types/generated/models";
 
 // External
 import { Plus, Scissors } from "lucide-react";
@@ -631,6 +632,7 @@ export function TrimmingSettings() {
           <PageLayout
             title="トリミングマスタ"
             icon={<Scissors className={`${ICON.page} ${C.text}`} />}
+            resource={ResourceMasterTrimming}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={

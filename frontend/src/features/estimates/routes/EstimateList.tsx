@@ -27,6 +27,7 @@ import type {
   ActiveSort,
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+import { ResourceEstimates } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的定義はモジュール定数に巻き上げ
 const FILTER_PROPERTIES: FilterProperty[] = [
@@ -235,6 +236,7 @@ export function EstimateList() {
   return (
     <PageLayout
       title="見積書管理"
+      resource={ResourceEstimates}
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (

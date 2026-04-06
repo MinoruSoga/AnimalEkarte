@@ -26,6 +26,7 @@ import { HospitalizationCostSummary } from "../components/HospitalizationCostSum
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { ResourceHospitalization } from "@/types/generated/models";
 
 export function HospitalizationForm() {
   const navigate = useNavigate();
@@ -138,6 +139,7 @@ export function HospitalizationForm() {
       title={hospitalizationId ? "入院編集" : "入院登録"}
       onBack={handleBack}
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceHospitalization}
       maxWidth="max-w-[1400px]"
       headerAction={
         <div className="flex gap-2">

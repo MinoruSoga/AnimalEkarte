@@ -29,6 +29,7 @@ import type {
   CreateClinicRequest,
   UpdateClinicRequest,
 } from "@/features/hospital-settings/api/clinics";
+import { ResourceHospitalSettings } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -287,6 +288,7 @@ export function ClinicMasterSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="医院マスタ"
+            resource={ResourceHospitalSettings}
             icon={<Building2 className={`${ICON.page} ${C.text}`} />}
             onBack={() => navigate(paths.settings.getHref())}
             headerAction={

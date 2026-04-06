@@ -51,6 +51,7 @@ import type {
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+import { ResourceOwners } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的ソートプロパティ定義
 const OWNER_SORT_PROPERTIES: SortProperty[] = [
@@ -457,6 +458,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   return (
     <PageLayout
       title="飼主・ペット一覧"
+      resource={ResourceOwners}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={handleCreate}>

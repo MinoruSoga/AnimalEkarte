@@ -22,6 +22,7 @@ import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useGetEstimate } from '../api/get-estimate';
 import { useEstimateForm } from '../hooks/use-estimate-form';
 import type { EstimateStatus } from '../types';
+import { ResourceEstimates } from "@/types/generated/models";
 
 // rendering-hoist-jsx: ステータス選択肢は静的なのでモジュール定数に巻き上げ
 const STATUS_OPTIONS: { value: EstimateStatus; label: string }[] = [
@@ -286,6 +287,7 @@ function EstimateFormContent({ id }: { id?: string }) {
     <form action={formAction}>
     <PageLayout
       title={isEdit ? '見積書編集' : '新規見積書作成'}
+      resource={ResourceEstimates}
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex gap-2">

@@ -41,6 +41,7 @@ import type {
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
 import type { MedicalRecordFilters } from "../api/get-medical-records";
+import { ResourceMedicalRecords } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（担当医・種は動的オプションのためコンポーネント内で構築）
 const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
@@ -199,6 +200,7 @@ export function MedicalRecords() {
     <PageLayout
       title="カルテ管理"
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMedicalRecords}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={() => handleNavigateToForm()}>

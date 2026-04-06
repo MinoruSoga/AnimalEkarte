@@ -31,6 +31,7 @@ import { paths } from "@/config/paths";
 import { useTrimmingForm } from "../hooks/use-trimming-form";
 import type { TrimmingFormData } from "@/types/trimming";
 import { useGetTrimmingsByPetId } from "../api/get-trimming";
+import { ResourceTrimming } from "@/types/generated/models";
 
 // bundle-dynamic-imports: 重いモーダルは lazy() + Suspense で遅延ロード
 const MasterSelectModal = lazy(() =>
@@ -535,6 +536,7 @@ export function TrimmingForm() {
       title={mode === "new" ? "トリミング登録" : "トリミング編集"}
       onBack={handleBack}
       icon={<Scissors className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceTrimming}
       maxWidth="max-w-[1400px]"
       headerAction={
         <div className="flex gap-2">

@@ -29,6 +29,7 @@ import type { SortOrder } from "@/types";
 // Relative
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
 import { usePermission } from "@/features/auth";
+import { ResourceVaccinations } from "@/types/generated/models";
 
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
@@ -143,6 +144,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
     <form action={formAction}>
       <PageLayout
         title={isEdit ? "予防接種詳細・編集" : "新規予防接種登録"}
+        resource={ResourceVaccinations}
         onBack={handleBack}
         maxWidth="max-w-[1200px]"
         headerAction={

@@ -9,6 +9,7 @@ import { EstimateStatusBadge } from '../components/EstimateStatusBadge/EstimateS
 import { EstimateLineItems } from '../components/EstimateLineItems/EstimateLineItems';
 import { useGetEstimate } from '../api/get-estimate';
 import { useDeleteEstimate } from '../api/delete-estimate';
+import { ResourceEstimates } from "@/types/generated/models";
 
 export function EstimateDetail() {
   const { id } = useParams<{ id: string }>();
@@ -39,6 +40,7 @@ export function EstimateDetail() {
   return (
     <PageLayout
       title={`見積書 ${estimate.estimateNo}`}
+      resource={ResourceEstimates}
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex gap-2">

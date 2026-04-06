@@ -29,6 +29,7 @@ import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/features/auth";
 import type { ExaminationRecord } from "@/types";
+import { ResourceExaminations } from "@/types/generated/models";
 
 // rendering-hoist-jsx: ステータス選択肢は静的なのでモジュール定数に巻き上げ
 const EXAM_STATUS_ITEMS = (
@@ -335,6 +336,7 @@ export function ExaminationForm() {
   return (
     <PageLayout
       title={isEdit ? "検査詳細・編集" : "新規検査登録"}
+      resource={ResourceExaminations}
       onBack={handleBack}
       maxWidth="max-w-[1200px]"
       align="left"

@@ -43,6 +43,7 @@ import { paths } from "@/config/paths";
 import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
 import type { TrimmingFilters } from "../api/get-trimmings";
 import { usePermission } from "@/features/auth";
+import { ResourceTrimming } from "@/types/generated/models";
 
 // rerender-memo + js-cache-function-results: renderRow インライン closure を memo コンポーネントに抽出
 interface TrimmingTableRowProps {
@@ -335,6 +336,7 @@ export function TrimmingList() {
     <PageLayout
       title="トリミング管理"
       icon={<Scissors className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceTrimming}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={handleNew}>

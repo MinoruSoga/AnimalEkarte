@@ -49,6 +49,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 // Types
 import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
 import type { TaxType } from "@/types/generated/models";
+import { ResourceAccounting } from "@/types/generated/models";
 
 // ── 静的定数（rendering-hoist-jsx）──────────────────────────
 
@@ -1039,6 +1040,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
       <PageLayout
         className="print:hidden"
         title="会計精算"
+        resource={ResourceAccounting}
         description={`受付No: ${accounting.id} | ${accounting.ownerName}様 - ${accounting.petName}ちゃん`}
         onBack={() => navigate(paths.accounting.getHref())}
         headerAction={

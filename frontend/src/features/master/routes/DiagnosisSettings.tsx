@@ -44,6 +44,7 @@ import type {
   CreateDiagnosisNameRequest,
   UpdateDiagnosisNameRequest,
 } from "@/types/diagnosis";
+import { ResourceMasterMedical } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Columns
@@ -594,6 +595,7 @@ export function DiagnosisSettings() {
           <PageLayout
             title="診断病名マスタ"
             icon={<ClipboardList className={`${ICON.page} ${C.text}`} />}
+            resource={ResourceMasterMedical}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={

@@ -39,6 +39,7 @@ const PetEditModal = lazy(() =>
 import { MEMBERSHIP_TYPE_VALUES } from "../types";
 import type { MembershipType } from "../types";
 import type { OwnerLoaderData } from "../loaders";
+import { ResourceOwners } from "@/types/generated/models";
 
 // rerender-memo: 会員区分ボタンを memo 化して ownerData の他フィールド変更による
 // 不要な再レンダリングと inline onClick 生成を排除する
@@ -566,6 +567,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
       <PageLayout
         title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
         onBack={handleBack}
+        resource={ResourceOwners}
         maxWidth="max-w-[1400px]"
         headerAction={
           canEdit ? (

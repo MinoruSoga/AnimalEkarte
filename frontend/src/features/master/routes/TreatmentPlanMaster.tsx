@@ -53,6 +53,7 @@ import { useGetAllCheckupTypes, useCreateCheckupType, useUpdateCheckupType, useD
 // Types
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type { TaxType } from "@/types/generated/models";
+import { ResourceMasterMedical } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -730,6 +731,7 @@ export function TreatmentPlanMaster() {
           <PageLayout
             title="治療プランマスタ"
             icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
+            resource={ResourceMasterMedical}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={

@@ -44,6 +44,7 @@ import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medic
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import type { TaxType } from "@/types/generated/models";
+import { ResourceMasterMedical } from "@/types/generated/models";
 
 // Types
 import type { Medicine } from "@/types";
@@ -883,6 +884,7 @@ export function MedicineSettings() {
           <PageLayout
             title="薬剤マスタ"
             icon={<Pill className={`${ICON.page} ${C.text}`} />}
+            resource={ResourceMasterMedical}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={

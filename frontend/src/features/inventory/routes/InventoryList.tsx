@@ -40,6 +40,7 @@ import { usePermission } from "@/features/auth";
 
 // Types
 import type { InventoryItem } from "@/types";
+import { ResourceInventory } from "@/types/generated/models";
 
 type CategoryFilter = InventoryItem["category"] | "all";
 type StatusFilter = InventoryItem["status"] | "all";
@@ -238,6 +239,7 @@ export function InventoryList() {
   return (
     <PageLayout
       title="在庫管理"
+      resource={ResourceInventory}
       icon={<Package className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">

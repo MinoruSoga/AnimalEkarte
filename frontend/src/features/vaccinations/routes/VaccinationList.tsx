@@ -38,6 +38,7 @@ import type {
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
+import { ResourceVaccinations } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（担当医は動的オプションのためコンポーネント内で構築）
 const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
@@ -220,6 +221,7 @@ export function VaccinationList() {
     <>
     <PageLayout
       title="予防接種管理"
+      resource={ResourceVaccinations}
       icon={<Syringe className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">

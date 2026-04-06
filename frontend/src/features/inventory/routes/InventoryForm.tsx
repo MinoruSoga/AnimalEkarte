@@ -25,6 +25,7 @@ import { usePermission } from "@/features/auth";
 
 // Types
 import type { InventoryItem } from "@/types";
+import { ResourceInventory } from "@/types/generated/models";
 
 const CATEGORY_OPTIONS: { value: InventoryItem["category"]; label: string }[] =
   [
@@ -318,6 +319,7 @@ export function InventoryForm() {
       <PageLayout
         title="在庫編集"
         icon={<Package className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceInventory}
         maxWidth="max-w-3xl"
       >
         <div className={`text-sm ${C.text60}`}>読み込み中...</div>
@@ -328,6 +330,7 @@ export function InventoryForm() {
   return (
     <PageLayout
       title={isEdit ? "在庫編集" : "在庫登録"}
+      resource={ResourceInventory}
       icon={<Package className={`${ICON.page} ${C.text}`} />}
       onBack={handleBack}
       headerAction={

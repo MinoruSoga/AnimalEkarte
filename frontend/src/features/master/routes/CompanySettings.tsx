@@ -13,6 +13,7 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useGetCompany, useUpdateCompany } from "@/features/master/api/company";
 import type { UpdateCompanyRequest } from "@/features/master/api/company";
+import { ResourceHospitalSettings } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -139,6 +140,7 @@ export function CompanySettings() {
         <PageLayout
           title="法人情報"
           icon={<Building2 className={`${ICON.page} ${C.text}`} />}
+          resource={ResourceHospitalSettings}
           onBack={() => navigate(paths.settings.getHref())}
           headerAction={
             isLoading ? null : (

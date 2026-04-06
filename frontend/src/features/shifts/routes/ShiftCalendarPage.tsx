@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { ResourceShifts } from "@/types/generated/models";
 import { useGetShifts } from "../api/get-shifts";
 import { useStaffsForShift } from "../api/get-staffs";
 import { ShiftCalendar as ShiftCalendarGrid } from "../components/ShiftCalendar/ShiftCalendar";
@@ -48,7 +49,7 @@ export function ShiftCalendarPage() {
   const staffs = staffsQuery.data ?? [];
 
   return (
-    <PageLayout title="シフト管理" maxWidth="max-w-full">
+    <PageLayout title="シフト管理" resource={ResourceShifts} maxWidth="max-w-full">
       {shiftsQuery.isError ? (
         <div className="flex items-center justify-center h-64 text-sm text-red-500">
           シフトデータの取得に失敗しました

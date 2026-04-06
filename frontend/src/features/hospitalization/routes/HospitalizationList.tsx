@@ -34,6 +34,7 @@ import type {
   ActiveSort,
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+import { ResourceHospitalization } from "@/types/generated/models";
 
 type SortKey = "startDate" | "ownerName" | "petName" | "species" | "status";
 
@@ -224,6 +225,7 @@ export function HospitalizationList() {
   return (
     <PageLayout
       title="入院・ホテル管理"
+      resource={ResourceHospitalization}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={() => handleNavigateToForm()}>

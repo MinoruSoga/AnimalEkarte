@@ -23,6 +23,7 @@ import { useGetCheckups } from "../api/get-checkups";
 
 // Types
 import type { FilterProperty, ActiveFilter, SortProperty } from "@/components/shared/NotionFilter/types";
+import { ResourceCheckups } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的定数をモジュールスコープに
 const FILTER_PROPERTIES: FilterProperty[] = [
@@ -170,6 +171,7 @@ export function CheckupsList() {
   return (
     <PageLayout
       title="定期健診"
+      resource={ResourceCheckups}
       icon={<ClipboardCheck className={`${ICON.page} ${C.text}`} />}
       maxWidth="max-w-full"
     >

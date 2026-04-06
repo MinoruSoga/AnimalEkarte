@@ -41,6 +41,7 @@ import type {
   ActiveFilter,
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
+import { ResourceAccounting } from "@/types/generated/models";
 
 // ── 静的定数（rendering-hoist-jsx）──────────────────────────
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -352,6 +353,7 @@ export function AccountingList() {
   return (
     <PageLayout
       title="会計管理"
+      resource={ResourceAccounting}
       icon={<CreditCard className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
