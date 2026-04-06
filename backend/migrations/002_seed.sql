@@ -133,7 +133,12 @@ UPDATE staffs SET account_id = 11 WHERE id = 14;-- account 11 → staff 14
 -- -----------------------------------------------------------------------------
 INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
     (1,  3, true),  -- yamada@noavet.jp (account 3, staff 1)
+    (2,  3, true),  -- 高橋 健一（アカウント未紐付けスタッフ）
     (3,  3, true),  -- admin@noavet.jp (account 1, staff 3)
+    (4,  3, true),  -- 佐藤 花子（アカウント未紐付けスタッフ）
+    (5,  3, true),  -- 伊藤 さくら（アカウント未紐付けスタッフ）
+    (6,  3, true),  -- 木村 健太（アカウント未紐付けスタッフ）
+    (7,  3, true),  -- 田中 美咲（アカウント未紐付けスタッフ）
     (8,  3, true),  -- admin@example.com (account 4, staff 8)
     (9,  3, true),  -- vet@example.com (account 5, staff 9)
     (10, 3, true),  -- nurse@example.com (account 6, staff 10)
