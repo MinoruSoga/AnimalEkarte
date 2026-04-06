@@ -17,8 +17,18 @@ const (
 	ResourceInventory        Resource = "inventory"
 	ResourceEstimates        Resource = "estimates"
 	ResourceShifts           Resource = "shifts"
-	ResourceMaster           Resource = "master"
 	ResourceHospitalSettings Resource = "hospital-settings"
+
+	// マスタ設定: 個別リソース
+	ResourceMasterAnimalSpecies Resource = "master-animal-species"
+	ResourceMasterMedical       Resource = "master-medical"
+	ResourceMasterServiceType   Resource = "master-service-type"
+	ResourceMasterHospitalization Resource = "master-hospitalization"
+	ResourceMasterTrimming      Resource = "master-trimming"
+	ResourceMasterPermission    Resource = "master-permission"
+	ResourceMasterStaff         Resource = "master-staff"
+	ResourceMasterInsurance     Resource = "master-insurance"
+	ResourceMasterMerchandise   Resource = "master-merchandise"
 )
 
 // AllResources は全リソース一覧（system_admin/clinic_admin 全権限バイパス用）
@@ -36,6 +46,14 @@ var AllResources = []Resource{
 	ResourceInventory,
 	ResourceEstimates,
 	ResourceShifts,
-	ResourceMaster,
 	ResourceHospitalSettings,
+	ResourceMasterAnimalSpecies,
+	ResourceMasterMedical,
+	ResourceMasterServiceType,
+	ResourceMasterHospitalization,
+	ResourceMasterTrimming,
+	ResourceMasterPermission,
+	ResourceMasterStaff,
+	ResourceMasterInsurance,
+	ResourceMasterMerchandise,
 }

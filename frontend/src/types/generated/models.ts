@@ -1097,8 +1097,19 @@ export const ResourceCheckups: Resource = "checkups";
 export const ResourceInventory: Resource = "inventory";
 export const ResourceEstimates: Resource = "estimates";
 export const ResourceShifts: Resource = "shifts";
-export const ResourceMaster: Resource = "master";
 export const ResourceHospitalSettings: Resource = "hospital-settings";
+/**
+ * マスタ設定: 個別リソース
+ */
+export const ResourceMasterAnimalSpecies: Resource = "master-animal-species";
+export const ResourceMasterMedical: Resource = "master-medical";
+export const ResourceMasterServiceType: Resource = "master-service-type";
+export const ResourceMasterHospitalization: Resource = "master-hospitalization";
+export const ResourceMasterTrimming: Resource = "master-trimming";
+export const ResourceMasterPermission: Resource = "master-permission";
+export const ResourceMasterStaff: Resource = "master-staff";
+export const ResourceMasterInsurance: Resource = "master-insurance";
+export const ResourceMasterMerchandise: Resource = "master-merchandise";
 
 //////////
 // source: permission_group.go

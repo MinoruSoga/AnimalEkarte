@@ -1,5 +1,5 @@
 import { memo, useState, useMemo, useCallback } from "react";
-import { UserRound, Shield } from "lucide-react";
+import { UserRound, Shield, Building2 } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,12 +22,17 @@ import {
   useDeleteStaff,
   useGetStaffPermissionGroups,
   useSetStaffPermissionGroups,
+  useGetStaffClinics,
+  useSetStaffClinics,
+  useGetClinicsList,
+  useGetAllStaffPermissionGroupMap,
   STAFF_ROLE_LABELS,
 } from "@/features/master/api/staffs";
 import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
 import { useGetPermissionGroups } from "@/features/master/api/permission-groups";
 import type { PermissionGroup } from "@/features/master/api/permission-groups";
+import type { ClinicSummary } from "@/features/master/api/staffs";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -97,6 +102,10 @@ interface StaffSidePanelProps {
   allGroups: PermissionGroup[];
   /** Called when groups should be saved for this staff */
   onSaveGroups: (staffId: string, groupIds: string[]) => void;
+  /** All clinics available for assignment */
+  allClinics: ClinicSummary[];
+  /** Called when clinics should be saved for this staff */
+  onSaveClinics: (staffId: string, clinicIds: string[]) => void;
 }
 
 const StaffSidePanel = memo(function StaffSidePanel({
@@ -106,6 +115,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
   onDeleteRequest,
   allGroups,
   onSaveGroups,
+  allClinics,
+  onSaveClinics,
 }: StaffSidePanelProps) {
   const isNew = item === null;
   const staffId = item?.id ?? null;
@@ -123,7 +134,6 @@ const StaffSidePanel = memo(function StaffSidePanel({
 
   // ── Permission groups state ──────────────────────
   const { data: serverGroupIds } = useGetStaffPermissionGroups(staffId);
-  // null = ユーザーがまだ編集していない（サーバーデータを使用）
   const [userEditedGroupIds, setUserEditedGroupIds] = useState<string[] | null>(null);
 
   const groupIds = useMemo(
@@ -131,7 +141,27 @@ const StaffSidePanel = memo(function StaffSidePanel({
     [userEditedGroupIds, serverGroupIds],
   );
 
+  // ── Clinic assignments state ───────────────────
+  const { data: serverClinicIds } = useGetStaffClinics(staffId);
+  const [userEditedClinicIds, setUserEditedClinicIds] = useState<string[] | null>(null);
+
+  const clinicIds = useMemo(
+    () => userEditedClinicIds ?? serverClinicIds ?? [],
+    [userEditedClinicIds, serverClinicIds],
+  );
+
   // ── Handlers ─────────────────────────────────────
+  const handleClinicToggle = useCallback(
+    (clinicId: string, checked: boolean) => {
+      setUserEditedClinicIds((prev) => {
+        const current = prev ?? serverClinicIds ?? [];
+        return checked ? [...current, clinicId] : current.filter((id) => id !== clinicId);
+      });
+      setIsDirty(true);
+    },
+    [serverClinicIds],
+  );
+
   const handleGroupToggle = useCallback(
     (groupId: string, checked: boolean) => {
       setUserEditedGroupIds((prev) => {
@@ -152,9 +182,10 @@ const StaffSidePanel = memo(function StaffSidePanel({
     onSave(f);
     if (!isNew && staffId) {
       onSaveGroups(staffId, groupIds);
+      onSaveClinics(staffId, clinicIds);
     }
     setIsDirty(false);
-  }, [f, isNew, staffId, groupIds, onSave, onSaveGroups]);
+  }, [f, isNew, staffId, groupIds, clinicIds, onSave, onSaveGroups, onSaveClinics]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -255,6 +286,41 @@ const StaffSidePanel = memo(function StaffSidePanel({
         </>
       ) : null}
 
+      {/* ── Clinic assignments ─────────────────────── */}
+      <div className="mt-4 border-t pt-4">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Building2 className={`${ICON.xs} text-muted-foreground`} />
+          <p className="text-xs font-medium text-muted-foreground">所属医院</p>
+        </div>
+
+        {isNew ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            スタッフ登録後に所属医院を設定できます
+          </p>
+        ) : allClinics.length === 0 ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            医院が登録されていません
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            {allClinics.map((clinic) => (
+              <label
+                key={clinic.id}
+                className="flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer hover:bg-muted/40 transition-colors"
+              >
+                <Checkbox
+                  checked={clinicIds.includes(clinic.id)}
+                  onCheckedChange={(checked) =>
+                    handleClinicToggle(clinic.id, checked === true)
+                  }
+                />
+                <span className="text-sm">{clinic.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* ── Permission groups ─────────────────────── */}
       <div className="mt-4 border-t pt-4">
         <div className="flex items-center gap-1.5 mb-2">
@@ -309,10 +375,29 @@ export function StaffSettings() {
 
   // Permission groups — shown as checkboxes in the panel
   const { data: allGroupsData } = useGetPermissionGroups();
-  const allGroups = allGroupsData ?? [];
+  const allGroups = useMemo(() => allGroupsData ?? [], [allGroupsData]);
+
+  // Clinics — shown as checkboxes in the panel
+  const { data: allClinicsData } = useGetClinicsList();
+  const allClinics = useMemo(() => allClinicsData ?? [], [allClinicsData]);
 
   // Group assignment mutation
   const setGroupsMutation = useSetStaffPermissionGroups();
+  const setClinicsMutation = useSetStaffClinics();
+
+  // スタッフ全員の権限グループIDマップ（テーブル表示用）
+  const staffIds = useMemo(() => (data ?? []).map((s) => s.id), [data]);
+  const { data: staffGroupMap } = useGetAllStaffPermissionGroupMap(staffIds);
+
+  // staffId → PermissionGroup[] のルックアップ
+  const groupsByStaffId = useMemo(() => {
+    const map = new Map<string, typeof allGroups>();
+    if (!staffGroupMap) return map;
+    for (const [staffId, groupIds] of staffGroupMap.entries()) {
+      map.set(staffId, allGroups.filter((g) => groupIds.includes(g.id)));
+    }
+    return map;
+  }, [staffGroupMap, allGroups]);
 
   const crud = useMasterCRUD<Staff>({
     data,
@@ -371,6 +456,13 @@ export function StaffSettings() {
     [setGroupsMutation],
   );
 
+  const handleSaveClinics = useCallback(
+    (staffId: string, clinicIds: string[]) => {
+      setClinicsMutation.mutate({ staffId, clinicIds });
+    },
+    [setClinicsMutation],
+  );
+
   return (
     <MasterCRUDPage
       title="スタッフマスタ"
@@ -382,21 +474,52 @@ export function StaffSettings() {
       handleSave={handleSave}
       columns={COLUMNS}
       filterProperties={STAFF_FILTER_PROPERTIES}
-      renderRow={(item, onEdit) => (
-        <DataTableRow key={item.id} onClick={() => onEdit(item)}>
-          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-          <TableCell className={`text-base ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
-          <TableCell>
-            <span className={`text-sm ${C.text40}`}>—</span>
-          </TableCell>
-          <TableCell className="text-center">
-            <NotionStatusPill isActive={item.isActive} />
-          </TableCell>
-          <TableCell className="p-0 text-right">
-            <RowActionButton onClick={() => onEdit(item)} />
-          </TableCell>
-        </DataTableRow>
-      )}
+      renderRow={(item, onEdit) => {
+        const groups = groupsByStaffId.get(item.id) ?? [];
+        const visibleGroups = groups.slice(0, 2);
+        const extraCount = groups.length - visibleGroups.length;
+        return (
+          <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+            <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+            <TableCell className={`text-base ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
+            <TableCell>
+              <div className="flex flex-wrap items-center gap-1">
+                {visibleGroups.length === 0 ? (
+                  <span className={`text-sm ${C.text40}`}>—</span>
+                ) : (
+                  <>
+                    {visibleGroups.map((g) => (
+                      <span
+                        key={g.id}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[3px] text-xs"
+                        style={{
+                          backgroundColor: g.color ? `${g.color}18` : PALETTE.bgSkeleton,
+                          color: g.color ?? PALETTE.primary,
+                        }}
+                      >
+                        <span
+                          className="size-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: g.color ?? PALETTE.defaultGray }}
+                        />
+                        {g.name}
+                      </span>
+                    ))}
+                    {extraCount > 0 ? (
+                      <span className={`text-xs ${C.text40}`}>+{extraCount}</span>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </TableCell>
+            <TableCell className="text-center">
+              <NotionStatusPill isActive={item.isActive} />
+            </TableCell>
+            <TableCell className="p-0 text-right">
+              <RowActionButton onClick={() => onEdit(item)} />
+            </TableCell>
+          </DataTableRow>
+        );
+      }}
       renderSidePanel={({ item, onClose, onSave, onDeleteRequest }) => (
         <StaffSidePanel
           key={item?.id ?? "new"}
@@ -406,6 +529,8 @@ export function StaffSettings() {
           onDeleteRequest={onDeleteRequest}
           allGroups={allGroups}
           onSaveGroups={handleSaveGroups}
+          allClinics={allClinics}
+          onSaveClinics={handleSaveClinics}
         />
       )}
     />

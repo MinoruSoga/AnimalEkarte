@@ -1,10 +1,10 @@
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock } from "lucide-react";
 import { useState, useEffect, memo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth, ChangePasswordDialog, usePermission } from "@/features/auth";
 import { paths } from "@/config/paths";
-import { ResourceDashboard, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceMaster, ResourceHospitalSettings } from "@/types/generated/models";
+import { ResourceDashboard, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterServiceType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise } from "@/types/generated/models";
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */
@@ -259,26 +259,27 @@ export function Sidebar() {
               icon: <Settings className={ICON.toolbar} />,
               label: "マスタ設定",
               path: paths.settings.getHref(),
-              resource: ResourceMaster,
               subItems: [
                 { icon: <Building2    className={ICON.toolbar} />, label: "医院",       path: paths.settings.clinic.getHref(), resource: ResourceHospitalSettings },
-                { icon: <PawPrint     className={ICON.toolbar} />, label: "動物種類",   path: paths.settings.animalSpecies.getHref() },
+                { icon: <PawPrint     className={ICON.toolbar} />, label: "動物種類",   path: paths.settings.animalSpecies.getHref(), resource: ResourceMasterAnimalSpecies },
                 {
                   icon: <FileText className={ICON.toolbar} />,
                   label: "カルテ関連",
+                  resource: ResourceMasterMedical,
                   subItems: [
-                    { icon: <ClipboardList  className={ICON.toolbar} />, label: "診療項目", path: paths.settings.treatmentItems.getHref() },
-                    { icon: <Clipboard      className={ICON.toolbar} />, label: "診断病名", path: paths.settings.diagnosis.getHref() },
-                    { icon: <ClipboardCheck className={ICON.toolbar} />, label: "問診設定", path: paths.settings.inquiryTemplates.getHref() },
-                    { icon: <Pill           className={ICON.toolbar} />, label: "薬剤マスタ", path: paths.settings.medicine.getHref() },
+                    { icon: <ClipboardList  className={ICON.toolbar} />, label: "診療項目", path: paths.settings.treatmentItems.getHref(), resource: ResourceMasterMedical },
+                    { icon: <Clipboard      className={ICON.toolbar} />, label: "診断病名", path: paths.settings.diagnosis.getHref(), resource: ResourceMasterMedical },
+                    { icon: <ClipboardCheck className={ICON.toolbar} />, label: "問診設定", path: paths.settings.inquiryTemplates.getHref(), resource: ResourceMasterMedical },
+                    { icon: <Pill           className={ICON.toolbar} />, label: "薬剤マスタ", path: paths.settings.medicine.getHref(), resource: ResourceMasterMedical },
                   ],
                 },
-                { icon: <Activity     className={ICON.toolbar} />, label: "診療サービス", path: paths.settings.serviceType.getHref() },
-                { icon: <Bed          className={ICON.toolbar} />, label: "入院・ケージ", path: paths.settings.hospitalization.getHref() },
-                { icon: <Scissors     className={ICON.toolbar} />, label: "トリミング", path: paths.settings.trimming.getHref() },
-                { icon: <Users        className={ICON.toolbar} />, label: "スタッフ管理", path: paths.settings.staff.getHref() },
-                { icon: <ShieldCheck  className={ICON.toolbar} />, label: "保険マスタ", path: paths.settings.insurance.getHref() },
-                { icon: <Package      className={ICON.toolbar} />, label: "物販・フード", path: paths.settings.merchandiseItems.getHref() },
+                { icon: <Activity     className={ICON.toolbar} />, label: "診療サービス", path: paths.settings.serviceType.getHref(), resource: ResourceMasterServiceType },
+                { icon: <Bed          className={ICON.toolbar} />, label: "入院・ケージ", path: paths.settings.hospitalization.getHref(), resource: ResourceMasterHosp },
+                { icon: <Scissors     className={ICON.toolbar} />, label: "トリミング", path: paths.settings.trimming.getHref(), resource: ResourceMasterTrim },
+                { icon: <Lock         className={ICON.toolbar} />, label: "権限グループ", path: paths.settings.permissionGroups.getHref(), resource: ResourceMasterPermission },
+                { icon: <Users        className={ICON.toolbar} />, label: "スタッフ管理", path: paths.settings.staff.getHref(), resource: ResourceMasterStaff },
+                { icon: <ShieldCheck  className={ICON.toolbar} />, label: "保険マスタ", path: paths.settings.insurance.getHref(), resource: ResourceMasterInsurance },
+                { icon: <Package      className={ICON.toolbar} />, label: "物販・フード", path: paths.settings.merchandiseItems.getHref(), resource: ResourceMasterMerchandise },
               ]
             } as MenuItem} 
             collapsed={collapsed} 

@@ -3,7 +3,7 @@
 本ドキュメントは、システムの認証（Authentication）および認可（Authorization）の設計を定義します。
 マルチクリニック対応のRBAC（Role-Based Access Control）モデルを採用し、ユーザー種別・職種・権限の3層構造で柔軟なアクセス制御を実現します。
 
-**バージョン**: v6.0 | **最終更新**: 2026-03-29
+**バージョン**: v7.0 | **最終更新**: 2026-04-06
 
 > **ドキュメント方針**: 本ドキュメントは「あるべき姿（ベストプラクティス）」を記述します。
 > 現在の実装が本設計と乖離している箇所は `> ⚠️ 現在の実装:` として注記しています。
@@ -119,37 +119,51 @@
 
 #### 権限モデル
 
-各権限グループは **15リソース × CRUD（4操作）** の細粒度アクセス制御を持つ。
+各権限グループは **23リソース × CRUD（4操作）** の細粒度アクセス制御を持つ。
+
+**業務リソース（14種）:**
 
 | リソース | キー | 説明 |
 |---|---|---|
-| ダッシュボード | `dashboard` | ダッシュボード |
-| 飼主管理 | `owners` | 飼主・ペット情報 |
+| 当日の受付 | `dashboard` | ダッシュボード |
+| 飼主・ペット | `owners` | 飼主・ペット情報 |
 | 予約管理 | `reservations` | 予約登録・変更 |
-| 電子カルテ | `medical-records` | カルテ作成・確定 |
-| 入院管理 | `hospitalization` | 入院・退院処理 |
+| カルテ | `medical-records` | カルテ作成・確定 |
+| 入院・ホテル | `hospitalization` | 入院・退院処理 |
 | トリミング | `trimming` | トリミング記録 |
-| 診察管理 | `examinations` | 検査記録 |
-| 会計 | `accounting` | 会計・入金処理 |
+| 検査管理 | `examinations` | 検査記録 |
+| 会計管理 | `accounting` | 会計・入金処理 |
 | 予防接種 | `vaccinations` | ワクチン記録 |
 | 定期健診 | `checkups` | 健診記録 |
 | 在庫管理 | `inventory` | 在庫品目管理 |
-| 見積 | `estimates` | 見積書管理 |
+| 見積書 | `estimates` | 見積書管理 |
 | シフト管理 | `shifts` | シフト登録 |
-| マスタ設定 | `master` | 全マスタ + **権限グループ管理** |
-| 病院設定 | `hospital-settings` | クリニック基本情報 |
+| 医院 | `hospital-settings` | クリニック基本情報 |
+
+**マスタ設定リソース（9種）:**
+
+| リソース | キー | 説明 |
+|---|---|---|
+| 動物種類 | `master-animal-species` | 動物種類マスタ |
+| カルテ関連 | `master-medical` | 診療項目・診断病名・問診設定・薬剤マスタ |
+| 診療サービス | `master-service-type` | 予約区分マスタ |
+| 入院・ケージ | `master-hospitalization` | 入院料金・ケージマスタ |
+| トリミングマスタ | `master-trimming` | トリミングコース・オプションマスタ |
+| 権限グループ | `master-permission` | 権限グループの管理（一般スタッフは非表示） |
+| スタッフ管理 | `master-staff` | スタッフ情報・権限割当 |
+| 保険マスタ | `master-insurance` | ペット保険会社マスタ |
+| 物販・フード | `master-merchandise` | 販売品目マスタ |
 
 #### シードデータ：3つの権限グループ
 
 | グループ名 | カラー | 主な用途 |
 |---|---|---|
-| **管理者** | `#EF4444` | 全15リソースフルアクセス（権限設定管理含む） |
-| **執行** | `#6366F1` | 全15リソース閲覧 + ほぼ全創作・編集（権限設定管理含む） |
-| **一般** | `#10B981` | 基本業務操作（医療・予約・トリミング等の作成・編集） |
+| **管理者** | `#EF4444` | 全23リソースフルアクセス |
+| **執行** | `#6366F1` | 全リソース閲覧 + 業務・マスタの作成・編集（権限・スタッフ管理は閲覧のみ） |
+| **一般** | `#10B981` | 基本業務操作 + マスタ閲覧（権限グループ管理は非表示） |
 
-> **`master` リソースへのアクセス = 権限グループ管理画面へのアクセスを含む。**
-> 全グループ `master` / `hospital-settings` の閲覧（can_view）は可。作成・編集・削除は 管理者 と 執行 のみ。
 > `system_admin` / `clinic_admin` は全リソースへの暗黙的フルアクセス（グループ不要）。
+> `master-permission` は「一般」グループで `canView=false` のため、サイドナビから非表示になる。
 
 **ユーザーとグループの組み合わせ例:**
 
@@ -180,7 +194,7 @@
 │  ...         │       └──────────────────────┘       └──────────────┘
 └─────────────┘
          │
-         │ N   N  （user_permission_groups 中間テーブル）
+         │ N   N  （staff_permission_groups 中間テーブル）
          ▼
 ┌─────────────────────┐       ┌──────────────────────────┐
 │  PermissionGroup     │ 1   N │  PermissionGroupRule      │
@@ -329,6 +343,8 @@
 
 凡例: ✓=可、−=不可。操作列は View / Create / Edit / Delete の順。
 
+**業務リソース:**
+
 | リソース | 管理者 | 執行 | 一般 |
 |---|---|---|---|
 | `dashboard` | ✓/−/−/− | ✓/−/−/− | ✓/−/−/− |
@@ -344,33 +360,60 @@
 | `inventory` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
 | `estimates` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
 | `shifts` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/✓/✓/− |
-| `master` | **✓/✓/✓/✓** | **✓/✓/✓/−** | ✓/−/−/− |
 | `hospital-settings` | ✓/✓/✓/✓ | ✓/−/−/− | ✓/−/−/− |
 
-> **重要**: `master` リソース = マスタ設定ページ全般（権限グループ管理含む）。
-> 全グループが `master` / `hospital-settings` を閲覧可（can_view=true）。
-> `master` の作成・編集は管理者・執行が可能。`hospital-settings` の作成・編集・削除は管理者のみ。
+**マスタ設定リソース:**
+
+| リソース | 管理者 | 執行 | 一般 |
+|---|---|---|---|
+| `master-animal-species` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
+| `master-medical` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
+| `master-service-type` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
+| `master-hospitalization` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
+| `master-trimming` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
+| `master-permission` | ✓/✓/✓/✓ | ✓/−/−/− | **−/−/−/−** |
+| `master-staff` | ✓/✓/✓/✓ | ✓/−/−/− | ✓/−/−/− |
+| `master-insurance` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
+| `master-merchandise` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/−/−/− |
+
+> **重要**: `master-permission` は「一般」グループで全操作不可（`canView=false`）。サイドナビから非表示になる。
+> `system_admin` / `clinic_admin` は全リソースへの暗黙的フルアクセス（権限グループ不要）。
 
 ### サイドナビバー表示制御
 
 `usePermission(resource).canView` が true のリソースに応じてフィルタリング。
 
-| メニュー項目 | 必要なリソース（`view` が true） |
+**業務メニュー:**
+
+| メニュー項目 | 必要なリソース（`canView` が true） |
 |---|---|
-| ダッシュボード | `dashboard` |
+| 当日の受付 | `dashboard` |
+| 飼主・ペット | `owners` |
 | 予約管理 | `reservations` |
-| 飼主管理 | `owners` |
 | カルテ | `medical-records` |
-| 入院管理 | `hospitalization` |
-| トリミング | `trimming` |
 | 検査管理 | `examinations` |
-| 会計 | `accounting` |
+| トリミング | `trimming` |
 | 予防接種 | `vaccinations` |
 | 定期健診 | `checkups` |
+| 会計管理 | `accounting` |
+| 入院・ホテル | `hospitalization` |
 | 在庫管理 | `inventory` |
-| 見積 | `estimates` |
 | シフト管理 | `shifts` |
-| マスタ設定 | `master` |
+
+**マスタ設定メニュー（各サブ項目が個別に制御）:**
+
+| メニュー項目 | 必要なリソース（`canView` が true） |
+|---|---|
+| 医院 | `hospital-settings` |
+| 動物種類 | `master-animal-species` |
+| カルテ関連 | `master-medical` |
+| 診療サービス | `master-service-type` |
+| 入院・ケージ | `master-hospitalization` |
+| トリミング | `master-trimming` |
+| 権限グループ | `master-permission` |
+| スタッフ管理 | `master-staff` |
+| 保険マスタ | `master-insurance` |
+| 物販・フード | `master-merchandise` |
 
 ### デモアカウント（シードデータ）
 
@@ -597,23 +640,28 @@ CREATE TABLE permission_group_rules (
 
 ---
 
-#### `user_permission_groups` — ユーザー・グループ中間テーブル
+#### `staff_permission_groups` — スタッフ・グループ中間テーブル
 
 | カラム | 型 | 制約 | 説明 |
 |--------|-----|------|------|
-| `user_id` | `BIGINT` | `FK → user_accounts.id NOT NULL` | ユーザーID |
+| `staff_id` | `BIGINT` | `FK → staffs.id NOT NULL` | スタッフID |
 | `group_id` | `BIGINT` | `FK → permission_groups.id NOT NULL` | グループID |
+| `created_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 作成日時 |
 
 ```sql
-CREATE TABLE user_permission_groups (
-  user_id  BIGINT NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
-  group_id BIGINT NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
-  PRIMARY KEY (user_id, group_id)
+CREATE TABLE staff_permission_groups (
+  staff_id  BIGINT NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
+  group_id  BIGINT NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+  PRIMARY KEY (staff_id, group_id),
+  created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE INDEX idx_staff_permission_groups_staff ON staff_permission_groups(staff_id);
+CREATE INDEX idx_staff_permission_groups_group ON staff_permission_groups(group_id);
 ```
 
-> **廃止済み**: `user_permissions` テーブル（`permission_type` ENUM ベース）は実装されていない。
-> 権限制御は上記3テーブルで行う。
+> **廃止済み**: 旧 `user_permission_groups`（user_accounts ベース）は `staff_permission_groups`（staffs ベース）に置換。
+> 権限制御は `permission_groups` + `permission_group_rules` + `staff_permission_groups` の3テーブルで行う。
 
 ---
 
@@ -707,9 +755,10 @@ CREATE INDEX idx_permission_groups_company ON permission_groups(company_id);
 -- ===== permission_group_rules =====
 -- UNIQUE(group_id, resource) が複合インデックスを暗黙作成
 
--- ===== user_permission_groups =====
--- PRIMARY KEY(user_id, group_id) が複合インデックスを暗黙作成
-CREATE INDEX idx_user_permission_groups_group ON user_permission_groups(group_id);
+-- ===== staff_permission_groups =====
+-- PRIMARY KEY(staff_id, group_id) が複合インデックスを暗黙作成
+CREATE INDEX idx_staff_permission_groups_staff ON staff_permission_groups(staff_id);
+CREATE INDEX idx_staff_permission_groups_group ON staff_permission_groups(group_id);
 
 -- ===== 既存テーブルの clinic_id インデックス =====
 CREATE INDEX idx_owners_clinic ON owners(clinic_id);
@@ -859,11 +908,12 @@ SELECT
     bool_or(pgr.can_create) AS can_create,
     bool_or(pgr.can_edit)   AS can_edit,
     bool_or(pgr.can_delete) AS can_delete
-FROM user_permission_groups upg
-JOIN permission_groups pg ON pg.id = upg.group_id
+FROM staff_permission_groups spg
+JOIN permission_groups pg ON pg.id = spg.group_id
     AND pg.deleted_at IS NULL
+    AND pg.is_active = true
 JOIN permission_group_rules pgr ON pgr.group_id = pg.id
-WHERE upg.user_id = $1   -- clinic_id フィルタ不要（company スコープ）
+WHERE spg.staff_id = $1
 GROUP BY pgr.resource
 ```
 
@@ -1150,9 +1200,20 @@ export function RequirePermission({
 | `/inventory` | `InventoryList` | `inventory.view` |
 | `/estimates` | `EstimatesList` | `estimates.view` |
 | `/shifts` | `ShiftCalendar` | `shifts.view` |
-| `/settings/master` | `MasterSettings` | `master.view` |
-| `/settings/permission-groups` | `PermissionGroupSettings` | `master.view` |
-| `/settings/hospital` | `HospitalSettings` | `hospital-settings.view` |
+| `/settings/master` | `MasterSettingsIndex` | — （各サブページで個別制御） |
+| `/settings/animal-species` | `AnimalSpeciesSettings` | `master-animal-species.view` |
+| `/settings/treatment-items` | `TreatmentPlanMaster` | `master-medical.view` |
+| `/settings/diagnosis` | `DiagnosisSettings` | `master-medical.view` |
+| `/settings/inquiry-templates` | `InterviewTemplateSettings` | `master-medical.view` |
+| `/settings/medicine` | `MedicineSettings` | `master-medical.view` |
+| `/settings/service-type` | `ServiceTypeSettings` | `master-service-type.view` |
+| `/settings/hospitalization` | `HospitalizationSettings` | `master-hospitalization.view` |
+| `/settings/trimming-*` | `TrimmingSettings` | `master-trimming.view` |
+| `/settings/permission-groups` | `PermissionGroupSettings` | `master-permission.view` |
+| `/settings/staff` | `StaffSettings` | `master-staff.view` |
+| `/settings/insurance` | `InsuranceSettings` | `master-insurance.view` |
+| `/settings/merchandise-items` | `MerchandiseItemSettings` | `master-merchandise.view` |
+| `/settings/clinic` | `ClinicMasterSettings` | `hospital-settings.view` |
 
 ---
 
@@ -1197,9 +1258,9 @@ export function RequirePermission({
 
 2. **パスワードハッシュ**: `user_accounts.password_hash` に bcrypt (cost=10) で保存。シードデータは `$2a$10$...` 形式。bcrypt は今後も推奨（argon2id はメモリ要件が高く Docker 環境でリスクあり）。
 
-3. **権限グループの companyスコープ（TASK-049）**: `permission_groups` は `company_id` で company 単位に管理する方針（現在は `clinic_id` で実装中）。権限グループ設定は全クリニック共通となり、クリニックごとに異なるグループ割り当ては廃止。データアクセスの clinic_id 分離（マルチテナント）は維持。`user_permission_groups` は user_id + group_id のみで管理。
+3. **権限グループの companyスコープ（TASK-049）**: `permission_groups` は `company_id` で company 単位に管理する方針（現在は `clinic_id` で実装中）。権限グループ設定は全クリニック共通となり、クリニックごとに異なるグループ割り当ては廃止。データアクセスの clinic_id 分離（マルチテナント）は維持。`staff_permission_groups` は staff_id + group_id のみで管理。
 
-4. **`master` リソースの特殊性**: `master.view` = マスタ設定ページ全般 + 権限グループ管理画面へのアクセス可否。`create/edit` = グループ作成・編集可、`delete` = グループ削除可。全グループが `master.view = true`（閲覧は全員可）。
+4. **マスタ設定の個別リソース分割**: 旧 `master`（単一リソース）は `master-animal-species`, `master-medical`, `master-service-type`, `master-hospitalization`, `master-trimming`, `master-permission`, `master-staff`, `master-insurance`, `master-merchandise` の9個に分割済み。サイドナビの各マスタ項目に個別の `canView` 権限チェックが適用される。`master-permission` は「一般」グループで `canView=false`（権限グループ管理画面は非表示）。
 
 5. **`system_admin` / `clinic_admin` の暗黙的全権限**: フロント・バックエンド両方で `userType` チェックにより全リソース全アクションをバイパス。`clinic_admin` は所属クリニック内のみ。
 

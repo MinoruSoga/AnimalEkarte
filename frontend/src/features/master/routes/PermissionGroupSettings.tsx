@@ -316,7 +316,6 @@ export function PermissionGroupSettings() {
           <DataTable columns={COLUMNS} data={orderedItems} emptyMessage="権限グループが登録されていません"
             renderRow={(item) => (
               <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
-                <TableCell />
                 <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
                 <TableCell className="text-center">
                   <NotionStatusPill isActive={item.isActive} />

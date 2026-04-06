@@ -164,6 +164,35 @@ export function useDeleteStaff() {
 const STAFF_PERM_GROUPS_KEY = (staffId: string) =>
   [...STAFFS_QUERY_KEY, staffId, "permission-groups"] as const;
 
+/**
+ * 全スタッフの権限グループIDマップを一括取得する。
+ * staffId → groupId[] の Map を返す。
+ */
+export function useGetAllStaffPermissionGroupMap(staffIds: string[]) {
+  return useQuery({
+    queryKey: [...STAFFS_QUERY_KEY, "all-permission-group-map", ...staffIds],
+    queryFn: async (): Promise<Map<string, string[]>> => {
+      const map = new Map<string, string[]>();
+      await Promise.all(
+        staffIds.map(async (id) => {
+          try {
+            const { data } = await axios.get<{ group_ids: number[] }>(
+              `/v1/masters/staffs/${id}/permission-groups`,
+            );
+            map.set(id, (data.group_ids ?? []).map(String));
+          } catch {
+            map.set(id, []);
+          }
+        }),
+      );
+      return map;
+    },
+    enabled: staffIds.length > 0,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
+  });
+}
+
 export function useGetStaffPermissionGroups(staffId: string | null) {
   return useQuery({
     queryKey: STAFF_PERM_GROUPS_KEY(staffId ?? ""),
@@ -196,6 +225,73 @@ export function useSetStaffPermissionGroups() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: STAFF_PERM_GROUPS_KEY(variables.staffId),
+      });
+    },
+  });
+}
+
+// ─────────────────────────────────────────────────
+// Clinics list (for staff assignment UI)
+// ─────────────────────────────────────────────────
+
+export interface ClinicSummary {
+  id: string;
+  name: string;
+}
+
+export function useGetClinicsList() {
+  return useQuery({
+    queryKey: ["clinics-list"],
+    queryFn: async (): Promise<ClinicSummary[]> => {
+      const { data } = await axios.get<Array<{ id: number; name: string }>>(
+        "/v1/clinics",
+      );
+      return data.map((c) => ({ id: String(c.id), name: c.name }));
+    },
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
+  });
+}
+
+// ─────────────────────────────────────────────────
+// Staff Clinic Assignments API
+// ─────────────────────────────────────────────────
+
+const STAFF_CLINICS_KEY = (staffId: string) =>
+  [...STAFFS_QUERY_KEY, staffId, "clinics"] as const;
+
+export function useGetStaffClinics(staffId: string | null) {
+  return useQuery({
+    queryKey: STAFF_CLINICS_KEY(staffId ?? ""),
+    queryFn: async (): Promise<string[]> => {
+      const { data } = await axios.get<{ clinic_ids: number[] }>(
+        `/v1/masters/staffs/${staffId}/clinics`,
+      );
+      return (data.clinic_ids ?? []).map(String);
+    },
+    enabled: staffId !== null,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
+  });
+}
+
+export function useSetStaffClinics() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      staffId,
+      clinicIds,
+    }: {
+      staffId: string;
+      clinicIds: string[];
+    }) => {
+      await axios.put(`/v1/masters/staffs/${staffId}/clinics`, {
+        clinic_ids: clinicIds.map((id) => parseInt(id, 10)),
+      });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: STAFF_CLINICS_KEY(variables.staffId),
       });
     },
   });

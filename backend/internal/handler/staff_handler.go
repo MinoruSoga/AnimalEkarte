@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/middleware"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -170,6 +171,66 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"group_ids": req.GroupIDs})
 }
 
+// GetStaffClinicAssignments godoc
+// GET /v1/masters/staffs/:id/clinics
+func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	clinicIDs := make([]uint64, 0, len(assignments))
+	for _, a := range assignments {
+		clinicIDs = append(clinicIDs, a.ClinicID)
+	}
+	c.JSON(http.StatusOK, gin.H{"clinic_ids": clinicIDs})
+}
+
+// SetStaffClinicAssignments godoc
+// PUT /v1/masters/staffs/:id/clinics
+func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	var req struct {
+		ClinicIDs []uint64 `json:"clinic_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if req.ClinicIDs == nil {
+		req.ClinicIDs = []uint64{}
+	}
+
+	ctx := c.Request.Context()
+	// 既存の割当を全削除
+	if err := h.repos.StaffClinicAssignment.DeleteByStaffID(ctx, id); err != nil {
+		RespondError(c, err)
+		return
+	}
+	// 新しい割当を作成（最初の1件を is_main=true とする）
+	for i, clinicID := range req.ClinicIDs {
+		assignment := &model.StaffClinicAssignment{
+			StaffID:  id,
+			ClinicID: clinicID,
+			IsMain:   i == 0,
+		}
+		if err := h.repos.StaffClinicAssignment.Create(ctx, assignment); err != nil {
+			RespondError(c, err)
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"clinic_ids": req.ClinicIDs})
+}
+
 // ReorderStaffs godoc
 func (h *Handler) ReorderStaffs(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -207,6 +268,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.DELETE("/staffs/:id", h.DeleteStaff)
 	masters.GET("/staffs/:id/permission-groups", h.GetStaffPermissionGroups)
 	masters.PUT("/staffs/:id/permission-groups", h.SetStaffPermissionGroups)
+	masters.GET("/staffs/:id/clinics", h.GetStaffClinicAssignments)
+	masters.PUT("/staffs/:id/clinics", h.SetStaffClinicAssignments)
 
 	masters.GET("/cages", h.ListCages)
 	masters.POST("/cages", h.CreateCage)

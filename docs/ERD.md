@@ -14,7 +14,7 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 | 変更内容 | 詳細 |
 |---------|------|
 | Account-based authentication 実装 | `user_accounts` → `accounts`（ログインアカウント）、`user_clinic_memberships` → `staff_clinic_assignments`（スタッフ-クリニック中間テーブル）に置換 |
-| RBAC権限グループ廃止 | `permission_groups`, `permission_group_rules`, `user_permission_groups` を削除。管理者は全リソースへのアクセス許可（フロントエンド側でバリデーション） |
+| RBAC権限グループ再実装 | `permission_groups`, `permission_group_rules`, `staff_permission_groups` の3テーブルで23リソース×CRUD権限を管理。staff ベースに移行（旧 `user_permission_groups` 廃止） |
 | Account モデル分離 | Account は Staff と独立。Account: email/password_hash（認証）、Staff: name/role（スタッフ情報） |
 | Staff-Clinic 関係 | N:N 関係を `staff_clinic_assignments` で管理。`is_main` フラグでメインクリニックを指定 |
 | テーブル総数 | 57 → 57（3削除 + 2追加 = -1） |
@@ -41,9 +41,9 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 | 変更内容 | 詳細 |
 |---------|------|
-| `user_permissions` テーブル廃止 → `permission_groups` / `permission_group_rules` / `user_permission_groups` に置換 | migration と不一致だった旧 ENUM ベース権限テーブルを削除。RBAC 3テーブル体制に更新 |
+| `user_permissions` テーブル廃止 → `permission_groups` / `permission_group_rules` / `staff_permission_groups` に置換 | migration と不一致だった旧 ENUM ベース権限テーブルを削除。RBAC 3テーブル体制に更新（スタッフベース） |
 | `permission_type` ENUM 削除 | migration に存在しない架空 ENUM。削除 |
-| テーブル総数 56 → 57 に更新 | user_permissions(1) → permission_groups + permission_group_rules + user_permission_groups(3) で +2 |
+| テーブル総数 56 → 57 に更新 | user_permissions(1) → permission_groups + permission_group_rules + staff_permission_groups(3) で +2 |
 
 ## 変更概要（v24.0 → v25.0）
 
@@ -3379,11 +3379,11 @@ FK なし（システム共通マスタ）
 | ----------- | ------- | -------- |
 | group_id | permission_groups.id | CASCADE |
 
-### user_permission_groups
+### staff_permission_groups
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| user_id | user_accounts.id | CASCADE |
+| staff_id | staffs.id | CASCADE |
 | group_id | permission_groups.id | CASCADE |
 
 ### vaccinations
