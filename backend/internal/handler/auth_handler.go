@@ -163,12 +163,19 @@ func (h *Handler) Login(c *gin.Context) {
 		mainClinicID = strconv.FormatUint(assignments[0].ClinicID, 10)
 	}
 
+	// 所属クリニックIDの一覧を収集（BUG-128: JWT claims に含めて X-Clinic-ID 検証に使用）
+	clinicIDs := make([]uint64, 0, len(assignments))
+	for _, asg := range assignments {
+		clinicIDs = append(clinicIDs, asg.ClinicID)
+	}
+
 	// アクセストークン生成（15分）
 	expiresAt := time.Now().Add(15 * time.Minute)
 	claims := &middleware.JWTClaims{
 		UserID:        strconv.FormatUint(staff.ID, 10),
 		ClinicID:      mainClinicID,
 		IsSystemAdmin: account.IsSystemAdmin,
+		ClinicIDs:     clinicIDs,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

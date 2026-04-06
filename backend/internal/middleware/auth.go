@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -10,9 +11,10 @@ import (
 
 // JWTClaims はJWTのペイロード
 type JWTClaims struct {
-	UserID        string `json:"user_id"`
-	ClinicID      string `json:"clinic_id"`
-	IsSystemAdmin bool   `json:"is_system_admin"`
+	UserID        string   `json:"user_id"`
+	ClinicID      string   `json:"clinic_id"`
+	IsSystemAdmin bool     `json:"is_system_admin"`
+	ClinicIDs     []uint64 `json:"clinic_ids,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -68,10 +70,33 @@ func Auth(secret string) gin.HandlerFunc {
 		c.Set("user_id", claims.UserID)
 		c.Set("is_system_admin", claims.IsSystemAdmin)
 
-		// クリニック切替: X-Clinic-ID ヘッダーが送信された場合、JWT の clinic_id を上書きする
+		// クリニック切替: X-Clinic-ID ヘッダーが送信された場合、所属チェック後に上書き（BUG-128）
 		clinicID := claims.ClinicID
 		if headerClinicID := c.GetHeader("X-Clinic-ID"); headerClinicID != "" {
-			clinicID = headerClinicID
+			if claims.IsSystemAdmin {
+				// system_admin はすべてのクリニックにアクセス可能
+				clinicID = headerClinicID
+			} else {
+				hID, err := strconv.ParseUint(headerClinicID, 10, 64)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "invalid clinic id"})
+					c.Abort()
+					return
+				}
+				found := false
+				for _, cid := range claims.ClinicIDs {
+					if cid == hID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					c.JSON(http.StatusForbidden, gin.H{"error": "not assigned to this clinic"})
+					c.Abort()
+					return
+				}
+				clinicID = headerClinicID
+			}
 		}
 		c.Set("clinic_id", clinicID)
 
