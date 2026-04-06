@@ -80,7 +80,8 @@ func RequestLoggingMiddleware() gin.HandlerFunc {
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := c.GetHeader("X-Request-ID")
-		if requestID == "" {
+		// BUG-147: ユーザー入力をサニタイズ（英数字・ハイフンのみ、64文字以内）
+		if requestID == "" || len(requestID) > 64 || !isAlphanumericHyphen(requestID) {
 			b := make([]byte, 4)
 			_, _ = rand.Read(b)
 			requestID = hex.EncodeToString(b)
@@ -91,4 +92,14 @@ func RequestID() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// isAlphanumericHyphen は文字列が英数字・ハイフン・アンダースコアのみで構成されているか判定する
+func isAlphanumericHyphen(s string) bool {
+	for _, r := range s {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_') {
+			return false
+		}
+	}
+	return true
 }

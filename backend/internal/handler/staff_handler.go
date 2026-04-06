@@ -112,8 +112,8 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 
 	// パスワード変更（任意）: password フィールドが送信された場合のみ
 	if hasPasswordUpdate {
-		if len(*req.Password) < 8 {
-			RespondError(c, apperrors.WrapInvalidInput("パスワードは8文字以上で入力してください"))
+		if err := validatePassword(*req.Password); err != nil {
+			RespondError(c, err)
 			return
 		}
 		if staff.AccountID != nil {

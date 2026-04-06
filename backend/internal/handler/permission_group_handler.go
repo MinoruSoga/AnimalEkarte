@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -132,6 +133,53 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
+	}
+
+	// BUG-140: 自分が所属するグループの master-permission edit を削除できないようにする
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
+	myGroupIDs, groupErr := h.repos.PermissionGroup.GetGroupIDsByStaffID(c.Request.Context(), staffID)
+	if groupErr == nil {
+		isSelfGroup := false
+		for _, gid := range myGroupIDs {
+			if gid == id {
+				isSelfGroup = true
+				break
+			}
+		}
+		if isSelfGroup {
+			hasMasterPermEdit := false
+			for _, r := range req.Rules {
+				if r.Resource == string(model.ResourceMasterPermission) && r.CanEdit {
+					hasMasterPermEdit = true
+					break
+				}
+			}
+			if !hasMasterPermEdit {
+				RespondError(c, apperrors.WrapInvalidInput("自分が所属するグループの権限管理権限（master-permission edit）を削除することはできません"))
+				return
+			}
+		}
+	}
+
+	// BUG-146: 入力バリデーション — 空文字・存在しないリソース名・重複を拒否
+	seen := make(map[string]bool, len(req.Rules))
+	for _, r := range req.Rules {
+		if r.Resource == "" {
+			RespondError(c, apperrors.WrapInvalidInput("リソース名が空です"))
+			return
+		}
+		if !model.IsValidResource(r.Resource) {
+			RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("無効なリソース名: %s", r.Resource)))
+			return
+		}
+		if seen[r.Resource] {
+			RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("リソース名が重複しています: %s", r.Resource)))
+			return
+		}
+		seen[r.Resource] = true
 	}
 
 	// Convert request rules to model

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -130,6 +131,20 @@ func FromGORM(err error, resource string, id string) error {
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return WrapNotFound(resource, id)
+	}
+	// BUG-138: PostgreSQL エラーコードに基づくハンドリング
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23503": // foreign_key_violation
+			return WrapInvalidInput("参照先が存在しません")
+		case "23505": // unique_violation
+			return WrapAlreadyExists(resource, "")
+		case "22003": // numeric_value_out_of_range
+			return WrapInvalidInput("数値が範囲外です")
+		case "22P02": // invalid_text_representation (e.g. invalid integer)
+			return WrapInvalidInput("入力値の形式が正しくありません")
+		}
 	}
 	// BUG-129: リソース名は内部ログ用。ユーザーには汎化メッセージを返す
 	return Wrap(err, "database error")

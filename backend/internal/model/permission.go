@@ -57,3 +57,13 @@ var AllResources = []Resource{
 	ResourceMasterInsurance,
 	ResourceMasterMerchandise,
 }
+
+// IsValidResource は指定されたリソース名が有効かどうかを判定する（BUG-146）
+func IsValidResource(r string) bool {
+	for _, res := range AllResources {
+		if string(res) == r {
+			return true
+		}
+	}
+	return false
+}

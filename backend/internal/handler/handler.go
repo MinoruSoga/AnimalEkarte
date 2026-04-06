@@ -48,8 +48,8 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	// Health check エンドポイント（ルートレベル）
 	r.GET("/health", h.Health)
 
-	// Static file serving for uploaded images
-	r.Static("/uploads", "/app/uploads")
+	// Static file serving for uploaded images（BUG-141: ディレクトリリスティング無効化）
+	r.StaticFS("/uploads", gin.Dir("/app/uploads", false))
 
 	api := r.Group("/api/v1")
 
