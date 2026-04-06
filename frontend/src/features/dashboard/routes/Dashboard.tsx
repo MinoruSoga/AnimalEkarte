@@ -18,7 +18,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
-import { ResourceDashboard } from "@/types/generated/models";
+import { ResourceDashboard, ResourceReservations } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Shared
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -41,6 +42,7 @@ const NO_ADD_BUTTON_COLUMNS = new Set(["診療中", "会計待ち", "会計済"]
 
 export function Dashboard() {
     const navigate = useNavigate();
+    const { canCreate: canCreateReservation } = usePermission(ResourceReservations);
     const {
         columns,
         filteredColumns,
@@ -285,12 +287,14 @@ export function Dashboard() {
                             <Filter className="size-[17.5px]" />
                             フィルター
                         </Button>
-                        <Button
-                            className={`${STYLE.confirmPrimary} h-11 text-base tracking-[var(--tracking-notion)]`}
-                            onClick={() => navigate(paths.reservations.getHref())}
-                        >
-                            新規予約登録
-                        </Button>
+                        {canCreateReservation ? (
+                            <Button
+                                className={`${STYLE.confirmPrimary} h-11 text-base tracking-[var(--tracking-notion)]`}
+                                onClick={() => navigate(paths.reservations.getHref())}
+                            >
+                                新規予約登録
+                            </Button>
+                        ) : null}
                     </div>
                 }
             />

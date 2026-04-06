@@ -27,6 +27,7 @@ import type {
 } from "../api/merchandise-items";
 import type { TaxType } from "@/types/generated/models";
 import { ResourceMasterMerchandise } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // ─── Constants ───
 
@@ -207,6 +208,7 @@ const TABLE_COLUMNS = [
 // ─── Page ───
 
 export function MerchandiseItemSettings() {
+  const { canCreate } = usePermission(ResourceMasterMerchandise);
   const { data } = useGetAllMerchandiseItems();
   const createMutation = useCreateMerchandiseItem();
   const updateMutation = useUpdateMerchandiseItem();
@@ -343,14 +345,16 @@ export function MerchandiseItemSettings() {
             </DragOverlay>
           </DndContext>
         </div>
-        <button
-          type="button"
-          onClick={crud.handleNew}
-          className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}
-        >
-          <Plus className={`${ICON.xs}`} />
-          新しい品目を追加...
-        </button>
+        {canCreate ? (
+          <button
+            type="button"
+            onClick={crud.handleNew}
+            className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}
+          >
+            <Plus className={`${ICON.xs}`} />
+            新しい品目を追加...
+          </button>
+        ) : null}
       </div>
     </MasterCRUDPage>
   );

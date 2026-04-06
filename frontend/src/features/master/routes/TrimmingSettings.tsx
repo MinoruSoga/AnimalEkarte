@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { ResourceMasterTrimming } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // External
 import { Plus, Scissors } from "lucide-react";
@@ -497,6 +498,7 @@ const TABS = [
 
 export function TrimmingSettings() {
   const navigate = useNavigate();
+  const { canCreate } = usePermission(ResourceMasterTrimming);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "course";
 
@@ -636,13 +638,15 @@ export function TrimmingSettings() {
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
-              <PrimaryButton onClick={() => {
-                if (activeTab === "course") courseCrud.handleNew();
-                else optionCrud.handleNew();
-              }}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
+              canCreate ? (
+                <PrimaryButton onClick={() => {
+                  if (activeTab === "course") courseCrud.handleNew();
+                  else optionCrud.handleNew();
+                }}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null
             }
           >
             <div className="flex flex-col gap-4">
