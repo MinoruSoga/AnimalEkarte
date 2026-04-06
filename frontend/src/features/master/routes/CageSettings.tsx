@@ -20,6 +20,7 @@ import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import { useGetAllCages, useCreateCage, useUpdateCage, useDeleteCage, useReorderCages } from "@/features/master/api/cages";
 import type { Cage, CageType, CageSize, CreateCageRequest, UpdateCageRequest } from "@/features/master/api/cages";
+import { ResourceMasterHospitalization } from "@/types/generated/models";
 
 // ─── Constants ───
 const CAGE_TYPE_LABELS: Record<CageType, string> = { icu: "ICU", dog: "犬舎", cat: "猫舎", general: "汎用" };
@@ -181,7 +182,7 @@ export function CageSettings() {
 
   // CageSettings uses custom table (not DataTable) for DnD + DragOverlay + bottom "add" button
   return (
-    <MasterCRUDPage title="ケージマスタ" icon={<Building2 className={`${ICON.page} ${C.text}`} />}
+    <MasterCRUDPage title="ケージマスタ" icon={<Building2 className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterHospitalization}
       entityLabel="ケージ" searchPlaceholder="ケージ名で検索..." emptyMessage="ケージが登録されていません"
       crud={crud} handleSave={handleSave}
       filterProperties={[MASTER_STATUS_FILTER]}

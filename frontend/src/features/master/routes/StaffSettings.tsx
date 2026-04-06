@@ -34,6 +34,7 @@ import type { PermissionGroup } from "@/features/master/api/permission-groups";
 import type { ClinicSummary } from "@/features/master/api/staffs";
 import { useGetAllOccupations } from "@/features/master/api/occupations";
 import type { Occupation } from "@/features/master/api/occupations";
+import { ResourceMasterStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -490,6 +491,7 @@ export function StaffSettings() {
     <MasterCRUDPage
       title="スタッフマスタ"
       icon={<UserRound className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMasterStaff}
       entityLabel="スタッフ"
       searchPlaceholder="氏名、職種で検索..."
       emptyMessage="スタッフが登録されていません"

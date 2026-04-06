@@ -18,6 +18,7 @@ import type {
   CreateChiefComplaintCategoryRequest,
   UpdateChiefComplaintCategoryRequest,
 } from "@/features/master/api/chief-complaint-categories";
+import { ResourceMasterMedical } from "@/types/generated/models";
 
 const COLUMNS = [
   { header: "名称", className: "flex-1" },
@@ -100,7 +101,7 @@ export function ChiefComplaintSettings() {
   });
 
   return (
-    <MasterCRUDPage title="主訴マスタ" icon={<MessageSquareText className={`${ICON.page} ${C.text}`} />}
+    <MasterCRUDPage title="主訴マスタ" icon={<MessageSquareText className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterMedical}
       entityLabel="主訴マスタ" searchPlaceholder="名称で検索..." emptyMessage="主訴マスタが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}

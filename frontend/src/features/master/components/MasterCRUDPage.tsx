@@ -3,6 +3,7 @@ import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { MasterListPage } from "@/features/master/components/MasterListPage";
 import type { UseMasterCRUDReturn } from "@/features/master/hooks/use-master-crud";
 import type { FilterProperty, SortProperty } from "@/components/shared/NotionFilter/types";
+import type { Resource } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -30,6 +31,8 @@ interface MasterCRUDPageProps<T extends MasterEntity> {
   title: string;
   /** Page icon element */
   icon: ReactNode;
+  /** 権限バッジ表示用リソース */
+  resource?: Resource;
   /** Entity label for delete dialog (e.g. "役職") */
   entityLabel: string;
   /** Search placeholder */
@@ -86,6 +89,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
   deleteDescription,
   filterProperties,
   sortProperties,
+  resource,
 }: MasterCRUDPageProps<T>) {
   const deleteName = crud.pendingDelete
     ? String((crud.pendingDelete as Record<string, unknown>)[deleteNameField] ?? "")
@@ -95,6 +99,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
     <MasterListPage
       title={title}
       icon={icon}
+      resource={resource}
       searchTerm={crud.searchTerm}
       onSearchChange={crud.setSearchTerm}
       searchPlaceholder={searchPlaceholder}

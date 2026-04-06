@@ -18,6 +18,7 @@ import type {
   SortProperty,
   ActiveSort,
 } from "@/components/shared/NotionFilter/types";
+import type { Resource } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -28,6 +29,8 @@ interface MasterListPageProps {
   title: string;
   /** Page icon element */
   icon: ReactNode;
+  /** 権限バッジ表示用リソース */
+  resource?: Resource;
 
   /** Search state */
   searchTerm: string;
@@ -75,6 +78,7 @@ interface MasterListPageProps {
 export const MasterListPage = memo(function MasterListPage({
   title,
   icon,
+  resource,
   searchTerm,
   onSearchChange,
   searchPlaceholder,
@@ -103,6 +107,7 @@ export const MasterListPage = memo(function MasterListPage({
           <PageLayout
             title={title}
             icon={icon}
+            resource={resource}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={

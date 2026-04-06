@@ -30,6 +30,7 @@ import {
   type SetPermissionGroupRulesRequest,
 } from "@/features/master/api/permission-groups";
 import { PermissionRuleTable, type PermissionRule } from "@/features/master/components/PermissionRuleTable";
+import { ResourceMasterPermission } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -293,6 +294,7 @@ export function PermissionGroupSettings() {
     <MasterCRUDPage
       title="権限グループマスタ"
       icon={<Lock className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMasterPermission}
       entityLabel="グループ"
       searchPlaceholder="グループ名、説明で検索..."
       emptyMessage="権限グループが登録されていません"

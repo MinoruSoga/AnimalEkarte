@@ -18,6 +18,7 @@ import type {
   CreateInquiryTemplateRequest,
   UpdateInquiryTemplateRequest,
 } from "@/features/master/api/inquiry-templates";
+import { ResourceMasterMedical } from "@/types/generated/models";
 
 // BUG-042: Map English snake_case category codes to Japanese labels
 const INQUIRY_CATEGORY_LABELS: Record<string, string> = {
@@ -123,7 +124,7 @@ export function InterviewTemplateSettings() {
   });
 
   return (
-    <MasterCRUDPage title="問診テンプレートマスタ" icon={<FileText className={`${ICON.page} ${C.text}`} />}
+    <MasterCRUDPage title="問診テンプレートマスタ" icon={<FileText className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterMedical}
       entityLabel="問診テンプレート" searchPlaceholder="カテゴリ、タイトルで検索..." emptyMessage="問診テンプレートが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS} deleteNameField="title"
       filterProperties={[MASTER_STATUS_FILTER]}

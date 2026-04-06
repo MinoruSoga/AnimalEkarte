@@ -15,6 +15,7 @@ import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import { useGetAllOccupations, useCreateOccupation, useUpdateOccupation, useDeleteOccupation } from "@/features/master/api/occupations";
 import type { Occupation, CreateOccupationRequest, UpdateOccupationRequest } from "@/features/master/api/occupations";
+import { ResourceMasterStaff } from "@/types/generated/models";
 
 // ─── Constants ───
 const COLUMNS = [
@@ -122,6 +123,7 @@ export function OccupationSettings() {
     <MasterCRUDPage
       title="職種マスタ"
       icon={<Briefcase className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMasterStaff}
       entityLabel="職種"
       searchPlaceholder="職種名で検索..."
       emptyMessage="職種が登録されていません"

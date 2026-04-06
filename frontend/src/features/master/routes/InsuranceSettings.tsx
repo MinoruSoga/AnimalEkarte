@@ -15,6 +15,7 @@ import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import { useGetAllInsurances, useCreateInsurance, useUpdateInsurance, useDeleteInsurance } from "@/features/master/api/insurances";
 import type { Insurance, CreateInsuranceRequest, UpdateInsuranceRequest } from "@/features/master/api/insurances";
+import { ResourceMasterInsurance } from "@/types/generated/models";
 
 const COLUMNS = [
   { header: "名称", className: "flex-1" },
@@ -125,7 +126,7 @@ export function InsuranceSettings() {
   });
 
   return (
-    <MasterCRUDPage title="保険マスタ" icon={<Shield className={`${ICON.page} ${C.text}`} />}
+    <MasterCRUDPage title="保険マスタ" icon={<Shield className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterInsurance}
       entityLabel="保険" searchPlaceholder="保険名で検索..." emptyMessage="保険が登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}

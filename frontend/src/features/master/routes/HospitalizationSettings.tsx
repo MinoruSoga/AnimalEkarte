@@ -20,6 +20,7 @@ import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import { useGetAllHospitalizationPlans, useCreateHospitalizationPlan, useUpdateHospitalizationPlan, useDeleteHospitalizationPlan, BODY_SIZE_OPTIONS, BODY_SIZE_LABELS, BILLING_UNIT_OPTIONS, BILLING_UNIT_LABELS } from "@/features/master/api/hospitalization-plans";
 import type { HospitalizationPlan, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest } from "@/features/master/api/hospitalization-plans";
 import type { BodySize, BillingUnit, TaxType } from "@/types/generated/models";
+import { ResourceMasterHospitalization } from "@/types/generated/models";
 
 const COLUMNS = [
   { header: "名称" }, { header: "対象体格", className: "w-[100px]" },
@@ -162,7 +163,7 @@ export function HospitalizationSettings() {
   });
 
   return (
-    <MasterCRUDPage title="入院マスタ" icon={<Bed className={`${ICON.page} ${C.text}`} />}
+    <MasterCRUDPage title="入院マスタ" icon={<Bed className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterHospitalization}
       entityLabel="入院プラン" searchPlaceholder="名称で検索..." emptyMessage="入院プランが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}

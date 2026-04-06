@@ -21,6 +21,7 @@ import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import { useGetServiceTypes, useCreateServiceType, useUpdateServiceType, useDeleteServiceType, useReorderServiceTypes } from "@/features/master/api/service-types";
 import type { ServiceType } from "@/features/master/api/service-types";
 import type { CreateServiceTypeRequest, UpdateServiceTypeRequest } from "@/types/service-type";
+import { ResourceMasterServiceType } from "@/types/generated/models";
 
 const COLUMNS = [
   { header: "", className: "w-[32px]" }, { header: "名称" },
@@ -132,7 +133,7 @@ export function ServiceTypeSettings() {
   });
 
   return (
-    <MasterCRUDPage title="診療サービスマスタ" icon={<Activity className={`${ICON.page} ${C.text}`} />}
+    <MasterCRUDPage title="診療サービスマスタ" icon={<Activity className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterServiceType}
       entityLabel="診療サービス" searchPlaceholder="診療サービス名で検索..." emptyMessage="診療サービスが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}

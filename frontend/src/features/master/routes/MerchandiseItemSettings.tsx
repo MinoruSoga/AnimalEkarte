@@ -26,6 +26,7 @@ import type {
   UpdateMerchandiseItemRequest,
 } from "../api/merchandise-items";
 import type { TaxType } from "@/types/generated/models";
+import { ResourceMasterMerchandise } from "@/types/generated/models";
 
 // ─── Constants ───
 
@@ -268,6 +269,7 @@ export function MerchandiseItemSettings() {
     <MasterCRUDPage
       title="物販・その他マスタ"
       icon={<ShoppingBag className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMasterMerchandise}
       entityLabel="品目"
       searchPlaceholder="品目名で検索..."
       emptyMessage="品目が登録されていません"
