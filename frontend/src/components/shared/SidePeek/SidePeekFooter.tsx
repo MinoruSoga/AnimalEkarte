@@ -14,6 +14,17 @@ export function SidePeekFooter({
   saveLabel = "保存",
   isPending,
 }: SidePeekFooterProps) {
+  // BUG-158: onSave が未定義（edit権限なし）なら「閉じる」ボタンのみ表示
+  if (!onSave) {
+    return (
+      <div className={STYLE.sidePeekFooter}>
+        <button type="button" onClick={onCancel} className={STYLE.sidePeekCancelBtn}>
+          閉じる
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={STYLE.sidePeekFooter}>
       <button type="button" onClick={onCancel} className={STYLE.sidePeekCancelBtn}>

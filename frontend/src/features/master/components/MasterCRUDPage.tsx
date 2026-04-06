@@ -1,6 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { MasterListPage } from "@/features/master/components/MasterListPage";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import type { UseMasterCRUDReturn } from "@/features/master/hooks/use-master-crud";
 import type { FilterProperty, SortProperty } from "@/components/shared/NotionFilter/types";
 import type { Resource } from "@/types/generated/models";
@@ -24,6 +25,8 @@ interface SidePanelRenderProps<T> {
   onClose: () => void;
   onSave: (data: never) => void;
   onDeleteRequest: (item: T) => void;
+  /** BUG-158: true の場合、保存・削除ボタンを非表示にする */
+  readOnly?: boolean;
 }
 
 interface MasterCRUDPageProps<T extends MasterEntity> {
@@ -91,6 +94,9 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
   sortProperties,
   resource,
 }: MasterCRUDPageProps<T>) {
+  // BUG-158: edit/delete 権限で保存・削除ボタンの表示を制御
+  const { canEdit, canDelete } = usePermission(resource ?? "");
+
   const deleteName = crud.pendingDelete
     ? String((crud.pendingDelete as Record<string, unknown>)[deleteNameField] ?? "")
     : "";
@@ -118,6 +124,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
               onClose: crud.handleClose,
               onSave: handleSave,
               onDeleteRequest: crud.setPendingDelete,
+              readOnly: !canEdit,
             })
           : null
       }

@@ -25,6 +25,8 @@ interface MasterSidePanelProps {
   titleMaxLength?: number;
   /** When true, shows a navigation blocker dialog if the user tries to navigate away */
   isDirty?: boolean;
+  /** BUG-158: true の場合、保存・削除ボタンを非表示にし、閲覧モードで表示 */
+  readOnly?: boolean;
   children: ReactNode;
 }
 
@@ -42,6 +44,7 @@ export function MasterSidePanel({
   titleError,
   titleMaxLength,
   isDirty = false,
+  readOnly = false,
   children,
 }: MasterSidePanelProps) {
   // --- Focus Management (Accessibility) ---
@@ -77,7 +80,7 @@ export function MasterSidePanel({
 
   const content = (
     <>
-      <SidePeekToolbar isNew={isNew} onClose={onClose} onDelete={onDelete} />
+      <SidePeekToolbar isNew={isNew} onClose={onClose} onDelete={readOnly ? undefined : onDelete} readOnly={readOnly} />
       <SidePeekBody>
         <div className="pt-4 pb-2">
           <div className={STYLE.pageIcon}>{icon}</div>
@@ -94,7 +97,7 @@ export function MasterSidePanel({
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">{children}</div>
       </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={onSave} isPending={isPending} />
+      <SidePeekFooter onCancel={onClose} onSave={readOnly ? undefined : onSave} isPending={isPending} />
     </>
   );
 
