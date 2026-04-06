@@ -53,8 +53,9 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 
 	api := r.Group("/api/v1")
 
-	// 認証関連（保護なし）
-	api.POST("/login", h.Login)
+	// 認証関連（保護なし）— ログインにはレートリミット適用（BUG-130: ブルートフォース対策）
+	loginRateStore := middleware.NewRateLimitStore()
+	api.POST("/login", middleware.RateLimit(loginRateStore, 5.0/60, 5), h.Login) // 5回/分
 	api.POST("/logout", h.Logout)
 
 	protected := api.Group("")
