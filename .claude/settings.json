@@ -80,6 +80,14 @@
       "Bash(git stash:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git merge:*)",
+      "Bash(git tag:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git remote:*)",
+      "Bash(docker compose up:*)",
       "Bash(ls:*)",
       "Bash(pwd:*)",
       "Bash(wc:*)",
@@ -100,7 +108,8 @@
       "Write(.claude/hooks/**)",
       "Write(frontend/src/**)",
       "Write(backend/**)",
-      "Write(tests/**)"
+      "Write(tests/**)",
+      "Write(docs/**)"
     ],
     "ask": [
       "Bash(rm:*)",
@@ -142,6 +151,26 @@
         "description": "Remind to review changes before git push"
       },
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-block-no-verify.js"
+          }
+        ],
+        "description": "Block --no-verify and --no-gpg-sign flags to protect git hooks"
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-commit-quality.js"
+          }
+        ],
+        "description": "Commit quality gate: block secrets, warn on console.log/debugger, validate commit message format"
+      },
+      {
         "matcher": "Write",
         "hooks": [
           {
@@ -150,28 +179,63 @@
           }
         ],
         "description": "Block creation of files larger than 800 lines"
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-edit-config-protection.js"
+          }
+        ],
+        "description": "Warn when editing linter/formatter config files"
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit",
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-console-warn.js"
           }
         ],
-        "description": "Warn about console.log statements after edits"
+        "description": "Warn about console.log statements after edits or new file creation"
       },
       {
-        "matcher": "Edit",
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-format-go.js"
           }
         ],
-        "description": "Auto-format Go files with gofmt after edits"
+        "description": "Auto-format Go files with gofmt after edits or new file creation"
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-compact-save-state.js"
+          }
+        ],
+        "description": "Save git state and progress before context compaction"
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-desktop-notify.js",
+            "timeout": 10000
+          }
+        ],
+        "description": "Send macOS desktop notification when Claude finishes"
       }
     ],
     "SessionStart": [
