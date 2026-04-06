@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -178,8 +179,11 @@ func (h *Handler) DeletePet(c *gin.Context) {
 func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
 	pets := rg.Group("/pets")
 	pets.GET("", h.ListPets)
-	pets.POST("", h.CreatePet)
 	pets.GET("/:id", h.GetPet)
-	pets.PATCH("/:id", h.UpdatePet)
-	pets.DELETE("/:id", h.DeletePet)
+
+	petWrite := pets.Group("")
+	petWrite.Use(h.RequirePermission(string(model.ResourceOwners), "edit"))
+	petWrite.POST("", h.CreatePet)
+	petWrite.PATCH("/:id", h.UpdatePet)
+	petWrite.DELETE("/:id", h.DeletePet)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -86,7 +87,8 @@ func (h *Handler) ReturnBillingReview(c *gin.Context) {
 
 // RegisterBillingReviewRoutes は会計医師確認関連のルートをmedical-recordsグループに登録する
 func (h *Handler) RegisterBillingReviewRoutes(rg *gin.RouterGroup) {
+	perm := h.RequirePermission(string(model.ResourceAccounting), "edit")
 	rg.GET("/:id/billing-review", h.GetBillingReview)
-	rg.POST("/:id/billing-review/confirm", h.ConfirmBillingReview)
-	rg.POST("/:id/billing-review/return", h.ReturnBillingReview)
+	rg.POST("/:id/billing-review/confirm", perm, h.ConfirmBillingReview)
+	rg.POST("/:id/billing-review/return", perm, h.ReturnBillingReview)
 }

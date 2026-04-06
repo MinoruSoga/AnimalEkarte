@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -274,15 +275,17 @@ func (h *Handler) DeleteTreatmentPlanInHospitalization(c *gin.Context) {
 }
 
 func (h *Handler) RegisterTreatmentPlanMedicalRecordRoutes(rg *gin.RouterGroup) {
+	perm := h.RequirePermission(string(model.ResourceMedicalRecords), "edit")
 	rg.GET("/:id/treatment-plans", h.ListTreatmentPlansByMedicalRecord)
-	rg.POST("/:id/treatment-plans", h.CreateTreatmentPlanForMedicalRecord)
-	rg.PATCH("/:id/treatment-plans/:planId", h.UpdateTreatmentPlanInMedicalRecord)
-	rg.DELETE("/:id/treatment-plans/:planId", h.DeleteTreatmentPlanInMedicalRecord)
+	rg.POST("/:id/treatment-plans", perm, h.CreateTreatmentPlanForMedicalRecord)
+	rg.PATCH("/:id/treatment-plans/:planId", perm, h.UpdateTreatmentPlanInMedicalRecord)
+	rg.DELETE("/:id/treatment-plans/:planId", perm, h.DeleteTreatmentPlanInMedicalRecord)
 }
 
 func (h *Handler) RegisterTreatmentPlanHospitalizationRoutes(rg *gin.RouterGroup) {
+	perm := h.RequirePermission(string(model.ResourceHospitalization), "edit")
 	rg.GET("/:id/treatment-plans", h.ListTreatmentPlansByHospitalization)
-	rg.POST("/:id/treatment-plans", h.CreateTreatmentPlanForHospitalization)
-	rg.PATCH("/:id/treatment-plans/:planId", h.UpdateTreatmentPlanInHospitalization)
-	rg.DELETE("/:id/treatment-plans/:planId", h.DeleteTreatmentPlanInHospitalization)
+	rg.POST("/:id/treatment-plans", perm, h.CreateTreatmentPlanForHospitalization)
+	rg.PATCH("/:id/treatment-plans/:planId", perm, h.UpdateTreatmentPlanInHospitalization)
+	rg.DELETE("/:id/treatment-plans/:planId", perm, h.DeleteTreatmentPlanInHospitalization)
 }

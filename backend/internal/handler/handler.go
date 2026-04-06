@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/middleware"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -82,30 +83,30 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	h.RegisterBillingItemRoutes(protected)
 }
 
-// registerOwnerRoutesWithAuth は飼主ルートに create/edit/delete 権限チェックを追加する（BUG-020）
+// registerOwnerRoutesWithAuth は飼主ルートに RBAC 権限チェックを適用する（BUG-122）
 func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners := rg.Group("/owners")
 	owners.GET("", h.ListOwners)
 	owners.GET("/:id", h.GetOwner)
-	owners.POST("",
-		h.CreateOwner)
-	owners.PATCH("/:id",
-		h.UpdateOwner)
-	owners.DELETE("/:id",
-		h.DeleteOwner)
+
+	ownerWrite := owners.Group("")
+	ownerWrite.Use(h.RequirePermission(string(model.ResourceOwners), "edit"))
+	ownerWrite.POST("", h.CreateOwner)
+	ownerWrite.PATCH("/:id", h.UpdateOwner)
+	ownerWrite.DELETE("/:id", h.DeleteOwner)
 }
 
-// registerMedicalRecordRoutesWithAuth はカルテルートに create/edit/delete 権限チェックを追加する（BUG-020）
+// registerMedicalRecordRoutesWithAuth はカルテルートに RBAC 権限チェックを適用する（BUG-122）
 func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	records := rg.Group("/medical-records")
 	records.GET("", h.ListMedicalRecords)
 	records.GET("/:id", h.GetMedicalRecord)
-	records.POST("",
-		h.CreateMedicalRecord)
-	records.PATCH("/:id",
-		h.UpdateMedicalRecord)
-	records.DELETE("/:id",
-		h.DeleteMedicalRecord)
+
+	recordWrite := records.Group("")
+	recordWrite.Use(h.RequirePermission(string(model.ResourceMedicalRecords), "edit"))
+	recordWrite.POST("", h.CreateMedicalRecord)
+	recordWrite.PATCH("/:id", h.UpdateMedicalRecord)
+	recordWrite.DELETE("/:id", h.DeleteMedicalRecord)
 
 	h.RegisterVitalRoutes(records)
 	h.RegisterTreatmentRoutes(records)
@@ -117,108 +118,107 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	h.RegisterInquiryRoutes(records)
 }
 
-// registerHospitalizationRoutesWithAuth は入院ルートに create/edit 権限チェックを追加する（BUG-020）
+// registerHospitalizationRoutesWithAuth は入院ルートに RBAC 権限チェックを適用する（BUG-122）
 func (h *Handler) registerHospitalizationRoutesWithAuth(rg *gin.RouterGroup) {
 	hospitalizations := rg.Group("/hospitalizations")
 	hospitalizations.GET("", h.ListHospitalizations)
 	hospitalizations.GET("/:id", h.GetHospitalization)
-	hospitalizations.POST("",
-		h.CreateHospitalization)
-	hospitalizations.PATCH("/:id",
-		h.UpdateHospitalization)
-	hospitalizations.DELETE("/:id",
-		h.DeleteHospitalization)
-	hospitalizations.POST("/:id/discharge-with-billing",
-		h.DischargeWithBilling)
+
+	hospWrite := hospitalizations.Group("")
+	hospWrite.Use(h.RequirePermission(string(model.ResourceHospitalization), "edit"))
+	hospWrite.POST("", h.CreateHospitalization)
+	hospWrite.PATCH("/:id", h.UpdateHospitalization)
+	hospWrite.DELETE("/:id", h.DeleteHospitalization)
+	hospWrite.POST("/:id/discharge-with-billing", h.DischargeWithBilling)
+
 	h.RegisterDailyRecordRoutes(hospitalizations)
 	h.RegisterCarePlanItemRoutes(hospitalizations)
 	h.RegisterTreatmentPlanHospitalizationRoutes(hospitalizations)
 }
 
-// registerTrimmingRoutesWithAuth はトリミングルートに create/edit 権限チェックを追加する（BUG-020）
+// registerTrimmingRoutesWithAuth はトリミングルートに RBAC 権限チェックを適用する（BUG-122）
 func (h *Handler) registerTrimmingRoutesWithAuth(rg *gin.RouterGroup) {
 	trimmings := rg.Group("/trimmings")
 	trimmings.GET("", h.ListTrimmings)
 	trimmings.GET("/:id", h.GetTrimming)
-	trimmings.POST("",
-		h.CreateTrimming)
-	trimmings.PATCH("/:id",
-		h.UpdateTrimming)
-	trimmings.DELETE("/:id",
-		h.DeleteTrimming)
+
+	trimWrite := trimmings.Group("")
+	trimWrite.Use(h.RequirePermission(string(model.ResourceTrimming), "edit"))
+	trimWrite.POST("", h.CreateTrimming)
+	trimWrite.PATCH("/:id", h.UpdateTrimming)
+	trimWrite.DELETE("/:id", h.DeleteTrimming)
 }
 
-// registerExaminationRoutesWithAuth は検査ルートに create/edit 権限チェックを追加する（BUG-020）
+// registerExaminationRoutesWithAuth は検査ルートに RBAC 権限チェックを適用する（BUG-122）
 func (h *Handler) registerExaminationRoutesWithAuth(rg *gin.RouterGroup) {
 	examinations := rg.Group("/examinations")
 	examinations.GET("", h.ListExaminations)
 	examinations.GET("/:id", h.GetExamination)
-	examinations.POST("",
-		h.CreateExamination)
-	examinations.PATCH("/:id",
-		h.UpdateExamination)
-	examinations.DELETE("/:id",
-		h.DeleteExamination)
+
+	examWrite := examinations.Group("")
+	examWrite.Use(h.RequirePermission(string(model.ResourceExaminations), "edit"))
+	examWrite.POST("", h.CreateExamination)
+	examWrite.PATCH("/:id", h.UpdateExamination)
+	examWrite.DELETE("/:id", h.DeleteExamination)
 }
 
-// registerVaccinationRoutesWithAuth はワクチンルートに create/edit 権限チェックを追加する（BUG-020）
+// registerVaccinationRoutesWithAuth はワクチンルートに RBAC 権限チェックを適用する（BUG-122）
 func (h *Handler) registerVaccinationRoutesWithAuth(rg *gin.RouterGroup) {
 	vaccinations := rg.Group("/vaccinations")
 	vaccinations.GET("", h.ListVaccinations)
 	vaccinations.GET("/:id", h.GetVaccination)
-	vaccinations.POST("",
-		h.CreateVaccination)
-	vaccinations.PATCH("/:id",
-		h.UpdateVaccination)
-	vaccinations.DELETE("/:id",
-		h.DeleteVaccination)
+
+	vaccWrite := vaccinations.Group("")
+	vaccWrite.Use(h.RequirePermission(string(model.ResourceVaccinations), "edit"))
+	vaccWrite.POST("", h.CreateVaccination)
+	vaccWrite.PATCH("/:id", h.UpdateVaccination)
+	vaccWrite.DELETE("/:id", h.DeleteVaccination)
 }
 
-// registerAccountingRoutesWithAuth は会計ルートに create/edit 権限チェックを追加する（BUG-020）
+// registerAccountingRoutesWithAuth は会計ルートに RBAC 権限チェックを適用する（BUG-122）
 func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
 	accountings := rg.Group("/accountings")
 	accountings.GET("", h.ListAccountings)
 	accountings.GET("/:id", h.GetAccounting)
 	accountings.GET("/:id/refunds", h.ListRefunds)
-	accountings.POST("",
-		h.CreateAccounting)
-	accountings.PATCH("/:id",
-		h.UpdateAccounting)
-	accountings.DELETE("/:id",
-		h.DeleteAccounting)
-	accountings.POST("/:id/refunds",
-		h.CreateRefund)
+
+	acctWrite := accountings.Group("")
+	acctWrite.Use(h.RequirePermission(string(model.ResourceAccounting), "edit"))
+	acctWrite.POST("", h.CreateAccounting)
+	acctWrite.PATCH("/:id", h.UpdateAccounting)
+	acctWrite.DELETE("/:id", h.DeleteAccounting)
+	acctWrite.POST("/:id/refunds", h.CreateRefund)
 }
 
-// registerInventoryRoutesWithAuth は在庫ルートに create/edit 権限チェックを追加する（BUG-020）
+// registerInventoryRoutesWithAuth は在庫ルートに RBAC 権限チェックを適用する（BUG-122）
 func (h *Handler) registerInventoryRoutesWithAuth(rg *gin.RouterGroup) {
 	inventory := rg.Group("/inventory")
 	inventory.GET("", h.ListInventory)
 	inventory.GET("/:id", h.GetInventory)
-	inventory.POST("",
-		h.CreateInventory)
-	inventory.PATCH("/:id",
-		h.UpdateInventory)
-	inventory.DELETE("/:id",
-		h.DeleteInventory)
+
+	invWrite := inventory.Group("")
+	invWrite.Use(h.RequirePermission(string(model.ResourceInventory), "edit"))
+	invWrite.POST("", h.CreateInventory)
+	invWrite.PATCH("/:id", h.UpdateInventory)
+	invWrite.DELETE("/:id", h.DeleteInventory)
 }
 
-// registerMasterRoutesWithAuth はマスタルートに権限チェックを追加する（BUG-020）
+// registerMasterRoutesWithAuth はマスタルートに権限チェックを追加する（BUG-122）
 func (h *Handler) registerMasterRoutesWithAuth(rg *gin.RouterGroup) {
 	h.RegisterMasterRoutes(rg)
 }
 
-// registerEstimateRoutesWithAuth は見積書ルートに create/edit 権限チェックを追加する（BUG-020）
+// registerEstimateRoutesWithAuth は見積書ルートに RBAC 権限チェックを適用する（BUG-122）
 func (h *Handler) registerEstimateRoutesWithAuth(rg *gin.RouterGroup) {
 	estimates := rg.Group("/estimates")
 	estimates.GET("", h.ListEstimates)
 	estimates.GET("/:id", h.GetEstimate)
-	estimates.POST("",
-		h.CreateEstimate)
-	estimates.PATCH("/:id",
-		h.UpdateEstimate)
-	estimates.DELETE("/:id",
-		h.DeleteEstimate)
+
+	estWrite := estimates.Group("")
+	estWrite.Use(h.RequirePermission(string(model.ResourceEstimates), "edit"))
+	estWrite.POST("", h.CreateEstimate)
+	estWrite.PATCH("/:id", h.UpdateEstimate)
+	estWrite.DELETE("/:id", h.DeleteEstimate)
 }
 
 // registerPermissionGroupRoutesWithAuth は権限グループ管理ルートを認可ミドルウェア付きで登録する

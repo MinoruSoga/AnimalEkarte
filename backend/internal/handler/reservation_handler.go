@@ -296,8 +296,11 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 func (h *Handler) RegisterReservationRoutes(rg *gin.RouterGroup) {
 	reservations := rg.Group("/reservations")
 	reservations.GET("", h.ListReservations)
-	reservations.POST("", h.CreateReservation)
 	reservations.GET("/:id", h.GetReservation)
-	reservations.PATCH("/:id", h.UpdateReservation)
-	reservations.DELETE("/:id", h.DeleteReservation)
+
+	resWrite := reservations.Group("")
+	resWrite.Use(h.RequirePermission(string(model.ResourceReservations), "edit"))
+	resWrite.POST("", h.CreateReservation)
+	resWrite.PATCH("/:id", h.UpdateReservation)
+	resWrite.DELETE("/:id", h.DeleteReservation)
 }

@@ -269,137 +269,164 @@ func (h *Handler) ReorderStaffs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
 }
 
-// RegisterMasterRoutes はマスタ関連の全ルートを登録する
+// RegisterMasterRoutes はマスタ関連の全ルートを登録する（BUG-122: RBAC権限チェック適用）
 func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters := rg.Group("/masters")
 
+	// --- Permission middleware definitions ---
+	permAnimalSpecies := h.RequirePermission(string(model.ResourceMasterAnimalSpecies), "edit")
+	permStaff := h.RequirePermission(string(model.ResourceMasterStaff), "edit")
+	permHosp := h.RequirePermission(string(model.ResourceMasterHospitalization), "edit")
+	permMedical := h.RequirePermission(string(model.ResourceMasterMedical), "edit")
+	permInsurance := h.RequirePermission(string(model.ResourceMasterInsurance), "edit")
+	permServiceType := h.RequirePermission(string(model.ResourceMasterServiceType), "edit")
+	permTrimming := h.RequirePermission(string(model.ResourceMasterTrimming), "edit")
+	permCheckups := h.RequirePermission(string(model.ResourceCheckups), "edit")
+	permMerchandise := h.RequirePermission(string(model.ResourceMasterMerchandise), "edit")
+
+	// Animal Species
 	masters.GET("/animal-species", h.ListAnimalSpecies)
-	masters.POST("/animal-species", h.CreateAnimalSpecies)
-	masters.PATCH("/animal-species/reorder", h.ReorderAnimalSpecies) // 静的パスを /:id より前に登録
+	masters.POST("/animal-species", permAnimalSpecies, h.CreateAnimalSpecies)
+	masters.PATCH("/animal-species/reorder", permAnimalSpecies, h.ReorderAnimalSpecies)
 	masters.GET("/animal-species/:id", h.GetAnimalSpecies)
-	masters.PATCH("/animal-species/:id", h.UpdateAnimalSpecies)
-	masters.DELETE("/animal-species/:id", h.DeleteAnimalSpecies)
+	masters.PATCH("/animal-species/:id", permAnimalSpecies, h.UpdateAnimalSpecies)
+	masters.DELETE("/animal-species/:id", permAnimalSpecies, h.DeleteAnimalSpecies)
 
+	// Staffs
 	masters.GET("/staffs", h.ListStaffs)
-	masters.POST("/staffs", h.CreateStaff)
-	masters.PATCH("/staffs/reorder", h.ReorderStaffs) // 静的パスを /:id より前に登録
+	masters.POST("/staffs", permStaff, h.CreateStaff)
+	masters.PATCH("/staffs/reorder", permStaff, h.ReorderStaffs)
 	masters.GET("/staffs/:id", h.GetStaff)
-	masters.PATCH("/staffs/:id", h.UpdateStaff)
-	masters.DELETE("/staffs/:id", h.DeleteStaff)
+	masters.PATCH("/staffs/:id", permStaff, h.UpdateStaff)
+	masters.DELETE("/staffs/:id", permStaff, h.DeleteStaff)
 	masters.GET("/staffs/:id/permission-groups", h.GetStaffPermissionGroups)
-	masters.PUT("/staffs/:id/permission-groups", h.SetStaffPermissionGroups)
+	masters.PUT("/staffs/:id/permission-groups", permStaff, h.SetStaffPermissionGroups)
 	masters.GET("/staffs/:id/clinics", h.GetStaffClinicAssignments)
-	masters.PUT("/staffs/:id/clinics", h.SetStaffClinicAssignments)
+	masters.PUT("/staffs/:id/clinics", permStaff, h.SetStaffClinicAssignments)
 
+	// Cages
 	masters.GET("/cages", h.ListCages)
-	masters.POST("/cages", h.CreateCage)
-	masters.PATCH("/cages/reorder", h.ReorderCages) // 静的パスを /:id より前に登録
+	masters.POST("/cages", permHosp, h.CreateCage)
+	masters.PATCH("/cages/reorder", permHosp, h.ReorderCages)
 	masters.GET("/cages/:id", h.GetCage)
-	masters.PATCH("/cages/:id", h.UpdateCage)
-	masters.DELETE("/cages/:id", h.DeleteCage)
+	masters.PATCH("/cages/:id", permHosp, h.UpdateCage)
+	masters.DELETE("/cages/:id", permHosp, h.DeleteCage)
 
+	// Medicines
 	masters.GET("/medicines", h.ListMedicines)
-	masters.POST("/medicines", h.CreateMedicine)
-	masters.PATCH("/medicines/reorder", h.ReorderMedicines) // 静的パスを /:id より前に登録
+	masters.POST("/medicines", permMedical, h.CreateMedicine)
+	masters.PATCH("/medicines/reorder", permMedical, h.ReorderMedicines)
 	masters.GET("/medicines/:id", h.GetMedicine)
-	masters.PATCH("/medicines/:id", h.UpdateMedicine)
-	masters.DELETE("/medicines/:id", h.DeleteMedicine)
+	masters.PATCH("/medicines/:id", permMedical, h.UpdateMedicine)
+	masters.DELETE("/medicines/:id", permMedical, h.DeleteMedicine)
 
+	// Vaccines
 	masters.GET("/vaccines", h.ListVaccines)
-	masters.POST("/vaccines", h.CreateVaccine)
-	masters.PATCH("/vaccines/reorder", h.ReorderVaccines) // 静的パスを /:id より前に登録
+	masters.POST("/vaccines", permMedical, h.CreateVaccine)
+	masters.PATCH("/vaccines/reorder", permMedical, h.ReorderVaccines)
 	masters.GET("/vaccines/:id", h.GetVaccine)
-	masters.PATCH("/vaccines/:id", h.UpdateVaccine)
-	masters.DELETE("/vaccines/:id", h.DeleteVaccine)
+	masters.PATCH("/vaccines/:id", permMedical, h.UpdateVaccine)
+	masters.DELETE("/vaccines/:id", permMedical, h.DeleteVaccine)
 
+	// Insurances
 	masters.GET("/insurances", h.ListInsurances)
-	masters.POST("/insurances", h.CreateInsurance)
-	masters.PATCH("/insurances/reorder", h.ReorderInsurances) // 静的パスを /:id より前に登録
+	masters.POST("/insurances", permInsurance, h.CreateInsurance)
+	masters.PATCH("/insurances/reorder", permInsurance, h.ReorderInsurances)
 	masters.GET("/insurances/:id", h.GetInsurance)
-	masters.PATCH("/insurances/:id", h.UpdateInsurance)
-	masters.DELETE("/insurances/:id", h.DeleteInsurance)
+	masters.PATCH("/insurances/:id", permInsurance, h.UpdateInsurance)
+	masters.DELETE("/insurances/:id", permInsurance, h.DeleteInsurance)
 
+	// Service Types
 	masters.GET("/service-types", h.ListServiceTypes)
-	masters.POST("/service-types", h.CreateServiceType)
-	masters.PATCH("/service-types/reorder", h.ReorderServiceTypes) // 静的パスを /:id より前に登録
+	masters.POST("/service-types", permServiceType, h.CreateServiceType)
+	masters.PATCH("/service-types/reorder", permServiceType, h.ReorderServiceTypes)
 	masters.GET("/service-types/:id", h.GetServiceType)
-	masters.PATCH("/service-types/:id", h.UpdateServiceType)
-	masters.DELETE("/service-types/:id", h.DeleteServiceType)
+	masters.PATCH("/service-types/:id", permServiceType, h.UpdateServiceType)
+	masters.DELETE("/service-types/:id", permServiceType, h.DeleteServiceType)
 
+	// Consultations
 	masters.GET("/consultations", h.ListConsultations)
-	masters.POST("/consultations", h.CreateConsultation)
-	masters.PATCH("/consultations/reorder", h.ReorderConsultations) // 静的パスを /:id より前に登録
+	masters.POST("/consultations", permMedical, h.CreateConsultation)
+	masters.PATCH("/consultations/reorder", permMedical, h.ReorderConsultations)
 	masters.GET("/consultations/:id", h.GetConsultation)
-	masters.PATCH("/consultations/:id", h.UpdateConsultation)
-	masters.DELETE("/consultations/:id", h.DeleteConsultation)
+	masters.PATCH("/consultations/:id", permMedical, h.UpdateConsultation)
+	masters.DELETE("/consultations/:id", permMedical, h.DeleteConsultation)
 
+	// Procedures
 	masters.GET("/procedures", h.ListProcedures)
-	masters.POST("/procedures", h.CreateProcedure)
-	masters.PATCH("/procedures/reorder", h.ReorderProcedures) // 静的パスを /:id より前に登録
+	masters.POST("/procedures", permMedical, h.CreateProcedure)
+	masters.PATCH("/procedures/reorder", permMedical, h.ReorderProcedures)
 	masters.GET("/procedures/:id", h.GetProcedure)
-	masters.PATCH("/procedures/:id", h.UpdateProcedure)
-	masters.DELETE("/procedures/:id", h.DeleteProcedure)
+	masters.PATCH("/procedures/:id", permMedical, h.UpdateProcedure)
+	masters.DELETE("/procedures/:id", permMedical, h.DeleteProcedure)
 
+	// Hospitalization Plans
 	masters.GET("/hospitalization-plans", h.ListHospitalizationPlans)
-	masters.POST("/hospitalization-plans", h.CreateHospitalizationPlan)
-	masters.PATCH("/hospitalization-plans/reorder", h.ReorderHospitalizationPlans) // 静的パスを /:id より前に登録
+	masters.POST("/hospitalization-plans", permHosp, h.CreateHospitalizationPlan)
+	masters.PATCH("/hospitalization-plans/reorder", permHosp, h.ReorderHospitalizationPlans)
 	masters.GET("/hospitalization-plans/:id", h.GetHospitalizationPlan)
-	masters.PATCH("/hospitalization-plans/:id", h.UpdateHospitalizationPlan)
-	masters.DELETE("/hospitalization-plans/:id", h.DeleteHospitalizationPlan)
+	masters.PATCH("/hospitalization-plans/:id", permHosp, h.UpdateHospitalizationPlan)
+	masters.DELETE("/hospitalization-plans/:id", permHosp, h.DeleteHospitalizationPlan)
 
+	// Trimming Courses
 	masters.GET("/trimming-courses", h.ListTrimmingCourses)
-	masters.POST("/trimming-courses", h.CreateTrimmingCourse)
-	masters.PATCH("/trimming-courses/reorder", h.ReorderTrimmingCourses) // 静的パスを /:id より前に登録
+	masters.POST("/trimming-courses", permTrimming, h.CreateTrimmingCourse)
+	masters.PATCH("/trimming-courses/reorder", permTrimming, h.ReorderTrimmingCourses)
 	masters.GET("/trimming-courses/:id", h.GetTrimmingCourse)
-	masters.PATCH("/trimming-courses/:id", h.UpdateTrimmingCourse)
-	masters.DELETE("/trimming-courses/:id", h.DeleteTrimmingCourse)
+	masters.PATCH("/trimming-courses/:id", permTrimming, h.UpdateTrimmingCourse)
+	masters.DELETE("/trimming-courses/:id", permTrimming, h.DeleteTrimmingCourse)
 
+	// Trimming Options
 	masters.GET("/trimming-options", h.ListTrimmingOptions)
-	masters.POST("/trimming-options", h.CreateTrimmingOption)
-	masters.PATCH("/trimming-options/reorder", h.ReorderTrimmingOptions) // 静的パスを /:id より前に登録
+	masters.POST("/trimming-options", permTrimming, h.CreateTrimmingOption)
+	masters.PATCH("/trimming-options/reorder", permTrimming, h.ReorderTrimmingOptions)
 	masters.GET("/trimming-options/:id", h.GetTrimmingOption)
-	masters.PATCH("/trimming-options/:id", h.UpdateTrimmingOption)
-	masters.DELETE("/trimming-options/:id", h.DeleteTrimmingOption)
+	masters.PATCH("/trimming-options/:id", permTrimming, h.UpdateTrimmingOption)
+	masters.DELETE("/trimming-options/:id", permTrimming, h.DeleteTrimmingOption)
 
+	// Examination Types
 	masters.GET("/examination-types", h.ListExaminationTypes)
-	masters.POST("/examination-types", h.CreateExaminationType)
-	masters.PATCH("/examination-types/reorder", h.ReorderExaminationTypes) // 静的パスを /:id より前に登録
+	masters.POST("/examination-types", permMedical, h.CreateExaminationType)
+	masters.PATCH("/examination-types/reorder", permMedical, h.ReorderExaminationTypes)
 	masters.GET("/examination-types/:id", h.GetExaminationType)
-	masters.PATCH("/examination-types/:id", h.UpdateExaminationType)
-	masters.DELETE("/examination-types/:id", h.DeleteExaminationType)
+	masters.PATCH("/examination-types/:id", permMedical, h.UpdateExaminationType)
+	masters.DELETE("/examination-types/:id", permMedical, h.DeleteExaminationType)
 
+	// Diagnosis Categories
 	masters.GET("/diagnosis-categories", h.ListDiagnosisCategories)
-	masters.POST("/diagnosis-categories", h.CreateDiagnosisCategory)
-	masters.PATCH("/diagnosis-categories/reorder", h.ReorderDiagnosisCategories) // 静的パスを /:id より前に登録
+	masters.POST("/diagnosis-categories", permMedical, h.CreateDiagnosisCategory)
+	masters.PATCH("/diagnosis-categories/reorder", permMedical, h.ReorderDiagnosisCategories)
 	masters.GET("/diagnosis-categories/:id", h.GetDiagnosisCategory)
-	masters.PATCH("/diagnosis-categories/:id", h.UpdateDiagnosisCategory)
-	masters.DELETE("/diagnosis-categories/:id", h.DeleteDiagnosisCategory)
+	masters.PATCH("/diagnosis-categories/:id", permMedical, h.UpdateDiagnosisCategory)
+	masters.DELETE("/diagnosis-categories/:id", permMedical, h.DeleteDiagnosisCategory)
 
+	// Diagnosis Names
 	masters.GET("/diagnosis-names", h.ListDiagnosisNames)
-	masters.POST("/diagnosis-names", h.CreateDiagnosisName)
-	masters.PATCH("/diagnosis-names/reorder", h.ReorderDiagnosisNames) // 静的パスを /:id より前に登録
+	masters.POST("/diagnosis-names", permMedical, h.CreateDiagnosisName)
+	masters.PATCH("/diagnosis-names/reorder", permMedical, h.ReorderDiagnosisNames)
 	masters.GET("/diagnosis-names/:id", h.GetDiagnosisName)
-	masters.PATCH("/diagnosis-names/:id", h.UpdateDiagnosisName)
-	masters.DELETE("/diagnosis-names/:id", h.DeleteDiagnosisName)
+	masters.PATCH("/diagnosis-names/:id", permMedical, h.UpdateDiagnosisName)
+	masters.DELETE("/diagnosis-names/:id", permMedical, h.DeleteDiagnosisName)
 
+	// Checkup Types
 	masters.GET("/checkup-types", h.ListCheckupTypes)
-	masters.POST("/checkup-types", h.CreateCheckupType)
-	masters.PATCH("/checkup-types/reorder", h.ReorderCheckupTypes) // 静的パスを /:id より前に登録
+	masters.POST("/checkup-types", permCheckups, h.CreateCheckupType)
+	masters.PATCH("/checkup-types/reorder", permCheckups, h.ReorderCheckupTypes)
 	masters.GET("/checkup-types/:id", h.GetCheckupType)
-	masters.PATCH("/checkup-types/:id", h.UpdateCheckupType)
-	masters.DELETE("/checkup-types/:id", h.DeleteCheckupType)
+	masters.PATCH("/checkup-types/:id", permCheckups, h.UpdateCheckupType)
+	masters.DELETE("/checkup-types/:id", permCheckups, h.DeleteCheckupType)
 
+	// Occupations
 	masters.GET("/occupations", h.ListOccupations)
-	masters.POST("/occupations", h.CreateOccupation)
-	masters.PATCH("/occupations/reorder", h.ReorderOccupations) // 静的パスを /:id より前に登録
+	masters.POST("/occupations", permStaff, h.CreateOccupation)
+	masters.PATCH("/occupations/reorder", permStaff, h.ReorderOccupations)
 	masters.GET("/occupations/:id", h.GetOccupation)
-	masters.PATCH("/occupations/:id", h.UpdateOccupation)
-	masters.DELETE("/occupations/:id", h.DeleteOccupation)
+	masters.PATCH("/occupations/:id", permStaff, h.UpdateOccupation)
+	masters.DELETE("/occupations/:id", permStaff, h.DeleteOccupation)
 
+	// Permission Groups (既に権限チェック済み — 唯一の正しい実装)
 	masters.GET("/permission-groups", h.ListPermissionGroups)
 	masters.GET("/permission-groups/:id", h.GetPermissionGroup)
-
-	// Permission Group write operations require master-permission edit access
 	pgWrite := masters.Group("/permission-groups")
 	pgWrite.Use(h.RequirePermission(string(model.ResourceMasterPermission), "edit"))
 	pgWrite.POST("", h.CreatePermissionGroup)
@@ -408,22 +435,25 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	pgWrite.DELETE("/:id", h.DeletePermissionGroup)
 	pgWrite.PUT("/:id/rules", h.SetPermissionGroupRules)
 
+	// Chief Complaint Categories
 	masters.GET("/chief-complaint-categories", h.ListChiefComplaints)
-	masters.POST("/chief-complaint-categories", h.CreateChiefComplaint)
+	masters.POST("/chief-complaint-categories", permMedical, h.CreateChiefComplaint)
 	masters.GET("/chief-complaint-categories/:id", h.GetChiefComplaint)
-	masters.PATCH("/chief-complaint-categories/:id", h.UpdateChiefComplaint)
-	masters.DELETE("/chief-complaint-categories/:id", h.DeleteChiefComplaint)
+	masters.PATCH("/chief-complaint-categories/:id", permMedical, h.UpdateChiefComplaint)
+	masters.DELETE("/chief-complaint-categories/:id", permMedical, h.DeleteChiefComplaint)
 
+	// Inquiry Templates
 	masters.GET("/inquiry-templates", h.ListInquiryTemplates)
-	masters.POST("/inquiry-templates", h.CreateInquiryTemplate)
+	masters.POST("/inquiry-templates", permMedical, h.CreateInquiryTemplate)
 	masters.GET("/inquiry-templates/:id", h.GetInquiryTemplate)
-	masters.PATCH("/inquiry-templates/:id", h.UpdateInquiryTemplate)
-	masters.DELETE("/inquiry-templates/:id", h.DeleteInquiryTemplate)
+	masters.PATCH("/inquiry-templates/:id", permMedical, h.UpdateInquiryTemplate)
+	masters.DELETE("/inquiry-templates/:id", permMedical, h.DeleteInquiryTemplate)
 
+	// Merchandise Items
 	masters.GET("/merchandise-items", h.ListMerchandiseItems)
-	masters.POST("/merchandise-items", h.CreateMerchandiseItem)
-	masters.POST("/merchandise-items/reorder", h.ReorderMerchandiseItems) // 静的パスを /:id より前に登録
+	masters.POST("/merchandise-items", permMerchandise, h.CreateMerchandiseItem)
+	masters.POST("/merchandise-items/reorder", permMerchandise, h.ReorderMerchandiseItems)
 	masters.GET("/merchandise-items/:id", h.GetMerchandiseItem)
-	masters.PATCH("/merchandise-items/:id", h.UpdateMerchandiseItem)
-	masters.DELETE("/merchandise-items/:id", h.DeleteMerchandiseItem)
+	masters.PATCH("/merchandise-items/:id", permMerchandise, h.UpdateMerchandiseItem)
+	masters.DELETE("/merchandise-items/:id", permMerchandise, h.DeleteMerchandiseItem)
 }

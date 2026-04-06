@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -223,10 +224,11 @@ func (h *Handler) AddStaffNoteRecord(c *gin.Context) {
 
 // RegisterDailyRecordRoutes は日次記録関連のルートを登録する
 func (h *Handler) RegisterDailyRecordRoutes(rg *gin.RouterGroup) {
+	perm := h.RequirePermission(string(model.ResourceHospitalization), "edit")
 	rg.GET("/:id/daily-records", h.ListDailyRecords)
-	rg.POST("/:id/daily-records", h.CreateDailyRecord)
+	rg.POST("/:id/daily-records", perm, h.CreateDailyRecord)
 	rg.GET("/:id/daily-records/:date", h.GetDailyRecord)
-	rg.POST("/:id/daily-records/:date/vitals", h.AddVitalRecord)
-	rg.POST("/:id/daily-records/:date/care-logs", h.AddCareLogRecord)
-	rg.POST("/:id/daily-records/:date/staff-notes", h.AddStaffNoteRecord)
+	rg.POST("/:id/daily-records/:date/vitals", perm, h.AddVitalRecord)
+	rg.POST("/:id/daily-records/:date/care-logs", perm, h.AddCareLogRecord)
+	rg.POST("/:id/daily-records/:date/staff-notes", perm, h.AddStaffNoteRecord)
 }

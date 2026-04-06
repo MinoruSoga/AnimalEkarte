@@ -167,6 +167,7 @@ func (h *Handler) DeleteBillingItem(c *gin.Context) {
 // RegisterBillingItemRoutes は明細関連のルートを登録する
 func (h *Handler) RegisterBillingItemRoutes(rg *gin.RouterGroup) {
 	items := rg.Group("/billing-items")
+	items.Use(h.RequirePermission(string(model.ResourceAccounting), "edit"))
 	items.POST("", h.CreateBillingItem)
 	items.PATCH("/:id", h.UpdateBillingItem)
 	items.DELETE("/:id", h.DeleteBillingItem)

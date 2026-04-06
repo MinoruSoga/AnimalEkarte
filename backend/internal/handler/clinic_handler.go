@@ -228,8 +228,11 @@ func (h *Handler) DeleteClinic(c *gin.Context) {
 func (h *Handler) RegisterClinicRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics")
 	clinics.GET("", h.ListClinics)
-	clinics.POST("", h.CreateClinic)
 	clinics.GET("/:id", h.GetClinic)
-	clinics.PATCH("/:id", h.UpdateClinic)
-	clinics.DELETE("/:id", h.DeleteClinic)
+
+	clinicWrite := clinics.Group("")
+	clinicWrite.Use(h.RequirePermission(string(model.ResourceHospitalSettings), "edit"))
+	clinicWrite.POST("", h.CreateClinic)
+	clinicWrite.PATCH("/:id", h.UpdateClinic)
+	clinicWrite.DELETE("/:id", h.DeleteClinic)
 }

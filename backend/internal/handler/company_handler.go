@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -49,5 +50,5 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 // RegisterCompanyRoutes は法人情報関連のルートを登録する
 func (h *Handler) RegisterCompanyRoutes(rg *gin.RouterGroup) {
 	rg.GET("/company", h.GetCompany)
-	rg.PATCH("/company", h.UpdateCompany)
+	rg.PATCH("/company", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateCompany)
 }

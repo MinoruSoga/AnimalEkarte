@@ -5,7 +5,7 @@ import { Layout } from "@/components/shared/Layout/Layout";
 import { RootErrorBoundary, RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
 import { RequirePermission } from "@/components/shared/RequirePermission";
 import { AuthProvider } from "@/features/auth";
-import { ResourceDashboard, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceHospitalization, ResourceTrimming, ResourceExaminations, ResourceAccounting, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceEstimates, ResourceShifts, ResourceHospitalSettings } from "@/types/generated/models";
+import { ResourceDashboard, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceHospitalization, ResourceTrimming, ResourceExaminations, ResourceAccounting, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceEstimates, ResourceShifts, ResourceHospitalSettings, ResourceMasterStaff, ResourceMasterMedical, ResourceMasterServiceType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceMasterAnimalSpecies } from "@/types/generated/models";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
 const Login = lazy(() =>
@@ -629,6 +629,7 @@ export const router = createBrowserRouter([
         element: <Outlet />,
         children: [
           {
+            // MasterSettingsIndex — ガード不要（BUG-123 でカードフィルタリング対応）
             index: true,
             lazy: async () => {
               const { MasterSettingsIndex } = await import("@/features/master");
@@ -637,115 +638,179 @@ export const router = createBrowserRouter([
           },
           {
             path: "staff",
-            lazy: async () => {
-              const { StaffSettings } = await import("@/features/master");
-              return { Component: StaffSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterStaff}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { StaffSettings } = await import("@/features/master");
+                return { Component: StaffSettings };
+              },
+            }],
           },
           {
             path: "treatment-items",
-            lazy: async () => {
-              const { TreatmentPlanMaster } = await import("@/features/master");
-              return { Component: TreatmentPlanMaster };
-            },
+            element: <RequirePermission resource={ResourceMasterMedical}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { TreatmentPlanMaster } = await import("@/features/master");
+                return { Component: TreatmentPlanMaster };
+              },
+            }],
           },
           {
             path: "diagnosis",
-            lazy: async () => {
-              const { DiagnosisSettings } = await import("@/features/master");
-              return { Component: DiagnosisSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterMedical}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { DiagnosisSettings } = await import("@/features/master");
+                return { Component: DiagnosisSettings };
+              },
+            }],
           },
           {
             path: "animal-species",
-            lazy: async () => {
-              const { AnimalSpeciesSettings } = await import("@/features/master");
-              return { Component: AnimalSpeciesSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterAnimalSpecies}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { AnimalSpeciesSettings } = await import("@/features/master");
+                return { Component: AnimalSpeciesSettings };
+              },
+            }],
           },
           {
             path: "trimming",
-            lazy: async () => {
-              const { TrimmingSettings } = await import("@/features/master");
-              return { Component: TrimmingSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterTrimming}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { TrimmingSettings } = await import("@/features/master");
+                return { Component: TrimmingSettings };
+              },
+            }],
           },
           {
             path: "medicine",
-            lazy: async () => {
-              const { MedicineSettings } = await import("@/features/master");
-              return { Component: MedicineSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterMedical}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { MedicineSettings } = await import("@/features/master");
+                return { Component: MedicineSettings };
+              },
+            }],
           },
           {
             path: "service-type",
-            lazy: async () => {
-              const { ServiceTypeSettings } = await import("@/features/master");
-              return { Component: ServiceTypeSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterServiceType}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { ServiceTypeSettings } = await import("@/features/master");
+                return { Component: ServiceTypeSettings };
+              },
+            }],
           },
           {
             path: "hospitalization",
-            lazy: async () => {
-              const { HospitalizationSettings } = await import("@/features/master");
-              return { Component: HospitalizationSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterHospitalization}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { HospitalizationSettings } = await import("@/features/master");
+                return { Component: HospitalizationSettings };
+              },
+            }],
           },
           {
             path: "cage",
-            lazy: async () => {
-              const { CageSettings } = await import("@/features/master");
-              return { Component: CageSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterHospitalization}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { CageSettings } = await import("@/features/master");
+                return { Component: CageSettings };
+              },
+            }],
           },
           {
             path: "merchandise-items",
-            lazy: async () => {
-              const { MerchandiseItemSettings } = await import("@/features/master");
-              return { Component: MerchandiseItemSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterMerchandise}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { MerchandiseItemSettings } = await import("@/features/master");
+                return { Component: MerchandiseItemSettings };
+              },
+            }],
           },
           {
             path: "insurance",
-            lazy: async () => {
-              const { InsuranceSettings } = await import("@/features/master");
-              return { Component: InsuranceSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterInsurance}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { InsuranceSettings } = await import("@/features/master");
+                return { Component: InsuranceSettings };
+              },
+            }],
           },
           {
             path: "occupations",
-            lazy: async () => {
-              const { OccupationSettings } = await import("@/features/master");
-              return { Component: OccupationSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterStaff}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { OccupationSettings } = await import("@/features/master");
+                return { Component: OccupationSettings };
+              },
+            }],
           },
           {
             path: "permission-groups",
-            lazy: async () => {
-              const { PermissionGroupSettings } = await import("@/features/master");
-              return { Component: PermissionGroupSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterPermission}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { PermissionGroupSettings } = await import("@/features/master");
+                return { Component: PermissionGroupSettings };
+              },
+            }],
           },
           {
             path: "inquiry-templates",
-            lazy: async () => {
-              const { InterviewTemplateSettings } = await import("@/features/master");
-              return { Component: InterviewTemplateSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterMedical}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { InterviewTemplateSettings } = await import("@/features/master");
+                return { Component: InterviewTemplateSettings };
+              },
+            }],
           },
           {
             path: "interview/chief-complaint",
-            lazy: async () => {
-              const { ChiefComplaintSettings } = await import("@/features/master");
-              return { Component: ChiefComplaintSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterMedical}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { ChiefComplaintSettings } = await import("@/features/master");
+                return { Component: ChiefComplaintSettings };
+              },
+            }],
           },
           {
             path: "interview/templates",
-            lazy: async () => {
-              const { InterviewTemplateSettings } = await import("@/features/master");
-              return { Component: InterviewTemplateSettings };
-            },
+            element: <RequirePermission resource={ResourceMasterMedical}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { InterviewTemplateSettings } = await import("@/features/master");
+                return { Component: InterviewTemplateSettings };
+              },
+            }],
           },
         ],
       },

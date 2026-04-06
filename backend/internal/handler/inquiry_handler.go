@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -38,5 +39,5 @@ func (h *Handler) UpdateInquiry(c *gin.Context) {
 
 // RegisterInquiryRoutes は問診関連のルートを登録する
 func (h *Handler) RegisterInquiryRoutes(rg *gin.RouterGroup) {
-	rg.PATCH("/:id/inquiries", h.UpdateInquiry)
+	rg.PATCH("/:id/inquiries", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateInquiry)
 }

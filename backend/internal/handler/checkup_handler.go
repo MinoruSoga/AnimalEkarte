@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -191,8 +192,9 @@ func (h *Handler) RegisterGlobalCheckupRoutes(rg *gin.RouterGroup) {
 
 // RegisterCheckupRoutes は健診記録関連のルートを登録する
 func (h *Handler) RegisterCheckupRoutes(rg *gin.RouterGroup) {
+	perm := h.RequirePermission(string(model.ResourceCheckups), "edit")
 	rg.GET("/:id/checkups", h.ListCheckups)
-	rg.POST("/:id/checkups", h.CreateCheckup)
-	rg.PATCH("/:id/checkups/:checkupId", h.UpdateCheckup)
-	rg.DELETE("/:id/checkups/:checkupId", h.DeleteCheckup)
+	rg.POST("/:id/checkups", perm, h.CreateCheckup)
+	rg.PATCH("/:id/checkups/:checkupId", perm, h.UpdateCheckup)
+	rg.DELETE("/:id/checkups/:checkupId", perm, h.DeleteCheckup)
 }

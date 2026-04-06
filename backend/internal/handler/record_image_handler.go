@@ -251,8 +251,9 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 
 // RegisterRecordImageRoutes は診療画像関連のルートをmedical-recordsグループに登録する
 func (h *Handler) RegisterRecordImageRoutes(rg *gin.RouterGroup) {
+	perm := h.RequirePermission(string(model.ResourceMedicalRecords), "edit")
 	rg.GET("/:id/images", h.ListRecordImages)
-	rg.POST("/:id/images", h.CreateRecordImage)
-	rg.POST("/:id/images/upload", h.UploadRecordImage)
-	rg.DELETE("/:id/images/:imageId", h.DeleteRecordImage)
+	rg.POST("/:id/images", perm, h.CreateRecordImage)
+	rg.POST("/:id/images/upload", perm, h.UploadRecordImage)
+	rg.DELETE("/:id/images/:imageId", perm, h.DeleteRecordImage)
 }
