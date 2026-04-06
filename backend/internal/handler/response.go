@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -70,7 +71,16 @@ func parseBindError(err error) string {
 		}
 		return strings.Join(msgs, "; ")
 	}
-	return err.Error()
+	// BUG-129: Go 内部エラーメッセージをサニタイズし、構造体名・フィールド型の漏洩を防止
+	var unmarshalErr *json.UnmarshalTypeError
+	if errors.As(err, &unmarshalErr) {
+		return fmt.Sprintf("%s: 正しい形式で入力してください", unmarshalErr.Field)
+	}
+	var syntaxErr *json.SyntaxError
+	if errors.As(err, &syntaxErr) {
+		return "リクエストの形式が正しくありません"
+	}
+	return "入力値が正しくありません"
 }
 
 func formatValidationError(fe validator.FieldError) string {

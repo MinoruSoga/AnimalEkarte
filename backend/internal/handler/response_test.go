@@ -123,7 +123,7 @@ func TestRespondError(t *testing.T) {
 			name:       "not found error maps to 404",
 			err:        apperrors.WrapNotFound("owner", "123"),
 			wantStatus: http.StatusNotFound,
-			wantBody:   "owner with id 123 not found",
+			wantBody:   "not found",
 		},
 		{
 			name:       "already exists error maps to 409",

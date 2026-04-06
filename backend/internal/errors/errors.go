@@ -45,8 +45,8 @@ func Wrap(err error, message string) error {
 func WrapNotFound(resource, id string) error {
 	return &AppError{
 		Code:    "NOT_FOUND",
-		Message: fmt.Sprintf("%s with id %s not found", resource, id),
-		Err:     ErrNotFound,
+		Message: "not found",
+		Err:     fmt.Errorf("%s(id=%s): %w", resource, id, ErrNotFound),
 	}
 }
 
@@ -131,5 +131,6 @@ func FromGORM(err error, resource string, id string) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return WrapNotFound(resource, id)
 	}
-	return Wrap(err, fmt.Sprintf("database error on %s", resource))
+	// BUG-129: リソース名は内部ログ用。ユーザーには汎化メッセージを返す
+	return Wrap(err, "database error")
 }
