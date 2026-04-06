@@ -867,15 +867,17 @@ export function MedicineSettings() {
         </DndContext>
       </div>
 
-      {/* Inline add row */}
-      <button
-        type="button"
-        onClick={() => handleCreate()}
-        className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}
-      >
-        <Plus className={`${ICON.xs}`} />
-        新しい薬剤を追加...
-      </button>
+      {/* Inline add row — BUG-157: create 権限で制御 */}
+      {canCreate ? (
+        <button
+          type="button"
+          onClick={() => handleCreate()}
+          className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}
+        >
+          <Plus className={`${ICON.xs}`} />
+          新しい薬剤を追加...
+        </button>
+      ) : null}
     </div>
   );
 
