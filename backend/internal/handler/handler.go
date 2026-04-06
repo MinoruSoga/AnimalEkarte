@@ -64,6 +64,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	protected.Use(middleware.SanitizeNullBytes()) // BUG-067: NULL バイト・制御文字を除去
 
 	protected.GET("/me", h.GetMe)
+	protected.PUT("/users/me/password", h.ChangeMyPassword) // BUG-148: 自分のパスワード変更
 
 	// BUG-020: 各リソースの write 操作に権限チェックを適用
 	h.registerOwnerRoutesWithAuth(protected)

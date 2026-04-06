@@ -429,6 +429,67 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "token refreshed"})
 }
 
+// ChangeMyPassword は認証済みユーザーが自分のパスワードを変更する（BUG-148）
+func (h *Handler) ChangeMyPassword(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var req struct {
+		CurrentPassword string `json:"current_password" binding:"required"`
+		NewPassword     string `json:"new_password"     binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	// 新しいパスワードの複雑性チェック
+	if err := validatePassword(req.NewPassword); err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
+	staff, err := h.repos.Staff.FindByID(ctx, staffID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	if staff.AccountID == nil {
+		RespondError(c, apperrors.WrapInvalidInput("このスタッフにはアカウントが紐づいていません"))
+		return
+	}
+
+	account, err := h.repos.Account.GetByID(ctx, *staff.AccountID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	// 現在のパスワード検証
+	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		RespondError(c, apperrors.WrapUnauthorized("現在のパスワードが正しくありません"))
+		return
+	}
+
+	// 新しいパスワードをハッシュ化して更新
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		RespondError(c, apperrors.Wrap(err, "failed to hash password"))
+		return
+	}
+	account.PasswordHash = string(hashed)
+	if err := h.repos.Account.Update(ctx, account); err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	slog.InfoContext(ctx, "password changed by user", slog.Uint64("staff_id", staffID))
+	c.JSON(http.StatusOK, gin.H{"message": "パスワードを変更しました"})
+}
+
 // GetMe godoc
 func (h *Handler) GetMe(c *gin.Context) {
 	ctx := c.Request.Context()
