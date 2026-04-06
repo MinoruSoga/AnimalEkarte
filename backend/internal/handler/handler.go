@@ -57,6 +57,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	loginRateStore := middleware.NewRateLimitStore()
 	api.POST("/login", middleware.RateLimit(loginRateStore, 5.0/60, 5), h.Login) // 5回/分
 	api.POST("/logout", h.Logout)
+	api.POST("/auth/refresh", h.RefreshToken) // BUG-136: refresh token エンドポイント
 
 	protected := api.Group("")
 	protected.Use(middleware.Auth(h.cfg.JWTSecret))

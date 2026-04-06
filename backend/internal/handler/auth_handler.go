@@ -213,6 +213,35 @@ func (h *Handler) Login(c *gin.Context) {
 		SameSite: sameSite,
 	})
 
+	// Refresh Token 発行（7日間有効、token rotation で毎回更新）
+	refreshExpiresAt := time.Now().Add(7 * 24 * time.Hour)
+	refreshClaims := &middleware.JWTClaims{
+		UserID:        strconv.FormatUint(staff.ID, 10),
+		ClinicID:      mainClinicID,
+		IsSystemAdmin: account.IsSystemAdmin,
+		ClinicIDs:     clinicIDs,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(refreshExpiresAt),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Subject:   "refresh",
+		},
+	}
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refreshTokenStr, err := refreshToken.SignedString([]byte(h.cfg.JWTSecret))
+	if err != nil {
+		RespondError(c, apperrors.Wrap(err, "failed to sign refresh token"))
+		return
+	}
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     refreshTokenCookieName,
+		Value:    refreshTokenStr,
+		Path:     "/api/v1/auth/refresh",
+		MaxAge:   int(time.Until(refreshExpiresAt).Seconds()),
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: sameSite,
+	})
+
 	// クリニック一覧を取得してレスポンス構築
 	allClinics, err := h.svc.Clinic.ListClinics(ctx)
 	if err != nil {
@@ -275,6 +304,129 @@ func (h *Handler) Logout(c *gin.Context) {
 
 	slog.InfoContext(c.Request.Context(), "logout successful")
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+}
+
+// RefreshToken は refresh_token Cookie を検証し、新しい access_token + refresh_token を発行する。
+// Token Rotation: 使用済み refresh_token は新しいものに置換される。
+func (h *Handler) RefreshToken(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	tokenStr, err := c.Cookie(refreshTokenCookieName)
+	if err != nil || tokenStr == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token not found"})
+		return
+	}
+
+	// refresh_token を検証
+	claims := &middleware.JWTClaims{}
+	if _, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return []byte(h.cfg.JWTSecret), nil
+	}); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired refresh token"})
+		return
+	}
+
+	// Subject が "refresh" であることを確認（access_token の流用を防止）
+	if claims.Subject != "refresh" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token type"})
+		return
+	}
+
+	// staff の有効性チェック
+	staffID, parseErr := strconv.ParseUint(claims.UserID, 10, 64)
+	if parseErr != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		return
+	}
+	staff, findErr := h.repos.Staff.FindByID(ctx, staffID)
+	if findErr != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		return
+	}
+	if !staff.IsActive {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "このアカウントは無効です"})
+		return
+	}
+
+	// 所属クリニック再取得（assignment 変更があった場合に最新を反映）
+	assignments, asgErr := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	if asgErr != nil {
+		RespondError(c, apperrors.Wrap(asgErr, "failed to get clinic assignments"))
+		return
+	}
+	clinicIDs := make([]uint64, 0, len(assignments))
+	mainClinicID := claims.ClinicID
+	for _, a := range assignments {
+		clinicIDs = append(clinicIDs, a.ClinicID)
+	}
+
+	// 新しい access_token（15分）
+	expiresAt := time.Now().Add(15 * time.Minute)
+	newAccessClaims := &middleware.JWTClaims{
+		UserID:        claims.UserID,
+		ClinicID:      mainClinicID,
+		IsSystemAdmin: claims.IsSystemAdmin,
+		ClinicIDs:     clinicIDs,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	newAccess := jwt.NewWithClaims(jwt.SigningMethodHS256, newAccessClaims)
+	newAccessStr, signErr := newAccess.SignedString([]byte(h.cfg.JWTSecret))
+	if signErr != nil {
+		RespondError(c, apperrors.Wrap(signErr, "failed to sign access token"))
+		return
+	}
+
+	// 新しい refresh_token（7日、rotation）
+	refreshExpiresAt := time.Now().Add(7 * 24 * time.Hour)
+	newRefreshClaims := &middleware.JWTClaims{
+		UserID:        claims.UserID,
+		ClinicID:      mainClinicID,
+		IsSystemAdmin: claims.IsSystemAdmin,
+		ClinicIDs:     clinicIDs,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(refreshExpiresAt),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Subject:   "refresh",
+		},
+	}
+	newRefresh := jwt.NewWithClaims(jwt.SigningMethodHS256, newRefreshClaims)
+	newRefreshStr, rSignErr := newRefresh.SignedString([]byte(h.cfg.JWTSecret))
+	if rSignErr != nil {
+		RespondError(c, apperrors.Wrap(rSignErr, "failed to sign refresh token"))
+		return
+	}
+
+	// Cookie 設定
+	sameSite := http.SameSiteNoneMode
+	secure := true
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     accessTokenCookieName,
+		Value:    newAccessStr,
+		Path:     "/",
+		MaxAge:   int(time.Until(expiresAt).Seconds()),
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: sameSite,
+	})
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     refreshTokenCookieName,
+		Value:    newRefreshStr,
+		Path:     "/api/v1/auth/refresh",
+		MaxAge:   int(time.Until(refreshExpiresAt).Seconds()),
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: sameSite,
+	})
+
+	slog.InfoContext(ctx, "token refreshed", slog.Uint64("staff_id", staffID))
+	c.JSON(http.StatusOK, gin.H{"message": "token refreshed"})
 }
 
 // GetMe godoc
