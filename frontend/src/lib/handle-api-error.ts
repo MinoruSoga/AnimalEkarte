@@ -21,7 +21,8 @@ export function handleApiError(err: unknown, context: string): void {
       // 401時は自動ログアウト・リダイレクトが行われるべきだが、ここでは通知のみ
       toast.error("セッションが切れました。再度ログインしてください。");
     } else if (status === 403) {
-      toast.error("この操作を実行する権限がありません。");
+      // 権限バッジ + ルートガードで既にUI制御済み。トーストは冗長なので抑制。
+      return;
     } else if (status === 404) {
       toast.error(serverMessage ?? `${context}対象が見つかりません。`);
     } else if (status === 409) {
