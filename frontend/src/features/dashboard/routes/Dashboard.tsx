@@ -17,6 +17,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
+import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
+import { ResourceDashboard } from "@/types/generated/models";
 
 // Shared
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -273,7 +275,8 @@ export function Dashboard() {
                 title="当日の受付"
                 description={`${todayLabel} - 受付状況をリアルタイムで確認`}
                 action={
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
+                        <PermissionBadges resource={ResourceDashboard} />
                         <Button
                             variant={isFilterOpen ? "secondary" : "outline"}
                             className={`gap-2 bg-white h-11 text-base tracking-[var(--tracking-notion)] ${C.text} ${C.borderMedium}`}

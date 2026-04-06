@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
+import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
+import { ResourceReservations } from "@/types/generated/models";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { getCalendarViewLabel } from "@/utils/status-helpers";
@@ -139,6 +141,7 @@ export function ReservationManagement() {
         icon={<CalendarIcon className={`${ICON.page} ${C.text}`} />}
         action={
           <div className="flex items-center gap-2">
+            <PermissionBadges resource={ResourceReservations} />
             {canCreate ? (
               <PrimaryButton className="gap-2" onClick={() => handleOpenForm()}>
                 <Plus className={ICON.action} />
