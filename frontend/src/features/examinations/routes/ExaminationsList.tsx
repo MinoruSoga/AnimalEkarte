@@ -246,10 +246,12 @@ export function ExaminationsList() {
       icon={<TestTube className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="h-10 text-sm gap-2 bg-white" onClick={() => {}}>
-            <FileSpreadsheet className={ICON.action} />
-            検査データ取込
-          </Button>
+          {canCreate ? (
+            <Button variant="outline" className="h-10 text-sm gap-2 bg-white" onClick={() => {}}>
+              <FileSpreadsheet className={ICON.action} />
+              検査データ取込
+            </Button>
+          ) : null}
           {canCreate ? (
             <PrimaryButton onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
