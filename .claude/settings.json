@@ -241,6 +241,17 @@
         "hooks": [
           {
             "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-save-progress.js",
+            "timeout": 10000
+          }
+        ],
+        "description": "Save session progress snapshot for cross-session context persistence"
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-desktop-notify.js",
             "timeout": 10000
           }
