@@ -275,17 +275,15 @@ func (h *Handler) DeleteTreatmentPlanInHospitalization(c *gin.Context) {
 }
 
 func (h *Handler) RegisterTreatmentPlanMedicalRecordRoutes(rg *gin.RouterGroup) {
-	perm := h.RequirePermission(string(model.ResourceMedicalRecords), "edit")
 	rg.GET("/:id/treatment-plans", h.ListTreatmentPlansByMedicalRecord)
-	rg.POST("/:id/treatment-plans", perm, h.CreateTreatmentPlanForMedicalRecord)
-	rg.PATCH("/:id/treatment-plans/:planId", perm, h.UpdateTreatmentPlanInMedicalRecord)
-	rg.DELETE("/:id/treatment-plans/:planId", perm, h.DeleteTreatmentPlanInMedicalRecord)
+	rg.POST("/:id/treatment-plans", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateTreatmentPlanForMedicalRecord)
+	rg.PATCH("/:id/treatment-plans/:planId", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateTreatmentPlanInMedicalRecord)
+	rg.DELETE("/:id/treatment-plans/:planId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteTreatmentPlanInMedicalRecord)
 }
 
 func (h *Handler) RegisterTreatmentPlanHospitalizationRoutes(rg *gin.RouterGroup) {
-	perm := h.RequirePermission(string(model.ResourceHospitalization), "edit")
 	rg.GET("/:id/treatment-plans", h.ListTreatmentPlansByHospitalization)
-	rg.POST("/:id/treatment-plans", perm, h.CreateTreatmentPlanForHospitalization)
-	rg.PATCH("/:id/treatment-plans/:planId", perm, h.UpdateTreatmentPlanInHospitalization)
-	rg.DELETE("/:id/treatment-plans/:planId", perm, h.DeleteTreatmentPlanInHospitalization)
+	rg.POST("/:id/treatment-plans", h.RequirePermission(string(model.ResourceHospitalization), "create"), h.CreateTreatmentPlanForHospitalization)
+	rg.PATCH("/:id/treatment-plans/:planId", h.RequirePermission(string(model.ResourceHospitalization), "edit"), h.UpdateTreatmentPlanInHospitalization)
+	rg.DELETE("/:id/treatment-plans/:planId", h.RequirePermission(string(model.ResourceHospitalization), "delete"), h.DeleteTreatmentPlanInHospitalization)
 }

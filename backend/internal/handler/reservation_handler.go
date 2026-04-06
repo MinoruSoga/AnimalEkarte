@@ -297,10 +297,7 @@ func (h *Handler) RegisterReservationRoutes(rg *gin.RouterGroup) {
 	reservations := rg.Group("/reservations")
 	reservations.GET("", h.ListReservations)
 	reservations.GET("/:id", h.GetReservation)
-
-	resWrite := reservations.Group("")
-	resWrite.Use(h.RequirePermission(string(model.ResourceReservations), "edit"))
-	resWrite.POST("", h.CreateReservation)
-	resWrite.PATCH("/:id", h.UpdateReservation)
-	resWrite.DELETE("/:id", h.DeleteReservation)
+	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "create"), h.CreateReservation)
+	reservations.PATCH("/:id", h.RequirePermission(string(model.ResourceReservations), "edit"), h.UpdateReservation)
+	reservations.DELETE("/:id", h.RequirePermission(string(model.ResourceReservations), "delete"), h.DeleteReservation)
 }

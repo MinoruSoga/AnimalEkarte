@@ -229,10 +229,7 @@ func (h *Handler) RegisterClinicRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics")
 	clinics.GET("", h.ListClinics)
 	clinics.GET("/:id", h.GetClinic)
-
-	clinicWrite := clinics.Group("")
-	clinicWrite.Use(h.RequirePermission(string(model.ResourceHospitalSettings), "edit"))
-	clinicWrite.POST("", h.CreateClinic)
-	clinicWrite.PATCH("/:id", h.UpdateClinic)
-	clinicWrite.DELETE("/:id", h.DeleteClinic)
+	clinics.POST("", h.RequirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateClinic)
+	clinics.PATCH("/:id", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateClinic)
+	clinics.DELETE("/:id", h.RequirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteClinic)
 }

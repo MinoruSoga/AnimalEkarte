@@ -192,9 +192,8 @@ func (h *Handler) RegisterGlobalCheckupRoutes(rg *gin.RouterGroup) {
 
 // RegisterCheckupRoutes は健診記録関連のルートを登録する
 func (h *Handler) RegisterCheckupRoutes(rg *gin.RouterGroup) {
-	perm := h.RequirePermission(string(model.ResourceCheckups), "edit")
 	rg.GET("/:id/checkups", h.ListCheckups)
-	rg.POST("/:id/checkups", perm, h.CreateCheckup)
-	rg.PATCH("/:id/checkups/:checkupId", perm, h.UpdateCheckup)
-	rg.DELETE("/:id/checkups/:checkupId", perm, h.DeleteCheckup)
+	rg.POST("/:id/checkups", h.RequirePermission(string(model.ResourceCheckups), "create"), h.CreateCheckup)
+	rg.PATCH("/:id/checkups/:checkupId", h.RequirePermission(string(model.ResourceCheckups), "edit"), h.UpdateCheckup)
+	rg.DELETE("/:id/checkups/:checkupId", h.RequirePermission(string(model.ResourceCheckups), "delete"), h.DeleteCheckup)
 }

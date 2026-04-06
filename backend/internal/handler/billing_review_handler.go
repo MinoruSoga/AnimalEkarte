@@ -87,8 +87,8 @@ func (h *Handler) ReturnBillingReview(c *gin.Context) {
 
 // RegisterBillingReviewRoutes は会計医師確認関連のルートをmedical-recordsグループに登録する
 func (h *Handler) RegisterBillingReviewRoutes(rg *gin.RouterGroup) {
-	perm := h.RequirePermission(string(model.ResourceAccounting), "edit")
+	permEdit := h.RequirePermission(string(model.ResourceAccounting), "edit")
 	rg.GET("/:id/billing-review", h.GetBillingReview)
-	rg.POST("/:id/billing-review/confirm", perm, h.ConfirmBillingReview)
-	rg.POST("/:id/billing-review/return", perm, h.ReturnBillingReview)
+	rg.POST("/:id/billing-review/confirm", permEdit, h.ConfirmBillingReview)
+	rg.POST("/:id/billing-review/return", permEdit, h.ReturnBillingReview)
 }

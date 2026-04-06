@@ -180,10 +180,7 @@ func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
 	pets := rg.Group("/pets")
 	pets.GET("", h.ListPets)
 	pets.GET("/:id", h.GetPet)
-
-	petWrite := pets.Group("")
-	petWrite.Use(h.RequirePermission(string(model.ResourceOwners), "edit"))
-	petWrite.POST("", h.CreatePet)
-	petWrite.PATCH("/:id", h.UpdatePet)
-	petWrite.DELETE("/:id", h.DeletePet)
+	pets.POST("", h.RequirePermission(string(model.ResourceOwners), "create"), h.CreatePet)
+	pets.PATCH("/:id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdatePet)
+	pets.DELETE("/:id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeletePet)
 }

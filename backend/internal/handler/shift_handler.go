@@ -141,10 +141,7 @@ func (h *Handler) DeleteShiftEntry(c *gin.Context) {
 func (h *Handler) RegisterShiftRoutes(rg *gin.RouterGroup) {
 	shifts := rg.Group("/shifts")
 	shifts.GET("", h.ListShiftEntries)
-
-	shiftWrite := shifts.Group("")
-	shiftWrite.Use(h.RequirePermission(string(model.ResourceShifts), "edit"))
-	shiftWrite.POST("", h.CreateShiftEntry)
-	shiftWrite.PATCH("/:id", h.UpdateShiftEntry)
-	shiftWrite.DELETE("/:id", h.DeleteShiftEntry)
+	shifts.POST("", h.RequirePermission(string(model.ResourceShifts), "create"), h.CreateShiftEntry)
+	shifts.PATCH("/:id", h.RequirePermission(string(model.ResourceShifts), "edit"), h.UpdateShiftEntry)
+	shifts.DELETE("/:id", h.RequirePermission(string(model.ResourceShifts), "delete"), h.DeleteShiftEntry)
 }
