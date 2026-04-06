@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -128,6 +129,47 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// GetStaffPermissionGroups godoc
+// GET /v1/masters/staffs/:id/permission-groups
+func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	groupIDs, err := h.repos.PermissionGroup.GetGroupIDsByStaffID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"group_ids": groupIDs})
+}
+
+// SetStaffPermissionGroups godoc
+// PUT /v1/masters/staffs/:id/permission-groups
+func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	var req struct {
+		GroupIDs []uint64 `json:"group_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if req.GroupIDs == nil {
+		req.GroupIDs = []uint64{}
+	}
+	if err := h.repos.PermissionGroup.SetStaffGroups(c.Request.Context(), id, req.GroupIDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"group_ids": req.GroupIDs})
+}
+
 // ReorderStaffs godoc
 func (h *Handler) ReorderStaffs(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -163,6 +205,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.GET("/staffs/:id", h.GetStaff)
 	masters.PATCH("/staffs/:id", h.UpdateStaff)
 	masters.DELETE("/staffs/:id", h.DeleteStaff)
+	masters.GET("/staffs/:id/permission-groups", h.GetStaffPermissionGroups)
+	masters.PUT("/staffs/:id/permission-groups", h.SetStaffPermissionGroups)
 
 	masters.GET("/cages", h.ListCages)
 	masters.POST("/cages", h.CreateCage)
@@ -268,6 +312,18 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.GET("/job-titles/:id", h.GetJobTitle)
 	masters.PATCH("/job-titles/:id", h.UpdateJobTitle)
 	masters.DELETE("/job-titles/:id", h.DeleteJobTitle)
+
+	masters.GET("/permission-groups", h.ListPermissionGroups)
+	masters.GET("/permission-groups/:id", h.GetPermissionGroup)
+
+	// Permission Group write operations require clinic admin
+	pgWrite := masters.Group("/permission-groups")
+	pgWrite.Use(middleware.RequireClinicAdmin())
+	pgWrite.POST("", h.CreatePermissionGroup)
+	pgWrite.PATCH("", h.ReorderPermissionGroups)
+	pgWrite.PATCH("/:id", h.UpdatePermissionGroup)
+	pgWrite.DELETE("/:id", h.DeletePermissionGroup)
+	pgWrite.PUT("/:id/rules", h.SetPermissionGroupRules)
 
 	masters.GET("/chief-complaint-categories", h.ListChiefComplaints)
 	masters.POST("/chief-complaint-categories", h.CreateChiefComplaint)

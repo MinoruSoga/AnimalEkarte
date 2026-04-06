@@ -156,3 +156,47 @@ export function useDeleteStaff() {
     },
   });
 }
+
+// ─────────────────────────────────────────────────
+// Staff Permission Groups API
+// ─────────────────────────────────────────────────
+
+const STAFF_PERM_GROUPS_KEY = (staffId: string) =>
+  [...STAFFS_QUERY_KEY, staffId, "permission-groups"] as const;
+
+export function useGetStaffPermissionGroups(staffId: string | null) {
+  return useQuery({
+    queryKey: STAFF_PERM_GROUPS_KEY(staffId ?? ""),
+    queryFn: async (): Promise<string[]> => {
+      const { data } = await axios.get<{ group_ids: number[] }>(
+        `/v1/masters/staffs/${staffId}/permission-groups`,
+      );
+      return (data.group_ids ?? []).map(String);
+    },
+    enabled: staffId !== null,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
+  });
+}
+
+export function useSetStaffPermissionGroups() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      staffId,
+      groupIds,
+    }: {
+      staffId: string;
+      groupIds: string[];
+    }) => {
+      await axios.put(`/v1/masters/staffs/${staffId}/permission-groups`, {
+        group_ids: groupIds.map((id) => parseInt(id, 10)),
+      });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: STAFF_PERM_GROUPS_KEY(variables.staffId),
+      });
+    },
+  });
+}

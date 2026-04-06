@@ -44,6 +44,7 @@ type Repositories struct {
 	Inquiry                InquiryRepository
 	InquiryTemplate        InquiryTemplateRepository
 	Company                CompanyRepository
+	PermissionGroup        PermissionGroupRepository
 	BillingReview          BillingReviewRepository
 	CarePlanItem           CarePlanItemRepository
 	ShiftEntry             ShiftEntryRepository
@@ -99,6 +100,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Inquiry:                NewInquiryRepository(db),
 		InquiryTemplate:        NewInquiryTemplateRepository(db),
 		Company:                NewCompanyRepository(db),
+		PermissionGroup:        NewPermissionGroupRepository(db),
 		BillingReview:          NewBillingReviewRepository(db),
 		CarePlanItem:           NewCarePlanItemRepository(db),
 		ShiftEntry:             NewShiftEntryRepository(db),

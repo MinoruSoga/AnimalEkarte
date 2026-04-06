@@ -587,9 +587,54 @@ CREATE INDEX idx_staff_clinic_clinic ON staff_clinic_assignments(clinic_id);
 CREATE INDEX idx_staff_clinic_main ON staff_clinic_assignments(staff_id, is_main);
 
 -- ------------------------------------
--- Deleted: permission_groups, permission_group_rules, user_permission_groups, refresh_tokens
--- These were removed in auth refactor (Account-based authentication)
+-- 28. permission_groups（権限グループマスタ）
+-- ------------------------------------
+CREATE TABLE permission_groups (
+    id          BIGSERIAL    PRIMARY KEY,
+    clinic_id   bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        varchar(100) NOT NULL,
+    description text         NOT NULL DEFAULT '',
+    color       varchar(7)   NOT NULL DEFAULT '#6B7280',
+    is_active   boolean      NOT NULL DEFAULT true,
+    sort_order  int          NOT NULL DEFAULT 0,
+    created_at  timestamptz  NOT NULL DEFAULT now(),
+    updated_at  timestamptz  NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
+);
 
+CREATE UNIQUE INDEX uk_permission_groups ON permission_groups(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE INDEX idx_permission_groups_clinic ON permission_groups(clinic_id) WHERE deleted_at IS NULL;
+
+-- ------------------------------------
+-- 28b. permission_group_rules（権限グループ-リソース×CRUD権限）
+-- ------------------------------------
+CREATE TABLE permission_group_rules (
+    id         BIGSERIAL   PRIMARY KEY,
+    group_id   bigint      NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+    resource   varchar(50) NOT NULL,
+    can_view   boolean     NOT NULL DEFAULT false,
+    can_create boolean     NOT NULL DEFAULT false,
+    can_edit   boolean     NOT NULL DEFAULT false,
+    can_delete boolean     NOT NULL DEFAULT false,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uk_permission_group_rules UNIQUE (group_id, resource)
+);
+
+CREATE INDEX idx_permission_group_rules_group ON permission_group_rules(group_id);
+
+-- ------------------------------------
+-- 28c. staff_permission_groups（スタッフ-権限グループ中間テーブル）
+-- ------------------------------------
+CREATE TABLE staff_permission_groups (
+    staff_id  bigint NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
+    group_id  bigint NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (staff_id, group_id)
+);
+
+CREATE INDEX idx_staff_permission_groups_staff ON staff_permission_groups(staff_id);
+CREATE INDEX idx_staff_permission_groups_group ON staff_permission_groups(group_id);
 
 -- ==========================================================================
 -- レイヤー4: pets依存
@@ -1691,9 +1736,96 @@ INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
     (15, 3, true)   -- clinic1@noavet.jp (account 2, staff 15)
 ON CONFLICT DO NOTHING;
 
--- Deleted: permission_groups, permission_group_rules, user_permission_groups
--- These tables were removed in the auth refactor (Account-based authentication)
--- Permission management has been replaced with simpler staff_role-based access control
+-- -----------------------------------------------------------------------------
+-- 7b. permission_groups（権限グループ: 3グループ）
+-- AUTH.md §2.3 / §5 権限マトリクスに準拠
+-- clinic_id=3（八王子院）
+-- -----------------------------------------------------------------------------
+INSERT INTO permission_groups (id, clinic_id, name, description, color, is_active, sort_order) VALUES
+    (1, 3, '管理者', '全15リソースフルアクセス（権限設定管理含む）', '#EF4444', true, 1),
+    (2, 3, '執行',   '全15リソース閲覧 + ほぼ全作成・編集（権限設定管理含む）', '#6366F1', true, 2),
+    (3, 3, '一般',   '基本業務操作（医療・予約・トリミング等の作成・編集）', '#10B981', true, 3)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('permission_groups', 'id'), (SELECT MAX(id) FROM permission_groups));
+
+-- -----------------------------------------------------------------------------
+-- 7c. permission_group_rules（権限グループルール: 15リソース × 3グループ = 45件）
+-- AUTH.md §5 権限マトリクス: V=View, C=Create, E=Edit, D=Delete
+-- -----------------------------------------------------------------------------
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    -- 管理者（group_id=1）: 全リソース VCED
+    (1, 'dashboard',         true, false, false, false),
+    (1, 'owners',            true, true,  true,  true),
+    (1, 'reservations',      true, true,  true,  true),
+    (1, 'medical-records',   true, true,  true,  true),
+    (1, 'hospitalization',   true, true,  true,  true),
+    (1, 'trimming',          true, true,  true,  true),
+    (1, 'examinations',      true, true,  true,  true),
+    (1, 'accounting',        true, true,  true,  true),
+    (1, 'vaccinations',      true, true,  true,  true),
+    (1, 'checkups',          true, true,  true,  true),
+    (1, 'inventory',         true, true,  true,  true),
+    (1, 'estimates',         true, true,  true,  true),
+    (1, 'shifts',            true, true,  true,  true),
+    (1, 'master',            true, true,  true,  true),
+    (1, 'hospital-settings', true, true,  true,  true),
+    -- 執行（group_id=2）: 閲覧全般 + 一部 CE
+    (2, 'dashboard',         true, false, false, false),
+    (2, 'owners',            true, true,  true,  false),
+    (2, 'reservations',      true, true,  true,  false),
+    (2, 'medical-records',   true, false, false, false),
+    (2, 'hospitalization',   true, true,  true,  false),
+    (2, 'trimming',          true, false, false, false),
+    (2, 'examinations',      true, false, false, false),
+    (2, 'accounting',        true, true,  true,  false),
+    (2, 'vaccinations',      true, false, false, false),
+    (2, 'checkups',          true, false, false, false),
+    (2, 'inventory',         true, true,  true,  false),
+    (2, 'estimates',         true, true,  true,  false),
+    (2, 'shifts',            true, true,  true,  false),
+    (2, 'master',            true, true,  true,  false),
+    (2, 'hospital-settings', true, false, false, false),
+    -- 一般（group_id=3）: 基本業務
+    (3, 'dashboard',         true, false, false, false),
+    (3, 'owners',            true, true,  true,  false),
+    (3, 'reservations',      true, true,  true,  false),
+    (3, 'medical-records',   true, true,  true,  false),
+    (3, 'hospitalization',   true, true,  true,  false),
+    (3, 'trimming',          true, true,  true,  false),
+    (3, 'examinations',      true, true,  true,  false),
+    (3, 'accounting',        true, false, false, false),
+    (3, 'vaccinations',      true, true,  true,  false),
+    (3, 'checkups',          true, false, false, false),
+    (3, 'inventory',         true, false, false, false),
+    (3, 'estimates',         true, false, false, false),
+    (3, 'shifts',            true, true,  true,  false),
+    (3, 'master',            true, false, false, false),
+    (3, 'hospital-settings', true, false, false, false)
+ON CONFLICT DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- 7d. staff_permission_groups（スタッフ→権限グループ割当: 7件）
+-- AUTH.md §5 デモアカウント仕様:
+--   manager@example.com (staff 13) → 管理者(1)
+--   exec@example.com    (staff 14) → 執行(2)
+--   vet@example.com     (staff  9) → 一般(3)
+--   nurse@example.com   (staff 10) → 一般(3)
+--   reception@example.com(staff 11) → 一般(3)
+--   trimmer@example.com (staff 12) → 一般(3)
+--   yamada@noavet.jp    (staff  1) → 一般(3)
+-- NOTE: admin@example.com / admin@noavet.jp / clinic1@noavet.jp は
+--   clinic_admin / system_admin のため暗黙的に全権限（グループ不要）
+-- -----------------------------------------------------------------------------
+INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
+    (13, 1),  -- manager@example.com → 管理者
+    (14, 2),  -- exec@example.com    → 執行
+    (9,  3),  -- vet@example.com     → 一般
+    (10, 3),  -- nurse@example.com   → 一般
+    (11, 3),  -- reception@example.com → 一般
+    (12, 3),  -- trimmer@example.com → 一般
+    (1,  3)   -- yamada@noavet.jp    → 一般
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- 8. service_types（サービス種別: 7件）

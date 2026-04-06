@@ -1101,6 +1101,60 @@ export const ResourceMaster: Resource = "master";
 export const ResourceHospitalSettings: Resource = "hospital-settings";
 
 //////////
+// source: permission_group.go
+
+/**
+ * PermissionGroup は権限グループマスタ（クリニック単位で権限を管理）
+ */
+export interface PermissionGroup {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  description: string;
+  color: string;
+  is_active: boolean;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  rules?: PermissionGroupRule[];
+  staffs?: Staff[];
+}
+/**
+ * PermissionGroupRule は権限グループ内のリソース×CRUD権限
+ */
+export interface PermissionGroupRule {
+  id: number /* uint64 */;
+  group_id: number /* uint64 */;
+  resource: string;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  permission_group?: PermissionGroup;
+}
+/**
+ * StaffPermissionGroup はスタッフと権限グループの中間テーブル（M:N）
+ */
+export interface StaffPermissionGroup {
+  staff_id: number /* uint64 */;
+  group_id: number /* uint64 */;
+  created_at: string;
+  /**
+   * Relations
+   */
+  staff?: Staff;
+  group?: PermissionGroup;
+}
+
+//////////
 // source: pet.go
 
 export type PetStatus = string;

@@ -8,6 +8,7 @@ import Bed from "lucide-react/dist/esm/icons/bed";
 import Building2 from "lucide-react/dist/esm/icons/building-2";
 import Users from "lucide-react/dist/esm/icons/users";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
+import Lock from "lucide-react/dist/esm/icons/lock";
 import Scissors from "lucide-react/dist/esm/icons/scissors";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
@@ -37,7 +38,8 @@ export type MasterSettingsCategory =
   | "job_title"
   | "animal_species"
   | "inquiry_template"
-  | "merchandise_item";
+  | "merchandise_item"
+  | "permission_group";
 
 export interface CategoryConfig {
   label: string;
@@ -224,6 +226,15 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     labels: { code: "コード", name: "品目名", category: "カテゴリ" },
     showPrice: true, showCode: false, showCategory: true, showParentItem: false,
     namePlaceholder: "ロイヤルカナン", codePlaceholder: "",
+  },
+  permission_group: {
+    label: "権限グループマスタ",
+    description: "スタッフに付与する権限グループを管理します",
+    settingsPath: "/settings/permission-groups",
+    IconComponent: Lock,
+    labels: { code: "コード", name: "グループ名", category: "分類" },
+    showPrice: false, showCode: false, showCategory: false, showParentItem: false,
+    namePlaceholder: "獣医師権限", codePlaceholder: "",
   },
 };
 

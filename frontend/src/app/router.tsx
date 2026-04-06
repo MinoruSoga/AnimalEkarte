@@ -724,6 +724,13 @@ export const router = createBrowserRouter([
             },
           },
           {
+            path: "permission-groups",
+            lazy: async () => {
+              const { PermissionGroupSettings } = await import("@/features/master");
+              return { Component: PermissionGroupSettings };
+            },
+          },
+          {
             path: "inquiry-templates",
             lazy: async () => {
               const { InterviewTemplateSettings } = await import("@/features/master");

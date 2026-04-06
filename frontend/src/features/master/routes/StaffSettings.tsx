@@ -1,22 +1,33 @@
-import { memo, useState, useCallback } from "react";
-import { UserRound } from "lucide-react";
+import { memo, useState, useMemo, useCallback } from "react";
+import { UserRound, Shield } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
 import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import { useGetStaffs, useCreateStaff, useUpdateStaff, useDeleteStaff, STAFF_ROLE_LABELS } from "@/features/master/api/staffs";
+import {
+  useGetStaffs,
+  useCreateStaff,
+  useUpdateStaff,
+  useDeleteStaff,
+  useGetStaffPermissionGroups,
+  useSetStaffPermissionGroups,
+  STAFF_ROLE_LABELS,
+} from "@/features/master/api/staffs";
 import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+import { useGetPermissionGroups } from "@/features/master/api/permission-groups";
+import type { PermissionGroup } from "@/features/master/api/permission-groups";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -25,6 +36,7 @@ import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
 const COLUMNS = [
   { header: "氏名", className: "flex-1" },
   { header: "職種", className: "w-[130px]" },
+  { header: "権限グループ", className: "w-[200px]" },
   { header: "ステータス", className: "w-[90px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
@@ -81,6 +93,10 @@ interface StaffSidePanelProps {
   onClose: () => void;
   onSave: (d: StaffFormData) => void;
   onDeleteRequest: (i: Staff) => void;
+  /** All permission groups available in this clinic */
+  allGroups: PermissionGroup[];
+  /** Called when groups should be saved for this staff */
+  onSaveGroups: (staffId: string, groupIds: string[]) => void;
 }
 
 const StaffSidePanel = memo(function StaffSidePanel({
@@ -88,8 +104,11 @@ const StaffSidePanel = memo(function StaffSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  allGroups,
+  onSaveGroups,
 }: StaffSidePanelProps) {
   const isNew = item === null;
+  const staffId = item?.id ?? null;
 
   const [f, setF] = useState<StaffFormData>(() => ({
     name: item?.name ?? "",
@@ -102,7 +121,28 @@ const StaffSidePanel = memo(function StaffSidePanel({
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
+  // ── Permission groups state ──────────────────────
+  const { data: serverGroupIds } = useGetStaffPermissionGroups(staffId);
+  // null = ユーザーがまだ編集していない（サーバーデータを使用）
+  const [userEditedGroupIds, setUserEditedGroupIds] = useState<string[] | null>(null);
+
+  const groupIds = useMemo(
+    () => userEditedGroupIds ?? serverGroupIds ?? [],
+    [userEditedGroupIds, serverGroupIds],
+  );
+
   // ── Handlers ─────────────────────────────────────
+  const handleGroupToggle = useCallback(
+    (groupId: string, checked: boolean) => {
+      setUserEditedGroupIds((prev) => {
+        const current = prev ?? serverGroupIds ?? [];
+        return checked ? [...current, groupId] : current.filter((id) => id !== groupId);
+      });
+      setIsDirty(true);
+    },
+    [serverGroupIds],
+  );
+
   const handleSave = useCallback(() => {
     if (!f.name.trim()) {
       setNameError("氏名を入力してください");
@@ -110,8 +150,11 @@ const StaffSidePanel = memo(function StaffSidePanel({
     }
     setNameError("");
     onSave(f);
+    if (!isNew && staffId) {
+      onSaveGroups(staffId, groupIds);
+    }
     setIsDirty(false);
-  }, [f, onSave]);
+  }, [f, isNew, staffId, groupIds, onSave, onSaveGroups]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -189,28 +232,67 @@ const StaffSidePanel = memo(function StaffSidePanel({
         />
       </PropertyRow>
 
-      <PropertyRow label="メールアドレス">
-        <input
-          type="email"
-          className={MASTER_INPUT_CLASS}
-          value={f.email}
-          onChange={isNew ? handleEmailChange : undefined}
-          disabled={!isNew}
-          placeholder="例: staff@clinic.com"
-        />
-      </PropertyRow>
-
       {isNew ? (
-        <PropertyRow label="パスワード">
-          <input
-            type="password"
-            className={MASTER_INPUT_CLASS}
-            value={f.password}
-            onChange={handlePasswordChange}
-            placeholder="8文字以上"
-          />
-        </PropertyRow>
+        <>
+          <PropertyRow label="メールアドレス">
+            <input
+              type="email"
+              className={MASTER_INPUT_CLASS}
+              value={f.email}
+              onChange={handleEmailChange}
+              placeholder="例: staff@clinic.com"
+            />
+          </PropertyRow>
+          <PropertyRow label="パスワード">
+            <input
+              type="password"
+              className={MASTER_INPUT_CLASS}
+              value={f.password}
+              onChange={handlePasswordChange}
+              placeholder="8文字以上"
+            />
+          </PropertyRow>
+        </>
       ) : null}
+
+      {/* ── Permission groups ─────────────────────── */}
+      <div className="mt-4 border-t pt-4">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Shield className={`${ICON.xs} text-muted-foreground`} />
+          <p className="text-xs font-medium text-muted-foreground">権限グループ</p>
+        </div>
+
+        {isNew ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            スタッフ登録後に権限グループを設定できます
+          </p>
+        ) : allGroups.length === 0 ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            権限グループが登録されていません
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            {allGroups.map((group) => (
+              <label
+                key={group.id}
+                className="flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer hover:bg-muted/40 transition-colors"
+              >
+                <Checkbox
+                  checked={groupIds.includes(group.id)}
+                  onCheckedChange={(checked) =>
+                    handleGroupToggle(group.id, checked === true)
+                  }
+                />
+                <div
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: group.color ?? PALETTE.defaultGray }}
+                />
+                <span className="text-sm">{group.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
     </MasterSidePanel>
   );
 });
@@ -224,6 +306,13 @@ export function StaffSettings() {
   const createMutation = useCreateStaff();
   const updateMutation = useUpdateStaff();
   const deleteMutation = useDeleteStaff();
+
+  // Permission groups — shown as checkboxes in the panel
+  const { data: allGroupsData } = useGetPermissionGroups();
+  const allGroups = allGroupsData ?? [];
+
+  // Group assignment mutation
+  const setGroupsMutation = useSetStaffPermissionGroups();
 
   const crud = useMasterCRUD<Staff>({
     data,
@@ -275,6 +364,12 @@ export function StaffSettings() {
     }),
   });
 
+  const handleSaveGroups = useCallback(
+    (staffId: string, groupIds: string[]) => {
+      setGroupsMutation.mutate({ staffId, groupIds });
+    },
+    [setGroupsMutation],
+  );
 
   return (
     <MasterCRUDPage
@@ -291,6 +386,9 @@ export function StaffSettings() {
         <DataTableRow key={item.id} onClick={() => onEdit(item)}>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
+          <TableCell>
+            <span className={`text-sm ${C.text40}`}>—</span>
+          </TableCell>
           <TableCell className="text-center">
             <NotionStatusPill isActive={item.isActive} />
           </TableCell>
@@ -306,6 +404,8 @@ export function StaffSettings() {
           onClose={onClose}
           onSave={onSave}
           onDeleteRequest={onDeleteRequest}
+          allGroups={allGroups}
+          onSaveGroups={handleSaveGroups}
         />
       )}
     />

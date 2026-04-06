@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,14 @@ func RequireClinicAdmin() gin.HandlerFunc {
 			return
 		}
 
+		slog.InfoContext(c.Request.Context(), "RequireClinicAdmin check",
+			slog.String("user_type", userType),
+			slog.String("path", c.Request.URL.Path))
+
 		if userType != "system_admin" && userType != "clinic_admin" {
+			slog.WarnContext(c.Request.Context(), "RequireClinicAdmin: access denied",
+				slog.String("user_type", userType),
+				slog.String("path", c.Request.URL.Path))
 			c.JSON(http.StatusForbidden, gin.H{"error": "clinic admin or above required"})
 			c.Abort()
 			return

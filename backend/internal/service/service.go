@@ -41,6 +41,7 @@ type Services struct {
 	Inquiry                InquiryService
 	InquiryTemplate        InquiryTemplateService
 	Company                CompanyService
+	PermissionGroup        PermissionGroupService
 	BillingReview          BillingReviewService
 	CarePlanItem           CarePlanItemService
 	ShiftEntry             ShiftEntryService
@@ -95,6 +96,7 @@ func NewServices(repos *repository.Repositories) *Services {
 		Inquiry:                NewInquiryService(repos.Inquiry),
 		InquiryTemplate:        NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                NewCompanyService(repos.Company),
+		PermissionGroup:        NewPermissionGroupService(repos.PermissionGroup),
 		BillingReview:          NewBillingReviewService(repos.BillingReview),
 		CarePlanItem:           NewCarePlanItemService(repos.CarePlanItem),
 		ShiftEntry:             NewShiftEntryService(repos.ShiftEntry),

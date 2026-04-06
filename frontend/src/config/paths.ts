@@ -229,6 +229,10 @@ export const paths = {
       path: "/settings/job-title",
       getHref: () => "/settings/job-title",
     },
+    permissionGroups: {
+      path: "/settings/permission-groups",
+      getHref: () => "/settings/permission-groups",
+    },
     inquiryTemplates: {
       path: "/settings/inquiry-templates",
       getHref: () => "/settings/inquiry-templates",

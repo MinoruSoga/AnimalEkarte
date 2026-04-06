@@ -8,6 +8,7 @@ export { HospitalizationSettings } from "./routes/HospitalizationSettings";
 export { InsuranceSettings } from "./routes/InsuranceSettings";
 export { InterviewTemplateSettings } from "./routes/InterviewTemplateSettings";
 export { JobTitleSettings } from "./routes/JobTitleSettings";
+export { PermissionGroupSettings } from "./routes/PermissionGroupSettings";
 export { MedicineSettings } from "./routes/MedicineSettings";
 export { MerchandiseItemSettings } from "./routes/MerchandiseItemSettings";
 export { ServiceTypeSettings } from "./routes/ServiceTypeSettings";
