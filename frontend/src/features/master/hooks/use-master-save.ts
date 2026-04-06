@@ -21,6 +21,8 @@ interface UseMasterSaveOptions<T extends MasterEntity, TForm, TCreate, TUpdate> 
   toCreateRequest: (data: TForm) => TCreate;
   /** FormData → UpdateRequest conversion */
   toUpdateRequest: (data: TForm) => TUpdate;
+  /** Optional: post-save hook for additional operations (e.g., setting related data) */
+  onSuccess?: (saved: T, formData: TForm) => Promise<void> | void;
 }
 
 // ─────────────────────────────────────────────────
@@ -34,6 +36,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   validate,
   toCreateRequest,
   toUpdateRequest,
+  onSuccess,
 }: UseMasterSaveOptions<T, TForm, TCreate, TUpdate>) {
   // rerender-dependencies: extract primitives from crud.editTarget object
   const editTargetId = crud.editTarget !== null && crud.editTarget !== "new" ? crud.editTarget.id : null;
@@ -54,25 +57,41 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
           updateMutation.mutate(
             { id: editTargetId, req: toUpdateRequest(data) },
             {
-              onSuccess: () => {
-                toast.success("更新しました");
-                crudHandleClose();
+              onSuccess: async (savedData) => {
+                try {
+                  const saved = savedData as T;
+                  if (onSuccess) {
+                    await onSuccess(saved, data);
+                  }
+                  toast.success("更新しました");
+                  crudHandleClose();
+                } catch (error) {
+                  toast.error("保存に失敗しました");
+                }
               },
               onError: () => toast.error("更新に失敗しました"),
             },
           );
         } else {
           createMutation.mutate(toCreateRequest(data), {
-            onSuccess: () => {
-              toast.success("登録しました");
-              crudHandleClose();
+            onSuccess: async (savedData) => {
+              try {
+                const saved = savedData as T;
+                if (onSuccess) {
+                  await onSuccess(saved, data);
+                }
+                toast.success("登録しました");
+                crudHandleClose();
+              } catch (error) {
+                toast.error("保存に失敗しました");
+              }
             },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [editTargetId, crudHandleClose, crudStartSave, createMutation, updateMutation, validate, toCreateRequest, toUpdateRequest],
+    [editTargetId, crudHandleClose, crudStartSave, createMutation, updateMutation, validate, toCreateRequest, toUpdateRequest, onSuccess],
   );
 
   return { handleSave };
