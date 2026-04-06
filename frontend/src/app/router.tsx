@@ -161,10 +161,14 @@ export const router = createBrowserRouter([
           },
           {
             path: "select-pet",
-            lazy: async () => {
-              const { MedicalRecordPetSelection } = await import("@/features/medical-records");
-              return { Component: MedicalRecordPetSelection };
-            },
+            element: <RequirePermission resource={ResourceMedicalRecords} action="create"><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { MedicalRecordPetSelection } = await import("@/features/medical-records");
+                return { Component: MedicalRecordPetSelection };
+              },
+            }],
           },
           {
             // BUG-020: create 権限ガード
@@ -213,10 +217,14 @@ export const router = createBrowserRouter([
           },
           {
             path: "select-pet",
-            lazy: async () => {
-              const { HospitalizationPetSelection } = await import("@/features/hospitalization");
-              return { Component: HospitalizationPetSelection };
-            },
+            element: <RequirePermission resource={ResourceHospitalization} action="create"><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { HospitalizationPetSelection } = await import("@/features/hospitalization");
+                return { Component: HospitalizationPetSelection };
+              },
+            }],
           },
           {
             // BUG-020: create 権限ガード
@@ -283,10 +291,14 @@ export const router = createBrowserRouter([
           },
           {
             path: "select-pet",
-            lazy: async () => {
-              const { TrimmingPetSelection } = await import("@/features/trimming");
-              return { Component: TrimmingPetSelection };
-            },
+            element: <RequirePermission resource={ResourceTrimming} action="create"><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { TrimmingPetSelection } = await import("@/features/trimming");
+                return { Component: TrimmingPetSelection };
+              },
+            }],
           },
           {
             // BUG-020: create 権限ガード
@@ -335,10 +347,14 @@ export const router = createBrowserRouter([
           },
           {
             path: "select-pet",
-            lazy: async () => {
-              const { ExaminationPetSelection } = await import("@/features/examinations");
-              return { Component: ExaminationPetSelection };
-            },
+            element: <RequirePermission resource={ResourceExaminations} action="create"><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { ExaminationPetSelection } = await import("@/features/examinations");
+                return { Component: ExaminationPetSelection };
+              },
+            }],
           },
           {
             // BUG-020: create 権限ガード
@@ -387,12 +403,16 @@ export const router = createBrowserRouter([
           },
           {
             path: "select-pet",
-            lazy: async () => {
-              const { AccountingPetSelection } = await import(
-                "@/features/accounting/routes/AccountingPetSelection"
-              );
-              return { Component: AccountingPetSelection };
-            },
+            element: <RequirePermission resource={ResourceAccounting} action="create"><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { AccountingPetSelection } = await import(
+                  "@/features/accounting/routes/AccountingPetSelection"
+                );
+                return { Component: AccountingPetSelection };
+              },
+            }],
           },
           {
             // BUG-020: create 権限ガード
@@ -445,10 +465,14 @@ export const router = createBrowserRouter([
           },
           {
             path: "select-pet",
-            lazy: async () => {
-              const { VaccinationPetSelection } = await import("@/features/vaccinations");
-              return { Component: VaccinationPetSelection };
-            },
+            element: <RequirePermission resource={ResourceVaccinations} action="create"><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { VaccinationPetSelection } = await import("@/features/vaccinations");
+                return { Component: VaccinationPetSelection };
+              },
+            }],
           },
           {
             // BUG-020: create 権限ガード
