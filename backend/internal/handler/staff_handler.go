@@ -77,20 +77,41 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 		return
 	}
 
-	staff, err := h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
-		Name:          req.Name,
-		LicenseNumber: req.LicenseNumber,
-		OccupationID:  req.OccupationID,
-		SortOrder:     req.SortOrder,
-		IsActive:      req.IsActive,
-	})
-	if err != nil {
-		RespondError(c, err)
+	// パスワードのみの更新かどうかを判定（BUG-131）
+	hasProfileUpdate := req.Name != nil || req.LicenseNumber != nil || req.OccupationID != nil || req.SortOrder != nil || req.IsActive != nil
+	hasPasswordUpdate := req.Password != nil && *req.Password != ""
+
+	if !hasProfileUpdate && !hasPasswordUpdate {
+		RespondError(c, apperrors.WrapInvalidInput("at least one field must be provided"))
 		return
 	}
 
+	var staff *model.Staff
+	if hasProfileUpdate {
+		var svcErr error
+		staff, svcErr = h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
+			Name:          req.Name,
+			LicenseNumber: req.LicenseNumber,
+			OccupationID:  req.OccupationID,
+			SortOrder:     req.SortOrder,
+			IsActive:      req.IsActive,
+		})
+		if svcErr != nil {
+			RespondError(c, svcErr)
+			return
+		}
+	} else {
+		// パスワードのみ更新の場合、既存スタッフを取得
+		var findErr error
+		staff, findErr = h.repos.Staff.FindByID(c.Request.Context(), id)
+		if findErr != nil {
+			RespondError(c, findErr)
+			return
+		}
+	}
+
 	// パスワード変更（任意）: password フィールドが送信された場合のみ
-	if req.Password != nil && *req.Password != "" {
+	if hasPasswordUpdate {
 		if len(*req.Password) < 8 {
 			RespondError(c, apperrors.WrapInvalidInput("パスワードは8文字以上で入力してください"))
 			return
