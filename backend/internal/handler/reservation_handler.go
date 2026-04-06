@@ -139,6 +139,27 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+
+	// BUG-144: staff_id のクリニック所属チェック（クロスクリニック FK 防止）
+	if reservation.DoctorID != nil {
+		assignments, asgErr := h.svc.StaffClinicAssignment.FindByStaffID(ctx, *reservation.DoctorID)
+		if asgErr != nil {
+			RespondError(c, apperrors.Wrap(asgErr, "failed to verify staff assignment"))
+			return
+		}
+		assigned := false
+		for _, a := range assignments {
+			if a.ClinicID == clinicID {
+				assigned = true
+				break
+			}
+		}
+		if !assigned {
+			RespondError(c, apperrors.WrapInvalidInput("指定されたスタッフはこのクリニックに所属していません"))
+			return
+		}
+	}
+
 	if err := h.svc.Reservation.Create(ctx, reservation); err != nil {
 		RespondError(c, err)
 		return
