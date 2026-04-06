@@ -14,7 +14,7 @@ import (
 // ---- Staff ----
 
 type StaffRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
 	FindByID(ctx context.Context, id uint64) (*model.Staff, error)
 	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
 	// Create はスタッフを作成する。
@@ -28,7 +28,7 @@ type staffRepository struct{ db *gorm.DB }
 
 func NewStaffRepository(db *gorm.DB) StaffRepository { return &staffRepository{db: db} }
 
-func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
+func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error) {
 	staffs := make([]model.Staff, 0)
 	var total int64
 
@@ -39,9 +39,6 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *st
 			Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id").
 			Where("staff_clinic_assignments.clinic_id = ?", clinicID).
 			Where("staffs.deleted_at IS NULL")
-		if role != nil {
-			q = q.Where("staffs.staff_role = ?", *role)
-		}
 		return q
 	}
 
@@ -50,6 +47,7 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *st
 	}
 	if err := buildBase().
 		Preload("Account").
+		Preload("Occupation").
 		Offset((page - 1) * limit).Limit(limit).
 		Order("staffs.sort_order ASC, staffs.name ASC").
 		Distinct("staffs.*").
@@ -61,7 +59,7 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *st
 
 func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	var staff model.Staff
-	err := r.db.WithContext(ctx).Preload("Account").First(&staff, "id = ?", id).Error
+	err := r.db.WithContext(ctx).Preload("Account").Preload("Occupation").First(&staff, "id = ?", id).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", id))
 	}

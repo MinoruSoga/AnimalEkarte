@@ -1,19 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { JobTitle as ModelJobTitle } from "@/types/generated/models";
+import type { Occupation as ModelOccupation } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────
 
-export interface CreateJobTitleRequest {
+export interface CreateOccupationRequest {
   name: string;
   description?: string;
   is_active?: boolean;
 }
 
-export interface UpdateJobTitleRequest {
+export interface UpdateOccupationRequest {
   name?: string;
   description?: string;
   is_active?: boolean;
@@ -23,7 +23,7 @@ export interface UpdateJobTitleRequest {
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformJobTitle(data: ModelJobTitle) {
+function transformOccupation(data: ModelOccupation) {
   return {
     id: String(data.id ?? 0),
     name: data.name,
@@ -35,85 +35,85 @@ function transformJobTitle(data: ModelJobTitle) {
   };
 }
 
-export type JobTitle = ReturnType<typeof transformJobTitle>;
+export type Occupation = ReturnType<typeof transformOccupation>;
 
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
 
-const getAllJobTitles = async (): Promise<JobTitle[]> => {
-  const { data } = await axios.get<ModelJobTitle[]>("/v1/masters/job-titles");
-  return data.map(transformJobTitle);
+const getAllOccupations = async (): Promise<Occupation[]> => {
+  const { data } = await axios.get<ModelOccupation[]>("/v1/masters/occupations");
+  return data.map(transformOccupation);
 };
 
-const createJobTitle = async (req: CreateJobTitleRequest): Promise<JobTitle> => {
-  const { data } = await axios.post<ModelJobTitle>("/v1/masters/job-titles", req);
-  return transformJobTitle(data);
+const createOccupation = async (req: CreateOccupationRequest): Promise<Occupation> => {
+  const { data } = await axios.post<ModelOccupation>("/v1/masters/occupations", req);
+  return transformOccupation(data);
 };
 
-const updateJobTitle = async (id: string, req: UpdateJobTitleRequest): Promise<JobTitle> => {
-  const { data } = await axios.patch<ModelJobTitle>(`/v1/masters/job-titles/${id}`, req);
-  return transformJobTitle(data);
+const updateOccupation = async (id: string, req: UpdateOccupationRequest): Promise<Occupation> => {
+  const { data } = await axios.patch<ModelOccupation>(`/v1/masters/occupations/${id}`, req);
+  return transformOccupation(data);
 };
 
-const deleteJobTitle = async (id: string): Promise<void> => {
-  await axios.delete(`/v1/masters/job-titles/${id}`);
+const deleteOccupation = async (id: string): Promise<void> => {
+  await axios.delete(`/v1/masters/occupations/${id}`);
 };
 
-const reorderJobTitles = async (req: { ids: number[] }): Promise<void> => {
-  await axios.patch("/v1/masters/job-titles/reorder", req);
+const reorderOccupations = async (req: { ids: number[] }): Promise<void> => {
+  await axios.patch("/v1/masters/occupations/reorder", req);
 };
 
 // ─────────────────────────────────────────────────
 // Query hooks
 // ─────────────────────────────────────────────────
 
-export const useGetAllJobTitles = () => {
+export const useGetAllOccupations = () => {
   return useQuery({
-    queryKey: ["masters", "job-titles"],
-    queryFn: getAllJobTitles,
+    queryKey: ["masters", "occupations"],
+    queryFn: getAllOccupations,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });
 };
 
-export const useCreateJobTitle = () => {
+export const useCreateOccupation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createJobTitle,
+    mutationFn: createOccupation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "job-titles"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
     },
   });
 };
 
-export const useUpdateJobTitle = () => {
+export const useUpdateOccupation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateJobTitleRequest }) =>
-      updateJobTitle(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdateOccupationRequest }) =>
+      updateOccupation(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "job-titles"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
     },
   });
 };
 
-export const useDeleteJobTitle = () => {
+export const useDeleteOccupation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deleteJobTitle,
+    mutationFn: deleteOccupation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "job-titles"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
     },
   });
 };
 
-export const useReorderJobTitles = () => {
+export const useReorderOccupations = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: reorderJobTitles,
+    mutationFn: reorderOccupations,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "job-titles"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
     },
   });
 };

@@ -5,18 +5,11 @@
 //////////
 // source: account.go
 
-/**
- * UserType defines authorization levels in the system
- */
-export type UserType = string;
-export const UserTypeSystemAdmin: UserType = "system_admin";
-export const UserTypeClinicAdmin: UserType = "clinic_admin";
-export const UserTypeStaff: UserType = "staff";
 export interface Account {
   id: number /* uint64 */;
   email: string;
   is_active: boolean;
-  user_type: string;
+  is_system_admin: boolean;
   created_at: string;
   updated_at: string;
   /**
@@ -930,23 +923,6 @@ export interface InventoryItem {
 }
 
 //////////
-// source: job_title.go
-
-/**
- * JobTitle は職種マスタ（v16.0 job_title ENUM廃止→マスタテーブル化）
- */
-export interface JobTitle {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  name: string;
-  description: string;
-  sort_order: number /* int */;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-//////////
 // source: medical_record.go
 
 export type MedicalRecordStatus = string;
@@ -1037,6 +1013,23 @@ export interface MerchandiseItem {
   tax_rate: number /* float64 */;
   is_active: boolean;
   sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: occupation.go
+
+/**
+ * Occupation は職種マスタ（クリニックごとにカスタマイズ可能な職種定義）
+ */
+export interface Occupation {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  description: string;
+  sort_order: number /* int */;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -1340,19 +1333,12 @@ export interface ServiceType {
 //////////
 // source: staff.go
 
-export type StaffRole = string;
-export const StaffRoleVeterinarian: StaffRole = "veterinarian";
-export const StaffRoleNurse: StaffRole = "nurse";
-export const StaffRoleTrimmer: StaffRole = "trimmer";
-export const StaffRoleReception: StaffRole = "reception";
-export const StaffRoleManager: StaffRole = "manager";
 export interface Staff {
   id: number /* uint64 */;
   account_id?: number /* uint64 */;
   name: string;
   is_active: boolean;
-  staff_role: StaffRole;
-  job_title_id?: number /* uint64 */;
+  occupation_id?: number /* uint64 */;
   license_number: string;
   sort_order: number /* int */;
   created_at: string;
@@ -1361,7 +1347,7 @@ export interface Staff {
    * Relations
    */
   account?: Account;
-  job_title?: JobTitle;
+  occupation?: Occupation;
   clinic_assignments?: StaffClinicAssignment[];
 }
 export type ShiftType = string;

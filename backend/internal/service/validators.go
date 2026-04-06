@@ -110,17 +110,6 @@ func validateMedicalImageType(t string) error {
 	}
 }
 
-// validateStaffRole はスタッフ役職がドメイン上有効かを検証する
-func validateStaffRole(role model.StaffRole) error {
-	switch role {
-	case model.StaffRoleVeterinarian, model.StaffRoleNurse, model.StaffRoleTrimmer,
-		model.StaffRoleReception, model.StaffRoleManager:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid staff_role: %s", role))
-	}
-}
-
 // validateMembershipType は会員種別がドメイン上有効かを検証する
 func validateMembershipType(t model.MembershipType) error {
 	if t == "" {

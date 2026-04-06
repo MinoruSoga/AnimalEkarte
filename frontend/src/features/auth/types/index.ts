@@ -3,54 +3,9 @@
  * Backend types: {@link Account}, {@link StaffClinicAssignment}, {@link Clinic} from models.ts
  */
 import type { ReactNode } from "react";
-import {
-  UserTypeSystemAdmin,
-  UserTypeClinicAdmin,
-  UserTypeStaff,
-  StaffRoleVeterinarian,
-  StaffRoleNurse,
-  StaffRoleTrimmer,
-  StaffRoleReception,
-  StaffRoleManager,
-  type Resource,
-} from "@/types/generated/models";
+import type { Resource } from "@/types/generated/models";
 
 export type { Resource };
-
-/** @see {@link import("@/types/generated/models").UserType} */
-export const USER_TYPE_VALUES = [UserTypeSystemAdmin, UserTypeClinicAdmin, UserTypeStaff] as const;
-export type UserType = (typeof USER_TYPE_VALUES)[number];
-
-export const USER_TYPE_LABELS: Record<UserType, string> = {
-  [UserTypeSystemAdmin]: "運営管理者",
-  [UserTypeClinicAdmin]: "医院管理者",
-  [UserTypeStaff]: "スタッフ",
-};
-
-/** @see {@link import("@/types/generated/models").StaffRole} */
-export const STAFF_ROLE_VALUES = [
-  StaffRoleVeterinarian,
-  StaffRoleNurse,
-  StaffRoleTrimmer,
-  StaffRoleReception,
-  StaffRoleManager,
-] as const;
-export type StaffRole = (typeof STAFF_ROLE_VALUES)[number];
-
-export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
-  [StaffRoleVeterinarian]: "医師",
-  [StaffRoleNurse]: "看護師",
-  [StaffRoleTrimmer]: "トリマー",
-  [StaffRoleReception]: "受付",
-  [StaffRoleManager]: "管理職",
-};
-
-/** @deprecated JOB_TITLE_VALUES は STAFF_ROLE_VALUES に統合。後方互換のため残す */
-export const JOB_TITLE_VALUES = STAFF_ROLE_VALUES;
-/** @deprecated JobTitle は StaffRole に統合。後方互換のため残す */
-export type JobTitle = StaffRole;
-/** @deprecated JOB_TITLE_LABELS は STAFF_ROLE_LABELS に統合。後方互換のため残す */
-export const JOB_TITLE_LABELS = STAFF_ROLE_LABELS;
 
 /** 実効権限の CRUD アクション */
 export type ResourceAction = "view" | "create" | "edit" | "delete";
@@ -93,9 +48,8 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
-  userType: UserType;
-  /** バックエンドの staff_role ENUM 値。StaffIDが紐づくスタッフが存在する場合のみ非null */
-  staffRole: StaffRole | null;
+  /** true の場合、クロスクリニック権限を持つ運営管理者 */
+  isSystemAdmin: boolean;
   avatarUrl: string | null;
   mainClinicId: string;
   /** メイン医院の詳細情報。/me レスポンスから取得。null の場合は未所属 */

@@ -48,7 +48,7 @@ func allModels() []any {
 		&model.ShiftEntry{},
 		&model.AnimalSpecies{},
 		&model.ServiceType{},
-		&model.JobTitle{},
+		&model.Occupation{},
 		&model.Insurance{},
 		&model.ChiefComplaintCategory{},
 		&model.Medicine{},

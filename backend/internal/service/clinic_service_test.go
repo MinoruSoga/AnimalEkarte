@@ -14,6 +14,7 @@ import (
 // mockClinicRepository は ClinicRepository のテスト用モック実装
 type mockClinicRepository struct {
 	findAllFn               func(ctx context.Context) ([]model.Clinic, error)
+	findByStaffIDFn         func(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	findByIDFn              func(ctx context.Context, id uint64) (*model.Clinic, error)
 	getCompanyFn            func(ctx context.Context) (*model.Company, error)
 	createFn                func(ctx context.Context, clinic *model.Clinic) error
@@ -25,6 +26,13 @@ type mockClinicRepository struct {
 
 func (m *mockClinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) {
 	return m.findAllFn(ctx)
+}
+
+func (m *mockClinicRepository) FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
+	if m.findByStaffIDFn == nil {
+		return nil, nil
+	}
+	return m.findByStaffIDFn(ctx, staffID)
 }
 
 func (m *mockClinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clinic, error) {

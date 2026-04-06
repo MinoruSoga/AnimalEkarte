@@ -81,6 +81,7 @@ func buildClinicUpdateFields(input *UpdateClinicInput) map[string]any {
 
 type ClinicService interface {
 	ListClinics(ctx context.Context) ([]model.Clinic, error)
+	ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	CreateClinic(ctx context.Context, clinic *model.Clinic) (*model.Clinic, error)
 	UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) (*model.Clinic, error)
@@ -99,6 +100,14 @@ func (s *clinicService) ListClinics(ctx context.Context) ([]model.Clinic, error)
 	clinics, err := s.repo.FindAll(ctx)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list clinics")
+	}
+	return clinics, nil
+}
+
+func (s *clinicService) ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
+	clinics, err := s.repo.FindByStaffID(ctx, staffID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list clinics by staff")
 	}
 	return clinics, nil
 }

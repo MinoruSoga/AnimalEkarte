@@ -10,9 +10,9 @@ import (
 
 // JWTClaims はJWTのペイロード
 type JWTClaims struct {
-	UserID   string `json:"user_id"`
-	ClinicID string `json:"clinic_id"`
-	UserType string `json:"user_type"`
+	UserID        string `json:"user_id"`
+	ClinicID      string `json:"clinic_id"`
+	IsSystemAdmin bool   `json:"is_system_admin"`
 	jwt.RegisteredClaims
 }
 
@@ -66,8 +66,15 @@ func Auth(secret string) gin.HandlerFunc {
 
 		// err == nil が確定しているためクレームを安全に格納
 		c.Set("user_id", claims.UserID)
-		c.Set("clinic_id", claims.ClinicID)
-		c.Set("user_type", claims.UserType)
+		c.Set("is_system_admin", claims.IsSystemAdmin)
+
+		// クリニック切替: X-Clinic-ID ヘッダーが送信された場合、JWT の clinic_id を上書きする
+		clinicID := claims.ClinicID
+		if headerClinicID := c.GetHeader("X-Clinic-ID"); headerClinicID != "" {
+			clinicID = headerClinicID
+		}
+		c.Set("clinic_id", clinicID)
+
 		c.Next()
 	}
 }

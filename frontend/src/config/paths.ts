@@ -225,9 +225,9 @@ export const paths = {
       path: "/settings/insurance",
       getHref: () => "/settings/insurance",
     },
-    jobTitle: {
-      path: "/settings/job-title",
-      getHref: () => "/settings/job-title",
+    occupations: {
+      path: "/settings/occupations",
+      getHref: () => "/settings/occupations",
     },
     permissionGroups: {
       path: "/settings/permission-groups",

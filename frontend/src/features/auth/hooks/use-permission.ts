@@ -10,8 +10,8 @@ export interface UsePermissionResult {
 
 /**
  * 現在のユーザーが指定リソースに対して持つ権限を返す。
- * system_admin / clinic_admin は常に true。
- * staff はグループ UNION から計算された実効権限（バックエンド計算済み）を使用。
+ * isSystemAdmin=true の場合は常に true。それ以外は権限グループで判定。
+ * 権限グループ UNION から計算された実効権限（バックエンド計算済み）を使用。
  *
  * @param resource - リソース識別子（models.ts の Resource 定数を使用）
  */

@@ -5,7 +5,6 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 export interface BackendStaff {
   id: number;
   name: string;
-  staff_role: string;
   is_active: boolean;
 }
 

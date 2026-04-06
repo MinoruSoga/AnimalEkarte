@@ -195,7 +195,7 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
             value={f.color}
             onChange={(e) => handleColorChange(e.target.value)}
           />
-          <span className={`text-sm ${C.textSecondary}`}>{f.color}</span>
+          <span className={`text-sm ${C.text50}`}>{f.color}</span>
         </div>
       </PropertyRow>
 

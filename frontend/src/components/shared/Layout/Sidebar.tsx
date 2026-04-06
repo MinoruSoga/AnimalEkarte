@@ -1,6 +1,8 @@
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock } from "lucide-react";
-import { useState, useEffect, memo } from "react";
+import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase } from "lucide-react";
+import { useState, useEffect, memo, useCallback } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth, ChangePasswordDialog, usePermission } from "@/features/auth";
 import { paths } from "@/config/paths";
@@ -144,7 +146,7 @@ interface SidebarItemWithPermissionProps {
  * - `item.resource` が設定されている場合、`usePermission` で `canView` を確認し、
  *   `false` なら `null` を返す（非表示）。
  * - `item.resource` が未設定の場合（サブアイテムの一部等）は常に表示する。
- * - `clinic_admin` / `system_admin` は `useAuth.hasPermission` 内部で常に `true` を返す。
+ * - `isSystemAdmin=true` の場合は `useAuth.hasPermission` 内部で常に `true` を返す。
  *
  * フックのルール（ループ内での呼び出し禁止）を遵守するため、
  * 各メニュー項目をこのコンポーネントに切り出し、フック呼び出しをここで行う。
@@ -170,8 +172,35 @@ export function Sidebar() {
     () => typeof window !== "undefined" && window.innerWidth < 1280,
   );
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
-  const { user, logout } = useAuth();
-  const clinicName = user?.clinic?.name ?? "";
+  const { user, logout, switchClinic, currentClinicId } = useAuth();
+  const [clinicPopoverOpen, setClinicPopoverOpen] = useState(false);
+  const [pendingSwitchClinicId, setPendingSwitchClinicId] = useState<string | null>(null);
+
+  // 現在のクリニック名: currentClinicId に一致する clinics から取得
+  const clinicName = user?.clinics.find((c) => c.clinicId === currentClinicId)?.clinicName
+    ?? user?.clinic?.name
+    ?? "";
+
+  // 切替先のクリニック名
+  const pendingSwitchClinicName = pendingSwitchClinicId
+    ? user?.clinics.find((c) => c.clinicId === pendingSwitchClinicId)?.clinicName ?? ""
+    : "";
+
+  const handleRequestSwitch = useCallback((clinicId: string) => {
+    setClinicPopoverOpen(false);
+    setPendingSwitchClinicId(clinicId);
+  }, []);
+
+  const handleConfirmSwitch = useCallback(() => {
+    if (pendingSwitchClinicId) {
+      switchClinic(pendingSwitchClinicId);
+    }
+    setPendingSwitchClinicId(null);
+  }, [pendingSwitchClinicId, switchClinic]);
+
+  const handleCancelSwitch = useCallback(() => {
+    setPendingSwitchClinicId(null);
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1279px)");
@@ -190,14 +219,37 @@ export function Sidebar() {
       <div className={`h-[53px] flex items-center px-2.5 border-b ${C.borderDivider}`}>
         {!collapsed ? (
           <div className="flex items-center justify-between w-full">
-            <button
-              type="button"
-              className={`flex items-center gap-1 min-w-0 text-base font-semibold ${C.text} ${C.hoverBgLight} rounded-[3px] px-1.5 py-1 transition-colors outline-none`}
-            >
-              <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
-              <span className="truncate">{clinicName}</span>
-              <ChevronDown className={`${ICON.xs} opacity-40 shrink-0`} />
-            </button>
+            <Popover open={clinicPopoverOpen} onOpenChange={setClinicPopoverOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={`flex items-center gap-1 min-w-0 text-base font-semibold ${C.text} ${C.hoverBgLight} rounded-[3px] px-1.5 py-1 transition-colors outline-none`}
+                >
+                  <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
+                  <span className="truncate">{clinicName}</span>
+                  <ChevronDown className={`${ICON.xs} opacity-40 shrink-0`} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[200px] p-1">
+                {user?.clinics.map((c) => (
+                  <button
+                    key={c.clinicId}
+                    type="button"
+                    onClick={() => handleRequestSwitch(c.clinicId)}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-[3px] text-sm transition-colors flex items-center gap-2 ${
+                      c.clinicId === currentClinicId
+                        ? `font-medium ${C.text} ${C.bgBrand10}`
+                        : `${C.text65} ${C.hoverBgLight}`
+                    }`}
+                  >
+                    <span className={`size-1.5 rounded-full shrink-0 ${
+                      c.clinicId === currentClinicId ? C.bgBrand : C.bgInactive
+                    }`} />
+                    {c.clinicName}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
             <button
               type="button"
               onClick={() => setCollapsed(true)}
@@ -277,6 +329,7 @@ export function Sidebar() {
                 { icon: <Bed          className={ICON.toolbar} />, label: "入院・ケージ", path: paths.settings.hospitalization.getHref(), resource: ResourceMasterHosp },
                 { icon: <Scissors     className={ICON.toolbar} />, label: "トリミング", path: paths.settings.trimming.getHref(), resource: ResourceMasterTrim },
                 { icon: <Lock         className={ICON.toolbar} />, label: "権限グループ", path: paths.settings.permissionGroups.getHref(), resource: ResourceMasterPermission },
+                { icon: <Briefcase    className={ICON.toolbar} />, label: "職種マスタ", path: paths.settings.occupations.getHref(), resource: ResourceMasterStaff },
                 { icon: <Users        className={ICON.toolbar} />, label: "スタッフ管理", path: paths.settings.staff.getHref(), resource: ResourceMasterStaff },
                 { icon: <ShieldCheck  className={ICON.toolbar} />, label: "保険マスタ", path: paths.settings.insurance.getHref(), resource: ResourceMasterInsurance },
                 { icon: <Package      className={ICON.toolbar} />, label: "物販・フード", path: paths.settings.merchandiseItems.getHref(), resource: ResourceMasterMerchandise },
@@ -329,6 +382,17 @@ export function Sidebar() {
           </div>
         )}
       </div>
+
+      {/* クリニック切替確認ダイアログ */}
+      <ConfirmDialog
+        open={pendingSwitchClinicId !== null}
+        onClose={handleCancelSwitch}
+        onConfirm={handleConfirmSwitch}
+        title="医院を切り替えますか？"
+        description={`「${pendingSwitchClinicName}」に切り替えます。現在の画面データは新しい医院のデータに更新されます。`}
+        confirmLabel="切り替える"
+        cancelLabel="キャンセル"
+      />
     </div>
   );
 }

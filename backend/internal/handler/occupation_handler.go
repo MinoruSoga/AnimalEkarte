@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for JobTitle entity.
+// Package handler provides HTTP handler implementations for Occupation entity.
 package handler
 
 import (
@@ -12,65 +12,65 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// ---- JobTitle ----
+// ---- Occupation ----
 
-// GetJobTitle godoc
-func (h *Handler) GetJobTitle(c *gin.Context) {
+// GetOccupation godoc
+func (h *Handler) GetOccupation(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	jt, err := h.svc.JobTitle.GetByID(c.Request.Context(), id)
+	occ, err := h.svc.Occupation.GetByID(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toJobTitleResponse(jt))
+	c.JSON(http.StatusOK, toOccupationResponse(occ))
 }
 
-// ListJobTitles godoc
-func (h *Handler) ListJobTitles(c *gin.Context) {
+// ListOccupations godoc
+func (h *Handler) ListOccupations(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	jobTitles, err := h.svc.JobTitle.List(c.Request.Context(), clinicID)
+	occupations, err := h.svc.Occupation.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toJobTitleResponseList(jobTitles))
+	c.JSON(http.StatusOK, toOccupationResponseList(occupations))
 }
 
-// CreateJobTitle godoc
-func (h *Handler) CreateJobTitle(c *gin.Context) {
+// CreateOccupation godoc
+func (h *Handler) CreateOccupation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
 
-	var req createJobTitleRequest
+	var req createOccupationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	jt := &model.JobTitle{
+	occ := &model.Occupation{
 		ClinicID:  clinicID,
 		Name:      req.Name,
 		IsActive:  req.IsActive,
 		SortOrder: req.SortOrder,
 	}
-	if err := h.svc.JobTitle.Create(c.Request.Context(), jt); err != nil {
+	if err := h.svc.Occupation.Create(c.Request.Context(), occ); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, toJobTitleResponse(jt))
+	c.JSON(http.StatusCreated, toOccupationResponse(occ))
 }
 
-// UpdateJobTitle godoc
-func (h *Handler) UpdateJobTitle(c *gin.Context) {
+// UpdateOccupation godoc
+func (h *Handler) UpdateOccupation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -81,53 +81,53 @@ func (h *Handler) UpdateJobTitle(c *gin.Context) {
 		return
 	}
 
-	var req updateJobTitleRequest
+	var req updateOccupationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	input := &service.UpdateJobTitleInput{
+	input := &service.UpdateOccupationInput{
 		Name:        req.Name,
 		Description: req.Description,
 		SortOrder:   req.SortOrder,
 		IsActive:    req.IsActive,
 	}
 
-	updated, err := h.svc.JobTitle.Update(c.Request.Context(), clinicID, id, input)
+	updated, err := h.svc.Occupation.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toJobTitleResponse(updated))
+	c.JSON(http.StatusOK, toOccupationResponse(updated))
 }
 
-// DeleteJobTitle godoc
-func (h *Handler) DeleteJobTitle(c *gin.Context) {
+// DeleteOccupation godoc
+func (h *Handler) DeleteOccupation(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.JobTitle.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.Occupation.Delete(c.Request.Context(), id); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
 }
 
-// ReorderJobTitles godoc
-func (h *Handler) ReorderJobTitles(c *gin.Context) {
+// ReorderOccupations godoc
+func (h *Handler) ReorderOccupations(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	var req reorderJobTitleRequest
+	var req reorderOccupationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	if err := h.svc.JobTitle.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+	if err := h.svc.Occupation.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
 		RespondError(c, err)
 		return
 	}

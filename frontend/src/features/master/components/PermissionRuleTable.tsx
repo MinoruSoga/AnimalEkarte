@@ -77,19 +77,19 @@ export const PermissionRuleTable = memo(function PermissionRuleTable({
         <table className="w-full">
           <thead>
             <tr className={`border-b ${C.borderLight}`}>
-              <th className={`px-4 py-2 text-left text-xs font-semibold ${C.textSecondary}`}>
+              <th className={`px-4 py-2 text-left text-xs font-semibold ${C.text50}`}>
                 リソース
               </th>
-              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.textSecondary}`}>
+              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.text50}`}>
                 表示
               </th>
-              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.textSecondary}`}>
+              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.text50}`}>
                 作成
               </th>
-              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.textSecondary}`}>
+              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.text50}`}>
                 編集
               </th>
-              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.textSecondary}`}>
+              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.text50}`}>
                 削除
               </th>
             </tr>

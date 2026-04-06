@@ -62,7 +62,7 @@ func (s *xxxService) Delete(ctx context.Context, clinicID, id uint64) error {
 | 5 | Procedure | treatments | CountUsageByProcedureID |
 | 6 | ExamType | exams | CountUsageByExamTypeID |
 | 7 | CheckupType | checkups | CountUsageByCheckupTypeID |
-| 8 | JobTitle | staff | CountUsageByJobTitleID |
+| 8 | Occupation | staff | CountUsageByOccupationID |
 | 9 | PermissionGroup | user_permission_groups | CountUsageByPermissionGroupID |
 | 10 | Cage | animals | CountUsageByCanvaseID |
 | 11 | DiagnosisCategory | diagnoses | CountUsageByDiagnosisCategoryID |

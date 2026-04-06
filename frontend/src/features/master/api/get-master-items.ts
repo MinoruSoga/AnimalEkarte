@@ -36,7 +36,7 @@ export const MASTER_CATEGORY_ENDPOINT: Record<string, string> = {
   diagnosisCategory: "/v1/masters/diagnosis-categories",
   diagnosisName: "/v1/masters/diagnosis-names",
   checkup: "/v1/masters/checkup-types",
-  job_title: "/v1/masters/job-titles",
+  occupations: "/v1/masters/occupations",
   inquiryTemplate: "/v1/masters/inquiry-templates",
 };
 

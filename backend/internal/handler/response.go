@@ -115,6 +115,26 @@ func parseDateQuery(c *gin.Context, key string) (*string, error) {
 	return &s, nil
 }
 
+// extractStaffID はJWT認証済みコンテキストから user_id（=staff_id）を取得してパースする。
+func extractStaffID(c *gin.Context) (uint64, bool) {
+	val, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		return 0, false
+	}
+	userIDStr, ok := val.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		return 0, false
+	}
+	staffID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		return 0, false
+	}
+	return staffID, true
+}
+
 // extractClinicID はJWT認証済みコンテキストから clinic_id を取得してパースする。
 // 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
 // 呼び出し元はfalse時に即return すること。
@@ -137,20 +157,34 @@ func extractClinicID(c *gin.Context) (uint64, bool) {
 	return clinicID, true
 }
 
-// extractUserType はJWT認証済みコンテキストから user_type を取得する。
-// 取得失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
-func extractUserType(c *gin.Context) (string, bool) {
-	val, exists := c.Get("user_type")
+// extractIsSystemAdmin はJWT認証済みコンテキストから is_system_admin を取得する。
+// 取得失敗時は即座にHTTPエラーレスポンスを書いて (false, false) を返す。
+// 戻り値: (isSystemAdmin bool, ok bool)
+func extractIsSystemAdmin(c *gin.Context) (bool, bool) {
+	val, exists := c.Get("is_system_admin")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
-		return "", false
+		return false, false
 	}
-	ut, ok := val.(string)
+	isAdmin, ok := val.(bool)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
-		return "", false
+		return false, false
 	}
-	return ut, true
+	return isAdmin, true
+}
+
+// RequirePermission は指定リソース・アクションの権限を持つユーザーのみ通過させる gin ミドルウェアを返す。
+// system_admin は全権限バイパス。それ以外は permission_group_rules から判定する。
+func (h *Handler) RequirePermission(resource, action string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !h.hasPermission(c, resource, action) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }
 
 // parsePagination はページネーションパラメータを安全にパースする。

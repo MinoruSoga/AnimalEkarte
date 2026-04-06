@@ -6,9 +6,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -22,14 +22,10 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var role *string
-	if r := c.Query("role"); r != "" {
-		role = &r
-	}
 
 	// NOTE: pagination パラメータは無視（全件返却）
 	// 将来的にページネーション対応が必要な場合は、別エンドポイント化を検討
-	staffs, _, err := h.svc.Staff.List(c.Request.Context(), clinicID, role, 1, 1000)
+	staffs, _, err := h.svc.Staff.List(c.Request.Context(), clinicID, 1, 1000)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -53,9 +49,8 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 	staff, err := h.svc.Staff.Create(c.Request.Context(), &service.CreateStaffInput{
 		ClinicID:      clinicID,
 		Name:          req.Name,
-		StaffRole:     req.StaffRole,
 		LicenseNumber: req.LicenseNumber,
-		JobTitleID:    req.JobTitleID,
+		OccupationID:  req.OccupationID,
 		SortOrder:     req.SortOrder,
 	})
 	if err != nil {
@@ -84,9 +79,8 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 
 	staff, err := h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
 		Name:          req.Name,
-		StaffRole:     req.StaffRole,
 		LicenseNumber: req.LicenseNumber,
-		JobTitleID:    req.JobTitleID,
+		OccupationID:  req.OccupationID,
 		SortOrder:     req.SortOrder,
 		IsActive:      req.IsActive,
 	})
@@ -94,6 +88,32 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+
+	// パスワード変更（任意）: password フィールドが送信された場合のみ
+	if req.Password != nil && *req.Password != "" {
+		if len(*req.Password) < 8 {
+			RespondError(c, apperrors.WrapInvalidInput("パスワードは8文字以上で入力してください"))
+			return
+		}
+		if staff.AccountID != nil {
+			account, accErr := h.repos.Account.GetByID(c.Request.Context(), *staff.AccountID)
+			if accErr != nil {
+				RespondError(c, accErr)
+				return
+			}
+			hashed, hashErr := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
+			if hashErr != nil {
+				RespondError(c, apperrors.Wrap(hashErr, "failed to hash password"))
+				return
+			}
+			account.PasswordHash = string(hashed)
+			if updErr := h.repos.Account.Update(c.Request.Context(), account); updErr != nil {
+				RespondError(c, updErr)
+				return
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, toStaffResponse(staff))
 }
 
@@ -369,19 +389,19 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PATCH("/checkup-types/:id", h.UpdateCheckupType)
 	masters.DELETE("/checkup-types/:id", h.DeleteCheckupType)
 
-	masters.GET("/job-titles", h.ListJobTitles)
-	masters.POST("/job-titles", h.CreateJobTitle)
-	masters.PATCH("/job-titles/reorder", h.ReorderJobTitles) // 静的パスを /:id より前に登録
-	masters.GET("/job-titles/:id", h.GetJobTitle)
-	masters.PATCH("/job-titles/:id", h.UpdateJobTitle)
-	masters.DELETE("/job-titles/:id", h.DeleteJobTitle)
+	masters.GET("/occupations", h.ListOccupations)
+	masters.POST("/occupations", h.CreateOccupation)
+	masters.PATCH("/occupations/reorder", h.ReorderOccupations) // 静的パスを /:id より前に登録
+	masters.GET("/occupations/:id", h.GetOccupation)
+	masters.PATCH("/occupations/:id", h.UpdateOccupation)
+	masters.DELETE("/occupations/:id", h.DeleteOccupation)
 
 	masters.GET("/permission-groups", h.ListPermissionGroups)
 	masters.GET("/permission-groups/:id", h.GetPermissionGroup)
 
-	// Permission Group write operations require clinic admin
+	// Permission Group write operations require master-permission edit access
 	pgWrite := masters.Group("/permission-groups")
-	pgWrite.Use(middleware.RequireClinicAdmin())
+	pgWrite.Use(h.RequirePermission(string(model.ResourceMasterPermission), "edit"))
 	pgWrite.POST("", h.CreatePermissionGroup)
 	pgWrite.PATCH("", h.ReorderPermissionGroups)
 	pgWrite.PATCH("/:id", h.UpdatePermissionGroup)

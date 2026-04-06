@@ -39,40 +39,51 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('animal_species', 'id'), (SELECT MAX(id) FROM animal_species));
 
 -- -----------------------------------------------------------------------------
--- 4. job_titles（職種: 5件）
+-- 4. occupations（職種: 各医院4件 × 3医院 = 12件）
 -- -----------------------------------------------------------------------------
-INSERT INTO job_titles (id, clinic_id, name, is_active, sort_order) VALUES
-    (1, 3, '獣医師',     true, 1),
-    (2, 3, '動物看護師', true, 2),
-    (3, 3, 'トリマー',   true, 3),
-    (4, 3, '受付',       true, 4),
-    (5, 3, '管理者',     true, 5)
+INSERT INTO occupations (id, clinic_id, name, is_active, sort_order) VALUES
+    -- 八王子院 (clinic_id=3)
+    (1,  3, '獣医師',   true, 1),
+    (2,  3, '看護師',   true, 2),
+    (3,  3, 'トリマー', true, 3),
+    (4,  3, '受付',     true, 4),
+    -- 城東医院 (clinic_id=4)
+    (5,  4, '獣医師',   true, 1),
+    (6,  4, '看護師',   true, 2),
+    (7,  4, 'トリマー', true, 3),
+    (8,  4, '受付',     true, 4),
+    -- 敷島医院 (clinic_id=5)
+    (9,  5, '獣医師',   true, 1),
+    (10, 5, '看護師',   true, 2),
+    (11, 5, 'トリマー', true, 3),
+    (12, 5, '受付',     true, 4)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('job_titles', 'id'), (SELECT MAX(id) FROM job_titles));
+SELECT setval(pg_get_serial_sequence('occupations', 'id'), (SELECT MAX(id) FROM occupations));
 
 -- -----------------------------------------------------------------------------
 -- 5. staffs（スタッフ: 12件）
 -- account_id は accounts INSERT 後に UPDATE で設定される
 -- clinic_id は staff_clinic_assignments で管理される
 -- -----------------------------------------------------------------------------
-INSERT INTO staffs (id, account_id, name, is_active, staff_role, license_number, job_title_id, sort_order) VALUES
-    (1,  NULL, '山田 太郎',   true, 'veterinarian', 'V-10001', 1, 1),
-    (2,  NULL, '高橋 健一',   true, 'veterinarian', 'V-10002', 1, 2),
-    (3,  NULL, '渡辺 博',     true, 'manager',      '',        5, 3),
-    (4,  NULL, '佐藤 花子',   true, 'nurse',        '',        2, 4),
-    (5,  NULL, '伊藤 さくら', true, 'nurse',        '',        2, 5),
-    (6,  NULL, '木村 健太',   true, 'trimmer',      '',        3, 6),
-    (7,  NULL, '田中 美咲',   true, 'reception',    '',        4, 7),
+INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order) VALUES
+    -- アカウント未紐付けスタッフ（八王子院）
+    (1,  NULL, '獣医 一郎',   true, 'V-10001', 1, 1),
+    (2,  NULL, '獣医 二郎',   true, 'V-10002', 1, 2),
+    (3,  NULL, 'システム管理 太郎', true, 'V-00001', 1, 3),
+    (4,  NULL, '看護 花子',   true, '',        2, 4),
+    (5,  NULL, '看護 さくら', true, '',        2, 5),
+    (6,  NULL, 'トリマー 健太', true, '',      3, 6),
+    (7,  NULL, '受付 美咲',   true, '',        4, 7),
     -- デモアカウント用スタッフ（八王子院）
-    (8,  NULL, '田中 太郎',   true, 'veterinarian', 'V-20001', 1, 1),
-    (9,  NULL, '山田 花子',   true, 'veterinarian', 'V-20002', 1, 2),
-    (10, NULL, '佐藤 美咲',   true, 'nurse',        '',        2, 3),
-    (11, NULL, '鈴木 一郎',   true, 'reception',    '',        4, 4),
-    (12, NULL, '高橋 さくら', true, 'trimmer',      '',        3, 5),
-    -- 管理者・執行グループ デモアカウント用スタッフ
-    (13, NULL, '渡辺 院長',   true, 'manager',      '',        5, 6),
-    (14, NULL, '小林 部長',   true, 'manager',      '',        5, 7)
+    (8,  NULL, '執行 太郎',   true, 'V-20001', 1, 1),
+    (9,  NULL, '一般 花子',   true, 'V-20002', 1, 2),
+    (10, NULL, '一般 美咲',   true, '',        2, 3),
+    (11, NULL, '一般 一郎',   true, '',        4, 4),
+    (12, NULL, '一般 さくら', true, '',        3, 5),
+    -- 執行グループ デモアカウント用スタッフ
+    (13, NULL, '執行 院長',   true, 'V-30001', 1, 6),
+    (14, NULL, '執行 部長',   true, 'V-30002', 1, 7)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
@@ -84,28 +95,46 @@ SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staff
 --   1→3, 2→NULL, 3→1, 4→8, 5→9, 6→10, 7→11, 8→12, 9→NULL, 10→13, 11→14
 -- account id will be auto-incremented; we'll use UPDATE to set staff.account_id
 -- -----------------------------------------------------------------------------
-INSERT INTO accounts (id, email, password_hash, is_active, user_type) VALUES
+INSERT INTO accounts (id, email, password_hash, is_active, is_system_admin) VALUES
     -- 既存スタッフ
-    (1, 'admin@noavet.jp',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'system_admin'),
-    (2, 'clinic1@noavet.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'clinic_admin'),
-    (3, 'yamada@noavet.jp',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
+    (1, 'admin@noavet.jp',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, true),
+    (2, 'clinic1@noavet.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (3, 'yamada@noavet.jp',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     -- デモアカウント（八王子院・frontend mock-data.ts 対応）
-    (4, 'admin@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'clinic_admin'),
-    (5, 'vet@example.com',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
-    (6, 'nurse@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
-    (7, 'reception@example.com','$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
-    (8, 'trimmer@example.com',  '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
-    (9, 'system@example.com',   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
-    -- 管理者・執行グループ デモアカウント
-    (10, 'manager@example.com', '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff'),
-    (11, 'exec@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, 'staff')
+    (4, 'admin@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (5, 'vet@example.com',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (6, 'nurse@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (7, 'reception@example.com','$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (8, 'trimmer@example.com',  '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (9, 'system@example.com',   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    -- 執行グループ デモアカウント
+    (10, 'manager@example.com', '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (11, 'exec@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    -- 城東医院 デモアカウント
+    (12, 'joto-vet@example.com',  '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    -- 敷島医院 デモアカウント
+    (13, 'shiki-vet@example.com', '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('accounts', 'id'), (SELECT MAX(id) FROM accounts));
 
--- Add staff for account 2 (clinic1@noavet.jp)
-INSERT INTO staffs (id, account_id, name, is_active, staff_role, license_number, job_title_id, sort_order) VALUES
-    (15, 2, '院長補佐',       true, 'manager',      '',        5, 8)
+-- 八王子院: account 2 (clinic1@noavet.jp) のスタッフ
+INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order) VALUES
+    (15, 2, '執行 補佐',      true, 'V-30003', 1, 8)
+ON CONFLICT DO NOTHING;
+
+-- 城東医院 (clinic_id=4) デモスタッフ
+INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order) VALUES
+    (16, NULL, '城東 獣医',   true, 'V-40001', 5, 1),
+    (17, NULL, '城東 看護',   true, '',        6, 2),
+    (18, NULL, '城東 受付',   true, '',        8, 3)
+ON CONFLICT DO NOTHING;
+
+-- 敷島医院 (clinic_id=5) デモスタッフ
+INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order) VALUES
+    (19, NULL, '敷島 獣医',   true, 'V-50001', 9, 1),
+    (20, NULL, '敷島 看護',   true, '',        10, 2),
+    (21, NULL, '敷島 受付',   true, '',        12, 3)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
@@ -121,6 +150,8 @@ UPDATE staffs SET account_id = 7 WHERE id = 11; -- account 7 → staff 11
 UPDATE staffs SET account_id = 8 WHERE id = 12; -- account 8 → staff 12
 UPDATE staffs SET account_id = 10 WHERE id = 13;-- account 10 → staff 13
 UPDATE staffs SET account_id = 11 WHERE id = 14;-- account 11 → staff 14
+UPDATE staffs SET account_id = 12 WHERE id = 16;-- account 12 → staff 16 (城東 獣医)
+UPDATE staffs SET account_id = 13 WHERE id = 19;-- account 13 → staff 19 (敷島 獣医)
 
 -- NOTE: account 2 has new staff 15 which will be assigned in staff_clinic_assignments below
 
@@ -132,44 +163,57 @@ UPDATE staffs SET account_id = 11 WHERE id = 14;-- account 11 → staff 14
 -- Note: account 9 (system@example.com) has no staff, so skipped
 -- -----------------------------------------------------------------------------
 INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
-    (1,  3, true),  -- yamada@noavet.jp (account 3, staff 1)
-    (2,  3, true),  -- 高橋 健一（アカウント未紐付けスタッフ）
-    (3,  3, true),  -- admin@noavet.jp (account 1, staff 3)
-    (4,  3, true),  -- 佐藤 花子（アカウント未紐付けスタッフ）
-    (5,  3, true),  -- 伊藤 さくら（アカウント未紐付けスタッフ）
-    (6,  3, true),  -- 木村 健太（アカウント未紐付けスタッフ）
-    (7,  3, true),  -- 田中 美咲（アカウント未紐付けスタッフ）
-    (8,  3, true),  -- admin@example.com (account 4, staff 8)
-    (9,  3, true),  -- vet@example.com (account 5, staff 9)
-    (10, 3, true),  -- nurse@example.com (account 6, staff 10)
-    (11, 3, true),  -- reception@example.com (account 7, staff 11)
-    (12, 3, true),  -- trimmer@example.com (account 8, staff 12)
-    (13, 3, true),  -- manager@example.com (account 10, staff 13)
-    (14, 3, true),  -- exec@example.com (account 11, staff 14)
-    (15, 3, true)   -- clinic1@noavet.jp (account 2, staff 15)
+    (1,  3, true),   -- 獣医 一郎 (yamada@noavet.jp)
+    (2,  3, true),   -- 獣医 二郎（アカウント未紐付け）
+    (3,  3, true),   -- システム管理 太郎 (admin@noavet.jp) — 八王子院（メイン）
+    (3,  4, false),  -- システム管理 太郎 — 城東医院
+    (3,  5, false),  -- システム管理 太郎 — 敷島医院
+    (4,  3, true),   -- 看護 花子（アカウント未紐付け）
+    (5,  3, true),   -- 看護 さくら（アカウント未紐付け）
+    (6,  3, true),   -- トリマー 健太（アカウント未紐付け）
+    (7,  3, true),   -- 受付 美咲（アカウント未紐付け）
+    (8,  3, true),   -- 執行 太郎 (admin@example.com)
+    (9,  3, true),   -- 一般 花子 (vet@example.com)
+    (10, 3, true),   -- 一般 美咲 (nurse@example.com)
+    (11, 3, true),   -- 一般 一郎 (reception@example.com)
+    (12, 3, true),   -- 一般 さくら (trimmer@example.com)
+    (13, 3, true),   -- 執行 院長 (manager@example.com)
+    (14, 3, true),   -- 執行 部長 (exec@example.com)
+    (15, 3, true),   -- 執行 補佐 (clinic1@noavet.jp)
+    -- 城東医院 (clinic_id=4)
+    (16, 4, true),   -- 城東 獣医 (joto-vet@example.com)
+    (17, 4, true),   -- 城東 看護
+    (18, 4, true),   -- 城東 受付
+    -- 敷島医院 (clinic_id=5)
+    (19, 5, true),   -- 敷島 獣医 (shiki-vet@example.com)
+    (20, 5, true),   -- 敷島 看護
+    (21, 5, true)    -- 敷島 受付
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 7b. permission_groups（権限グループ: 3グループ）
--- AUTH.md §2.3 / §5 権限マトリクスに準拠
--- clinic_id=3（八王子院）
+-- 7b. permission_groups（権限グループ: 各医院2グループ × 3医院 = 6グループ）
 -- -----------------------------------------------------------------------------
 INSERT INTO permission_groups (id, clinic_id, name, description, color, is_active, sort_order) VALUES
-    (1, 3, '管理者', '全15リソースフルアクセス（権限設定管理含む）', '#EF4444', true, 1),
-    (2, 3, '執行',   '全15リソース閲覧 + ほぼ全作成・編集（権限設定管理含む）', '#6366F1', true, 2),
-    (3, 3, '一般',   '基本業務操作（医療・予約・トリミング等の作成・編集）', '#10B981', true, 3)
+    -- 八王子院 (clinic_id=3)
+    (1, 3, '執行', '全リソースフルアクセス', '#6366F1', true, 1),
+    (2, 3, '一般', '基本業務操作（医療・予約・トリミング等の作成・編集）', '#10B981', true, 2),
+    -- 城東医院 (clinic_id=4)
+    (3, 4, '執行', '全リソースフルアクセス', '#6366F1', true, 1),
+    (4, 4, '一般', '基本業務操作（医療・予約・トリミング等の作成・編集）', '#10B981', true, 2),
+    -- 敷島医院 (clinic_id=5)
+    (5, 5, '執行', '全リソースフルアクセス', '#6366F1', true, 1),
+    (6, 5, '一般', '基本業務操作（医療・予約・トリミング等の作成・編集）', '#10B981', true, 2)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('permission_groups', 'id'), (SELECT MAX(id) FROM permission_groups));
 
 -- -----------------------------------------------------------------------------
--- 7c. permission_group_rules（権限グループルール: 22リソース × 3グループ = 66件）
--- AUTH.md §5 権限マトリクス: V=View, C=Create, E=Edit, D=Delete
--- マスタ設定は個別リソース（master-* 9種）に分割
+-- 7c. permission_group_rules（権限グループルール: 23リソース × 2グループ = 46件）
+-- V=View, C=Create, E=Edit, D=Delete
 -- -----------------------------------------------------------------------------
 INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
-    -- 管理者（group_id=1）: 全リソース VCED
-    (1, 'dashboard',              true, false, false, false),
+    -- 執行（group_id=1）: 全リソース全権限
+    (1, 'dashboard',              true, true,  true,  true),
     (1, 'owners',                 true, true,  true,  true),
     (1, 'reservations',           true, true,  true,  true),
     (1, 'medical-records',        true, true,  true,  true),
@@ -192,77 +236,159 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (1, 'master-staff',           true, true,  true,  true),
     (1, 'master-insurance',       true, true,  true,  true),
     (1, 'master-merchandise',     true, true,  true,  true),
-    -- 執行（group_id=2）: 閲覧全般 + 一部 CE
+    -- 一般（group_id=2）: 基本業務（マスタは閲覧のみ）
     (2, 'dashboard',              true, false, false, false),
     (2, 'owners',                 true, true,  true,  false),
     (2, 'reservations',           true, true,  true,  false),
-    (2, 'medical-records',        true, false, false, false),
+    (2, 'medical-records',        true, true,  true,  false),
     (2, 'hospitalization',        true, true,  true,  false),
-    (2, 'trimming',               true, false, false, false),
-    (2, 'examinations',           true, false, false, false),
-    (2, 'accounting',             true, true,  true,  false),
-    (2, 'vaccinations',           true, false, false, false),
+    (2, 'trimming',               true, true,  true,  false),
+    (2, 'examinations',           true, true,  true,  false),
+    (2, 'accounting',             true, false, false, false),
+    (2, 'vaccinations',           true, true,  true,  false),
     (2, 'checkups',               true, false, false, false),
-    (2, 'inventory',              true, true,  true,  false),
-    (2, 'estimates',              true, true,  true,  false),
+    (2, 'inventory',              true, false, false, false),
+    (2, 'estimates',              true, false, false, false),
     (2, 'shifts',                 true, true,  true,  false),
     (2, 'hospital-settings',      true, false, false, false),
-    (2, 'master-animal-species',  true, true,  true,  false),
-    (2, 'master-medical',         true, true,  true,  false),
-    (2, 'master-service-type',    true, true,  true,  false),
-    (2, 'master-hospitalization', true, true,  true,  false),
-    (2, 'master-trimming',        true, true,  true,  false),
-    (2, 'master-permission',      true, false, false, false),
+    (2, 'master-animal-species',  true, false, false, false),
+    (2, 'master-medical',         true, false, false, false),
+    (2, 'master-service-type',    true, false, false, false),
+    (2, 'master-hospitalization', true, false, false, false),
+    (2, 'master-trimming',        true, false, false, false),
+    (2, 'master-permission',      false, false, false, false),
     (2, 'master-staff',           true, false, false, false),
-    (2, 'master-insurance',       true, true,  true,  false),
-    (2, 'master-merchandise',     true, true,  true,  false),
-    -- 一般（group_id=3）: 基本業務（マスタは閲覧のみ）
-    (3, 'dashboard',              true, false, false, false),
-    (3, 'owners',                 true, true,  true,  false),
-    (3, 'reservations',           true, true,  true,  false),
-    (3, 'medical-records',        true, true,  true,  false),
-    (3, 'hospitalization',        true, true,  true,  false),
-    (3, 'trimming',               true, true,  true,  false),
-    (3, 'examinations',           true, true,  true,  false),
-    (3, 'accounting',             true, false, false, false),
-    (3, 'vaccinations',           true, true,  true,  false),
-    (3, 'checkups',               true, false, false, false),
-    (3, 'inventory',              true, false, false, false),
-    (3, 'estimates',              true, false, false, false),
-    (3, 'shifts',                 true, true,  true,  false),
-    (3, 'hospital-settings',      true, false, false, false),
-    (3, 'master-animal-species',  true, false, false, false),
-    (3, 'master-medical',         true, false, false, false),
-    (3, 'master-service-type',    true, false, false, false),
-    (3, 'master-hospitalization', true, false, false, false),
-    (3, 'master-trimming',        true, false, false, false),
-    (3, 'master-permission',      false, false, false, false),
-    (3, 'master-staff',           true, false, false, false),
-    (3, 'master-insurance',       true, false, false, false),
-    (3, 'master-merchandise',     true, false, false, false)
+    (2, 'master-insurance',       true, false, false, false),
+    (2, 'master-merchandise',     true, false, false, false),
+    -- 城東医院 執行（group_id=3）: 全リソース全権限
+    (3, 'dashboard',              true, true,  true,  true),
+    (3, 'owners',                 true, true,  true,  true),
+    (3, 'reservations',           true, true,  true,  true),
+    (3, 'medical-records',        true, true,  true,  true),
+    (3, 'hospitalization',        true, true,  true,  true),
+    (3, 'trimming',               true, true,  true,  true),
+    (3, 'examinations',           true, true,  true,  true),
+    (3, 'accounting',             true, true,  true,  true),
+    (3, 'vaccinations',           true, true,  true,  true),
+    (3, 'checkups',               true, true,  true,  true),
+    (3, 'inventory',              true, true,  true,  true),
+    (3, 'estimates',              true, true,  true,  true),
+    (3, 'shifts',                 true, true,  true,  true),
+    (3, 'hospital-settings',      true, true,  true,  true),
+    (3, 'master-animal-species',  true, true,  true,  true),
+    (3, 'master-medical',         true, true,  true,  true),
+    (3, 'master-service-type',    true, true,  true,  true),
+    (3, 'master-hospitalization', true, true,  true,  true),
+    (3, 'master-trimming',        true, true,  true,  true),
+    (3, 'master-permission',      true, true,  true,  true),
+    (3, 'master-staff',           true, true,  true,  true),
+    (3, 'master-insurance',       true, true,  true,  true),
+    (3, 'master-merchandise',     true, true,  true,  true),
+    -- 城東医院 一般（group_id=4）
+    (4, 'dashboard',              true, false, false, false),
+    (4, 'owners',                 true, true,  true,  false),
+    (4, 'reservations',           true, true,  true,  false),
+    (4, 'medical-records',        true, true,  true,  false),
+    (4, 'hospitalization',        true, true,  true,  false),
+    (4, 'trimming',               true, true,  true,  false),
+    (4, 'examinations',           true, true,  true,  false),
+    (4, 'accounting',             true, false, false, false),
+    (4, 'vaccinations',           true, true,  true,  false),
+    (4, 'checkups',               true, false, false, false),
+    (4, 'inventory',              true, false, false, false),
+    (4, 'estimates',              true, false, false, false),
+    (4, 'shifts',                 true, true,  true,  false),
+    (4, 'hospital-settings',      true, false, false, false),
+    (4, 'master-animal-species',  true, false, false, false),
+    (4, 'master-medical',         true, false, false, false),
+    (4, 'master-service-type',    true, false, false, false),
+    (4, 'master-hospitalization', true, false, false, false),
+    (4, 'master-trimming',        true, false, false, false),
+    (4, 'master-permission',      false, false, false, false),
+    (4, 'master-staff',           true, false, false, false),
+    (4, 'master-insurance',       true, false, false, false),
+    (4, 'master-merchandise',     true, false, false, false),
+    -- 敷島医院 執行（group_id=5）: 全リソース全権限
+    (5, 'dashboard',              true, true,  true,  true),
+    (5, 'owners',                 true, true,  true,  true),
+    (5, 'reservations',           true, true,  true,  true),
+    (5, 'medical-records',        true, true,  true,  true),
+    (5, 'hospitalization',        true, true,  true,  true),
+    (5, 'trimming',               true, true,  true,  true),
+    (5, 'examinations',           true, true,  true,  true),
+    (5, 'accounting',             true, true,  true,  true),
+    (5, 'vaccinations',           true, true,  true,  true),
+    (5, 'checkups',               true, true,  true,  true),
+    (5, 'inventory',              true, true,  true,  true),
+    (5, 'estimates',              true, true,  true,  true),
+    (5, 'shifts',                 true, true,  true,  true),
+    (5, 'hospital-settings',      true, true,  true,  true),
+    (5, 'master-animal-species',  true, true,  true,  true),
+    (5, 'master-medical',         true, true,  true,  true),
+    (5, 'master-service-type',    true, true,  true,  true),
+    (5, 'master-hospitalization', true, true,  true,  true),
+    (5, 'master-trimming',        true, true,  true,  true),
+    (5, 'master-permission',      true, true,  true,  true),
+    (5, 'master-staff',           true, true,  true,  true),
+    (5, 'master-insurance',       true, true,  true,  true),
+    (5, 'master-merchandise',     true, true,  true,  true),
+    -- 敷島医院 一般（group_id=6）
+    (6, 'dashboard',              true, false, false, false),
+    (6, 'owners',                 true, true,  true,  false),
+    (6, 'reservations',           true, true,  true,  false),
+    (6, 'medical-records',        true, true,  true,  false),
+    (6, 'hospitalization',        true, true,  true,  false),
+    (6, 'trimming',               true, true,  true,  false),
+    (6, 'examinations',           true, true,  true,  false),
+    (6, 'accounting',             true, false, false, false),
+    (6, 'vaccinations',           true, true,  true,  false),
+    (6, 'checkups',               true, false, false, false),
+    (6, 'inventory',              true, false, false, false),
+    (6, 'estimates',              true, false, false, false),
+    (6, 'shifts',                 true, true,  true,  false),
+    (6, 'hospital-settings',      true, false, false, false),
+    (6, 'master-animal-species',  true, false, false, false),
+    (6, 'master-medical',         true, false, false, false),
+    (6, 'master-service-type',    true, false, false, false),
+    (6, 'master-hospitalization', true, false, false, false),
+    (6, 'master-trimming',        true, false, false, false),
+    (6, 'master-permission',      false, false, false, false),
+    (6, 'master-staff',           true, false, false, false),
+    (6, 'master-insurance',       true, false, false, false),
+    (6, 'master-merchandise',     true, false, false, false)
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 7d. staff_permission_groups（スタッフ→権限グループ割当: 7件）
--- AUTH.md §5 デモアカウント仕様:
---   manager@example.com (staff 13) → 管理者(1)
---   exec@example.com    (staff 14) → 執行(2)
---   vet@example.com     (staff  9) → 一般(3)
---   nurse@example.com   (staff 10) → 一般(3)
---   reception@example.com(staff 11) → 一般(3)
---   trimmer@example.com (staff 12) → 一般(3)
---   yamada@noavet.jp    (staff  1) → 一般(3)
--- NOTE: admin@example.com / admin@noavet.jp / clinic1@noavet.jp は
---   clinic_admin / system_admin のため暗黙的に全権限（グループ不要）
+-- 7d. staff_permission_groups（スタッフ→権限グループ割当: 全15名）
+-- 執行(1): 管理系スタッフ + デモ管理者アカウント
+-- 一般(2): 一般業務スタッフ
 -- -----------------------------------------------------------------------------
 INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
-    (13, 1),  -- manager@example.com → 管理者
-    (14, 2),  -- exec@example.com    → 執行
-    (9,  3),  -- vet@example.com     → 一般
-    (10, 3),  -- nurse@example.com   → 一般
-    (11, 3),  -- reception@example.com → 一般
-    (12, 3),  -- trimmer@example.com → 一般
-    (1,  3)   -- yamada@noavet.jp    → 一般
+    -- 執行グループ
+    (3,  1),  -- 渡辺 博     (admin@noavet.jp / is_system_admin)
+    (8,  1),  -- 田中 太郎   (admin@example.com)
+    (13, 1),  -- 渡辺 院長   (manager@example.com)
+    (14, 1),  -- 小林 部長   (exec@example.com)
+    (15, 1),  -- 院長補佐    (clinic1@noavet.jp)
+    -- 一般グループ
+    (1,  2),  -- 山田 太郎   (yamada@noavet.jp)
+    (2,  2),  -- 高橋 健一
+    (4,  2),  -- 佐藤 花子
+    (5,  2),  -- 伊藤 さくら
+    (6,  2),  -- 木村 健太
+    (7,  2),  -- 田中 美咲
+    (9,  2),  -- 山田 花子   (vet@example.com)
+    (10, 2),  -- 佐藤 美咲   (nurse@example.com)
+    (11, 2),  -- 鈴木 一郎   (reception@example.com)
+    (12, 2),  -- 高橋 さくら (trimmer@example.com)
+    -- 城東医院 (group_id=3: 執行, group_id=4: 一般)
+    (16, 3),  -- 城東 獣医 (joto-vet@example.com) → 執行
+    (17, 4),  -- 城東 看護 → 一般
+    (18, 4),  -- 城東 受付 → 一般
+    -- 敷島医院 (group_id=5: 執行, group_id=6: 一般)
+    (19, 5),  -- 敷島 獣医 (shiki-vet@example.com) → 執行
+    (20, 6),  -- 敷島 看護 → 一般
+    (21, 6)   -- 敷島 受付 → 一般
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------

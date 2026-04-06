@@ -3,8 +3,7 @@
  * バックエンドは snake_case、フロントエンドは camelCase
  */
 import { z } from "zod";
-import type { AuthUser, AuthClinic, StaffRole } from "../types";
-import { USER_TYPE_VALUES, STAFF_ROLE_VALUES } from "../types";
+import type { AuthUser, AuthClinic } from "../types";
 
 const clinicMembershipSchema = z.object({
   clinic_id: z.string(),
@@ -26,11 +25,6 @@ const meClinicInfoSchema = z.object({
   logo_url: z.string().nullable().default(null),
 });
 
-// z.enum は mutable tuple を要求するため、readonly const 配列を型キャストして渡す
-// [T, ...T[]] 形式のタプル型へのキャストで any を回避する
-const toEnumTuple = <T extends string>(v: readonly T[]): [T, ...T[]] =>
-  v as unknown as [T, ...T[]];
-
 const resourcePermissionSchema = z.object({
   view: z.boolean(),
   create: z.boolean(),
@@ -42,11 +36,9 @@ export const backendMeResponseSchema = z.object({
   id: z.string(),
   email: z.string(),
   display_name: z.string(),
-  user_type: z.enum(toEnumTuple(USER_TYPE_VALUES)),
-  // staff_role はバックエンドの staff_role ENUM（スタッフ紐づけがない場合は null）
-  staff_role: z.string().nullable(),
-  // job_title は後方互換のため残存（現在は staff_role を優先使用）
-  job_title: z.string().nullable().optional(),
+  is_system_admin: z.boolean(),
+  // occupation は職種マスタ名
+  occupation: z.string().nullable().optional(),
   avatar_url: z.string().nullable().optional(),
   main_clinic_id: z.string(),
   // clinic は /me レスポンスのメイン医院詳細。未所属の場合は null
@@ -80,11 +72,7 @@ export function mapMeToAuthUser(raw: unknown): AuthUser {
     id: me.id,
     email: me.email,
     displayName: me.display_name,
-    userType: me.user_type,
-    // staff_role が STAFF_ROLE_VALUES に含まれる値のみ受け入れ、それ以外は null
-    staffRole: (STAFF_ROLE_VALUES as readonly string[]).includes(me.staff_role ?? "")
-      ? (me.staff_role as StaffRole)
-      : null,
+    isSystemAdmin: me.is_system_admin,
     avatarUrl: me.avatar_url,
     mainClinicId: me.main_clinic_id,
     clinic: me.clinic ? mapMeClinicInfo(me.clinic) : null,

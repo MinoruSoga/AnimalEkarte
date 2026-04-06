@@ -13,8 +13,8 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import { useGetAllJobTitles, useCreateJobTitle, useUpdateJobTitle, useDeleteJobTitle } from "@/features/master/api/job-titles";
-import type { JobTitle, CreateJobTitleRequest, UpdateJobTitleRequest } from "@/features/master/api/job-titles";
+import { useGetAllOccupations, useCreateOccupation, useUpdateOccupation, useDeleteOccupation } from "@/features/master/api/occupations";
+import type { Occupation, CreateOccupationRequest, UpdateOccupationRequest } from "@/features/master/api/occupations";
 
 // ─── Constants ───
 const COLUMNS = [
@@ -25,22 +25,22 @@ const COLUMNS = [
 ];
 
 // ─── FormData ───
-interface JobTitleFormData {
+interface OccupationFormData {
   name: string;
   description: string;
   isActive: boolean;
 }
 
 // ─── SidePanel ───
-const JobTitleSidePanel = memo(function JobTitleSidePanel({
+const OccupationSidePanel = memo(function OccupationSidePanel({
   item, onClose, onSave, onDeleteRequest,
 }: {
-  item: JobTitle | null;
+  item: Occupation | null;
   onClose: () => void;
-  onSave: (d: JobTitleFormData) => void;
-  onDeleteRequest: (i: JobTitle) => void;
+  onSave: (d: OccupationFormData) => void;
+  onDeleteRequest: (i: Occupation) => void;
 }) {
-  const [f, setF] = useState<JobTitleFormData>(() => ({
+  const [f, setF] = useState<OccupationFormData>(() => ({
     name: item?.name ?? "",
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
@@ -101,15 +101,15 @@ const JobTitleSidePanel = memo(function JobTitleSidePanel({
 });
 
 // ─── Page ───
-export function JobTitleSettings() {
-  const { data } = useGetAllJobTitles();
-  const createMutation = useCreateJobTitle();
-  const updateMutation = useUpdateJobTitle();
-  const deleteMutation = useDeleteJobTitle();
+export function OccupationSettings() {
+  const { data } = useGetAllOccupations();
+  const createMutation = useCreateOccupation();
+  const updateMutation = useUpdateOccupation();
+  const deleteMutation = useDeleteOccupation();
 
-  const crud = useMasterCRUD<JobTitle>({ data, deleteMutation, entityLabel: "役職" });
+  const crud = useMasterCRUD<Occupation>({ data, deleteMutation, entityLabel: "職種" });
 
-  const { handleSave } = useMasterSave<JobTitle, JobTitleFormData, CreateJobTitleRequest, UpdateJobTitleRequest>({
+  const { handleSave } = useMasterSave<Occupation, OccupationFormData, CreateOccupationRequest, UpdateOccupationRequest>({
     crud,
     createMutation,
     updateMutation,
@@ -120,11 +120,11 @@ export function JobTitleSettings() {
 
   return (
     <MasterCRUDPage
-      title="役職マスタ"
+      title="職種マスタ"
       icon={<Briefcase className={`${ICON.page} ${C.text}`} />}
-      entityLabel="役職"
-      searchPlaceholder="役職名で検索..."
-      emptyMessage="役職が登録されていません"
+      entityLabel="職種"
+      searchPlaceholder="職種名で検索..."
+      emptyMessage="職種が登録されていません"
       crud={crud}
       handleSave={handleSave}
       columns={COLUMNS}
@@ -137,7 +137,7 @@ export function JobTitleSettings() {
           <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
         </DataTableRow>
       )}
-      renderSidePanel={(props) => <JobTitleSidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={(props) => <OccupationSidePanel key={props.item?.id ?? "new"} {...props} />}
     />
   );
 }

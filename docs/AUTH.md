@@ -15,7 +15,7 @@
 1. [設計方針](#設計方針)
 2. [ユーザーモデル（3層構造）](#ユーザーモデル3層構造)
    - [2.1 ユーザー種別 (UserType)](#21-ユーザー種別-usertype)
-   - [2.2 職種 (StaffRole / JobTitle)](#22-職種-staffrole--jobtitle)
+   - [2.2 職種 (StaffRole / Occupation)](#22-職種-staffrole--jobtitle)
    - [2.3 権限グループ (PermissionGroup)](#23-権限グループ-permissiongroup)
 3. [マルチクリニック設計](#マルチクリニック設計)
 4. [認証フロー](#認証フロー)
@@ -57,7 +57,7 @@
 │  │  運営管理者    │  医院管理者   │   スタッフ    │                     │
 │  └──────────────┴──────────────┴──────────────┘                     │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Layer 2: 職種 (StaffRole / JobTitle)                               │
+│  Layer 2: 職種 (StaffRole / Occupation)                               │
 │  業務上の肩書き・デフォルト権限テンプレートの決定                           │
 │  ┌──────┬──────┬──────┬──────┬──────┐                               │
 │  │ 医師  │ 看護師│トリマー│ 受付  │ 職員  │                               │
@@ -86,7 +86,7 @@
 - `clinic_admin`: 所属クリニック内の全権限を暗黙的に保持
 - `staff`: 明示的に付与された権限のみ
 
-### 2.2 職種 (StaffRole / JobTitle)
+### 2.2 職種 (StaffRole / Occupation)
 
 業務上の肩書き。UI表示・シフト管理でのフィルタリング・権限テンプレートの初期値決定に使用。
 
@@ -95,8 +95,8 @@
 | カラム / テーブル | 型 | 場所 | 説明 |
 |---|---|---|---|
 | `staffs.staff_role` | `staff_role` ENUM | `staffs` テーブル | 職種分類（`veterinarian|nurse|trimmer|reception|manager`） |
-| `staffs.job_title_id` | bigint FK → `job_titles` | `staffs` テーブル | 表示名・ラベル用の職種マスタ |
-| `user_accounts.job_title_id` | bigint FK → `job_titles` | `user_accounts` テーブル | ユーザー直接の職種（`staffs` 非紐付けの場合） |
+| `staffs.occupation_id` | bigint FK → `occupations` | `staffs` テーブル | 表示名・ラベル用の職種マスタ |
+| `user_accounts.occupation_id` | bigint FK → `occupations` | `user_accounts` テーブル | ユーザー直接の職種（`staffs` 非紐付けの場合） |
 | `user_accounts.staff_id` | bigint FK → `staffs` | `user_accounts` テーブル | スタッフマスタへの紐付け |
 
 `AuthUser.staffRole` はバックエンドが `user_accounts → staffs.staff_role` を JOIN して返す。
@@ -110,7 +110,7 @@
 | **管理職** | `manager` | 医院管理者に準ずるロール（`clinic_admin` ユーザーに対応） |
 
 > **注**: `general_staff` 値は migration に**存在しない**。`manager` は現在も `staff_role` ENUM に残存。
-> `job_title` ENUM 型も migration に**存在しない**（設計上の `JobTitle` ENUM 移行は未実施）。
+> `occupation` ENUM 型も migration に**存在しない**（設計上の `Occupation` ENUM 移行は未実施）。
 > デフォルト権限テンプレートはアカウント作成時の初期値であり、作成後に個別調整可能。
 
 ### 2.3 権限グループ (PermissionGroup)
@@ -190,7 +190,7 @@
 │  id          │       │  user_id (FK)         │       │  id          │
 │  email       │       │  clinic_id (FK)       │       │  name        │
 │  user_type   │       │  is_main (BOOLEAN)    │       │  branch_name │
-│  job_title_id│       │  joined_at            │       │  ...         │
+│  occupation_id│       │  joined_at            │       │  ...         │
 │  ...         │       └──────────────────────┘       └──────────────┘
 └─────────────┘
          │
@@ -444,8 +444,8 @@ CREATE TYPE staff_role AS ENUM ('veterinarian', 'nurse', 'trimmer', 'reception',
 CREATE TYPE account_status AS ENUM ('active', 'inactive', 'locked');
 ```
 
-> ⚠️ `job_title` ENUM は migration に**存在しない**。設計ドキュメントで言及される `general_staff` 値も未実装。
-> `job_titles` は FK テーブルとして管理（`staffs.job_title_id`, `user_accounts.job_title_id`）。
+> ⚠️ `occupation` ENUM は migration に**存在しない**。設計ドキュメントで言及される `general_staff` 値も未実装。
+> `occupations` は FK テーブルとして管理（`staffs.occupation_id`, `user_accounts.occupation_id`）。
 
 > **廃止済み**: `permission_type` ENUM（`account_admin`, `medical` 等の10値）は**実装されていない**。
 > 権限制御は `permission_groups` + `permission_group_rules` テーブルで行う（§6.2参照）。
@@ -505,7 +505,7 @@ CREATE TABLE clinics (
 | `display_name` | `text` | `NOT NULL` | 表示名 |
 | `display_name_kana` | `text` | `NOT NULL DEFAULT ''` | 表示名カナ |
 | `user_type` | `user_type` | `NOT NULL DEFAULT 'staff'` | ユーザー種別 |
-| `job_title_id` | `bigint` | `FK → job_titles(id) SET NULL` | 職種マスタ（`system_admin` は NULL 可） |
+| `occupation_id` | `bigint` | `FK → occupations(id) SET NULL` | 職種マスタ（`system_admin` は NULL 可） |
 | `status` | `account_status` | `DEFAULT 'active'` | アカウントステータス |
 | `avatar_url` | `text` | `NOT NULL DEFAULT ''` | アバター画像URL |
 | `staff_id` | `bigint` | `FK → staffs(id) SET NULL` | スタッフマスタへの紐付け（`staff_role` 取得に使用） |
@@ -521,7 +521,7 @@ CREATE TABLE user_accounts (
     display_name      text           NOT NULL,
     display_name_kana text           NOT NULL DEFAULT '',
     user_type         user_type      NOT NULL DEFAULT 'staff',
-    job_title_id      bigint                  REFERENCES job_titles(id) ON DELETE SET NULL,
+    occupation_id      bigint                  REFERENCES occupations(id) ON DELETE SET NULL,
     status            account_status          DEFAULT 'active',
     avatar_url        text           NOT NULL DEFAULT '',
     staff_id          bigint                  REFERENCES staffs(id) ON DELETE SET NULL,
@@ -533,7 +533,7 @@ CREATE TABLE user_accounts (
 ```
 
 > **`staff_id`**: `staffs` テーブルへの FK。`staffs.staff_role` を通じて `AuthUser.staffRole` を取得。
-> `job_title` ENUM 列は存在しない。職種は `job_titles` FK テーブルで管理。
+> `occupation` ENUM 列は存在しない。職種は `occupations` FK テーブルで管理。
 
 ---
 
@@ -724,7 +724,7 @@ ALTER TABLE medical_records ADD COLUMN clinic_id BIGINT NOT NULL REFERENCES clin
 | 現状 | 移行後 |
 |---|---|
 | スタッフは `master_items` テーブルの `category='staff'` レコードとして管理 | `user_accounts` テーブルが認証の主テーブル。`staff_id` で `staffs` テーブルと紐付け（実装済み） |
-| `staff_role` ENUM で `staffs` テーブルの職種を管理（実装済み） | `job_titles` FK テーブルで職種名を管理（実装済み）。`job_title` ENUM への置換は未実施 |
+| `staff_role` ENUM で `staffs` テーブルの職種を管理（実装済み） | `occupations` FK テーブルで職種名を管理（実装済み）。`occupation` ENUM への置換は未実施 |
 | シフト管理は `master_items.id` を `shift_entries.staff_id` として参照 | 段階的に `user_accounts.id` ベースに移行。移行期間中は `staffs.id`（`user_accounts.staff_id`）経由で互換性維持 |
 
 #### `clinic_info` テーブルの移行
@@ -742,7 +742,7 @@ CREATE INDEX idx_user_accounts_email ON user_accounts(email);
 CREATE INDEX idx_user_accounts_user_type ON user_accounts(user_type);
 CREATE INDEX idx_user_accounts_status ON user_accounts(status);
 CREATE INDEX idx_user_accounts_staff_id ON user_accounts(staff_id);
-CREATE INDEX idx_user_accounts_job_title_id ON user_accounts(job_title_id);
+CREATE INDEX idx_user_accounts_occupation_id ON user_accounts(occupation_id);
 
 -- ===== user_clinic_memberships =====
 -- UNIQUE(user_id, clinic_id) が複合インデックスを暗黙作成
@@ -1254,7 +1254,7 @@ export function RequirePermission({
 
 ## 備考・設計判断
 
-1. **`staff_role` と `job_titles` の関係**: `user_accounts.job_title_id` は `job_titles` テーブルへの FK（ENUM ではなく DB テーブル管理）。`staff_role` ENUM（`veterinarian|nurse|trimmer|reception|manager`）は `staffs.staff_role` カラムに格納（`user_accounts` には存在しない）。`user_accounts.staff_id` FK で `staffs` レコードと紐付け、`staffs.staff_role` を `/me` レスポンスの `staffRole` フィールドとして返す。`manager` ロールは現在も migration に存在するが、`user_type = clinic_admin` に対応するロール。一般スタッフは `staff_role` + 権限グループで権限管理。
+1. **`staff_role` と `occupations` の関係**: `user_accounts.occupation_id` は `occupations` テーブルへの FK（ENUM ではなく DB テーブル管理）。`staff_role` ENUM（`veterinarian|nurse|trimmer|reception|manager`）は `staffs.staff_role` カラムに格納（`user_accounts` には存在しない）。`user_accounts.staff_id` FK で `staffs` レコードと紐付け、`staffs.staff_role` を `/me` レスポンスの `staffRole` フィールドとして返す。`manager` ロールは現在も migration に存在するが、`user_type = clinic_admin` に対応するロール。一般スタッフは `staff_role` + 権限グループで権限管理。
 
 2. **パスワードハッシュ**: `user_accounts.password_hash` に bcrypt (cost=10) で保存。シードデータは `$2a$10$...` 形式。bcrypt は今後も推奨（argon2id はメモリ要件が高く Docker 環境でリスクあり）。
 

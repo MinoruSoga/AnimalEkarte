@@ -2,8 +2,7 @@ import React, { useMemo, useCallback } from "react";
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Check } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
-import { useGetStaffs, STAFF_ROLE_LABELS } from "@/features/master";
-import type { StaffRoleValue } from "@/features/master";
+import { useGetStaffs } from "@/features/master";
 
 interface StaffSelectionModalProps {
   open: boolean;
@@ -11,8 +10,6 @@ interface StaffSelectionModalProps {
   onSelect: (staffId: string, staffName: string) => void;
   onOpenChange: (open: boolean) => void;
 }
-
-const ROLE_ORDER: StaffRoleValue[] = ["veterinarian", "nurse", "trimmer", "reception", "manager"];
 
 export const StaffSelectionModal = React.memo(function StaffSelectionModal({
   open,
@@ -25,12 +22,16 @@ export const StaffSelectionModal = React.memo(function StaffSelectionModal({
   const groupedStaffs = useMemo(() => {
     const active = staffs.filter((s) => s.isActive);
     const groups: Record<string, typeof active> = {};
+    const occupationOrder: string[] = [];
     for (const s of active) {
-      const role = s.staffRole;
-      if (!groups[role]) groups[role] = [];
-      groups[role].push(s);
+      const key = s.occupationName ?? "未設定";
+      if (!groups[key]) {
+        groups[key] = [];
+        occupationOrder.push(key);
+      }
+      groups[key].push(s);
     }
-    return groups;
+    return { groups, occupationOrder };
   }, [staffs]);
 
   const handleSelect = useCallback(
@@ -55,18 +56,18 @@ export const StaffSelectionModal = React.memo(function StaffSelectionModal({
           該当するスタッフが見つかりません。
         </CommandEmpty>
 
-        {ROLE_ORDER.map((role) => {
-          const items = groupedStaffs[role];
+        {groupedStaffs.occupationOrder.map((occupationKey) => {
+          const items = groupedStaffs.groups[occupationKey];
           if (!items || items.length === 0) return null;
 
           return (
-            <CommandGroup key={role} heading={STAFF_ROLE_LABELS[role]}>
+            <CommandGroup key={occupationKey} heading={occupationKey}>
               {items.map((staff) => {
                 const isSelected = selectedStaffName === staff.name;
                 return (
                   <CommandItem
                     key={staff.id}
-                    value={`${staff.name} ${STAFF_ROLE_LABELS[staff.staffRole]}`}
+                    value={`${staff.name} ${occupationKey}`}
                     onSelect={() => handleSelect(staff.id, staff.name)}
                     className={`cursor-pointer !py-2 ${isSelected ? C.bgPage : ""}`}
                   >
@@ -75,7 +76,7 @@ export const StaffSelectionModal = React.memo(function StaffSelectionModal({
                         {staff.name}
                       </span>
                       {isSelected ? (
-                        <Check className={`${ICON.action} ${C.textPrimary}`} />
+                        <Check className={`${ICON.action} ${C.text}`} />
                       ) : null}
                     </div>
                   </CommandItem>

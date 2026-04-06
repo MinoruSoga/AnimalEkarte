@@ -4,50 +4,26 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Staff as ModelStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Strict role union (models.ts uses string, but we keep this for form safety)
-// ─────────────────────────────────────────────────
-
-export type StaffRoleValue =
-  | "veterinarian"
-  | "nurse"
-  | "trimmer"
-  | "reception"
-  | "manager";
-
-// ─────────────────────────────────────────────────
 // Request types - api.yaml StaffRegistrationRequest 準拠
 // ─────────────────────────────────────────────────
 
 export interface CreateStaffRequest {
   name: string;
-  staff_role: StaffRoleValue;
   email: string;
   password: string;
   license_number?: string;
-  job_title_id?: string | null;
+  occupation_id?: string | null;
   sort_order?: number;
 }
 
 export interface UpdateStaffRequest {
   name?: string;
-  staff_role?: StaffRoleValue;
   license_number?: string;
   is_active?: boolean;
-  job_title_id?: string | null;
+  occupation_id?: string | null;
   sort_order?: number;
+  password?: string;
 }
-
-// ─────────────────────────────────────────────────
-// Role label mapping
-// ─────────────────────────────────────────────────
-
-export const STAFF_ROLE_LABELS: Record<StaffRoleValue, string> = {
-  veterinarian: "獣医師",
-  nurse: "看護師",
-  trimmer: "トリマー",
-  reception: "受付",
-  manager: "運営管理者",
-};
 
 // ─────────────────────────────────────────────────
 // Transform
@@ -66,8 +42,8 @@ function transformStaff(data: ModelStaff & { email?: string }) {
     clinicId: clinicId ? String(clinicId) : null,
     name: data.name,
     isActive: data.is_active,
-    staffRole: data.staff_role as StaffRoleValue,
-    jobTitleId: data.job_title_id ? String(data.job_title_id) : null,
+    occupationId: data.occupation_id ? String(data.occupation_id) : null,
+    occupationName: data.occupation?.name ?? null,
     licenseNumber: data.license_number,
     sortOrder: data.sort_order,
     email,
@@ -94,7 +70,11 @@ export async function listStaffs(): Promise<Staff[]> {
 }
 
 export async function createStaff(req: CreateStaffRequest): Promise<Staff> {
-  const { data } = await axios.post<ModelStaff>("/v1/masters/staffs", req);
+  const payload = {
+    ...req,
+    occupation_id: req.occupation_id ? Number(req.occupation_id) : undefined,
+  };
+  const { data } = await axios.post<ModelStaff>("/v1/masters/staffs", payload);
   return transformStaff(data);
 }
 
@@ -102,9 +82,13 @@ export async function updateStaff(
   id: string,
   req: UpdateStaffRequest,
 ): Promise<Staff> {
+  const payload = {
+    ...req,
+    occupation_id: req.occupation_id ? Number(req.occupation_id) : undefined,
+  };
   const { data } = await axios.patch<ModelStaff>(
     `/v1/masters/staffs/${id}`,
-    req,
+    payload,
   );
   return transformStaff(data);
 }
@@ -239,12 +223,14 @@ export interface ClinicSummary {
   name: string;
 }
 
-export function useGetClinicsList() {
+export function useGetClinicsList(scope?: "all") {
   return useQuery({
-    queryKey: ["clinics-list"],
+    queryKey: ["clinics-list", scope ?? "assigned"],
     queryFn: async (): Promise<ClinicSummary[]> => {
+      const params = scope ? { scope } : undefined;
       const { data } = await axios.get<Array<{ id: number; name: string }>>(
         "/v1/clinics",
+        { params },
       );
       return data.map((c) => ({ id: String(c.id), name: c.name }));
     },

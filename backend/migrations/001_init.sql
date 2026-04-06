@@ -14,7 +14,6 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- -----------------------------------------------------------------------------
 
 -- 認証関連
-CREATE TYPE user_type AS ENUM ('system_admin', 'clinic_admin', 'staff');
 CREATE TYPE account_status AS ENUM ('active', 'inactive', 'locked');
 
 -- ペット関連
@@ -25,7 +24,6 @@ CREATE TYPE danger_level AS ENUM ('low', 'medium', 'high');
 CREATE TYPE membership_type AS ENUM ('non_member', 'member', 'deceased', 'transferred');
 
 -- マスタ共通
-CREATE TYPE staff_role AS ENUM ('veterinarian', 'nurse', 'trimmer', 'reception', 'manager');
 CREATE TYPE inventory_category AS ENUM ('medicine', 'consumable', 'food', 'other');
 CREATE TYPE inventory_status AS ENUM ('sufficient', 'low', 'out_of_stock');
 CREATE TYPE dosage_form AS ENUM ('tablet', 'liquid', 'injection', 'topical', 'powder');
@@ -143,9 +141,9 @@ CREATE TABLE animal_species (
 );
 
 -- ------------------------------------
--- 4. job_titles（職種マスタ）
+-- 4. occupations（職種マスタ）
 -- ------------------------------------
-CREATE TABLE job_titles (
+CREATE TABLE occupations (
     id          BIGSERIAL   PRIMARY KEY,
     clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL DEFAULT '',
@@ -163,16 +161,15 @@ CREATE TABLE accounts (
     id             BIGSERIAL   PRIMARY KEY,
     email          text        NOT NULL UNIQUE,
     password_hash  text        NOT NULL,
-    is_active      boolean     NOT NULL DEFAULT true,
-    user_type      user_type   NOT NULL DEFAULT 'staff',
-    created_at     timestamptz NOT NULL DEFAULT now(),
-    updated_at     timestamptz NOT NULL DEFAULT now(),
-    deleted_at     timestamptz
+    is_active        boolean     NOT NULL DEFAULT true,
+    is_system_admin  boolean     NOT NULL DEFAULT false,
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    updated_at       timestamptz NOT NULL DEFAULT now(),
+    deleted_at       timestamptz
 );
 
 CREATE INDEX idx_accounts_email ON accounts(email) WHERE deleted_at IS NULL;
-CREATE INDEX idx_accounts_user_type ON accounts(user_type);
-CREATE INDEX idx_accounts_active_user_type ON accounts(is_active, user_type) WHERE deleted_at IS NULL;
+CREATE INDEX idx_accounts_system_admin ON accounts(is_system_admin) WHERE is_system_admin = true AND deleted_at IS NULL;
 
 -- ------------------------------------
 -- 5b. staffs（スタッフマスタ）
@@ -182,9 +179,8 @@ CREATE TABLE staffs (
     account_id     bigint               REFERENCES accounts(id) ON DELETE SET NULL,
     name           text        NOT NULL,
     is_active      boolean     NOT NULL DEFAULT true,
-    staff_role     staff_role  NOT NULL,
     license_number text        NOT NULL DEFAULT '',
-    job_title_id   bigint               REFERENCES job_titles(id) ON DELETE SET NULL,
+    occupation_id  bigint               REFERENCES occupations(id) ON DELETE SET NULL,
     sort_order     integer              DEFAULT 0,
     created_at     timestamptz NOT NULL DEFAULT now(),
     updated_at     timestamptz NOT NULL DEFAULT now(),
@@ -1290,7 +1286,7 @@ CREATE UNIQUE INDEX idx_billings_medical_record_id_unique ON billings(medical_re
 
 -- マスタテーブル clinic_id
 -- Deleted: idx_staffs_clinic_id (staffs now uses account_id; clinic membership tracked via staff_clinic_assignments)
-CREATE INDEX idx_job_titles_clinic_id ON job_titles(clinic_id);
+CREATE INDEX idx_occupations_clinic_id ON occupations(clinic_id);
 CREATE INDEX idx_inventory_items_clinic_id ON inventory_items(clinic_id);
 CREATE INDEX idx_exam_types_clinic_id ON exam_types(clinic_id);
 CREATE INDEX idx_exam_types_parent_id ON exam_types(parent_id);
@@ -1471,12 +1467,11 @@ CREATE INDEX idx_trimming_records_clinic_date
 
 -- BE-033: 追加インデックス（検索パフォーマンス改善）
 CREATE INDEX idx_owners_phone_trgm ON owners USING gin (phone gin_trgm_ops) WHERE deleted_at IS NULL;
-CREATE INDEX idx_staffs_staff_role ON staffs(staff_role) WHERE deleted_at IS NULL;
 CREATE INDEX idx_inventory_items_category ON inventory_items(category) WHERE deleted_at IS NULL;
 
 -- 追加FKインデックス
 -- Deleted: idx_user_accounts_staff_id, idx_user_accounts_job_title_id (user_accounts table removed)
-CREATE INDEX idx_staffs_job_title_id ON staffs(job_title_id);
+CREATE INDEX idx_staffs_occupation_id ON staffs(occupation_id);
 CREATE INDEX idx_pets_animal_species_id ON pets(animal_species_id);
 CREATE INDEX idx_pets_insurance_id ON pets(insurance_id) WHERE insurance_id IS NOT NULL;
 CREATE INDEX idx_diagnosis_names_category_id ON diagnosis_names(diagnosis_category_id);
@@ -1511,7 +1506,7 @@ CREATE UNIQUE INDEX idx_trimming_options_clinic_name ON trimming_options(clinic_
 CREATE UNIQUE INDEX idx_insurance_clinic_name ON insurances(clinic_id, name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_checkup_types_clinic_name ON checkup_types(clinic_id, name) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_hospitalization_plans_clinic_name ON hospitalization_plans(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_job_titles_clinic_name ON job_titles(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_occupations_clinic_name ON occupations(clinic_id, name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_chief_complaint_categories_clinic_name ON chief_complaint_categories(clinic_id, name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_animal_species_name ON animal_species(name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_merchandise_items_clinic_name ON merchandise_items(clinic_id, name) WHERE is_active = true AND deleted_at IS NULL;
@@ -1524,7 +1519,7 @@ COMMENT ON TABLE company IS '法人情報（シングルトン）';
 COMMENT ON TABLE clinics IS '医院情報';
 COMMENT ON TABLE animal_species IS 'ペット種類マスタ（システム共通）';
 COMMENT ON TABLE accounts IS '認証用アカウント';
-COMMENT ON TABLE job_titles IS '職種マスタ';
+COMMENT ON TABLE occupations IS '職種マスタ';
 COMMENT ON TABLE staffs IS 'スタッフマスタ';
 COMMENT ON TABLE owners IS '飼主情報';
 COMMENT ON TABLE inventory_items IS '在庫アイテム';

@@ -26,6 +26,7 @@ const (
 // effectivePerms は事前に計算された実効権限マップ。nil の場合はデフォルト（全権限なし）。
 func buildMeResponse(staff *model.Staff, account *model.Account, mainClinicID string, clinicNameMap map[string]string, allClinics []model.Clinic, effectivePerms EffectivePermissions) *MeResponse {
 	meClinicList := make([]MeClinicMembership, 0)
+	isSystemAdmin := account != nil && account.IsSystemAdmin
 	if staff != nil && len(staff.ClinicAssignments) > 0 {
 		for _, asg := range staff.ClinicAssignments {
 			clIDStr := strconv.FormatUint(asg.ClinicID, 10)
@@ -68,15 +69,10 @@ func buildMeResponse(staff *model.Staff, account *model.Account, mainClinicID st
 		break
 	}
 
-	var jobTitle *string
-	if staff != nil && staff.JobTitle != nil {
-		jt := staff.JobTitle.Name
-		jobTitle = &jt
-	}
-	var staffRole *string
-	if staff != nil {
-		sr := string(staff.StaffRole)
-		staffRole = &sr
+	var occupation *string
+	if staff != nil && staff.Occupation != nil {
+		occ := staff.Occupation.Name
+		occupation = &occ
 	}
 
 	staffID := uint64(0)
@@ -84,22 +80,16 @@ func buildMeResponse(staff *model.Staff, account *model.Account, mainClinicID st
 		staffID = staff.ID
 	}
 
-	userType := "staff"
-	if account != nil {
-		userType = account.UserType
-	}
-
 	return &MeResponse{
-		ID:           strconv.FormatUint(staffID, 10),
-		Email:        account.Email,
-		DisplayName:  staff.Name,
-		UserType:     userType,
-		StaffRole:    staffRole,
-		JobTitle:     jobTitle,
-		MainClinicID: mainClinicID,
-		Clinic:       meClinic,
-		Clinics:      meClinicList,
-		Permissions:  permMap,
+		ID:            strconv.FormatUint(staffID, 10),
+		Email:         account.Email,
+		DisplayName:   staff.Name,
+		IsSystemAdmin: isSystemAdmin,
+		Occupation:    occupation,
+		MainClinicID:  mainClinicID,
+		Clinic:        meClinic,
+		Clinics:       meClinicList,
+		Permissions:   permMap,
 	}
 }
 
@@ -142,7 +132,7 @@ func (h *Handler) Login(c *gin.Context) {
 	// staff を取得
 	slog.InfoContext(ctx, "login: account found",
 		slog.String("email", account.Email),
-		slog.String("user_type", account.UserType),
+		slog.Bool("is_system_admin", account.IsSystemAdmin),
 		slog.Uint64("account_id", account.ID))
 
 	staff, err := h.repos.Staff.FindByAccountID(ctx, account.ID)
@@ -176,9 +166,9 @@ func (h *Handler) Login(c *gin.Context) {
 	// アクセストークン生成（15分）
 	expiresAt := time.Now().Add(15 * time.Minute)
 	claims := &middleware.JWTClaims{
-		UserID:   strconv.FormatUint(staff.ID, 10),
-		ClinicID: mainClinicID,
-		UserType: account.UserType,
+		UserID:        strconv.FormatUint(staff.ID, 10),
+		ClinicID:      mainClinicID,
+		IsSystemAdmin: account.IsSystemAdmin,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -221,15 +211,15 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// 実効権限を計算
-	permMap := h.calculateEffectivePermissions(ctx, account.UserType, staff.ID)
+	permMap := h.calculateEffectivePermissions(ctx, account.IsSystemAdmin, staff.ID)
 
 	slog.InfoContext(ctx, "login successful", slog.String("email", account.Email), slog.Uint64("staff_id", staff.ID))
 
 	c.JSON(http.StatusOK, LoginResponse{
-		Token:     accessTokenStr,
-		ExpiresAt: expiresAt.Unix(),
-		UserType:  account.UserType,
-		User:      buildMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap),
+		Token:         accessTokenStr,
+		ExpiresAt:     expiresAt.Unix(),
+		IsSystemAdmin: account.IsSystemAdmin,
+		User:          buildMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap),
 	})
 }
 
@@ -332,17 +322,17 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 
 	// 実効権限を計算
-	userType := "staff"
+	isSystemAdmin := false
 	if account != nil {
-		userType = account.UserType
+		isSystemAdmin = account.IsSystemAdmin
 	}
-	permMap := h.calculateEffectivePermissions(ctx, userType, staff.ID)
+	permMap := h.calculateEffectivePermissions(ctx, isSystemAdmin, staff.ID)
 
 	c.JSON(http.StatusOK, buildMeResponse(staff, account, mainClinicIDStr, clinicNameMap, allClinics, permMap))
 }
 
 // buildAllPermissions は全リソースに対して全CRUD true のマップを返す。
-// system_admin / clinic_admin 用。
+// is_system_admin=true 用。
 func buildAllPermissions() EffectivePermissions {
 	m := make(EffectivePermissions, len(model.AllResources))
 	for _, res := range model.AllResources {
@@ -352,11 +342,11 @@ func buildAllPermissions() EffectivePermissions {
 }
 
 // calculateEffectivePermissions はユーザー種別に応じた実効権限を計算する。
-// system_admin / clinic_admin: 全リソース全権限
-// staff: DB の staff_permission_groups → permission_group_rules から UNION 計算
-func (h *Handler) calculateEffectivePermissions(ctx context.Context, userType string, staffID uint64) EffectivePermissions {
-	// system_admin / clinic_admin は全権限バイパス
-	if userType == string(model.UserTypeSystemAdmin) || userType == string(model.UserTypeClinicAdmin) {
+// isSystemAdmin=true: 全リソース全権限バイパス
+// isSystemAdmin=false: DB の staff_permission_groups → permission_group_rules から UNION 計算
+func (h *Handler) calculateEffectivePermissions(ctx context.Context, isSystemAdmin bool, staffID uint64) EffectivePermissions {
+	// system_admin は全権限バイパス
+	if isSystemAdmin {
 		return buildAllPermissions()
 	}
 

@@ -15,7 +15,7 @@ import (
 
 // mockStaffRepository は StaffRepository のテスト用モック実装
 type mockStaffRepository struct {
-	findAllFn         func(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
+	findAllFn         func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
 	findByIDFn        func(ctx context.Context, id uint64) (*model.Staff, error)
 	findByAccountIDFn func(ctx context.Context, accountID uint64) (*model.Staff, error)
 	createFn          func(ctx context.Context, staff *model.Staff) error
@@ -24,8 +24,8 @@ type mockStaffRepository struct {
 	reorderErr        error
 }
 
-func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
-	return m.findAllFn(ctx, clinicID, role, page, limit)
+func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error) {
+	return m.findAllFn(ctx, clinicID, page, limit)
 }
 
 func (m *mockStaffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
@@ -124,7 +124,6 @@ func TestStaffService_List(t *testing.T) {
 	tests := []struct {
 		name       string
 		clinicID   uint64
-		role       *string
 		repoStaffs []model.Staff
 		repoTotal  int64
 		repoErr    error
@@ -133,12 +132,11 @@ func TestStaffService_List(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name:     "returns all staffs without role filter",
+			name:     "returns all staffs",
 			clinicID: 1,
-			role:     nil,
 			repoStaffs: []model.Staff{
-				{ID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
-				{ID: 2, Name: "鈴木 花子", StaffRole: model.StaffRoleNurse},
+				{ID: 1, Name: "山田 太郎"},
+				{ID: 2, Name: "鈴木 花子"},
 			},
 			repoTotal: 2,
 			repoErr:   nil,
@@ -147,22 +145,8 @@ func TestStaffService_List(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:     "filters staffs by role",
-			clinicID: 1,
-			role:     ptrString("veterinarian"),
-			repoStaffs: []model.Staff{
-				{ID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
-			},
-			repoTotal: 1,
-			repoErr:   nil,
-			wantLen:   1,
-			wantTotal: 1,
-			wantErr:   false,
-		},
-		{
 			name:       "returns empty list when no staffs exist",
 			clinicID:   1,
-			role:       nil,
 			repoStaffs: []model.Staff{},
 			repoTotal:  0,
 			repoErr:    nil,
@@ -173,7 +157,6 @@ func TestStaffService_List(t *testing.T) {
 		{
 			name:       "propagates repository error",
 			clinicID:   1,
-			role:       nil,
 			repoStaffs: nil,
 			repoTotal:  0,
 			repoErr:    errors.New("db connection error"),
@@ -185,12 +168,10 @@ func TestStaffService_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			capturedRole := (*string)(nil)
 			capturedPage := 0
 			capturedLimit := 0
 			repo := &mockStaffRepository{
-				findAllFn: func(_ context.Context, _ uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
-					capturedRole = role
+				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.Staff, int64, error) {
 					capturedPage = page
 					capturedLimit = limit
 					return tt.repoStaffs, tt.repoTotal, tt.repoErr
@@ -198,7 +179,7 @@ func TestStaffService_List(t *testing.T) {
 			}
 			svc := newTestStaffService(repo)
 
-			staffs, total, err := svc.List(context.Background(), tt.clinicID, tt.role, 1, 20)
+			staffs, total, err := svc.List(context.Background(), tt.clinicID, 1, 20)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -207,7 +188,6 @@ func TestStaffService_List(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Len(t, staffs, tt.wantLen)
 				assert.Equal(t, tt.wantTotal, total)
-				assert.Equal(t, tt.role, capturedRole)
 				assert.Equal(t, 1, capturedPage)
 				assert.Equal(t, 20, capturedLimit)
 			}
@@ -227,9 +207,9 @@ func TestStaffService_GetByID(t *testing.T) {
 		{
 			name:      "returns staff when found",
 			id:        10,
-			repoStaff: &model.Staff{ID: 10, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
+			repoStaff: &model.Staff{ID: 10, Name: "山田 太郎"},
 			repoErr:   nil,
-			wantStaff: &model.Staff{ID: 10, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
+			wantStaff: &model.Staff{ID: 10, Name: "山田 太郎"},
 			wantErr:   nil,
 		},
 		{
@@ -301,8 +281,7 @@ func TestStaffService_Create_Success(t *testing.T) {
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		Name:      "新規 スタッフ",
-		StaffRole: model.StaffRoleVeterinarian,
+		Name: "新規 スタッフ",
 	}
 
 	staff, err := svc.Create(context.Background(), input)
@@ -310,7 +289,6 @@ func TestStaffService_Create_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, staff)
 	assert.Equal(t, "新規 スタッフ", staff.Name)
-	assert.Equal(t, model.StaffRoleVeterinarian, staff.StaffRole)
 	assert.True(t, staff.IsActive)
 }
 
@@ -323,8 +301,7 @@ func TestStaffService_Create_RepositoryError(t *testing.T) {
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		Name:      "エラー スタッフ",
-		StaffRole: model.StaffRoleNurse,
+		Name: "エラー スタッフ",
 	}
 
 	staff, err := svc.Create(context.Background(), input)
@@ -342,8 +319,7 @@ func TestStaffService_Create_DuplicateName(t *testing.T) {
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		Name:      "重複 スタッフ",
-		StaffRole: model.StaffRoleReception,
+		Name: "重複 スタッフ",
 	}
 
 	staff, err := svc.Create(context.Background(), input)
@@ -354,7 +330,6 @@ func TestStaffService_Create_DuplicateName(t *testing.T) {
 }
 
 func TestStaffService_Update(t *testing.T) {
-	role := model.StaffRoleVeterinarian
 	name := "更新後 スタッフ"
 	tests := []struct {
 		name     string
@@ -369,7 +344,7 @@ func TestStaffService_Update(t *testing.T) {
 			name:     "updates staff successfully",
 			clinicID: 1,
 			id:       1,
-			input:    &UpdateStaffInput{Name: &name, StaffRole: &role},
+			input:    &UpdateStaffInput{Name: &name},
 			repoErr:  nil,
 			wantErr:  false,
 		},

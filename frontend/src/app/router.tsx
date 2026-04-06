@@ -713,10 +713,10 @@ export const router = createBrowserRouter([
             },
           },
           {
-            path: "job-title",
+            path: "occupations",
             lazy: async () => {
-              const { JobTitleSettings } = await import("@/features/master");
-              return { Component: JobTitleSettings };
+              const { OccupationSettings } = await import("@/features/master");
+              return { Component: OccupationSettings };
             },
           },
           {

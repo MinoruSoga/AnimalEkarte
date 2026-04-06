@@ -11,7 +11,4 @@ export type {
   ResourcePermission,
   ResourcePermissions,
   ResourceAction,
-  UserType,
-  JobTitle,
-  StaffRole,
 } from "./types";

@@ -20,18 +20,18 @@ const (
 	ResourceHospitalSettings Resource = "hospital-settings"
 
 	// マスタ設定: 個別リソース
-	ResourceMasterAnimalSpecies Resource = "master-animal-species"
-	ResourceMasterMedical       Resource = "master-medical"
-	ResourceMasterServiceType   Resource = "master-service-type"
+	ResourceMasterAnimalSpecies   Resource = "master-animal-species"
+	ResourceMasterMedical         Resource = "master-medical"
+	ResourceMasterServiceType     Resource = "master-service-type"
 	ResourceMasterHospitalization Resource = "master-hospitalization"
-	ResourceMasterTrimming      Resource = "master-trimming"
-	ResourceMasterPermission    Resource = "master-permission"
-	ResourceMasterStaff         Resource = "master-staff"
-	ResourceMasterInsurance     Resource = "master-insurance"
-	ResourceMasterMerchandise   Resource = "master-merchandise"
+	ResourceMasterTrimming        Resource = "master-trimming"
+	ResourceMasterPermission      Resource = "master-permission"
+	ResourceMasterStaff           Resource = "master-staff"
+	ResourceMasterInsurance       Resource = "master-insurance"
+	ResourceMasterMerchandise     Resource = "master-merchandise"
 )
 
-// AllResources は全リソース一覧（system_admin/clinic_admin 全権限バイパス用）
+// AllResources は全リソース一覧（is_system_admin=true 全権限バイパス用）
 var AllResources = []Resource{
 	ResourceDashboard,
 	ResourceOwners,

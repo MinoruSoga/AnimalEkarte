@@ -383,10 +383,3 @@ export interface MasterItem {
 
 export type MasterCategory = "vaccine" | "serviceType" | "consultation" | "procedure" | "hospitalization" | "diagnosis_category" | "diagnosis_name" | "checkup";
 
-export const STAFF_ROLE_LABELS: Record<string, string> = {
-  veterinarian: '獣医師',
-  nurse: '看護師',
-  trimmer: 'トリマー',
-  reception: '受付',
-  manager: '管理職',
-};

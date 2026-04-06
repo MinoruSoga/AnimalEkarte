@@ -35,7 +35,7 @@ export type MasterSettingsCategory =
   | "diagnosis_category"
   | "diagnosis_name"
   | "checkup"
-  | "job_title"
+  | "occupations"
   | "animal_species"
   | "inquiry_template"
   | "merchandise_item"
@@ -191,10 +191,10 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     showPrice: true, showCode: false, showCategory: false, showParentItem: true,
     namePlaceholder: "年次健康診断", codePlaceholder: "",
   },
-  job_title: {
+  occupations: {
     label: "職種マスタ",
     description: "獣医師、動物看護師などの職種を管理します",
-    settingsPath: "/settings/job-title",
+    settingsPath: "/settings/occupations",
     IconComponent: Users,
     labels: { code: "コード", name: "職種名", category: "分類" },
     showPrice: false, showCode: true, showCategory: false, showParentItem: false,

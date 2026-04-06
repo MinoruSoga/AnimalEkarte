@@ -14,7 +14,7 @@ interface RequirePermissionProps {
 /**
  * 指定リソース×アクションの権限がない場合に fallback を表示する。
  * デフォルト action は "view"（ページアクセス制御に使用）。
- * system_admin / clinic_admin は常に children を表示する。
+ * isSystemAdmin=true の場合は常に children を表示する。
  */
 export function RequirePermission({
   resource,

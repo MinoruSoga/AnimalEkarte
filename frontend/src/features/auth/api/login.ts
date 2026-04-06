@@ -10,7 +10,6 @@ export interface LoginResponse {
 interface BackendLoginResponse {
   token: string;
   expires_at: number;
-  user_type: string;
   user: BackendMeResponse;
 }
 
