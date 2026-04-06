@@ -3,6 +3,8 @@ package handler
 // createStaffRequest はスタッフ登録リクエスト。
 type createStaffRequest struct {
 	Name          string  `json:"name"           binding:"required"`
+	Email         string  `json:"email"`
+	Password      string  `json:"password"`
 	LicenseNumber string  `json:"license_number"`
 	OccupationID  *uint64 `json:"occupation_id"`
 	SortOrder     int     `json:"sort_order"`

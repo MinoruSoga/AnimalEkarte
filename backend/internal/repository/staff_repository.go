@@ -80,7 +80,7 @@ func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error 
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("staff", staff.Name)
 		}
-		return apperrors.Wrap(err, "create staff")
+		return apperrors.FromGORM(err, "staff", "")
 	}
 	return nil
 }

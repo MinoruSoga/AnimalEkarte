@@ -3,6 +3,7 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
@@ -131,6 +132,14 @@ func FromGORM(err error, resource string, id string) error {
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return WrapNotFound(resource, id)
+	}
+	// BUG-138: pgx ドライバのエンコードエラー（pgconn.PgError ではない）をキャッチ。
+	// int32 範囲超過などで "unable to encode" が発生した場合。
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "unable to encode") ||
+		strings.Contains(errMsg, "greater than maximum value") ||
+		strings.Contains(errMsg, "less than minimum value") {
+		return WrapInvalidInput("数値が範囲外です")
 	}
 	// BUG-138: PostgreSQL エラーコードに基づくハンドリング
 	var pgErr *pgconn.PgError

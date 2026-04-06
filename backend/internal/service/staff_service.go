@@ -20,6 +20,7 @@ type CreateStaffInput struct {
 	LicenseNumber string
 	OccupationID  *uint64
 	SortOrder     int
+	AccountID     *uint64
 }
 
 // UpdateStaffInput はスタッフ部分更新の入力DTO。nil = 未送信フィールド。
@@ -79,6 +80,7 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 		OccupationID:  input.OccupationID,
 		SortOrder:     input.SortOrder,
 		IsActive:      true,
+		AccountID:     input.AccountID,
 	}
 
 	if err := s.repo.Create(ctx, staff); err != nil {

@@ -4,6 +4,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -46,16 +47,59 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 		return
 	}
 
-	staff, err := h.svc.Staff.Create(c.Request.Context(), &service.CreateStaffInput{
+	ctx := c.Request.Context()
+
+	// BUG-145: email が指定されている場合は重複チェックを行い、Account を作成してスタッフに紐づける。
+	email := strings.TrimSpace(req.Email)
+	var accountID *uint64
+	if email != "" {
+		existing, _ := h.repos.Account.FindByEmail(ctx, email)
+		if existing != nil {
+			RespondError(c, apperrors.WrapAlreadyExists("account", email))
+			return
+		}
+		if req.Password == "" {
+			RespondError(c, apperrors.WrapInvalidInput("password is required when email is provided"))
+			return
+		}
+		if err := validatePassword(req.Password); err != nil {
+			RespondError(c, err)
+			return
+		}
+		hashed, hashErr := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if hashErr != nil {
+			RespondError(c, apperrors.Wrap(hashErr, "failed to hash password"))
+			return
+		}
+		account := &model.Account{
+			Email:        email,
+			PasswordHash: string(hashed),
+			IsActive:     true,
+		}
+		if createErr := h.repos.Account.Create(ctx, account); createErr != nil {
+			RespondError(c, createErr)
+			return
+		}
+		accountID = &account.ID
+	}
+
+	staff, err := h.svc.Staff.Create(ctx, &service.CreateStaffInput{
 		ClinicID:      clinicID,
 		Name:          req.Name,
 		LicenseNumber: req.LicenseNumber,
 		OccupationID:  req.OccupationID,
 		SortOrder:     req.SortOrder,
+		AccountID:     accountID,
 	})
 	if err != nil {
 		RespondError(c, err)
 		return
+	}
+	// Account を Preload して email を返すため再取得する
+	if accountID != nil {
+		if reloaded, reloadErr := h.repos.Staff.FindByID(ctx, staff.ID); reloadErr == nil {
+			staff = reloaded
+		}
 	}
 	c.JSON(http.StatusCreated, toStaffResponse(staff))
 }
