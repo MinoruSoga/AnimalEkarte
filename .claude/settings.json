@@ -211,6 +211,16 @@
           }
         ],
         "description": "Auto-format Go files with gofmt after edits or new file creation"
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-file-size-warn.js"
+          }
+        ],
+        "description": "Warn when file exceeds 500/800 lines after edit (catches gradual growth)"
       }
     ],
     "PreCompact": [
