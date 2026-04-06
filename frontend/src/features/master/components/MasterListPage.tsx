@@ -12,6 +12,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import type {
   FilterProperty,
   ActiveFilter,
@@ -99,6 +100,8 @@ export const MasterListPage = memo(function MasterListPage({
   children,
 }: MasterListPageProps) {
   const navigate = useNavigate();
+  // BUG-124: resource が指定されている場合、create 権限がないなら「新規登録」ボタンを非表示
+  const { canCreate } = usePermission(resource ?? "");
 
   return (
     <>
@@ -111,10 +114,12 @@ export const MasterListPage = memo(function MasterListPage({
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
-              <PrimaryButton onClick={onNew}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
+              canCreate ? (
+                <PrimaryButton onClick={onNew}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null
             }
           >
             <div className="flex flex-col gap-4">
