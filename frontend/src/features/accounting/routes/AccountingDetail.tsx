@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Separator } from "@/components/ui/separator";
 
 // Shared Hooks
-import { useAuth } from "@/features/auth";
+import { useAuth, usePermission } from "@/features/auth";
 
 // Relative
 import { useGetAccountingDetail } from "../api/get-accounting";
@@ -77,6 +77,7 @@ interface ItemListCardProps {
   onDeleteItem: (id: string) => void;
   billingId?: string;
   onUpdateItemTax?: (itemId: string, taxType: TaxType, taxRate: number) => void;
+  canEdit: boolean;
 }
 
 const MERCHANDISE_CATEGORY_OPTIONS = [
@@ -97,6 +98,7 @@ const ItemListCard = memo(function ItemListCard({
   onDeleteItem,
   billingId,
   onUpdateItemTax,
+  canEdit,
 }: ItemListCardProps) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [merchandiseSearch, setMerchandiseSearch] = useState("");
@@ -202,7 +204,8 @@ const ItemListCard = memo(function ItemListCard({
     <Card className="flex-1 flex flex-col overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between py-4 border-b shrink-0">
         <CardTitle className="text-base font-medium">明細一覧</CardTitle>
-        <Dialog open={newItemOpen} onOpenChange={onNewItemOpenChange}>
+        {canEdit ? (
+          <Dialog open={newItemOpen} onOpenChange={onNewItemOpenChange}>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" className="h-9">
               <Plus className={`mr-2 ${ICON.action}`} />
@@ -355,6 +358,7 @@ const ItemListCard = memo(function ItemListCard({
             )}
           </DialogContent>
         </Dialog>
+        ) : null}
       </CardHeader>
       <CardContent className="p-0 overflow-auto flex-1">
         <Table>
@@ -452,6 +456,7 @@ interface PaymentCardProps {
   onReceivedAmountChange: (v: string) => void;
   isCompleted: boolean;
   id?: string;
+  canEdit: boolean;
 }
 
 const PaymentCard = memo(function PaymentCard({
@@ -463,6 +468,7 @@ const PaymentCard = memo(function PaymentCard({
   onReceivedAmountChange,
   isCompleted,
   id,
+  canEdit,
 }: PaymentCardProps) {
   return (
     <Card className="flex-1">
@@ -563,19 +569,21 @@ const PaymentCard = memo(function PaymentCard({
           </span>
         </div>
 
-        <SubmitButton
-          className="w-full h-14 text-lg font-bold mt-4"
-          size="lg"
-          disabled={
-            changeAmount < 0 ||
-            !receivedAmount ||
-            isCompleted
-          }
-          loadingText="処理中..."
-        >
-          <Save className={`mr-2 ${ICON.action}`} />
-          {isCompleted ? "精算完了済み" : "会計を確定する"}
-        </SubmitButton>
+        {canEdit ? (
+          <SubmitButton
+            className="w-full h-14 text-lg font-bold mt-4"
+            size="lg"
+            disabled={
+              changeAmount < 0 ||
+              !receivedAmount ||
+              isCompleted
+            }
+            loadingText="処理中..."
+          >
+            <Save className={`mr-2 ${ICON.action}`} />
+            {isCompleted ? "精算完了済み" : "会計を確定する"}
+          </SubmitButton>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -587,6 +595,7 @@ interface RefundSectionProps {
   totalAmount: number;
   isRefunding: boolean;
   onRefund: (amount: number, reason: string) => void;
+  canEdit: boolean;
 }
 
 const RefundSection = memo(function RefundSection({
@@ -594,6 +603,7 @@ const RefundSection = memo(function RefundSection({
   totalAmount,
   isRefunding,
   onRefund,
+  canEdit,
 }: RefundSectionProps) {
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState("");
@@ -629,7 +639,8 @@ const RefundSection = memo(function RefundSection({
               </span>
             ) : null}
           </CardTitle>
-          <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+          {canEdit ? (
+            <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
             <DialogTrigger asChild>
               <Button
                 variant="outline"
@@ -682,6 +693,7 @@ const RefundSection = memo(function RefundSection({
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          ) : null}
         </div>
       </CardHeader>
       {refunds.length > 0 ? (
@@ -934,6 +946,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
 
   // clinic 情報（AccountingDocument に props 注入）
   const { user } = useAuth();
+  const { canEdit } = usePermission("accounting");
   const clinicForDocument = useMemo(() => {
     const baseClinic = user?.clinic ?? null;
     if (!baseClinic) return null;
@@ -1072,6 +1085,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
               onDeleteItem={handleDeleteItem}
               billingId={id}
               onUpdateItemTax={handleUpdateItemTax}
+              canEdit={canEdit}
             />
           </div>
 
@@ -1094,6 +1108,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
               receivedAmount={receivedAmount}
               onReceivedAmountChange={setReceivedAmount}
               isCompleted={accounting.status === "completed"}
+              canEdit={canEdit}
             />
 
             {id && accounting.status === "completed" ? (
@@ -1102,6 +1117,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
                 totalAmount={accounting.payment?.totalAmount ?? 0}
                 isRefunding={isRefunding}
                 onRefund={handleRefund}
+                canEdit={canEdit}
               />
             ) : null}
           </div>

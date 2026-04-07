@@ -26,6 +26,7 @@ import type { SortOrder } from "@/types";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { paths } from "@/config/paths";
+import { usePermission } from "@/features/auth";
 
 // Relative (direct file import, no barrel — bundle-barrel-imports)
 import { useTrimmingForm } from "../hooks/use-trimming-form";
@@ -414,6 +415,7 @@ export function TrimmingForm() {
     fieldErrors,
   } = useTrimmingForm(id);
 
+  const { canEdit, canDelete } = usePermission("trimming");
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   // --- Focus Management (Accessibility) ---
@@ -541,7 +543,7 @@ export function TrimmingForm() {
       headerAction={
         <div className="flex gap-2">
           {/* rendering-conditional-render: && → ? ... : null */}
-          {mode === "edit" ? (
+          {mode === "edit" && canDelete ? (
             <Button
               onClick={() => setDeleteConfirmOpen(true)}
               variant="ghost-danger"
@@ -553,9 +555,11 @@ export function TrimmingForm() {
               削除
             </Button>
           ) : null}
-          <SubmitButton className="h-10" disabled={isSaving}>
-            保存
-          </SubmitButton>
+          {canEdit ? (
+            <SubmitButton className="h-10" disabled={isSaving}>
+              保存
+            </SubmitButton>
+          ) : null}
         </div>
       }
     >
