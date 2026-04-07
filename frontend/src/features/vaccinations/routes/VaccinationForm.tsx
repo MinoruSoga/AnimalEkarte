@@ -175,6 +175,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
       >
         <NavigationBlocker when={isDirty && !isSaving} />
 
+        <fieldset disabled={!canSubmit} className="contents">
         {selectedPet ? (
           <PatientInfoCard
             ownerName={selectedPet.ownerName}
@@ -343,6 +344,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
           </div>
         </div>
 
+        </fieldset>
         <ConfirmDialog
           open={deleteConfirmOpen}
           onClose={() => setDeleteConfirmOpen(false)}

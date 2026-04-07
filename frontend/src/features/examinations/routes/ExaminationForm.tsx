@@ -222,6 +222,8 @@ export function ExaminationForm() {
     isDeleting,
   } = useExaminationForm(id, medicalRecordId ?? undefined);
 
+  const canSubmit = isEdit ? canEdit : canCreate;
+
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   // --- 履歴フィルタ状態 ---
@@ -346,6 +348,7 @@ export function ExaminationForm() {
     >
       <NavigationBlocker when={isDirty && !isSaving} />
       <form action={formAction}>
+        <fieldset disabled={!canSubmit} className="contents">
         <div className="flex flex-col gap-4">
           {/* rerender-memo: PatientInfoCard — フォームフィールド変更では再レンダーしない */}
           {selectedPet ? (
@@ -415,6 +418,7 @@ export function ExaminationForm() {
             </div>
           </div>
         </div>
+        </fieldset>
       </form>
 
       <ConfirmDialog

@@ -952,6 +952,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   // clinic 情報（AccountingDocument に props 注入）
   const { user } = useAuth();
   const { canEdit, canCreate } = usePermission("accounting");
+  const canSubmit = id ? canEdit : canCreate;
   const clinicForDocument = useMemo(() => {
     const baseClinic = user?.clinic ?? null;
     if (!baseClinic) return null;
@@ -1076,6 +1077,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
           ) : undefined
         }
       >
+        <fieldset disabled={!canSubmit} className="contents">
         <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
           {/* 左カラム：明細リスト */}
           <div className="flex-1 flex flex-col gap-4 overflow-hidden">
@@ -1129,6 +1131,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
             ) : null}
           </div>
         </div>
+        </fieldset>
 
         {/* Document Preview Modal */}
         <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>

@@ -567,6 +567,7 @@ export function TrimmingForm() {
       {/* NavigationBlocker: isSaving 中はブロック無効化 */}
       <NavigationBlocker when={isDirty && !isSaving} />
       <form action={formAction}>
+      <fieldset disabled={!canSubmit} className="contents">
       {/* rendering-conditional-render: && → ? ... : null */}
       {selectedPet ? (
         <div className="space-y-6">
@@ -624,6 +625,7 @@ export function TrimmingForm() {
           </div>
         </div>
       ) : null}
+      </fieldset>
 
       <Suspense fallback={null}>
         {/* Course Modal */}

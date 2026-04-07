@@ -179,6 +179,7 @@ export function HospitalizationForm() {
       }
     >
         <NavigationBlocker when={isDirty} />
+        <fieldset disabled={!canSubmit} className="contents">
         {/* Patient Info Card */}
         {selectedPet ? (
             <PatientInfoCard
@@ -235,13 +236,14 @@ export function HospitalizationForm() {
         />
 
         {/* 診療費計算 */}
-        <HospitalizationCostSummary 
+        <HospitalizationCostSummary
             totals={totals}
             globalDiscount={globalDiscount}
             setGlobalDiscount={handleGlobalDiscountChange}
             globalDiscountAmount={globalDiscountAmount}
             setGlobalDiscountAmount={handleGlobalDiscountAmountChange}
         />
+        </fieldset>
     </PageLayout>
     </form>
     <ConfirmDialog

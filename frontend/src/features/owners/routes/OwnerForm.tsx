@@ -580,6 +580,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         }
       >
         <NavigationBlocker when={isDirty && !isLoading} />
+        <fieldset disabled={!canSubmit} className="contents">
 
       {/* Owner Information Form */}
       {/* rerender-memo: OwnerInfoSection はペット操作・モーダル開閉では再レンダーしない */}
@@ -650,6 +651,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         </div>
       </div>
 
+        </fieldset>
       <Suspense fallback={null}>
         <PetEditModal
           key={editingPet?.id ?? "new"}

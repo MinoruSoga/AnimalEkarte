@@ -347,6 +347,7 @@ export function InventoryForm() {
     >
       <NavigationBlocker when={isDirty && !isPending} />
       <form action={formAction} onChange={markDirty} className="space-y-6">
+        <fieldset disabled={!canSubmit} className="contents">
         <BasicInfoSection
           defaultName={existingItem?.name}
           defaultUnit={existingItem?.unit}
@@ -373,6 +374,7 @@ export function InventoryForm() {
           onMarkDirty={markDirty}
         />
 
+        </fieldset>
         {/* Actions */}
         <div className="flex justify-end gap-3">
           {canSubmit ? (
