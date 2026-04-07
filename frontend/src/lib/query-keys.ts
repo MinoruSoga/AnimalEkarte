@@ -65,9 +65,9 @@ export const queryKeys = {
   checkups: {
     all: () => ["checkups"] as const,
   },
-  dashboard: {
-    all: () => ["dashboard"] as const,
-    byDate: (date: string) => ["dashboard", date] as const,
+  reception: {
+    all: () => ["reception"] as const,
+    byDate: (date: string) => ["reception", date] as const,
   },
   shifts: {
     all: () => ["shifts"] as const,

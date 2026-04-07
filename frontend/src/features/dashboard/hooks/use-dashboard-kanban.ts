@@ -3,14 +3,14 @@ import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { Appointment, ColumnData } from "@/types";
 // bundle-barrel-imports: barrel経由ではなく各ファイルから直接import
-import { useGetDashboard, todayISO } from "../api/get-dashboard";
+import { useGetReception, todayISO } from "../api/get-dashboard";
 import { useGetStaffs, buildStaffMap } from "../api/get-staffs";
 import { useUpdateAppointmentStatus } from "../api/update-appointment-status";
-import { COLUMN_TITLE_TO_STATUS, DASHBOARD_COLUMNS } from "../api/transforms";
-import type { DashboardColumn, DashboardAppointment } from "../api/types";
+import { COLUMN_TITLE_TO_STATUS, RECEPTION_COLUMNS } from "../api/transforms";
+import type { ReceptionColumn, ReceptionAppointment } from "../api/types";
 
-/** DashboardAppointment → Appointment（@/types）変換。doctor_id をスタッフ名に解決する */
-function toAppointment(appt: DashboardAppointment, staffMap: Map<string, string>): Appointment {
+/** ReceptionAppointment → Appointment（@/types）変換。doctor_id をスタッフ名に解決する */
+function toAppointment(appt: ReceptionAppointment, staffMap: Map<string, string>): Appointment {
   return {
     id: appt.id,
     time: appt.time,
@@ -28,17 +28,17 @@ function toAppointment(appt: DashboardAppointment, staffMap: Map<string, string>
   };
 }
 
-/** DashboardColumn → ColumnData（@/types）変換 */
-function toColumnData(col: DashboardColumn, staffMap: Map<string, string>): ColumnData {
+/** ReceptionColumn → ColumnData（@/types）変換 */
+function toColumnData(col: ReceptionColumn, staffMap: Map<string, string>): ColumnData {
   return {
     title: col.title,
     appointments: col.appointments.map((appt) => toAppointment(appt, staffMap)),
   };
 }
 
-export function useDashboardKanban() {
+export function useReceptionKanban() {
   const today = useMemo(() => todayISO(), []);
-  const { data: apiColumns, isLoading } = useGetDashboard(today);
+  const { data: apiColumns, isLoading } = useGetReception(today);
   const { data: staffs } = useGetStaffs();
   const updateStatusMutation = useUpdateAppointmentStatus();
   // rerender-transitions: API mutation の pending 管理に useTransition を使用
@@ -54,7 +54,7 @@ export function useDashboardKanban() {
   const apiColumnData: ColumnData[] = useMemo(() => {
     if (!apiColumns) {
       // ローディング中: 空のカラム構造を返す（モックデータは表示しない）
-      return DASHBOARD_COLUMNS.map((col) => ({ title: col.title, appointments: [] }));
+      return RECEPTION_COLUMNS.map((col) => ({ title: col.title, appointments: [] }));
     }
     return apiColumns.map((col) => toColumnData(col, staffMap));
   }, [apiColumns, staffMap]);

@@ -1077,7 +1077,7 @@ export interface Owner {
  * Resource はフロントエンドのページ識別子（権限管理用）
  */
 export type Resource = string;
-export const ResourceDashboard: Resource = "dashboard";
+export const ResourceReception: Resource = "reception";
 export const ResourceOwners: Resource = "owners";
 export const ResourceReservations: Resource = "reservations";
 export const ResourceMedicalRecords: Resource = "medical-records";

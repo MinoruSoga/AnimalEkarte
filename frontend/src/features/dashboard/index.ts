@@ -1,1 +1,1 @@
-export { Dashboard } from "./routes/Dashboard";
+export { Reception } from "./routes/Dashboard";

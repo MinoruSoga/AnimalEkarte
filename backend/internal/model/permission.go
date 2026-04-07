@@ -4,7 +4,7 @@ package model
 type Resource string
 
 const (
-	ResourceDashboard        Resource = "dashboard"
+	ResourceReception        Resource = "reception"
 	ResourceOwners           Resource = "owners"
 	ResourceReservations     Resource = "reservations"
 	ResourceMedicalRecords   Resource = "medical-records"
@@ -33,7 +33,7 @@ const (
 
 // AllResources は全リソース一覧（is_system_admin=true 全権限バイパス用）
 var AllResources = []Resource{
-	ResourceDashboard,
+	ResourceReception,
 	ResourceOwners,
 	ResourceReservations,
 	ResourceMedicalRecords,

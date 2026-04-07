@@ -7,7 +7,7 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { getDashboardColumnColor } from "@/utils/status-helpers";
+import { getReceptionColumnColor } from "@/utils/status-helpers";
 
 // Relative
 import { AppointmentCard } from "./AppointmentCard";
@@ -26,7 +26,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   onAddClick,
   onCardClick
 }: KanbanColumnProps) {
-  const colors = getDashboardColumnColor(data.title);
+  const colors = getReceptionColumnColor(data.title);
 
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${data.title}`,

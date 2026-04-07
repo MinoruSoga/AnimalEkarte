@@ -3,7 +3,7 @@ import {
   getMedicalRecordStatusColor,
   getHospitalizationStatusColor,
   getHospitalizationTypeColor,
-  getDashboardColumnColor,
+  getReceptionColumnColor,
   getReservationTypeColor,
   getReservationTypeName,
   getExaminationStatusColor,
@@ -63,35 +63,35 @@ describe('getHospitalizationTypeColor', () => {
   });
 });
 
-describe('getDashboardColumnColor', () => {
+describe('getReceptionColumnColor', () => {
   // dot 値は design-tokens.ts の C.bgXxx 値と一致する
   it('returns gray dot for 受付予約', () => {
-    const result = getDashboardColumnColor('受付予約');
+    const result = getReceptionColumnColor('受付予約');
     expect(result.dot).toContain('9B9A97'); // C.bgStatusGrayMedium
   });
 
   it('returns blue dot for 受付済', () => {
-    const result = getDashboardColumnColor('受付済');
+    const result = getReceptionColumnColor('受付済');
     expect(result.dot).toContain('2383E2'); // C.bgAccent
   });
 
   it('returns purple dot for 診療中', () => {
-    const result = getDashboardColumnColor('診療中');
+    const result = getReceptionColumnColor('診療中');
     expect(result.dot).toContain('6940A5'); // C.bgStatusPurpleDot
   });
 
   it('returns orange dot for 会計待ち', () => {
-    const result = getDashboardColumnColor('会計待ち');
+    const result = getReceptionColumnColor('会計待ち');
     expect(result.dot).toContain('D9730D'); // C.bgDiscount
   });
 
   it('returns green dot for 会計済', () => {
-    const result = getDashboardColumnColor('会計済');
+    const result = getReceptionColumnColor('会計済');
     expect(result.dot).toContain('0F7B6C'); // C.bgStatusGreenDot
   });
 
   it('returns gray dot for unknown column', () => {
-    const result = getDashboardColumnColor('unknown');
+    const result = getReceptionColumnColor('unknown');
     expect(result.dot).toContain('9B9A97'); // C.bgStatusGrayMedium (default)
   });
 });

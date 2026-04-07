@@ -6,7 +6,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth, ChangePasswordDialog, usePermission } from "@/features/auth";
 import { paths } from "@/config/paths";
-import { ResourceDashboard, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterServiceType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise } from "@/types/generated/models";
+import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterServiceType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise } from "@/types/generated/models";
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */
@@ -287,7 +287,7 @@ export function Sidebar() {
         <div className="space-y-px">
           {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>診療業務</p> : null}
           {[
-            { icon: <LayoutDashboard className={ICON.toolbar} />, label: "当日の受付",  path: paths.home.getHref(),            resource: ResourceDashboard },
+            { icon: <LayoutDashboard className={ICON.toolbar} />, label: "当日の受付",  path: paths.home.getHref(),            resource: ResourceReception },
             { icon: <Users         className={ICON.toolbar} />, label: "飼主・ペット", path: paths.owners.getHref(),          resource: ResourceOwners },
             { icon: <Calendar      className={ICON.toolbar} />, label: "予約管理",     path: paths.reservations.getHref(),    resource: ResourceReservations },
             { icon: <FileText      className={ICON.toolbar} />, label: "カルテ",       path: paths.medicalRecords.getHref(),  resource: ResourceMedicalRecords },

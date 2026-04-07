@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import type { ReservationStatus } from "@/types";
 import type { ReservationAppointment as BackendDashboardReservation } from "@/types/generated/models";
-import type { DashboardAppointment, DashboardColumn } from "./types";
+import type { ReceptionAppointment, ReceptionColumn } from "./types";
 
 /** Backend status 値 → カンバンカラム ID のマッピング */
 const STATUS_TO_COLUMN_ID: Record<string, ReservationStatus> = {
@@ -15,7 +15,7 @@ const STATUS_TO_COLUMN_ID: Record<string, ReservationStatus> = {
 };
 
 /** カンバンカラム定義（表示順） */
-export const DASHBOARD_COLUMNS: Omit<DashboardColumn, "appointments">[] = [
+export const RECEPTION_COLUMNS: Omit<ReceptionColumn, "appointments">[] = [
   { id: "pending", title: "受付予約" },
   { id: "checked_in", title: "受付済" },
   { id: "in_consultation", title: "診療中" },
@@ -61,10 +61,10 @@ const ANIMAL_SPECIES_MAP: Record<number, string> = {
   9: "その他",
 };
 
-/** BackendDashboardReservation → DashboardAppointment 変換 */
-export function transformReservationToDashboardAppointment(
+/** BackendDashboardReservation → ReceptionAppointment 変換 */
+export function transformReservationToReceptionAppointment(
   reservation: BackendDashboardReservation
-): DashboardAppointment {
+): ReceptionAppointment {
   const startDate = new Date(reservation.start_time);
   const time = format(startDate, "HH:mm");
 
@@ -94,16 +94,16 @@ export function transformReservationToDashboardAppointment(
 }
 
 /**
- * Reservation 配列 → DashboardColumn 配列変換
+ * Reservation 配列 → ReceptionColumn 配列変換
  * キャンセル済みの予約はカンバンに表示しない
  */
-export function transformReservationsToDashboardColumns(
+export function transformReservationsToReceptionColumns(
   reservations: BackendDashboardReservation[]
-): DashboardColumn[] {
+): ReceptionColumn[] {
   const activeReservations = reservations.filter((r) => r.status !== "cancelled");
-  const appointments = activeReservations.map(transformReservationToDashboardAppointment);
+  const appointments = activeReservations.map(transformReservationToReceptionAppointment);
 
-  return DASHBOARD_COLUMNS.map((col) => ({
+  return RECEPTION_COLUMNS.map((col) => ({
     ...col,
     appointments: appointments.filter((a) => {
       if (col.id === "pending") {

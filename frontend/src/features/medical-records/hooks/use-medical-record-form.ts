@@ -202,7 +202,7 @@ export function useMedicalRecordForm(recordId?: string) {
 
         localStorage.removeItem(DRAFT_KEY);
         toast.success("保存しました");
-        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["reception"] });
         return { success: true, timestamp: Date.now() };
       } catch (error) {
         handleApiError(error, "保存");

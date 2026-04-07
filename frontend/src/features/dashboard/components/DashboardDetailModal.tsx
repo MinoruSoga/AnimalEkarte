@@ -276,7 +276,7 @@ function ActionButtons({
   );
 }
 
-interface DashboardDetailModalProps {
+interface ReceptionDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   appointment: Appointment | null;
@@ -286,7 +286,7 @@ interface DashboardDetailModalProps {
   currentStatus?: string;
 }
 
-export const DashboardDetailModal = memo(function DashboardDetailModal({
+export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   isOpen,
   onClose,
   appointment,
@@ -294,7 +294,7 @@ export const DashboardDetailModal = memo(function DashboardDetailModal({
   onEdit,
   onCancel,
   currentStatus,
-}: DashboardDetailModalProps) {
+}: ReceptionDetailModalProps) {
   const navigate = useNavigate();
 
   // Extract primitives before hooks so useCallback deps stay stable

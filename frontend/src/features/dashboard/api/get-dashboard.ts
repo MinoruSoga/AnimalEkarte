@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { axios } from "@/lib/axios";
-import { transformReservationsToDashboardColumns } from "./transforms";
+import { transformReservationsToReceptionColumns } from "./transforms";
 import type { ReservationAppointment as BackendDashboardReservation } from "@/types/generated/models";
-import type { DashboardColumn } from "./types";
+import type { ReceptionColumn } from "./types";
 
 interface ReservationsResponse {
   data: BackendDashboardReservation[];
@@ -18,19 +18,19 @@ export function todayISO(): string {
 }
 
 /** 指定日の予約をダッシュボード用カラム配列として取得 */
-export async function getDashboard(date: string): Promise<DashboardColumn[]> {
+export async function getReception(date: string): Promise<ReceptionColumn[]> {
   const { data } = await axios.get<ReservationsResponse>(
     "/v1/reservations",
     { params: { date } }
   );
-  return transformReservationsToDashboardColumns(data.data);
+  return transformReservationsToReceptionColumns(data.data);
 }
 
 /** ダッシュボード用 React Query hook */
-export function useGetDashboard(date: string = todayISO()) {
+export function useGetReception(date: string = todayISO()) {
   return useQuery({
-    queryKey: ["dashboard", date],
-    queryFn: () => getDashboard(date),
+    queryKey: ["reception", date],
+    queryFn: () => getReception(date),
     // 30秒ごとにポーリングしてリアルタイム性を確保
     refetchInterval: 30_000,
     // client-swr-dedup: staleTimeをrefetchIntervalより短く設定。

@@ -10,7 +10,7 @@ import type { PermissionGroup } from "@/features/master/api/permission-groups";
 // ─────────────────────────────────────────────────
 
 const RESOURCE_LABELS: Record<string, string> = {
-  dashboard: "当日の受付",
+  reception: "当日の受付",
   owners: "飼主・ペット",
   reservations: "予約管理",
   "medical-records": "カルテ",

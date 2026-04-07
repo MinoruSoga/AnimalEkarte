@@ -23,8 +23,8 @@ export function useUpdateAppointmentStatus() {
     mutationFn: ({ id, status }: UpdateStatusPayload) =>
       updateAppointmentStatus(id, status),
     onSuccess: () => {
-      // dashboard クエリキーを持つ全クエリを無効化して再取得
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      // reception クエリキーを持つ全クエリを無効化して再取得
+      queryClient.invalidateQueries({ queryKey: ["reception"] });
     },
   });
 }

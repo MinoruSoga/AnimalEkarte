@@ -18,21 +18,21 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
-import { ResourceDashboard, ResourceReservations } from "@/types/generated/models";
+import { ResourceReception, ResourceReservations } from "@/types/generated/models";
 import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Shared
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 
 // Lazy-loaded modals — only loaded when first opened (bundle splitting)
-const DashboardDetailModal = lazy(() =>
-  import("../components/DashboardDetailModal").then(m => ({ default: m.DashboardDetailModal }))
+const ReceptionDetailModal = lazy(() =>
+  import("../components/DashboardDetailModal").then(m => ({ default: m.ReceptionDetailModal }))
 );
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then(m => ({ default: m.ReservationFormModal }))
 );
 import { KanbanColumn } from "../components/KanbanColumn";
-import { useDashboardKanban } from "../hooks/use-dashboard-kanban";
+import { useReceptionKanban } from "../hooks/use-dashboard-kanban";
 
 // Types
 import type { Appointment, ReservationAppointment, Pet } from "@/types";
@@ -40,7 +40,7 @@ import type { Appointment, ReservationAppointment, Pet } from "@/types";
 // Columns that don't show the "add" button — Set for O(1) lookup
 const NO_ADD_BUTTON_COLUMNS = new Set(["診療中", "会計待ち", "会計済"]);
 
-export function Dashboard() {
+export function Reception() {
     const navigate = useNavigate();
     const { canCreate: canCreateReservation } = usePermission(ResourceReservations);
     const {
@@ -53,7 +53,7 @@ export function Dashboard() {
         cancelAppointment,
         updateAppointment,
         filters
-    } = useDashboardKanban();
+    } = useReceptionKanban();
 
     // スタッフAPIから医師フィルター選択肢を動的生成
     const doctors = useMemo(() => [
@@ -280,7 +280,7 @@ export function Dashboard() {
                 description={`${todayLabel} - 受付状況をリアルタイムで確認`}
                 action={
                     <div className="flex items-center gap-2">
-                        <PermissionBadges resource={ResourceDashboard} />
+                        <PermissionBadges resource={ResourceReception} />
                         <Button
                             variant={isFilterOpen ? "secondary" : "outline"}
                             className={`gap-2 bg-white h-11 text-base tracking-[var(--tracking-notion)] ${C.text} ${C.borderMedium}`}
@@ -367,7 +367,7 @@ export function Dashboard() {
 
             {modalOpen ? (
               <Suspense fallback={null}>
-                <DashboardDetailModal
+                <ReceptionDetailModal
                     isOpen={modalOpen}
                     onClose={() => setModalOpen(false)}
                     onConfirm={handleAdvanceStatus}

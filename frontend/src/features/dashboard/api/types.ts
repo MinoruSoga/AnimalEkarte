@@ -5,7 +5,7 @@
  */
 import type { ReservationStatus } from "@/types";
 /** Dashboard カンバンカード用の変換後型 */
-export interface DashboardAppointment {
+export interface ReceptionAppointment {
   id: string;
   time: string; // "HH:mm" 形式
   ownerName: string;
@@ -22,10 +22,10 @@ export interface DashboardAppointment {
 }
 
 /** Dashboard カンバンカラム */
-export interface DashboardColumn {
+export interface ReceptionColumn {
   id: ReservationStatus;
   title: string;
-  appointments: DashboardAppointment[];
+  appointments: ReceptionAppointment[];
 }
 
 /** ステータス更新リクエスト */
