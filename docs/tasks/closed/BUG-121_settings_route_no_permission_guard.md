@@ -56,12 +56,12 @@ URL 直打ちで全マスタページにアクセス可能。
 {
   path: "/",
   element: (
-    <RequirePermission resource={ResourceDashboard}>
+    <RequirePermission resource={ResourceReception}>
       <Outlet />
     </RequirePermission>
   ),
   children: [
-    { index: true, lazy: async () => { /* Dashboard */ } },
+    { index: true, lazy: async () => { /* Reception */ } },
   ],
 },
 ```
@@ -163,12 +163,12 @@ import {
 ### `.claude/rules/typescript-react.md` — React 19 Patterns
 - `RequirePermission` は既存の共有コンポーネント（`components/shared/`）として実装済み
 - ルートガードは `<RequirePermission resource={...}><Outlet /></RequirePermission>` パターンで統一
-- Dashboard, Owners, Accounting 等の既存ルート（`router.tsx:55-625`）が参照実装
+- Reception, Owners, Accounting 等の既存ルート（`router.tsx:55-625`）が参照実装
 
 ### 既存の正しい実装（プロジェクト内参照実装）
 | ルート | 実装箇所 | パターン |
 |--------|---------|---------|
-| `/` (Dashboard) | `router.tsx:55-71` | `RequirePermission resource={ResourceDashboard}` |
+| `/` (Reception) | `router.tsx:55-71` | `RequirePermission resource={ResourceReception}` |
 | `/owners` | `router.tsx:73-130` | `RequirePermission resource={ResourceOwners}` + action="create" |
 | `/accounting` | `router.tsx:337-390` | `RequirePermission resource={ResourceAccounting}` + action="create" |
 | `/settings/clinic` | `router.tsx:754-770` | `RequirePermission resource={ResourceHospitalSettings}` |

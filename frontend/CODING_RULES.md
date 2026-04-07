@@ -28,7 +28,7 @@ src/
 │
 ├── features/                              # 機能別モジュール（16 features）
 │   ├── auth/                              # 認証（ログイン・セッション管理）
-│   ├── dashboard/                         # ダッシュボード
+│   ├── reception/                         # 当日の受付
 │   ├── owners/                            # ★ ベストプラクティス参照実装
 │   ├── pets/                              # ペット（CRUD API のみ）
 │   ├── reservations/                      # 予約管理
@@ -268,34 +268,18 @@ features/[feature-name]/
 └── index.ts                    # 公開API（明示的named export のみ）
 ```
 
-#### Feature構成例: dashboard
+#### Feature構成例: reception
 
 ```
-features/dashboard/
+features/reception/
 ├── api/
-│   ├── getWorkflowStatus.ts    # + useWorkflowStatus()
-│   ├── updatePatientStatus.ts  # + useUpdatePatientStatus()
-│   └── getTodayStats.ts        # + useTodayStats()
-├── components/
-│   ├── KanbanBoard/
-│   │   ├── KanbanBoard.tsx
-│   │   ├── KanbanColumn.tsx
-│   │   ├── PatientCard.tsx
-│   │   └── index.ts
-│   ├── StatsCards/
-│   │   ├── StatsCards.tsx
-│   │   ├── StatCard.tsx
-│   │   └── index.ts
-│   └── QuickActions/
-│       ├── QuickActions.tsx
-│       └── index.ts
+│   ├── get-reception.ts        # + useGetReception()
+│   ├── update-appointment-status.ts  # + useUpdateAppointmentStatus()
+│   └── transforms.ts           # カラム変換ロジック
 ├── hooks/
-│   ├── useOptimisticStatusUpdate.ts  # 楽観的更新ロジック
-│   └── useKanbanDragDrop.ts          # ドラッグ&ドロップ状態
+│   └── use-reception-kanban.ts # カンバン状態管理
 ├── routes/
-│   └── Dashboard.tsx
-├── types/
-│   └── index.ts
+│   └── Reception.tsx
 └── index.ts
 ```
 
@@ -382,12 +366,12 @@ export const router = createBrowserRouter([
     ),
     errorElement: <RootErrorBoundary />,
     children: [
-      // ── Dashboard ────────────────────────────────────────────────
+      // ── Reception ────────────────────────────────────────────────
       {
         path: "/",
         lazy: async () => {
-          const { Dashboard } = await import("@/features/dashboard/routes");
-          return { Component: Dashboard };
+          const { Reception } = await import("@/features/reception");
+          return { Component: Reception };
         },
       },
 

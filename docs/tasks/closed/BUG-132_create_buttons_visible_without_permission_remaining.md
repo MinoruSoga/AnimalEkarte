@@ -48,7 +48,7 @@ BUG-124 の修正で `MasterListPage` / `MasterCRUDPage` 経由のマスタペ�
 「新規登録」ボタンが create 権限で制御されていない。
 
 ### 3. `/` — ダッシュボード（当日の受付）
-**ファイル**: `frontend/src/features/dashboard/routes/Dashboard.tsx`
+**ファイル**: `frontend/src/features/reception/routes/Reception.tsx`
 
 「新規予約登録」ボタンと各カンバンレーンの「新規追加」ボタンが
 `reservations.create` 権限で制御されていない。
@@ -91,4 +91,4 @@ UI 層の create ボタン非表示は多層防御の一環。API で 403 にな
 ## 関連ファイル
 - `frontend/src/features/master/routes/MerchandiseItemSettings.tsx` — インラインフォーム
 - `frontend/src/features/master/routes/TrimmingSettings.tsx` — 新規登録ボタン
-- `frontend/src/features/dashboard/routes/Dashboard.tsx` — 新規予約登録ボタン
+- `frontend/src/features/reception/routes/Reception.tsx` — 新規予約登録ボタン

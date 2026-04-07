@@ -85,8 +85,8 @@ Critical blockers: **7 items**
   - `backend/internal/service/hospitalization_service.go` (business logic)
   - `frontend/src/features/hospitalization/api/` (hook updates)
 
-### 6. **Dashboard - Kanban Drag & Drop**
-- **Module**: Dashboard / Reservations Kanban
+### 6. **Reception - Kanban Drag & Drop**
+- **Module**: Reception / Reservations Kanban
 - **Severity**: MEDIUM (UX)
 - **Issue**: Dragging reservation card to "受付済" column doesn't update status
 - **Expected**: Card moves and status changes to `reservation_status="checked_in"`
@@ -172,7 +172,7 @@ Critical blockers: **7 items**
 
 ---
 
-### **Sprint 3: v2.3.0c (Dashboard & Accounting)** - 6-8 days
+### **Sprint 3: v2.3.0c (Reception & Accounting)** - 6-8 days
 **Priority**: UX improvement
 
 - [ ] Kanban drag & drop implementation/redesign
