@@ -40,6 +40,8 @@ interface ShiftFormDialogProps {
   staffName: string;
   date: string; // YYYY-MM-DD
   editShift?: Shift;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 interface FormValues {
@@ -56,6 +58,8 @@ export function ShiftFormDialog({
   staffName,
   date,
   editShift,
+  canEdit = false,
+  canDelete = false,
 }: ShiftFormDialogProps) {
   const isEdit = editShift !== undefined;
 
@@ -228,7 +232,7 @@ export function ShiftFormDialog({
           </div>
 
           <DialogFooter className="gap-2">
-            {isEdit ? (
+            {isEdit && canDelete ? (
               <Button
                 type="button"
                 variant="destructive"
@@ -242,9 +246,11 @@ export function ShiftFormDialog({
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending || isDeletePending}>
               キャンセル
             </Button>
-            <Button type="submit" size="sm" disabled={isPending || isDeletePending}>
-              {isPending ? "保存中..." : "保存"}
-            </Button>
+            {canEdit ? (
+              <Button type="submit" size="sm" disabled={isPending || isDeletePending}>
+                {isPending ? "保存中..." : "保存"}
+              </Button>
+            ) : null}
           </DialogFooter>
         </form>
       </DialogContent>
