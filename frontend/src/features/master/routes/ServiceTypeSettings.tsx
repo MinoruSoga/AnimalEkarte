@@ -35,7 +35,7 @@ interface ServiceTypeFormData { name: string; description: string; color: string
 
 const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
   item, onClose, onSave, onDeleteRequest,
-}: { item: ServiceType | null; onClose: () => void; onSave: (d: ServiceTypeFormData) => void; onDeleteRequest: (i: ServiceType) => void; }) {
+}: { item: ServiceType | null; onClose: () => void; onSave: (d: ServiceTypeFormData) => void; onDeleteRequest?: (i: ServiceType) => void; }) {
   const [f, setF] = useState<ServiceTypeFormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "", color: item?.color ?? PALETTE.defaultBlue, isActive: item?.isActive ?? true,
   }));
@@ -86,7 +86,7 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
-      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onClose={handleClose} action={handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Activity className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}

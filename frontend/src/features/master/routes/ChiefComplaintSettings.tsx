@@ -31,7 +31,7 @@ interface FormData { name: string; description: string; isActive: boolean; }
 
 const SidePanel = memo(function SidePanel({
   item, onClose, onSave, onDeleteRequest,
-}: { item: ChiefComplaintCategory | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest: (i: ChiefComplaintCategory) => void; }) {
+}: { item: ChiefComplaintCategory | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: ChiefComplaintCategory) => void; }) {
   const [f, setF] = useState<FormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "", isActive: item?.isActive ?? true,
   }));
@@ -73,7 +73,7 @@ const SidePanel = memo(function SidePanel({
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose} action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<MessageSquareText className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}

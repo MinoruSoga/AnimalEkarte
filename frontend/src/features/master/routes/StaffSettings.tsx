@@ -69,7 +69,7 @@ interface StaffSidePanelProps {
   item: Staff | null;
   onClose: () => void;
   onSave: (d: StaffFormData) => void;
-  onDeleteRequest: (i: Staff) => void;
+  onDeleteRequest?: (i: Staff) => void;
   /** All occupations (職種) available in this clinic */
   allOccupations: Occupation[];
   /** All permission groups available in this clinic */
@@ -216,7 +216,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleSave}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}

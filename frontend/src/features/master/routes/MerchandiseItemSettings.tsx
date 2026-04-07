@@ -65,7 +65,7 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
   item: FrontendMerchandiseItem | null;
   onClose: () => void;
   onSave: (d: MerchandiseFormData) => void;
-  onDeleteRequest: (i: FrontendMerchandiseItem) => void;
+  onDeleteRequest?: (i: FrontendMerchandiseItem) => void;
 }) {
   const [f, setF] = useState<MerchandiseFormData>(() => ({
     name: item?.name ?? "",
@@ -131,7 +131,7 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<ShoppingBag className={LAYOUT.pageIcon.innerIcon} />}
       titlePlaceholder="品目名"
       isDirty={isDirty}

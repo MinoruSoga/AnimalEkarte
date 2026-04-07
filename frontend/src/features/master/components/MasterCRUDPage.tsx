@@ -24,7 +24,7 @@ interface SidePanelRenderProps<T> {
   item: T | null;
   onClose: () => void;
   onSave: (data: never) => void;
-  onDeleteRequest: (item: T) => void;
+  onDeleteRequest: ((item: T) => void) | undefined;
   /** BUG-158: true の場合、保存・削除ボタンを非表示にする */
   readOnly?: boolean;
 }
@@ -123,7 +123,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
               item: crud.panelItem,
               onClose: crud.handleClose,
               onSave: handleSave,
-              onDeleteRequest: crud.setPendingDelete,
+              onDeleteRequest: canDelete ? crud.setPendingDelete : undefined,
               readOnly: !canEdit,
             })
           : null

@@ -43,7 +43,7 @@ interface CageFormData { name: string; cageType: CageType; cageSize: CageSize; p
 // ─── SidePanel ───
 const CageSidePanel = memo(function CageSidePanel({
   item, onClose, onSave, onDeleteRequest,
-}: { item: Cage | null; onClose: () => void; onSave: (d: CageFormData) => void; onDeleteRequest: (i: Cage) => void; }) {
+}: { item: Cage | null; onClose: () => void; onSave: (d: CageFormData) => void; onDeleteRequest?: (i: Cage) => void; }) {
   const [f, setF] = useState<CageFormData>(() => ({
     name: item?.name ?? "", cageType: item?.cageType ?? "general", cageSize: item?.cageSize ?? "medium",
     price: item?.price ?? 0, description: item?.description ?? "", isActive: item?.isActive ?? true,
@@ -100,7 +100,7 @@ const CageSidePanel = memo(function CageSidePanel({
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
-      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onClose={handleClose} action={handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}

@@ -29,7 +29,7 @@ interface InsuranceFormData { name: string; description: string; coverageRate: s
 
 const InsuranceSidePanel = memo(function InsuranceSidePanel({
   item, onClose, onSave, onDeleteRequest,
-}: { item: Insurance | null; onClose: () => void; onSave: (d: InsuranceFormData) => void; onDeleteRequest: (i: Insurance) => void; }) {
+}: { item: Insurance | null; onClose: () => void; onSave: (d: InsuranceFormData) => void; onDeleteRequest?: (i: Insurance) => void; }) {
   const [f, setF] = useState<InsuranceFormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "",
     coverageRate: item?.coverageRate != null ? String(item.coverageRate) : "0",
@@ -83,7 +83,7 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose} action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}

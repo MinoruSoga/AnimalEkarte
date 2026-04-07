@@ -68,7 +68,7 @@ interface PermissionGroupSidePanelProps {
   item: PermissionGroup | null;
   onClose: () => void;
   onSave: (d: PermissionGroupFormData) => void;
-  onDeleteRequest: (i: PermissionGroup) => void;
+  onDeleteRequest?: (i: PermissionGroup) => void;
 }
 
 const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
@@ -168,7 +168,7 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
       onTitleChange={handleNameChange}
       onClose={handleClose}
       action={handleSave}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Lock className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}

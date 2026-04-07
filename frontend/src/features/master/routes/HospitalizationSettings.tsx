@@ -35,7 +35,7 @@ interface HospitalizationFormData { name: string; price: number; description: st
 
 const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
   item, onClose, onSave, onDeleteRequest,
-}: { item: HospitalizationPlan | null; onClose: () => void; onSave: (d: HospitalizationFormData) => void; onDeleteRequest: (i: HospitalizationPlan) => void; }) {
+}: { item: HospitalizationPlan | null; onClose: () => void; onSave: (d: HospitalizationFormData) => void; onDeleteRequest?: (i: HospitalizationPlan) => void; }) {
   const [f, setF] = useState<HospitalizationFormData>(() => ({
     name: item?.name ?? "", price: item?.price ?? 0, description: item?.description ?? "",
     isActive: item?.isActive ?? true, bodySize: item?.bodySize ?? "", billingUnit: item?.billingUnit ?? "",
@@ -103,7 +103,7 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
-      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onClose={handleClose} action={handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Bed className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}

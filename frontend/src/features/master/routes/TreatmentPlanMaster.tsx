@@ -138,7 +138,8 @@ interface TreatmentItemSidePanelProps {
   item: TreatmentItem | null;
   onClose: () => void;
   onSave: (data: TreatmentFormData) => void;
-  onDeleteRequest: () => void;
+  onDeleteRequest?: () => void;
+  readOnly?: boolean;
 }
 
 const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
@@ -146,6 +147,7 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
 }: TreatmentItemSidePanelProps) {
   // rerender-lazy-state-init: 初回マウント時のみ item から初期化
   const [formData, setFormData] = useState<TreatmentFormData>(() => ({
@@ -172,11 +174,12 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
       title={formData.name}
       onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
-      action={handleAction}
-      onDelete={item !== null ? onDeleteRequest : undefined}
+      action={readOnly ? undefined : handleAction}
+      onDelete={!readOnly && item !== null && onDeleteRequest ? onDeleteRequest : undefined}
       icon={<Stethoscope className={LAYOUT.pageIcon.innerIcon} />}
       titleError={nameError}
       titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton
         isActive={formData.isActive}
@@ -254,7 +257,7 @@ interface TreatmentTabContentProps extends TreatmentTabConfig {
   editTarget: TreatmentItem | "new" | null;
   onEditTargetChange: (v: TreatmentItem | "new" | null) => void;
   onSave: (data: TreatmentFormData) => void;
-  onDeleteRequest: () => void;
+  onDeleteRequest?: () => void;
   pendingDelete: TreatmentItem | null;
   onPendingDeleteChange: (item: TreatmentItem | null) => void;
   canEdit: boolean;
@@ -458,7 +461,7 @@ function TreatmentTabContent({
 
 export function TreatmentPlanMaster() {
   const navigate = useNavigate();
-  const { canCreate, canEdit } = usePermission(ResourceMasterMedical);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "consultation";
   const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
@@ -797,7 +800,8 @@ export function TreatmentPlanMaster() {
             item={selectedItem}
             onClose={handleClose}
             onSave={handleSave}
-            onDeleteRequest={handleDeleteRequest}
+            onDeleteRequest={canDelete ? handleDeleteRequest : undefined}
+            readOnly={!canEdit}
           />
         ) : null}
       </div>

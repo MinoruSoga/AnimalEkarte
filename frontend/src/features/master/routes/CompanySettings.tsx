@@ -14,6 +14,7 @@ import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useGetCompany, useUpdateCompany } from "@/features/master/api/company";
 import type { UpdateCompanyRequest } from "@/features/master/api/company";
 import { ResourceHospitalSettings } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -57,6 +58,7 @@ const DEFAULT_FORM_DATA: CompanyFormData = {
 
 export function CompanySettings() {
   const navigate = useNavigate();
+  const { canEdit } = usePermission(ResourceHospitalSettings);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<CompanyFormData>(DEFAULT_FORM_DATA);
 
@@ -143,7 +145,7 @@ export function CompanySettings() {
           resource={ResourceHospitalSettings}
           onBack={() => navigate(paths.settings.getHref())}
           headerAction={
-            isLoading ? null : (
+            isLoading || !canEdit ? null : (
               <button
                 type="button"
                 onClick={handleEdit}

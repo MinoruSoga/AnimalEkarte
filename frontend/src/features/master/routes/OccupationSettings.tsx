@@ -39,7 +39,7 @@ const OccupationSidePanel = memo(function OccupationSidePanel({
   item: Occupation | null;
   onClose: () => void;
   onSave: (d: OccupationFormData) => void;
-  onDeleteRequest: (i: Occupation) => void;
+  onDeleteRequest?: (i: Occupation) => void;
 }) {
   const [f, setF] = useState<OccupationFormData>(() => ({
     name: item?.name ?? "",
@@ -87,7 +87,7 @@ const OccupationSidePanel = memo(function OccupationSidePanel({
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Briefcase className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
