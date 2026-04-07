@@ -122,13 +122,15 @@ function SortableMedicineRow({
   medicine,
   onEdit,
   grouped,
+  canEdit,
 }: {
   medicine: Medicine;
   onEdit: (medicine: Medicine) => void;
   grouped: boolean;
+  canEdit: boolean;
 }) {
   return (
-    <SortableDataTableRow id={medicine.id} onClick={() => onEdit(medicine)}>
+    <SortableDataTableRow id={medicine.id} onClick={canEdit ? () => onEdit(medicine) : undefined}>
       <TableCell className={`${STYLE.tableCell} font-medium ${grouped ? "pl-12!" : "pl-2"}`}>
         {medicine.name}
       </TableCell>
@@ -142,28 +144,30 @@ function SortableMedicineRow({
         <NotionStatusPill isActive={medicine.isActive} />
       </TableCell>
       <TableCell className="w-[80px] py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
-              >
-                <MoreHorizontal className={ICON.action} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit(medicine)}>編集</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            type="button"
-            onClick={() => onEdit(medicine)}
-            className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
-          >
-            <Maximize2 className={`${ICON.xs}`} />
-          </button>
-        </div>
+        {canEdit ? (
+          <div className="flex items-center justify-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
+                >
+                  <MoreHorizontal className={ICON.action} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(medicine)}>編集</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
+              type="button"
+              onClick={() => onEdit(medicine)}
+              className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
+            >
+              <Maximize2 className={`${ICON.xs}`} />
+            </button>
+          </div>
+        ) : null}
       </TableCell>
     </SortableDataTableRow>
   );
@@ -403,7 +407,7 @@ function isCategoryMedicine(m: Medicine | null): boolean {
 
 export function MedicineSettings() {
   const navigate = useNavigate();
-  const { canCreate } = usePermission(ResourceMasterMedical);
+  const { canCreate, canEdit } = usePermission(ResourceMasterMedical);
   const reduced = useReducedMotion();
   const panelDuration = reduced ? 0 : 0.2;
 
@@ -778,16 +782,18 @@ export function MedicineSettings() {
                           <span className={`text-base ${C.text40} ml-0.5`}>{items.length}</span>
                         </button>
                         <div className="flex-1" />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCreate(parentId);
-                          }}
-                          className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
-                        >
-                          <Plus className={`${ICON.xs}`} />
-                        </button>
+                        {canCreate ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCreate(parentId);
+                            }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
+                          >
+                            <Plus className={`${ICON.xs}`} />
+                          </button>
+                        ) : null}
                       </div>
                     </TableCell>
 
@@ -804,19 +810,21 @@ export function MedicineSettings() {
 
                     {/* Actions column — category */}
                     <TableCell className="w-[80px] py-0 text-center" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
-                          >
-                            <MoreHorizontal className={ICON.action} />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(header)}>編集</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {canEdit ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
+                            >
+                              <MoreHorizontal className={ICON.action} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(header)}>編集</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : null}
                     </TableCell>
                   </TableRow>
 
@@ -832,6 +840,7 @@ export function MedicineSettings() {
                           medicine={medicine}
                           onEdit={handleEdit}
                           grouped
+                          canEdit={canEdit}
                         />
                       ))}
                     </SortableContext>
@@ -851,6 +860,7 @@ export function MedicineSettings() {
                   medicine={medicine}
                   onEdit={handleEdit}
                   grouped={false}
+                  canEdit={canEdit}
                 />
               ))}
             </SortableContext>
