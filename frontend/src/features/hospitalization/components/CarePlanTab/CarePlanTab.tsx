@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 // Relative
 import { useGetCarePlanItems, useCreateCarePlanItem, useUpdateCarePlanItem, useDeleteCarePlanItem } from "@/features/hospitalization/api/care-plan-items";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type { CarePlanItem, CarePlanItemType, CarePlanTiming, UpdateCarePlanItemInput } from "@/features/hospitalization/api/care-plan-items";
@@ -181,8 +182,8 @@ function EditRow({ item, onSave, onCancel, isSaving }: EditRowProps) {
 
 interface ItemRowProps {
     item: CarePlanItem;
-    onEdit: (id: string) => void;
-    onDelete: (id: string) => void;
+    onEdit?: (id: string) => void;
+    onDelete?: (id: string) => void;
     isDeleting: boolean;
 }
 
@@ -194,20 +195,24 @@ function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
             <TimingBadges timing={item.timing} />
             <StatusBadge status={item.status} />
             <div className="flex gap-1 shrink-0">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => onEdit(item.id)}
-                    aria-label="編集"
-                >
-                    <Pencil className={ICON.action} />
-                </Button>
-                <DeleteIconButton
-                    onClick={() => onDelete(item.id)}
-                    disabled={isDeleting}
-                    className="size-7"
-                />
+                {onEdit !== undefined ? (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => onEdit(item.id)}
+                        aria-label="編集"
+                    >
+                        <Pencil className={ICON.action} />
+                    </Button>
+                ) : null}
+                {onDelete !== undefined ? (
+                    <DeleteIconButton
+                        onClick={() => onDelete(item.id)}
+                        disabled={isDeleting}
+                        className="size-7"
+                    />
+                ) : null}
             </div>
         </div>
     );
@@ -303,6 +308,7 @@ interface CarePlanTabProps {
 }
 
 export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
+    const { canCreate, canEdit, canDelete } = usePermission("hospitalization");
     const { data: items, isLoading } = useGetCarePlanItems(hospitalizationId);
     const createItem = useCreateCarePlanItem(hospitalizationId);
     const updateItem = useUpdateCarePlanItem(hospitalizationId);
@@ -367,13 +373,13 @@ export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
                 <ItemRow
                     key={item.id}
                     item={item}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
+                    onEdit={canEdit ? handleEdit : undefined}
+                    onDelete={canDelete ? handleDelete : undefined}
                     isDeleting={deletingId === item.id}
                 />
             )
         );
-    }, [items, editingId, deletingId, updateItem.isPending, handleEdit, handleDelete, handleSaveEdit, handleCancelEdit]);
+    }, [items, editingId, deletingId, updateItem.isPending, handleEdit, handleDelete, handleSaveEdit, handleCancelEdit, canEdit, canDelete]);
 
     if (isLoading) {
         return (
@@ -395,7 +401,9 @@ export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
                     {itemRows}
                 </div>
             )}
-            <AddForm onSubmit={handleAdd} isSubmitting={createItem.isPending} />
+            {canCreate ? (
+                <AddForm onSubmit={handleAdd} isSubmitting={createItem.isPending} />
+            ) : null}
         </div>
     );
 }

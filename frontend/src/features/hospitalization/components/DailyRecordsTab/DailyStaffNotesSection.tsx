@@ -19,6 +19,7 @@ interface DailyStaffNotesSectionProps {
     staffNotes: ApiStaffNoteRecord[];
     onAddStaffNote: (payload: CreateStaffNoteRecordRequest) => void;
     isPending: boolean;
+    canCreate?: boolean;
 }
 
 interface StaffNoteFormState {
@@ -40,6 +41,7 @@ export function DailyStaffNotesSection({
     staffNotes,
     onAddStaffNote,
     isPending,
+    canCreate = false,
 }: DailyStaffNotesSectionProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [form, setForm] = useState<StaffNoteFormState>(INITIAL_FORM);
@@ -76,15 +78,17 @@ export function DailyStaffNotesSection({
                     <MessageSquare className={`${ICON.action} text-green-500`} />
                     スタッフメモ
                 </h4>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpen}
-                    className="h-7 gap-1 text-xs"
-                >
-                    <Plus className={ICON.action} />
-                    追加
-                </Button>
+                {canCreate ? (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpen}
+                        className="h-7 gap-1 text-xs"
+                    >
+                        <Plus className={ICON.action} />
+                        追加
+                    </Button>
+                ) : null}
             </div>
 
             {sorted.length === 0 ? (
