@@ -97,7 +97,7 @@ export function MasterSidePanel({
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">{children}</div>
       </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={readOnly ? undefined : onSave} isPending={isPending} />
+      <SidePeekFooter onCancel={onClose} onSave={readOnly ? undefined : onSave} isPending={isPending} readOnly={readOnly} />
     </>
   );
 
