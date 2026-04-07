@@ -26,13 +26,13 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 
 // Lazy-loaded modals — only loaded when first opened (bundle splitting)
 const ReceptionDetailModal = lazy(() =>
-  import("../components/DashboardDetailModal").then(m => ({ default: m.ReceptionDetailModal }))
+  import("../components/ReceptionDetailModal").then(m => ({ default: m.ReceptionDetailModal }))
 );
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then(m => ({ default: m.ReservationFormModal }))
 );
 import { KanbanColumn } from "../components/KanbanColumn";
-import { useReceptionKanban } from "../hooks/use-dashboard-kanban";
+import { useReceptionKanban } from "../hooks/use-reception-kanban";
 
 // Types
 import type { Appointment, ReservationAppointment, Pet } from "@/types";

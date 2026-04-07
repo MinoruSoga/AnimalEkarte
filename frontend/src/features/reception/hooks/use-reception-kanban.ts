@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { Appointment, ColumnData } from "@/types";
 // bundle-barrel-imports: barrel経由ではなく各ファイルから直接import
-import { useGetReception, todayISO } from "../api/get-dashboard";
+import { useGetReception, todayISO } from "../api/get-reception";
 import { useGetStaffs, buildStaffMap } from "../api/get-staffs";
 import { useUpdateAppointmentStatus } from "../api/update-appointment-status";
 import { COLUMN_TITLE_TO_STATUS, RECEPTION_COLUMNS } from "../api/transforms";

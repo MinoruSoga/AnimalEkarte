@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import type { ReservationStatus } from "@/types";
-import type { ReservationAppointment as BackendDashboardReservation } from "@/types/generated/models";
+import type { ReservationAppointment as BackendReceptionReservation } from "@/types/generated/models";
 import type { ReceptionAppointment, ReceptionColumn } from "./types";
 
 /** Backend status 値 → カンバンカラム ID のマッピング */
@@ -61,9 +61,9 @@ const ANIMAL_SPECIES_MAP: Record<number, string> = {
   9: "その他",
 };
 
-/** BackendDashboardReservation → ReceptionAppointment 変換 */
+/** BackendReceptionReservation → ReceptionAppointment 変換 */
 export function transformReservationToReceptionAppointment(
-  reservation: BackendDashboardReservation
+  reservation: BackendReceptionReservation
 ): ReceptionAppointment {
   const startDate = new Date(reservation.start_time);
   const time = format(startDate, "HH:mm");
@@ -98,7 +98,7 @@ export function transformReservationToReceptionAppointment(
  * キャンセル済みの予約はカンバンに表示しない
  */
 export function transformReservationsToReceptionColumns(
-  reservations: BackendDashboardReservation[]
+  reservations: BackendReceptionReservation[]
 ): ReceptionColumn[] {
   const activeReservations = reservations.filter((r) => r.status !== "cancelled");
   const appointments = activeReservations.map(transformReservationToReceptionAppointment);

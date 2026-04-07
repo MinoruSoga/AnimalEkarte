@@ -47,7 +47,7 @@ export interface MenuItem {
     subItems?: MenuItem[];
 }
 
-// --- Dashboard / Calendar ---
+// --- Reception（当日の受付）/ Calendar ---
 export interface Appointment {
   id: string;
   time: string;

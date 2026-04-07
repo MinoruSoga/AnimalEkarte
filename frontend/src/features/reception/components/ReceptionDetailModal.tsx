@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
-import { DASHBOARD_STATUS_COLORS, DASHBOARD_STATUS_COLOR_FALLBACK } from "@/utils/constants/status-colors";
+import { RECEPTION_STATUS_COLORS, RECEPTION_STATUS_COLOR_FALLBACK } from "@/utils/constants/status-colors";
 
 // Types
 import type { Appointment } from "@/types";
@@ -361,7 +361,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
               </DialogTitle>
             </div>
             {currentStatus ? (
-              <Badge variant="outline" className={`${DASHBOARD_STATUS_COLORS[currentStatus] ?? DASHBOARD_STATUS_COLOR_FALLBACK} px-3 py-1 text-sm font-medium border shrink-0`}>
+              <Badge variant="outline" className={`${RECEPTION_STATUS_COLORS[currentStatus] ?? RECEPTION_STATUS_COLOR_FALLBACK} px-3 py-1 text-sm font-medium border shrink-0`}>
                 {currentStatus}
               </Badge>
             ) : null}

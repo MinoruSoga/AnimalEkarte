@@ -1,10 +1,10 @@
 /**
- * Dashboard API types
+ * Reception API types
  * Backend source: {@link import("@/types/generated/models").ReservationAppointment}
  * ReservationStatus は src/types の union 型を使用（models.ts は string 型のため型安全性維持）
  */
 import type { ReservationStatus } from "@/types";
-/** Dashboard カンバンカード用の変換後型 */
+/** 当日の受付カンバンカード用の変換後型 */
 export interface ReceptionAppointment {
   id: string;
   time: string; // "HH:mm" 形式
@@ -21,7 +21,7 @@ export interface ReceptionAppointment {
   status: ReservationStatus;
 }
 
-/** Dashboard カンバンカラム */
+/** 当日の受付カンバンカラム */
 export interface ReceptionColumn {
   id: ReservationStatus;
   title: string;

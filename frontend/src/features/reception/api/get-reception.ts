@@ -2,11 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { axios } from "@/lib/axios";
 import { transformReservationsToReceptionColumns } from "./transforms";
-import type { ReservationAppointment as BackendDashboardReservation } from "@/types/generated/models";
+import type { ReservationAppointment as BackendReceptionReservation } from "@/types/generated/models";
 import type { ReceptionColumn } from "./types";
 
 interface ReservationsResponse {
-  data: BackendDashboardReservation[];
+  data: BackendReceptionReservation[];
   total: number;
   page: number;
   limit: number;
@@ -17,7 +17,7 @@ export function todayISO(): string {
   return format(new Date(), "yyyy-MM-dd");
 }
 
-/** 指定日の予約をダッシュボード用カラム配列として取得 */
+/** 指定日の予約を当日受付用カラム配列として取得 */
 export async function getReception(date: string): Promise<ReceptionColumn[]> {
   const { data } = await axios.get<ReservationsResponse>(
     "/v1/reservations",
@@ -26,7 +26,7 @@ export async function getReception(date: string): Promise<ReceptionColumn[]> {
   return transformReservationsToReceptionColumns(data.data);
 }
 
-/** ダッシュボード用 React Query hook */
+/** 当日の受付用 React Query hook */
 export function useGetReception(date: string = todayISO()) {
   return useQuery({
     queryKey: ["reception", date],

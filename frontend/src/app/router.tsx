@@ -51,7 +51,7 @@ export const router = createBrowserRouter([
       {
         element: <Layout />,
         children: [
-      // ── Dashboard ────────────────────────────────────────────────
+      // ── Reception（当日の受付）────────────────────────────────────
       {
         path: "/",
         element: (
@@ -63,7 +63,7 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { Reception } = await import("@/features/dashboard");
+              const { Reception } = await import("@/features/reception");
               return { Component: Reception };
             },
           },
