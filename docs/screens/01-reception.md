@@ -1,4 +1,4 @@
-# ダッシュボード 仕様書
+# 当日の受付 仕様書
 
 ## 概要
 - **画面の目的**: 病院全体の当日受付状況をリアルタイムで把握するホーム画面。カンバンボード形式で患者フローを管理する。
@@ -46,7 +46,7 @@
 | 担当医 | string | 担当医バッジ（指名時はオレンジ背景＋「指」ラベル） | `appointment.doctor`, `appointment.isDesignated` |
 | ミニアクション | buttons | 下部のクイックリンク（カルテ/施術、会計、入院） | |
 
-## 表示項目（DashboardDetailModal）
+## 表示項目（ReceptionDetailModal）
 
 | セクション | 項目 |
 |-----------|------|
@@ -56,7 +56,7 @@
 | 診療詳細 | 担当医（未定表示あり）、指名バッジ |
 | 関連ページ | カルテ/施術、会計、入院へのリンクボタン群 |
 
-## DashboardDetailModal ステータス別アクション
+## ReceptionDetailModal ステータス別アクション
 
 | ステータス | アクションボタン |
 |-----------|---------------|
@@ -70,20 +70,20 @@
 
 | コンポーネント | 種別 | 説明 |
 |---|---|---|
-| `Dashboard` | `[R]` | メインページ |
+| `Reception` | `[R]` | メインページ |
 | `KanbanColumn` | `[C]` | カラムコンテナ（dnd-kit 対応） |
 | `AppointmentCard` | `[C]` | 患者カード（dnd-kit 対応、ミニアクション付き） |
-| `DashboardDetailModal` | `[C][M]` | 患者詳細モーダル（ステータス別アクション、関連ページリンク付き） |
+| `ReceptionDetailModal` | `[C][M]` | 患者詳細モーダル（ステータス別アクション、関連ページリンク付き） |
 | `ReservationFormModal` | `[S][M]` | 予約編集モーダル（共有コンポーネント） |
 | `FormHeader` | `[S]` | ページヘッダー |
 | `ConfirmDialog` | `[S][M]` | 予約取消確認ダイアログ |
-| `use-dashboard-kanban` | `[H]` | カンバン状態管理（dnd-kit 統合、フィルタリング） |
+| `use-reception-kanban` | `[H]` | カンバン状態管理（dnd-kit 統合、フィルタリング） |
 
 ## ユーザーアクション
 
 | アクション | トリガー | 処理内容 | 遷移先 |
 |-----------|---------|---------|--------|
-| カード詳細表示 | カードクリック | `DashboardDetailModal` を開く | モーダル表示 |
+| カード詳細表示 | カードクリック | `ReceptionDetailModal` を開く | モーダル表示 |
 | ステータス進行 | 詳細モーダルのアクションボタン | ステータス更新（API連携） | 同画面 |
 | カード編集 | 詳細モーダル「編集」ボタン | `ReservationFormModal` を開く | モーダル表示 |
 | 予約取消 | 詳細モーダル「取り消し」ボタン | `ConfirmDialog` 後、ステータスを `cancelled` に更新 | 同画面 |
@@ -96,7 +96,7 @@
 
 | 遷移元 | 遷移先 | 条件 |
 |--------|--------|------|
-| サイドバー「ダッシュボード」 | `/` | 常時 |
+| サイドバー「当日の受付」 | `/` | 常時 |
 | 「新規予約」ボタン | `/reservations` | ボタンクリック |
 | 詳細モーダル「カルテ作成」 | `/medical-records/new?petId=xxx` | 診療系サービス |
 | 詳細モーダル「施術記録」 | `/trimming/new?petId=xxx` | トリミング |
@@ -114,7 +114,7 @@
 
 | 状態 | 型 | 説明 |
 |------|-----|------|
-| `columns` | `ColumnData[]` | カンバン用データ（`useDashboardKanban` 管理） |
+| `columns` | `ColumnData[]` | カンバン用データ（`useReceptionKanban` 管理） |
 | `filteredColumns` | `ColumnData[]` | フィルタ適用後のデータ |
 | `modalOpen` | `boolean` | 詳細モーダル表示フラグ |
 | `selectedAppointment` | `Appointment \| null` | 選択中の予約 |

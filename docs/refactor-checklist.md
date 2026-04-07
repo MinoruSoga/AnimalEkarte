@@ -145,7 +145,7 @@ Grep pattern="xxx" path="frontend/src" glob="*.tsx"
 |--------|---------|------|
 | **Skip** | `owners`, `medical-records` | 参照実装。規約準拠済み前提 |
 | **High** | `accounting`, `hospitalization`, `estimates` | 集計・重いフォーム・複合UI |
-| **Medium** | `reservations`, `examinations`, `trimming`, `master`, `dashboard` | 一覧+モーダル構成 |
+| **Medium** | `reservations`, `examinations`, `trimming`, `master`, `reception` | 一覧+モーダル構成 |
 | **Low** | `auth`, `checkups`, `pets`, `vaccinations`, `inventory`, `hospital-settings`, `shifts` | シンプル CRUD |
 
 ### チェック対象ルール（ドメイン毎に確認）
@@ -220,7 +220,7 @@ Grep pattern="xxx" path="frontend/src" glob="*.tsx"
 | `components/` | `rendering-hoist-jsx` | `[x]` | CATEGORY_CONFIG モジュール定数化済み |
 | `hooks/` | `rerender-functional-setstate` | `[x]` | use-master-crud.ts 全ハンドラ useCallback 済み |
 
-### [Medium] dashboard — `[x]`
+### [Medium] reception — `[x]`
 
 | レイヤー | ルール | ステータス | 備考 |
 |---------|--------|-----------|------|

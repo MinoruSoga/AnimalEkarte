@@ -125,7 +125,7 @@
 
 | リソース | キー | 説明 |
 |---|---|---|
-| 当日の受付 | `dashboard` | ダッシュボード |
+| 当日の受付 | `reception` | 当日の受付（カンバンボード） |
 | 飼主・ペット | `owners` | 飼主・ペット情報 |
 | 予約管理 | `reservations` | 予約登録・変更 |
 | カルテ | `medical-records` | カルテ作成・確定 |
@@ -347,7 +347,7 @@
 
 | リソース | 管理者 | 執行 | 一般 |
 |---|---|---|---|
-| `dashboard` | ✓/−/−/− | ✓/−/−/− | ✓/−/−/− |
+| `reception` | ✓/−/−/− | ✓/−/−/− | ✓/−/−/− |
 | `owners` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/✓/✓/− |
 | `reservations` | ✓/✓/✓/✓ | ✓/✓/✓/− | ✓/✓/✓/− |
 | `medical-records` | ✓/✓/✓/✓ | ✓/−/−/− | ✓/✓/✓/− |
@@ -387,7 +387,7 @@
 
 | メニュー項目 | 必要なリソース（`canView` が true） |
 |---|---|
-| 当日の受付 | `dashboard` |
+| 当日の受付 | `reception` |
 | 飼主・ペット | `owners` |
 | 予約管理 | `reservations` |
 | カルテ | `medical-records` |
@@ -1184,7 +1184,7 @@ export function RequirePermission({
 | ルート | コンポーネント | 必要権限 |
 |---|---|---|
 | `/login` | `Login` | 認証不要 |
-| `/` | `Dashboard` | `dashboard.view` |
+| `/` | `Reception` | `reception.view` |
 | `/reservations` | `ReservationsList` | `reservations.view` |
 | `/owners` | `OwnersList` | `owners.view` |
 | `/owners/new` | `OwnerFormPage` | `owners.create` |

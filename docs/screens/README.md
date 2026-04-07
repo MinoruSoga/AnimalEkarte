@@ -11,7 +11,7 @@
 | No | 画面名 | ファイル | 概要 |
 |:---|:---|:---|:---|
 | 00 | 共通ペット選択 | [00-pet-selection.md](./00-pet-selection.md) | 各機能の新規作成時に使用される共通中間画面 |
-| 01 | ダッシュボード | [01-dashboard.md](./01-dashboard.md) | 当日の受付状況管理（カンバンボード） |
+| 01 | 当日の受付 | [01-reception.md](./01-reception.md) | 当日の受付状況管理（カンバンボード） |
 | 02 | 予約管理 | [02-reservations.md](./02-reservations.md) | 診療・トリミング等のカレンダー管理 |
 | 03 | 飼主・ペット一覧 | [03-owners-list.md](./03-owners-list.md) | 顧客情報の検索・一覧表示 |
 | 04 | 飼主・ペット登録/編集 | [04-owners-form.md](./04-owners-form.md) | 顧客情報の入力・更新、ペット管理 |

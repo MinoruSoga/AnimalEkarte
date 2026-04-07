@@ -386,7 +386,7 @@ export const C = {
   textDiscount:  "text-[#D9730D]",
   bgDiscountLight: "bg-[#FAEBDD]",
 
-  /* ── Operational status (dashboard kanban) ── */
+  /* ── Operational status (reception kanban) ── */
   /** Notion purple — 診療中ステータス */
   textStatusPurple:  "text-[#6940A5]",
   bgStatusPurple:    "bg-[#EEE0F7]",
@@ -466,7 +466,7 @@ export const C = {
   /** Notion Orange badge border */
   borderOrangeBadge: "border-[#F0C9A8]",
 
-  /* ── Dashboard Kanban column opacity variants ── */
+  /* ── Reception Kanban column opacity variants ── */
   bgAccentLight8:        "bg-[#D3E5EF]/8",
   bgAccentLight30:       "bg-[#D3E5EF]/30",
   bgAccentLight40:       "bg-[#D3E5EF]/40",

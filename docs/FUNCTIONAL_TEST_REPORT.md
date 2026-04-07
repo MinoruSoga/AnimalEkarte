@@ -709,7 +709,7 @@
 
 ---
 
-## 3. ダッシュボード (dashboard)
+## 3. 当日の受付 (reception)
 
 ### 3.1 当日受付 `/`
 
@@ -5707,7 +5707,7 @@
 |-----------|------|------|
 | 飼主登録後 一覧が即時更新（invalidation確認） | 未確認 | `queryClient.invalidateQueries` 動作確認 |
 | ペット編集後 飼主詳細のペット一覧が更新 | 未確認 | PetEditModal で更新後トースト表示・ペット一覧が即時更新（invalidateQueries 動作確認） |
-| カルテ登録後 ダッシュボードのカウンタが更新 | 未確認 | dashboard queryの invalidation 確認 |
+| カルテ登録後 当日の受付のカウンタが更新 | 未確認 | reception queryの invalidation 確認 |
 | 会計登録後 月次集計が更新 | 未確認 | 集計データのキャッシュ更新確認 |
 | 在庫更新後 在庫一覧の数量が即時反映 | 未確認 | 楽観的更新 or invalidation 確認 |
 | ブラウザバック後のキャッシュデータ表示 | 未確認 | staleTime 内での再fetch省略確認 |
@@ -6388,7 +6388,7 @@
 | 日付変更時 各列のカード件数バッジが更新 | 未確認 | 0件でバッジ更新確認 |
 | 担当医フィルタ「全員」→「田中太郎」→「山田次郎」と切替 | 未確認 | ReservationManagement.tsx: doctorFilter Select → `setDoctorFilter(v)` → `filteredAppointments = appointments.filter(a => a.doctor === doctorFilter)` クライアントサイドフィルタ。コード確認済み |
 | 担当医フィルタ切替 → 件数バッジリアルタイム更新 | 未確認 | filteredAppointments 依存の件数が Select 変更で即時再計算される |
-| 「受付予約」列内「新規追加」と「受付済」列「新規追加」の差異 | 未確認 | Dashboard.tsx L160-169: 「受付予約」列はトーストなしで `/reservations` に遷移。その他列（受付済含む）は `toast.info("新規登録", ...)` 表示後に同じ `/reservations` に遷移。初期ステータスの自動設定なし |
+| 「受付予約」列内「新規追加」と「受付済」列「新規追加」の差異 | 未確認 | Reception.tsx L160-169: 「受付予約」列はトーストなしで `/reservations` に遷移。その他列（受付済含む）は `toast.info("新規登録", ...)` 表示後に同じ `/reservations` に遷移。初期ステータスの自動設定なし |
 
 
 ---
