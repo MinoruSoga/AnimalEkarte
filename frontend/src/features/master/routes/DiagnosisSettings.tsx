@@ -358,7 +358,7 @@ function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange, can
               <SortableDataTableRow
                 key={item.id}
                 id={item.id}
-                onClick={() => onEditTargetChange(item)}
+                onClick={canEdit ? () => onEditTargetChange(item) : undefined}
               >
                 <TableCell className={`font-medium text-base ${C.text}`}>
                   {item.name}
@@ -450,7 +450,7 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange, canEdit
               <SortableDataTableRow
                 key={item.id}
                 id={item.id}
-                onClick={() => onEditTargetChange(item)}
+                onClick={canEdit ? () => onEditTargetChange(item) : undefined}
               >
                 <TableCell className={`text-base ${C.text70}`}>
                   {categoryMap.get(item.diagnosisCategoryId) ?? "-"}

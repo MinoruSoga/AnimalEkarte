@@ -247,6 +247,7 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
                     deleteMutation.isPending ||
                     reorderMutation.isPending
                   }
+                  canDelete={canDelete}
                   autoFocusQuantity={focusLastRow && idx === sortedTreatments.length - 1}
                   onAutoFocusDone={focusLastRow && idx === sortedTreatments.length - 1 ? () => setFocusLastRow(false) : undefined}
                 />

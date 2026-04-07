@@ -78,6 +78,7 @@ interface ItemListCardProps {
   billingId?: string;
   onUpdateItemTax?: (itemId: string, taxType: TaxType, taxRate: number) => void;
   canEdit: boolean;
+  canDelete: boolean;
 }
 
 const MERCHANDISE_CATEGORY_OPTIONS = [
@@ -99,6 +100,7 @@ const ItemListCard = memo(function ItemListCard({
   billingId,
   onUpdateItemTax,
   canEdit,
+  canDelete,
 }: ItemListCardProps) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [merchandiseSearch, setMerchandiseSearch] = useState("");
@@ -156,7 +158,7 @@ const ItemListCard = memo(function ItemListCard({
             </div>
           </TableCell>
           <TableCell className="text-center">
-            {billingId !== undefined && onUpdateItemTax !== undefined ? (
+            {billingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
               <TaxTypeSelector
                 value={item.taxType}
                 onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
@@ -168,7 +170,7 @@ const ItemListCard = memo(function ItemListCard({
             )}
           </TableCell>
           <TableCell className="text-center">
-            {billingId !== undefined && onUpdateItemTax !== undefined ? (
+            {billingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
               <TaxRateSelector
                 value={item.taxRate}
                 onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
@@ -191,13 +193,13 @@ const ItemListCard = memo(function ItemListCard({
             ¥{(item.subtotal + item.taxAmount).toLocaleString()}
           </TableCell>
           <TableCell>
-            {item.source === "manual" ? (
+            {item.source === "manual" && canDelete ? (
               <DeleteIconButton onClick={() => onDeleteItem(item.id)} />
             ) : null}
           </TableCell>
         </TableRow>
       )),
-    [items, billingId, onDeleteItem, onUpdateItemTax],
+    [items, billingId, onDeleteItem, onUpdateItemTax, canEdit, canDelete],
   );
 
   return (
@@ -490,80 +492,89 @@ const PaymentCard = memo(function PaymentCard({
 
         <Separator />
 
-        <div className="space-y-4">
+        {canEdit ? (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>支払方法</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  type="button"
+                  variant={paymentMethod === "cash" ? "default" : "outline"}
+                  onClick={() => onPaymentMethodChange("cash")}
+                  className="h-12"
+                >
+                  現金
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentMethod === "credit_card" ? "default" : "outline"}
+                  onClick={() => onPaymentMethodChange("credit_card")}
+                  className="h-12"
+                >
+                  カード
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentMethod === "electronic_money" ? "default" : "outline"}
+                  onClick={() => onPaymentMethodChange("electronic_money")}
+                  className="h-12"
+                >
+                  電子マネー
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>お預かり金額</Label>
+              <NumberInput
+                id={id}
+                className="h-14 text-xl font-bold"
+                value={receivedAmount}
+                onChange={onReceivedAmountChange}
+                suffix="円"
+                align="right"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onReceivedAmountChange(billingAmount.toString())}
+                >
+                  丁度
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    onReceivedAmountChange(
+                      (Math.ceil(billingAmount / 1000) * 1000).toString(),
+                    )
+                  }
+                >
+                  千円単位
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    onReceivedAmountChange(
+                      (Math.ceil(billingAmount / 10000) * 10000).toString(),
+                    )
+                  }
+                >
+                  一万単位
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
           <div className="space-y-2">
             <Label>支払方法</Label>
-            <div className="grid grid-cols-3 gap-2">
-              <Button
-                type="button"
-                variant={paymentMethod === "cash" ? "default" : "outline"}
-                onClick={() => onPaymentMethodChange("cash")}
-                className="h-12"
-              >
-                現金
-              </Button>
-              <Button
-                type="button"
-                variant={paymentMethod === "credit_card" ? "default" : "outline"}
-                onClick={() => onPaymentMethodChange("credit_card")}
-                className="h-12"
-              >
-                カード
-              </Button>
-              <Button
-                type="button"
-                variant={paymentMethod === "electronic_money" ? "default" : "outline"}
-                onClick={() => onPaymentMethodChange("electronic_money")}
-                className="h-12"
-              >
-                電子マネー
-              </Button>
-            </div>
+            <p className="text-sm font-medium">
+              {paymentMethod === "cash" ? "現金" : paymentMethod === "credit_card" ? "カード" : paymentMethod === "electronic_money" ? "電子マネー" : "-"}
+            </p>
           </div>
-
-          <div className="space-y-2">
-            <Label>お預かり金額</Label>
-            <NumberInput
-              id={id}
-              className="h-14 text-xl font-bold"
-              value={receivedAmount}
-              onChange={onReceivedAmountChange}
-              suffix="円"
-              align="right"
-            />
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onReceivedAmountChange(billingAmount.toString())}
-              >
-                丁度
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  onReceivedAmountChange(
-                    (Math.ceil(billingAmount / 1000) * 1000).toString(),
-                  )
-                }
-              >
-                千円単位
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  onReceivedAmountChange(
-                    (Math.ceil(billingAmount / 10000) * 10000).toString(),
-                  )
-                }
-              >
-                一万単位
-              </Button>
-            </div>
-          </div>
-        </div>
+        )}
 
         <div className="bg-gray-100 p-4 rounded-lg flex justify-between items-center">
           <span className="font-bold text-gray-600">お釣り</span>
@@ -951,7 +962,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
 
   // clinic 情報（AccountingDocument に props 注入）
   const { user } = useAuth();
-  const { canEdit, canCreate } = usePermission("accounting");
+  const { canEdit, canCreate, canDelete } = usePermission("accounting");
   const canSubmit = id ? canEdit : canCreate;
   const clinicForDocument = useMemo(() => {
     const baseClinic = user?.clinic ?? null;
@@ -1093,6 +1104,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
               billingId={id}
               onUpdateItemTax={handleUpdateItemTax}
               canEdit={canEdit}
+              canDelete={canDelete}
             />
           </div>
 

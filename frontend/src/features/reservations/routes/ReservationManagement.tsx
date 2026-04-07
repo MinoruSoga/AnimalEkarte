@@ -262,7 +262,7 @@ export function ReservationManagement() {
                 currentDate={currentDate}
                 appointments={filteredAppointments}
                 onAppointmentClick={handleOpenDetail}
-                onTimeSlotClick={handleTimeSlotClick}
+                onTimeSlotClick={canCreate ? handleTimeSlotClick : undefined}
                 onAppointmentUpdate={handleAppointmentUpdate}
                 dynamicColorMap={dynamicColorMap}
               />

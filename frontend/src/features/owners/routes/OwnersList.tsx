@@ -320,7 +320,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const renderRow = useCallback((pet: (typeof filteredPets)[number]) => (
     <DataTableRow
       key={pet.id}
-      onClick={() => handleRowClick(pet)}
+      onClick={canEdit ? () => handleRowClick(pet) : undefined}
     >
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap hidden lg:table-cell`}>
         {pet.ownerNumber ?? "-"}

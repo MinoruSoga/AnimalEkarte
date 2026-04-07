@@ -229,9 +229,10 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
 interface TrimmingCourseTabProps {
   editTarget: TrimmingCourse | "new" | null;
   onEditTargetChange: (v: TrimmingCourse | "new" | null) => void;
+  canEdit: boolean;
 }
 
-function TrimmingCourseTab({ editTarget: _editTarget, onEditTargetChange }: TrimmingCourseTabProps) {
+function TrimmingCourseTab({ editTarget: _editTarget, onEditTargetChange, canEdit }: TrimmingCourseTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
@@ -272,7 +273,7 @@ function TrimmingCourseTab({ editTarget: _editTarget, onEditTargetChange }: Trim
         data={filteredItems}
         emptyMessage="トリミングコースが登録されていません"
         renderRow={(item) => (
-          <DataTableRow key={item.id} onClick={() => onEditTargetChange(item)}>
+          <DataTableRow key={item.id} onClick={canEdit ? () => onEditTargetChange(item) : undefined}>
             <TableCell className={`font-medium text-base ${C.text}`}>
               {item.name}
             </TableCell>
@@ -427,9 +428,10 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
 interface TrimmingOptionTabProps {
   editTarget: TrimmingOption | "new" | null;
   onEditTargetChange: (v: TrimmingOption | "new" | null) => void;
+  canEdit: boolean;
 }
 
-function TrimmingOptionTab({ editTarget: _editTarget, onEditTargetChange }: TrimmingOptionTabProps) {
+function TrimmingOptionTab({ editTarget: _editTarget, onEditTargetChange, canEdit }: TrimmingOptionTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
@@ -470,7 +472,7 @@ function TrimmingOptionTab({ editTarget: _editTarget, onEditTargetChange }: Trim
         data={filteredItems}
         emptyMessage="トリミングオプションが登録されていません"
         renderRow={(item) => (
-          <DataTableRow key={item.id} onClick={() => onEditTargetChange(item)}>
+          <DataTableRow key={item.id} onClick={canEdit ? () => onEditTargetChange(item) : undefined}>
             <TableCell className={`font-medium text-base ${C.text}`}>
               {item.name}
             </TableCell>
@@ -673,12 +675,14 @@ export function TrimmingSettings() {
                   <TrimmingCourseTab
                     editTarget={courseCrud.editTarget}
                     onEditTargetChange={courseCrud.setEditTarget}
+                    canEdit={canEdit}
                   />
                 </TabsPrimitive.Content>
                 <TabsPrimitive.Content value="option" className="mt-4">
                   <TrimmingOptionTab
                     editTarget={optionCrud.editTarget}
                     onEditTargetChange={optionCrud.setEditTarget}
+                    canEdit={canEdit}
                   />
                 </TabsPrimitive.Content>
               </TabsPrimitive.Root>

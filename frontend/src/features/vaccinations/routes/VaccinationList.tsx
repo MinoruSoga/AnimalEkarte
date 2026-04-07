@@ -203,7 +203,7 @@ export function VaccinationList() {
       ...(canDelete ? [{ label: "削除", icon: Trash2, onClick: () => setPendingDeleteId(r.id), variant: "destructive" as const }] : []),
     ];
     return (
-      <DataTableRow key={r.id} onClick={() => handleEdit(r.id)}>
+      <DataTableRow key={r.id} onClick={canEdit ? () => handleEdit(r.id) : undefined}>
         <TableCell className={`font-mono text-base ${C.text} py-2`}>{r.date}</TableCell>
         <TableCell className={`text-base ${C.text} py-2`}>{r.ownerName}</TableCell>
         <TableCell className={`text-base ${C.text} py-2`}>{r.petName}</TableCell>

@@ -79,6 +79,7 @@ interface PetTableRowProps {
   pet: PetFormData;
   ownerId: string | undefined;
   canEdit: boolean;
+  canCreate: boolean;
   canDelete: boolean;
   onEdit: (pet: PetFormData) => void;
   onDeleteRequest: (id: string, name: string) => void;
@@ -88,6 +89,7 @@ const PetTableRow = memo(function PetTableRow({
   pet,
   ownerId,
   canEdit,
+  canCreate,
   canDelete,
   onEdit,
   onDeleteRequest,
@@ -133,34 +135,38 @@ const PetTableRow = memo(function PetTableRow({
                   詳細・編集
                 </DropdownMenuItem>
               ) : null}
-              <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
-                <Calendar className={`mr-2 ${ICON.action}`} />
-                予約作成
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <FileText className={`mr-2 ${ICON.action}`} />
-                カルテ作成
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <Scissors className={`mr-2 ${ICON.action}`} />
-                トリミング
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <Bed className={`mr-2 ${ICON.action}`} />
-                入院登録
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <CreditCard className={`mr-2 ${ICON.action}`} />
-                会計登録
-              </DropdownMenuItem>
+              {canCreate ? (
+                <>
+                  <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
+                    <Calendar className={`mr-2 ${ICON.action}`} />
+                    予約作成
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <FileText className={`mr-2 ${ICON.action}`} />
+                    カルテ作成
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <Scissors className={`mr-2 ${ICON.action}`} />
+                    トリミング
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <Bed className={`mr-2 ${ICON.action}`} />
+                    入院登録
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <CreditCard className={`mr-2 ${ICON.action}`} />
+                    会計登録
+                  </DropdownMenuItem>
+                </>
+              ) : null}
               {canDelete ? (
                 <>
                   <DropdownMenuSeparator />
@@ -640,6 +646,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
                     pet={pet}
                     ownerId={ownerId}
                     canEdit={canEdit}
+                    canCreate={canCreate}
                     canDelete={canDelete}
                     onEdit={handleEditPet}
                     onDeleteRequest={handleDeletePetRequest}

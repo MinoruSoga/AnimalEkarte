@@ -28,8 +28,8 @@ const COLUMNS = [
 interface InsuranceFormData { name: string; description: string; coverageRate: string; contactPhone: string; isActive: boolean; }
 
 const InsuranceSidePanel = memo(function InsuranceSidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: Insurance | null; onClose: () => void; onSave: (d: InsuranceFormData) => void; onDeleteRequest?: (i: Insurance) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: Insurance | null; onClose: () => void; onSave: (d: InsuranceFormData) => void; onDeleteRequest?: (i: Insurance) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<InsuranceFormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "",
     coverageRate: item?.coverageRate != null ? String(item.coverageRate) : "0",
@@ -87,7 +87,8 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
       icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
-      titleMaxLength={100}>
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="補償率(%)">
         <input type="number" min={0} max={100} className={MASTER_INPUT_CLASS}
@@ -131,7 +132,7 @@ export function InsuranceSettings() {
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base text-center ${C.text}`}>{item.coverageRate > 0 ? `${item.coverageRate}%` : "-"}</TableCell>
           <TableCell className={`text-base ${C.text70}`}>{item.contactPhone || "-"}</TableCell>

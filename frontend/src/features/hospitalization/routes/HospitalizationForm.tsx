@@ -228,11 +228,11 @@ export function HospitalizationForm() {
         </div>
 
         {/* 治療プラン */}
-        <HospitalizationTreatmentTable 
+        <HospitalizationTreatmentTable
             treatmentPlans={treatmentPlans}
             onAdd={addTreatmentPlan}
             onUpdate={updateTreatmentPlan}
-            onRemove={removeTreatmentPlan}
+            onRemove={canDelete ? removeTreatmentPlan : undefined}
         />
 
         {/* 診療費計算 */}

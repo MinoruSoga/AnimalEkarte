@@ -157,7 +157,7 @@ export function ExaminationsList() {
 
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((r: ExaminationRecord) => (
-    <DataTableRow key={r.id} onClick={() => handleEdit(r.id)}>
+    <DataTableRow key={r.id} onClick={canEdit ? () => handleEdit(r.id) : undefined}>
       <TableCell className={`font-mono text-base ${C.text} py-2.5`}>{r.date}</TableCell>
       <TableCell className={`text-base ${C.text} py-2.5`}>{r.ownerName}</TableCell>
       <TableCell className={`text-base ${C.text} py-2.5`}>{r.petName}</TableCell>

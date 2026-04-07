@@ -34,8 +34,8 @@ const BILLING_UNIT_SELECT_ITEMS = BILLING_UNIT_OPTIONS.map((o) => <SelectItem ke
 interface HospitalizationFormData { name: string; price: number; description: string; isActive: boolean; bodySize: BodySize | ""; billingUnit: BillingUnit | ""; taxType: TaxType; taxRate: number; }
 
 const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: HospitalizationPlan | null; onClose: () => void; onSave: (d: HospitalizationFormData) => void; onDeleteRequest?: (i: HospitalizationPlan) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: HospitalizationPlan | null; onClose: () => void; onSave: (d: HospitalizationFormData) => void; onDeleteRequest?: (i: HospitalizationPlan) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<HospitalizationFormData>(() => ({
     name: item?.name ?? "", price: item?.price ?? 0, description: item?.description ?? "",
     isActive: item?.isActive ?? true, bodySize: item?.bodySize ?? "", billingUnit: item?.billingUnit ?? "",
@@ -107,7 +107,8 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
       icon={<Bed className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
-      titleMaxLength={100}>
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="対象体格">
         <Select value={f.bodySize} onValueChange={handleBodySizeChange}>
@@ -168,7 +169,7 @@ export function HospitalizationSettings() {
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base ${C.text70}`}>{item.bodySize ? (BODY_SIZE_LABELS[item.bodySize] ?? item.bodySize) : "-"}</TableCell>
           <TableCell className={`text-base ${C.text70}`}>{item.billingUnit ? (BILLING_UNIT_LABELS[item.billingUnit] ?? item.billingUnit) : "-"}</TableCell>

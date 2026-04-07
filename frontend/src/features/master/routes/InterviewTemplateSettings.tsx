@@ -38,8 +38,8 @@ const COLUMNS = [
 interface FormData { category: string; title: string; content: string; isActive: boolean; }
 
 const SidePanel = memo(function SidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: InquiryTemplate | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: InquiryTemplate) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: InquiryTemplate | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: InquiryTemplate) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<FormData>(() => ({
     category: item?.category ?? "", title: item?.title ?? "", content: item?.content ?? "", isActive: item?.isActive ?? true,
   }));
@@ -89,7 +89,8 @@ const SidePanel = memo(function SidePanel({
       isDirty={isDirty}
       icon={<FileText className={LAYOUT.pageIcon.innerIcon} />}
       titleError={nameError}
-      titleMaxLength={100}>
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カテゴリ">
         <input type="text" className={MASTER_INPUT_CLASS} value={f.category}
@@ -129,7 +130,7 @@ export function InterviewTemplateSettings() {
       crud={crud} handleSave={handleSave} columns={COLUMNS} deleteNameField="title"
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
           <TableCell className={`text-base ${C.text}`}>{INQUIRY_CATEGORY_LABELS[item.category] ?? item.category}</TableCell>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.title}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>

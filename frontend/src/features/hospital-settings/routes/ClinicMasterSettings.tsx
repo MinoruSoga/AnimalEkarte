@@ -141,7 +141,7 @@ const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none b
 
 export function ClinicMasterSettings() {
   const navigate = useNavigate();
-  const { canCreate } = usePermission(ResourceHospitalSettings);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceHospitalSettings);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Clinic | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -319,7 +319,7 @@ export function ClinicMasterSettings() {
                 data={filteredItems}
                 emptyMessage="医院が登録されていません"
                 renderRow={(item) => (
-                  <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
+                  <DataTableRow key={item.id} onClick={canEdit ? () => handleEdit(item) : undefined}>
                     <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
                       {item.name}
                     </TableCell>
@@ -365,7 +365,7 @@ export function ClinicMasterSettings() {
                 {selectedItem ? "編集" : "新規作成"}
               </span>
               <div className="flex items-center gap-1">
-                {selectedItem ? (
+                {selectedItem && canDelete ? (
                   <DeleteIconButton onClick={() => setPendingDelete(selectedItem)} />
                 ) : null}
                 <button
@@ -380,6 +380,7 @@ export function ClinicMasterSettings() {
 
             {/* Body */}
             <form action={formAction} className="flex-1 flex flex-col min-h-0">
+            <fieldset disabled={!canEdit} className="contents">
             <div className={STYLE.sidePeekBody}>
               <div className="px-16 pb-8">
                 {/* Page icon */}
@@ -610,12 +611,15 @@ export function ClinicMasterSettings() {
               >
                 キャンセル
               </button>
-              <SubmitButton
-                className={STYLE.sidePeekSaveBtn}
-              >
-                保存
-              </SubmitButton>
+              {canEdit ? (
+                <SubmitButton
+                  className={STYLE.sidePeekSaveBtn}
+                >
+                  保存
+                </SubmitButton>
+              ) : null}
             </div>
+            </fieldset>
             </form>
           </div>
         ) : null}
