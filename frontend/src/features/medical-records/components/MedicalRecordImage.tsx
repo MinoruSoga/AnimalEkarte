@@ -6,6 +6,7 @@ import { useGetRecordImages } from "../api/get-record-images";
 import { useUploadImages, useDeleteImage } from "../api/record-images";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
+import { usePermission } from "@/features/auth";
 import { C } from "@/lib/design-tokens";
 
 interface MedicalRecordImageProps {
@@ -17,6 +18,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
   isNewRecord = false,
   medicalRecordId,
 }: MedicalRecordImageProps) {
+  const { canCreate, canDelete } = usePermission("medical-records");
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
   const [dateStart, setDateStart] = useState("");
@@ -43,21 +45,21 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
   const handleFilesSelected = useCallback(
     (files: File[]) => {
-      if (!resolvedId) return;
+      if (!canCreate || !resolvedId) return;
       uploadMutation.mutate(files);
     },
-    [resolvedId, uploadMutation],
+    [canCreate, resolvedId, uploadMutation],
   );
 
   const handleDeleteImage = useCallback(
     (imageId: number) => {
-      if (!resolvedId) return;
+      if (!canDelete || !resolvedId) return;
       setDeletingId(imageId);
       deleteMutation.mutate(imageId, {
         onSettled: () => setDeletingId(null),
       });
     },
-    [resolvedId, deleteMutation],
+    [canDelete, resolvedId, deleteMutation],
   );
 
   return (
@@ -74,6 +76,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
         onSortOrderChange={setSortOrder}
         isUploading={uploadMutation.isPending}
         onFilesSelected={handleFilesSelected}
+        canUpload={canCreate}
       />
 
       {/* Results Title */}
@@ -97,7 +100,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
               <ImageGalleryGroup
                 key={group.id}
                 group={group}
-                onDeleteImage={resolvedId ? handleDeleteImage : undefined}
+                onDeleteImage={resolvedId && canDelete ? handleDeleteImage : undefined}
                 isDeletingId={deletingId}
               />
             ))

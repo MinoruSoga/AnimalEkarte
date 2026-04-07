@@ -23,6 +23,7 @@ interface ImageGalleryFilterProps {
   onSortOrderChange: (value: string) => void;
   isUploading?: boolean;
   onFilesSelected: (files: File[]) => void;
+  canUpload?: boolean;
 }
 
 export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
@@ -36,6 +37,7 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
   onSortOrderChange,
   isUploading = false,
   onFilesSelected,
+  canUpload = true,
 }: ImageGalleryFilterProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,26 +56,28 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-end">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,application/pdf"
-          multiple
-          className="hidden"
-          onChange={handleFileChange}
-        />
-        <Button
-          type="button"
-          size="sm"
-          className={`${C.bgAccent} ${C.bgAccentHover} text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
-          onClick={handleUploadClick}
-          disabled={isUploading}
-        >
-          <Upload className={ICON.action} />
-          {isUploading ? "アップロード中..." : "画像アップロード"}
-        </Button>
-      </div>
+      {canUpload ? (
+        <div className="flex justify-end">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,application/pdf"
+            multiple
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <Button
+            type="button"
+            size="sm"
+            className={`${C.bgAccent} ${C.bgAccentHover} text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
+            onClick={handleUploadClick}
+            disabled={isUploading}
+          >
+            <Upload className={ICON.action} />
+            {isUploading ? "アップロード中..." : "画像アップロード"}
+          </Button>
+        </div>
+      ) : null}
 
       {/* Filters */}
       <div className={`flex items-end gap-4 flex-wrap bg-white p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>

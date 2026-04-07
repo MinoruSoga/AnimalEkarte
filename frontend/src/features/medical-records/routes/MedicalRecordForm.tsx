@@ -289,7 +289,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
             const idx = VISIT_TYPE_OPTIONS.indexOf(visitType as typeof VISIT_TYPE_OPTIONS[number]);
             setVisitType(VISIT_TYPE_OPTIONS[(idx + 1) % VISIT_TYPE_OPTIONS.length]);
           }}
-          onStaffClick={() => setIsStaffModalOpen(true)}
+          onStaffClick={canEdit ? () => setIsStaffModalOpen(true) : undefined}
           onOwnerClick={!isNewRecord ? () => setIsOwnerSearchOpen(true) : undefined}
           petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
           insuranceName={selectedPet.insuranceName || "保険情報未登録"}
@@ -423,7 +423,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               削除
             </Button>
           ) : null}
-          {activeTab !== "見積書" ? (
+          {activeTab !== "見積書" && canEdit ? (
             <Button
               variant="outline"
               onClick={() => setIsVitalsOpen(true)}

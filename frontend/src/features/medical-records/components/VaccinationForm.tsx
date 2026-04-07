@@ -38,7 +38,7 @@ interface VaccinationFormProps {
   setNextDate: (v: string) => void;
   remarks: string;
   setRemarks: (v: string) => void;
-  onSave: () => void;
+  onSave?: () => void;
   isSaving?: boolean;
 }
 
@@ -238,13 +238,15 @@ export const VaccinationForm = memo(function VaccinationForm({
       </div>
 
       {/* Save Button */}
-      <Button
-        onClick={onSave}
-        disabled={isSaving}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-      >
-        {isSaving ? "保存中..." : "保存"}
-      </Button>
+      {onSave ? (
+        <Button
+          onClick={onSave}
+          disabled={isSaving}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          {isSaving ? "保存中..." : "保存"}
+        </Button>
+      ) : null}
     </div>
   );
 });

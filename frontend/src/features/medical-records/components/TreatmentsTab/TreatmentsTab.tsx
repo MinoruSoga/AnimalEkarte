@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { usePermission } from "@/features/auth";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 
 // Relative
@@ -64,6 +65,7 @@ interface TreatmentsTabProps {
 // ── Component ─────────────────────────────────────────────────────────
 
 export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: TreatmentsTabProps) {
+  const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: treatments, isLoading } = useGetTreatments(medicalRecordId);
   const createMutation = useCreateTreatment(medicalRecordId);
   const updateMutation = useUpdateTreatment(medicalRecordId);
@@ -117,20 +119,23 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
 
   const handleUpdate = useCallback(
     (treatmentId: string, input: UpdateTreatmentInput) => {
+      if (!canEdit) return;
       updateMutation.mutate({ treatmentId, input });
     },
-    [updateMutation]
+    [canEdit, updateMutation]
   );
 
   const handleDelete = useCallback(
     (treatmentId: string) => {
+      if (!canDelete) return;
       deleteMutation.mutate(treatmentId);
     },
-    [deleteMutation]
+    [canDelete, deleteMutation]
   );
 
   const handleMoveUp = useCallback(
     (treatmentId: string) => {
+      if (!canEdit) return;
       const list = sortedTreatments;
       const idx = list.findIndex((t) => t.id === treatmentId);
       if (idx <= 0) return;
@@ -141,11 +146,12 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
       });
       reorderMutation.mutate({ treatments: newList });
     },
-    [sortedTreatments, reorderMutation]
+    [canEdit, sortedTreatments, reorderMutation]
   );
 
   const handleMoveDown = useCallback(
     (treatmentId: string) => {
+      if (!canEdit) return;
       const list = sortedTreatments;
       const idx = list.findIndex((t) => t.id === treatmentId);
       if (idx < 0 || idx >= list.length - 1) return;
@@ -156,11 +162,11 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
       });
       reorderMutation.mutate({ treatments: newList });
     },
-    [sortedTreatments, reorderMutation]
+    [canEdit, sortedTreatments, reorderMutation]
   );
 
   const handleAddSubmit = useCallback(() => {
-    if (!addContent.trim()) return;
+    if (!canCreate || !addContent.trim()) return;
     const nextOrder =
       sortedTreatments.length > 0
         ? sortedTreatments[sortedTreatments.length - 1].sort_order + 1
@@ -191,7 +197,7 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
         },
       }
     );
-  }, [addItemType, addContent, addAdminRoute, sortedTreatments, createMutation]);
+  }, [canCreate, addItemType, addContent, addAdminRoute, sortedTreatments, createMutation]);
 
   const handleAddCancel = useCallback(() => {
     setAddContent("");
@@ -309,13 +315,15 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
             </Button>
           </div>
         ) : (
-          <button
-            className={STYLE.inlineAddBtn}
-            onClick={() => setIsAdding(true)}
-          >
-            <Plus className={`${ICON.xs}`} />
-            <span>明細を追加</span>
-          </button>
+          canCreate ? (
+            <button
+              className={STYLE.inlineAddBtn}
+              onClick={() => setIsAdding(true)}
+            >
+              <Plus className={`${ICON.xs}`} />
+              <span>明細を追加</span>
+            </button>
+          ) : null
         )}
       </div>
 

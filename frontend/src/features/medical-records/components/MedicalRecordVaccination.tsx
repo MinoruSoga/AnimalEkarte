@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useGetAllVaccinesMaster } from "@/features/master";
 import { useCreateVaccination } from "@/features/vaccinations";
 import { handleApiError } from "@/lib/handle-api-error";
+import { usePermission } from "@/features/auth";
 
 // Relative
 import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
@@ -31,6 +32,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   const [nextDate, setNextDate] = useState("");
   const [remarks, setRemarks] = useState("");
 
+  const { canCreate } = usePermission("medical-records");
   const { data: historyItems = [], isLoading } = useGetPetVaccinations(petId);
   const { data: vaccinesMaster = [] } = useGetAllVaccinesMaster();
   const createVaccinationMutation = useCreateVaccination();
@@ -42,6 +44,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   );
 
   const handleSave = useCallback(async () => {
+    if (!canCreate) return;
     if (!petId || !vaccineName || !date) {
       toast.error("必須項目を入力してください");
       return;
@@ -78,6 +81,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
       handleApiError(error, "ワクチン記録の保存");
     }
   }, [
+    canCreate,
     petId,
     vaccineName,
     date,
@@ -116,7 +120,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         setNextDate={setNextDate}
         remarks={remarks}
         setRemarks={setRemarks}
-        onSave={handleSave}
+        onSave={canCreate ? handleSave : undefined}
         isSaving={createVaccinationMutation.isPending}
       />
 
