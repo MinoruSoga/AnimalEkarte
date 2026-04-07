@@ -25,9 +25,10 @@ const COLUMNS = [
 interface HospitalizationListViewProps {
   hospitalizations: Hospitalization[];
   onNavigate: (id: string) => void;
+  canEdit: boolean;
 }
 
-export function HospitalizationListView({ hospitalizations, onNavigate }: HospitalizationListViewProps) {
+export function HospitalizationListView({ hospitalizations, onNavigate, canEdit }: HospitalizationListViewProps) {
 
   return (
     <DataTable
@@ -61,9 +62,9 @@ export function HospitalizationListView({ hospitalizations, onNavigate }: Hospit
           <TableCell className="text-right py-2">
             {h.petIsDeceased ? (
               <span className={`text-xs ${C.text40} font-medium`}>死亡</span>
-            ) : (
+            ) : canEdit ? (
               <RowActionButton onClick={() => onNavigate(h.id)} />
-            )}
+            ) : null}
           </TableCell>
         </DataTableRow>
       )}

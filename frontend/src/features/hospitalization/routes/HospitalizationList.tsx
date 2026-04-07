@@ -85,7 +85,7 @@ export function HospitalizationList() {
     movePet,
     handleNavigateToForm
   } = useHospitalizationList();
-  const { canCreate } = usePermission("hospitalization");
+  const { canCreate, canEdit } = usePermission("hospitalization");
 
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -282,12 +282,15 @@ export function HospitalizationList() {
                 hospitalizations={typeFilteredHospitalizations}
                 onNavigateToForm={handleNavigateToForm}
                 onMovePet={movePet}
+                canCreate={canCreate}
+                canEdit={canEdit}
             />
         ) : (
             <>
               <HospitalizationListView
                   hospitalizations={pagination.paginatedData}
                   onNavigate={handleNavigateToForm}
+                  canEdit={canEdit}
               />
               {pagination.totalPages > 1 ? (
                 <Pagination
