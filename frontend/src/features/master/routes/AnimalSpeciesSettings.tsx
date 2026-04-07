@@ -15,6 +15,7 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import { useGetAnimalSpecies, useCreateAnimalSpecies, useUpdateAnimalSpecies, useDeleteAnimalSpecies, useReorderAnimalSpecies } from "@/features/master/api/animal-species";
 import type { AnimalSpecies, UpdateAnimalSpeciesRequest } from "@/features/master/api/animal-species";
 import { ResourceMasterAnimalSpecies } from "@/types/generated/models";
@@ -75,6 +76,7 @@ const SidePanel = memo(function SidePanel({
 });
 
 export function AnimalSpeciesSettings() {
+  const { canEdit } = usePermission(ResourceMasterAnimalSpecies);
   const { data } = useGetAnimalSpecies();
   const createMutation = useCreateAnimalSpecies();
   const updateMutation = useUpdateAnimalSpecies();
@@ -111,7 +113,7 @@ export function AnimalSpeciesSettings() {
               <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
                 <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
                 <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-                <TableCell className="p-0 text-right"><RowActionButton onClick={() => crud.handleEdit(item)} /></TableCell>
+                <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}</TableCell>
               </SortableDataTableRow>
             )}
           />

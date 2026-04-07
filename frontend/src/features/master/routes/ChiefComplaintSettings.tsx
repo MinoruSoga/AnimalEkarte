@@ -105,12 +105,12 @@ export function ChiefComplaintSettings() {
       entityLabel="主訴マスタ" searchPlaceholder="名称で検索..." emptyMessage="主訴マスタが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
-      renderRow={(item, onEdit) => (
+      renderRow={(item, onEdit, canEdit) => (
         <DataTableRow key={item.id} onClick={() => onEdit(item)}>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base ${C.text}`}>{item.description}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
+          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => <SidePanel key={props.item?.id ?? "new"} {...props} />}

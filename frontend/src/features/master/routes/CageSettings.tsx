@@ -154,7 +154,7 @@ const TABLE_COLUMNS = [
 
 // ─── Page ───
 export function CageSettings() {
-  const { canCreate } = usePermission(ResourceMasterHospitalization);
+  const { canCreate, canEdit } = usePermission(ResourceMasterHospitalization);
   const { data } = useGetAllCages();
   const createMutation = useCreateCage();
   const updateMutation = useUpdateCage();
@@ -217,7 +217,7 @@ export function CageSettings() {
                       <TableCell className={`text-base ${C.text70}`}>{CAGE_SIZE_LABELS[item.cageSize] || item.cageSize}</TableCell>
                       <TableCell className={`text-right font-mono text-base ${C.text} pr-4`}>{item.price != null ? `¥${item.price.toLocaleString()}` : "-"}</TableCell>
                       <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-                      <TableCell className="p-0 text-right pr-2"><RowActionButton onClick={() => crud.handleEdit(item)} /></TableCell>
+                      <TableCell className="p-0 text-right pr-2">{canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}</TableCell>
                     </SortableDataTableRow>
                   ))}
                 </SortableContext>

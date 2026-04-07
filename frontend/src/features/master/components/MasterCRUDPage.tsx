@@ -50,8 +50,8 @@ interface MasterCRUDPageProps<T extends MasterEntity> {
 
   /** Table columns */
   columns: Column[];
-  /** Table row renderer. Called with (item, onEdit). */
-  renderRow: (item: T, onEdit: (item: T) => void) => ReactNode;
+  /** Table row renderer. Called with (item, onEdit, canEdit). */
+  renderRow: (item: T, onEdit: (item: T) => void, canEdit: boolean) => ReactNode;
 
   /** SidePanel render prop */
   renderSidePanel: (props: SidePanelRenderProps<T>) => ReactNode;
@@ -142,7 +142,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
           columns={columns}
           data={crud.filteredItems}
           emptyMessage={emptyMessage}
-          renderRow={(item) => renderRow(item, crud.handleEdit)}
+          renderRow={(item) => renderRow(item, crud.handleEdit, canEdit)}
         />
       )}
     </MasterListPage>

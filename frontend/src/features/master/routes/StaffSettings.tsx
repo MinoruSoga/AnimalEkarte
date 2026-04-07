@@ -499,7 +499,7 @@ export function StaffSettings() {
       handleSave={handleSave}
       columns={COLUMNS}
       filterProperties={staffFilterProperties}
-      renderRow={(item, onEdit) => {
+      renderRow={(item, onEdit, canEdit) => {
         const groups = groupsByStaffId.get(item.id) ?? [];
         const visibleGroups = groups.slice(0, 2);
         const extraCount = groups.length - visibleGroups.length;
@@ -540,7 +540,7 @@ export function StaffSettings() {
               <NotionStatusPill isActive={item.isActive} />
             </TableCell>
             <TableCell className="p-0 text-right">
-              <RowActionButton onClick={() => onEdit(item)} />
+              {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
             </TableCell>
           </DataTableRow>
         );

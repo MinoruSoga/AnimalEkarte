@@ -208,7 +208,7 @@ const TABLE_COLUMNS = [
 // ─── Page ───
 
 export function MerchandiseItemSettings() {
-  const { canCreate } = usePermission(ResourceMasterMerchandise);
+  const { canCreate, canEdit } = usePermission(ResourceMasterMerchandise);
   const { data } = useGetAllMerchandiseItems();
   const createMutation = useCreateMerchandiseItem();
   const updateMutation = useUpdateMerchandiseItem();
@@ -328,7 +328,7 @@ export function MerchandiseItemSettings() {
                         <NotionStatusPill isActive={item.isActive} />
                       </TableCell>
                       <TableCell className="p-0 text-right pr-2">
-                        <RowActionButton onClick={() => crud.handleEdit(item)} />
+                        {canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}
                       </TableCell>
                     </SortableDataTableRow>
                   ))}

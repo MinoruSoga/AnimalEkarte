@@ -7,6 +7,7 @@ import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
@@ -214,6 +215,7 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
 // ─────────────────────────────────────────────────
 
 export function PermissionGroupSettings() {
+  const { canEdit } = usePermission(ResourceMasterPermission);
   const { data } = useGetPermissionGroups();
   const createMutation = useCreatePermissionGroup();
   const updateMutation = useUpdatePermissionGroup();
@@ -323,7 +325,7 @@ export function PermissionGroupSettings() {
                   <NotionStatusPill isActive={item.isActive} />
                 </TableCell>
                 <TableCell className="p-0 text-right">
-                  <RowActionButton onClick={() => crud.handleEdit(item)} />
+                  {canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}
                 </TableCell>
               </SortableDataTableRow>
             )}

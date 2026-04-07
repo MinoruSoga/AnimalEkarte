@@ -18,6 +18,7 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import { useGetServiceTypes, useCreateServiceType, useUpdateServiceType, useDeleteServiceType, useReorderServiceTypes } from "@/features/master/api/service-types";
 import type { ServiceType } from "@/features/master/api/service-types";
 import type { CreateServiceTypeRequest, UpdateServiceTypeRequest } from "@/types/service-type";
@@ -106,6 +107,7 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
 });
 
 export function ServiceTypeSettings() {
+  const { canEdit } = usePermission(ResourceMasterServiceType);
   const { data } = useGetServiceTypes();
   const createMutation = useCreateServiceType();
   const updateMutation = useUpdateServiceType();
@@ -154,7 +156,7 @@ export function ServiceTypeSettings() {
                 </TableCell>
                 <TableCell className={`text-base ${C.text70} truncate max-w-[240px]`}>{item.description || "-"}</TableCell>
                 <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-                <TableCell className="p-0 text-right"><RowActionButton onClick={() => crud.handleEdit(item)} /></TableCell>
+                <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}</TableCell>
               </SortableDataTableRow>
             )}
           />

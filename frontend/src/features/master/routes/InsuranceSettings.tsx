@@ -130,13 +130,13 @@ export function InsuranceSettings() {
       entityLabel="保険" searchPlaceholder="保険名で検索..." emptyMessage="保険が登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
-      renderRow={(item, onEdit) => (
+      renderRow={(item, onEdit, canEdit) => (
         <DataTableRow key={item.id} onClick={() => onEdit(item)}>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base text-center ${C.text}`}>{item.coverageRate > 0 ? `${item.coverageRate}%` : "-"}</TableCell>
           <TableCell className={`text-base ${C.text70}`}>{item.contactPhone || "-"}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
+          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => <InsuranceSidePanel key={props.item?.id ?? "new"} {...props} />}

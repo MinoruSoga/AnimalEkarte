@@ -128,12 +128,12 @@ export function InterviewTemplateSettings() {
       entityLabel="問診テンプレート" searchPlaceholder="カテゴリ、タイトルで検索..." emptyMessage="問診テンプレートが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS} deleteNameField="title"
       filterProperties={[MASTER_STATUS_FILTER]}
-      renderRow={(item, onEdit) => (
+      renderRow={(item, onEdit, canEdit) => (
         <DataTableRow key={item.id} onClick={() => onEdit(item)}>
           <TableCell className={`text-base ${C.text}`}>{INQUIRY_CATEGORY_LABELS[item.category] ?? item.category}</TableCell>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.title}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
+          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => <SidePanel key={props.item?.id ?? "new"} {...props} />}
