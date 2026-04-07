@@ -97,8 +97,8 @@ const PetTableRow = memo(function PetTableRow({
 
   return (
     <TableRow
-      className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 cursor-pointer`}
-      onClick={() => onEdit(pet)}
+      className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 ${canEdit ? "cursor-pointer" : "cursor-default"}`}
+      onClick={canEdit ? () => onEdit(pet) : undefined}
     >
       <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.petName}</TableCell>
