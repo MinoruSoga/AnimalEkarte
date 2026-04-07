@@ -297,9 +297,10 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
 interface DiagnosisCategoryTabProps {
   editTarget: DiagnosisCategory | "new" | null;
   onEditTargetChange: (v: DiagnosisCategory | "new" | null) => void;
+  canEdit: boolean;
 }
 
-function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: DiagnosisCategoryTabProps) {
+function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange, canEdit }: DiagnosisCategoryTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: rawCategories } = useGetDiagnosisCategories();
@@ -363,7 +364,7 @@ function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: D
                   <NotionStatusPill isActive={item.isActive} />
                 </TableCell>
                 <TableCell className="p-0 text-right">
-                  <RowActionButton onClick={() => onEditTargetChange(item)} />
+                  {canEdit ? <RowActionButton onClick={() => onEditTargetChange(item)} /> : null}
                 </TableCell>
               </SortableDataTableRow>
             )}
@@ -381,9 +382,10 @@ function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: D
 interface DiagnosisNameTabProps {
   editTarget: DiagnosisName | "new" | null;
   onEditTargetChange: (v: DiagnosisName | "new" | null) => void;
+  canEdit: boolean;
 }
 
-function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: DiagnosisNameTabProps) {
+function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange, canEdit }: DiagnosisNameTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: rawCategories } = useGetDiagnosisCategories();
@@ -454,7 +456,7 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: Diagn
                   <NotionStatusPill isActive={item.isActive} />
                 </TableCell>
                 <TableCell className="p-0 text-right">
-                  <RowActionButton onClick={() => onEditTargetChange(item)} />
+                  {canEdit ? <RowActionButton onClick={() => onEditTargetChange(item)} /> : null}
                 </TableCell>
               </SortableDataTableRow>
             )}
@@ -471,7 +473,7 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: Diagn
 
 export function DiagnosisSettings() {
   const navigate = useNavigate();
-  const { canCreate } = usePermission(ResourceMasterMedical);
+  const { canCreate, canEdit } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "diagnosis_category";
 
@@ -635,12 +637,14 @@ export function DiagnosisSettings() {
                 <DiagnosisCategoryTab
                   editTarget={catCrud.editTarget}
                   onEditTargetChange={catCrud.setEditTarget}
+                  canEdit={canEdit}
                 />
               </TabsPrimitive.Content>
               <TabsPrimitive.Content value="diagnosis_name" className="mt-4">
                 <DiagnosisNameTab
                   editTarget={nameCrud.editTarget}
                   onEditTargetChange={nameCrud.setEditTarget}
+                  canEdit={canEdit}
                 />
               </TabsPrimitive.Content>
             </TabsPrimitive.Root>

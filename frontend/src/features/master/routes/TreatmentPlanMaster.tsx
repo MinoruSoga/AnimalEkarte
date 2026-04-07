@@ -42,6 +42,7 @@ import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // API hooks
 import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useDeleteConsultation, useReorderConsultations } from "@/features/master/api/consultations";
@@ -215,9 +216,11 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
 function ChildTreatmentRow({
   item,
   onEdit,
+  canEdit,
 }: {
   item: TreatmentItem;
   onEdit: () => void;
+  canEdit: boolean;
 }) {
   return (
     <DataTableRow onClick={onEdit}>
@@ -237,7 +240,7 @@ function ChildTreatmentRow({
         <NotionStatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="p-0 text-right">
-        <RowActionButton onClick={onEdit} />
+        {canEdit ? <RowActionButton onClick={onEdit} /> : null}
       </TableCell>
     </DataTableRow>
   );
@@ -254,6 +257,7 @@ interface TreatmentTabContentProps extends TreatmentTabConfig {
   onDeleteRequest: () => void;
   pendingDelete: TreatmentItem | null;
   onPendingDeleteChange: (item: TreatmentItem | null) => void;
+  canEdit: boolean;
 }
 
 function TreatmentTabContent({
@@ -266,6 +270,7 @@ function TreatmentTabContent({
   onEditTargetChange,
   pendingDelete,
   onPendingDeleteChange,
+  canEdit,
 }: TreatmentTabContentProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -415,7 +420,7 @@ function TreatmentTabContent({
                         <NotionStatusPill isActive={row.item.isActive} />
                       </TableCell>
                       <TableCell className="p-0 text-right">
-                        <RowActionButton onClick={() => handleEdit(row.item)} />
+                        {canEdit ? <RowActionButton onClick={() => handleEdit(row.item)} /> : null}
                       </TableCell>
                     </SortableDataTableRow>
                   );
@@ -425,6 +430,7 @@ function TreatmentTabContent({
                     key={row.item.id}
                     item={row.item}
                     onEdit={() => handleEdit(row.item)}
+                    canEdit={canEdit}
                   />
                 );
               }}
@@ -452,6 +458,7 @@ function TreatmentTabContent({
 
 export function TreatmentPlanMaster() {
   const navigate = useNavigate();
+  const { canCreate, canEdit } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "consultation";
   const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
@@ -735,10 +742,12 @@ export function TreatmentPlanMaster() {
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
-              <PrimaryButton onClick={() => setEditTarget("new")}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
+              canCreate ? (
+                <PrimaryButton onClick={() => setEditTarget("new")}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null
             }
           >
             <TabsPrimitive.Root
@@ -773,6 +782,7 @@ export function TreatmentPlanMaster() {
                       onDeleteRequest={handleDeleteRequest}
                       pendingDelete={pendingDelete}
                       onPendingDeleteChange={setPendingDelete}
+                      canEdit={canEdit}
                     />
                   </TabsPrimitive.Content>
                 );
