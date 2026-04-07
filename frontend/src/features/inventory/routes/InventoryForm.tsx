@@ -268,7 +268,7 @@ const SupplierInfoSection = memo(function SupplierInfoSection({
 export function InventoryForm() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { canEdit } = usePermission("inventory");
+  const { canEdit, canCreate } = usePermission("inventory");
 
   const {
     isEdit,
@@ -284,6 +284,8 @@ export function InventoryForm() {
     formState,
     isPending,
   } = useInventoryForm(id);
+
+  const canSubmit = isEdit ? canEdit : canCreate;
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -334,7 +336,7 @@ export function InventoryForm() {
       icon={<Package className={`${ICON.page} ${C.text}`} />}
       onBack={handleBack}
       headerAction={
-        canEdit ? (
+        canSubmit ? (
           <SubmitButton size="sm">
             <Save className={`mr-1.5 ${ICON.action}`} />
             {isEdit ? "更新" : "登録"}
@@ -373,7 +375,7 @@ export function InventoryForm() {
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
-          {canEdit ? (
+          {canSubmit ? (
             <SubmitButton className="h-10">
               <Save className={`mr-1.5 ${ICON.action}`} />
               {isEdit ? "更新" : "登録"}

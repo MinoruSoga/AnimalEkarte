@@ -415,7 +415,8 @@ export function TrimmingForm() {
     fieldErrors,
   } = useTrimmingForm(id);
 
-  const { canEdit, canDelete } = usePermission("trimming");
+  const { canEdit, canCreate, canDelete } = usePermission("trimming");
+  const canSubmit = mode === "edit" ? canEdit : canCreate;
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   // --- Focus Management (Accessibility) ---
@@ -555,7 +556,7 @@ export function TrimmingForm() {
               削除
             </Button>
           ) : null}
-          {canEdit ? (
+          {canSubmit ? (
             <SubmitButton className="h-10" disabled={isSaving}>
               保存
             </SubmitButton>

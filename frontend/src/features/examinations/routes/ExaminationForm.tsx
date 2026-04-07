@@ -52,6 +52,7 @@ interface FormFieldsSectionProps {
   isDeleting: boolean;
   isConfirmed: boolean;
   canEdit: boolean;
+  canCreate: boolean;
   canDelete: boolean;
   onSetFormData: (next: Partial<ExaminationRecord>) => void;
   onBack: () => void;
@@ -66,11 +67,13 @@ const FormFieldsSection = memo(function FormFieldsSection({
   isDeleting,
   isConfirmed,
   canEdit,
+  canCreate,
   canDelete,
   onSetFormData,
   onBack,
   onDeleteClick,
 }: FormFieldsSectionProps) {
+  const canSubmit = isEdit ? canEdit : canCreate;
   return (
     <div className={`bg-white p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
       {isConfirmed ? (
@@ -174,7 +177,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
             </Button>
           ) : null}
           <Button variant="outline" type="button" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
-          {canEdit ? (
+          {canSubmit ? (
             <SubmitButton
               className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`}
             >
@@ -194,7 +197,7 @@ export function ExaminationForm() {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const medicalRecordId = searchParams.get("medicalRecordId");
-  const { canEdit, canDelete } = usePermission("examinations");
+  const { canEdit, canCreate, canDelete } = usePermission("examinations");
 
   const { data: examTypesRaw } = useMasterItems("examination");
   const { data: staffListRaw } = useMasterItems("staff");
@@ -374,6 +377,7 @@ export function ExaminationForm() {
                 isDeleting={isDeleting}
                 isConfirmed={isConfirmed}
                 canEdit={canEdit}
+                canCreate={canCreate}
                 canDelete={canDelete}
                 onSetFormData={handleSetFormData}
                 onBack={handleBack}

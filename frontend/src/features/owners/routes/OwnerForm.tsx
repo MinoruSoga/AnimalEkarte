@@ -436,7 +436,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
 export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
-  const { canEdit, canDelete } = usePermission("owners");
+  const { canEdit, canCreate, canDelete } = usePermission("owners");
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const [deletePetTarget, setDeletePetTarget] = useState<{
     id: string;
@@ -464,6 +464,8 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     fieldErrors,
     clearFieldError,
   } = useOwnerForm(ownerId, initialOwner, petMutations);
+
+  const canSubmit = isEdit ? canEdit : canCreate;
 
   useTitle(isEdit ? `飼主編集 (${ownerData.ownerName})` : "飼主登録");
 
@@ -570,7 +572,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         resource={ResourceOwners}
         maxWidth="max-w-[1400px]"
         headerAction={
-          canEdit ? (
+          canSubmit ? (
             <SubmitButton size="sm">
               {isEdit ? "更新" : "登録"}
             </SubmitButton>

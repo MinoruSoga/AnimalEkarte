@@ -457,6 +457,8 @@ interface PaymentCardProps {
   isCompleted: boolean;
   id?: string;
   canEdit: boolean;
+  canCreate: boolean;
+  isEditMode: boolean;
 }
 
 const PaymentCard = memo(function PaymentCard({
@@ -469,7 +471,10 @@ const PaymentCard = memo(function PaymentCard({
   isCompleted,
   id,
   canEdit,
+  canCreate,
+  isEditMode,
 }: PaymentCardProps) {
+  const canSubmit = isEditMode ? canEdit : canCreate;
   return (
     <Card className="flex-1">
       <CardHeader className="py-3 px-4 border-b">
@@ -569,7 +574,7 @@ const PaymentCard = memo(function PaymentCard({
           </span>
         </div>
 
-        {canEdit ? (
+        {canSubmit ? (
           <SubmitButton
             className="w-full h-14 text-lg font-bold mt-4"
             size="lg"
@@ -946,7 +951,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
 
   // clinic 情報（AccountingDocument に props 注入）
   const { user } = useAuth();
-  const { canEdit } = usePermission("accounting");
+  const { canEdit, canCreate } = usePermission("accounting");
   const clinicForDocument = useMemo(() => {
     const baseClinic = user?.clinic ?? null;
     if (!baseClinic) return null;
@@ -1109,6 +1114,8 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
               onReceivedAmountChange={setReceivedAmount}
               isCompleted={accounting.status === "completed"}
               canEdit={canEdit}
+              canCreate={canCreate}
+              isEditMode={!!id}
             />
 
             {id && accounting.status === "completed" ? (

@@ -38,7 +38,8 @@ export function HospitalizationForm() {
   const { data: cageItems } = useMasterItems("cage");
 
   const { user } = useAuth();
-  const { canEdit, canDelete } = usePermission("hospitalization");
+  const { canEdit, canCreate, canDelete } = usePermission("hospitalization");
+  const canSubmit = hospitalizationId ? canEdit : canCreate;
   const deleteMutation = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -167,7 +168,7 @@ export function HospitalizationForm() {
                   ) : null}
                 </>
             ) : null}
-            {canEdit ? (
+            {canSubmit ? (
               <SubmitButton
               className={`${C.bgAccent} ${C.bgAccentHover} text-white rounded-[6px] h-10 text-sm px-4`}
               >

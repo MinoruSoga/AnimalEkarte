@@ -34,7 +34,7 @@ import { ResourceVaccinations } from "@/types/generated/models";
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { canEdit, canDelete } = usePermission("vaccinations");
+  const { canEdit, canCreate, canDelete } = usePermission("vaccinations");
 
   const {
     isEdit,
@@ -48,6 +48,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
     isDeleting,
     historyFilter,
   } = useVaccinationForm(id);
+
+  const canSubmit = isEdit ? canEdit : canCreate;
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -161,7 +163,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                 {isDeleting ? "削除中..." : "削除"}
               </Button>
             ) : null}
-            {canEdit ? (
+            {canSubmit ? (
               <SubmitButton
                 className={`${C.bgAccent} ${C.bgAccentHover} text-white shadow-sm px-6 h-10 text-sm`}
               >

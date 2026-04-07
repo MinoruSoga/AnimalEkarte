@@ -153,7 +153,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }, [formState.success, formState.timestamp]);
 
   const { user } = useAuth();
-  const { canEdit, canDelete } = usePermission("medical-records");
+  const { canEdit, canCreate, canDelete } = usePermission("medical-records");
+  const canSubmit = isNewRecord ? canCreate : canEdit;
 
   // 印刷用データ（React Query キャッシュ共有 — 子コンポーネントが既にフェッチ済み）
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "");
@@ -451,7 +452,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               印刷
             </Button>
           ) : null}
-          {canEdit ? (
+          {canSubmit ? (
             <SubmitButton
               className={`${STYLE.btnPrimary} px-5`}
               disabled={isCreating}
