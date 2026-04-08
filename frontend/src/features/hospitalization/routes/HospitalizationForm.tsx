@@ -179,7 +179,7 @@ export function HospitalizationForm() {
       }
     >
         <NavigationBlocker when={isDirty} />
-        <fieldset disabled={!canSubmit} className="contents">
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         {/* Patient Info Card */}
         {selectedPet ? (
             <PatientInfoCard

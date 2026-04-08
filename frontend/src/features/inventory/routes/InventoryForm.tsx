@@ -347,7 +347,7 @@ export function InventoryForm() {
     >
       <NavigationBlocker when={isDirty && !isPending} />
       <form action={formAction} onChange={markDirty} className="space-y-6">
-        <fieldset disabled={!canSubmit} className="contents">
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <BasicInfoSection
           defaultName={existingItem?.name}
           defaultUnit={existingItem?.unit}

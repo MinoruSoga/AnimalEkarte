@@ -348,7 +348,7 @@ export function ExaminationForm() {
     >
       <NavigationBlocker when={isDirty && !isSaving} />
       <form action={formAction}>
-        <fieldset disabled={!canSubmit} className="contents">
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <div className="flex flex-col gap-4">
           {/* rerender-memo: PatientInfoCard — フォームフィールド変更では再レンダーしない */}
           {selectedPet ? (

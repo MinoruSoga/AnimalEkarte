@@ -175,7 +175,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
       >
         <NavigationBlocker when={isDirty && !isSaving} />
 
-        <fieldset disabled={!canSubmit} className="contents">
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         {selectedPet ? (
           <PatientInfoCard
             ownerName={selectedPet.ownerName}

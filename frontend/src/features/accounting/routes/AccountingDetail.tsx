@@ -1088,7 +1088,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
           ) : undefined
         }
       >
-        <fieldset disabled={!canSubmit} className="contents">
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
           {/* 左カラム：明細リスト */}
           <div className="flex-1 flex flex-col gap-4 overflow-hidden">

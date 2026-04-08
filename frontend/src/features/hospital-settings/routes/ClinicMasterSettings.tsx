@@ -380,7 +380,7 @@ export function ClinicMasterSettings() {
 
             {/* Body */}
             <form action={formAction} className="flex-1 flex flex-col min-h-0">
-            <fieldset disabled={!canEdit} className="contents">
+            <fieldset disabled={!canEdit} className="border-0 p-0 m-0 min-w-0">
             <div className={STYLE.sidePeekBody}>
               <div className="px-16 pb-8">
                 {/* Page icon */}
