@@ -1,6 +1,6 @@
 # Frontend + Backend コード規約準拠監査結果
 
-**実施日**: 2026-04-09（第4回監査まで反映）
+**実施日**: 2026-04-09（第5回監査まで反映）
 **検証方法**: 監査エージェント → grep/Read による実コード検証
 **注意**: 全指摘は実コードで検証済み。スポットチェック未実施の箇所は明記している。
 
@@ -31,6 +31,8 @@
 | [BUG-232](BUG-232_useEffect-object-deps.md) | FE rerender-dependencies | useEffect deps にオブジェクト（hospitalization + estimate 各1件） | Medium | code-quality/ |
 | [BUG-233](BUG-233_content-visibility-unpaginated-lists.md) | FE rendering-perf | MedicineSettings/TreatmentPlanMaster の全件レンダーに content-visibility 未適用 | Medium | code-quality/ |
 | [BUG-234](BUG-234_set-map-lookups.md) | FE js-set-map | O(n) .some()/.includes() を Set で O(1) に（PetSelection 等3箇所） | Low | code-quality/ |
+| [BUG-235](BUG-235_TreatmentSearchDialog-not-lazy-in-CarePlanDialog.md) | FE bundle | CarePlanDialog 内の TreatmentSearchDialog が static import かつ常時マウント | Low | code-quality/ |
+| [BUG-236](BUG-236_trivial-useMemo-daily-records-tab.md) | FE rerender-memo | DailyRecordsTab の getTodayStr() を useMemo で不要メモ化 | Low | code-quality/ |
 
 ## 誤報として撤回した指摘
 
@@ -73,3 +75,5 @@
 20. **BUG-232** (Medium): useEffect deps オブジェクト → id (primitive) に変更 — 20分
 21. **BUG-233** (Medium): content-visibility: auto 適用（MedicineSettings, TreatmentPlanMaster） — 30分
 22. **BUG-234** (Low): .some()/.includes() → Set.has() に変更（3箇所） — 20分
+23. **BUG-235** (Low): TreatmentSearchDialog を lazy + 条件レンダーに変更 — 15分
+24. **BUG-236** (Low): DailyRecordsTab の trivial useMemo 削除 — 1分
