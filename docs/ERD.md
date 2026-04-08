@@ -1267,8 +1267,9 @@ erDiagram
 
     %% ===== リレーション =====
 
-    %% 認証
-    accounts }o--|| staffs : "account_id SET NULL"
+    %% 法人・認証
+    company ||--o{ clinics : "company_id"
+    accounts ||--o{ staffs : "account_id"
     clinics ||--o{ staff_clinic_assignments : "clinic_id"
     staffs ||--o{ staff_clinic_assignments : "staff_id"
 
@@ -1399,6 +1400,7 @@ erDiagram
     staffs ||--o{ shift_entries : "staff_id"
 
     %% clinic_id マルチテナント（v10.0 + v22.0追加分）
+    clinics ||--o{ vaccinations : "clinic_id"
     clinics ||--o{ checkups : "clinic_id"
     clinics ||--o{ exams : "clinic_id"
     clinics ||--o{ daily_records : "clinic_id"
@@ -1411,7 +1413,6 @@ erDiagram
     clinics ||--o{ shift_entries : "clinic_id"
     clinics ||--o{ billings : "clinic_id"
     clinics ||--o{ estimates : "clinic_id"
-    clinics ||--o{ staffs : "clinic_id"
     clinics ||--o{ inventory_items : "clinic_id"
     clinics ||--o{ cages : "clinic_id"
     clinics ||--o{ service_types : "clinic_id"
@@ -2374,7 +2375,9 @@ erDiagram
 - `medicine_id` → `medicines.id` (SET NULL)
 - `inventory_id` → `inventory_items.id` (SET NULL)
 
-**CHECK制約:** `chk_treatment_item_ref` — item_typeとFK列の整合性
+**CHECK制約:**
+- `chk_treatment_item_ref` — item_typeとFK列の整合性
+- `chk_treatment_quantity` — quantity > 0
 
 ---
 
@@ -2400,7 +2403,7 @@ erDiagram
 | updated_at | timestamptz | NO | now() | 更新日時 |
 
 **CHECK制約:**
-- `(medical_record_id IS NOT NULL) OR (daily_record_id IS NOT NULL)` — 外来か入院どちらか必須
+- `chk_vital_records_context` — (medical_record_id IS NOT NULL) OR (daily_record_id IS NOT NULL) — 外来か入院どちらか必須
 - `chk_vital_temperature` — temperature IS NULL OR (temperature >= 30.0 AND temperature <= 50.0)
 - `chk_vital_heart_rate` — heart_rate IS NULL OR (heart_rate > 0 AND heart_rate < 500)
 - `chk_vital_respiration` — respiration_rate IS NULL OR (respiration_rate > 0 AND respiration_rate < 200)
@@ -2684,6 +2687,8 @@ erDiagram
 - `service_type_id` → `service_types.id` (RESTRICT)
 - `doctor_id` → `staffs.id` (SET NULL)
 
+**CHECK制約:** `chk_reservation_times` — end_time >= start_time
+
 **インデックス:** `(clinic_id)`, `(owner_id)`
 
 ---
@@ -2721,6 +2726,8 @@ erDiagram
 - `pet_id` → `pets.id` (RESTRICT)
 - `cage_id` → `cages.id` (SET NULL)
 - `doctor_id` → `staffs.id` (SET NULL)
+
+**CHECK制約:** `chk_hospitalizations_dates` — end_date >= start_date
 
 **インデックス:** `(clinic_id)`
 
@@ -2948,6 +2955,8 @@ erDiagram
 - `hospitalization_id` → `hospitalizations.id` (SET NULL)
 - `owner_id` → `owners.id` (SET NULL)
 - `pet_id` → `pets.id` (SET NULL)
+
+**CHECK制約:** `chk_billings_amounts` — subtotal >= 0 AND tax_total >= 0 AND total_amount >= 0
 
 **インデックス:** `(clinic_id)`
 

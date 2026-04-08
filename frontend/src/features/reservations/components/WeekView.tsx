@@ -212,7 +212,7 @@ const AppointmentCard = memo(function AppointmentCard({
         ${isCompact ? "py-px px-1" : isNarrow ? "px-1 py-0.5" : "p-1"}
         ${isClassNameColor ? colorStyle : ""}
         ${isDimmed ? "opacity-60" : "opacity-100"}
-        ${isCancelled ? "line-through decoration-red-500/50" : ""}
+        ${isCancelled ? `line-through ${C.decorationDanger50}` : ""}
       `}
       role="button"
       aria-label={`${format(appointment.start, "H:mm")}〜${format(appointment.end, "H:mm")} ${appointment.petName} ${appointment.ownerName} ${getReservationTypeName(appointment.type)}`}

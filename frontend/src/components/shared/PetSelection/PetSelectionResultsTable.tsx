@@ -79,7 +79,7 @@ export function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResults
                       size="sm"
                       variant={isDeceased ? "ghost" : "outline"}
                       disabled={isDeceased}
-                      className={`h-11 gap-1 ${isDeceased ? "text-gray-400" : `${C.bgAccent} ${C.bgAccentHover} text-white`} text-sm px-4`}
+                      className={`h-11 gap-1 ${isDeceased ? C.textStatusGray : `${C.bgAccent} ${C.bgAccentHover} text-white`} text-sm px-4`}
                       onClick={() => onSelect(pet)}
                     >
                       {isDeceased ? (

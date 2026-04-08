@@ -244,7 +244,7 @@ export function ReservationFormModal({
           >
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
               {/* Selected Patient Summary (Top of Form) */}
-              <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? "bg-gradient-to-r from-blue-50/50 to-cyan-50/50 border-blue-100" : `${C.bgPage} ${C.borderMediumLight}`}`}>
+              <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgAccentLight50} ${C.borderAccentLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
                 <Label className={`text-[12px] ${C.text40} font-bold tracking-widest uppercase block mb-3`}>
                   予約対象（選択中）
                 </Label>

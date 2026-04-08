@@ -319,6 +319,7 @@ export const C = {
   borderDanger15:"border-[#C0392B]/15",
   bgDanger20:    "bg-[#C0392B]/20",
   hoverBgDanger90: "hover:bg-[#C0392B]/90",
+  decorationDanger50: "decoration-[#C0392B]/50",
 
   /* ── Notion Red (required markers) ── */
   textRequired:  "text-[#E03E3E]",
