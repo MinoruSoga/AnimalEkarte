@@ -20,6 +20,7 @@ type ReservationRepository interface {
 	ExistsByServiceTypeID(ctx context.Context, serviceTypeID uint64) (bool, error)
 	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
 	FindByStaffAndTimeSlot(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error)
+	CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error)
 }
 
 type reservationRepository struct {
@@ -145,4 +146,16 @@ func (r *reservationRepository) FindByStaffAndTimeSlot(ctx context.Context, clin
 		return false, apperrors.Wrap(err, "check reservation conflict by staff and time slot")
 	}
 	return count > 0, nil
+}
+
+// CountMedicalRecordsByReservationID は予約を参照しているカルテの件数を返す（BUG-201）
+func (r *reservationRepository) CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.MedicalRecord{}).
+		Where("reservation_appointment_id = ? AND deleted_at IS NULL", reservationID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.Wrap(err, "count medical records by reservation id")
+	}
+	return count, nil
 }

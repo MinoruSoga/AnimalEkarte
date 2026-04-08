@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -124,27 +123,19 @@ func (h *Handler) Login(c *gin.Context) {
 
 	// パスワード検証
 	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(input.Password)); err != nil {
-		slog.WarnContext(ctx, "login: password mismatch", slog.String("email", input.Email))
 		RespondError(c, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません"))
 		return
 	}
 
 	// staff を取得
-	slog.InfoContext(ctx, "login: account found",
-		slog.String("email", account.Email),
-		slog.Bool("is_system_admin", account.IsSystemAdmin),
-		slog.Uint64("account_id", account.ID))
-
 	staff, err := h.repos.Staff.FindByAccountID(ctx, account.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "login: failed to find staff", slog.String("error", err.Error()))
 		RespondError(c, apperrors.Wrap(err, "スタッフ情報の取得に失敗しました"))
 		return
 	}
 
 	// BUG-134: スタッフの有効性チェック（退職者・一時停止アカウント防止）
 	if !staff.IsActive {
-		slog.WarnContext(ctx, "login: inactive staff attempted login", slog.Uint64("staff_id", staff.ID))
 		RespondError(c, apperrors.WrapUnauthorized("このアカウントは無効です"))
 		return
 	}
@@ -152,7 +143,6 @@ func (h *Handler) Login(c *gin.Context) {
 	// clinic assignments を取得
 	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "login: failed to find clinic assignments", slog.String("error", err.Error()))
 		RespondError(c, apperrors.Wrap(err, "所属クリニック情報の取得に失敗しました"))
 		return
 	}
@@ -245,7 +235,7 @@ func (h *Handler) Login(c *gin.Context) {
 	// クリニック一覧を取得してレスポンス構築
 	allClinics, err := h.svc.Clinic.ListClinics(ctx)
 	if err != nil {
-		slog.WarnContext(ctx, "login: failed to list clinics", slog.String("error", err.Error()))
+		allClinics = nil
 	}
 	clinicNameMap := make(map[string]string)
 	for i := range allClinics {
@@ -255,8 +245,6 @@ func (h *Handler) Login(c *gin.Context) {
 
 	// 実効権限を計算
 	permMap := h.calculateEffectivePermissions(ctx, account.IsSystemAdmin, staff.ID)
-
-	slog.InfoContext(ctx, "login successful", slog.String("email", account.Email), slog.Uint64("staff_id", staff.ID))
 
 	c.JSON(http.StatusOK, LoginResponse{
 		IsSystemAdmin: account.IsSystemAdmin,
@@ -300,7 +288,6 @@ func (h *Handler) Logout(c *gin.Context) {
 		SameSite: sameSite,
 	})
 
-	slog.InfoContext(c.Request.Context(), "logout successful")
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
@@ -423,7 +410,6 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		SameSite: sameSite,
 	})
 
-	slog.InfoContext(ctx, "token refreshed", slog.Uint64("staff_id", staffID))
 	c.JSON(http.StatusOK, gin.H{"message": "token refreshed"})
 }
 
@@ -484,7 +470,6 @@ func (h *Handler) ChangeMyPassword(c *gin.Context) {
 		return
 	}
 
-	slog.InfoContext(ctx, "password changed by user", slog.Uint64("staff_id", staffID))
 	c.JSON(http.StatusOK, gin.H{"message": "パスワードを変更しました"})
 }
 
@@ -578,9 +563,6 @@ func (h *Handler) calculateEffectivePermissions(ctx context.Context, isSystemAdm
 	// staff: DB から実効権限を取得
 	rules, err := h.repos.PermissionGroup.GetEffectivePermissionsByStaffID(ctx, staffID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to calculate effective permissions",
-			slog.String("error", err.Error()),
-			slog.Uint64("staff_id", staffID))
 		// エラー時は空の権限（最小権限の原則）
 		return make(EffectivePermissions)
 	}

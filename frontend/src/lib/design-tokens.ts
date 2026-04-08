@@ -398,6 +398,26 @@ export const C = {
   /** Slightly darker purple hover — use on bg-statusPurple buttons */
   hoverBgStatusPurpleDark: "hover:bg-[#E4D0F2]",
 
+  /* ── Reservation status dot/bg/text (semantic status colors) ── */
+  /** 予約確定 (confirmed) — Emerald green */
+  bgStatusEmeraldDot: "bg-emerald-500",
+  bgStatusEmerald:    "bg-emerald-50",
+  textStatusEmerald:  "text-emerald-700",
+  /** 仮予約 (pending) — Sky blue */
+  bgStatusSkyDot:     "bg-sky-500",
+  bgStatusSky:        "bg-sky-50",
+  textStatusSky:      "text-sky-700",
+  /** 受付済 (checked_in) — Blue */
+  bgStatusBlueDot:    "bg-blue-500",
+  bgStatusBlueLight:  "bg-blue-50",
+  textStatusBlue:     "text-blue-700",
+  /** 会計待ち (accounting) — Amber */
+  bgStatusAmberDot:   "bg-amber-500",
+  bgStatusAmber:      "bg-amber-50",
+  textStatusAmber:    "text-amber-700",
+  /** キャンセル / 初診 dot — Red */
+  bgStatusRedDot:     "bg-red-500",
+
   /* ── Hover utilities ── */
   hoverBgPage:   "hover:bg-[#F7F6F3]",
   hoverBgPageHalf: "hover:bg-[#F7F6F3]/50",

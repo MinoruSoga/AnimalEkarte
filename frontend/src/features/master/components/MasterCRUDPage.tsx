@@ -20,16 +20,18 @@ interface Column {
   align?: "left" | "center" | "right";
 }
 
-interface SidePanelRenderProps<T> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface SidePanelRenderProps<T, TForm = any> {
   item: T | null;
   onClose: () => void;
-  onSave: (data: never) => void;
+  onSave: (data: TForm) => void;
   onDeleteRequest: ((item: T) => void) | undefined;
   /** BUG-158: true の場合、保存・削除ボタンを非表示にする */
   readOnly?: boolean;
 }
 
-interface MasterCRUDPageProps<T extends MasterEntity> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface MasterCRUDPageProps<T extends MasterEntity, TForm = any> {
   /** Page title (e.g. "役職マスタ") */
   title: string;
   /** Page icon element */
@@ -46,7 +48,7 @@ interface MasterCRUDPageProps<T extends MasterEntity> {
   /** CRUD state from useMasterCRUD */
   crud: UseMasterCRUDReturn<T>;
   /** Save handler from useMasterSave */
-  handleSave: (data: never) => void;
+  handleSave: (data: TForm) => void;
 
   /** Table columns */
   columns: Column[];
@@ -54,7 +56,7 @@ interface MasterCRUDPageProps<T extends MasterEntity> {
   renderRow: (item: T, onEdit: (item: T) => void, canEdit: boolean) => ReactNode;
 
   /** SidePanel render prop */
-  renderSidePanel: (props: SidePanelRenderProps<T>) => ReactNode;
+  renderSidePanel: (props: SidePanelRenderProps<T, TForm>) => ReactNode;
 
   /** Override default DataTable with custom content (e.g. DnD wrapper) */
   children?: ReactNode;
@@ -76,7 +78,8 @@ interface MasterCRUDPageProps<T extends MasterEntity> {
 // Component
 // ─────────────────────────────────────────────────
 
-export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntity>({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntity, TForm = any>({
   title,
   icon,
   entityLabel,
@@ -93,7 +96,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
   filterProperties,
   sortProperties,
   resource,
-}: MasterCRUDPageProps<T>) {
+}: MasterCRUDPageProps<T, TForm>) {
   // BUG-158: edit/delete 権限で保存・削除ボタンの表示を制御
   const { canEdit, canDelete } = usePermission(resource ?? "");
 
@@ -147,4 +150,5 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
       )}
     </MasterListPage>
   );
-}) as <T extends MasterEntity>(props: MasterCRUDPageProps<T>) => ReactNode;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+}) as <T extends MasterEntity, TForm = any>(props: MasterCRUDPageProps<T, TForm>) => ReactNode;

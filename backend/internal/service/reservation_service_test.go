@@ -14,12 +14,13 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
-	findAllFn                func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
-	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
-	createFn                 func(ctx context.Context, reservation *model.ReservationAppointment) error
-	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
-	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
-	findByStaffAndTimeSlotFn func(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error)
+	findAllFn                          func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
+	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
+	createFn                           func(ctx context.Context, reservation *model.ReservationAppointment) error
+	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
+	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
+	findByStaffAndTimeSlotFn           func(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error)
+	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
@@ -55,6 +56,13 @@ func (m *mockReservationRepository) FindByStaffAndTimeSlot(ctx context.Context, 
 		return m.findByStaffAndTimeSlotFn(ctx, clinicID, staffID, startTime, endTime, excludeID)
 	}
 	return false, nil
+}
+
+func (m *mockReservationRepository) CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error) {
+	if m.countMedicalRecordsByReservationID != nil {
+		return m.countMedicalRecordsByReservationID(ctx, reservationID)
+	}
+	return 0, nil
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }
@@ -516,42 +524,64 @@ func TestReservationService_Update(t *testing.T) {
 
 func TestReservationService_Delete(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name         string
+		clinicID     uint64
+		id           uint64
+		recordCount  int64
+		countErr     error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
-			name:     "deletes reservation successfully",
-			clinicID: 1,
-			id:       10,
-			repoErr:  nil,
-			wantErr:  false,
-			wantNF:   false,
+			name:        "deletes reservation successfully when no medical records linked",
+			clinicID:    1,
+			id:          10,
+			recordCount: 0,
+			repoErr:     nil,
+			wantErr:     false,
 		},
 		{
-			name:     "returns not found error when reservation does not exist",
-			clinicID: 1,
-			id:       999,
-			repoErr:  apperrors.WrapNotFound("reservation", "999"),
-			wantErr:  true,
-			wantNF:   true,
+			name:         "returns conflict error when medical records are linked",
+			clinicID:     1,
+			id:           10,
+			recordCount:  2,
+			wantErr:      true,
+			wantConflict: true,
 		},
 		{
-			name:     "returns error on repository failure",
+			name:     "returns error when count check fails",
 			clinicID: 1,
 			id:       10,
-			repoErr:  errors.New("db error"),
+			countErr: errors.New("db error"),
 			wantErr:  true,
-			wantNF:   false,
+		},
+		{
+			name:        "returns not found error when reservation does not exist",
+			clinicID:    1,
+			id:          999,
+			recordCount: 0,
+			repoErr:     apperrors.WrapNotFound("reservation", "999"),
+			wantErr:     true,
+			wantNF:      true,
+		},
+		{
+			name:        "returns error on repository delete failure",
+			clinicID:    1,
+			id:          10,
+			recordCount: 0,
+			repoErr:     errors.New("db error"),
+			wantErr:     true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationRepository{
+				countMedicalRecordsByReservationID: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.recordCount, tt.countErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -564,6 +594,9 @@ func TestReservationService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

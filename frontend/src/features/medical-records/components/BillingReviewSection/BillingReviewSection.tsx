@@ -11,6 +11,7 @@ import { BADGE, C, ICON } from "@/lib/design-tokens";
 
 // Relative
 import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } from "@/features/medical-records/api/billing-review";
+import { useAuth } from "@/features/auth";
 import type { BillingReviewStatus } from "@/features/medical-records/types";
 
 const ReturnReasonDialog = lazy(() =>
@@ -45,18 +46,22 @@ export function BillingReviewSection({
   medicalRecordId,
 }: BillingReviewSectionProps) {
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
+  const { user } = useAuth();
 
   const { data: review, isLoading } = useGetBillingReview(medicalRecordId);
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
   const returnMutation = useReturnBillingReview(medicalRecordId);
 
   const handleConfirm = useCallback(() => {
-    confirmMutation.mutate(undefined, {
-      onSuccess: () => {
-        toast.success("会計を確認しました");
-      },
-    });
-  }, [confirmMutation]);
+    confirmMutation.mutate(
+      { confirmed_by: Number(user?.id ?? 0) },
+      {
+        onSuccess: () => {
+          toast.success("会計を確認しました");
+        },
+      }
+    );
+  }, [confirmMutation, user?.id]);
 
   const handleReturnSubmit = useCallback((reason: string) => {
     returnMutation.mutate(

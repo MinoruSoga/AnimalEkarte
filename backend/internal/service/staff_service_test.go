@@ -89,6 +89,10 @@ func (m *mockReservationForStaff) FindByStaffAndTimeSlot(_ context.Context, _, _
 	return false, nil
 }
 
+func (m *mockReservationForStaff) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // mockShiftEntryForStaff は Staff テストで使用する ShiftEntryRepository のスタブ
 type mockShiftEntryForStaff struct {
 	existsByStaffIDFn func(ctx context.Context, staffID uint64) (bool, error)

@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { C } from "@/lib/design-tokens";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 
 // Relative
 import { DischargeAlertDialog } from "../components/DischargeAlertDialog";
@@ -42,7 +42,7 @@ export function HospitalizationDetail() {
     }, [dischargeHospitalization, navigate, hospitalization]);
 
     if (isLoading || !hospitalization) {
-        return <div className={`p-8 text-center ${C.textStatusGray}`}>読み込み中...</div>;
+        return <LoadingFallback />;
     }
 
     return (

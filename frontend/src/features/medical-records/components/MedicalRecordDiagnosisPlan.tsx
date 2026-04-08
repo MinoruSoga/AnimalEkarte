@@ -1,4 +1,4 @@
-import React, { lazy, memo, Suspense, useState, useMemo, useCallback } from "react";
+import { lazy, memo, Suspense, useState, useMemo, useCallback } from "react";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
 const TreatmentSearchDialog = lazy(() =>

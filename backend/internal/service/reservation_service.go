@@ -128,5 +128,12 @@ func buildReservationUpdateFields(input *UpdateReservationInput) map[string]any 
 }
 
 func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	count, err := s.repo.CountMedicalRecordsByReservationID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check reservation dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この予約にはカルテが紐付いているため削除できません")
+	}
 	return s.repo.Delete(ctx, clinicID, id)
 }

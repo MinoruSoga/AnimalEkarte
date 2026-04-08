@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useActionState, useTransition } from "react";
+import { useState, useEffect, useCallback, useActionState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -121,8 +121,7 @@ export function ShiftFormDialog({
 
   const [state, dispatchFormAction, isPending] = useActionState<FormActionState, FormData>(formAction, {});
 
-  const { mutateAsync: deleteShift } = useDeleteShift();
-  const [isDeletePending, startDeleteTransition] = useTransition();
+  const { mutate: deleteShift, isPending: isDeletePending } = useDeleteShift();
   // BUG-093: 削除確認ダイアログの表示状態
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   // BUG-092: 休日・有休は時刻入力不要
@@ -144,10 +143,7 @@ export function ShiftFormDialog({
   const handleDeleteConfirm = useCallback(() => {
     if (!editShift) return;
     setIsDeleteConfirmOpen(false);
-    startDeleteTransition(async () => {
-      await deleteShift(editShift.id);
-      onClose();
-    });
+    deleteShift(editShift.id, { onSuccess: () => onClose() });
   }, [editShift, deleteShift, onClose]);
 
   const formattedDate = date

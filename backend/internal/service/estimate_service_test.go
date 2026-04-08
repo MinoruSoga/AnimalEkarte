@@ -15,11 +15,12 @@ import (
 // ---- Estimate モック ----
 
 type mockEstimateRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
-	createFn   func(ctx context.Context, estimate *model.Estimate) error
-	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn              func(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
+	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
+	createFn               func(ctx context.Context, estimate *model.Estimate) error
+	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn               func(ctx context.Context, clinicID, id uint64) error
+	countItemsByEstimateID func(ctx context.Context, estimateID uint64) (int64, error)
 }
 
 func (m *mockEstimateRepository) FindAll(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error) {
@@ -40,6 +41,13 @@ func (m *mockEstimateRepository) Update(ctx context.Context, clinicID, id uint64
 
 func (m *mockEstimateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockEstimateRepository) CountItemsByEstimateID(ctx context.Context, estimateID uint64) (int64, error) {
+	if m.countItemsByEstimateID != nil {
+		return m.countItemsByEstimateID(ctx, estimateID)
+	}
+	return 0, nil
 }
 
 // ---- Tests ----
@@ -467,37 +475,58 @@ func TestEstimateService_Update(t *testing.T) {
 
 func TestEstimateService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name         string
+		id           uint64
+		itemCount    int64
+		countErr     error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
-			name:    "deletes estimate successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
+			name:      "deletes estimate successfully when no items",
+			id:        1,
+			itemCount: 0,
+			repoErr:   nil,
+			wantErr:   false,
 		},
 		{
-			name:    "returns not found error",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("estimate", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:         "returns conflict error when estimate has items",
+			id:           2,
+			itemCount:    3,
+			wantErr:      true,
+			wantConflict: true,
 		},
 		{
-			name:    "returns error on repository failure",
-			id:      1,
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			name:     "returns error when count check fails",
+			id:       1,
+			countErr: errors.New("db error"),
+			wantErr:  true,
+		},
+		{
+			name:      "returns not found error on delete",
+			id:        999,
+			itemCount: 0,
+			repoErr:   apperrors.WrapNotFound("estimate", "999"),
+			wantErr:   true,
+			wantNF:    true,
+		},
+		{
+			name:      "returns error on repository delete failure",
+			id:        1,
+			itemCount: 0,
+			repoErr:   errors.New("db error"),
+			wantErr:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockEstimateRepository{
+				countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.itemCount, tt.countErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -510,6 +539,9 @@ func TestEstimateService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

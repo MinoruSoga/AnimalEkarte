@@ -276,8 +276,8 @@ export function ClinicMasterSettings() {
         setIsEditing(false);
         toast.success("削除しました");
       },
-      onError: () => {
-        toast.error("削除に失敗しました");
+      onError: (error) => {
+        handleApiError(error, "削除");
       },
     });
   }, [pendingDeleteId, deleteMutation]);

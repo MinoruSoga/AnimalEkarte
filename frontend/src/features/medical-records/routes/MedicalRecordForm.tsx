@@ -239,11 +239,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setDiagnosis2NameId(id);
   }, [markDirty, setDiagnosis2NameId]);
 
-  const _handleSetTreatmentPlanItems = useCallback<typeof setTreatmentPlanItems>((items) => {
-    markDirty();
-    setTreatmentPlanItems(items);
-  }, [markDirty, setTreatmentPlanItems]);
-
   const handleSelectStaff = useCallback((newStaffId: string, newStaffName: string) => {
     setStaffName(newStaffName);
     if (recordId) {

@@ -4,7 +4,6 @@ import { useNavigate, useParams, useLocation, useSearchParams } from "react-rout
 
 // External
 import { FileText, Trash2, MessageSquare, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 
 // Internal
@@ -25,6 +24,7 @@ import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
@@ -131,7 +131,7 @@ export function HospitalizationForm() {
     }
   }, [selectedPet, isEdit, navigate, petId]);
 
-  if (!selectedPet && !isEdit && petId) return null;
+  if (!selectedPet && !isEdit && petId) return <LoadingFallback />;
   if (!selectedPet && !isEdit) return null;
 
   return (

@@ -129,6 +129,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
     data: hospitalizationData,
     isLoading,
     isError,
+    error: hospitalizationError,
   } = useGetHospitalizationRaw(id);
 
   useEffect(() => {
@@ -168,9 +169,9 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
 
   useEffect(() => {
     if (isError) {
-      toast.error("入院情報の取得に失敗しました");
+      handleApiError(hospitalizationError, "入院情報の取得");
     }
-  }, [isError]);
+  }, [isError, hospitalizationError]);
 
   useEffect(() => {
     if (!petId || id) return;

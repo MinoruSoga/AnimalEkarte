@@ -10,13 +10,13 @@ import type { ReservationStatus } from "@/types";
 // ──────────────────────────────────────────────
 
 export const RESERVATION_STATUS_COLORS = {
-  confirmed:       { label: "予約確定",    dot: "bg-emerald-500", bg: "bg-emerald-50",  text: "text-emerald-700" },
-  pending:         { label: "仮予約",      dot: "bg-sky-500",     bg: "bg-sky-50",      text: "text-sky-700" },
-  checked_in:      { label: "受付済",      dot: "bg-blue-500",    bg: "bg-blue-50",     text: "text-blue-700" },
+  confirmed:       { label: "予約確定",    dot: C.bgStatusEmeraldDot, bg: C.bgStatusEmerald,  text: C.textStatusEmerald },
+  pending:         { label: "仮予約",      dot: C.bgStatusSkyDot,     bg: C.bgStatusSky,      text: C.textStatusSky },
+  checked_in:      { label: "受付済",      dot: C.bgStatusBlueDot,    bg: C.bgStatusBlueLight, text: C.textStatusBlue },
   in_consultation: { label: "診療中",      dot: C.bgStatusPurpleDot, bg: C.bgStatusPurple, text: C.textStatusPurple },
-  accounting:      { label: "会計待ち",    dot: "bg-amber-500",   bg: "bg-amber-50",    text: "text-amber-700" },
+  accounting:      { label: "会計待ち",    dot: C.bgStatusAmberDot,   bg: C.bgStatusAmber,    text: C.textStatusAmber },
   completed:       { label: "完了",        dot: C.bgStatusGrayMedium, bg: C.bgStatusGray, text: C.textStatusGray },
-  cancelled:       { label: "キャンセル",  dot: "bg-red-500",     bg: C.bgRedLight,     text: C.textNotionRed },
+  cancelled:       { label: "キャンセル",  dot: C.bgStatusRedDot,     bg: C.bgRedLight,     text: C.textNotionRed },
 } as const;
 
 /**
@@ -40,7 +40,7 @@ export const VISIT_TYPE_COLORS = {
     border: C.borderRedBadge,
     bg: C.bgRedLight,
     text: C.textNotionRed,
-    dot: "bg-red-500",
+    dot: C.bgStatusRedDot,
     // AppointmentCard バッジ用カラー
     badgeBg: C.bgAccentLight60,
     badgeText: C.textAccentDark90,
@@ -50,7 +50,7 @@ export const VISIT_TYPE_COLORS = {
     border: C.borderAccentBadge,
     bg: C.bgAccentLight,
     text: C.textAccentDark,
-    dot: "bg-blue-500",
+    dot: C.bgStatusBlueDot,
     // AppointmentCard バッジ用カラー
     badgeBg: C.bgPage60,
     badgeText: C.text90,

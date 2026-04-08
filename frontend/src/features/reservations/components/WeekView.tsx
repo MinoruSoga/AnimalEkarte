@@ -9,7 +9,7 @@ import { motion } from "motion/react";
 
 // Internal
 import { getReservationTypeColor, getReservationTypeName } from "@/utils/status-helpers";
-import { C } from "@/lib/design-tokens";
+import { C, PALETTE } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 // Types
@@ -441,8 +441,8 @@ const DayColumn = memo(function DayColumn({
       {/* Current Time Indicator */}
       {isToday ? (
         <div
-          className={`absolute w-full border-t-2 border-red-400 z-20 pointer-events-none`}
-          style={{ top: `${currentTimeTop}px` }}
+          className="absolute w-full border-t-2 z-20 pointer-events-none"
+          style={{ borderColor: PALETTE.danger, top: `${currentTimeTop}px` }}
         >
           <div className={`absolute -left-1 -top-1.5 w-3 h-3 rounded-full ${C.bgNotionRed}`} />
         </div>

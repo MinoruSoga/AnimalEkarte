@@ -103,6 +103,10 @@ func (m *mockReservationForServiceType) FindByStaffAndTimeSlot(_ context.Context
 	return false, nil
 }
 
+func (m *mockReservationForServiceType) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func newTestServiceTypeService(repo *mockServiceTypeRepository) ServiceTypeService {
 	return NewServiceTypeService(repo, &mockReservationForServiceType{})
 }

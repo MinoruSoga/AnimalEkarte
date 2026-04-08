@@ -3,7 +3,6 @@ import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { Activity } from "lucide-react";
-import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
