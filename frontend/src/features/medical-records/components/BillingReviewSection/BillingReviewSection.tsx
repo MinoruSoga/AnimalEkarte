@@ -1,5 +1,5 @@
 // React/Framework
-import { lazy, Suspense, useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 // External
 import { CheckCircle, AlertCircle, Clock } from "lucide-react";
@@ -47,21 +47,26 @@ export function BillingReviewSection({
 }: BillingReviewSectionProps) {
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
   const { user } = useAuth();
+  const userId = Number(user?.id ?? 0);
+  // rerender-defer-reads: userIdRef でコールバック用の最新 userId を保持（JSX では未使用）
+  const userIdRef = useRef<number>(userId);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- userIdRef の更新（副作用なし、ref への書き込みのみ）
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
 
   const { data: review, isLoading } = useGetBillingReview(medicalRecordId);
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
-  const returnMutation = useReturnBillingReview(medicalRecordId);
+  const returnMutation = useReturnBillingReview(medicalRecordId, userId);
 
   const handleConfirm = useCallback(() => {
     confirmMutation.mutate(
-      { confirmed_by: Number(user?.id ?? 0) },
+      { confirmed_by: userIdRef.current },
       {
         onSuccess: () => {
           toast.success("会計を確認しました");
         },
       }
     );
-  }, [confirmMutation, user?.id]);
+  }, [confirmMutation]);
 
   const handleReturnSubmit = useCallback((reason: string) => {
     returnMutation.mutate(

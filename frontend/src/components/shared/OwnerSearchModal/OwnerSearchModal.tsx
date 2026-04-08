@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useCallback, useMemo, useDeferredValue, useTransition, memo } from "react";
+import { useState, useCallback, useDeferredValue, useTransition, memo } from "react";
 
 // External
 import { Search, Users } from "lucide-react";
@@ -107,7 +107,7 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
 
   const isFiltering = searchTerm !== deferredSearch;
 
-  const filteredOwners = useMemo(() => owners, [owners]);
+  const filteredOwners = owners;
 
   return (
     <>

@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { memo, useCallback } from "react";
+import { memo, useCallback, useMemo } from "react";
 
 // External
 import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -153,10 +153,15 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
     return acc;
   }, {} as Record<string, MasterItem[]>);
 
-  // Helper to find hospitalization for a cage
-  const getOccupant = (cageId: string) => {
-    return hospitalizations.find(h => h.cageId === cageId && h.status === "入院中");
-  };
+  // js-index-maps: cageId → Hospitalization の Map を事前構築（O(n)）しレンダーループ内で O(1) 検索
+  const occupantByCageId = useMemo(
+    () => new Map(
+      hospitalizations
+        .filter(h => h.status === "入院中")
+        .map(h => [h.cageId, h])
+    ),
+    [hospitalizations]
+  );
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -168,7 +173,7 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {areaCages.map(cage => {
-                const occupant = getOccupant(String(cage.id));
+                const occupant = occupantByCageId.get(String(cage.id));
                 return (
                   <CageCard
                       key={cage.id}
