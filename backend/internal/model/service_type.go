@@ -4,6 +4,16 @@ import (
 	"time"
 )
 
+// ReservationDayOption defines which weekdays a service type is available for LINE reservation.
+type ReservationDayOption string
+
+const (
+	DayOptionNone     ReservationDayOption = "none"
+	DayOptionSaturday ReservationDayOption = "saturday"
+	DayOptionWeekday  ReservationDayOption = "weekday"
+	DayOptionAnyday   ReservationDayOption = "anyday"
+)
+
 type ServiceType struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`
@@ -14,6 +24,16 @@ type ServiceType struct {
 	SortOrder   int       `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+
+	// LINE予約用フィールド
+	DurationMinutes      int                  `gorm:"not null;default:15"                        json:"duration_minutes"`
+	ShortName            string               `gorm:"not null;default:''"                        json:"short_name"`
+	ShowShortName        bool                 `gorm:"not null;default:false"                     json:"show_short_name"`
+	ReservationVisible   bool                 `gorm:"not null;default:true"                      json:"reservation_visible"`
+	ReservationComment   string               `gorm:"not null;default:''"                        json:"reservation_comment"`
+	ReservationImageURL  string               `gorm:"not null;default:''"                        json:"reservation_image_url"`
+	ReservationDayOption ReservationDayOption `gorm:"not null;default:'none'"                    json:"reservation_day_option"`
+	IsInternal           bool                 `gorm:"not null;default:false"                     json:"is_internal"`
 }
 
 func (ServiceType) TableName() string { return "service_types" }
