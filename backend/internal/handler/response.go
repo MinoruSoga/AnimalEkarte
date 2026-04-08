@@ -256,3 +256,20 @@ func parsePagination(c *gin.Context) (page, limit int, err error) {
 
 	return page, limit, nil
 }
+
+// extractClinicIDFromParam は URL path parameter :clinicId を取得してパースする。
+// 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
+// 呼び出し元は false 時に即 return すること。
+func extractClinicIDFromParam(c *gin.Context) (uint64, bool) {
+	s := c.Param("clinicId")
+	if s == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing clinicId"})
+		return 0, false
+	}
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid clinicId"})
+		return 0, false
+	}
+	return id, true
+}

@@ -62,6 +62,13 @@ type Repositories struct {
 	BillingItem            BillingItemRepository
 	Refund                 RefundRepository
 	Audit                  AuditRepository
+	// LINE予約
+	ReservationSetting     ReservationSettingRepository
+	ReservationCourse      ReservationCourseRepository
+	ReservationStaff       ReservationStaffRepository
+	ReservationSchedule    ReservationScheduleRepository
+	ReservationAdmin       ReservationAdminRepository
+	ReservationCustomerMgr ReservationCustomerRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -118,6 +125,12 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		BillingItem:            NewBillingItemRepository(db),
 		Refund:                 NewRefundRepository(db),
 		Audit:                  NewAuditRepository(db),
+		ReservationSetting:     NewReservationSettingRepository(db),
+		ReservationCourse:      NewReservationCourseRepository(db),
+		ReservationStaff:       NewReservationStaffRepository(db),
+		ReservationSchedule:    NewReservationScheduleRepository(db),
+		ReservationAdmin:       NewReservationAdminRepository(db),
+		ReservationCustomerMgr: NewReservationCustomerRepository(db),
 	}
 }
 
