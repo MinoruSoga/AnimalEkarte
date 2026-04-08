@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 interface ExaminationFilterProps {
   searchTerm: string;
@@ -28,16 +29,19 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
   dateEnd,
   onDateEndChange,
 }: ExaminationFilterProps) {
+  const { canCreate } = usePermission("medical-records");
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
-        <Button
-          size="sm"
-          className={`${C.bgAccent} ${C.bgAccentHover} text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
-        >
-          <FileText className={ICON.action} />
-          検査取り込み
-        </Button>
+        {canCreate ? (
+          <Button
+            size="sm"
+            className={`${C.bgAccent} ${C.bgAccentHover} text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
+          >
+            <FileText className={ICON.action} />
+            検査取り込み
+          </Button>
+        ) : null}
       </div>
 
       {/* Filters */}

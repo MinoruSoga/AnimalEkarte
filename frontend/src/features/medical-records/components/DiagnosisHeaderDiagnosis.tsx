@@ -25,6 +25,7 @@ interface DiagnosisHeaderDiagnosisProps {
   setDiagnosis2CategoryId?: (id: number | null) => void;
   diagnosis2NameId?: number | null;
   setDiagnosis2NameId?: (id: number | null) => void;
+  canEdit: boolean;
 }
 
 export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagnosis({
@@ -38,6 +39,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
   setDiagnosis2CategoryId,
   diagnosis2NameId,
   setDiagnosis2NameId,
+  canEdit,
 }: DiagnosisHeaderDiagnosisProps) {
   const { data: categories = [], isLoading: isCategoriesLoading } = useGetDiagnosisCategories();
   const { data: names1 = [], isLoading: isNames1Loading } = useGetDiagnosisNames(diagnosis1CategoryId);
@@ -64,7 +66,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
                   setDiagnosis1CategoryId?.(value ? Number(value) : null);
                   setDiagnosis1NameId?.(null);
                 }}
-                disabled={isCategoriesLoading}
+                disabled={isCategoriesLoading || !canEdit}
               >
                 <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
                   <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
@@ -80,7 +82,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
               <Select
                 value={diagnosis1NameId ? String(diagnosis1NameId) : ""}
                 onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
-                disabled={isNames1Loading || !diagnosis1CategoryId}
+                disabled={isNames1Loading || !diagnosis1CategoryId || !canEdit}
               >
                 <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
                   <SelectValue placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"} />
@@ -105,7 +107,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
                   setDiagnosis2CategoryId?.(value ? Number(value) : null);
                   setDiagnosis2NameId?.(null);
                 }}
-                disabled={isCategoriesLoading}
+                disabled={isCategoriesLoading || !canEdit}
               >
                 <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
                   <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
@@ -121,7 +123,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
               <Select
                 value={diagnosis2NameId ? String(diagnosis2NameId) : ""}
                 onValueChange={(value) => setDiagnosis2NameId?.(value ? Number(value) : null)}
-                disabled={isNames2Loading || !diagnosis2CategoryId}
+                disabled={isNames2Loading || !diagnosis2CategoryId || !canEdit}
               >
                 <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
                   <SelectValue placeholder={isNames2Loading ? "読み込み中..." : "病名を選択"} />
@@ -145,6 +147,7 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
               value={diagnosisDetails}
               onChange={(e) => setDiagnosisDetails(e.target.value)}
               className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 font-mono ${C.focusRingMedicalBlue}`}
+              disabled={!canEdit}
             />
           </div>
         </CardContent>

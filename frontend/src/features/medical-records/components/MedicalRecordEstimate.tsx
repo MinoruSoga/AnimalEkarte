@@ -8,6 +8,7 @@ import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetEstimateByRecord, useCreateEstimateRecord, useUpdateEstimateRecord } from "../api/save-estimate";
 import { C } from "@/lib/design-tokens";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 interface MedicalRecordEstimateProps {
   isNewRecord?: boolean;
@@ -28,6 +29,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
   const [, startSaveTransition] = useTransition();
 
+  const { canEdit } = usePermission("medical-records");
   const [items, setItems] = useState<TreatmentItem[]>([]);
 
   // Load existing estimate
@@ -154,7 +156,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   return (
     <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-10 pr-1">
       {/* Subject */}
-      <EstimateForm subject={subject} onSubjectChange={setSubject} />
+      <EstimateForm subject={subject} onSubjectChange={setSubject} canEdit={canEdit} />
 
       {/* Items Table */}
       <TreatmentTable
@@ -163,6 +165,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
         onRemove={handleRemoveItem}
         onAddRow={handleAddItem}
         showStatus={false}
+        disabled={!canEdit}
       />
 
       {/* Summary Table */}
@@ -174,6 +177,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
         discountAmount={globalDiscountAmount}
         onUpdateDiscountAmount={setGlobalDiscountAmount}
         isDiscountRateReadonly
+        disabled={!canEdit}
       />
 
       {/* Comments & Remarks */}
@@ -186,6 +190,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             className={`bg-white ${C.borderMedium} min-h-[60px] resize-none p-2 text-sm ${C.text}`}
+            disabled={!canEdit}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -196,6 +201,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
             className={`bg-white ${C.borderMedium} min-h-[60px] resize-none p-2 text-sm ${C.text}`}
+            disabled={!canEdit}
           />
         </div>
       </div>

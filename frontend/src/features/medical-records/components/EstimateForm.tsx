@@ -9,11 +9,13 @@ import { C } from "@/lib/design-tokens";
 interface EstimateFormProps {
   subject: string;
   onSubjectChange: (value: string) => void;
+  canEdit: boolean;
 }
 
 export const EstimateForm = React.memo(function EstimateForm({
   subject,
   onSubjectChange,
+  canEdit,
 }: EstimateFormProps) {
   return (
     <div className="flex flex-col gap-1.5 w-[300px]">
@@ -24,6 +26,7 @@ export const EstimateForm = React.memo(function EstimateForm({
         value={subject}
         onChange={(e) => onSubjectChange(e.target.value)}
         className={`bg-white ${C.borderMedium} h-10 text-sm`}
+        disabled={!canEdit}
       />
     </div>
   );
