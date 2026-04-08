@@ -76,7 +76,11 @@ export function BillingReviewSection({
   }
 
   if (!review) {
-    return null;
+    return (
+      <div className={`flex items-center gap-2 px-3 py-1.5 text-sm ${C.text60}`}>
+        会計確認データがありません
+      </div>
+    );
   }
 
   const status = review.status as BillingReviewStatus;

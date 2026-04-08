@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Animal Ekarte - 初期スキーマ定義 v19.0
 -- PostgreSQL 18
--- テーブル数: 56
+-- テーブル数: 59
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -1164,6 +1164,7 @@ CREATE TABLE billing_items (
     merchandise_item_id     bigint,
     sort_order              integer                DEFAULT 0,
     created_at              timestamptz   NOT NULL DEFAULT now(),
+    updated_at              timestamptz   NOT NULL DEFAULT now(),
     deleted_at              timestamptz,
     CONSTRAINT chk_billing_item_quantity CHECK (quantity > 0)
 );
@@ -1186,7 +1187,8 @@ CREATE TABLE payments (
     change_amount    bigint                  DEFAULT 0,
     method           payment_method          DEFAULT 'cash',
     created_at       timestamptz    NOT NULL DEFAULT now(),
-    updated_at       timestamptz    NOT NULL DEFAULT now()
+    updated_at       timestamptz    NOT NULL DEFAULT now(),
+    deleted_at       timestamptz
 );
 
 -- ------------------------------------

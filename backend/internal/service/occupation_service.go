@@ -23,10 +23,10 @@ type UpdateOccupationInput struct {
 
 type OccupationService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
-	GetByID(ctx context.Context, id uint64) (*model.Occupation, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
 	Create(ctx context.Context, occupation *model.Occupation) error
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateOccupationInput) (*model.Occupation, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -42,8 +42,8 @@ func (s *occupationService) List(ctx context.Context, clinicID uint64) ([]model.
 	return s.repo.FindAll(ctx, clinicID)
 }
 
-func (s *occupationService) GetByID(ctx context.Context, id uint64) (*model.Occupation, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *occupationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 
 func (s *occupationService) Create(ctx context.Context, occupation *model.Occupation) error {
@@ -67,10 +67,10 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 	slog.InfoContext(ctx, "occupation updated",
 		slog.Uint64("occupation_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, id)
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 
-func (s *occupationService) Delete(ctx context.Context, id uint64) error {
+func (s *occupationService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountStaffsByOccupationID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check occupation dependencies")
@@ -78,7 +78,7 @@ func (s *occupationService) Delete(ctx context.Context, id uint64) error {
 	if count > 0 {
 		return apperrors.WrapConflict("この役職はスタッフ情報で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func (s *occupationService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

@@ -259,8 +259,6 @@ func (h *Handler) Login(c *gin.Context) {
 	slog.InfoContext(ctx, "login successful", slog.String("email", account.Email), slog.Uint64("staff_id", staff.ID))
 
 	c.JSON(http.StatusOK, LoginResponse{
-		Token:         accessTokenStr,
-		ExpiresAt:     expiresAt.Unix(),
 		IsSystemAdmin: account.IsSystemAdmin,
 		User:          buildMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap),
 	})
@@ -313,7 +311,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 
 	tokenStr, err := c.Cookie(refreshTokenCookieName)
 	if err != nil || tokenStr == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token not found"})
+		RespondError(c, apperrors.WrapUnauthorized("refresh token not found"))
 		return
 	}
 
@@ -325,29 +323,29 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		}
 		return []byte(h.cfg.JWTSecret), nil
 	}); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired refresh token"})
+		RespondError(c, apperrors.WrapUnauthorized("invalid or expired refresh token"))
 		return
 	}
 
 	// Subject が "refresh" であることを確認（access_token の流用を防止）
 	if claims.Subject != "refresh" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token type"})
+		RespondError(c, apperrors.WrapUnauthorized("invalid token type"))
 		return
 	}
 
 	// staff の有効性チェック
 	staffID, parseErr := strconv.ParseUint(claims.UserID, 10, 64)
 	if parseErr != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		RespondError(c, apperrors.WrapUnauthorized("invalid token"))
 		return
 	}
 	staff, findErr := h.repos.Staff.FindByID(ctx, staffID)
 	if findErr != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		RespondError(c, apperrors.WrapUnauthorized("user not found"))
 		return
 	}
 	if !staff.IsActive {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "このアカウントは無効です"})
+		RespondError(c, apperrors.WrapUnauthorized("このアカウントは無効です"))
 		return
 	}
 

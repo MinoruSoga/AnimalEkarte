@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useEffect, useCallback, useActionState, useTransition } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,12 +7,14 @@ import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { Shift, ShiftType, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
 import { SHIFT_TYPE_LABELS } from "@/features/shifts/types";
 import { ShiftTypeOff } from "@/types/generated/models";
-import { useCreateShift } from "@/features/shifts/api/create-shift";
-import { useUpdateShift } from "@/features/shifts/api/update-shift";
+import { createShift } from "@/features/shifts/api/create-shift";
+import { updateShift } from "@/features/shifts/api/update-shift";
 import { useDeleteShift } from "@/features/shifts/api/delete-shift";
+import { handleApiError } from "@/lib/handle-api-error";
 
 /**
  * バックエンドから "HH:MM:SS" 形式で来る時刻を "HH:mm" に正規化する。
@@ -44,11 +47,8 @@ interface ShiftFormDialogProps {
   canDelete?: boolean;
 }
 
-interface FormValues {
-  shiftType: ShiftType;
-  startTime: string;
-  endTime: string;
-  note: string;
+interface FormActionState {
+  timeError?: string;
 }
 
 export function ShiftFormDialog({
@@ -62,90 +62,83 @@ export function ShiftFormDialog({
   canDelete = false,
 }: ShiftFormDialogProps) {
   const isEdit = editShift !== undefined;
+  const queryClient = useQueryClient();
 
-  const [form, setForm] = useState<FormValues>(() => ({
-    shiftType: editShift?.shift_type ?? "full",
-    startTime: normalizeTimeToHHmm(editShift?.start_time ?? ""),
-    endTime: normalizeTimeToHHmm(editShift?.end_time ?? ""),
-    note: editShift?.note ?? "",
-  }));
-  const [timeError, setTimeError] = useState<string>("");
+  // Controlled state for Select and time inputs (needed for UI feedback and FormData relay)
+  const [shiftType, setShiftType] = useState<ShiftType>(() => editShift?.shift_type ?? "full");
+  const [startTime, setStartTime] = useState(() => normalizeTimeToHHmm(editShift?.start_time ?? ""));
+  const [endTime, setEndTime] = useState(() => normalizeTimeToHHmm(editShift?.end_time ?? ""));
 
   useEffect(() => {
     if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ open 時のフォームリセットパターン
-      setForm({
-        shiftType: editShift?.shift_type ?? "full",
-        startTime: normalizeTimeToHHmm(editShift?.start_time ?? ""),
-        endTime: normalizeTimeToHHmm(editShift?.end_time ?? ""),
-        note: editShift?.note ?? "",
-      });
-      setTimeError("");
+      setShiftType(editShift?.shift_type ?? "full");
+      setStartTime(normalizeTimeToHHmm(editShift?.start_time ?? ""));
+      setEndTime(normalizeTimeToHHmm(editShift?.end_time ?? ""));
     }
   }, [open, editShift]);
 
-  const { mutateAsync: createShift } = useCreateShift();
-  const { mutateAsync: updateShift } = useUpdateShift();
+  const formAction = useCallback(
+    async (_prevState: FormActionState, formData: FormData): Promise<FormActionState> => {
+      const resolvedShiftType = (formData.get("shiftType") as ShiftType) ?? shiftType;
+      const resolvedStartTime = (formData.get("startTime") as string) ?? "";
+      const resolvedEndTime = (formData.get("endTime") as string) ?? "";
+
+      if (resolvedStartTime && resolvedEndTime && resolvedEndTime <= resolvedStartTime) {
+        return { timeError: "終了時刻は開始時刻より後に設定してください" };
+      }
+
+      try {
+        if (isEdit && editShift) {
+          const input: UpdateShiftInput = {
+            shift_type: resolvedShiftType,
+            start_time: resolvedStartTime || undefined,
+            end_time: resolvedEndTime || undefined,
+            note: (formData.get("note") as string) || undefined,
+          };
+          await updateShift(editShift.id, input);
+        } else {
+          const input: CreateShiftInput = {
+            staff_id: staffId,
+            date,
+            shift_type: resolvedShiftType,
+            start_time: resolvedStartTime || undefined,
+            end_time: resolvedEndTime || undefined,
+            note: (formData.get("note") as string) || undefined,
+          };
+          await createShift(input);
+        }
+        await queryClient.invalidateQueries({ queryKey: ["shifts"] });
+        onClose();
+        return {};
+      } catch (err) {
+        handleApiError(err, isEdit ? "シフト更新" : "シフト追加");
+        return {};
+      }
+    },
+    [isEdit, editShift, staffId, date, shiftType, queryClient, onClose],
+  );
+
+  const [state, dispatchFormAction, isPending] = useActionState<FormActionState, FormData>(formAction, {});
+
   const { mutateAsync: deleteShift } = useDeleteShift();
-  const [isPending, startSaveTransition] = useTransition();
   const [isDeletePending, startDeleteTransition] = useTransition();
   // BUG-093: 削除確認ダイアログの表示状態
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   // BUG-092: 休日・有休は時刻入力不要
-  const isTimeFieldDisabled = form.shiftType === ShiftTypeOff;
-
-  const handleSubmit = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      if (form.startTime && form.endTime && form.endTime <= form.startTime) {
-        setTimeError("終了時刻は開始時刻より後に設定してください");
-        return;
-      }
-      setTimeError("");
-      startSaveTransition(async () => {
-        try {
-          if (isEdit && editShift) {
-            const input: UpdateShiftInput = {
-              shift_type: form.shiftType,
-              start_time: form.startTime || undefined,
-              end_time: form.endTime || undefined,
-              note: form.note || undefined,
-            };
-            await updateShift({ id: editShift.id, input });
-          } else {
-            const input: CreateShiftInput = {
-              staff_id: staffId,
-              date,
-              shift_type: form.shiftType,
-              start_time: form.startTime || undefined,
-              end_time: form.endTime || undefined,
-              note: form.note || undefined,
-            };
-            await createShift(input);
-          }
-          onClose();
-        } catch {
-          // エラーはReact QueryがToast等で処理
-        }
-      });
-    },
-    [form, isEdit, editShift, staffId, date, updateShift, createShift, onClose],
-  );
+  const isTimeFieldDisabled = shiftType === ShiftTypeOff;
 
   const handleShiftTypeChange = useCallback((value: string) => {
-    setForm((prev) => ({ ...prev, shiftType: value as ShiftType }));
+    setShiftType(value as ShiftType);
   }, []);
 
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const { name, value } = e.target;
-      setForm((prev) => ({ ...prev, [name]: value }));
-      if (name === "startTime" || name === "endTime") {
-        setTimeError("");
-      }
-    },
-    [],
-  );
+  const handleStartTimeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setStartTime(e.target.value);
+  }, []);
+
+  const handleEndTimeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEndTime(e.target.value);
+  }, []);
 
   // BUG-093: 削除確認後に実際の削除を実行
   const handleDeleteConfirm = useCallback(() => {
@@ -178,10 +171,13 @@ export function ShiftFormDialog({
           </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form action={dispatchFormAction} className="space-y-4">
+          {/* hidden input を経由してコントロール値を FormData に渡す */}
+          <input type="hidden" name="shiftType" value={shiftType} />
+
           <div className="space-y-1.5">
             <Label htmlFor="shift-type">シフト種別</Label>
-            <Select value={form.shiftType} onValueChange={handleShiftTypeChange}>
+            <Select value={shiftType} onValueChange={handleShiftTypeChange}>
               <SelectTrigger id="shift-type">
                 <SelectValue />
               </SelectTrigger>
@@ -198,8 +194,8 @@ export function ShiftFormDialog({
                   id="start-time"
                   name="startTime"
                   type="time"
-                  value={form.startTime}
-                  onChange={handleInputChange}
+                  value={startTime}
+                  onChange={handleStartTimeChange}
                   disabled={isTimeFieldDisabled}
                 />
               </div>
@@ -209,14 +205,14 @@ export function ShiftFormDialog({
                   id="end-time"
                   name="endTime"
                   type="time"
-                  value={form.endTime}
-                  onChange={handleInputChange}
+                  value={endTime}
+                  onChange={handleEndTimeChange}
                   disabled={isTimeFieldDisabled}
                 />
               </div>
             </div>
-            {timeError ? (
-              <FormFieldError message={timeError} />
+            {state.timeError ? (
+              <FormFieldError message={state.timeError} />
             ) : null}
           </div>
 
@@ -226,8 +222,7 @@ export function ShiftFormDialog({
               id="note"
               name="note"
               placeholder="メモ（任意）"
-              value={form.note}
-              onChange={handleInputChange}
+              defaultValue={editShift?.note ?? ""}
             />
           </div>
 
@@ -247,9 +242,9 @@ export function ShiftFormDialog({
               キャンセル
             </Button>
             {canEdit ? (
-              <Button type="submit" size="sm" disabled={isPending || isDeletePending}>
-                {isPending ? "保存中..." : "保存"}
-              </Button>
+              <SubmitButton size="sm" disabled={isDeletePending}>
+                保存
+              </SubmitButton>
             ) : null}
           </DialogFooter>
         </form>

@@ -16,12 +16,16 @@ import (
 
 // GetChiefComplaint godoc
 func (h *Handler) GetChiefComplaint(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	category, err := h.svc.ChiefComplaintCategory.GetByID(c.Request.Context(), id)
+	category, err := h.svc.ChiefComplaintCategory.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -105,12 +109,16 @@ func (h *Handler) UpdateChiefComplaint(c *gin.Context) {
 
 // DeleteChiefComplaint godoc
 func (h *Handler) DeleteChiefComplaint(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.ChiefComplaintCategory.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.ChiefComplaintCategory.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

@@ -124,12 +124,12 @@ export const TreatmentTable = memo(function TreatmentTable({
               <Cell
                 align="center"
                 onClick={disabled ? undefined : () => onUpdate(item.id, "insurance", !item.insurance)}
-                className={disabled ? undefined : "cursor-pointer hover:bg-gray-50"}
+                className={disabled ? undefined : `cursor-pointer ${C.hoverBgPage}`}
               >
                 {item.insurance ? (
                   <Circle className={`${ICON.action} ${C.textRedIcon}`} />
                 ) : (
-                  <X className={`${ICON.action} text-gray-300`} />
+                  <X className={`${ICON.action} ${C.text25}`} />
                 )}
               </Cell>
               <Cell>

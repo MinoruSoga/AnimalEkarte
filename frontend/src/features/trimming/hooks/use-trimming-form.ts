@@ -1,6 +1,7 @@
 import { useState, useEffect, useTransition, useCallback, useMemo, useRef, useActionState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetTrimming } from "../api/get-trimming";
@@ -171,8 +172,8 @@ export function useTrimmingForm(id?: string) {
           toast.success("トリミング情報を登録しました");
         }
         return { success: true, timestamp: Date.now() };
-      } catch {
-        toast.error("保存に失敗しました");
+      } catch (error) {
+        handleApiError(error, "保存");
         return { success: false, timestamp: Date.now() };
       }
     },

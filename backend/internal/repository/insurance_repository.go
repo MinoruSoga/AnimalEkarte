@@ -15,10 +15,10 @@ import (
 
 type InsuranceRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
-	FindByID(ctx context.Context, id uint64) (*model.Insurance, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
 	Create(ctx context.Context, insurance *model.Insurance) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountPetsByInsuranceID(ctx context.Context, insuranceID uint64) (int64, error)
 }
@@ -36,9 +36,9 @@ func (r *insuranceRepository) FindAll(ctx context.Context, clinicID uint64) ([]m
 	return insurances, nil
 }
 
-func (r *insuranceRepository) FindByID(ctx context.Context, id uint64) (*model.Insurance, error) {
+func (r *insuranceRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error) {
 	var insurance model.Insurance
-	err := r.db.WithContext(ctx).First(&insurance, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&insurance, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "insurance", fmt.Sprintf("%d", id))
 	}
@@ -67,11 +67,11 @@ func (r *insuranceRepository) UpdateFields(ctx context.Context, clinicID, id uin
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("insurance", fmt.Sprintf("%d", id))
 	}
-	return r.FindByID(ctx, id)
+	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *insuranceRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Insurance{}, "id = ?", id)
+func (r *insuranceRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.Insurance{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "insurance", fmt.Sprintf("%d", id))
 	}

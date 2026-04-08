@@ -15,10 +15,10 @@ import (
 
 type HospitalizationPlanRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
-	FindByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountCarePlanItemsByPlanID(ctx context.Context, planID uint64) (int64, error)
 }
@@ -38,9 +38,9 @@ func (r *hospitalizationPlanRepository) FindAll(ctx context.Context, clinicID ui
 	return plans, nil
 }
 
-func (r *hospitalizationPlanRepository) FindByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error) {
+func (r *hospitalizationPlanRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error) {
 	var plan model.HospitalizationPlan
-	err := r.db.WithContext(ctx).First(&plan, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&plan, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization_plan", fmt.Sprintf("%d", id))
 	}
@@ -69,11 +69,11 @@ func (r *hospitalizationPlanRepository) UpdateFields(ctx context.Context, clinic
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("hospitalization_plan", fmt.Sprintf("%d", id))
 	}
-	return r.FindByID(ctx, id)
+	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *hospitalizationPlanRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.HospitalizationPlan{}, "id = ?", id)
+func (r *hospitalizationPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.HospitalizationPlan{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "hospitalization_plan", fmt.Sprintf("%d", id))
 	}

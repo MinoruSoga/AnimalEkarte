@@ -51,7 +51,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
 
                 {/* Daily Records Tab */}
                 <div className={`w-full min-w-0 bg-white rounded-lg border ${C.borderMedium} shadow-sm flex flex-col overflow-hidden`}>
-                    <div className={`px-3 py-2 border-b ${C.borderLight} bg-gray-50/50 flex items-center justify-between shrink-0`}>
+                    <div className={`px-3 py-2 border-b ${C.borderLight} ${C.bgPage60} flex items-center justify-between shrink-0`}>
                         <div className={`flex items-center gap-1.5 font-bold ${C.text} text-sm`}>
                             <FileText className={`${ICON.action} ${C.textMedicalBlue}`} />
                             デイリーカルテ

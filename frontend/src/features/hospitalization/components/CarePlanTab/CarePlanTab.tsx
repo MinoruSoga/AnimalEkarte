@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON, C } from "@/lib/design-tokens";
+import { ICON, C, BADGE } from "@/lib/design-tokens";
 import { useState, useCallback, useMemo } from "react";
 
 // External
@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 // Relative
 import { useGetCarePlanItems, useCreateCarePlanItem, useUpdateCarePlanItem, useDeleteCarePlanItem } from "@/features/hospitalization/api/care-plan-items";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type { CarePlanItem, CarePlanItemType, CarePlanTiming, UpdateCarePlanItemInput } from "@/features/hospitalization/api/care-plan-items";
@@ -49,30 +49,30 @@ const TYPE_SELECT_ITEMS = (
 // ---- Helper functions ----
 
 function TypeIcon({ type }: { type: CarePlanItemType }) {
-    if (type === "food") return <Utensils className={`${ICON.action} text-orange-500 shrink-0`} />;
-    if (type === "medicine") return <Pill className={`${ICON.action} text-blue-500 shrink-0`} />;
-    if (type === "treatment") return <Stethoscope className={`${ICON.action} text-purple-500 shrink-0`} />;
-    if (type === "instruction") return <ClipboardList className={`${ICON.action} text-green-500 shrink-0`} />;
-    return <MoreHorizontal className={`${ICON.action} text-gray-400 shrink-0`} />;
+    if (type === "food") return <Utensils className={`${ICON.action} ${C.textDiscount} shrink-0`} />;
+    if (type === "medicine") return <Pill className={`${ICON.action} ${C.accent} shrink-0`} />;
+    if (type === "treatment") return <Stethoscope className={`${ICON.action} ${C.textStatusPurple} shrink-0`} />;
+    if (type === "instruction") return <ClipboardList className={`${ICON.action} ${C.textStatusGreen} shrink-0`} />;
+    return <MoreHorizontal className={`${ICON.action} ${C.text40} shrink-0`} />;
 }
 
 function StatusBadge({ status }: { status: CarePlanItem["status"] }) {
     if (status === "active") {
         return (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${BADGE.blueNoBorder}`}>
                 実施中
             </span>
         );
     }
     if (status === "completed") {
         return (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${BADGE.greenNoBorder}`}>
                 完了
             </span>
         );
     }
     return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${BADGE.grayNoBorder}`}>
             中止
         </span>
     );
@@ -86,8 +86,8 @@ function TimingBadges({ timing }: { timing: CarePlanTiming[] }) {
                     key={opt.value}
                     className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
                         timing.includes(opt.value)
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "bg-gray-50 text-gray-300"
+                            ? BADGE.blueNoBorder
+                            : `${C.bgPage} ${C.text30}`
                     }`}
                 >
                     {opt.label}
@@ -123,7 +123,7 @@ function EditRow({ item, onSave, onCancel, isSaving }: EditRowProps) {
     }, [name, type, timing, onSave]);
 
     return (
-        <div className="flex flex-col gap-2 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+        <div className={`flex flex-col gap-2 p-3 ${C.bgAccent5} rounded-lg border ${C.borderAccentLight}`}>
             <div className="flex gap-2 items-center">
                 <Select value={type} onValueChange={(v) => setType(v as CarePlanItemType)}>
                     <SelectTrigger className="w-28 h-8 text-xs">
@@ -139,7 +139,7 @@ function EditRow({ item, onSave, onCancel, isSaving }: EditRowProps) {
                 />
             </div>
             <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-500 shrink-0">タイミング:</span>
+                <span className={`text-xs ${C.text50} shrink-0`}>タイミング:</span>
                 <div className="flex gap-2">
                     {TIMING_OPTIONS.map((opt) => (
                         <label key={opt.value} className="flex items-center gap-1 cursor-pointer">
@@ -189,7 +189,7 @@ interface ItemRowProps {
 
 function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
     return (
-        <div className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors">
+        <div className={`flex items-center gap-3 py-2 px-3 rounded-lg ${C.hoverBgPage} transition-colors`}>
             <TypeIcon type={item.type} />
             <span className={`flex-1 text-sm font-medium ${C.text} truncate`}>{item.name}</span>
             <TimingBadges timing={item.timing} />
@@ -267,7 +267,7 @@ function AddForm({ onSubmit, isSubmitting }: AddFormProps) {
                 </div>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-500 shrink-0">タイミング:</span>
+                        <span className={`text-xs ${C.text50} shrink-0`}>タイミング:</span>
                         <div className="flex gap-2">
                             {TIMING_OPTIONS.map((opt) => (
                                 <label key={opt.value} className="flex items-center gap-1 cursor-pointer">

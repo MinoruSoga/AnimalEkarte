@@ -2,7 +2,7 @@
 import React from "react";
 
 // Internal
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Relative
 import { DiagnosisHeaderChiefComplaint } from "./DiagnosisHeaderChiefComplaint";

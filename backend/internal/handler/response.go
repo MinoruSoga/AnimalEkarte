@@ -36,6 +36,13 @@ func RespondError(c *gin.Context, err error) {
 			msg = appErr.Message
 		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+	case errors.Is(err, apperrors.ErrConflict):
+		var appErr *apperrors.AppError
+		msg := "resource conflict"
+		if errors.As(err, &appErr) {
+			msg = appErr.Message
+		}
+		c.JSON(http.StatusConflict, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrAlreadyExists):
 		var appErr *apperrors.AppError
 		msg := "resource already exists"

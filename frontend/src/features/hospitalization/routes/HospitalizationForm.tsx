@@ -5,6 +5,7 @@ import { useNavigate, useParams, useLocation, useSearchParams } from "react-rout
 // External
 import { FileText, Trash2, MessageSquare, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -105,7 +106,7 @@ export function HospitalizationForm() {
       onSuccess: () => {
         navigate(paths.hospitalization.getHref());
       },
-      onError: () => toast.error("削除に失敗しました"),
+      onError: (error) => handleApiError(error, "削除"),
     });
   }, [hospitalizationId, deleteMutation, navigate]);
 

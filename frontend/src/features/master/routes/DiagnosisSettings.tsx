@@ -16,6 +16,7 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
 import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -45,7 +46,7 @@ import type {
   UpdateDiagnosisNameRequest,
 } from "@/types/diagnosis";
 import { ResourceMasterMedical } from "@/types/generated/models";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // ─────────────────────────────────────────────────
 // Columns
@@ -537,7 +538,7 @@ export function DiagnosisSettings() {
             { id: catEditTarget.id, req },
             {
               onSuccess: () => { toast.success("更新しました"); catHandleClose(); },
-              onError: () => toast.error("更新に失敗しました"),
+              onError: (error) => handleApiError(error, "更新"),
             },
           );
         } else {
@@ -548,7 +549,7 @@ export function DiagnosisSettings() {
           };
           createCategoryMutation.mutate(req, {
             onSuccess: () => { toast.success("登録しました"); catHandleClose(); },
-            onError: () => toast.error("登録に失敗しました"),
+            onError: (error) => handleApiError(error, "登録"),
           });
         }
       });
@@ -578,7 +579,7 @@ export function DiagnosisSettings() {
             { id: nameEditTarget.id, req },
             {
               onSuccess: () => { toast.success("更新しました"); nameHandleClose(); },
-              onError: () => toast.error("更新に失敗しました"),
+              onError: (error) => handleApiError(error, "更新"),
             },
           );
         } else {
@@ -590,7 +591,7 @@ export function DiagnosisSettings() {
           };
           createNameMutation.mutate(req, {
             onSuccess: () => { toast.success("登録しました"); nameHandleClose(); },
-            onError: () => toast.error("登録に失敗しました"),
+            onError: (error) => handleApiError(error, "登録"),
           });
         }
       });

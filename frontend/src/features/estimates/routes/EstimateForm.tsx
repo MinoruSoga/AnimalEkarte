@@ -1,4 +1,5 @@
 import { ICON, C } from "@/lib/design-tokens";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 import { memo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { FileText } from 'lucide-react';
@@ -60,7 +61,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
       {/* タイトル */}
       <div className="space-y-1.5">
         <Label htmlFor="title" className={`text-sm font-medium ${C.text}`}>
-          タイトル <span className="text-red-500">*</span>
+          タイトル <span className={C.textRequired}>*</span>
         </Label>
         <Input
           id="title"
@@ -279,11 +280,7 @@ function EstimateFormContent({ id }: { id?: string }) {
   );
 
   if (isEdit && isLoading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   return (

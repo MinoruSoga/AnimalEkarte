@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sync"
@@ -22,21 +23,28 @@ type RateLimitStore struct {
 	mu       sync.RWMutex
 }
 
-// NewRateLimitStore はRateLimitStoreを初期化してバックグラウンドクリーンアップを開始する
-func NewRateLimitStore() *RateLimitStore {
+// NewRateLimitStore はRateLimitStoreを初期化してバックグラウンドクリーンアップを開始する。
+// ctx がキャンセルされると cleanupLoop ゴルーチンも終了する。
+func NewRateLimitStore(ctx context.Context) *RateLimitStore {
 	s := &RateLimitStore{
 		limiters: make(map[string]*limiterEntry),
 	}
-	go s.cleanupLoop()
+	go s.cleanupLoop(ctx)
 	return s
 }
 
-// cleanupLoop は 5 分ごとに 10 分以上アクセスのない IP エントリを削除する
-func (s *RateLimitStore) cleanupLoop() {
+// cleanupLoop は 5 分ごとに 10 分以上アクセスのない IP エントリを削除する。
+// ctx がキャンセルされるとループを終了する。
+func (s *RateLimitStore) cleanupLoop(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	for range ticker.C {
-		s.evict(10 * time.Minute)
+	for {
+		select {
+		case <-ticker.C:
+			s.evict(10 * time.Minute)
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 

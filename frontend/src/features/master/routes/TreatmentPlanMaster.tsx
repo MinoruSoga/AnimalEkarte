@@ -42,7 +42,7 @@ import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // API hooks
 import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useDeleteConsultation, useReorderConsultations } from "@/features/master/api/consultations";
@@ -720,12 +720,12 @@ export function TreatmentPlanMaster() {
     if (selectedItem) {
       currentConfig.onUpdate(selectedItem.id, data, {
         onSuccess: () => { toast.success("更新しました"); handleClose(); },
-        onError: () => toast.error("更新に失敗しました"),
+        onError: (error: unknown) => handleApiError(error, "更新"),
       });
     } else {
       currentConfig.onCreate(data, {
         onSuccess: () => { toast.success("登録しました"); handleClose(); },
-        onError: () => toast.error("登録に失敗しました"),
+        onError: (error: unknown) => handleApiError(error, "登録"),
       });
     }
   }, [currentConfig, selectedItem, handleClose]);

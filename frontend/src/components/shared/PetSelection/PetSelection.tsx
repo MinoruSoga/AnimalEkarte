@@ -53,7 +53,7 @@ export function PetSelection({
                 className={cn(
                   "p-2 border-b flex items-start justify-between cursor-pointer transition-colors",
                   C.borderLight,
-                  isSelected ? "bg-blue-50/50" : C.hoverBgPage
+                  isSelected ? C.bgAccent8 : C.hoverBgPage
                 )}
                 onClick={() => onTogglePet(pet)}
                 >
@@ -71,7 +71,7 @@ export function PetSelection({
                         </span>
                     </div>
                 </div>
-                {isSelected ? <Check className={`${ICON.xs} text-blue-600 flex-shrink-0 ml-2`} /> : null}
+                {isSelected ? <Check className={`${ICON.xs} ${C.accent} flex-shrink-0 ml-2`} /> : null}
                 </div>
             );
             })
@@ -79,19 +79,19 @@ export function PetSelection({
       </div>
 
       {selectedPets.length > 0 ? (
-        <div className="bg-blue-50/50 p-2 rounded-md border border-blue-100/50">
-          <div className="text-sm font-bold text-blue-700 mb-1">選択中 ({selectedPets.length})</div>
+        <div className={`${C.bgAccent8} p-2 rounded-md border ${C.borderAccentLight}`}>
+          <div className={`text-sm font-bold ${C.textAccentDark} mb-1`}>選択中 ({selectedPets.length})</div>
           <div className="flex flex-wrap gap-1.5">
             {selectedPets.map((p) => (
               <div
                 key={p.id}
-                className="text-sm bg-white px-2 py-1 rounded border border-blue-200 text-blue-800 flex items-center gap-1 shadow-sm"
+                className={`text-sm bg-white px-2 py-1 rounded border ${C.borderAccentLight} ${C.textAccentDark} flex items-center gap-1 shadow-sm`}
               >
                 <span className="font-bold">{p.name}</span>
-                <span className="text-blue-400">|</span>
+                <span className={C.accent}>|</span>
                 <span>{p.ownerName}</span>
                 <button
-                  className="hover:bg-blue-100 rounded-full p-0.5 ml-1"
+                  className={`${C.hoverBgAccent8} rounded-full p-0.5 ml-1`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onTogglePet(p);

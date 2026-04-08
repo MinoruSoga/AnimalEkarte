@@ -14,10 +14,10 @@ import (
 
 type ConsultationService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
-	GetByID(ctx context.Context, id uint64) (*model.Consultation, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
 	Create(ctx context.Context, consultation *model.Consultation) error
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -32,8 +32,8 @@ func NewConsultationService(repo repository.ConsultationRepository) Consultation
 func (s *consultationService) List(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
 	return s.repo.FindAll(ctx, clinicID)
 }
-func (s *consultationService) GetByID(ctx context.Context, id uint64) (*model.Consultation, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *consultationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 func (s *consultationService) Create(ctx context.Context, consultation *model.Consultation) error {
 	return s.repo.Create(ctx, consultation)
@@ -53,7 +53,7 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	slog.InfoContext(ctx, "consultation updated", slog.Uint64("consultation_id", id))
 	return consultation, nil
 }
-func (s *consultationService) Delete(ctx context.Context, id uint64) error {
+func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountUsageByConsultationID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check consultation dependencies")
@@ -61,7 +61,7 @@ func (s *consultationService) Delete(ctx context.Context, id uint64) error {
 	if count > 0 {
 		return apperrors.WrapConflict("この診察項目は診療記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func (s *consultationService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

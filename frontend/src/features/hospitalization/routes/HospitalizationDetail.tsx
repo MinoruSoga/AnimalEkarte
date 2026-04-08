@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { C } from "@/lib/design-tokens";
 
 // Relative
 import { DischargeAlertDialog } from "../components/DischargeAlertDialog";
@@ -41,7 +42,7 @@ export function HospitalizationDetail() {
     }, [dischargeHospitalization, navigate, hospitalization]);
 
     if (isLoading || !hospitalization) {
-        return <div className="p-8 text-center text-gray-500">読み込み中...</div>;
+        return <div className={`p-8 text-center ${C.textStatusGray}`}>読み込み中...</div>;
     }
 
     return (

@@ -1,4 +1,5 @@
 import { ICON, C } from "@/lib/design-tokens";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 import { useState, useMemo, useDeferredValue, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { usePermission } from "@/features/auth";
@@ -223,14 +224,10 @@ export function EstimateList() {
   ), [navigate, canEdit, canDelete, deleteModal]);
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
-      </div>
-    );
+    return <LoadingFallback />;
   }
   if (isError) {
-    return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
+    return <div className={`p-4 ${C.danger}`}>データの取得に失敗しました</div>;
   }
 
   return (

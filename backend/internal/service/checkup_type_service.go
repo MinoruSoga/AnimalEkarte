@@ -13,11 +13,11 @@ import (
 // ---- CheckupTypeService ----
 
 type CheckupTypeService interface {
-	List(ctx context.Context) ([]model.CheckupType, error)
-	GetByID(ctx context.Context, id uint64) (*model.CheckupType, error)
+	List(ctx context.Context, clinicID uint64) ([]model.CheckupType, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error)
 	Create(ctx context.Context, checkupType *model.CheckupType) error
 	Update(ctx context.Context, clinicID, id uint64, input UpdateCheckupTypeInput) (*model.CheckupType, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -29,11 +29,11 @@ func NewCheckupTypeService(repo repository.CheckupTypeRepository) CheckupTypeSer
 	return &checkupTypeService{repo: repo}
 }
 
-func (s *checkupTypeService) List(ctx context.Context) ([]model.CheckupType, error) {
-	return s.repo.FindAll(ctx)
+func (s *checkupTypeService) List(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
+	return s.repo.FindAll(ctx, clinicID)
 }
-func (s *checkupTypeService) GetByID(ctx context.Context, id uint64) (*model.CheckupType, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *checkupTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 func (s *checkupTypeService) Create(ctx context.Context, checkupType *model.CheckupType) error {
 	return s.repo.Create(ctx, checkupType)
@@ -50,7 +50,7 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	slog.InfoContext(ctx, "checkup type updated", slog.Uint64("checkup_type_id", id))
 	return checkupType, nil
 }
-func (s *checkupTypeService) Delete(ctx context.Context, id uint64) error {
+func (s *checkupTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountUsageByCheckupTypeID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check checkup type dependencies")
@@ -58,7 +58,7 @@ func (s *checkupTypeService) Delete(ctx context.Context, id uint64) error {
 	if count > 0 {
 		return apperrors.WrapConflict("この定期健診種別は健診記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func (s *checkupTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

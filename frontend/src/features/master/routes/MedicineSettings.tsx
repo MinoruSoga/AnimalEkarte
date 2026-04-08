@@ -45,7 +45,7 @@ import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSele
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import type { TaxType } from "@/types/generated/models";
 import { ResourceMasterMedical } from "@/types/generated/models";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type { Medicine } from "@/types";
@@ -582,8 +582,8 @@ export function MedicineSettings() {
           { id: activeItemId, req },
           {
             onSuccess: clearOptimistic,
-            onError: () => {
-              toast.error("カテゴリの変更に失敗しました");
+            onError: (error: unknown) => {
+              handleApiError(error, "カテゴリの変更");
               clearOptimistic();
             },
           },
@@ -665,7 +665,7 @@ export function MedicineSettings() {
               toast.success("更新しました");
               handleCloseEdit();
             },
-            onError: () => toast.error("更新に失敗しました"),
+            onError: (error) => handleApiError(error, "更新"),
           },
         );
       } else {
@@ -685,7 +685,7 @@ export function MedicineSettings() {
             toast.success("登録しました");
             handleCloseEdit();
           },
-          onError: () => toast.error("登録に失敗しました"),
+          onError: (error) => handleApiError(error, "登録"),
         });
       }
     });

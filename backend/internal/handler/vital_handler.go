@@ -126,7 +126,7 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 		Notes:           req.Notes,
 	}
 
-	vital, err := h.svc.Vital.Update(c.Request.Context(), medicalRecordID, vitalID, input)
+	vital, err := h.svc.Vital.Update(c.Request.Context(), clinicID, medicalRecordID, vitalID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -156,7 +156,7 @@ func (h *Handler) DeleteVital(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Vital.Delete(c.Request.Context(), medicalRecordID, vitalID); err != nil {
+	if err := h.svc.Vital.Delete(c.Request.Context(), clinicID, medicalRecordID, vitalID); err != nil {
 		RespondError(c, err)
 		return
 	}

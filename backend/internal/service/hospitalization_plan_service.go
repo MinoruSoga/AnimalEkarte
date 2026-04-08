@@ -14,10 +14,10 @@ import (
 
 type HospitalizationPlanService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
-	GetByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
 	Update(ctx context.Context, clinicID, id uint64, input UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -32,8 +32,8 @@ func NewHospitalizationPlanService(repo repository.HospitalizationPlanRepository
 func (s *hospitalizationPlanService) List(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error) {
 	return s.repo.FindAll(ctx, clinicID)
 }
-func (s *hospitalizationPlanService) GetByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *hospitalizationPlanService) GetByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 func (s *hospitalizationPlanService) Create(ctx context.Context, plan *model.HospitalizationPlan) error {
 	return s.repo.Create(ctx, plan)
@@ -50,7 +50,7 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	slog.InfoContext(ctx, "hospitalization plan updated", slog.Uint64("hospitalization_plan_id", id))
 	return plan, nil
 }
-func (s *hospitalizationPlanService) Delete(ctx context.Context, id uint64) error {
+func (s *hospitalizationPlanService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountCarePlanItemsByPlanID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check hospitalization plan dependencies")
@@ -58,7 +58,7 @@ func (s *hospitalizationPlanService) Delete(ctx context.Context, id uint64) erro
 	if count > 0 {
 		return apperrors.WrapConflict("この入院プランはケアプランで使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func (s *hospitalizationPlanService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

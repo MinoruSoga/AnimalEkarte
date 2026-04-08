@@ -28,7 +28,7 @@ export function DeleteIconButton({
       disabled={disabled}
       title={title}
       className={cn(
-        `size-8 ${C.text40} hover:text-red-600 hover:bg-red-50`,
+        `size-8 ${C.text40} ${C.hoverTextDanger} ${C.hoverBgDanger5}`,
         className
       )}
     >

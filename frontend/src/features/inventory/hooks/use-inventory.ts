@@ -37,7 +37,7 @@ export function useInventory({
     category: category !== "all" ? category : undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   };
-  const { data: backendItems = [], isLoading } = useGetInventoryItems(serverParams);
+  const { data: backendItems = [], isLoading, isError } = useGetInventoryItems(serverParams);
 
   const items = useMemo(
     () => backendItems.map(transformInventoryItem),
@@ -62,5 +62,5 @@ export function useInventory({
     return { total, lowStock, outOfStock };
   }, [items]);
 
-  return { data: filteredItems, summary, isLoading };
+  return { data: filteredItems, summary, isLoading, isError };
 }

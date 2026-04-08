@@ -13,20 +13,20 @@ import (
 
 // mockExamTypeRepository は ExamTypeRepository のテスト用モック実装
 type mockExamTypeRepository struct {
-	findAllFn                func(ctx context.Context) ([]model.ExaminationType, error)
-	findByIDFn               func(ctx context.Context, id uint64) (*model.ExaminationType, error)
+	findAllFn                func(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
+	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
 	createFn                 func(ctx context.Context, exType *model.ExaminationType) error
 	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
-	deleteFn                 func(ctx context.Context, id uint64) error
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
 	countUsageByExamTypeIDFn func(ctx context.Context, examTypeID uint64) (int64, error)
 }
 
-func (m *mockExamTypeRepository) FindAll(ctx context.Context) ([]model.ExaminationType, error) {
-	return m.findAllFn(ctx)
+func (m *mockExamTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
+	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockExamTypeRepository) FindByID(ctx context.Context, id uint64) (*model.ExaminationType, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockExamTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockExamTypeRepository) Create(ctx context.Context, exType *model.ExaminationType) error {
@@ -37,8 +37,8 @@ func (m *mockExamTypeRepository) UpdateFields(ctx context.Context, clinicID, id 
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockExamTypeRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockExamTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 func (m *mockExamTypeRepository) ReplaceItems(ctx context.Context, examTypeID uint64, items []model.ExaminationTypeItem) error {
@@ -93,13 +93,13 @@ func TestExamTypeService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
-				findAllFn: func(_ context.Context) ([]model.ExaminationType, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.ExaminationType, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
 			svc := NewExamTypeService(repo)
 
-			examTypes, err := svc.List(context.Background())
+			examTypes, err := svc.List(context.Background(), 1)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -156,13 +156,13 @@ func TestExamTypeService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.ExaminationType, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ExaminationType, error) {
 					return tt.repoExamType, tt.repoErr
 				},
 			}
 			svc := NewExamTypeService(repo)
 
-			examType, err := svc.GetByID(context.Background(), tt.id)
+			examType, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -372,13 +372,13 @@ func TestExamTypeService_Delete(t *testing.T) {
 				countUsageByExamTypeIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewExamTypeService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

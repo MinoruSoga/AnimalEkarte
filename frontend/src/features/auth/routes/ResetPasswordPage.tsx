@@ -47,7 +47,6 @@ export function ResetPasswordPage() {
         return { error: "パスワードは8文字以上で入力してください" };
       }
       if (password !== confirmPassword) {
-        toast.error("パスワードが一致しません");
         return { error: "パスワードが一致しません" };
       }
 

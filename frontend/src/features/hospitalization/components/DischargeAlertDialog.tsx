@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
 // Relative
+import { C } from "@/lib/design-tokens";
 import { H_STYLES } from "../styles";
 
 interface DischargeAlertDialogProps {
@@ -49,7 +50,7 @@ export function DischargeAlertDialog({ open, onOpenChange, onConfirm }: Discharg
                     <AlertDialogCancel className={H_STYLES.button.action}>キャンセル</AlertDialogCancel>
                     <AlertDialogAction
                         onClick={() => onConfirm(navigateToAccounting)}
-                        className={`bg-red-600 hover:bg-red-700 ${H_STYLES.button.action}`}
+                        className={`${C.bgDanger} ${C.hoverBgDanger90} text-white ${H_STYLES.button.action}`}
                     >
                         退院処理を実行
                     </AlertDialogAction>

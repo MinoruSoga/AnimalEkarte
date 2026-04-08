@@ -15,10 +15,10 @@ import (
 
 type ChiefComplaintCategoryRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error)
-	FindByID(ctx context.Context, id uint64) (*model.ChiefComplaintCategory, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintCategory, error)
 	Create(ctx context.Context, category *model.ChiefComplaintCategory) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type chiefComplaintCategoryRepository struct{ db *gorm.DB }
@@ -39,9 +39,9 @@ func (r *chiefComplaintCategoryRepository) FindAll(ctx context.Context, clinicID
 	return categories, nil
 }
 
-func (r *chiefComplaintCategoryRepository) FindByID(ctx context.Context, id uint64) (*model.ChiefComplaintCategory, error) {
+func (r *chiefComplaintCategoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintCategory, error) {
 	var category model.ChiefComplaintCategory
-	err := r.db.WithContext(ctx).First(&category, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&category, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "chief_complaint_category", fmt.Sprintf("%d", id))
 	}
@@ -73,8 +73,8 @@ func (r *chiefComplaintCategoryRepository) Update(ctx context.Context, clinicID,
 	return nil
 }
 
-func (r *chiefComplaintCategoryRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.ChiefComplaintCategory{}, "id = ?", id)
+func (r *chiefComplaintCategoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.ChiefComplaintCategory{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "chief_complaint_category", fmt.Sprintf("%d", id))
 	}

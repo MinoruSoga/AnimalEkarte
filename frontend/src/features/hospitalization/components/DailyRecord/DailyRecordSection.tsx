@@ -67,26 +67,26 @@ export const DailyRecordSection = memo(function DailyRecordSection({ records, pl
                         </div>
                     ) : null}
                     
-                    <TimingSection 
-                        title="朝の予定" 
-                        icon={Sun} 
-                        tasks={groupedTasks.morning} 
-                        colorClass="text-orange-600" 
-                        onTaskClick={handleOpenTaskComplete} 
+                    <TimingSection
+                        title="朝の予定"
+                        icon={Sun}
+                        tasks={groupedTasks.morning}
+                        colorClass={C.textDiscount}
+                        onTaskClick={handleOpenTaskComplete}
                     />
-                    <TimingSection 
-                        title="昼の予定" 
-                        icon={Coffee} 
-                        tasks={groupedTasks.noon} 
-                        colorClass="text-yellow-600" 
-                        onTaskClick={handleOpenTaskComplete} 
+                    <TimingSection
+                        title="昼の予定"
+                        icon={Coffee}
+                        tasks={groupedTasks.noon}
+                        colorClass={C.textNotice}
+                        onTaskClick={handleOpenTaskComplete}
                     />
-                    <TimingSection 
-                        title="夜の予定" 
-                        icon={Moon} 
-                        tasks={groupedTasks.night} 
-                        colorClass="text-indigo-600" 
-                        onTaskClick={handleOpenTaskComplete} 
+                    <TimingSection
+                        title="夜の予定"
+                        icon={Moon}
+                        tasks={groupedTasks.night}
+                        colorClass={C.textStatusPurple}
+                        onTaskClick={handleOpenTaskComplete}
                     />
                 </div>
 

@@ -15,10 +15,10 @@ import (
 
 type TrimmingCourseRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
-	FindByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
 	Create(ctx context.Context, course *model.TrimmingCourse) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountRecordsByCourseID(ctx context.Context, courseID uint64) (int64, error)
 }
@@ -37,9 +37,9 @@ func (r *trimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64)
 	return courses, nil
 }
 
-func (r *trimmingCourseRepository) FindByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error) {
+func (r *trimmingCourseRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
 	var course model.TrimmingCourse
-	err := r.db.WithContext(ctx).First(&course, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&course, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", id))
 	}
@@ -67,11 +67,11 @@ func (r *trimmingCourseRepository) UpdateFields(ctx context.Context, clinicID, i
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("trimming_course", fmt.Sprintf("%d", id))
 	}
-	return r.FindByID(ctx, id)
+	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *trimmingCourseRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.TrimmingCourse{}, "id = ?", id)
+func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.TrimmingCourse{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete trimming course")
 	}
@@ -117,11 +117,12 @@ func (r *trimmingCourseRepository) Reorder(ctx context.Context, clinicID uint64,
 
 type TrimmingOptionRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
-	FindByID(ctx context.Context, id uint64) (*model.TrimmingOption, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error)
 	Create(ctx context.Context, option *model.TrimmingOption) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	CountRecordsByOptionID(ctx context.Context, optionID uint64) (int64, error)
 }
 
 type trimmingOptionRepository struct{ db *gorm.DB }
@@ -138,9 +139,9 @@ func (r *trimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64)
 	return options, nil
 }
 
-func (r *trimmingOptionRepository) FindByID(ctx context.Context, id uint64) (*model.TrimmingOption, error) {
+func (r *trimmingOptionRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
 	var option model.TrimmingOption
-	err := r.db.WithContext(ctx).First(&option, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&option, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", id))
 	}
@@ -168,11 +169,11 @@ func (r *trimmingOptionRepository) UpdateFields(ctx context.Context, clinicID, i
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("trimming_option", fmt.Sprintf("%d", id))
 	}
-	return r.FindByID(ctx, id)
+	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *trimmingOptionRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.TrimmingOption{}, "id = ?", id)
+func (r *trimmingOptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.TrimmingOption{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete trimming option")
 	}
@@ -200,4 +201,16 @@ func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64,
 		return apperrors.Wrap(err, "reorder trimming options")
 	}
 	return nil
+}
+
+// CountRecordsByOptionID は指定オプションを使用しているトリミング記録数を返す（BUG-201）
+func (r *trimmingOptionRepository) CountRecordsByOptionID(ctx context.Context, optionID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.TrimmingRecordOption{}).
+		Where("option_id = ?", optionID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "trimming_record_option", "")
+	}
+	return count, nil
 }

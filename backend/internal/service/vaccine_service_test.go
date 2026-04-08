@@ -13,20 +13,20 @@ import (
 
 // mockVaccineRepository は VaccineRepository のテスト用モック実装
 type mockVaccineRepository struct {
-	findAllFn               func(ctx context.Context, species *string) ([]model.Vaccine, error)
-	findByIDFn              func(ctx context.Context, id uint64) (*model.Vaccine, error)
+	findAllFn               func(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
+	findByIDFn              func(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
 	createFn                func(ctx context.Context, vaccine *model.Vaccine) error
 	updateFieldsFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
-	deleteFn                func(ctx context.Context, id uint64) error
+	deleteFn                func(ctx context.Context, clinicID, id uint64) error
 	countUsageByVaccineIDFn func(ctx context.Context, vaccineID uint64) (int64, error)
 }
 
-func (m *mockVaccineRepository) FindAll(ctx context.Context, species *string) ([]model.Vaccine, error) {
-	return m.findAllFn(ctx, species)
+func (m *mockVaccineRepository) FindAll(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
+	return m.findAllFn(ctx, clinicID, species)
 }
 
-func (m *mockVaccineRepository) FindByID(ctx context.Context, id uint64) (*model.Vaccine, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockVaccineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockVaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {
@@ -37,8 +37,8 @@ func (m *mockVaccineRepository) UpdateFields(ctx context.Context, clinicID, id u
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockVaccineRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockVaccineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 func (m *mockVaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -105,13 +105,13 @@ func TestVaccineService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccineRepository{
-				findAllFn: func(_ context.Context, _ *string) ([]model.Vaccine, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ *string) ([]model.Vaccine, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
 			svc := NewVaccineService(repo)
 
-			vaccines, err := svc.List(context.Background(), tt.species)
+			vaccines, err := svc.List(context.Background(), 1, tt.species)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -161,13 +161,13 @@ func TestVaccineService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccineRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Vaccine, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccine, error) {
 					return tt.repoVaccine, tt.repoErr
 				},
 			}
 			svc := NewVaccineService(repo)
 
-			vaccine, err := svc.GetByID(context.Background(), tt.id)
+			vaccine, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -365,13 +365,13 @@ func TestVaccineService_Delete(t *testing.T) {
 				countUsageByVaccineIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewVaccineService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

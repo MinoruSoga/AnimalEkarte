@@ -14,10 +14,10 @@ import (
 
 type TrimmingCourseService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
-	GetByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
 	Create(ctx context.Context, course *model.TrimmingCourse) error
 	Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingCourseInput) (*model.TrimmingCourse, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -32,8 +32,8 @@ func NewTrimmingCourseService(repo repository.TrimmingCourseRepository) Trimming
 func (s *trimmingCourseService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
 	return s.repo.FindAll(ctx, clinicID)
 }
-func (s *trimmingCourseService) GetByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *trimmingCourseService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 func (s *trimmingCourseService) Create(ctx context.Context, course *model.TrimmingCourse) error {
 	return s.repo.Create(ctx, course)
@@ -50,7 +50,7 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 	slog.InfoContext(ctx, "trimming course updated", slog.Uint64("trimming_course_id", id))
 	return course, nil
 }
-func (s *trimmingCourseService) Delete(ctx context.Context, id uint64) error {
+func (s *trimmingCourseService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountRecordsByCourseID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check trimming course dependencies")
@@ -58,7 +58,7 @@ func (s *trimmingCourseService) Delete(ctx context.Context, id uint64) error {
 	if count > 0 {
 		return apperrors.WrapConflict("このトリミングコースはトリミング記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func (s *trimmingCourseService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -106,10 +106,10 @@ func buildTrimmingCourseUpdateFields(input UpdateTrimmingCourseInput) map[string
 
 type TrimmingOptionService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
-	GetByID(ctx context.Context, id uint64) (*model.TrimmingOption, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error)
 	Create(ctx context.Context, option *model.TrimmingOption) error
 	Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingOptionInput) (*model.TrimmingOption, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -124,8 +124,8 @@ func NewTrimmingOptionService(repo repository.TrimmingOptionRepository) Trimming
 func (s *trimmingOptionService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
 	return s.repo.FindAll(ctx, clinicID)
 }
-func (s *trimmingOptionService) GetByID(ctx context.Context, id uint64) (*model.TrimmingOption, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *trimmingOptionService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 func (s *trimmingOptionService) Create(ctx context.Context, option *model.TrimmingOption) error {
 	return s.repo.Create(ctx, option)
@@ -142,8 +142,15 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 	slog.InfoContext(ctx, "trimming option updated", slog.Uint64("trimming_option_id", id))
 	return option, nil
 }
-func (s *trimmingOptionService) Delete(ctx context.Context, id uint64) error {
-	return s.repo.Delete(ctx, id)
+func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64) error {
+	count, err := s.repo.CountRecordsByOptionID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check trimming option dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("このトリミングオプションはトリミング記録で使用中のため削除できません")
+	}
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func (s *trimmingOptionService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

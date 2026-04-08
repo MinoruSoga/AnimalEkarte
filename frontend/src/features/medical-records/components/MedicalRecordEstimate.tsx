@@ -1,5 +1,6 @@
 import { memo, useState, useMemo, useCallback, useEffect, useTransition } from "react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetEstimateByRecord, useCreateEstimateRecord, useUpdateEstimateRecord } from "../api/save-estimate";
 import { C } from "@/lib/design-tokens";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 interface MedicalRecordEstimateProps {
   isNewRecord?: boolean;
@@ -124,8 +125,8 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
           }
           toast.success("見積書を保存しました");
           resolve();
-        } catch {
-          toast.error("保存に失敗しました");
+        } catch (error) {
+          handleApiError(error, "保存");
           reject(new Error("見積書の保存に失敗しました"));
         }
       });

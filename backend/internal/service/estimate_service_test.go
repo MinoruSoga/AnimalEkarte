@@ -257,6 +257,46 @@ func TestEstimateService_Create(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "returns error when subtotal is negative",
+			input: &CreateEstimateInput{
+				Title:    "負の小計",
+				Subtotal: -1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns error when tax_total is negative",
+			input: &CreateEstimateInput{
+				Title:    "負の税合計",
+				TaxTotal: -500,
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns error when total_amount is negative",
+			input: &CreateEstimateInput{
+				Title:       "負の合計金額",
+				TotalAmount: -100,
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns error when insurance_amount is negative",
+			input: &CreateEstimateInput{
+				Title:           "負の保険金額",
+				InsuranceAmount: -200,
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns error when discount_amount is negative",
+			input: &CreateEstimateInput{
+				Title:          "負の割引金額",
+				DiscountAmount: -300,
+			},
+			wantErr: true,
+		},
+		{
 			name: "returns error when estimate already exists",
 			input: &CreateEstimateInput{
 				Title:       "既存見積",
@@ -353,6 +393,27 @@ func TestEstimateService_Update(t *testing.T) {
 			name:    "returns error when no fields provided",
 			input:   &UpdateEstimateInput{},
 			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error when subtotal is negative",
+			input: &UpdateEstimateInput{
+				Subtotal: func() *int64 { v := int64(-1); return &v }(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns error when total_amount is negative",
+			input: &UpdateEstimateInput{
+				TotalAmount: func() *int64 { v := int64(-100); return &v }(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns error when discount_amount is negative",
+			input: &UpdateEstimateInput{
+				DiscountAmount: func() *int64 { v := int64(-50); return &v }(),
+			},
 			wantErr: true,
 		},
 		{

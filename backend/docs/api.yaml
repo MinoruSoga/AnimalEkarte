@@ -1825,6 +1825,58 @@ components:
           type: string
           format: date-time
           readOnly: true
+    MerchandiseItem:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        clinic_id:
+          type: integer
+          format: int64
+          readOnly: true
+        name:
+          type: string
+        category:
+          type: string
+          enum: [examination, test, procedure, surgery, medicine, food, goods, other]
+          default: goods
+          description: カテゴリ（item_category ENUM）
+        unit_price:
+          type: integer
+          format: int64
+          default: 0
+          description: 単価（円）
+        tax_type:
+          type: string
+          enum: [included, excluded, exempt]
+          default: excluded
+          description: 税種別
+        tax_rate:
+          type: number
+          default: 0.10
+          description: 税率
+        is_active:
+          type: boolean
+          default: true
+        sort_order:
+          type: integer
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 論理削除日時
     ExaminationItem:
       type: object
       properties:
@@ -2162,12 +2214,23 @@ components:
         color:
           type: string
           example: '#6B7280'
+        is_active:
+          type: boolean
+          default: true
+        sort_order:
+          type: integer
+          default: 0
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 論理削除日時
         rules:
           type: array
           description: グループに紐づく権限ルール（GET 単体取得時のみ含まれる）
@@ -8028,6 +8091,156 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Merchandise Items ─────────────────────────────────────
+  /masters/merchandise:
+    get:
+      operationId: listMerchandiseItems
+      summary: 物販マスタ一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 物販マスタ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MerchandiseItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createMerchandiseItem
+      summary: 物販マスタ登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchandiseItem'
+      responses:
+        '201':
+          description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/merchandise/1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchandiseItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/merchandise/reorder:
+    patch:
+      operationId: reorderMerchandiseItems
+      summary: 物販マスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/merchandise/{id}:
+    patch:
+      operationId: updateMerchandiseItem
+      summary: 物販マスタ更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchandiseItem'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchandiseItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteMerchandiseItem
+      summary: 物販マスタ削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
 

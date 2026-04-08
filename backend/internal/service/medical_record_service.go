@@ -134,6 +134,13 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
+	estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check estimate dependencies")
+	}
+	if estimateCount > 0 {
+		return apperrors.WrapConflict("この項目は使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, clinicID, id)
 }
 

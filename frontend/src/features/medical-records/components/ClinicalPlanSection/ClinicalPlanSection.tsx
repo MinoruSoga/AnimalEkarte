@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 // Internal
 import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
 import { C, STYLE } from "@/lib/design-tokens";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 
 // Relative
 import { useGetClinicalPlan, useUpdateClinicalPlan } from "@/features/medical-records/api/clinical-plan";
@@ -60,11 +61,7 @@ export function ClinicalPlanSection({ medicalRecordId, onRegisterSave, canEdit =
   }, [onRegisterSave, handleSave]);
 
   if (isLoading) {
-    return (
-      <div className={`flex items-center justify-center h-24 text-sm ${C.text40}`}>
-        読み込み中...
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   return (

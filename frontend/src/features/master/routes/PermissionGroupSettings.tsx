@@ -7,7 +7,7 @@ import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";

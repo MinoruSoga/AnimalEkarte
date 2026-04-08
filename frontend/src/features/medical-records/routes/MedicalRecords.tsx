@@ -262,11 +262,11 @@ export function MedicalRecords() {
                 </TableCell>
                 <TableCell className={STYLE.tableCell}>
                   <div className="flex items-center gap-1">
-                    <span className={!isValidStaff(r.doctor) ? "text-red-500 font-medium" : ""}>
+                    <span className={!isValidStaff(r.doctor) ? `${C.danger} font-medium` : ""}>
                       {r.doctor}
                     </span>
                     {!isValidStaff(r.doctor) ? (
-                      <span title="担当医が無効（退職等）に設定されています"><AlertTriangle className={`${ICON.xs} text-red-500`} /></span>
+                      <span title="担当医が無効（退職等）に設定されています"><AlertTriangle className={`${ICON.xs} ${C.danger}`} /></span>
                     ) : null}
                   </div>
                 </TableCell>

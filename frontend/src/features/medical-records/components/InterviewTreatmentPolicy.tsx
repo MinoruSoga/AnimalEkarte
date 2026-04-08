@@ -7,7 +7,7 @@ import { ChevronRight } from "lucide-react";
 // Internal
 import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 interface InterviewTreatmentPolicyProps {
   className?: string;

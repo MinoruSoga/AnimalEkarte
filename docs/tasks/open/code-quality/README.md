@@ -1,0 +1,47 @@
+# Frontend + Backend コード規約準拠監査結果
+
+**実施日**: 2026-04-08
+**検証方法**: 監査エージェント → grep/Read による実コード検証
+**注意**: 全指摘は実コードで検証済み。スポットチェック未実施の箇所は明記している。
+
+## 確認済みイシュー一覧
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| [BUG-186](../security/BUG-186_jwt-token-leaked-in-login-response.md) | 認証 | JWT がレスポンスボディに漏洩 | Critical | security/ |
+| [BUG-187](../security/BUG-187_demo-credentials-no-env-check.md) | 認証 | デモ認証情報が環境チェックなし | High | security/ |
+| [BUG-188](BUG-188_frontend-catch-onError-handleApiError-missing.md) | FE エラー処理 | catch 9箇所 + onError 17箇所で handleApiError 未呼び出し | High | code-quality/ |
+| [BUG-189](BUG-189_backend-handler-service-violations.md) | BE Handler/Service | RefreshToken c.JSON 6箇所 + slog 11箇所 + 裸 return err 2箇所 | High | code-quality/ |
+| [BUG-190](BUG-190_design-token-violations-verified.md) | FE デザイントークン | ハードコード色（スポットチェック確認済み箇所のみ） | Medium | code-quality/ |
+| [BUG-191](BUG-191_shifts-useActionState-migration.md) | FE React 19 | ShiftFormDialog が useActionState 未使用 | Medium | code-quality/ |
+| [BUG-192](../infra/BUG-192_tsconfig-strict-false.md) | インフラ | tsconfig.json strict: false | High | infra/ |
+| [BUG-193](BUG-193_db-schema-confirmed-issues.md) | DB スキーマ | payments の deleted_at 欠落 + billing_items の updated_at 欠落 + リポジトリ clinicID 欠落 2件 | High | code-quality/ |
+| [BUG-194](BUG-194_vercel-react-best-practices-violations.md) | Vercel React BP | useDeferredValue 1件 + デザイントークン 19箇所/9ファイル | Medium | code-quality/ |
+
+## 誤報として撤回した指摘
+
+| 当初の指摘 | 撤回理由 |
+|-----------|---------|
+| Deep Import 25箇所+（auth/hooks/use-permission） | **grep で 0 件。** 全ファイルが正しくバレル経由 |
+| router.tsx Deep Import 6箇所 | **grep で 0 件。** 正しくバレル経由 |
+| chart.tsx CSS インジェクション | **color 値はアプリ内定数。** ユーザー入力ではない |
+| pet_service.go ビルドエラー | **正しいシグネチャで呼び出し済み。** コンパイルエラーなし |
+| catch ブロック handleApiError 欠落 15箇所 | **実際は 9箇所。** 大幅に過大評価（catch の 95% は正しく呼んでいた） |
+| リポジトリ 50+メソッドで clinicID 欠落 | **FK チェーン間接分離を「欠落」と誤認。** 確認済みは 2件のみ |
+
+## 対応除外
+
+| 指摘 | 理由 |
+|------|------|
+| /uploads 認証なし | `TASK-S3-IMAGE-UPLOAD` で S3 移行対応中 |
+
+## 修正優先順位
+
+1. **BUG-186** (Critical): LoginResponse から Token フィールド削除 — 5分
+2. **BUG-187** (High): デモアカウントを `import.meta.env.DEV` でゲート — 5分
+3. **BUG-188** (High): handleApiError 一括適用 26箇所 — 1時間
+4. **BUG-189** (High): RefreshToken の RespondError 統一 + slog 移動 — 2時間
+5. **BUG-192** (High): tsconfig strict 段階的有効化 — 半日
+6. **BUG-193** (High): billing_items updated_at 追加 — 30分
+7. **BUG-190** (Medium): デザイントークン置換 — 要個別確認
+8. **BUG-191** (Medium): ShiftFormDialog useActionState 移行 — 1時間

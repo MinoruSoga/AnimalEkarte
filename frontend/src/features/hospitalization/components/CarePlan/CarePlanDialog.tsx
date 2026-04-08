@@ -165,7 +165,7 @@ export const CarePlanDialog = memo(function CarePlanDialog({
 
                     {formData.unitPrice !== undefined ? (
                         <div className={`flex items-center gap-2 ${H_STYLES.text.base} ${C.text60} px-1`}>
-                            <Badge variant="outline" className="font-mono bg-purple-50 text-purple-700 border-purple-200">
+                            <Badge variant="outline" className={`font-mono ${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderPurpleLight}`}>
                                 マスタ連動中
                             </Badge>
                             <span>単価: ¥{formData.unitPrice.toLocaleString()} / カテゴリ: {formData.category}</span>
@@ -192,7 +192,7 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                                         px-3 py-1.5 rounded-md ${H_STYLES.text.base} border cursor-pointer select-none transition-colors
                                         ${formData.timing?.includes(time)
                                             ? `${C.bgMedicalBlue} text-white ${C.borderMedicalBlue}`
-                                            : `bg-white ${C.text} ${C.borderMedium} hover:bg-gray-50`}
+                                            : `bg-white ${C.text} ${C.borderMedium} ${C.hoverBgPage}`}
                                     `}
                                 >
                                     {time === 'morning' ? '朝' : time === 'noon' ? '昼' : '夜'}

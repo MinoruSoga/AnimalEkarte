@@ -14,11 +14,11 @@ import (
 // ---- Cage ----
 
 type CageRepository interface {
-	FindAll(ctx context.Context, cageType *string) ([]model.Cage, error)
-	FindByID(ctx context.Context, id uint64) (*model.Cage, error)
+	FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
 	Create(ctx context.Context, cage *model.Cage) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -26,9 +26,9 @@ type cageRepository struct{ db *gorm.DB }
 
 func NewCageRepository(db *gorm.DB) CageRepository { return &cageRepository{db: db} }
 
-func (r *cageRepository) FindAll(ctx context.Context, cageType *string) ([]model.Cage, error) {
+func (r *cageRepository) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
 	cages := make([]model.Cage, 0)
-	q := r.db.WithContext(ctx).Model(&model.Cage{})
+	q := r.db.WithContext(ctx).Model(&model.Cage{}).Where("clinic_id = ?", clinicID)
 	if cageType != nil {
 		q = q.Where("cage_type = ?", *cageType)
 	}
@@ -38,9 +38,9 @@ func (r *cageRepository) FindAll(ctx context.Context, cageType *string) ([]model
 	return cages, nil
 }
 
-func (r *cageRepository) FindByID(ctx context.Context, id uint64) (*model.Cage, error) {
+func (r *cageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
 	var cage model.Cage
-	err := r.db.WithContext(ctx).First(&cage, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&cage, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "cage", fmt.Sprintf("%d", id))
 	}
@@ -68,11 +68,11 @@ func (r *cageRepository) UpdateFields(ctx context.Context, clinicID, id uint64, 
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
 	}
-	return r.FindByID(ctx, id)
+	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *cageRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Cage{}, "id = ?", id)
+func (r *cageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.Cage{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete cage")
 	}

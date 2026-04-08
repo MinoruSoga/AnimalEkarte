@@ -13,11 +13,11 @@ import (
 // ---- CageService ----
 
 type CageService interface {
-	List(ctx context.Context, cageType *string) ([]model.Cage, error)
-	GetByID(ctx context.Context, id uint64) (*model.Cage, error)
+	List(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
 	Create(ctx context.Context, cage *model.Cage) error
 	Update(ctx context.Context, clinicID, id uint64, input UpdateCageInput) (*model.Cage, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -30,11 +30,11 @@ func NewCageService(repo repository.CageRepository, hospitalizationRepo reposito
 	return &cageService{repo: repo, hospitalizationRepo: hospitalizationRepo}
 }
 
-func (s *cageService) List(ctx context.Context, cageType *string) ([]model.Cage, error) {
-	return s.repo.FindAll(ctx, cageType)
+func (s *cageService) List(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
+	return s.repo.FindAll(ctx, clinicID, cageType)
 }
-func (s *cageService) GetByID(ctx context.Context, id uint64) (*model.Cage, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *cageService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 func (s *cageService) Create(ctx context.Context, cage *model.Cage) error {
 	return s.repo.Create(ctx, cage)
@@ -51,7 +51,7 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input Upd
 	slog.InfoContext(ctx, "cage updated", slog.Uint64("cage_id", id))
 	return cage, nil
 }
-func (s *cageService) Delete(ctx context.Context, id uint64) error {
+func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
 	exists, err := s.hospitalizationRepo.ExistsByCageID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check hospitalization dependency")
@@ -59,7 +59,7 @@ func (s *cageService) Delete(ctx context.Context, id uint64) error {
 	if exists {
 		return apperrors.WrapConflict("このケージは入院データで使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func (s *cageService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

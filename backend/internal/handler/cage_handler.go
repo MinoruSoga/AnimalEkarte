@@ -16,11 +16,15 @@ import (
 
 // ListCages godoc
 func (h *Handler) ListCages(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	var cageType *string
 	if t := c.Query("cage_type"); t != "" {
 		cageType = &t
 	}
-	cages, err := h.svc.Cage.List(c.Request.Context(), cageType)
+	cages, err := h.svc.Cage.List(c.Request.Context(), clinicID, cageType)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -30,12 +34,16 @@ func (h *Handler) ListCages(c *gin.Context) {
 
 // GetCage godoc
 func (h *Handler) GetCage(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	cage, err := h.svc.Cage.GetByID(c.Request.Context(), id)
+	cage, err := h.svc.Cage.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -139,12 +147,16 @@ func (h *Handler) ReorderCages(c *gin.Context) {
 
 // DeleteCage godoc
 func (h *Handler) DeleteCage(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.Cage.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.Cage.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

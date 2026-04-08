@@ -140,7 +140,13 @@ export const VaccinationForm = memo(function VaccinationForm() {
     return result;
   }, [allVaccinations, selectedPet, id, historyFilter]);
 
-  if (!selectedPet && !isEdit) return null;
+  if (!selectedPet && !isEdit) {
+    return (
+      <div className={`flex items-center justify-center p-8 text-base ${C.text50}`}>
+        <p>ペットを選択してください</p>
+      </div>
+    );
+  }
 
   return (
     <form action={formAction}>
@@ -193,7 +199,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="vaccination-date">
-                    接種日<span className="text-red-500 ml-1">*</span>
+                    接種日<span className={`${C.textRequired} ml-1`}>*</span>
                   </Label>
                   <NotionDatePicker
                     id="vaccination-date"
@@ -205,7 +211,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="vaccine-select">
-                    ワクチン<span className="text-red-500 ml-1">*</span>
+                    ワクチン<span className={`${C.textRequired} ml-1`}>*</span>
                   </Label>
                   <Select value={vaccineId} onValueChange={(v) => { markDirty(); setVaccineId(v); }}>
                     <SelectTrigger id="vaccine-select">

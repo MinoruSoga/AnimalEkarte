@@ -46,10 +46,10 @@ export function DailyCareNoteForm({ onSave }: DailyCareNoteFormProps) {
                 placeholder="経過記録や特記事項を入力..."
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className={`min-h-[80px] border-0 focus-visible:ring-0 resize-none ${H_STYLES.padding.tight} placeholder:text-gray-400 ${H_STYLES.text.base}`}
+                className={`min-h-[80px] border-0 focus-visible:ring-0 resize-none ${H_STYLES.padding.tight} ${C.textPlaceholder} ${H_STYLES.text.base}`}
             />
-            <div className="flex justify-between items-center border-t border-gray-100 pt-1.5 mt-0.5">
-                <span className={`${H_STYLES.text.sm} font-medium text-gray-500`}>{format(new Date(), "M/d HH:mm")}</span>
+            <div className={`flex justify-between items-center border-t ${C.borderLight} pt-1.5 mt-0.5`}>
+                <span className={`${H_STYLES.text.sm} font-medium ${C.text50}`}>{format(new Date(), "M/d HH:mm")}</span>
                 <Button
                     size="sm"
                     onClick={handleSubmit}

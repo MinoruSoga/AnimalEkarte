@@ -15,10 +15,10 @@ import (
 
 type mockConsultationRepository struct {
 	findAllFn                    func(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
-	findByIDFn                   func(ctx context.Context, id uint64) (*model.Consultation, error)
+	findByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
 	createFn                     func(ctx context.Context, consultation *model.Consultation) error
 	updateFieldsFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
-	deleteFn                     func(ctx context.Context, id uint64) error
+	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
 	countUsageByConsultationIDFn func(ctx context.Context, consultationID uint64) (int64, error)
 	reorderErr                   error
 }
@@ -27,8 +27,8 @@ func (m *mockConsultationRepository) FindAll(ctx context.Context, clinicID uint6
 	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockConsultationRepository) FindByID(ctx context.Context, id uint64) (*model.Consultation, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockConsultationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockConsultationRepository) Create(ctx context.Context, consultation *model.Consultation) error {
@@ -39,8 +39,8 @@ func (m *mockConsultationRepository) UpdateFields(ctx context.Context, clinicID,
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockConsultationRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockConsultationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 func (m *mockConsultationRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
@@ -155,13 +155,13 @@ func TestConsultationService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockConsultationRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Consultation, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Consultation, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
 			svc := NewConsultationService(repo)
 
-			consultation, err := svc.GetByID(context.Background(), tt.id)
+			consultation, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -363,13 +363,13 @@ func TestConsultationService_Delete(t *testing.T) {
 				countUsageByConsultationIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewConsultationService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

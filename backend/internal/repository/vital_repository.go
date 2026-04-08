@@ -13,7 +13,7 @@ import (
 // VitalRepository はバイタル記録のデータアクセスインターフェース
 type VitalRepository interface {
 	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error)
-	FindByID(ctx context.Context, id uint64) (*model.VitalRecord, error)
+	FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.VitalRecord, error)
 	Create(ctx context.Context, vital *model.VitalRecord) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
@@ -39,9 +39,12 @@ func (r *vitalRepository) ListByMedicalRecordID(ctx context.Context, medicalReco
 	return vitals, nil
 }
 
-func (r *vitalRepository) FindByID(ctx context.Context, id uint64) (*model.VitalRecord, error) {
+func (r *vitalRepository) FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.VitalRecord, error) {
 	var vital model.VitalRecord
-	err := r.db.WithContext(ctx).First(&vital, "id = ?", id).Error
+	err := r.db.WithContext(ctx).
+		Joins("JOIN medical_records ON medical_records.id = vital_records.medical_record_id AND medical_records.clinic_id = ?", clinicID).
+		Where("vital_records.id = ?", id).
+		First(&vital).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "vital", fmt.Sprintf("%d", id))
 	}

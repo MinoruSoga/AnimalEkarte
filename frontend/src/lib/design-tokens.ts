@@ -254,10 +254,12 @@ export const C = {
   textBrand:     "text-[#038B94]",
   bgBrand:       "bg-[#038B94]",
   bgBrand10:     "bg-[#038B94]/10",
+  bgBrand8:      "bg-[#038B94]/8",
   bgBrandDot:    "bg-[#038B94]",
   hoverBgBrand:  "hover:bg-[#027A82]",
   focusRingBrand:"focus:ring-[#038B94]",
   borderBrand:   "border-[#038B94]",
+  borderLBrand:  "border-l-[#038B94]",
 
   /* ── Border ── */
   borderLight:   "border-[rgba(55,53,47,0.09)]",
@@ -774,7 +776,7 @@ export const STYLE = {
   sidebarHeader:
     `h-[53px] flex items-center px-2.5 border-b ${C.borderDivider}`,
   sidebarItemActive:
-    `bg-[#038B94]/8 ${C.text} border-l-2 border-l-[#038B94]`,
+    `${C.bgBrand8} ${C.text} border-l-2 ${C.borderLBrand}`,
   sidebarItemIdle:
     `${C.text65} ${C.hoverBgPrimary4} ${C.hoverText}`,
   sidebarToggle:
@@ -852,7 +854,7 @@ export const STYLE = {
     `h-11 text-base bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`,
   /** Error ring for form inputs — use with conditional classnames */
   formInputError:
-    "ring-2 ring-red-300 border-red-400",
+    `ring-2 ring-[#C0392B]/30 ${C.borderDanger}`,
   formCard:
     `bg-white p-6 rounded-lg shadow-sm border ${C.borderMedium}`,
 

@@ -30,12 +30,16 @@ func (h *Handler) ListInsurances(c *gin.Context) {
 
 // GetInsurance godoc
 func (h *Handler) GetInsurance(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	insurance, err := h.svc.Insurance.GetByID(c.Request.Context(), id)
+	insurance, err := h.svc.Insurance.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -113,12 +117,16 @@ func (h *Handler) UpdateInsurance(c *gin.Context) {
 
 // DeleteInsurance godoc
 func (h *Handler) DeleteInsurance(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.Insurance.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.Insurance.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

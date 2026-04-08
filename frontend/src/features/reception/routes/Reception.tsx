@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
 import { ResourceReception, ResourceReservations, ResourceMedicalRecords, ResourceAccounting, ResourceHospitalization } from "@/types/generated/models";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Shared
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";

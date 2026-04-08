@@ -35,10 +35,10 @@ interface ReservationFormModalProps {
 
 const StepIndicator = memo(function StepIndicator({ step, label, active }: { step: number; label: string; active: boolean }) {
   return (
-    <div className={`flex items-center gap-1.5 text-xs ${active ? "text-blue-600" : C.text30}`}>
+    <div className={`flex items-center gap-1.5 text-xs ${active ? C.accent : C.text30}`}>
       <span
         className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
-          active ? "bg-blue-600 text-white" : `${C.bgPrimary10} ${C.text30}`
+          active ? `${C.bgAccent} text-white` : `${C.bgPrimary10} ${C.text30}`
         }`}
       >
         {step}
@@ -61,9 +61,9 @@ const SelectedPetChip = memo(function SelectedPetChip({ pet, onRemove }: { pet: 
       </span>
       <button
         onClick={onRemove}
-        className="ml-1 p-1 hover:bg-red-50 rounded transition-colors"
+        className={`ml-1 p-1 ${C.hoverBgDanger5} rounded transition-colors`}
       >
-        <X className={`${ICON.action} text-red-600 hover:text-red-700`} />
+        <X className={`${ICON.action} ${C.danger} ${C.hoverTextDanger}`} />
       </button>
     </div>
   );
@@ -178,9 +178,9 @@ export function ReservationFormModal({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {isEditMode ? (
-                <CalendarCheck className={`${ICON.page} text-amber-600`} />
+                <CalendarCheck className={`${ICON.page} ${C.textNotice}`} />
               ) : (
-                <Calendar className={`${ICON.page} text-blue-600`} />
+                <Calendar className={`${ICON.page} ${C.accent}`} />
               )}
               <DialogTitle className={`text-sm font-bold ${C.text}`}>
                 {isEditMode ? "予約編集" : "新規予約作成"}

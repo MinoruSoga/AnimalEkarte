@@ -15,18 +15,18 @@ import (
 
 type mockChiefComplaintCategoryRepository struct {
 	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.ChiefComplaintCategory, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintCategory, error)
 	createFn   func(ctx context.Context, category *model.ChiefComplaintCategory) error
 	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, id uint64) error
+	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockChiefComplaintCategoryRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error) {
 	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockChiefComplaintCategoryRepository) FindByID(ctx context.Context, id uint64) (*model.ChiefComplaintCategory, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockChiefComplaintCategoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintCategory, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockChiefComplaintCategoryRepository) Create(ctx context.Context, category *model.ChiefComplaintCategory) error {
@@ -37,8 +37,8 @@ func (m *mockChiefComplaintCategoryRepository) Update(ctx context.Context, clini
 	return m.updateFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockChiefComplaintCategoryRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockChiefComplaintCategoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 // ---- InquiryRepository モック ----
@@ -149,14 +149,14 @@ func TestChiefComplaintCategoryService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockChiefComplaintCategoryRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.ChiefComplaintCategory, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ChiefComplaintCategory, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
 			inquiryRepo := &mockInquiryRepository{}
 			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
 
-			category, err := svc.GetByID(context.Background(), tt.id)
+			category, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -284,7 +284,7 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoErr
 				},
-				findByIDFn: func(_ context.Context, _ uint64) (*model.ChiefComplaintCategory, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ChiefComplaintCategory, error) {
 					return tt.repoData, nil
 				},
 			}
@@ -351,7 +351,7 @@ func TestChiefComplaintCategoryService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockChiefComplaintCategoryRepository{
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
@@ -362,12 +362,12 @@ func TestChiefComplaintCategoryService_Delete(t *testing.T) {
 			}
 			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.wantConflict {
-					assert.True(t, errors.Is(err, apperrors.ErrAlreadyExists),
+					assert.True(t, errors.Is(err, apperrors.ErrConflict),
 						"expected conflict error, got: %v", err)
 				}
 			} else {

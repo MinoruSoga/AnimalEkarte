@@ -90,17 +90,6 @@ func (h *Handler) UpdateBillingItem(c *gin.Context) {
 		return
 	}
 
-	// テナント分離: アイテム→billing→クリニックの所有権を確認
-	existingItem, err := h.svc.BillingItem.GetByID(c.Request.Context(), id)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	if _, err := h.svc.Accounting.GetByID(c.Request.Context(), clinicID, existingItem.BillingID); err != nil {
-		RespondError(c, err)
-		return
-	}
-
 	var req updateBillingItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
@@ -125,7 +114,7 @@ func (h *Handler) UpdateBillingItem(c *gin.Context) {
 		IsInsuranceApplicable: req.IsInsuranceApplicable,
 	}
 
-	item, err := h.svc.BillingItem.UpdateItem(c.Request.Context(), id, input)
+	item, err := h.svc.BillingItem.UpdateItem(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -146,18 +135,7 @@ func (h *Handler) DeleteBillingItem(c *gin.Context) {
 		return
 	}
 
-	// テナント分離: アイテム→billing→クリニックの所有権を確認
-	existingItem, err := h.svc.BillingItem.GetByID(c.Request.Context(), id)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	if _, err := h.svc.Accounting.GetByID(c.Request.Context(), clinicID, existingItem.BillingID); err != nil {
-		RespondError(c, err)
-		return
-	}
-
-	if err := h.svc.BillingItem.DeleteItem(c.Request.Context(), id); err != nil {
+	if err := h.svc.BillingItem.DeleteItem(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

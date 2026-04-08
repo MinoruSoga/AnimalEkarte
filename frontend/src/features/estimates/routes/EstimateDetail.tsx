@@ -1,4 +1,5 @@
 import { ICON, C } from "@/lib/design-tokens";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 import { useNavigate, useParams } from 'react-router';
 import { FileText, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
@@ -29,14 +30,10 @@ export function EstimateDetail() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
-      </div>
-    );
+    return <LoadingFallback />;
   }
   if (isError || !estimate) {
-    return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
+    return <div className={`p-4 ${C.danger}`}>データの取得に失敗しました</div>;
   }
 
   return (
@@ -72,7 +69,7 @@ export function EstimateDetail() {
               size="sm"
               onClick={() => setShowDeleteDialog(true)}
               disabled={isDeleting}
-              className="h-9 gap-1.5 text-sm border border-red-200"
+              className={`h-9 gap-1.5 text-sm border ${C.borderDanger20}`}
             >
               <Trash2 className={ICON.action} />
               削除

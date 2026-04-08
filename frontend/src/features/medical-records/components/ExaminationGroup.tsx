@@ -84,9 +84,9 @@ export const ExaminationGroup = React.memo(function ExaminationGroup({
             <div
               className={`p-2 border-r ${C.borderMedium} text-right font-mono ${
                 item.status === "high"
-                  ? "text-red-600 font-bold"
+                  ? `${C.danger} font-bold`
                   : item.status === "low"
-                  ? "text-blue-600 font-bold"
+                  ? `${C.accent} font-bold`
                   : ""
               }`}
             >
@@ -102,7 +102,7 @@ export const ExaminationGroup = React.memo(function ExaminationGroup({
               {item.status === "high" ? (
                 <Badge
                   variant="destructive"
-                  className="h-10 px-3 text-sm bg-red-500 hover:bg-red-600"
+                  className={`h-10 px-3 text-sm ${C.bgDanger} ${C.hoverBgDanger90}`}
                 >
                   HIGH
                 </Badge>
@@ -110,13 +110,13 @@ export const ExaminationGroup = React.memo(function ExaminationGroup({
               {item.status === "low" ? (
                 <Badge
                   variant="outline"
-                  className="h-10 px-3 text-sm text-blue-600 border-blue-600 bg-blue-50"
+                  className={`h-10 px-3 text-sm ${C.accent} ${C.borderAccent} ${C.bgAccent5}`}
                 >
                   LOW
                 </Badge>
               ) : null}
               {item.status === "normal" ? (
-                <CheckCircle className={`${ICON.page} text-green-500/50`} />
+                <CheckCircle className={`${ICON.page} ${C.textStatusGreen} opacity-50`} />
               ) : null}
             </div>
           </div>

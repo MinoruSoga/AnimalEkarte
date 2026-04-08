@@ -14,12 +14,13 @@ import (
 
 // mockMedicalRecordRepository は MedicalRecordRepository のテスト用モック実装
 type mockMedicalRecordRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-	createFn       func(ctx context.Context, record *model.MedicalRecord) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
-	countByPetIDFn func(ctx context.Context, clinicID, petID uint64) (int64, error)
+	findAllFn                         func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	findByIDFn                        func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	createFn                          func(ctx context.Context, record *model.MedicalRecord) error
+	updateFieldsFn                    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
+	deleteFn                          func(ctx context.Context, clinicID, id uint64) error
+	countByPetIDFn                    func(ctx context.Context, clinicID, petID uint64) (int64, error)
+	countEstimatesByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) (int64, error)
 }
 
 func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -48,6 +49,13 @@ func (m *mockMedicalRecordRepository) Delete(ctx context.Context, clinicID, id u
 func (m *mockMedicalRecordRepository) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
 	if m.countByPetIDFn != nil {
 		return m.countByPetIDFn(ctx, clinicID, petID)
+	}
+	return 0, nil
+}
+
+func (m *mockMedicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error) {
+	if m.countEstimatesByMedicalRecordIDFn != nil {
+		return m.countEstimatesByMedicalRecordIDFn(ctx, medicalRecordID)
 	}
 	return 0, nil
 }
@@ -553,42 +561,66 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 
 func TestMedicalRecordService_Delete(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name          string
+		clinicID      uint64
+		id            uint64
+		estimateCount int64
+		estimateErr   error
+		repoErr       error
+		wantErr       bool
+		wantNF        bool
+		wantConflict  bool
 	}{
 		{
-			name:     "deletes record successfully",
-			clinicID: 1,
-			id:       10,
-			repoErr:  nil,
-			wantErr:  false,
-			wantNF:   false,
+			name:          "deletes record successfully",
+			clinicID:      1,
+			id:            10,
+			estimateCount: 0,
+			repoErr:       nil,
+			wantErr:       false,
+			wantNF:        false,
 		},
 		{
-			name:     "returns not found error when record does not exist",
-			clinicID: 1,
-			id:       999,
-			repoErr:  apperrors.WrapNotFound("medical_record", "999"),
-			wantErr:  true,
-			wantNF:   true,
+			name:          "returns conflict error when estimates reference the record",
+			clinicID:      1,
+			id:            10,
+			estimateCount: 2,
+			wantErr:       true,
+			wantConflict:  true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			id:       10,
-			repoErr:  errors.New("db error"),
-			wantErr:  true,
-			wantNF:   false,
+			name:        "returns error when estimate count check fails",
+			clinicID:    1,
+			id:          10,
+			estimateErr: errors.New("db error"),
+			wantErr:     true,
+		},
+		{
+			name:          "returns not found error when record does not exist",
+			clinicID:      1,
+			id:            999,
+			estimateCount: 0,
+			repoErr:       apperrors.WrapNotFound("medical_record", "999"),
+			wantErr:       true,
+			wantNF:        true,
+		},
+		{
+			name:          "returns error on repository failure",
+			clinicID:      1,
+			id:            10,
+			estimateCount: 0,
+			repoErr:       errors.New("db error"),
+			wantErr:       true,
+			wantNF:        false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicalRecordRepository{
+				countEstimatesByMedicalRecordIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.estimateCount, tt.estimateErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -601,6 +633,9 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

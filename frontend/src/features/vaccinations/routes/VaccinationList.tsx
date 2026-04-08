@@ -24,6 +24,7 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
 
 // Relative
 import { useFilterVaccinations } from "../hooks/use-vaccinations";
@@ -81,7 +82,7 @@ export function VaccinationList() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords, allVaccinations } = useFilterVaccinations(deferredSearchTerm, filters, activeFilters);
+  const { data: filteredRecords, allVaccinations, isLoading, error } = useFilterVaccinations(deferredSearchTerm, filters, activeFilters);
 
   // js-cache-function-results: ロード済みデータから担当医の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
@@ -216,6 +217,9 @@ export function VaccinationList() {
       </DataTableRow>
     );
   }, [handleEdit, canEdit, canDelete]);
+
+  if (isLoading) return <LoadingFallback />;
+  if (error) return <ErrorFallback />;
 
   return (
     <>

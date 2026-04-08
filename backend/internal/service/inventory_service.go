@@ -55,6 +55,13 @@ func (s *inventoryService) Update(ctx context.Context, clinicID, id uint64, inpu
 }
 
 func (s *inventoryService) Delete(ctx context.Context, clinicID, id uint64) error {
+	count, err := s.repo.CountUsageByInventoryID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check inventory item dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この項目は使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, clinicID, id)
 }
 

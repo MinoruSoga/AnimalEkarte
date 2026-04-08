@@ -71,6 +71,21 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if input.Title == "" {
 		return nil, apperrors.WrapInvalidInput("title is required")
 	}
+	if input.Subtotal < 0 {
+		return nil, apperrors.WrapInvalidInput("subtotal must be 0 or greater")
+	}
+	if input.TaxTotal < 0 {
+		return nil, apperrors.WrapInvalidInput("tax_total must be 0 or greater")
+	}
+	if input.TotalAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("total_amount must be 0 or greater")
+	}
+	if input.InsuranceAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("insurance_amount must be 0 or greater")
+	}
+	if input.DiscountAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
+	}
 
 	estimate := &model.Estimate{
 		ClinicID:        clinicID,
@@ -103,6 +118,21 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 }
 
 func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
+	if input.Subtotal != nil && *input.Subtotal < 0 {
+		return nil, apperrors.WrapInvalidInput("subtotal must be 0 or greater")
+	}
+	if input.TaxTotal != nil && *input.TaxTotal < 0 {
+		return nil, apperrors.WrapInvalidInput("tax_total must be 0 or greater")
+	}
+	if input.TotalAmount != nil && *input.TotalAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("total_amount must be 0 or greater")
+	}
+	if input.InsuranceAmount != nil && *input.InsuranceAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("insurance_amount must be 0 or greater")
+	}
+	if input.DiscountAmount != nil && *input.DiscountAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
+	}
 	fields := buildEstimateUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")

@@ -65,15 +65,15 @@ function getCareLogIcon(type: string) {
 function getCareLogColor(type: string): string {
     switch (type) {
         case "food":
-            return "bg-orange-50 border-orange-100 text-orange-700";
+            return `${C.bgDiscountLight} ${C.borderOrangeBadge} ${C.textDiscount}`;
         case "excretion":
-            return "bg-teal-50 border-teal-100 text-teal-700";
+            return `${C.bgStatusGreen} ${C.borderStatusGreenAlt} ${C.textStatusGreen}`;
         case "medicine":
-            return "bg-purple-50 border-purple-100 text-purple-700";
+            return `${C.bgStatusPurple} ${C.borderPurpleLight} ${C.textStatusPurple}`;
         case "treatment":
-            return "bg-red-50 border-red-100 text-red-700";
+            return `${C.bgDanger8} ${C.borderDanger20} ${C.danger}`;
         default:
-            return "bg-gray-50 border-gray-100 text-gray-700";
+            return `${C.bgPage} ${C.borderLight} ${C.text60}`;
     }
 }
 
@@ -125,7 +125,7 @@ export function DailyCareLogsSection({
         <div>
             <div className="flex items-center justify-between mb-2">
                 <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
-                    <UtensilsCrossed className={`${ICON.action} text-orange-500`} />
+                    <UtensilsCrossed className={`${ICON.action} ${C.textDiscount}`} />
                     ケアログ
                 </h4>
                 {canCreate ? (
@@ -142,7 +142,7 @@ export function DailyCareLogsSection({
             </div>
 
             {sorted.length === 0 ? (
-                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed ${C.borderMedium}`}>
+                <p className={`text-xs ${C.text40} py-3 text-center ${C.bgPage} rounded border border-dashed ${C.borderMedium}`}>
                     記録なし
                 </p>
             ) : (
@@ -186,7 +186,7 @@ export function DailyCareLogsSection({
                 <div className="space-y-3 py-2">
                     <div>
                         <Label htmlFor="carelog-time" className="text-xs">
-                            時刻 <span className="text-red-500">*</span>
+                            時刻 <span className={C.textRequired}>*</span>
                         </Label>
                         <Input
                             id="carelog-time"

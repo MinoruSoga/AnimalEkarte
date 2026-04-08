@@ -16,12 +16,16 @@ import (
 
 // GetHospitalizationPlan godoc
 func (h *Handler) GetHospitalizationPlan(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	plan, err := h.svc.HospitalizationPlan.GetByID(c.Request.Context(), id)
+	plan, err := h.svc.HospitalizationPlan.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -145,12 +149,16 @@ func (h *Handler) UpdateHospitalizationPlan(c *gin.Context) {
 
 // DeleteHospitalizationPlan godoc
 func (h *Handler) DeleteHospitalizationPlan(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.HospitalizationPlan.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.HospitalizationPlan.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

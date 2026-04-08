@@ -12,6 +12,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
@@ -255,7 +256,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }, []);
 
   if (isPetLoading) {
-    return null;
+    return <LoadingFallback />;
   }
 
   if (!selectedPet) {

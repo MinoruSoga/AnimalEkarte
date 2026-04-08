@@ -8,6 +8,7 @@ import { paths } from "@/config/paths";
 // External
 import { Plus, Building2, X, Percent } from "lucide-react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -30,7 +31,7 @@ import type {
   UpdateClinicRequest,
 } from "@/features/hospital-settings/api/clinics";
 import { ResourceHospitalSettings } from "@/types/generated/models";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -204,8 +205,8 @@ export function ClinicMasterSettings() {
           toast.success("登録しました");
         }
         return { success: true, timestamp: Date.now() };
-      } catch {
-        toast.error("保存に失敗しました");
+      } catch (error) {
+        handleApiError(error, "保存");
         return { success: false, timestamp: Date.now() };
       }
     },

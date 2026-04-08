@@ -13,7 +13,7 @@ import (
 
 // BillingItemRepository は billing_items テーブルの CRUD を担うインターフェース
 type BillingItemRepository interface {
-	FindByID(ctx context.Context, id uint64) (*model.BillingItem, error)
+	FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error)
 	FindByBillingID(ctx context.Context, billingID uint64) ([]model.BillingItem, error)
 	Create(ctx context.Context, item *model.BillingItem) error
 	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
@@ -28,9 +28,12 @@ func NewBillingItemRepository(db *gorm.DB) BillingItemRepository {
 	return &billingItemRepository{db: db}
 }
 
-func (r *billingItemRepository) FindByID(ctx context.Context, id uint64) (*model.BillingItem, error) {
+func (r *billingItemRepository) FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error) {
 	var item model.BillingItem
-	err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error
+	err := r.db.WithContext(ctx).
+		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ?", clinicID).
+		Where("billing_items.id = ?", id).
+		First(&item).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("%d", id))
 	}

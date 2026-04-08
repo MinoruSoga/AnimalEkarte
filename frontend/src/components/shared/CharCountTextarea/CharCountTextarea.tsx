@@ -49,7 +49,7 @@ export const CharCountTextarea = memo(function CharCountTextarea({
       <p
         className={cn(
           "text-xs text-right select-none",
-          isOver ? "text-red-500" : C.text40,
+          isOver ? C.danger : C.text40,
         )}
         aria-live="polite"
         aria-atomic="true"

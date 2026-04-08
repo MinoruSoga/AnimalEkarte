@@ -92,7 +92,7 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 
 	var req createTrimmingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -142,7 +142,7 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 	}
 	var req updateTrimmingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

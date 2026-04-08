@@ -65,7 +65,7 @@ const DemoAccount = memo(function DemoAccount({
             {permissionLabel}
           </span>
           {isSystemAdmin ? (
-            <span className="text-xs px-1.5 py-px rounded-[3px] text-red-600 bg-red-50">
+            <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.danger} ${C.bgDanger8}`}>
               システム管理者
             </span>
           ) : null}
@@ -234,24 +234,26 @@ export function LoginForm() {
         </div>
       </form>
 
-      {/* Demo accounts */}
-      <div className="mt-8">
-        <div className="flex items-center gap-2 mb-2">
-          <div className={`h-px flex-1 ${C.bgLight}`} />
-          <span className={`text-sm ${C.text35}`}>デモアカウント</span>
-          <div className={`h-px flex-1 ${C.bgLight}`} />
+      {/* Demo accounts — 開発環境のみ表示 */}
+      {import.meta.env.DEV ? (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-2">
+            <div className={`h-px flex-1 ${C.bgLight}`} />
+            <span className={`text-sm ${C.text35}`}>デモアカウント</span>
+            <div className={`h-px flex-1 ${C.bgLight}`} />
+          </div>
+          <p className={`text-sm text-center mb-2 ${C.text40}`}>パスワード: password</p>
+          <div className="space-y-px">
+            {DEMO_ACCOUNTS.map((cred) => (
+              <DemoAccount
+                key={cred.email}
+                {...cred}
+                onSelect={handleSelectDemo}
+              />
+            ))}
+          </div>
         </div>
-        <p className={`text-sm text-center mb-2 ${C.text40}`}>パスワード: password</p>
-        <div className="space-y-px">
-          {DEMO_ACCOUNTS.map((cred) => (
-            <DemoAccount
-              key={cred.email}
-              {...cred}
-              onSelect={handleSelectDemo}
-            />
-          ))}
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }

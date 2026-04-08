@@ -108,7 +108,7 @@ export function ChangePasswordDialog({
             />
           </div>
           {state?.error ? (
-            <p className="text-sm text-red-600" role="alert">
+            <p className={`text-sm ${C.danger}`} role="alert">
               {state.error}
             </p>
           ) : null}

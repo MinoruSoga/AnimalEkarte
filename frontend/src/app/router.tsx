@@ -510,6 +510,7 @@ export const router = createBrowserRouter([
             <Outlet />
           </RequirePermission>
         ),
+        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
@@ -574,6 +575,7 @@ export const router = createBrowserRouter([
             <Outlet />
           </RequirePermission>
         ),
+        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
@@ -636,6 +638,7 @@ export const router = createBrowserRouter([
             <Outlet />
           </RequirePermission>
         ),
+        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
@@ -651,6 +654,7 @@ export const router = createBrowserRouter([
       {
         path: "/settings",
         element: <Outlet />,
+        errorElement: <RouteErrorBoundary />,
         children: [
           {
             // MasterSettingsIndex — ガード不要（BUG-123 でカードフィルタリング対応）
@@ -847,6 +851,7 @@ export const router = createBrowserRouter([
             <Outlet />
           </RequirePermission>
         ),
+        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,

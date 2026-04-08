@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useActionState } from "react
 import { useNavigate, useSearchParams } from "react-router";
 import { addWeeks, addYears, format } from "date-fns";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
@@ -195,9 +196,8 @@ export function useVaccinationForm(id?: string) {
           toast.success("予防接種を登録しました");
         }
         return { success: true, timestamp: Date.now() };
-      } catch {
-        // BUG-024/074: API error toast
-        toast.error("保存に失敗しました");
+      } catch (error) {
+        handleApiError(error, "保存");
         return { success: false, timestamp: Date.now() };
       }
     },
@@ -284,8 +284,8 @@ export function useVaccinationForm(id?: string) {
         toast.success("予防接種情報を削除しました");
         onSuccess?.();
       },
-      onError: () => {
-        toast.error("削除に失敗しました");
+      onError: (error) => {
+        handleApiError(error, "削除");
       },
     });
   }, [isEdit, id, deleteMutation]);

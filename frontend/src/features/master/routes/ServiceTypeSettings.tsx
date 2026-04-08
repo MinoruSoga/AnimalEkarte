@@ -4,6 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { Activity } from "lucide-react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
@@ -13,12 +14,12 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 import { useGetServiceTypes, useCreateServiceType, useUpdateServiceType, useDeleteServiceType, useReorderServiceTypes } from "@/features/master/api/service-types";
 import type { ServiceType } from "@/features/master/api/service-types";
 import type { CreateServiceTypeRequest, UpdateServiceTypeRequest } from "@/types/service-type";
@@ -37,7 +38,7 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
   item, onClose, onSave, onDeleteRequest, readOnly,
 }: { item: ServiceType | null; onClose: () => void; onSave: (d: ServiceTypeFormData) => void; onDeleteRequest?: (i: ServiceType) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<ServiceTypeFormData>(() => ({
-    name: item?.name ?? "", description: item?.description ?? "", color: item?.color ?? PALETTE.defaultBlue, isActive: item?.isActive ?? true,
+    name: item?.name ?? "", description: item?.description ?? "", color: item?.color ?? "#3B82F6", isActive: item?.isActive ?? true,
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
@@ -120,7 +121,7 @@ export function ServiceTypeSettings() {
   const resetOrderRef = useRef<() => void>(() => {});
   const handleReorder = useCallback((newIds: string[]) => {
     reorderMutation.mutate({ ids: newIds.map(Number) }, {
-      onError: () => { resetOrderRef.current(); toast.error("並び替えに失敗しました"); },
+      onError: (error: unknown) => { resetOrderRef.current(); handleApiError(error, "並び替え"); },
     });
   }, [reorderMutation]);
 

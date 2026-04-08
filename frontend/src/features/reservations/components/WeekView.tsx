@@ -9,7 +9,7 @@ import { motion } from "motion/react";
 
 // Internal
 import { getReservationTypeColor, getReservationTypeName } from "@/utils/status-helpers";
-import { C, PALETTE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 // Types
@@ -130,7 +130,7 @@ const TimeSidebar = memo(function TimeSidebar() {
           style={{ height: `${HOUR_HEIGHT}px` }}
         >
           {hour}:00
-          <div className="absolute top-0 right-0 w-1.5 h-[1px]" style={{ backgroundColor: PALETTE.borderMedium }} />
+          <div className={`absolute top-0 right-0 w-1.5 h-[1px] ${C.bgLight}`} />
         </div>
       ))}
     </div>

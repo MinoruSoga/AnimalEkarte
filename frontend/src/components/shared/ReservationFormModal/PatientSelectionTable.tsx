@@ -198,7 +198,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
                           disabled={isDeceased}
                           className={`h-9 gap-1 text-sm px-2 transition-colors ${
                             isDeceased
-                              ? "bg-gray-100 text-gray-400 border-transparent cursor-not-allowed"
+                              ? `${C.bgPage} ${C.textStatusGray} border-transparent cursor-not-allowed`
                               : isSelected(pet)
                               ? `${C.bgPrimary} text-white ${C.hoverBgPrimaryDark}`
                               : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`

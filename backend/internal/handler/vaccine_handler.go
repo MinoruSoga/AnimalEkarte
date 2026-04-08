@@ -16,12 +16,16 @@ import (
 
 // GetVaccine godoc
 func (h *Handler) GetVaccine(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	vaccine, err := h.svc.Vaccine.GetByID(c.Request.Context(), id)
+	vaccine, err := h.svc.Vaccine.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -31,11 +35,15 @@ func (h *Handler) GetVaccine(c *gin.Context) {
 
 // ListVaccines godoc
 func (h *Handler) ListVaccines(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	var species *string
 	if s := c.Query("species"); s != "" {
 		species = &s
 	}
-	vaccines, err := h.svc.Vaccine.List(c.Request.Context(), species)
+	vaccines, err := h.svc.Vaccine.List(c.Request.Context(), clinicID, species)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -138,12 +146,16 @@ func (h *Handler) ReorderVaccines(c *gin.Context) {
 
 // DeleteVaccine godoc
 func (h *Handler) DeleteVaccine(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.Vaccine.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.Vaccine.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

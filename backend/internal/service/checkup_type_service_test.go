@@ -13,20 +13,20 @@ import (
 
 // mockCheckupTypeRepository は CheckupTypeRepository のテスト用モック実装
 type mockCheckupTypeRepository struct {
-	findAllFn                   func(ctx context.Context) ([]model.CheckupType, error)
-	findByIDFn                  func(ctx context.Context, id uint64) (*model.CheckupType, error)
+	findAllFn                   func(ctx context.Context, clinicID uint64) ([]model.CheckupType, error)
+	findByIDFn                  func(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error)
 	createFn                    func(ctx context.Context, checkupType *model.CheckupType) error
 	updateFieldsFn              func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
-	deleteFn                    func(ctx context.Context, id uint64) error
+	deleteFn                    func(ctx context.Context, clinicID, id uint64) error
 	countUsageByCheckupTypeIDFn func(ctx context.Context, checkupTypeID uint64) (int64, error)
 }
 
-func (m *mockCheckupTypeRepository) FindAll(ctx context.Context) ([]model.CheckupType, error) {
-	return m.findAllFn(ctx)
+func (m *mockCheckupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
+	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockCheckupTypeRepository) FindByID(ctx context.Context, id uint64) (*model.CheckupType, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockCheckupTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockCheckupTypeRepository) Create(ctx context.Context, checkupType *model.CheckupType) error {
@@ -37,8 +37,8 @@ func (m *mockCheckupTypeRepository) UpdateFields(ctx context.Context, clinicID, 
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockCheckupTypeRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockCheckupTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 func (m *mockCheckupTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -89,13 +89,13 @@ func TestCheckupTypeService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCheckupTypeRepository{
-				findAllFn: func(_ context.Context) ([]model.CheckupType, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.CheckupType, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
 			svc := NewCheckupTypeService(repo)
 
-			checkupTypes, err := svc.List(context.Background())
+			checkupTypes, err := svc.List(context.Background(), 1)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -145,13 +145,13 @@ func TestCheckupTypeService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCheckupTypeRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.CheckupType, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
 					return tt.repoCheckupType, tt.repoErr
 				},
 			}
 			svc := NewCheckupTypeService(repo)
 
-			checkupType, err := svc.GetByID(context.Background(), tt.id)
+			checkupType, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -355,13 +355,13 @@ func TestCheckupTypeService_Delete(t *testing.T) {
 				countUsageByCheckupTypeIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewCheckupTypeService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

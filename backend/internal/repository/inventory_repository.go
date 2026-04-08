@@ -17,6 +17,7 @@ type InventoryRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	DecreaseStock(ctx context.Context, id uint64, quantity float64) error
+	CountUsageByInventoryID(ctx context.Context, inventoryID uint64) (int64, error)
 }
 
 type inventoryRepository struct {
@@ -105,4 +106,23 @@ func (r *inventoryRepository) DecreaseStock(ctx context.Context, id uint64, quan
 		return apperrors.WrapNotFound("inventory_item", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountUsageByInventoryID は在庫アイテムを参照している治療明細・ワクチン・薬剤の件数を返す（BUG-195）
+func (r *inventoryRepository) CountUsageByInventoryID(ctx context.Context, inventoryID uint64) (int64, error) {
+	var count int64
+	// treatments, vaccines, medicines のいずれかから参照されていればカウント
+	err := r.db.WithContext(ctx).
+		Raw(`SELECT (
+			SELECT COUNT(*) FROM treatments WHERE inventory_id = ? AND deleted_at IS NULL
+		) + (
+			SELECT COUNT(*) FROM vaccines WHERE inventory_id = ?
+		) + (
+			SELECT COUNT(*) FROM medicines WHERE inventory_id = ?
+		) AS total`, inventoryID, inventoryID, inventoryID).
+		Scan(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", inventoryID))
+	}
+	return count, nil
 }

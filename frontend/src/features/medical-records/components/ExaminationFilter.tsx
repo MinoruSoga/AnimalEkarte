@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 interface ExaminationFilterProps {
   searchTerm: string;

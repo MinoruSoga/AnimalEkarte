@@ -16,12 +16,16 @@ import (
 
 // GetTrimmingCourse godoc
 func (h *Handler) GetTrimmingCourse(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	course, err := h.svc.TrimmingCourse.GetByID(c.Request.Context(), id)
+	course, err := h.svc.TrimmingCourse.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -117,12 +121,16 @@ func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
 
 // DeleteTrimmingCourse godoc
 func (h *Handler) DeleteTrimmingCourse(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.TrimmingCourse.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.TrimmingCourse.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -151,12 +159,16 @@ func (h *Handler) ReorderTrimmingCourses(c *gin.Context) {
 
 // GetTrimmingOption godoc
 func (h *Handler) GetTrimmingOption(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	option, err := h.svc.TrimmingOption.GetByID(c.Request.Context(), id)
+	option, err := h.svc.TrimmingOption.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -246,12 +258,16 @@ func (h *Handler) UpdateTrimmingOption(c *gin.Context) {
 
 // DeleteTrimmingOption godoc
 func (h *Handler) DeleteTrimmingOption(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.TrimmingOption.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.TrimmingOption.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

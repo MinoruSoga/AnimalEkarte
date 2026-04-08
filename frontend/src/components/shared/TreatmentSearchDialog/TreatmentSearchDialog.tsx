@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { C, ICON } from "@/lib/design-tokens";
-import { useGetAllConsultations } from "@/features/master/api/consultations";
-import { useGetAllProcedures } from "@/features/master/api/procedures";
-import { useGetAllVaccinesMaster } from "@/features/master/api/vaccines-master";
-import { useGetAllCheckupTypes } from "@/features/master/api/checkup-types";
+import {
+  useGetAllConsultations,
+  useGetAllProcedures,
+  useGetAllVaccinesMaster,
+  useGetAllCheckupTypes,
+} from "@/features/master";
 
 // --- Types ---
 export type TreatmentMasterItem = {

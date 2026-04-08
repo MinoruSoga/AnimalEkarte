@@ -174,7 +174,7 @@ export function ReservationDetailModal({
                 <div className="flex items-center gap-1.5">
                   {appointment.doctor}
                   {appointment.isDesignated ? (
-                    <Badge variant="outline" className="text-[11px] h-5 px-1.5 bg-amber-50 text-amber-700 border-amber-200">
+                    <Badge variant="outline" className={`text-[11px] h-5 px-1.5 ${C.bgNotice} ${C.textNotice} ${C.borderNotice}`}>
                       指名
                     </Badge>
                   ) : null}
@@ -192,8 +192,8 @@ export function ReservationDetailModal({
 
           {/* Notes */}
           {appointment.notes ? (
-            <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-3">
-              <div className="flex items-center gap-1.5 text-sm text-amber-700 mb-1.5">
+            <div className={`rounded-lg border ${C.borderNotice50} ${C.bgNotice40} p-3`}>
+              <div className={`flex items-center gap-1.5 text-sm ${C.textNotice} mb-1.5`}>
                 <FileText className={`${ICON.xs}`} />
                 <span>メモ</span>
               </div>

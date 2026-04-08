@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 import { C } from "@/lib/design-tokens";
 import type { Resource } from "@/types/generated/models";
 

@@ -13,10 +13,10 @@ export const RESERVATION_STATUS_COLORS = {
   confirmed:       { label: "予約確定",    dot: "bg-emerald-500", bg: "bg-emerald-50",  text: "text-emerald-700" },
   pending:         { label: "仮予約",      dot: "bg-sky-500",     bg: "bg-sky-50",      text: "text-sky-700" },
   checked_in:      { label: "受付済",      dot: "bg-blue-500",    bg: "bg-blue-50",     text: "text-blue-700" },
-  in_consultation: { label: "診療中",      dot: "bg-violet-500",  bg: "bg-violet-50",   text: "text-violet-700" },
+  in_consultation: { label: "診療中",      dot: C.bgStatusPurpleDot, bg: C.bgStatusPurple, text: C.textStatusPurple },
   accounting:      { label: "会計待ち",    dot: "bg-amber-500",   bg: "bg-amber-50",    text: "text-amber-700" },
-  completed:       { label: "完了",        dot: "bg-gray-400",    bg: "bg-gray-50",     text: "text-gray-600" },
-  cancelled:       { label: "キャンセル",  dot: "bg-red-500",     bg: "bg-red-50",      text: "text-red-700" },
+  completed:       { label: "完了",        dot: C.bgStatusGrayMedium, bg: C.bgStatusGray, text: C.textStatusGray },
+  cancelled:       { label: "キャンセル",  dot: "bg-red-500",     bg: C.bgRedLight,     text: C.textNotionRed },
 } as const;
 
 /**
@@ -37,9 +37,9 @@ export function getReservationStatusColor(status: string) {
 /** アクセントカラー（ReservationDetailModal のヘッダー帯・バッジ） */
 export const VISIT_TYPE_COLORS = {
   初診: {
-    border: "border-red-200",
-    bg: "bg-red-50",
-    text: "text-red-700",
+    border: C.borderRedBadge,
+    bg: C.bgRedLight,
+    text: C.textNotionRed,
     dot: "bg-red-500",
     // AppointmentCard バッジ用カラー
     badgeBg: C.bgAccentLight60,
@@ -47,9 +47,9 @@ export const VISIT_TYPE_COLORS = {
     badgeBorder: C.borderAccentBadge50,
   },
   再診: {
-    border: "border-blue-200",
-    bg: "bg-blue-50",
-    text: "text-blue-700",
+    border: C.borderAccentBadge,
+    bg: C.bgAccentLight,
+    text: C.textAccentDark,
     dot: "bg-blue-500",
     // AppointmentCard バッジ用カラー
     badgeBg: C.bgPage60,
@@ -83,4 +83,4 @@ export const RECEPTION_STATUS_COLORS: Record<string, string> = {
 };
 
 /** RECEPTION_STATUS_COLORS 未定義ステータスのフォールバッククラス */
-export const RECEPTION_STATUS_COLOR_FALLBACK = "bg-gray-100 text-gray-600 border-gray-200";
+export const RECEPTION_STATUS_COLOR_FALLBACK = `${C.bgStatusGray} ${C.textStatusGray} ${C.borderStatusGray}`;

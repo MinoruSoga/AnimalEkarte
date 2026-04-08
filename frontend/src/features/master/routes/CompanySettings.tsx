@@ -6,6 +6,7 @@ import { paths } from "@/config/paths";
 // External
 import { Building2, X } from "lucide-react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -14,7 +15,7 @@ import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useGetCompany, useUpdateCompany } from "@/features/master/api/company";
 import type { UpdateCompanyRequest } from "@/features/master/api/company";
 import { ResourceHospitalSettings } from "@/types/generated/models";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -129,8 +130,8 @@ export function CompanySettings() {
         toast.success("法人情報を更新しました");
         setIsEditing(false);
       },
-      onError: () => {
-        toast.error("更新に失敗しました");
+      onError: (error) => {
+        handleApiError(error, "更新");
       },
     });
   }, [formData, updateMutation]);

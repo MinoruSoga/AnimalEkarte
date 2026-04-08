@@ -21,7 +21,7 @@ import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import { useGetAllCages, useCreateCage, useUpdateCage, useDeleteCage, useReorderCages } from "@/features/master/api/cages";
 import type { Cage, CageType, CageSize, CreateCageRequest, UpdateCageRequest } from "@/features/master/api/cages";
 import { ResourceMasterHospitalization } from "@/types/generated/models";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // ─── Constants ───
 const CAGE_TYPE_LABELS: Record<CageType, string> = { icu: "ICU", dog: "犬舎", cat: "猫舎", general: "汎用" };

@@ -93,9 +93,9 @@ export const ImageGalleryGroup = React.memo(function ImageGalleryGroup({
                     aria-label={`${img.name}を削除`}
                     onClick={(e) => handleDeleteClick(e, img.id)}
                     disabled={isDeleting}
-                    className="absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm border border-red-200 hover:bg-red-50 disabled:opacity-50"
+                    className={`absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm border ${C.borderDanger20} ${C.hoverBgDanger5} disabled:opacity-50`}
                   >
-                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                    <Trash2 className={`h-3.5 w-3.5 ${C.danger}`} />
                   </button>
                 ) : null}
 
@@ -106,7 +106,7 @@ export const ImageGalleryGroup = React.memo(function ImageGalleryGroup({
                 ) : null}
               </div>
               <p
-                className={`text-sm font-medium truncate transition-colors ${C.text} group-hover:text-blue-600`}
+                className={`text-sm font-medium truncate transition-colors ${C.text} ${C.hoverTextAccent}`}
               >
                 {img.name}
               </p>

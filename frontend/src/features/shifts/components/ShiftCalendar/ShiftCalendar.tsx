@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export interface StaffItem {
 
 // ─── ヘッダー列（静的 JSX）: rendering-hoist-jsx ───────────────────────
 const STAFF_HEADER = (
-  <div className="sticky left-0 z-20 bg-white px-3 py-2 text-xs font-semibold text-gray-600 border-r border-b border-gray-200 min-w-[100px]">
+  <div className={`sticky left-0 z-20 bg-white px-3 py-2 text-xs font-semibold ${C.text60} border-r border-b ${C.borderLight} min-w-[100px]`}>
     スタッフ
   </div>
 );
@@ -136,7 +136,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
   return (
     <div className="flex flex-col h-full">
       {/* ツールバー */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shrink-0">
+      <div className={`flex items-center justify-between px-4 py-3 border-b ${C.borderLight} bg-white shrink-0`}>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -176,20 +176,20 @@ export const ShiftCalendar = memo(function ShiftCalendar({
       <div className="flex-1 overflow-auto">
         <div className="inline-block min-w-full">
           {/* ヘッダー行（日付） */}
-          <div className="flex sticky top-0 z-10 bg-white border-b border-gray-200">
+          <div className={`flex sticky top-0 z-10 bg-white border-b ${C.borderLight}`}>
             {STAFF_HEADER}
             {days.map(({ day, dateStr, dayOfWeek }) => {
               const isSun = dayOfWeek === 0;
               const isSat = dayOfWeek === 6;
               const colorClass = isSun
-                ? "text-red-500"
+                ? C.danger
                 : isSat
-                  ? "text-blue-500"
-                  : "text-gray-700";
+                  ? C.accent
+                  : C.text70;
               return (
                 <div
                   key={dateStr}
-                  className={`min-w-[52px] w-[52px] px-1 py-2 text-center text-xs font-medium border-r border-gray-200 ${colorClass}`}
+                  className={`min-w-[52px] w-[52px] px-1 py-2 text-center text-xs font-medium border-r ${C.borderLight} ${colorClass}`}
                 >
                   <div>{day}</div>
                   <div className="text-[10px] opacity-70">
@@ -202,10 +202,10 @@ export const ShiftCalendar = memo(function ShiftCalendar({
 
           {/* スタッフ行 */}
           {visibleStaffs.map((staff) => (
-            <div key={staff.id} className="flex border-b border-gray-100 hover:bg-gray-50/50">
+            <div key={staff.id} className={`flex border-b ${C.borderDivider} ${C.hoverBgPageHalf}`}>
               {/* スタッフ名列 */}
-              <div className="sticky left-0 z-10 bg-white min-w-[100px] px-3 py-2 border-r border-gray-200 flex items-center">
-                <span className="text-xs font-medium text-gray-800 truncate max-w-[88px]">
+              <div className={`sticky left-0 z-10 bg-white min-w-[100px] px-3 py-2 border-r ${C.borderLight} flex items-center`}>
+                <span className={`text-xs font-medium ${C.text} truncate max-w-[88px]`}>
                   {staff.name}
                 </span>
               </div>
@@ -216,7 +216,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
                 return (
                   <div
                     key={dateStr}
-                    className="min-w-[52px] w-[52px] border-r border-gray-100 p-0.5"
+                    className={`min-w-[52px] w-[52px] border-r ${C.borderDivider} p-0.5`}
                   >
                     <ShiftCell
                       shift={shift}
@@ -235,7 +235,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
           ))}
 
           {visibleStaffs.length === 0 ? (
-            <div className="flex items-center justify-center py-16 text-sm text-gray-400">
+            <div className={`flex items-center justify-center py-16 text-sm ${C.text40}`}>
               スタッフが見つかりません
             </div>
           ) : null}
