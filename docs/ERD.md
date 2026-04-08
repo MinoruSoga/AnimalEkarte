@@ -1,13 +1,23 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v27.0（NULL列・型・不足列の一括同期）
-更新日: 2026-03-29
+バージョン: v28.0（Account-based authentication 実装）
+更新日: 2026-04-05
 状態: Production Ready
 
 本ドキュメントは、Animal Ekarteの全57テーブルとそのリレーションを定義します。
 PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
+
+## 変更概要（v27.0 → v28.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| Account-based authentication 実装 | `user_accounts` → `accounts`（ログインアカウント）、`user_clinic_memberships` → `staff_clinic_assignments`（スタッフ-クリニック中間テーブル）に置換 |
+| RBAC権限グループ再実装 | `permission_groups`, `permission_group_rules`, `staff_permission_groups` の3テーブルで23リソース×CRUD権限を管理。staff ベースに移行（旧 `user_permission_groups` 廃止） |
+| Account モデル分離 | Account は Staff と独立。Account: email/password_hash（認証）、Staff: name/role（スタッフ情報） |
+| Staff-Clinic 関係 | N:N 関係を `staff_clinic_assignments` で管理。`is_main` フラグでメインクリニックを指定 |
+| テーブル総数 | 57 → 57（3削除 + 2追加 = -1） |
 
 ## 変更概要（v26.0 → v27.0）
 
@@ -31,9 +41,9 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 | 変更内容 | 詳細 |
 |---------|------|
-| `user_permissions` テーブル廃止 → `permission_groups` / `permission_group_rules` / `user_permission_groups` に置換 | migration と不一致だった旧 ENUM ベース権限テーブルを削除。RBAC 3テーブル体制に更新 |
+| `user_permissions` テーブル廃止 → `permission_groups` / `permission_group_rules` / `staff_permission_groups` に置換 | migration と不一致だった旧 ENUM ベース権限テーブルを削除。RBAC 3テーブル体制に更新（スタッフベース） |
 | `permission_type` ENUM 削除 | migration に存在しない架空 ENUM。削除 |
-| テーブル総数 56 → 57 に更新 | user_permissions(1) → permission_groups + permission_group_rules + user_permission_groups(3) で +2 |
+| テーブル総数 56 → 57 に更新 | user_permissions(1) → permission_groups + permission_group_rules + staff_permission_groups(3) で +2 |
 
 ## 変更概要（v24.0 → v25.0）
 
@@ -243,69 +253,67 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 
 ---
 
-## テーブル一覧（55テーブル）
+## テーブル一覧（57テーブル）
 
 | # | テーブル名 | 区分 | 説明 |
 |---|-----------|------|------|
 | 1 | `company` | 法人情報 | 法人（ノア動物病院）情報シングルトン |
 | 2 | `clinics` | 医院情報 | 各医院（八王子・城東・敷島） |
-| 3 | `user_accounts` | 認証 | ログインアカウント |
-| 4 | `user_clinic_memberships` | 認証 | ユーザーの医院所属 |
-| 5 | `permission_groups` | 認証 | 権限グループ定義（RBAC） |
-| 5b | `permission_group_rules` | 認証 | グループ×リソース×CRUD権限 |
-| 5c | `user_permission_groups` | 認証 | ユーザー→グループ紐付け |
-| 6 | `owners` | コア | 飼い主 |
-| 7 | `pets` | コア | ペット |
-| 8 | `animal_species` | マスタ | ペット種類マスタ（犬・猫・鳥等） |
-| 9 | `staffs` | マスタ | スタッフ（獣医師・看護師等） |
-| 10 | `inventory_items` | 在庫 | 在庫アイテム |
-| 11 | `exam_types` | マスタ | 検査種別 |
-| 12 | `exam_type_items` | マスタ | 検査種別の検査項目定義 |
-| 13 | `vaccines` | マスタ | ワクチン |
-| 14 | `medicines` | マスタ | 薬剤 |
-| 15 | `insurances` | マスタ | 保険 |
-| 16 | `cages` | マスタ | ケージ |
-| 17 | `service_types` | マスタ | サービス種別 |
-| 18 | `consultations` | マスタ | 診察項目 |
-| 19 | `procedures` | マスタ | 処置項目 |
-| 20 | `hospitalization_plans` | マスタ | 入院プラン |
-| 21 | `trimming_courses` | マスタ | トリミングコース |
-| 22 | `trimming_options` | マスタ | トリミングオプション |
-| 23 | `diagnosis_categories` | マスタ | 診断カテゴリ |
-| 24 | `diagnosis_names` | マスタ | 診断病名 |
-| 25 | `checkup_types` | マスタ | 健診種別 |
-| 26 | `chief_complaint_categories` | マスタ | 主訴区分マスタ |
-| 27 | `inquiry_templates` | マスタ | 問診定型文マスタ |
-| 28 | `job_titles` | マスタ | 職種マスタ（clinic単位） |
-| 29 | `medical_records` | 診療 | カルテ（診療記録） |
-| 30 | `clinical_plans` | 診療 | 診察所見・診断・治療方針（診察/治療タブ） |
-| 31 | `inquiries` | 診療 | 問診情報（カルテ問診タブ） |
-| 32 | `treatments` | 診療 | 処置・診察・薬剤明細 |
-| 33 | `vital_records` | 診療・入院 | バイタル記録（外来・入院統合） |
-| 34 | `exams` | 診療 | 検査記録 |
-| 35 | `exam_items` | 診療 | 検査記録の検査結果項目 |
-| 36 | `vaccinations` | 診療 | ワクチン接種記録 |
-| 37 | `checkups` | 診療 | 健診記録 |
-| 38 | `record_images` | 診療 | 診療画像（レントゲン・エコー等） |
-| 39 | `estimates` | 診療 | 見積書 |
-| 40 | `estimate_items` | 診療 | 見積書明細 |
-| 41 | `billing_reviews` | 診療 | 会計医師確認 |
-| 42 | `reservation_appointments` | 予約 | 予約 |
-| 43 | `hospitalizations` | 入院 | 入院・ホテル |
-| 44 | `daily_records` | 入院 | 入院日次記録 |
-| 45 | `care_plan_items` | 入院 | ケアプラン項目 |
-| 46 | `care_log_records` | 入院 | ケアログ |
-| 47 | （`vitals` と統合 → `vital_records`） | - | - |
-| 48 | `staff_note_records` | 入院 | スタッフノート |
-| 49 | `treatment_plans` | 診療 | 治療プラン（外来・入院共用） |
-| 50 | `trimming_records` | トリミング | トリミング記録 |
-| 51 | `trimming_record_options` | トリミング | トリミング記録のオプション選択 |
-| 52 | `billings` | 会計 | 会計 |
-| 53 | `billing_items` | 会計 | 会計明細 |
-| 54 | `payments` | 会計 | 支払い情報 |
-| 55 | `billing_refunds` | 会計 | 返金レコード（Stripe モデル） |
-| 56 | `merchandise_items` | マスタ | 物販・フード・その他マスタ |
-| 57 | `shift_entries` | シフト | スタッフシフト |
+| 3 | `accounts` | 認証 | ログインアカウント（email/password_hash 管理） |
+| 4 | `staff_clinic_assignments` | 認証 | スタッフ-クリニック中間テーブル（N:N関係、is_main フラグ） |
+| 5 | `owners` | コア | 飼い主 |
+| 6 | `pets` | コア | ペット |
+| 7 | `animal_species` | マスタ | ペット種類マスタ（犬・猫・鳥等） |
+| 8 | `staffs` | マスタ | スタッフ（獣医師・看護師等）。account_id FK で Account と紐付け |
+| 9 | `inventory_items` | 在庫 | 在庫アイテム |
+| 10 | `exam_types` | マスタ | 検査種別 |
+| 11 | `exam_type_items` | マスタ | 検査種別の検査項目定義 |
+| 12 | `vaccines` | マスタ | ワクチン |
+| 13 | `medicines` | マスタ | 薬剤 |
+| 14 | `insurances` | マスタ | 保険 |
+| 15 | `cages` | マスタ | ケージ |
+| 16 | `service_types` | マスタ | サービス種別 |
+| 17 | `consultations` | マスタ | 診察項目 |
+| 18 | `procedures` | マスタ | 処置項目 |
+| 19 | `hospitalization_plans` | マスタ | 入院プラン |
+| 20 | `trimming_courses` | マスタ | トリミングコース |
+| 21 | `trimming_options` | マスタ | トリミングオプション |
+| 22 | `diagnosis_categories` | マスタ | 診断カテゴリ |
+| 23 | `diagnosis_names` | マスタ | 診断病名 |
+| 24 | `checkup_types` | マスタ | 健診種別 |
+| 25 | `chief_complaint_categories` | マスタ | 主訴区分マスタ |
+| 26 | `inquiry_templates` | マスタ | 問診定型文マスタ |
+| 27 | `job_titles` | マスタ | 職種マスタ（clinic単位） |
+| 28 | `medical_records` | 診療 | カルテ（診療記録） |
+| 29 | `clinical_plans` | 診療 | 診察所見・診断・治療方針（診察/治療タブ） |
+| 30 | `inquiries` | 診療 | 問診情報（カルテ問診タブ） |
+| 31 | `treatments` | 診療 | 処置・診察・薬剤明細 |
+| 32 | `vital_records` | 診療・入院 | バイタル記録（外来・入院統合） |
+| 33 | `exams` | 診療 | 検査記録 |
+| 34 | `exam_items` | 診療 | 検査記録の検査結果項目 |
+| 35 | `vaccinations` | 診療 | ワクチン接種記録 |
+| 36 | `checkups` | 診療 | 健診記録 |
+| 37 | `record_images` | 診療 | 診療画像（レントゲン・エコー等） |
+| 38 | `estimates` | 診療 | 見積書 |
+| 39 | `estimate_items` | 診療 | 見積書明細 |
+| 40 | `billing_reviews` | 診療 | 会計医師確認 |
+| 41 | `reservation_appointments` | 予約 | 予約 |
+| 42 | `hospitalizations` | 入院 | 入院・ホテル |
+| 43 | `daily_records` | 入院 | 入院日次記録 |
+| 44 | `care_plan_items` | 入院 | ケアプラン項目 |
+| 45 | `care_log_records` | 入院 | ケアログ |
+| 46 | （`vitals` と統合 → `vital_records`） | - | - |
+| 47 | `staff_note_records` | 入院 | スタッフノート |
+| 48 | `treatment_plans` | 診療 | 治療プラン（外来・入院共用） |
+| 49 | `trimming_records` | トリミング | トリミング記録 |
+| 50 | `trimming_record_options` | トリミング | トリミング記録のオプション選択 |
+| 51 | `billings` | 会計 | 会計 |
+| 52 | `billing_items` | 会計 | 会計明細 |
+| 53 | `payments` | 会計 | 支払い情報 |
+| 54 | `billing_refunds` | 会計 | 返金レコード（Stripe モデル） |
+| 55 | `merchandise_items` | マスタ | 物販・フード・その他マスタ |
+| 56 | `shift_entries` | シフト | スタッフシフト |
+| 57 | `audit_logs` | 監査 | 操作監査ログ |
 
 ---
 
@@ -351,54 +359,23 @@ erDiagram
     }
 
     %% ===== 認証 =====
-    user_accounts {
+    accounts {
         bigint id PK
-        text email
-        text display_name
-        user_type user_type
-        bigint job_title_id FK
-        account_status status
-        bigint staff_id FK
-        text display_name_kana
-        text avatar_url
+        text email "UNIQUE"
         text password_hash
+        boolean is_active "DEFAULT true"
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
     }
 
-    user_clinic_memberships {
+    staff_clinic_assignments {
         bigint id PK
-        bigint user_id FK
-        bigint clinic_id FK
-        boolean is_main
-        timestamptz joined_at
-    }
-
-    permission_groups {
-        bigint id PK
-        bigint clinic_id FK
-        varchar name
-        text description
-        varchar color
+        bigint staff_id FK "NOT NULL"
+        bigint clinic_id FK "NOT NULL"
+        boolean is_main "DEFAULT false"
         timestamptz created_at
         timestamptz updated_at
-        timestamptz deleted_at
-    }
-
-    permission_group_rules {
-        bigint id PK
-        bigint group_id FK
-        varchar resource "UK: group_id+resource"
-        boolean can_view
-        boolean can_create
-        boolean can_edit
-        boolean can_delete
-    }
-
-    user_permission_groups {
-        bigint user_id FK "PK複合"
-        bigint group_id FK "PK複合"
     }
 
     %% ===== コア =====
@@ -466,7 +443,7 @@ erDiagram
 
     staffs {
         bigint id PK
-        bigint clinic_id FK
+        bigint account_id FK "FK → accounts(id) SET NULL"
         text name
         boolean is_active
         staff_role staff_role
@@ -803,6 +780,7 @@ erDiagram
         treatment_status status
         text content
         text memo
+        varchar admin_route
         boolean insurance
         numeric discount_rate
         integer discount_amount
@@ -854,6 +832,9 @@ erDiagram
         text result
         text unit
         text ref
+        decimal ref_min
+        decimal ref_max
+        boolean is_abnormal
         integer sort_order
         timestamptz created_at
         timestamptz updated_at
@@ -1211,13 +1192,9 @@ erDiagram
     %% ===== リレーション =====
 
     %% 認証
-    user_accounts ||--o{ user_clinic_memberships : "user_id"
-    user_accounts ||--o{ user_permission_groups : "user_id"
-    user_accounts }o--|| staffs : "staff_id"
-    clinics ||--o{ user_clinic_memberships : "clinic_id"
-    clinics ||--o{ permission_groups : "clinic_id"
-    permission_groups ||--o{ permission_group_rules : "group_id"
-    permission_groups ||--o{ user_permission_groups : "group_id"
+    accounts }o--|| staffs : "account_id SET NULL"
+    clinics ||--o{ staff_clinic_assignments : "clinic_id"
+    staffs ||--o{ staff_clinic_assignments : "staff_id"
 
     %% コア
     owners ||--o{ pets : "owner_id"
@@ -1227,7 +1204,6 @@ erDiagram
     %% マスタ
     clinics ||--o{ job_titles : "clinic_id"
     job_titles ||--o{ staffs : "job_title_id"
-    job_titles ||--o{ user_accounts : "job_title_id"
     exam_types ||--o{ exam_type_items : "exam_type_id"
     diagnosis_categories ||--o{ diagnosis_names : "diagnosis_category_id"
     inventory_items ||--o{ medicines : "inventory_id"
@@ -1487,113 +1463,56 @@ erDiagram
 
 ---
 
-#### `user_accounts`
+#### `accounts`
 
-用途: システムへのログインアカウント。staffsと1対1で紐づく（任意）。
+用途: システムへのログインアカウント。メールアドレスとパスワードハッシュを管理。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | email | text | NO | | メールアドレス（UNIQUE） |
-| password_hash | text | NO | '' | bcryptハッシュ化パスワード（JSON非公開） |
-| display_name | text | NO | | 表示名 |
-| display_name_kana | text | NO | '' | 表示名カナ |
-| user_type | user_type | NO | 'staff' | ユーザー種別 |
-| job_title_id | bigint | YES | NULL | job_titles.id FK（職種） |
-| status | account_status | YES | 'active' | アカウント状態 |
-| avatar_url | text | NO | '' | アバター画像URL |
-| staff_id | bigint | YES | NULL | staffs.id FK |
+| password_hash | text | NO | | bcryptハッシュ化パスワード（JSON非公開） |
+| is_active | boolean | NO | true | アカウント有効フラグ |
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
-**FK:**
-- `staff_id` → `staffs.id` (SET NULL)
-- `job_title_id` → `job_titles.id` (SET NULL)
+**インデックス:** `(email) WHERE deleted_at IS NULL` UNIQUE
+
+**設計方針:**
+- Account は Staff と独立。1つの Account が複数の Staff に紐付く可能性あり（将来）
+- email は UNIQUE（論理削除前提の部分インデックス）
 
 ---
 
-#### `user_clinic_memberships`
+#### `staff_clinic_assignments`
 
-用途: ユーザーの医院所属。1ユーザーが複数医院に所属可能。is_main=trueは各ユーザーにつき1件のみ。
+用途: スタッフと医院の中間テーブル（N:N関係）。1スタッフが複数医院に所属可能。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
-| user_id | bigint | NO | | user_accounts.id FK |
+| staff_id | bigint | NO | | staffs.id FK |
 | clinic_id | bigint | NO | | clinics.id FK |
-| is_main | boolean | YES | false | 主所属医院フラグ |
-| joined_at | timestamptz | YES | now() | 所属開始日時 |
-
-**FK:**
-- `user_id` → `user_accounts.id` (CASCADE)
-- `clinic_id` → `clinics.id` (RESTRICT)
-
-**インデックス:**
-- `(user_id, clinic_id)` UNIQUE
-- `(user_id) WHERE is_main = true` UNIQUE（部分インデックス）
-
----
-
-#### `permission_groups`
-
-用途: 権限グループ定義。clinic 単位（TASK-049 完了後は company 単位に移行予定）。
-
-| カラム名 | 型 | NULL | デフォルト | 説明 |
-|---------|-----|------|-----------|------|
-| id | bigint | NO | - | PK (BIGSERIAL) |
-| clinic_id | bigint | NO | | clinics.id FK（TASK-049後: company_id） |
-| name | varchar(100) | NO | | グループ名 |
-| description | text | NO | '' | グループ説明 |
-| color | varchar(7) | NO | '#6B7280' | 表示カラー（HEX） |
+| is_main | boolean | NO | false | メイン医院フラグ（勤務地指定） |
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
-| deleted_at | timestamptz | YES | NULL | 論理削除日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (RESTRICT)
+- `staff_id` → `staffs.id` (CASCADE)
+- `clinic_id` → `clinics.id` (CASCADE)
 
-**インデックス:** `(clinic_id) WHERE deleted_at IS NULL`
+**UNIQUE制約:** `(staff_id, clinic_id)`
 
----
+**インデックス:**
+- `(staff_id)`
+- `(clinic_id)`
+- `(staff_id, is_main)` UNIQUE（フィルタ: is_main = true）
 
-#### `permission_group_rules`
-
-用途: グループ×リソース×CRUD の細粒度権限ルール。
-
-| カラム名 | 型 | NULL | デフォルト | 説明 |
-|---------|-----|------|-----------|------|
-| id | bigint | NO | - | PK (BIGSERIAL) |
-| group_id | bigint | NO | | permission_groups.id FK |
-| resource | varchar(50) | NO | | リソースキー（例: `medical-records`） |
-| can_view | boolean | NO | false | 閲覧権限 |
-| can_create | boolean | NO | false | 作成権限 |
-| can_edit | boolean | NO | false | 編集権限 |
-| can_delete | boolean | NO | false | 削除権限 |
-
-**FK:**
-- `group_id` → `permission_groups.id` (CASCADE)
-
-**UNIQUE制約:** `(group_id, resource)`
-
----
-
-#### `user_permission_groups`
-
-用途: ユーザーと権限グループの中間テーブル（多対多）。
-
-| カラム名 | 型 | NULL | デフォルト | 説明 |
-|---------|-----|------|-----------|------|
-| user_id | bigint | NO | | user_accounts.id FK |
-| group_id | bigint | NO | | permission_groups.id FK |
-
-**PK:** `(user_id, group_id)` 複合主キー
-
-**FK:**
-- `user_id` → `user_accounts.id` (CASCADE)
-- `group_id` → `permission_groups.id` (CASCADE)
-
-**インデックス:** `(user_id)`, `(group_id)`
+**設計方針:**
+- スタッフは複数医院に所属可能
+- `is_main=true` は各スタッフにつき0または1件のみ（部分UNIQUE制約）
+- Clinic削除時: スタッフのClinic所属は削除（CASCADE）
 
 ---
 
@@ -1703,27 +1622,31 @@ erDiagram
 
 #### `staffs`
 
-用途: スタッフ（獣医師・看護師・トリマー等）のマスタ。認証情報は持たず user_accounts と別管理。
+用途: スタッフ（獣医師・看護師・トリマー等）のマスタ。認証情報は Account テーブルで別管理。staff_clinic_assignments で医院所属を管理。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
-| clinic_id | bigint | NO | - | FK → clinics(id) RESTRICT（所属医院） |
+| account_id | bigint | YES | NULL | FK → accounts(id) SET NULL（ログインアカウント） |
 | name | text | NO | | スタッフ名 |
 | is_active | boolean | NO | true | 状態 |
 | staff_role | staff_role | NO | | 役割（ENUM: veterinarian/nurse/trimmer/reception/manager） |
 | license_number | text | NO | '' | 免許番号 |
 | job_title_id | bigint | YES | NULL | job_titles.id FK（職種） |
-| sort_order | integer | YES | 0 | 並び順 |
+| sort_order | integer | NO | 0 | 並び順 |
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
-- `clinic_id` → `clinics.id` (RESTRICT)
+- `account_id` → `accounts.id` (SET NULL)
 - `job_title_id` → `job_titles.id` (SET NULL)
 
-**インデックス:** `(clinic_id)`
+**インデックス:** `(account_id)`
+
+**設計方針:**
+- Account 分離により、スタッフは clinic に直接紐付かない（staff_clinic_assignments 経由）
+- 1 Account が複数の Staff に紐付く可能性あり（将来の拡張対応）
 
 ---
 
@@ -3456,11 +3379,11 @@ FK なし（システム共通マスタ）
 | ----------- | ------- | -------- |
 | group_id | permission_groups.id | CASCADE |
 
-### user_permission_groups
+### staff_permission_groups
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| user_id | user_accounts.id | CASCADE |
+| staff_id | staffs.id | CASCADE |
 | group_id | permission_groups.id | CASCADE |
 
 ### vaccinations

@@ -2,31 +2,9 @@ import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback, useMemo } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { cn } from "@/components/ui/utils";
-import {
-  format,
-  startOfDay,
-  endOfDay,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  startOfYear,
-  endOfYear,
-  subDays,
-  subWeeks,
-  subMonths,
-  subYears,
-  addDays,
-  addWeeks,
-  addMonths,
-  addYears,
-} from "date-fns";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays, subWeeks, subMonths, subYears, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { ja } from "date-fns/locale";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
 import { FILTER_CONDITIONS } from "./types";
@@ -141,7 +119,7 @@ const InlineSelector = memo(function InlineSelector({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 px-2 py-1 text-base text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap max-w-[200px] truncate"
+          className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-[3px] transition-colors whitespace-nowrap max-w-[200px] truncate`}
         >
           <span className="truncate">{label}</span>
           <ChevronDown className={`${ICON.page} shrink-0 opacity-50`} />
@@ -208,7 +186,7 @@ const DateValueEditor = memo(function DateValueEditor({
   const toDisplay = hasTo ? format(dateRange!.to!, "M月d日") : "終了日";
 
   return (
-    <div className="flex divide-x divide-[rgba(55,53,47,0.09)]">
+    <div className={`flex divide-x ${C.divideDivider}`}>
       {/* Presets column */}
       <div className="w-[108px] py-1 shrink-0">
         {DATE_PRESETS.map((preset) => (
@@ -219,7 +197,7 @@ const DateValueEditor = memo(function DateValueEditor({
               const { from, to } = resolvePreset(preset);
               handlePresetClick(from, to, preset.label);
             }}
-            className={cn(`w-full text-left px-3 py-1.5 text-sm ${C.bgMutedBadge} hover:bg-[#E8E7E4] transition-colors`, C.text)}
+            className={cn(`w-full text-left px-3 py-1.5 text-sm ${C.bgMutedBadge} ${C.hoverBgMutedBadge} transition-colors`, C.text)}
           >
             {preset.label}
           </button>

@@ -1,10 +1,10 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 // External
-import { Calendar, ClipboardCheck } from "lucide-react";
+import { Calendar, ClipboardCheck, Plus } from "lucide-react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -15,14 +15,19 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
+import { RowActionButton } from "@/components/shared/RowActionButton";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { usePagination } from "@/hooks/use-pagination";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import { formatDate } from "@/utils/format/date";
+import { paths } from "@/config/paths";
 import { useGetCheckups } from "../api/get-checkups";
 
 // Types
 import type { FilterProperty, ActiveFilter, SortProperty } from "@/components/shared/NotionFilter/types";
+import { ResourceCheckups } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的定数をモジュールスコープに
 const FILTER_PROPERTIES: FilterProperty[] = [
@@ -43,6 +48,8 @@ const CHECKUPS_SORT_PROPERTIES: SortProperty[] = [
 ];
 
 export function CheckupsList() {
+  const navigate = useNavigate();
+  const { canCreate, canEdit } = usePermission(ResourceCheckups);
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -160,9 +167,18 @@ export function CheckupsList() {
       },
       { header: "結果・所見", className: "hidden lg:table-cell" },
       { header: "担当医", className: "w-[100px]" },
+      { header: "操作", className: "w-[80px]", align: "right" as const },
     ],
     [directionFor, toggleSort],
   );
+
+  const handleCreate = useCallback(() => {
+    navigate(paths.medicalRecords.selectPet.getHref());
+  }, [navigate]);
+
+  const handleEdit = useCallback((medicalRecordId: string) => {
+    navigate(paths.medicalRecords.detail.getHref(medicalRecordId));
+  }, [navigate]);
 
   if (isLoading) return <LoadingFallback />;
   if (error) return <ErrorFallback />;
@@ -170,8 +186,17 @@ export function CheckupsList() {
   return (
     <PageLayout
       title="定期健診"
-      icon={<ClipboardCheck className={`${ICON.page} text-[#37352F]`} />}
+      resource={ResourceCheckups}
+      icon={<ClipboardCheck className={`${ICON.page} ${C.text}`} />}
       maxWidth="max-w-full"
+      headerAction={
+        canCreate ? (
+          <PrimaryButton onClick={handleCreate}>
+            <Plus className={`mr-1.5 ${ICON.action}`} />
+            新規登録
+          </PrimaryButton>
+        ) : null
+      }
     >
       <div className="flex flex-col gap-4">
         <NotionFilter
@@ -193,20 +218,23 @@ export function CheckupsList() {
             data={pagination.paginatedData}
             emptyMessage="定期健診の記録がありません"
             renderRow={(c) => (
-              <DataTableRow key={c.id}>
-                <TableCell className="font-mono text-base text-[#37352F] py-2">
+              <DataTableRow key={c.id} onClick={canEdit ? () => handleEdit(c.medicalRecordId) : undefined}>
+                <TableCell className={`font-mono text-base ${C.text} py-2`}>
                   {c.date ? formatDate(c.date) : "-"}
                 </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">{c.ownerName || "-"}</TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">{c.petName || "-"}</TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">{c.checkupTypeName || "-"}</TableCell>
-                <TableCell className="font-mono text-base text-[#37352F] py-2 hidden lg:table-cell">
+                <TableCell className={`text-base ${C.text} py-2`}>{c.ownerName || "-"}</TableCell>
+                <TableCell className={`text-base ${C.text} py-2`}>{c.petName || "-"}</TableCell>
+                <TableCell className={`text-base ${C.text} py-2`}>{c.checkupTypeName || "-"}</TableCell>
+                <TableCell className={`font-mono text-base ${C.text} py-2 hidden lg:table-cell`}>
                   {c.nextDate ? formatDate(c.nextDate) : "-"}
                 </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2 max-w-xs truncate hidden lg:table-cell">
+                <TableCell className={`text-base ${C.text} py-2 max-w-xs truncate hidden lg:table-cell`}>
                   {c.result || "-"}
                 </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">{c.doctorName || "-"}</TableCell>
+                <TableCell className={`text-base ${C.text} py-2`}>{c.doctorName || "-"}</TableCell>
+                <TableCell className="text-right py-2">
+                  {canEdit ? <RowActionButton onClick={() => handleEdit(c.medicalRecordId)} /> : null}
+                </TableCell>
               </DataTableRow>
             )}
           />

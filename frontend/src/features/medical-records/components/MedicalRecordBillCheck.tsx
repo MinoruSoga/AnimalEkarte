@@ -7,7 +7,7 @@ import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } from "../api/billing-review";
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth, usePermission } from "@/features/auth";
 import { CheckCircle2, RotateCcw } from "lucide-react";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
@@ -27,6 +27,7 @@ interface BillCheckProps {
 
 export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isNewRecord = false, medicalRecordId = "", ownerDiscountRate = 0 }: BillCheckProps) {
   const { user } = useAuth();
+  const { canEdit, canDelete } = usePermission("medical-records");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -42,6 +43,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   const userId = user?.id;
 
   const handleConfirm = useCallback(() => {
+    if (!canEdit) return;
     startConfirmTransition(async () => {
       try {
         await confirmMutation.mutateAsync({
@@ -53,9 +55,10 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         handleApiError(error, "会計確認");
       }
     });
-  }, [confirmMutation, userId]);
+  }, [canEdit, confirmMutation, userId]);
 
   const handleReturn = useCallback(() => {
+    if (!canEdit) return;
     returnMutation.mutate({
       return_reason: "医師による差し戻し",
     }, {
@@ -63,7 +66,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         toast.success("会計確認を差し戻しました");
       }
     });
-  }, [returnMutation]);
+  }, [canEdit, returnMutation]);
 
   const items: TreatmentItem[] = useMemo(() => {
     return treatments.map(t => ({
@@ -81,6 +84,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   }, [treatments]);
 
   const handleUpdateItem = useCallback((id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
+    if (!canEdit) return;
     const input: UpdateTreatmentInput = {};
     if (field === "content") input.content = String(value);
     if (field === "memo") input.memo = String(value);
@@ -93,15 +97,17 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     if (field === "selected") input.selected = Boolean(value);
 
     updateTreatmentMutation.mutate({ treatmentId: String(id), input });
-  }, [updateTreatmentMutation]);
+  }, [canEdit, updateTreatmentMutation]);
 
   const deleteMutation = useDeleteTreatment(medicalRecordId);
 
   const handleRemoveItem = useCallback((id: number) => {
+    if (!canDelete) return;
     deleteMutation.mutate(String(id));
-  }, [deleteMutation]);
+  }, [canDelete, deleteMutation]);
 
   const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
+    if (!canEdit) return;
     const nextOrder = treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0;
     const input: CreateTreatmentInput = {
       item_type: (item.category === "薬品" ? "medicine" : item.category === "処置" ? "procedure" : "other") as TreatmentItemType,
@@ -116,7 +122,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     };
     createTreatmentMutation.mutate(input);
     setIsSearchOpen(false);
-  }, [treatments, createTreatmentMutation]);
+  }, [canEdit, treatments, createTreatmentMutation]);
 
   const { subtotal, tax, total } = useMemo(() => {
     const result = calculateBillingTotals(items, ownerDiscountRate, globalDiscountAmount);
@@ -129,7 +135,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
 
   if (isNewRecord) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-lg border border-dashed text-[#37352F]/40">
+      <div className={`flex flex-col items-center justify-center p-12 bg-white rounded-lg border border-dashed ${C.text40}`}>
         カルテを保存してから会計確認を行えます
       </div>
     );
@@ -143,25 +149,25 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         <div className="flex items-center justify-between mb-2">
           <h2 className={`text-sm font-bold ${C.text}`}>会計確認 (医師)</h2>
           {isConfirmed ? (
-            <div className={`px-2 py-1 rounded bg-[#DDEDEA] text-[#0F7B6C] text-xs font-bold flex items-center gap-1`}>
+            <div className={`px-2 py-1 rounded ${C.bgStatusGreen} ${C.textStatusGreen} text-xs font-bold flex items-center gap-1`}>
               <CheckCircle2 className="size-3" />
               確認済み
             </div>
           ) : (
-            <div className={`px-2 py-1 rounded bg-[#F1F0EE] text-[#787774] text-xs font-bold`}>
+            <div className={`px-2 py-1 rounded ${C.bgMuted} ${C.textMuted} text-xs font-bold`}>
               未確認
             </div>
           )}
         </div>
 
-        <div className="flex-1 min-h-0 bg-white rounded-lg border border-[rgba(55,53,47,0.09)] overflow-hidden flex flex-col">
+        <div className={`flex-1 min-h-0 bg-white rounded-lg border ${C.borderLight} overflow-hidden flex flex-col`}>
           <div className="flex-1 min-h-0">
             <TreatmentTable
               items={items}
               onUpdate={handleUpdateItem}
               onRemove={handleRemoveItem}
-              onOpenSearch={() => setIsSearchOpen(true)}
-              disabled={isConfirmed}
+              onOpenSearch={canEdit && !isConfirmed ? () => setIsSearchOpen(true) : undefined}
+              disabled={isConfirmed || (!canEdit && !canDelete)}
             />
           </div>
         </div>
@@ -181,31 +187,33 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
       </div>
 
       {/* Action Button */}
-      <div className="fixed bottom-6 right-6 z-50 flex gap-2">
-        {isConfirmed ? (
-          <Button
-            variant="outline"
-            type="button"
-            onClick={handleReturn}
-            disabled={returnMutation.isPending}
-            className={`h-10 text-sm gap-2 border ${C.borderMedium} ${C.hoverBgLight}`}
-          >
-            <RotateCcw className={ICON.action} />
-            確認を取り消す
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            size="sm"
-            disabled={isConfirmPending || items.length === 0}
-            onClick={handleConfirm}
-            className={`${STYLE.confirmPrimary} min-w-[120px] shadow-lg h-10 text-sm gap-2`}
-          >
-            <CheckCircle2 className={ICON.action} />
-            {isConfirmPending ? "処理中..." : "チェック完了"}
-          </Button>
-        )}
-      </div>
+      {canEdit ? (
+        <div className="fixed bottom-6 right-6 z-50 flex gap-2">
+          {isConfirmed ? (
+            <Button
+              variant="outline"
+              type="button"
+              onClick={handleReturn}
+              disabled={returnMutation.isPending}
+              className={`h-10 text-sm gap-2 border ${C.borderMedium} ${C.hoverBgLight}`}
+            >
+              <RotateCcw className={ICON.action} />
+              確認を取り消す
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              disabled={isConfirmPending || items.length === 0}
+              onClick={handleConfirm}
+              className={`${STYLE.confirmPrimary} min-w-[120px] shadow-lg h-10 text-sm gap-2`}
+            >
+              <CheckCircle2 className={ICON.action} />
+              {isConfirmPending ? "処理中..." : "チェック完了"}
+            </Button>
+          )}
+        </div>
+      ) : null}
 
       <Suspense fallback={null}>
         <TreatmentSearchDialog

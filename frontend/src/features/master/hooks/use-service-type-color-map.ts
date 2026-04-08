@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from "react";
 import type React from "react";
 import { useGetServiceTypes } from "@/features/master/api/service-types";
+import { PALETTE } from "@/lib/design-tokens";
 
 /**
  * ServiceTypeColor: RGB hex色をinline style で表現
@@ -21,14 +22,14 @@ interface ServiceTypeEntry {
 
 const DEFAULT_COLOR: ServiceTypeColor = {
   style: {
-    backgroundColor: "#F1F0EE",
-    color: "#9B9A97",
-    borderColor: "#E3E2E0",
+    backgroundColor: PALETTE.mutedBg,
+    color: PALETTE.grayMedium,
+    borderColor: PALETTE.grayLight,
   },
   dotStyle: {
-    backgroundColor: "#9B9A97",
+    backgroundColor: PALETTE.grayMedium,
   },
-  hex: "#9B9A97",
+  hex: PALETTE.grayMedium,
 };
 
 /**

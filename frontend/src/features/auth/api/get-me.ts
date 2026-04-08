@@ -12,14 +12,11 @@ export async function getMe(): Promise<AuthUser> {
 }
 
 /**
- * /me を定期ポーリングして権限を最新に保つ。
- * - staleTime: 60秒（権限変更を素早く反映）
- * - refetchInterval: 2分（バックグラウンドでは停止）
- * - refetchOnWindowFocus: true（タブアクティブ時に再取得）
+ * /me を定期ポーリングして認証ユーザー情報を最新に保つ。
+ * - staleTime: 10秒（別セッションからの権限変更を素早く反映）
+ * - refetchInterval: 30秒（バックグラウンドでは停止）
+ * - refetchOnWindowFocus: true（タブアクティブ時に即座に再取得）
  * - 401 時はポーリング停止（ログインページへの無限リダイレクト防止）
- *
- * BUG-057: 権限変更がキャッシュに残り続ける問題を修正。
- * staleTime を 4分→60秒、refetchInterval を 5分→2分に短縮。
  *
  * @param enabled - 認証済みの場合のみ true を渡す（デフォルト: true）
  */
@@ -28,7 +25,7 @@ export function useGetMe(enabled = true) {
     queryKey: ME_QUERY_KEY,
     queryFn: getMe,
     enabled,
-    staleTime: 60 * 1000,
+    staleTime: 10 * 1000,
     refetchInterval: (query) => {
       if (
         query.state.error !== null &&
@@ -37,7 +34,7 @@ export function useGetMe(enabled = true) {
       ) {
         return false;
       }
-      return 2 * 60 * 1000;
+      return 30 * 1000;
     },
     refetchOnWindowFocus: true,
     refetchIntervalInBackground: false,

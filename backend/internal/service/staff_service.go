@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"strings"
 
-	"golang.org/x/crypto/bcrypt"
-
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -16,35 +14,29 @@ import (
 // ---- StaffService ----
 
 // CreateStaffInput はスタッフ登録時の入力データ。
-// スタッフ情報とシステムアカウント情報を同時に受け取る。
 type CreateStaffInput struct {
-	// Staff fields
 	ClinicID      uint64
 	Name          string
-	StaffRole     model.StaffRole
 	LicenseNumber string
-	JobTitleID    *uint64
+	OccupationID  *uint64
 	SortOrder     int
-	// Account fields
-	Email    string
-	Password string
+	AccountID     *uint64
 }
 
 // UpdateStaffInput はスタッフ部分更新の入力DTO。nil = 未送信フィールド。
 type UpdateStaffInput struct {
 	Name          *string
-	StaffRole     *model.StaffRole
 	LicenseNumber *string
-	JobTitleID    *uint64
+	OccupationID  *uint64
 	SortOrder     *int
 	IsActive      *bool
 }
 
 type StaffService interface {
-	List(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
+	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
 	GetByID(ctx context.Context, id uint64) (*model.Staff, error)
-	// CreateWithAccount はスタッフとシステムアカウントをアトミックに作成する。
-	CreateWithAccount(ctx context.Context, input *CreateStaffInput) (*model.Staff, error)
+	// Create はスタッフを作成する。
+	Create(ctx context.Context, input *CreateStaffInput) (*model.Staff, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -60,8 +52,8 @@ func NewStaffService(repo repository.StaffRepository, reservationRepo repository
 	return &staffService{repo: repo, reservationRepo: reservationRepo, shiftEntryRepo: shiftEntryRepo}
 }
 
-func (s *staffService) List(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
-	staff, total, err := s.repo.FindAll(ctx, clinicID, role, page, limit)
+func (s *staffService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error) {
+	staff, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
 		return nil, 0, apperrors.Wrap(err, "failed to list staff")
 	}
@@ -76,42 +68,23 @@ func (s *staffService) GetByID(ctx context.Context, id uint64) (*model.Staff, er
 	return staff, nil
 }
 
-func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaffInput) (*model.Staff, error) {
+func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*model.Staff, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
 	input.Name = strings.TrimSpace(input.Name)
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "hash password")
-	}
-
 	staff := &model.Staff{
-		ClinicID:      input.ClinicID,
 		Name:          input.Name,
-		StaffRole:     input.StaffRole,
 		LicenseNumber: input.LicenseNumber,
-		JobTitleID:    input.JobTitleID,
+		OccupationID:  input.OccupationID,
 		SortOrder:     input.SortOrder,
 		IsActive:      true,
+		AccountID:     input.AccountID,
 	}
 
-	account := &model.UserAccount{
-		Email:        input.Email,
-		DisplayName:  input.Name,
-		UserType:     model.UserTypeStaff,
-		Status:       model.AccountStatusActive,
-		PasswordHash: string(hash),
-	}
-
-	membership := &model.UserClinicMembership{
-		ClinicID: input.ClinicID,
-		IsMain:   true,
-	}
-
-	if err := s.repo.CreateWithAccount(ctx, staff, account, membership); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create staff with account")
+	if err := s.repo.Create(ctx, staff); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create staff")
 	}
 
 	return staff, nil
@@ -124,11 +97,6 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 		}
 		trimmed := strings.TrimSpace(*input.Name)
 		input.Name = &trimmed
-	}
-	if input.StaffRole != nil {
-		if err := validateStaffRole(*input.StaffRole); err != nil {
-			return nil, err
-		}
 	}
 	fields := buildStaffUpdateFields(input)
 	if len(fields) == 0 {
@@ -150,14 +118,11 @@ func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
 	if input.Name != nil {
 		fields["name"] = *input.Name
 	}
-	if input.StaffRole != nil {
-		fields["staff_role"] = *input.StaffRole
-	}
 	if input.LicenseNumber != nil {
 		fields["license_number"] = *input.LicenseNumber
 	}
-	if input.JobTitleID != nil {
-		fields["job_title_id"] = *input.JobTitleID
+	if input.OccupationID != nil {
+		fields["occupation_id"] = *input.OccupationID
 	}
 	if input.SortOrder != nil {
 		fields["sort_order"] = *input.SortOrder

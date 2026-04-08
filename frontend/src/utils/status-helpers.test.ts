@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import type React from 'react';
 import {
   getMedicalRecordStatusColor,
   getHospitalizationStatusColor,
   getHospitalizationTypeColor,
-  getDashboardColumnColor,
+  getReceptionColumnColor,
   getReservationTypeColor,
   getReservationTypeName,
   getExaminationStatusColor,
@@ -11,6 +12,12 @@ import {
   getTrimmingStatusColor,
   getPetStatusColor,
   getMasterStatusColor,
+  getInventoryStatusColor,
+  getInventoryStatusLabel,
+  getCalendarViewLabel,
+  getReservationStatusLabel,
+  getSortOrderLabel,
+  getEstimateStatusColor,
 } from './status-helpers';
 
 // Notion カラーパレット hex 値（status-helpers.ts の N 定数と一致させること）
@@ -63,35 +70,35 @@ describe('getHospitalizationTypeColor', () => {
   });
 });
 
-describe('getDashboardColumnColor', () => {
+describe('getReceptionColumnColor', () => {
   // dot 値は design-tokens.ts の C.bgXxx 値と一致する
   it('returns gray dot for 受付予約', () => {
-    const result = getDashboardColumnColor('受付予約');
+    const result = getReceptionColumnColor('受付予約');
     expect(result.dot).toContain('9B9A97'); // C.bgStatusGrayMedium
   });
 
   it('returns blue dot for 受付済', () => {
-    const result = getDashboardColumnColor('受付済');
+    const result = getReceptionColumnColor('受付済');
     expect(result.dot).toContain('2383E2'); // C.bgAccent
   });
 
   it('returns purple dot for 診療中', () => {
-    const result = getDashboardColumnColor('診療中');
+    const result = getReceptionColumnColor('診療中');
     expect(result.dot).toContain('6940A5'); // C.bgStatusPurpleDot
   });
 
   it('returns orange dot for 会計待ち', () => {
-    const result = getDashboardColumnColor('会計待ち');
+    const result = getReceptionColumnColor('会計待ち');
     expect(result.dot).toContain('D9730D'); // C.bgDiscount
   });
 
   it('returns green dot for 会計済', () => {
-    const result = getDashboardColumnColor('会計済');
+    const result = getReceptionColumnColor('会計済');
     expect(result.dot).toContain('0F7B6C'); // C.bgStatusGreenDot
   });
 
   it('returns gray dot for unknown column', () => {
-    const result = getDashboardColumnColor('unknown');
+    const result = getReceptionColumnColor('unknown');
     expect(result.dot).toContain('9B9A97'); // C.bgStatusGrayMedium (default)
   });
 });
@@ -212,5 +219,158 @@ describe('getMasterStatusColor', () => {
 
   it('returns gray for inactive', () => {
     expect(getMasterStatusColor('inactive')).toContain(HEX.gray);
+  });
+});
+
+describe('getInventoryStatusColor', () => {
+  it('returns green for sufficient', () => {
+    expect(getInventoryStatusColor('sufficient')).toContain(HEX.green);
+  });
+
+  it('returns yellow for low', () => {
+    expect(getInventoryStatusColor('low')).toContain(HEX.yellow);
+  });
+
+  it('returns red for out_of_stock', () => {
+    expect(getInventoryStatusColor('out_of_stock')).toContain(HEX.red);
+  });
+
+  it('returns empty string for unknown status', () => {
+    expect(getInventoryStatusColor('unknown' as 'sufficient')).toBe('');
+  });
+});
+
+describe('getInventoryStatusLabel', () => {
+  it('returns 十分 for sufficient', () => {
+    expect(getInventoryStatusLabel('sufficient')).toBe('十分');
+  });
+
+  it('returns 残少 for low', () => {
+    expect(getInventoryStatusLabel('low')).toBe('残少');
+  });
+
+  it('returns 在庫切れ for out_of_stock', () => {
+    expect(getInventoryStatusLabel('out_of_stock')).toBe('在庫切れ');
+  });
+
+  it('returns empty string for unknown status', () => {
+    expect(getInventoryStatusLabel('unknown' as 'sufficient')).toBe('');
+  });
+});
+
+describe('getCalendarViewLabel', () => {
+  it('returns 月表示 for month', () => {
+    expect(getCalendarViewLabel('month')).toBe('月表示');
+  });
+
+  it('returns 週表示 for week', () => {
+    expect(getCalendarViewLabel('week')).toBe('週表示');
+  });
+
+  it('returns the input as-is for unknown view', () => {
+    expect(getCalendarViewLabel('day')).toBe('day');
+  });
+});
+
+describe('getReservationStatusLabel', () => {
+  it('returns label for known status', () => {
+    // ReservationStatus ラベルは RESERVATION_STATUS_LABELS に依存
+    const label = getReservationStatusLabel('confirmed');
+    expect(typeof label).toBe('string');
+    expect(label.length).toBeGreaterThan(0);
+  });
+
+  it('returns status itself for unknown status', () => {
+    const unknown = 'unknown_status' as Parameters<typeof getReservationStatusLabel>[0];
+    expect(getReservationStatusLabel(unknown)).toBe('unknown_status');
+  });
+});
+
+describe('getSortOrderLabel', () => {
+  it('returns 新→古 for desc', () => {
+    expect(getSortOrderLabel('desc')).toBe('新→古');
+  });
+
+  it('returns 古→新 for asc', () => {
+    expect(getSortOrderLabel('asc')).toBe('古→新');
+  });
+});
+
+describe('getEstimateStatusColor', () => {
+  it('returns gray for draft', () => {
+    expect(getEstimateStatusColor('draft')).toContain(HEX.gray);
+  });
+
+  it('returns blue for sent', () => {
+    expect(getEstimateStatusColor('sent')).toContain(HEX.blue);
+  });
+
+  it('returns green for accepted', () => {
+    expect(getEstimateStatusColor('accepted')).toContain(HEX.green);
+  });
+
+  it('returns red for rejected', () => {
+    expect(getEstimateStatusColor('rejected')).toContain(HEX.red);
+  });
+
+  it('returns orange for expired', () => {
+    expect(getEstimateStatusColor('expired')).toContain(HEX.orange);
+  });
+
+  it('returns gray for unknown status', () => {
+    expect(getEstimateStatusColor('unknown')).toContain(HEX.gray);
+  });
+});
+
+describe('getReservationTypeColor — dynamicColorMap', () => {
+  it('returns mapped style when dynamicColorMap has the type', () => {
+    const style = { color: '#fff', backgroundColor: '#000' };
+    const colorMap = new Map([['診療', { style, dotStyle: style, hex: '#000' }]]);
+    expect(getReservationTypeColor('診療', colorMap)).toBe(style);
+  });
+
+  it('falls back to static mapping when dynamicColorMap has no entry for type', () => {
+    const colorMap = new Map<string, { style: React.CSSProperties; dotStyle: React.CSSProperties; hex: string }>();
+    expect(getReservationTypeColor('手術', colorMap)).toContain(HEX.red);
+  });
+});
+
+describe('getHospitalizationStatusColor — all branches', () => {
+  it('returns yellow for 一時帰宅', () => {
+    expect(getHospitalizationStatusColor('一時帰宅')).toContain(HEX.yellow);
+  });
+
+  it('returns empty string for unknown status', () => {
+    expect(getHospitalizationStatusColor('unknown' as '入院中')).toBe('');
+  });
+});
+
+describe('getReservationTypeColor — English aliases', () => {
+  it('treatment → blue', () => {
+    expect(getReservationTypeColor('treatment')).toContain(HEX.blue);
+  });
+
+  it('checkup → green', () => {
+    expect(getReservationTypeColor('checkup')).toContain(HEX.green);
+  });
+
+  it('surgery → red', () => {
+    expect(getReservationTypeColor('surgery')).toContain(HEX.red);
+  });
+
+  it('trimming → orange', () => {
+    expect(getReservationTypeColor('trimming')).toContain(HEX.orange);
+  });
+
+  it('vaccine → purple', () => {
+    expect(getReservationTypeColor('vaccine')).toContain(HEX.purple);
+  });
+
+  it('入院 → green', () => {
+    expect(getReservationTypeColor('入院')).toContain(HEX.green);
+  });
+
+  it('ホテル → green', () => {
+    expect(getReservationTypeColor('ホテル')).toContain(HEX.green);
   });
 });

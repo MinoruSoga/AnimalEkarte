@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -22,7 +24,7 @@ func (h *Handler) GetCompany(c *gin.Context) {
 func (h *Handler) UpdateCompany(c *gin.Context) {
 	var req updateCompanyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	company, err := h.svc.Company.Update(c.Request.Context(), &service.UpdateCompanyInput{
@@ -48,5 +50,5 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 // RegisterCompanyRoutes は法人情報関連のルートを登録する
 func (h *Handler) RegisterCompanyRoutes(rg *gin.RouterGroup) {
 	rg.GET("/company", h.GetCompany)
-	rg.PATCH("/company", h.UpdateCompany)
+	rg.PATCH("/company", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateCompany)
 }

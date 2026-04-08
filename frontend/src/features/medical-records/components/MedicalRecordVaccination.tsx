@@ -2,7 +2,7 @@
 import { memo, useMemo, useState } from "react";
 
 // Internal
-import { useGetAllVaccinesMaster } from "@/features/master/api/vaccines-master";
+import { useGetAllVaccinesMaster } from "@/features/master";
 
 // Relative
 import { useGetPetVaccinations } from "../api/get-pet-vaccinations";

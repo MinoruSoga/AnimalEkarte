@@ -144,6 +144,21 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	}
 	input.OwnerName = strings.TrimSpace(input.OwnerName)
 
+	// メールアドレス形式バリデーション（空でない場合）
+	if err := validateEmailFormat(input.Email); err != nil {
+		return nil, err
+	}
+
+	// 電話番号形式バリデーション（空でない場合）
+	if err := validatePhoneFormat(input.Phone); err != nil {
+		return nil, err
+	}
+
+	// 郵便番号形式バリデーション（空でない場合）
+	if err := validatePostalCodeFormat(input.PostalCode); err != nil {
+		return nil, err
+	}
+
 	// ビジネスルールバリデーション
 	if err := validateDiscountRate(input.DiscountRate); err != nil {
 		return nil, err
@@ -270,6 +285,27 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		input.OwnerName = &trimmed
 	}
 
+	// メールアドレス形式バリデーション（指定されている場合）
+	if input.Email != nil {
+		if err := validateEmailFormat(*input.Email); err != nil {
+			return nil, err
+		}
+	}
+
+	// 電話番号形式バリデーション（指定されている場合）
+	if input.Phone != nil {
+		if err := validatePhoneFormat(*input.Phone); err != nil {
+			return nil, err
+		}
+	}
+
+	// 郵便番号形式バリデーション（指定されている場合）
+	if input.PostalCode != nil {
+		if err := validatePostalCodeFormat(*input.PostalCode); err != nil {
+			return nil, err
+		}
+	}
+
 	// ビジネスルールバリデーション
 	if input.DiscountRate != nil {
 		if err := validateDiscountRate(*input.DiscountRate); err != nil {
@@ -384,6 +420,15 @@ func buildOwnerUpdateFields(input *UpdateOwnerInput) map[string]any {
 }
 
 func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
+	// FK依存チェック: ペットが紐付いている場合は削除を拒否
+	petCount, err := s.repo.CountPetsByOwnerID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check pet dependencies")
+	}
+	if petCount > 0 {
+		return apperrors.WrapConflict("ペットが紐付いているため削除できません。先にペットを削除してください")
+	}
+
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete owner")
 	}

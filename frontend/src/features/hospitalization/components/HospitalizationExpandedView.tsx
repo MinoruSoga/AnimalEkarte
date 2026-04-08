@@ -1,6 +1,7 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
-import { memo, useMemo } from "react";
+import { C, ICON } from "@/lib/design-tokens";
+import { memo } from "react";
+import { formatDate } from "@/utils/format/date";
 
 // External
 import { Calendar, FileText } from "lucide-react";
@@ -9,96 +10,58 @@ import { Calendar, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 // Relative
-import { CarePlanSection } from "./CarePlan/CarePlanSection";
-import { DailyRecordSection } from "./DailyRecord/DailyRecordSection";
+import { CarePlanTab } from "./CarePlanTab/CarePlanTab";
+import { DailyRecordsTab } from "./DailyRecordsTab/DailyRecordsTab";
 import { HospitalizationPatientHeader } from "./HospitalizationPatientHeader";
 import { H_STYLES } from "../styles";
 
 // Types
 import type { Hospitalization } from "@/types";
-import type {
-    CarePlanItem,
-    DailyRecord,
-    CreateCarePlanDTO,
-    UpdateCarePlanDTO,
-    CreateVitalDTO,
-    CreateCareLogDTO
-} from "../types";
 
 interface HospitalizationExpandedViewProps {
     hospitalization: Hospitalization;
-    plans: CarePlanItem[];
-    records: DailyRecord[];
-    onAddPlan: (plan: CreateCarePlanDTO) => void;
-    onUpdatePlan: (planId: string, updates: UpdateCarePlanDTO) => void;
-    onDeletePlan: (planId: string) => void;
-    onAddVital: (date: string, data: CreateVitalDTO) => void;
-    onAddLog: (date: string, data: CreateCareLogDTO) => void;
 }
 
 export const HospitalizationExpandedView = memo(function HospitalizationExpandedView({
     hospitalization,
-    plans,
-    records,
-    onAddPlan,
-    onUpdatePlan,
-    onDeletePlan,
-    onAddVital,
-    onAddLog
 }: HospitalizationExpandedViewProps) {
-    const latestWeight = useMemo(() => {
-        // Find latest weight from records
-        const allVitals = records.flatMap(r => 
-            (r.vitals || []).map(v => ({ ...v, date: r.date }))
-        );
-        const weightVitals = allVitals.filter(v => v.weight !== undefined);
-        weightVitals.sort((a, b) => {
-            if (a.date !== b.date) return b.date.localeCompare(a.date);
-            return b.time.localeCompare(a.time);
-        });
-        const latest = weightVitals[0];
-        return latest ? `${latest.weight}kg` : undefined;
-    }, [records]);
+    // Determine the effective discharge date
+    const dischargeDate = hospitalization.endDate || new Date().toISOString().split("T")[0];
 
     return (
         <div className={`hidden lg:flex flex-col ${H_STYLES.gap.default} w-full h-full`}>
             <div className="shrink-0 w-full z-10 sticky top-0">
-                <HospitalizationPatientHeader 
-                    hospitalization={hospitalization} 
-                    currentWeight={latestWeight}
+                <HospitalizationPatientHeader
+                    hospitalization={hospitalization}
                 />
             </div>
 
             <div className={`flex flex-col ${H_STYLES.gap.default} w-full min-w-0`}>
-                {/* Care Plan Section */}
-                <div className={`w-full min-w-0 bg-white rounded-lg border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} shadow-sm overflow-hidden`}>
-                    <div className="flex items-center gap-1.5 mb-2 text-[#37352F]/60 text-sm px-0.5">
+                {/* Care Plan Tab */}
+                <div className={`w-full min-w-0 bg-white rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} shadow-sm overflow-hidden`}>
+                    <div className={`flex items-center gap-1.5 mb-2 ${C.text60} text-sm px-0.5`}>
                         <Calendar className={`${ICON.action} shrink-0`} />
-                        <span className="font-medium truncate">入院期間: {hospitalization.startDate} 〜 {hospitalization.endDate}</span>
+                        <span className="font-medium truncate">入院期間: {formatDate(hospitalization.startDate)} 〜 {formatDate(dischargeDate)}</span>
                     </div>
                     <Separator className="mb-1.5 opacity-50" />
-                    <CarePlanSection 
-                        plans={plans}
-                        onAdd={onAddPlan}
-                        onUpdate={onUpdatePlan}
-                        onDelete={onDeletePlan}
+                    <CarePlanTab
+                        hospitalizationId={String(hospitalization.id)}
                     />
                 </div>
 
-                {/* Daily Records Section */}
-                <div className="w-full min-w-0 bg-white rounded-lg border border-[rgba(55,53,47,0.16)] shadow-sm flex flex-col overflow-hidden">
-                    <div className="px-3 py-2 border-b border-[rgba(55,53,47,0.09)] bg-gray-50/50 flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-1.5 font-bold text-[#37352F] text-sm">
-                            <FileText className={`${ICON.action} text-[#2EAADC]`} />
+                {/* Daily Records Tab */}
+                <div className={`w-full min-w-0 bg-white rounded-lg border ${C.borderMedium} shadow-sm flex flex-col overflow-hidden`}>
+                    <div className={`px-3 py-2 border-b ${C.borderLight} bg-gray-50/50 flex items-center justify-between shrink-0`}>
+                        <div className={`flex items-center gap-1.5 font-bold ${C.text} text-sm`}>
+                            <FileText className={`${ICON.action} ${C.textMedicalBlue}`} />
                             デイリーカルテ
                         </div>
                     </div>
                     <div className={`${H_STYLES.padding.box} w-full min-w-0`}>
-                        <DailyRecordSection 
-                            records={records}
-                            plans={plans}
-                            onAddVital={onAddVital}
-                            onAddLog={onAddLog}
+                        <DailyRecordsTab
+                            hospitalizationId={String(hospitalization.id)}
+                            admissionDate={hospitalization.startDate}
+                            dischargeDate={dischargeDate}
                         />
                     </div>
                 </div>

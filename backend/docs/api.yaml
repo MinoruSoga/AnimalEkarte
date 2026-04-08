@@ -1046,7 +1046,7 @@ components:
           readOnly: true
     Staff:
       type: object
-      required: [name, staff_role]
+      required: [name]
       properties:
         id:
           type: integer
@@ -1061,10 +1061,7 @@ components:
         is_active:
           type: boolean
           default: true
-        staff_role:
-          type: string
-          enum: [veterinarian, nurse, trimmer, reception, manager]
-        job_title_id:
+        occupation_id:
           type: integer
           format: int64
           nullable: true
@@ -1088,17 +1085,12 @@ components:
     StaffRegistrationRequest:
       type: object
       description: スタッフ登録リクエスト。スタッフ情報とシステムアカウントをアトミックに作成する。clinic_id はJWTトークンから取得するためリクエストには含めない。
-      required: [name, staff_role, email, password]
+      required: [name, email, password]
       properties:
         name:
           type: string
           description: スタッフ氏名
           example: 山田太郎
-        staff_role:
-          type: string
-          enum: [veterinarian, nurse, trimmer, reception, manager]
-          description: 職種
-          example: veterinarian
         email:
           type: string
           format: email
@@ -1114,7 +1106,7 @@ components:
           type: string
           description: 獣医師免許番号等
           example: 獣医第12345号
-        job_title_id:
+        occupation_id:
           type: integer
           format: int64
           nullable: true
@@ -1804,7 +1796,7 @@ components:
           format: date-time
           nullable: true
           description: 削除日時（ソフトデリート）
-    JobTitle:
+    Occupation:
       type: object
       required: [name]
       properties:
@@ -1865,6 +1857,20 @@ components:
         ref:
           type: string
           nullable: true
+        ref_min:
+          type: number
+          format: double
+          nullable: true
+          description: 基準値下限
+        ref_max:
+          type: number
+          format: double
+          nullable: true
+          description: 基準値上限
+        is_abnormal:
+          type: boolean
+          default: false
+          description: 異常値フラグ
         status:
           type: string
           enum: [normal, high, low]
@@ -2134,11 +2140,10 @@ components:
           format: int64
           description: トークン有効期限（Unix timestamp）
           example: 1741996800
-        user_type:
-          type: string
-          description: ユーザー種別
-          enum: [system_admin, clinic_admin, staff]
-          example: clinic_admin
+        is_system_admin:
+          type: boolean
+          description: システム管理者フラグ（true の場合クロスクリニック権限）
+          example: false
         user:
           $ref: '#/components/schemas/MeResponse'
     PermissionGroup:
@@ -2196,18 +2201,13 @@ components:
           type: string
         display_name:
           type: string
-        user_type:
-          type: string
-          enum: [system_admin, clinic_admin, staff]
-        staff_role:
-          type: string
-          nullable: true
-          enum: [veterinarian, nurse, trimmer, reception, manager]
-          description: "staffs.staff_role ENUM。スタッフマスタ紐付けがない場合は null"
-        job_title:
+        is_system_admin:
+          type: boolean
+          description: システム管理者フラグ
+        occupation:
           type: string
           nullable: true
-          description: "後方互換フィールド。現在は staff_role を優先使用"
+          description: スタッフの職種名（occupationsマスタから取得）
         avatar_url:
           type: string
           format: uri
@@ -2513,8 +2513,8 @@ components:
           format: email
         display_name:
           type: string
-        user_type:
-          type: string
+        is_system_admin:
+          type: boolean
         staff_id:
           type: string
           nullable: true
@@ -2546,7 +2546,7 @@ components:
 
     CreateUserRequest:
       type: object
-      required: [email, password, display_name, user_type]
+      required: [email, password, display_name]
       properties:
         email:
           type: string
@@ -2556,8 +2556,9 @@ components:
           minLength: 8
         display_name:
           type: string
-        user_type:
-          type: string
+        is_system_admin:
+          type: boolean
+          default: false
         staff_id:
           type: integer
           format: int64
@@ -2571,8 +2572,8 @@ components:
         display_name:
           type: string
           nullable: true
-        user_type:
-          type: string
+        is_system_admin:
+          type: boolean
           nullable: true
         staff_id:
           type: integer
@@ -2752,6 +2753,9 @@ components:
           type: string
         memo:
           type: string
+        admin_route:
+          type: string
+          description: 投与経路（経口/皮下注射/静脈注射 等）
         insurance:
           type: boolean
         discount_rate:
@@ -5678,7 +5682,6 @@ paths:
               $ref: '#/components/schemas/StaffRegistrationRequest'
             example:
               name: 山田太郎
-              staff_role: veterinarian
               email: yamada@clinic.com
               password: secure_pass_123
               license_number: 獣医第12345号
@@ -7880,9 +7883,9 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/job-titles:
+  /masters/occupations:
     get:
-      operationId: listJobTitles
+      operationId: listOccupations
       summary: 職種一覧
       tags: [Masters]
       responses:
@@ -7893,7 +7896,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/JobTitle'
+                  $ref: '#/components/schemas/Occupation'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -7901,7 +7904,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
     post:
-      operationId: createJobTitle
+      operationId: createOccupation
       summary: 職種登録
       tags: [Masters]
       requestBody:
@@ -7909,7 +7912,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/JobTitle'
+              $ref: '#/components/schemas/Occupation'
       responses:
         '201':
           description: 登録成功
@@ -7919,11 +7922,11 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/job-titles/1
+                example: /masters/occupations/1
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JobTitle'
+                $ref: '#/components/schemas/Occupation'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -7934,9 +7937,9 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/job-titles/reorder:
+  /masters/occupations/reorder:
     patch:
-      operationId: reorderJobTitles
+      operationId: reorderOccupations
       summary: 役職マスタ一括並び替え
       description: |
         指定した順序で `sort_order` を一括更新する。
@@ -7970,9 +7973,9 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/job-titles/{id}:
+  /masters/occupations/{id}:
     patch:
-      operationId: updateJobTitle
+      operationId: updateOccupation
       summary: 職種更新
       tags: [Masters]
       parameters:
@@ -7987,14 +7990,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/JobTitle'
+              $ref: '#/components/schemas/Occupation'
       responses:
         '200':
           description: 更新成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JobTitle'
+                $ref: '#/components/schemas/Occupation'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -8006,7 +8009,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
-      operationId: deleteJobTitle
+      operationId: deleteOccupation
       summary: 職種削除
       tags: [Masters]
       parameters:
@@ -8625,7 +8628,7 @@ paths:
       summary: ユーザーへの権限グループ割当（全置換）
       description: |
         ユーザーに割り当てる権限グループを一括置換する。
-        clinic_admin 以上のみ実行可能。
+        master-permission の edit 権限を持つユーザーのみ実行可能。
         system_admin 以外は同一クリニック内のユーザーのみ変更可。
       tags: [Users]
       parameters:

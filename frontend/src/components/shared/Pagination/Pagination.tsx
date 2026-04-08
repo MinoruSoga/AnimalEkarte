@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ export interface PaginationProps {
   onNext: () => void;
 }
 
-export function Pagination({
+export const Pagination = memo(function Pagination({
   currentPage,
   totalPages,
   totalCount,
@@ -140,4 +141,4 @@ export function Pagination({
       </div>
     </div>
   );
-}
+});

@@ -25,7 +25,7 @@ export function VaccinationCard({
 
   return (
     <Card
-      className={`bg-white border ${C.borderLight} shadow-none rounded-[4px] hover:bg-[#F7F6F3] transition-colors ${onClick ? "cursor-pointer" : ""} ${className ?? ""}`}
+      className={`bg-white border ${C.borderLight} shadow-none rounded-[4px] ${C.hoverBgPage} transition-colors ${onClick ? "cursor-pointer" : ""} ${className ?? ""}`}
       onClick={onClick}
     >
       <CardContent className="px-4 py-3">
@@ -54,7 +54,7 @@ export function VaccinationCard({
         {vaccination.nextDate ? (
           <div
             className={`flex items-center gap-1.5 mt-1.5 text-sm ${
-              overdue ? "text-[#EB5757]" : C.text60
+              overdue ? C.danger : C.text60
             }`}
           >
             {overdue ? (

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -36,7 +37,7 @@ func (h *Handler) UpdateClinicalPlan(c *gin.Context) {
 	}
 	var req updateClinicalPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	input := &service.UpdateClinicalPlanInput{
@@ -74,6 +75,6 @@ func (h *Handler) DeleteClinicalPlan(c *gin.Context) {
 // RegisterClinicalPlanRoutes はClinicalPlan関連のルートを登録する
 func (h *Handler) RegisterClinicalPlanRoutes(rg *gin.RouterGroup) {
 	rg.GET("/:id/clinical-plan", h.GetClinicalPlan)
-	rg.PATCH("/:id/clinical-plan", h.UpdateClinicalPlan)
-	rg.DELETE("/:id/clinical-plan", h.DeleteClinicalPlan)
+	rg.PATCH("/:id/clinical-plan", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateClinicalPlan)
+	rg.DELETE("/:id/clinical-plan", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteClinicalPlan)
 }

@@ -13,12 +13,13 @@ import (
 
 // mockPetRepository は PetRepository のテスト用モック実装
 type mockPetRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
-	countByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	createFn       func(ctx context.Context, pet *model.Pet) error
-	updateFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
+	findAllFn                func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
+	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	countByOwnerFn           func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	countByAnimalSpeciesIDFn func(ctx context.Context, speciesID uint64) (int64, error)
+	createFn                 func(ctx context.Context, pet *model.Pet) error
+	updateFn                 func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockPetRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
@@ -32,6 +33,13 @@ func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 func (m *mockPetRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	if m.countByOwnerFn != nil {
 		return m.countByOwnerFn(ctx, clinicID, ownerID)
+	}
+	return 0, nil
+}
+
+func (m *mockPetRepository) CountByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {
+	if m.countByAnimalSpeciesIDFn != nil {
+		return m.countByAnimalSpeciesIDFn(ctx, speciesID)
 	}
 	return 0, nil
 }
@@ -66,10 +74,19 @@ func defaultInsuranceRepo(clinicID uint64) *mockInsuranceRepository {
 	}
 }
 
+// defaultMedicalRecordRepo はカルテが存在しないモック（FK dependency チェックをパスさせる用）
+func defaultMedicalRecordRepo() *mockMedicalRecordRepository {
+	return &mockMedicalRecordRepository{
+		countByPetIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			return 0, nil
+		},
+	}
+}
+
 func ptrUint64(v uint64) *uint64 { return &v }
 
-func newPetSvc(repo *mockPetRepository, ownerRepo *mockOwnerRepository, insuranceRepo *mockInsuranceRepository) PetService {
-	return NewPetService(repo, ownerRepo, insuranceRepo)
+func newPetSvc(repo *mockPetRepository, ownerRepo *mockOwnerRepository, insuranceRepo *mockInsuranceRepository, medicalRecordRepo *mockMedicalRecordRepository) PetService {
+	return NewPetService(repo, ownerRepo, insuranceRepo, medicalRecordRepo)
 }
 
 func TestPetService_List(t *testing.T) {
@@ -175,7 +192,7 @@ func TestPetService_List(t *testing.T) {
 					return tt.repoPets, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID))
+			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID), defaultMedicalRecordRepo())
 
 			pets, total, err := svc.List(context.Background(), tt.clinicID, tt.ownerID, tt.page, tt.limit, tt.search)
 
@@ -237,7 +254,7 @@ func TestPetService_GetByID(t *testing.T) {
 					return tt.repoPet, tt.repoErr
 				},
 			}
-			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID))
+			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID), defaultMedicalRecordRepo())
 
 			pet, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -260,7 +277,7 @@ func TestPetService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("pet", "999")
 		},
 	}
-	svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(1))
+	svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(1), defaultMedicalRecordRepo())
 
 	pet, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -366,7 +383,7 @@ func TestPetService_Create(t *testing.T) {
 					return &model.Owner{ID: 5}, nil
 				},
 			}
-			svc := newPetSvc(repo, ownerRepo, defaultInsuranceRepo(tt.clinicID))
+			svc := newPetSvc(repo, ownerRepo, defaultInsuranceRepo(tt.clinicID), defaultMedicalRecordRepo())
 
 			pet, err := svc.Create(context.Background(), tt.clinicID, &tt.input)
 
@@ -483,7 +500,7 @@ func TestPetService_Update(t *testing.T) {
 				},
 				findByIDFn: findByIDFn,
 			}
-			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID))
+			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID), defaultMedicalRecordRepo())
 
 			pet, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
 
@@ -505,47 +522,70 @@ func TestPetService_Update(t *testing.T) {
 
 func TestPetService_Delete(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name         string
+		clinicID     uint64
+		id           uint64
+		recordCount  int64
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
-			name:     "deletes pet successfully",
-			clinicID: 1,
-			id:       10,
-			repoErr:  nil,
-			wantErr:  false,
-			wantNF:   false,
+			name:         "deletes pet successfully",
+			clinicID:     1,
+			id:           10,
+			recordCount:  0,
+			repoErr:      nil,
+			wantErr:      false,
+			wantNF:       false,
+			wantConflict: false,
 		},
 		{
-			name:     "returns not found error when pet does not exist",
-			clinicID: 1,
-			id:       999,
-			repoErr:  apperrors.WrapNotFound("pet", "999"),
-			wantErr:  true,
-			wantNF:   true,
+			name:         "returns not found error when pet does not exist",
+			clinicID:     1,
+			id:           999,
+			recordCount:  0,
+			repoErr:      apperrors.WrapNotFound("pet", "999"),
+			wantErr:      true,
+			wantNF:       true,
+			wantConflict: false,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			id:       10,
-			repoErr:  errors.New("db error"),
-			wantErr:  true,
-			wantNF:   false,
+			name:         "returns error on repository failure",
+			clinicID:     1,
+			id:           10,
+			recordCount:  0,
+			repoErr:      errors.New("db error"),
+			wantErr:      true,
+			wantNF:       false,
+			wantConflict: false,
+		},
+		{
+			name:         "returns conflict error when pet has medical records",
+			clinicID:     1,
+			id:           10,
+			recordCount:  3,
+			repoErr:      nil,
+			wantErr:      true,
+			wantNF:       false,
+			wantConflict: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			medicalRecordRepo := &mockMedicalRecordRepository{
+				countByPetIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.recordCount, nil
+				},
+			}
 			repo := &mockPetRepository{
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
-			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID))
+			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID), medicalRecordRepo)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -553,6 +593,9 @@ func TestPetService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

@@ -35,11 +35,25 @@ import { useGetPetMedicalHistory } from "../api/get-medical-records";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments } from "../api/treatments";
 import { MedicalRecordPrintView } from "../components/MedicalRecordPrintView";
-import { useAuth } from "@/features/auth/hooks/use-auth";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { useAuth, usePermission } from "@/features/auth";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
+import { ResourceMedicalRecords } from "@/types/generated/models";
+
+const VISIT_TYPE_OPTIONS = ["初診", "再診", "緊急", "往診"] as const;
+
+const MEDICAL_RECORD_TABS = [
+  "問診",
+  "診察/治療プラン",
+  "治療",
+  "予防接種",
+  "定期健診",
+  "検査",
+  "画像",
+  "見積書",
+  "会計(医師確認)",
+];
 
 export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();
@@ -78,6 +92,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     ownerDiscountRate,
     visitType,
     setVisitType,
+    visitCount,
     handleChangeDoctor,
     handleChangeOwner,
     } = useMedicalRecordForm(recordId);
@@ -138,7 +153,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }, [formState.success, formState.timestamp]);
 
   const { user } = useAuth();
-  const { canEdit, canDelete } = usePermission("medical-records");
+  const { canEdit, canCreate, canDelete } = usePermission("medical-records");
+  const canSubmit = isNewRecord ? canCreate : canEdit;
 
   // 印刷用データ（React Query キャッシュ共有 — 子コンポーネントが既にフェッチ済み）
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "");
@@ -146,7 +162,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
   // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
-  const VISIT_TYPE_OPTIONS = ["初診", "再診", "緊急", "往診"] as const;
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -161,18 +176,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     }
   }, [shouldRedirectToSelectPet, navigate]);
 
-  // Tab definitions
-  const tabs = [
-    "問診",
-    "診察/治療プラン",
-    "治療",
-    "予防接種",
-    "定期健診",
-    "検査",
-    "画像",
-    "見積書",
-    "会計(医師確認)",
-  ];
+  const tabs = MEDICAL_RECORD_TABS;
 
   // タブ切り替え: 一度開いたタブはhide/showで状態を維持する
   // BUG-MEDI-005: タブ切替時にスクロール位置をトップにリセット
@@ -263,6 +267,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     <PageLayout
       title={recordId ? "カルテ編集" : "カルテ入力"}
       onBack={handleBack}
+      resource={ResourceMedicalRecords}
       maxWidth="max-w-[1440px]"
       scrollContainerRef={scrollContainerRef}
     >
@@ -284,13 +289,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
             const idx = VISIT_TYPE_OPTIONS.indexOf(visitType as typeof VISIT_TYPE_OPTIONS[number]);
             setVisitType(VISIT_TYPE_OPTIONS[(idx + 1) % VISIT_TYPE_OPTIONS.length]);
           }}
-          onStaffClick={() => setIsStaffModalOpen(true)}
+          onStaffClick={canEdit ? () => setIsStaffModalOpen(true) : undefined}
           onOwnerClick={!isNewRecord ? () => setIsOwnerSearchOpen(true) : undefined}
           petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
           insuranceName={selectedPet.insuranceName || "保険情報未登録"}
           insuranceDetails={selectedPet.insuranceDetails || "-"}
           nextVisitDate="-"
           nextVisitContent="-"
+          visitCount={visitCount}
           sticky={false}
         />
 
@@ -417,7 +423,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               削除
             </Button>
           ) : null}
-          {activeTab !== "見積書" ? (
+          {activeTab !== "見積書" && canEdit ? (
             <Button
               variant="outline"
               onClick={() => setIsVitalsOpen(true)}
@@ -446,7 +452,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               印刷
             </Button>
           ) : null}
-          {canEdit ? (
+          {canSubmit ? (
             <SubmitButton
               className={`${STYLE.btnPrimary} px-5`}
               disabled={isCreating}

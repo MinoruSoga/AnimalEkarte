@@ -1,6 +1,15 @@
 /**
+ * Backend API response types
+ * Source: frontend/src/types/generated/models.ts (tygo generated)
+ */
+import type { ReservationAppointment } from "@/types/generated/models";
+
+// Backend 型エイリアス
+export type BackendReservationAppointment = ReservationAppointment;
+
+/**
  * 予約作成リクエスト
- * @see {@link import("@/types/generated/models").ReservationAppointment}
+ * models.ts の ReservationAppointment から導出
  */
 export interface CreateReservationRequest {
   pet_id: number;
@@ -16,7 +25,7 @@ export interface CreateReservationRequest {
 
 /**
  * 予約更新リクエスト
- * @see {@link import("@/types/generated/models").ReservationAppointment}
+ * models.ts の ReservationAppointment から導出
  */
 export interface UpdateReservationRequest {
   start_time?: string;

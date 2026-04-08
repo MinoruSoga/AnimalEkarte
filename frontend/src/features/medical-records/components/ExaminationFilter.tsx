@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import React from "react";
 
 // External
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 interface ExaminationFilterProps {
   searchTerm: string;
@@ -28,34 +29,37 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
   dateEnd,
   onDateEndChange,
 }: ExaminationFilterProps) {
+  const { canCreate } = usePermission("medical-records");
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
-        <Button
-          size="sm"
-          className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4"
-        >
-          <FileText className={ICON.action} />
-          検査取り込み
-        </Button>
+        {canCreate ? (
+          <Button
+            size="sm"
+            className={`${C.bgAccent} ${C.bgAccentHover} text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
+          >
+            <FileText className={ICON.action} />
+            検査取り込み
+          </Button>
+        ) : null}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row items-end gap-4 bg-white p-4 rounded-lg border border-[rgba(55,53,47,0.16)] shadow-sm">
+      <div className={`flex flex-col md:flex-row items-end gap-4 bg-white p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>
         <div className="flex flex-col gap-1.5 w-full md:w-[300px]">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             検査項目検索
           </Label>
           <Input
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm"
+            className={`bg-white ${C.borderMedium} h-10 text-sm`}
             placeholder="WBC, Cre, etc..."
           />
         </div>
 
         <div className="flex flex-col gap-1.5 w-full md:w-[400px]">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             期間
           </Label>
           <div className="flex items-center gap-2">
@@ -65,7 +69,7 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
               placeholder="開始日"
               className="flex-1"
             />
-            <span className="text-[#37352F] font-medium text-sm">〜</span>
+            <span className={`${C.text} font-medium text-sm`}>〜</span>
             <NotionDatePicker
               value={dateEnd}
               onChange={onDateEndChange}

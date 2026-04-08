@@ -19,19 +19,15 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetAllMerchandiseItems,
-  useCreateMerchandiseItem,
-  useUpdateMerchandiseItem,
-  useDeleteMerchandiseItem,
-  useReorderMerchandiseItems,
-} from "../api/merchandise-items";
+import { useGetAllMerchandiseItems, useCreateMerchandiseItem, useUpdateMerchandiseItem, useDeleteMerchandiseItem, useReorderMerchandiseItems } from "../api/merchandise-items";
 import type {
   FrontendMerchandiseItem,
   CreateMerchandiseItemRequest,
   UpdateMerchandiseItemRequest,
 } from "../api/merchandise-items";
 import type { TaxType } from "@/types/generated/models";
+import { ResourceMasterMerchandise } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // ─── Constants ───
 
@@ -65,11 +61,13 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
 }: {
   item: FrontendMerchandiseItem | null;
   onClose: () => void;
   onSave: (d: MerchandiseFormData) => void;
-  onDeleteRequest: (i: FrontendMerchandiseItem) => void;
+  onDeleteRequest?: (i: FrontendMerchandiseItem) => void;
+  readOnly?: boolean;
 }) {
   const [f, setF] = useState<MerchandiseFormData>(() => ({
     name: item?.name ?? "",
@@ -134,12 +132,14 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
       title={f.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
-      action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      action={readOnly ? undefined : handleAction}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<ShoppingBag className={LAYOUT.pageIcon.innerIcon} />}
       titlePlaceholder="品目名"
       isDirty={isDirty}
       titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カテゴリ">
@@ -175,7 +175,7 @@ function MerchandiseRowOverlay({ item }: { item: FrontendMerchandiseItem }) {
       className={`flex items-center h-12 bg-white border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`}
       style={{ width: "100%" }}
     >
-      <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50">
+      <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}>
         <GripVertical className={ICON.action} />
       </div>
       <div className={`flex-1 min-w-0 text-base font-medium ${C.text} px-3`}>{item.name}</div>
@@ -211,6 +211,7 @@ const TABLE_COLUMNS = [
 // ─── Page ───
 
 export function MerchandiseItemSettings() {
+  const { canCreate, canEdit } = usePermission(ResourceMasterMerchandise);
   const { data } = useGetAllMerchandiseItems();
   const createMutation = useCreateMerchandiseItem();
   const updateMutation = useUpdateMerchandiseItem();
@@ -272,7 +273,8 @@ export function MerchandiseItemSettings() {
   return (
     <MasterCRUDPage
       title="物販・その他マスタ"
-      icon={<ShoppingBag className={`${ICON.page} text-[#37352F]`} />}
+      icon={<ShoppingBag className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMasterMerchandise}
       entityLabel="品目"
       searchPlaceholder="品目名で検索..."
       emptyMessage="品目が登録されていません"
@@ -281,8 +283,8 @@ export function MerchandiseItemSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       columns={[]}
       renderRow={() => null}
-      renderSidePanel={(props) => (
-        <MerchandiseSidePanel key={props.item?.id ?? "new"} {...props} />
+      renderSidePanel={({ readOnly, ...props }) => (
+        <MerchandiseSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />
       )}
     >
       <div className={STYLE.tableContainer}>
@@ -329,7 +331,7 @@ export function MerchandiseItemSettings() {
                         <NotionStatusPill isActive={item.isActive} />
                       </TableCell>
                       <TableCell className="p-0 text-right pr-2">
-                        <RowActionButton onClick={() => crud.handleEdit(item)} />
+                        {canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}
                       </TableCell>
                     </SortableDataTableRow>
                   ))}
@@ -346,14 +348,16 @@ export function MerchandiseItemSettings() {
             </DragOverlay>
           </DndContext>
         </div>
-        <button
-          type="button"
-          onClick={crud.handleNew}
-          className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]"
-        >
-          <Plus className={`${ICON.xs}`} />
-          新しい品目を追加...
-        </button>
+        {canCreate ? (
+          <button
+            type="button"
+            onClick={crud.handleNew}
+            className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}
+          >
+            <Plus className={`${ICON.xs}`} />
+            新しい品目を追加...
+          </button>
+        ) : null}
       </div>
     </MasterCRUDPage>
   );

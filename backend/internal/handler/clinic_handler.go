@@ -12,14 +12,16 @@ import (
 )
 
 // ListClinics godoc
-// system_admin は全クリニック一覧を返す。それ以外は所属クリニックのみ返す。
+// scope=all: 全クリニック一覧を返す（master-staff の can_view 権限が必要）
+// scope なし: staff_clinic_assignments に紐づくクリニック一覧を返す
 func (h *Handler) ListClinics(c *gin.Context) {
-	userType, ok := extractUserType(c)
-	if !ok {
-		return
-	}
+	scope := c.Query("scope")
 
-	if userType == model.UserTypeSystemAdmin {
+	if scope == "all" {
+		if !h.hasPermission(c, string(model.ResourceMasterStaff), "view") {
+			RespondError(c, apperrors.WrapForbidden("master-staff の閲覧権限が必要です"))
+			return
+		}
 		clinics, err := h.svc.Clinic.ListClinics(c.Request.Context())
 		if err != nil {
 			RespondError(c, err)
@@ -29,17 +31,55 @@ func (h *Handler) ListClinics(c *gin.Context) {
 		return
 	}
 
-	// system_admin 以外: JWT の clinic_id に対応する 1 件のみ返す
-	clinicID, ok := extractClinicID(c)
+	// デフォルト: staff_clinic_assignments から割当済みクリニック一覧を返す
+	staffID, ok := extractStaffID(c)
 	if !ok {
 		return
 	}
-	clinic, err := h.svc.Clinic.GetClinicByID(c.Request.Context(), clinicID)
+	clinics, err := h.svc.Clinic.ListClinicsByStaffID(c.Request.Context(), staffID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, []model.Clinic{*clinic})
+	c.JSON(http.StatusOK, clinics)
+}
+
+// hasPermission はユーザーの実効権限を確認する。
+// is_system_admin=true は全権限バイパス。
+// それ以外は permission_group_rules から判定する。
+func (h *Handler) hasPermission(c *gin.Context, resource, action string) bool {
+	isSystemAdmin, ok := extractIsSystemAdmin(c)
+	if !ok {
+		return false
+	}
+	if isSystemAdmin {
+		return true
+	}
+
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return false
+	}
+	rules, err := h.repos.PermissionGroup.GetEffectivePermissionsByStaffID(c.Request.Context(), staffID)
+	if err != nil {
+		return false
+	}
+	for _, rule := range rules {
+		if rule.Resource != resource {
+			continue
+		}
+		switch action {
+		case "view":
+			return rule.CanView
+		case "create":
+			return rule.CanCreate
+		case "edit":
+			return rule.CanEdit
+		case "delete":
+			return rule.CanDelete
+		}
+	}
+	return false
 }
 
 // GetClinic godoc
@@ -50,11 +90,11 @@ func (h *Handler) GetClinic(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	userType, ok := extractUserType(c)
+	isSystemAdmin, ok := extractIsSystemAdmin(c)
 	if !ok {
 		return
 	}
-	if userType != model.UserTypeSystemAdmin {
+	if !isSystemAdmin {
 		clinicID, ok := extractClinicID(c)
 		if !ok {
 			return
@@ -73,18 +113,18 @@ func (h *Handler) GetClinic(c *gin.Context) {
 }
 
 // UpdateClinic godoc
-// system_admin は任意クリニックを更新可能。clinic_admin は所属クリニックのみ。
+// system_admin は任意クリニックを更新可能。それ以外は所属クリニックのみ。
 func (h *Handler) UpdateClinic(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	userType, ok := extractUserType(c)
+	isSystemAdmin, ok := extractIsSystemAdmin(c)
 	if !ok {
 		return
 	}
-	if userType != model.UserTypeSystemAdmin {
+	if !isSystemAdmin {
 		clinicID, ok := extractClinicID(c)
 		if !ok {
 			return
@@ -126,11 +166,11 @@ func (h *Handler) UpdateClinic(c *gin.Context) {
 // CreateClinic godoc
 // system_admin のみ実行可能
 func (h *Handler) CreateClinic(c *gin.Context) {
-	userType, ok := extractUserType(c)
+	isSystemAdmin, ok := extractIsSystemAdmin(c)
 	if !ok {
 		return
 	}
-	if userType != model.UserTypeSystemAdmin {
+	if !isSystemAdmin {
 		RespondError(c, apperrors.WrapForbidden("clinic creation requires system_admin"))
 		return
 	}
@@ -163,11 +203,11 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 // DeleteClinic godoc
 // system_admin のみ実行可能
 func (h *Handler) DeleteClinic(c *gin.Context) {
-	userType, ok := extractUserType(c)
+	isSystemAdmin, ok := extractIsSystemAdmin(c)
 	if !ok {
 		return
 	}
-	if userType != model.UserTypeSystemAdmin {
+	if !isSystemAdmin {
 		RespondError(c, apperrors.WrapForbidden("clinic deletion requires system_admin"))
 		return
 	}
@@ -188,8 +228,8 @@ func (h *Handler) DeleteClinic(c *gin.Context) {
 func (h *Handler) RegisterClinicRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics")
 	clinics.GET("", h.ListClinics)
-	clinics.POST("", h.CreateClinic)
 	clinics.GET("/:id", h.GetClinic)
-	clinics.PATCH("/:id", h.UpdateClinic)
-	clinics.DELETE("/:id", h.DeleteClinic)
+	clinics.POST("", h.RequirePermission(string(model.ResourceHospitalSettings), "create"), h.CreateClinic)
+	clinics.PATCH("/:id", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.UpdateClinic)
+	clinics.DELETE("/:id", h.RequirePermission(string(model.ResourceHospitalSettings), "delete"), h.DeleteClinic)
 }

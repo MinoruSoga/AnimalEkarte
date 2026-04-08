@@ -1,175 +1,161 @@
-import { memo, useCallback, useDeferredValue, useMemo, useState, useTransition } from "react";
-import type { ChangeEvent } from "react";
-import { Shield } from "lucide-react";
+import { memo, useState, useCallback } from "react";
+import { DndContext, closestCenter } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useSortableList } from "@/hooks/use-sortable-list";
+import { Lock } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
-import { toast } from "sonner";
-import { handleApiError } from "@/lib/handle-api-error";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
-import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
-import { RowActionButton } from "@/components/shared/RowActionButton/RowActionButton";
-import { MasterListPage } from "@/features/master/components/MasterListPage";
-import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
+import { RowActionButton } from "@/components/shared/RowActionButton";
+import { usePermission } from "@/features/auth/hooks/use-permission";
+import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { LAYOUT, ICON } from "@/lib/design-tokens";
-import { useAuth } from "@/features/auth/hooks/use-auth";
-import { PermissionRuleTable } from "@/features/master/components/PermissionRuleTable";
-import { PERMISSION_RESOURCES } from "@/features/master/types/permission-resources";
+import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
+import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import type { FilterProperty } from "@/components/shared/NotionFilter/types";
+import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
+import { useMasterSave } from "@/features/master/hooks/use-master-save";
+import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import {
   useGetPermissionGroups,
   useCreatePermissionGroup,
   useUpdatePermissionGroup,
   useDeletePermissionGroup,
   useSetPermissionGroupRules,
-} from "@/features/master/api/permission-groups/permission-groups";
-import type { RuleInput } from "@/features/master/api/permission-groups/permission-groups";
-import type { PermissionGroup, PermissionGroupRule } from "@/types/generated/models";
+  useReorderPermissionGroups,
+  type PermissionGroup,
+  type CreatePermissionGroupRequest,
+  type UpdatePermissionGroupRequest,
+  type SetPermissionGroupRulesRequest,
+} from "@/features/master/api/permission-groups";
+import { PermissionRuleTable, type PermissionRule } from "@/features/master/components/PermissionRuleTable";
+import { ResourceMasterPermission } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────
-
-function buildDefaultRules(): RuleInput[] {
-  return PERMISSION_RESOURCES.map((r) => ({
-    resource: r.key,
-    can_view: false,
-    can_create: false,
-    can_edit: false,
-    can_delete: false,
-  }));
-}
-
-function groupRulesToRuleInputs(rules: PermissionGroupRule[] | undefined): RuleInput[] {
-  const base = buildDefaultRules();
-  if (!rules) return base;
-  return base.map((r) => {
-    const found = rules.find((gr) => gr.resource === r.resource);
-    if (!found) return r;
-    return {
-      resource: r.resource,
-      can_view: found.can_view,
-      can_create: found.can_create,
-      can_edit: found.can_edit,
-      can_delete: found.can_delete,
-    };
-  });
-}
-
-// ─────────────────────────────────────────────────
-// Table columns
+// Constants
 // ─────────────────────────────────────────────────
 
 const COLUMNS = [
+  { header: "", className: "w-[32px]" },
   { header: "グループ名", className: "flex-1" },
-  { header: "説明", className: "flex-1" },
+  { header: "ステータス", className: "w-[90px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
+const PERMISSION_GROUP_FILTER_PROPERTIES: FilterProperty[] = [
+  MASTER_STATUS_FILTER,
+];
+
 // ─────────────────────────────────────────────────
-// Side panel
+// Types
 // ─────────────────────────────────────────────────
 
-interface GroupSidePanelProps {
-  group: PermissionGroup | null;
-  clinicId: string;
-  onClose: () => void;
-  onDeleteRequest: (group: PermissionGroup) => void;
+interface PermissionGroupFormData {
+  name: string;
+  description: string;
+  color: string;
+  isActive: boolean;
+  rules: PermissionRule[];
 }
 
-const GroupSidePanel = memo(function GroupSidePanel({
-  group,
-  clinicId,
-  onClose,
-  onDeleteRequest,
-}: GroupSidePanelProps) {
-  const isNew = group === null;
+// ─────────────────────────────────────────────────
+// PermissionGroupSidePanel
+// ─────────────────────────────────────────────────
 
-  const [name, setName] = useState(() => group?.name ?? "");
-  const [description, setDescription] = useState(() => group?.description ?? "");
-  const [color, setColor] = useState(() => group?.color ?? "#6B7280");
-  const [rules, setRules] = useState<RuleInput[]>(() =>
-    groupRulesToRuleInputs(group?.rules),
-  );
+interface PermissionGroupSidePanelProps {
+  item: PermissionGroup | null;
+  onClose: () => void;
+  onSave: (d: PermissionGroupFormData) => void;
+  onDeleteRequest?: (i: PermissionGroup) => void;
+  readOnly?: boolean;
+}
+
+const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
+  item,
+  onClose,
+  onSave,
+  onDeleteRequest,
+  readOnly,
+}: PermissionGroupSidePanelProps) {
+  const isNew = item === null;
+
+  const [f, setF] = useState<PermissionGroupFormData>(() => ({
+    name: item?.name ?? "",
+    description: item?.description ?? "",
+    color: item?.color ?? "#6B7280",
+    isActive: item?.isActive ?? true,
+    rules: item?.rules?.map((r) => ({
+      resource: r.resource,
+      canView: r.canView,
+      canCreate: r.canCreate,
+      canEdit: r.canEdit,
+      canDelete: r.canDelete,
+    })) ?? [],
+  }));
   const [isDirty, setIsDirty] = useState(false);
-  // BUG-083: inline validation error for the name field
   const [nameError, setNameError] = useState("");
 
-  const createMutation = useCreatePermissionGroup();
-  const updateMutation = useUpdatePermissionGroup(clinicId);
-  const setRulesMutation = useSetPermissionGroupRules(clinicId);
-
-  const [isSavePending, startSaveTransition] = useTransition();
-
-  const handleColorChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    setColor(e.target.value);
-    setIsDirty(true);
-  }, []);
-
-  const handleDescriptionChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
-    setDescription(e.target.value);
-    setIsDirty(true);
-  }, []);
-
-  const handleRulesChange = useCallback((updated: RuleInput[]) => {
-    setRules(updated);
-    setIsDirty(true);
-  }, []);
-
+  // ── Handlers ─────────────────────────────────────
   const handleSave = useCallback(() => {
-    if (!name.trim()) {
-      // BUG-083: インラインエラー表示（toast に加えてフィールド下にも表示）
-      setNameError("名称を入力してください");
-      toast.error("グループ名を入力してください");
+    if (!f.name.trim()) {
+      setNameError("グループ名を入力してください");
       return;
     }
     setNameError("");
-    startSaveTransition(async () => {
-      try {
-        let groupId: number;
-        if (isNew) {
-          const created = await createMutation.mutateAsync({
-            clinicId,
-            name: name.trim(),
-            description: description.trim(),
-            color,
-          });
-          groupId = created.id;
-        } else {
-          await updateMutation.mutateAsync({
-            groupId: group.id,
-            input: { name: name.trim(), description: description.trim(), color },
-          });
-          groupId = group.id;
-        }
-        await setRulesMutation.mutateAsync({ groupId, rules });
-        toast.success(isNew ? "権限グループを作成しました" : "権限グループを更新しました");
-        setIsDirty(false);
-        onClose();
-      } catch {
-        toast.error(isNew ? "グループの作成に失敗しました" : "グループの更新に失敗しました");
-      }
-    });
-  }, [
-    name,
-    description,
-    color,
-    rules,
-    clinicId,
-    isNew,
-    group,
-    createMutation,
-    updateMutation,
-    setRulesMutation,
-    onClose,
-  ]);
-
-  const handleDelete = useCallback(() => {
-    if (group !== null) onDeleteRequest(group);
-  }, [group, onDeleteRequest]);
+    onSave(f);
+    setIsDirty(false);
+  }, [f, onSave]);
 
   const handleNameChange = useCallback((v: string) => {
-    setName(v);
+    setF((p) => ({ ...p, name: v }));
     setIsDirty(true);
     if (v.trim()) setNameError("");
+  }, []);
+
+  const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setF((p) => ({ ...p, description: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleColorChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, color: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setF((p) => ({ ...p, isActive: !p.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleRuleChange = useCallback((resource: string, field: keyof Omit<PermissionRule, "resource">, value: boolean) => {
+    setF((p) => {
+      const existingRule = p.rules.find((r) => r.resource === resource);
+      if (existingRule) {
+        // 既存ルール更新
+        return {
+          ...p,
+          rules: p.rules.map((r) =>
+            r.resource === resource ? { ...r, [field]: value } : r
+          ),
+        };
+      } else {
+        // 新規ルール作成
+        const newRule: PermissionRule = {
+          resource,
+          canView: field === "canView" ? value : false,
+          canCreate: field === "canCreate" ? value : false,
+          canEdit: field === "canEdit" ? value : false,
+          canDelete: field === "canDelete" ? value : false,
+        };
+        return {
+          ...p,
+          rules: [...p.rules, newRule],
+        };
+      }
+    });
+    setIsDirty(true);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -180,191 +166,177 @@ const GroupSidePanel = memo(function GroupSidePanel({
   return (
     <MasterSidePanel
       isNew={isNew}
-      title={name}
+      title={f.name}
       onTitleChange={handleNameChange}
       onClose={handleClose}
-      action={handleSave}
-      onDelete={isNew ? undefined : handleDelete}
-      icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
-      isPending={isSavePending}
+      action={readOnly ? undefined : handleSave}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
+      icon={<Lock className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
-      titlePlaceholder="グループ名を入力"
       titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}
     >
-      <PropertyRow label="カラー">
-        <div className="flex items-center gap-2">
-          <input
-            type="color"
-            value={color}
-            onChange={handleColorChange}
-            className="w-7 h-7 rounded border cursor-pointer"
-          />
-          <span className="text-sm text-muted-foreground">{color}</span>
-        </div>
-      </PropertyRow>
+      <StatusToggleButton
+        isActive={f.isActive}
+        onToggle={handleToggleActive}
+      />
 
       <PropertyRow label="説明">
         <textarea
-          value={description}
+          className={`${MASTER_INPUT_CLASS} resize-none`}
+          value={f.description}
           onChange={handleDescriptionChange}
-          placeholder="このグループの役割・用途を入力"
-          rows={2}
-          className="w-full text-sm bg-transparent border-none outline-none resize-none placeholder:text-muted-foreground"
+          placeholder="グループの説明"
+          rows={3}
         />
       </PropertyRow>
 
-      <div className="mt-4 border-t pt-4">
-        <p className="text-xs font-medium text-muted-foreground mb-3">ページ権限</p>
-        <PermissionRuleTable rules={rules} onChange={handleRulesChange} />
-      </div>
+      <PropertyRow label="カラー">
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            className="w-12 h-12 rounded border"
+            value={f.color}
+            onChange={(e) => handleColorChange(e.target.value)}
+          />
+          <span className={`text-sm ${C.text50}`}>{f.color}</span>
+        </div>
+      </PropertyRow>
+
+      <PermissionRuleTable
+        group={item}
+        rules={f.rules}
+        onRuleChange={handleRuleChange}
+        disabled={readOnly}
+      />
     </MasterSidePanel>
   );
 });
 
 // ─────────────────────────────────────────────────
-// Table row
-// ─────────────────────────────────────────────────
-
-interface GroupRowProps {
-  group: PermissionGroup;
-  onEdit: (group: PermissionGroup) => void;
-}
-
-const GroupRow = memo(function GroupRow({ group, onEdit }: GroupRowProps) {
-  const handleEdit = useCallback(
-    (e: { stopPropagation: () => void }) => {
-      e.stopPropagation();
-      onEdit(group);
-    },
-    [group, onEdit],
-  );
-
-  const handleRowClick = useCallback(() => {
-    onEdit(group);
-  }, [group, onEdit]);
-
-  return (
-    <DataTableRow className="cursor-pointer" onClick={handleRowClick}>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <div
-            className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: group.color ?? "#6B7280" }}
-          />
-          <span className="text-sm font-medium">{group.name}</span>
-        </div>
-      </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
-        {group.description ? group.description : "-"}
-      </TableCell>
-      <TableCell className="text-right">
-        <RowActionButton onClick={handleEdit} />
-      </TableCell>
-    </DataTableRow>
-  );
-});
-
-// ─────────────────────────────────────────────────
-// Main page
+// PermissionGroupSettings (page)
 // ─────────────────────────────────────────────────
 
 export function PermissionGroupSettings() {
-  const { currentClinicId } = useAuth();
-  const clinicId = currentClinicId ?? "";
+  const { canEdit } = usePermission(ResourceMasterPermission);
+  const { data } = useGetPermissionGroups();
+  const createMutation = useCreatePermissionGroup();
+  const updateMutation = useUpdatePermissionGroup();
+  const deleteMutation = useDeletePermissionGroup();
+  const setRulesMutation = useSetPermissionGroupRules();
+  const reorderMutation = useReorderPermissionGroups();
 
-  const { data: groups = [], isLoading } = useGetPermissionGroups(clinicId);
-  const deleteMutation = useDeletePermissionGroup(clinicId);
-
-  // undefined = 閉じている, null = 新規作成, PermissionGroup = 編集中
-  const [panelGroup, setPanelGroup] = useState<PermissionGroup | null | undefined>(undefined);
-  const [pendingDelete, setPendingDelete] = useState<PermissionGroup | null>(null);
-  const [, startDeleteTransition] = useTransition();
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const deferredSearch = useDeferredValue(searchTerm);
-
-  const filteredGroups = useMemo(
-    () =>
-      deferredSearch.trim() === ""
-        ? groups
-        : groups.filter((g) =>
-            g.name.toLowerCase().includes(deferredSearch.toLowerCase()),
-          ),
-    [groups, deferredSearch],
-  );
-
-  const handleNew = useCallback(() => {
-    setPanelGroup(null);
-  }, []);
-
-  const handleEdit = useCallback((group: PermissionGroup) => {
-    setPanelGroup(group);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    setPanelGroup(undefined);
-  }, []);
-
-  const handleDeleteRequest = useCallback((group: PermissionGroup) => {
-    setPendingDelete(group);
-    setPanelGroup(undefined);
-  }, []);
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDelete) return;
-    startDeleteTransition(async () => {
-      try {
-        await deleteMutation.mutateAsync(pendingDelete.id);
-        toast.success("権限グループを削除しました");
-      } catch (error) {
-        handleApiError(error, "権限グループの削除");
-      } finally {
-        setPendingDelete(null);
+  const crud = useMasterCRUD<PermissionGroup>({
+    data,
+    deleteMutation,
+    entityLabel: "権限グループ",
+    searchFilter: (g, lower) =>
+      g.name.toLowerCase().includes(lower) ||
+      g.description.toLowerCase().includes(lower),
+    activeFilterApply: (item, filters) => {
+      for (const f of filters) {
+        if (f.key === "status" && typeof f.value === "string") {
+          const want = f.value === "active";
+          if (f.condition === "is" && item.isActive !== want) return false;
+          if (f.condition === "is_not" && item.isActive === want) return false;
+        }
       }
-    });
-  }, [pendingDelete, deleteMutation]);
+      return true;
+    },
+  });
 
-  const handleDeleteCancel = useCallback(() => {
-    setPendingDelete(null);
-  }, []);
+  const { orderedItems, sensors, handleDragEnd } = useSortableList({
+    items: crud.filteredItems,
+    onReorder: (newIds) => {
+      reorderMutation.mutate(newIds);
+    },
+  });
+
+  const { handleSave } = useMasterSave<
+    PermissionGroup,
+    PermissionGroupFormData,
+    CreatePermissionGroupRequest,
+    UpdatePermissionGroupRequest
+  >({
+    crud,
+    createMutation,
+    updateMutation,
+    validate: (d) => {
+      if (!d.name.trim()) return "グループ名は必須です";
+      if (!d.color) return "カラーは必須です";
+      return null;
+    },
+    toCreateRequest: (d) => ({
+      name: d.name,
+      description: d.description,
+      color: d.color,
+      is_active: d.isActive,
+    }),
+    toUpdateRequest: (d) => ({
+      name: d.name,
+      description: d.description,
+      color: d.color,
+      is_active: d.isActive,
+    }),
+    onSuccess: async (saved, formData) => {
+      // Set rules if any
+      if (formData.rules.length > 0) {
+        const rulesReq: SetPermissionGroupRulesRequest = {
+          rules: formData.rules.map((r) => ({
+            resource: r.resource,
+            can_view: r.canView,
+            can_create: r.canCreate,
+            can_edit: r.canEdit,
+            can_delete: r.canDelete,
+          })),
+        };
+        await setRulesMutation.mutateAsync({ id: saved.id, req: rulesReq });
+      }
+    },
+  });
 
   return (
-    <MasterListPage
-      title="権限グループ管理"
-      icon={<Shield className={`${ICON.page} text-[#37352F]`} />}
-      searchTerm={searchTerm}
-      onSearchChange={setSearchTerm}
-      searchPlaceholder="グループ名を検索..."
-      count={filteredGroups.length}
-      onNew={handleNew}
-      sidePanel={
-        panelGroup !== undefined ? (
-          <GroupSidePanel
-            group={panelGroup}
-            clinicId={clinicId}
-            onClose={handleClose}
-            onDeleteRequest={handleDeleteRequest}
-          />
-        ) : null
-      }
-      deleteOpen={pendingDelete !== null}
-      deleteTitle="権限グループを削除しますか？"
-      deleteDescription={`「${pendingDelete?.name ?? ""}」を削除します。この操作は取り消せません。`}
-      onDeleteConfirm={handleDeleteConfirm}
-      onDeleteCancel={handleDeleteCancel}
-    >
-      {isLoading ? (
-        <div className="text-sm text-muted-foreground py-8 text-center">読み込み中...</div>
-      ) : (
-        <DataTable
-          columns={COLUMNS}
-          data={filteredGroups}
-          emptyMessage="権限グループがありません。「新規登録」から追加してください。"
-          renderRow={(g: PermissionGroup) => (
-            <GroupRow key={g.id} group={g} onEdit={handleEdit} />
-          )}
+    <MasterCRUDPage
+      title="権限グループマスタ"
+      icon={<Lock className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMasterPermission}
+      entityLabel="グループ"
+      searchPlaceholder="グループ名、説明で検索..."
+      emptyMessage="権限グループが登録されていません"
+      crud={crud}
+      handleSave={handleSave}
+      columns={COLUMNS}
+      filterProperties={PERMISSION_GROUP_FILTER_PROPERTIES}
+      renderRow={() => null}
+      renderSidePanel={({ item, onClose, onSave, onDeleteRequest, readOnly }) => (
+        <PermissionGroupSidePanel
+          key={item?.id ?? "new"}
+          item={item}
+          onClose={onClose}
+          onSave={onSave}
+          onDeleteRequest={onDeleteRequest}
+          readOnly={readOnly}
         />
       )}
-    </MasterListPage>
+    >
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+          <DataTable columns={COLUMNS} data={orderedItems} emptyMessage="権限グループが登録されていません"
+            renderRow={(item) => (
+              <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
+                <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+                <TableCell className="text-center">
+                  <NotionStatusPill isActive={item.isActive} />
+                </TableCell>
+                <TableCell className="p-0 text-right">
+                  {canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}
+                </TableCell>
+              </SortableDataTableRow>
+            )}
+          />
+        </SortableContext>
+      </DndContext>
+    </MasterCRUDPage>
   );
 }

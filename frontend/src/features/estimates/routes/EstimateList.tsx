@@ -1,8 +1,9 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useDeferredValue, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 import { useModalState } from "@/hooks/use-modal-state";
+import { usePagination } from "@/hooks/use-pagination";
 import { formatCurrency } from "@/utils/format/number";
 import { Plus, FileText, Trash2, ExternalLink, CircleDot, Calendar } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
@@ -10,6 +11,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -25,6 +27,7 @@ import type {
   ActiveSort,
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+import { ResourceEstimates } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的定義はモジュール定数に巻き上げ
 const FILTER_PROPERTIES: FilterProperty[] = [
@@ -161,6 +164,12 @@ export function EstimateList() {
     return items;
   }, [result?.data, activeFilters, deferredSearch, activeSorts]);
 
+  // rerender-transitions: ページネーション状態管理
+  const pagination = usePagination(filtered, {
+    pageSize: 20,
+    resetKey: deferredSearch,
+  });
+
   const handleDeleteConfirm = useCallback(() => {
     if (deleteModal.item == null) return;
     deleteEstimate(deleteModal.item);
@@ -227,12 +236,13 @@ export function EstimateList() {
   return (
     <PageLayout
       title="見積書管理"
+      resource={ResourceEstimates}
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={() => navigate("/estimates/new")}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
-            新規見積書作成
+            新規見積書登録
           </PrimaryButton>
         ) : null
       }
@@ -254,10 +264,23 @@ export function EstimateList() {
 
         <DataTable
           columns={COLUMNS}
-          data={filtered}
+          data={pagination.paginatedData}
           emptyMessage="見積書が見つかりません"
           renderRow={renderRow}
         />
+
+        {filtered.length > 0 ? (
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalCount={pagination.totalCount}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.goToPage}
+            onPrev={pagination.prevPage}
+            onNext={pagination.nextPage}
+          />
+        ) : null}
       </div>
 
       <ConfirmDialog

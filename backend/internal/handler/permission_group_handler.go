@@ -1,6 +1,8 @@
+// Package handler provides HTTP handler implementations for PermissionGroup entity.
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -8,176 +10,218 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// extractCompanyID はJWT認証済みコンテキストのclinic_idからcompanyIDを取得するヘルパー
-func (h *Handler) extractCompanyID(c *gin.Context) (uint64, bool) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return 0, false
-	}
-	clinic, err := h.svc.Clinic.GetClinicByID(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return 0, false
-	}
-	return clinic.CompanyID, true
-}
-
-// ListPermissionGroups godoc
-// GET /api/v1/permission-groups — company単位の権限グループ一覧を返す
-func (h *Handler) ListPermissionGroups(c *gin.Context) {
-	companyID, ok := h.extractCompanyID(c)
-	if !ok {
-		return
-	}
-	groups, err := h.svc.PermissionGroup.List(c.Request.Context(), companyID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, groups)
-}
-
-// CreatePermissionGroup godoc
-// POST /api/v1/permission-groups — 新規グループを作成する
-func (h *Handler) CreatePermissionGroup(c *gin.Context) {
-	companyID, ok := h.extractCompanyID(c)
-	if !ok {
-		return
-	}
-	var req createPermissionGroupRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
-		return
-	}
-	group, err := h.svc.PermissionGroup.Create(c.Request.Context(), companyID, service.CreatePermissionGroupInput{
-		Name:        req.Name,
-		Description: req.Description,
-		Color:       req.Color,
-	})
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	h.writeAuditLog(c, model.AuditActionPermissionGroupCreate, "permission_group", &group.ID,
-		repository.MarshalAuditJSON(map[string]any{"name": req.Name, "description": req.Description}))
-	c.JSON(http.StatusCreated, group)
-}
+// ---- PermissionGroup ----
 
 // GetPermissionGroup godoc
-// GET /api/v1/permission-groups/:id — 指定IDの権限グループを返す
 func (h *Handler) GetPermissionGroup(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	group, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), id)
+	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, group)
+	c.JSON(http.StatusOK, toPermissionGroupResponse(pg))
 }
 
-// UpdatePermissionGroup godoc
-// PATCH /api/v1/permission-groups/:id — グループのname/description/colorを更新する
-func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+// ListPermissionGroups godoc
+func (h *Handler) ListPermissionGroups(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	groups, err := h.svc.PermissionGroup.List(c.Request.Context(), clinicID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, err)
 		return
 	}
-	var req updatePermissionGroupRequest
+	c.JSON(http.StatusOK, toPermissionGroupResponseList(groups))
+}
+
+// CreatePermissionGroup godoc
+func (h *Handler) CreatePermissionGroup(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	var req createPermissionGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	if err := h.svc.PermissionGroup.Update(c.Request.Context(), id, service.UpdatePermissionGroupInput{
+
+	pg := &model.PermissionGroup{
+		ClinicID:    clinicID,
 		Name:        req.Name,
 		Description: req.Description,
 		Color:       req.Color,
-	}); err != nil {
+		IsActive:    req.IsActive,
+		SortOrder:   req.SortOrder,
+	}
+	if err := h.svc.PermissionGroup.Create(c.Request.Context(), pg); err != nil {
 		RespondError(c, err)
 		return
 	}
-	h.writeAuditLog(c, model.AuditActionPermissionGroupUpdate, "permission_group", &id,
-		repository.MarshalAuditJSON(map[string]any{"name": req.Name, "description": req.Description}))
-	c.Status(http.StatusNoContent)
+	c.JSON(http.StatusCreated, toPermissionGroupResponse(pg))
+}
+
+// UpdatePermissionGroup godoc
+func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	var req updatePermissionGroupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	input := &service.UpdatePermissionGroupInput{
+		Name:        req.Name,
+		Description: req.Description,
+		Color:       req.Color,
+		SortOrder:   req.SortOrder,
+		IsActive:    req.IsActive,
+	}
+
+	updated, err := h.svc.PermissionGroup.Update(c.Request.Context(), clinicID, id, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toPermissionGroupResponse(updated))
 }
 
 // DeletePermissionGroup godoc
-// DELETE /api/v1/permission-groups/:id — グループを論理削除する
 func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.PermissionGroup.Delete(c.Request.Context(), id); err != nil {
 		RespondError(c, err)
 		return
 	}
-	h.writeAuditLog(c, model.AuditActionPermissionGroupDelete, "permission_group", &id, nil)
 	c.Status(http.StatusNoContent)
 }
 
 // SetPermissionGroupRules godoc
-// PUT /api/v1/permission-groups/:id/rules — グループのルールを一括更新する（既存削除→新規作成）
+// PUTメソッドで全ルールを置き換える
 func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
+
 	var req setPermissionGroupRulesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	rules := make([]service.RuleInput, len(req.Rules))
-	for i, r := range req.Rules {
-		if !isValidResource(r.Resource) {
-			RespondError(c, apperrors.WrapInvalidInput("invalid resource: "+r.Resource))
+
+	// BUG-140: 自分が所属するグループの master-permission edit を削除できないようにする
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
+	myGroupIDs, groupErr := h.repos.PermissionGroup.GetGroupIDsByStaffID(c.Request.Context(), staffID)
+	if groupErr == nil {
+		isSelfGroup := false
+		for _, gid := range myGroupIDs {
+			if gid == id {
+				isSelfGroup = true
+				break
+			}
+		}
+		if isSelfGroup {
+			hasMasterPermEdit := false
+			for _, r := range req.Rules {
+				if r.Resource == string(model.ResourceMasterPermission) && r.CanEdit {
+					hasMasterPermEdit = true
+					break
+				}
+			}
+			if !hasMasterPermEdit {
+				RespondError(c, apperrors.WrapInvalidInput("自分が所属するグループの権限管理権限（master-permission edit）を削除することはできません"))
+				return
+			}
+		}
+	}
+
+	// BUG-146: 入力バリデーション — 空文字・存在しないリソース名・重複を拒否
+	seen := make(map[string]bool, len(req.Rules))
+	for _, r := range req.Rules {
+		if r.Resource == "" {
+			RespondError(c, apperrors.WrapInvalidInput("リソース名が空です"))
 			return
 		}
-		rules[i] = service.RuleInput{
-			Resource:  model.Resource(r.Resource),
+		if !model.IsValidResource(r.Resource) {
+			RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("無効なリソース名: %s", r.Resource)))
+			return
+		}
+		if seen[r.Resource] {
+			RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("リソース名が重複しています: %s", r.Resource)))
+			return
+		}
+		seen[r.Resource] = true
+	}
+
+	// Convert request rules to model
+	rules := make([]model.PermissionGroupRule, 0, len(req.Rules))
+	for _, r := range req.Rules {
+		rules = append(rules, model.PermissionGroupRule{
+			Resource:  r.Resource,
 			CanView:   r.CanView,
 			CanCreate: r.CanCreate,
 			CanEdit:   r.CanEdit,
 			CanDelete: r.CanDelete,
-		}
+		})
 	}
-	if err := h.svc.PermissionGroup.SetRules(c.Request.Context(), id, service.SetPermissionGroupRulesInput{Rules: rules}); err != nil {
+
+	if err := h.svc.PermissionGroup.SetRules(c.Request.Context(), id, rules); err != nil {
 		RespondError(c, err)
 		return
 	}
-	h.writeAuditLog(c, model.AuditActionPermissionRulesUpdate, "permission_group", &id,
-		repository.MarshalAuditJSON(req.Rules))
-	c.Status(http.StatusNoContent)
-}
 
-// isValidResource は与えられた文字列が有効なリソース識別子かどうかを検証する
-func isValidResource(r string) bool {
-	for _, valid := range model.AllResources {
-		if string(valid) == r {
-			return true
-		}
+	// Return updated group with rules
+	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
 	}
-	return false
+	c.JSON(http.StatusOK, toPermissionGroupResponse(pg))
 }
 
-// RegisterPermissionGroupRoutes はルーティングを登録する
-func (h *Handler) RegisterPermissionGroupRoutes(rg *gin.RouterGroup) {
-	pg := rg.Group("/permission-groups")
-	pg.GET("", h.ListPermissionGroups)
-	pg.POST("", h.CreatePermissionGroup)
-	pg.GET("/:id", h.GetPermissionGroup)
-	pg.PATCH("/:id", h.UpdatePermissionGroup)
-	pg.DELETE("/:id", h.DeletePermissionGroup)
-	pg.PUT("/:id/rules", h.SetPermissionGroupRules)
+// ReorderPermissionGroups godoc
+func (h *Handler) ReorderPermissionGroups(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderPermissionGroupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if err := h.svc.PermissionGroup.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
 }

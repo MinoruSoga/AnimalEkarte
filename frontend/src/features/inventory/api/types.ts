@@ -15,6 +15,7 @@ export interface CreateInventoryItemRequest {
   location?: string;
   expiry_date?: string | null;
   supplier?: string;
+  last_restocked?: string | null;
 }
 
 export interface UpdateInventoryItemRequest {

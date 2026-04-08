@@ -30,7 +30,7 @@ export const getHospitalizationTypeColor = (type: Hospitalization["hospitalizati
   return type === "入院" ? BADGE.purple : BADGE.blue;
 };
 
-interface DashboardColumnColorSet {
+interface ReceptionColumnColorSet {
   bg: string;
   dot: string;
   text: string;
@@ -39,7 +39,7 @@ interface DashboardColumnColorSet {
   hoverText: string;
 }
 
-const DASHBOARD_COLUMN_COLOR_MAP: Record<string, DashboardColumnColorSet> = {
+const RECEPTION_COLUMN_COLOR_MAP: Record<string, ReceptionColumnColorSet> = {
   "受付予約": {
     bg: C.bgPage,
     dot: C.bgStatusGrayMedium,
@@ -82,8 +82,8 @@ const DASHBOARD_COLUMN_COLOR_MAP: Record<string, DashboardColumnColorSet> = {
   },
 };
 
-export const getDashboardColumnColor = (title: string): DashboardColumnColorSet => {
-  return DASHBOARD_COLUMN_COLOR_MAP[title] ?? {
+export const getReceptionColumnColor = (title: string): ReceptionColumnColorSet => {
+  return RECEPTION_COLUMN_COLOR_MAP[title] ?? {
     bg: C.bgPage,
     dot: C.bgStatusGrayMedium,
     text: C.text,

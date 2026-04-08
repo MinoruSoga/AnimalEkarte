@@ -3,21 +3,15 @@ import { useCallback, memo } from "react";
 import { useNavigate, useParams } from "react-router";
 
 // External
-import { Package, ArrowLeft, Save } from "lucide-react";
+import { Package, Save } from "lucide-react";
 
 // Internal
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -27,10 +21,11 @@ import { useEffect } from "react";
 
 // Relative
 import { useInventoryForm } from "../hooks/use-inventory-form";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type { InventoryItem } from "@/types";
+import { ResourceInventory } from "@/types/generated/models";
 
 const CATEGORY_OPTIONS: { value: InventoryItem["category"]; label: string }[] =
   [
@@ -62,11 +57,11 @@ const BasicInfoSection = memo(function BasicInfoSection({
   onMarkDirty,
 }: BasicInfoSectionProps) {
   return (
-    <div className="bg-white rounded-lg border border-[rgba(55,53,47,0.16)] p-6">
-      <h3 className="text-base font-medium text-[#37352F] mb-4">基本情報</h3>
+    <div className={`bg-white rounded-lg border ${C.borderMedium} p-6`}>
+      <h3 className={`text-base font-medium ${C.text} mb-4`}>基本情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
-          <Label htmlFor="name" className="text-sm text-[#37352F]">
+          <Label htmlFor="name" className={`text-sm ${C.text}`}>
             品名 <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -79,7 +74,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
           />
         </div>
         <div>
-          <Label htmlFor="category" className="text-sm text-[#37352F]">
+          <Label htmlFor="category" className={`text-sm ${C.text}`}>
             カテゴリ <span className="text-red-500">*</span>
           </Label>
           <Select
@@ -102,7 +97,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
           </Select>
         </div>
         <div>
-          <Label htmlFor="unit" className="text-sm text-[#37352F]">
+          <Label htmlFor="unit" className={`text-sm ${C.text}`}>
             単位 <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -128,6 +123,7 @@ interface StockInfoSectionProps {
   resolvedExpiry: string;
   onExpiryChange: (v: string) => void;
   onMarkDirty: () => void;
+  minStockLevelError?: string;
 }
 
 // rerender-memo: 在庫情報セクションを memo 化して仕入先情報や基本情報の変更による
@@ -139,13 +135,14 @@ const StockInfoSection = memo(function StockInfoSection({
   resolvedExpiry,
   onExpiryChange,
   onMarkDirty,
+  minStockLevelError,
 }: StockInfoSectionProps) {
   return (
-    <div className="bg-white rounded-lg border border-[rgba(55,53,47,0.16)] p-6">
-      <h3 className="text-base font-medium text-[#37352F] mb-4">在庫情報</h3>
+    <div className={`bg-white rounded-lg border ${C.borderMedium} p-6`}>
+      <h3 className={`text-base font-medium ${C.text} mb-4`}>在庫情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="quantity" className="text-sm text-[#37352F]">
+          <Label htmlFor="quantity" className={`text-sm ${C.text}`}>
             現在庫数 <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -153,13 +150,14 @@ const StockInfoSection = memo(function StockInfoSection({
             name="quantity"
             type="number"
             min="0"
+            step="1"
             defaultValue={defaultQuantity ?? 0}
             className="mt-1"
             required
           />
         </div>
         <div>
-          <Label htmlFor="minStockLevel" className="text-sm text-[#37352F]">
+          <Label htmlFor="minStockLevel" className={`text-sm ${C.text}`}>
             最低在庫数 <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -167,13 +165,15 @@ const StockInfoSection = memo(function StockInfoSection({
             name="minStockLevel"
             type="number"
             min="0"
+            step="1"
             defaultValue={defaultMinStockLevel ?? 0}
             className="mt-1"
             required
           />
+          <FormFieldError id="minStockLevel-error" message={minStockLevelError} />
         </div>
         <div>
-          <Label htmlFor="location" className="text-sm text-[#37352F]">
+          <Label htmlFor="location" className={`text-sm ${C.text}`}>
             保管場所
           </Label>
           <Input
@@ -185,7 +185,7 @@ const StockInfoSection = memo(function StockInfoSection({
           />
         </div>
         <div>
-          <Label htmlFor="expiryDate" className="text-sm text-[#37352F]">
+          <Label htmlFor="expiryDate" className={`text-sm ${C.text}`}>
             有効期限
           </Label>
           <input type="hidden" name="expiryDate" value={resolvedExpiry} />
@@ -223,11 +223,11 @@ const SupplierInfoSection = memo(function SupplierInfoSection({
   onMarkDirty,
 }: SupplierInfoSectionProps) {
   return (
-    <div className="bg-white rounded-lg border border-[rgba(55,53,47,0.16)] p-6">
-      <h3 className="text-base font-medium text-[#37352F] mb-4">仕入先情報</h3>
+    <div className={`bg-white rounded-lg border ${C.borderMedium} p-6`}>
+      <h3 className={`text-base font-medium ${C.text} mb-4`}>仕入先情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="supplier" className="text-sm text-[#37352F]">
+          <Label htmlFor="supplier" className={`text-sm ${C.text}`}>
             仕入先
           </Label>
           <Input
@@ -239,7 +239,7 @@ const SupplierInfoSection = memo(function SupplierInfoSection({
           />
         </div>
         <div>
-          <Label htmlFor="lastRestocked" className="text-sm text-[#37352F]">
+          <Label htmlFor="lastRestocked" className={`text-sm ${C.text}`}>
             最終入荷日
           </Label>
           <input
@@ -268,7 +268,7 @@ const SupplierInfoSection = memo(function SupplierInfoSection({
 export function InventoryForm() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { canEdit } = usePermission("inventory");
+  const { canEdit, canCreate } = usePermission("inventory");
 
   const {
     isEdit,
@@ -284,6 +284,8 @@ export function InventoryForm() {
     formState,
     isPending,
   } = useInventoryForm(id);
+
+  const canSubmit = isEdit ? canEdit : canCreate;
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -318,10 +320,11 @@ export function InventoryForm() {
     return (
       <PageLayout
         title="在庫編集"
-        icon={<Package className={`${ICON.page} text-[#37352F]`} />}
+        icon={<Package className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceInventory}
         maxWidth="max-w-3xl"
       >
-        <div className="text-sm text-[#37352F]/60">読み込み中...</div>
+        <div className={`text-sm ${C.text60}`}>読み込み中...</div>
       </PageLayout>
     );
   }
@@ -329,22 +332,22 @@ export function InventoryForm() {
   return (
     <PageLayout
       title={isEdit ? "在庫編集" : "在庫登録"}
-      icon={<Package className={`${ICON.page} text-[#37352F]`} />}
+      resource={ResourceInventory}
+      icon={<Package className={`${ICON.page} ${C.text}`} />}
+      onBack={handleBack}
       headerAction={
-        <Button
-          variant="ghost"
-          type="button"
-          className="h-10 text-sm gap-2"
-          onClick={handleBack}
-        >
-          <ArrowLeft className={ICON.action} />
-          一覧に戻る
-        </Button>
+        canSubmit ? (
+          <SubmitButton size="sm">
+            <Save className={`mr-1.5 ${ICON.action}`} />
+            {isEdit ? "更新" : "登録"}
+          </SubmitButton>
+        ) : null
       }
       maxWidth="max-w-3xl"
     >
       <NavigationBlocker when={isDirty && !isPending} />
       <form action={formAction} onChange={markDirty} className="space-y-6">
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <BasicInfoSection
           defaultName={existingItem?.name}
           defaultUnit={existingItem?.unit}
@@ -361,6 +364,7 @@ export function InventoryForm() {
           resolvedExpiry={resolvedExpiry}
           onExpiryChange={handleExpiryChange}
           onMarkDirty={markDirty}
+          minStockLevelError={formState.fieldErrors?.minStockLevel}
         />
 
         <SupplierInfoSection
@@ -370,17 +374,10 @@ export function InventoryForm() {
           onMarkDirty={markDirty}
         />
 
+        </fieldset>
         {/* Actions */}
         <div className="flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10"
-            onClick={handleBack}
-          >
-            キャンセル
-          </Button>
-          {canEdit ? (
+          {canSubmit ? (
             <SubmitButton className="h-10">
               <Save className={`mr-1.5 ${ICON.action}`} />
               {isEdit ? "更新" : "登録"}

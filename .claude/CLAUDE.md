@@ -24,7 +24,7 @@ Be direct, rational, and unfiltered.
 |------|------|
 | Frontend | React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui |
 | Backend | Go 1.25 / Gin / GORM |
-| Database | PostgreSQL 17 (Docker: postgres:17-alpine) |
+| Database | PostgreSQL 18 (Docker: postgres:18-alpine) |
 | Testing | MSW (Mock Service Worker), Vitest, testify |
 
 ---
@@ -34,15 +34,14 @@ Be direct, rational, and unfiltered.
 ```
 production  ← 本番環境（直接push禁止・タグ付き）
   ↑ --no-ff merge（リリース確定時のみ）
-staging     ← 開発統合ブランチ（CI/CD → stg.noah-karte.com）
+staging     ← ステージング環境（CI/CD → stg.noah-karte.com）
   ↑ PR merge
-feature/xxx
-bug/xxx
+main        ← 開発ブランチ（日常作業はここで行う）
 ```
 
-- **作業開始**: 必ず `staging` から切り出す
-- **PR**: 必ず `staging` ベース
-- **`main` ブランチ**: 廃止済み・新規作業禁止
+- **日常作業**: `main` ブランチで直接コミットしてよい
+- **PR**: `main` → `staging` へ PR を作成
+- **`staging`**: ステージング環境デプロイ用。直接 push 禁止
 - 詳細: `.claude/rules/git-workflow.md`
 
 ---
@@ -113,6 +112,7 @@ AnimalEkarte/
 | **Error Handling** | catch ブロックでは必ず **`handleApiError`** を呼び出す |
 | **Conditional Render** | 必ず **`? (...) : null`** （`&&` 禁止） |
 | **Ref as Prop** | **`forwardRef` 禁止**。`ref` は props として直接受け取る |
+| **Shared Component memo()** | `DataTable`, `NotionFilter`, `Pagination`, `SidePeekPanel` は `memo()` 適用済み。新規共有コンポーネントも同様に適用すること |
 
 ---
 
@@ -122,6 +122,18 @@ AnimalEkarte/
 - **Repository**: GORM エラーは必ず `apperrors.FromGORM(err, "resource", id)` で変換。
 - **Service**: 内部エラーは `apperrors.Wrap(err, "message")` でラッピング。
 - **Handler**: `RespondError(c, err)` で統一レスポンス。
+  - `ShouldBindJSON` エラー: `RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))` （全31ハンドラ統一済み）
+  - `c.JSON(http.StatusBadRequest, gin.H{"error": ...})` の直接使用は禁止。
+
+### 1b. マスタ削除の FK 依存チェック (MANDATORY)
+マスタ削除時は必ず依存レコードの存在をチェックし、参照がある場合は `apperrors.WrapConflict(...)` で 409 を返す。
+```go
+// Service層: 削除前に依存チェック
+count, err := s.repo.CountUsageByXxxID(ctx, id)
+if count > 0 {
+    return apperrors.WrapConflict("この項目は使用中のため削除できません")
+}
+```
 
 ### 2. Context & Logging
 - すべてのメソッドの第一引数は `context.Context`。
@@ -129,7 +141,10 @@ AnimalEkarte/
 
 ---
 
+---
+
 ## 📚 参照ドキュメント
 - `frontend/CODING_RULES.md`: フロントエンドの実装詳細
 - `backend/CLAUDE.md`: バックエンドの実装詳細
+- `docs/FUNCTIONAL_TEST_REPORT.md`: 機能テストレポート（OK=2,111 / NG=274 / 未確認=1,514）
 - `.gemini/styleguide.md`: Gemini 固有の補足（本ファイルと同期済み）

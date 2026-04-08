@@ -9,6 +9,8 @@ import { EstimateStatusBadge } from '../components/EstimateStatusBadge/EstimateS
 import { EstimateLineItems } from '../components/EstimateLineItems/EstimateLineItems';
 import { useGetEstimate } from '../api/get-estimate';
 import { useDeleteEstimate } from '../api/delete-estimate';
+import { usePermission } from '@/features/auth';
+import { ResourceEstimates } from "@/types/generated/models";
 
 export function EstimateDetail() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +19,7 @@ export function EstimateDetail() {
 
   const { data: estimate, isLoading, isError } = useGetEstimate(id);
   const { mutate: deleteEstimate, isPending: isDeleting } = useDeleteEstimate();
+  const { canEdit, canDelete } = usePermission("estimates");
 
   const handleDelete = () => {
     if (!id) return;
@@ -39,6 +42,7 @@ export function EstimateDetail() {
   return (
     <PageLayout
       title={`見積書 ${estimate.estimateNo}`}
+      resource={ResourceEstimates}
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex gap-2">
@@ -51,25 +55,29 @@ export function EstimateDetail() {
             <ArrowLeft className={ICON.action} />
             一覧へ
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/estimates/${id}/edit`)}
-            className="h-9 gap-1.5 text-sm"
-          >
-            <Pencil className={ICON.action} />
-            編集
-          </Button>
-          <Button
-            variant="ghost-danger"
-            size="sm"
-            onClick={() => setShowDeleteDialog(true)}
-            disabled={isDeleting}
-            className="h-9 gap-1.5 text-sm border border-red-200"
-          >
-            <Trash2 className={ICON.action} />
-            削除
-          </Button>
+          {canEdit ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/estimates/${id}/edit`)}
+              className="h-9 gap-1.5 text-sm"
+            >
+              <Pencil className={ICON.action} />
+              編集
+            </Button>
+          ) : null}
+          {canDelete ? (
+            <Button
+              variant="ghost-danger"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={isDeleting}
+              className="h-9 gap-1.5 text-sm border border-red-200"
+            >
+              <Trash2 className={ICON.action} />
+              削除
+            </Button>
+          ) : null}
         </div>
       }
       maxWidth="max-w-4xl"

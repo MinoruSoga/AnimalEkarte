@@ -53,7 +53,29 @@ func (m *mockReservationService) Delete(ctx context.Context, clinicID, id uint64
 }
 
 func newHandlerWithReservationSvc(svc service.ReservationService) *Handler {
-	return &Handler{svc: &service.Services{Reservation: svc}}
+	return &Handler{svc: &service.Services{
+		Reservation:           svc,
+		StaffClinicAssignment: &mockStaffClinicAssignmentService{},
+	}}
+}
+
+// mockStaffClinicAssignmentService はテスト用モック。常にクリニックID=3に所属を返す。
+type mockStaffClinicAssignmentService struct{}
+
+func (m *mockStaffClinicAssignmentService) FindByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
+	return []model.StaffClinicAssignment{{StaffID: 1, ClinicID: 1}}, nil
+}
+func (m *mockStaffClinicAssignmentService) FindByClinicID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
+	return nil, nil
+}
+func (m *mockStaffClinicAssignmentService) Create(_ context.Context, _ *model.StaffClinicAssignment) error {
+	return nil
+}
+func (m *mockStaffClinicAssignmentService) Update(_ context.Context, _ *model.StaffClinicAssignment) error {
+	return nil
+}
+func (m *mockStaffClinicAssignmentService) Delete(_ context.Context, _, _ uint64) error {
+	return nil
 }
 
 // ---- ListReservations ----

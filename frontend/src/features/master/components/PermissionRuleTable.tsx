@@ -1,80 +1,158 @@
-import { memo, useCallback } from "react";
+import { memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PERMISSION_RESOURCES } from "@/features/master/types/permission-resources";
-import type { RuleInput } from "@/features/master/api/permission-groups/permission-groups";
+import { TableCell } from "@/components/ui/table";
+import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { C } from "@/lib/design-tokens";
+import type { PermissionGroup } from "@/features/master/api/permission-groups";
 
-interface PermissionRuleTableProps {
-  rules: RuleInput[];
-  onChange: (rules: RuleInput[]) => void;
+// ─────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────
+
+const RESOURCE_LABELS: Record<string, string> = {
+  reception: "当日の受付",
+  owners: "飼主・ペット",
+  reservations: "予約管理",
+  "medical-records": "カルテ",
+  hospitalization: "入院・ホテル",
+  trimming: "トリミング",
+  examinations: "検査管理",
+  accounting: "会計管理",
+  vaccinations: "予防接種",
+  checkups: "定期健診",
+  inventory: "在庫管理",
+  estimates: "見積書",
+  shifts: "シフト管理",
+  "hospital-settings": "医院",
+  "master-animal-species": "動物種類",
+  "master-medical": "カルテ関連",
+  "master-service-type": "診療サービス",
+  "master-hospitalization": "入院・ケージ",
+  "master-trimming": "トリミングマスタ",
+  "master-permission": "権限グループ",
+  "master-staff": "スタッフ管理",
+  "master-insurance": "保険マスタ",
+  "master-merchandise": "物販・フード",
+};
+
+// All available resources for permission configuration
+const AllResources = Object.keys(RESOURCE_LABELS);
+
+// ─────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────
+
+export interface PermissionRule {
+  resource: string;
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
-type ActionKey = "can_view" | "can_create" | "can_edit" | "can_delete";
+interface PermissionRuleTableProps {
+  group: PermissionGroup | null;
+  rules: PermissionRule[];
+  onRuleChange: (resource: string, field: keyof Omit<PermissionRule, "resource">, value: boolean) => void;
+  disabled?: boolean;
+}
 
-const ACTION_COLUMNS: { key: ActionKey; label: string }[] = [
-  { key: "can_view", label: "表示" },
-  { key: "can_create", label: "登録" },
-  { key: "can_edit", label: "編集" },
-  { key: "can_delete", label: "削除" },
-];
-
-const TABLE_HEADER = (
-  <thead>
-    <tr className="border-b">
-      <th className="text-left py-2 pr-4 font-medium text-sm text-muted-foreground">ページ</th>
-      {ACTION_COLUMNS.map((col) => (
-        <th
-          key={col.key}
-          className="text-center w-16 font-medium text-sm text-muted-foreground pb-2"
-        >
-          {col.label}
-        </th>
-      ))}
-    </tr>
-  </thead>
-);
+// ─────────────────────────────────────────────────
+// PermissionRuleTable
+// ─────────────────────────────────────────────────
 
 export const PermissionRuleTable = memo(function PermissionRuleTable({
+  group: _group,
   rules,
-  onChange,
+  onRuleChange,
+  disabled,
 }: PermissionRuleTableProps) {
-  const handleChange = useCallback(
-    (resource: string, action: ActionKey, value: boolean) => {
-      onChange(
-        rules.map((r) =>
-          r.resource === resource ? { ...r, [action]: value } : r,
-        ),
-      );
-    },
-    [rules, onChange],
-  );
+  // Show permission table regardless of group state (both edit and new modes)
+  // For new groups (group === null), display empty rules with all permissions unchecked
+
+  const ruleMap = new Map(rules.map((r) => [r.resource, r]));
 
   return (
-    <table className="w-full text-sm">
-      {TABLE_HEADER}
-      <tbody>
-        {PERMISSION_RESOURCES.map((res) => {
-          const rule = rules.find((r) => r.resource === res.key) ?? {
-            resource: res.key,
-            can_view: false,
-            can_create: false,
-            can_edit: false,
-            can_delete: false,
-          };
-          return (
-            <tr key={res.key} className="border-b last:border-0">
-              <td className="py-2.5 pr-4 text-sm">{res.label}</td>
-              {ACTION_COLUMNS.map((col) => (
-                <td key={col.key} className="text-center">
-                  <Checkbox
-                    checked={rule[col.key]}
-                    onCheckedChange={(v) => handleChange(res.key, col.key, v === true)}
-                  />
-                </td>
-              ))}
+    <div className="mt-6">
+      <h3 className={`text-sm font-semibold ${C.text} mb-3`}>権限設定</h3>
+      <div className="overflow-x-auto border rounded-lg">
+        <table className="w-full">
+          <thead>
+            <tr className={`border-b ${C.borderLight}`}>
+              <th className={`px-4 py-2 text-left text-xs font-semibold ${C.text50}`}>
+                リソース
+              </th>
+              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.text50}`}>
+                表示
+              </th>
+              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.text50}`}>
+                作成
+              </th>
+              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.text50}`}>
+                編集
+              </th>
+              <th className={`px-4 py-2 text-center text-xs font-semibold ${C.text50}`}>
+                削除
+              </th>
             </tr>
-          );
-        })}
-      </tbody>
-    </table>
+          </thead>
+          <tbody>
+            {AllResources.map((resource) => {
+              const rule = ruleMap.get(resource) || {
+                resource,
+                canView: false,
+                canCreate: false,
+                canEdit: false,
+                canDelete: false,
+              };
+
+              return (
+                <DataTableRow key={resource}>
+                  <TableCell className={`text-sm ${C.text}`}>
+                    {RESOURCE_LABELS[resource] || resource}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={rule.canView}
+                      disabled={disabled}
+                      onCheckedChange={(checked) =>
+                        onRuleChange(resource, "canView", checked === true)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={rule.canCreate}
+                      disabled={disabled}
+                      onCheckedChange={(checked) =>
+                        onRuleChange(resource, "canCreate", checked === true)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={rule.canEdit}
+                      disabled={disabled}
+                      onCheckedChange={(checked) =>
+                        onRuleChange(resource, "canEdit", checked === true)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={rule.canDelete}
+                      disabled={disabled}
+                      onCheckedChange={(checked) =>
+                        onRuleChange(resource, "canDelete", checked === true)
+                      }
+                    />
+                  </TableCell>
+                </DataTableRow>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 });

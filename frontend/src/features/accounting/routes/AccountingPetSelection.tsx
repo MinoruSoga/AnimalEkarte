@@ -2,13 +2,14 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PetSelectionSearchForm } from "@/components/shared/PetSelection/PetSelectionSearchForm";
 import { PetSelectionResultsTable } from "@/components/shared/PetSelection/PetSelectionResultsTable";
 import { usePetSelectionPage } from "@/hooks/use-pet-selection-page";
+import { ResourceAccounting } from "@/types/generated/models";
 
 export function AccountingPetSelection() {
   const { searchParams, setSearchParams, filteredPets, handleSearch, handleClear, handleSelect, handleBack } =
     usePetSelectionPage({ selectPath: "/accounting/new", backPath: "/accounting" });
 
   return (
-    <PageLayout title="会計登録 - ペット選択" onBack={handleBack} maxWidth="max-w-full">
+    <PageLayout title="会計登録 - ペット選択" onBack={handleBack} resource={ResourceAccounting} maxWidth="max-w-full">
       <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onSearch={handleSearch} onClear={handleClear} />
       <PetSelectionResultsTable pets={filteredPets} onSelect={handleSelect} />
     </PageLayout>

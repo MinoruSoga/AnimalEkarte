@@ -23,6 +23,7 @@ interface PatientInfoCardProps {
   insuranceDetails?: string;
   nextVisitDate?: string;
   nextVisitContent?: string;
+  visitCount?: number;
   onStaffClick?: () => void;
   onVitalClick?: () => void;
   onOwnerClick?: () => void;
@@ -45,6 +46,7 @@ export function PatientInfoCard({
   insuranceDetails = "普通or危険",
   nextVisitDate = "2025/10/10",
   nextVisitContent = "ノミ予防",
+  visitCount,
   sticky = true,
   hideStaff = false,
   onStaffClick,
@@ -104,6 +106,11 @@ export function PatientInfoCard({
             <span className="flex items-center gap-1">
               <Activity className={ICON.xs} /> {weight}
             </span>
+            {typeof visitCount === "number" ? (
+              <span className="flex items-center gap-1">
+                来院 {visitCount} 回
+              </span>
+            ) : null}
           </div>
         </div>
 

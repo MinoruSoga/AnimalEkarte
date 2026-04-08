@@ -1,36 +1,20 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
-import {
-  PET_GENDER_VALUES,
-  ACQUISITION_TYPE_VALUES,
-  DANGER_LEVEL_VALUES,
-  PetFormData,
-} from "../types";
+import { PET_GENDER_VALUES, ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES, PetFormData } from "../types";
 import { useGetAnimalSpecies } from "../api/get-animal-species";
 import { useGetInsurances } from "../api/get-insurances";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 import { isOneOf } from "@/lib/type-utils";
 
@@ -94,6 +78,7 @@ export function PetEditModal({
   onSave,
   onChangeOwner,
 }: PetEditModalProps) {
+  const { canEdit } = usePermission("owners");
   const { data: animalSpeciesList = [], isLoading: isLoadingSpecies } = useGetAnimalSpecies();
   const { data: insuranceList = [], isLoading: isLoadingInsurances } = useGetInsurances();
 
@@ -215,12 +200,14 @@ export function PetEditModal({
   const handleSave = () => {
     const errors: Record<string, string> = {};
     if (!formData.petName.trim()) errors.petName = "ペット名を入力してください";
-    if (!formData.animalSpeciesId) errors.animalSpeciesId = "CFBEを選択してください";
+    if (!formData.animalSpeciesId) errors.animalSpeciesId = "動物種を選択してください";
     if (!formData.gender) errors.gender = "性別を選択してください";
     if (formData.weight !== "" && formData.weight !== undefined) {
       const weightNum = parseFloat(formData.weight);
       if (!isNaN(weightNum) && weightNum < 0) {
         errors.weight = "体重は0以上の値を入力してください";
+      } else if (!isNaN(weightNum) && weightNum > 200) {
+        errors.weight = "体重は200kg以下で入力してください";
       }
     }
 
@@ -286,6 +273,7 @@ export function PetEditModal({
           </div>
         </DialogHeader>
 
+        <fieldset disabled={!canEdit} className="border-0 p-0 m-0 min-w-0">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Column 1 */}
           <div className="space-y-2">
@@ -314,6 +302,7 @@ export function PetEditModal({
               <Input
                 id="petName"
                 value={formData.petName}
+                maxLength={100}
                 aria-invalid={!!fieldErrors.petName}
                 aria-describedby={fieldErrors.petName ? "petName-error" : undefined}
                 onChange={(e) => {
@@ -342,7 +331,7 @@ export function PetEditModal({
 
             <div className="space-y-1">
               <Label htmlFor="animalSpeciesId" className={LABEL_CLS}>
-                CFBE <span className={C.textRequired}>*</span>
+                動物種 <span className={C.textRequired}>*</span>
               </Label>
               <Select
                 value={formData.animalSpeciesId || ""}
@@ -393,6 +382,7 @@ export function PetEditModal({
                   setFormData(prev => ({ ...prev, birthDate: val }));
                 }}
                 placeholder="生年月日を選択…"
+                disabledDays={{ after: new Date() }}
               />
             </div>
           </div>
@@ -401,7 +391,7 @@ export function PetEditModal({
           <div className="space-y-2">
             <div className="space-y-1">
               <Label htmlFor="breed" className={LABEL_CLS}>
-                BREED
+                品種
               </Label>
               {/* BUG-100: 種別に応じたサジェスト付き datalist + 自由テキスト */}
               <Input
@@ -614,13 +604,16 @@ export function PetEditModal({
           >
             キャンセル
           </Button>
-          <Button
-            onClick={handleSave}
-            className={`${STYLE.confirmPrimary} text-sm px-4`}
-          >
-            {isEdit ? "更新" : "登録"}
-          </Button>
+          {canEdit ? (
+            <Button
+              onClick={handleSave}
+              className={`${STYLE.confirmPrimary} text-sm px-4`}
+            >
+              {isEdit ? "更新" : "登録"}
+            </Button>
+          ) : null}
         </div>
+        </fieldset>
       </DialogContent>
 
       {/* Owner Search Modal (edit mode only) */}

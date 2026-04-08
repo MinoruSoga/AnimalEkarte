@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"log/slog"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -79,6 +81,7 @@ func buildClinicUpdateFields(input *UpdateClinicInput) map[string]any {
 
 type ClinicService interface {
 	ListClinics(ctx context.Context) ([]model.Clinic, error)
+	ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	CreateClinic(ctx context.Context, clinic *model.Clinic) (*model.Clinic, error)
 	UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) (*model.Clinic, error)
@@ -97,6 +100,14 @@ func (s *clinicService) ListClinics(ctx context.Context) ([]model.Clinic, error)
 	clinics, err := s.repo.FindAll(ctx)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list clinics")
+	}
+	return clinics, nil
+}
+
+func (s *clinicService) ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
+	clinics, err := s.repo.FindByStaffID(ctx, staffID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list clinics by staff")
 	}
 	return clinics, nil
 }
@@ -147,8 +158,30 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 }
 
 func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
+	// FK依存チェック: クリニックに関連するオーナーが存在する場合は削除を拒否
+	ownerCount, err := s.repo.CountOwnersByClinicID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check owner dependencies")
+	}
+	if ownerCount > 0 {
+		return apperrors.WrapConflict("飼主が紐付いているため削除できません。先に飼主を削除してください")
+	}
+
+	// FK依存チェック: クリニックに関連するスタッフが存在する場合は削除を拒否
+	staffCount, err := s.repo.CountStaffByClinicID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check staff dependencies")
+	}
+	if staffCount > 0 {
+		return apperrors.WrapConflict("スタッフが紐付いているため削除できません。先にスタッフを削除してください")
+	}
+
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete clinic")
 	}
+
+	slog.InfoContext(ctx, "clinic deleted",
+		slog.Uint64("clinic_id", id))
+
 	return nil
 }

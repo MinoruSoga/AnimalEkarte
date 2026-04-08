@@ -2,13 +2,7 @@ import { ICON } from "@/lib/design-tokens";
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Shift } from "@/features/shifts/types";
 import { ShiftCell } from "@/features/shifts/components/ShiftCell/ShiftCell";
 
@@ -51,6 +45,7 @@ interface ShiftCalendarProps {
   selectedStaffId: string;
   canCreate: boolean;
   canEdit: boolean;
+  canDelete: boolean;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onStaffChange: (staffId: string) => void;
@@ -63,6 +58,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
   selectedStaffId,
   canCreate,
   canEdit,
+  canDelete,
   onPrevMonth,
   onNextMonth,
   onStaffChange,
@@ -255,6 +251,8 @@ export const ShiftCalendar = memo(function ShiftCalendar({
           staffName={dialog.staffName}
           date={dialog.date}
           editShift={dialog.editShift}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
       </Suspense>
     </div>

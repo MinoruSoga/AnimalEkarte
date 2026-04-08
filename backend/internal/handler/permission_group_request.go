@@ -1,29 +1,35 @@
 package handler
 
-// createPermissionGroupRequest はグループ作成リクエスト
 type createPermissionGroupRequest struct {
-	Name        string `json:"name"        binding:"required,max=100"`
+	Name        string `json:"name"        binding:"required,min=1,max=255"`
 	Description string `json:"description"`
-	Color       string `json:"color"`
+	Color       string `json:"color"       binding:"required"`
+	IsActive    bool   `json:"is_active"`
+	SortOrder   int    `json:"sort_order"`
 }
 
-// updatePermissionGroupRequest はグループ更新リクエスト（全フィールドオプション）
 type updatePermissionGroupRequest struct {
-	Name        *string `json:"name"        binding:"omitempty,max=100"`
+	Name        *string `json:"name"`
 	Description *string `json:"description"`
 	Color       *string `json:"color"`
+	IsActive    *bool   `json:"is_active"`
+	SortOrder   *int    `json:"sort_order"`
 }
 
-// setPermissionGroupRulesRequest はルール一括更新リクエスト
+// setPermissionGroupRulesRequest は権限グループのルール設定リクエスト
 type setPermissionGroupRulesRequest struct {
-	Rules []ruleRequest `json:"rules" binding:"required"`
+	Rules []permissionGroupRuleInput `json:"rules" binding:"required"`
 }
 
-// ruleRequest は個別ルールのリクエスト
-type ruleRequest struct {
-	Resource  string `json:"resource"   binding:"required"`
+type permissionGroupRuleInput struct {
+	Resource  string `json:"resource"   binding:"required,min=1,max=50"`
 	CanView   bool   `json:"can_view"`
 	CanCreate bool   `json:"can_create"`
 	CanEdit   bool   `json:"can_edit"`
 	CanDelete bool   `json:"can_delete"`
+}
+
+// reorderPermissionGroupRequest は権限グループ並び替えリクエスト
+type reorderPermissionGroupRequest struct {
+	IDs []uint64 `json:"ids" binding:"required,min=1"`
 }

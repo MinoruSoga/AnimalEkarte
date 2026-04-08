@@ -40,6 +40,7 @@ func generateCryptoRandomString(length int) string {
 type MedicalRecordService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
 	Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -69,6 +70,10 @@ func (s *medicalRecordService) List(ctx context.Context, clinicID uint64, petID,
 
 func (s *medicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	return s.repo.FindByID(ctx, clinicID, id)
+}
+
+func (s *medicalRecordService) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
+	return s.repo.CountByPetID(ctx, clinicID, petID)
 }
 
 func (s *medicalRecordService) Create(ctx context.Context, record *model.MedicalRecord) error {

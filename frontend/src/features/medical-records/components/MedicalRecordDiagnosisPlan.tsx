@@ -12,6 +12,7 @@ import { ClinicalPlanSection } from "./ClinicalPlanSection/ClinicalPlanSection";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import type { TreatmentItemType, UpdateTreatmentInput } from "../types";
+import { usePermission } from "@/features/auth";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { calculateBillingTotals } from "@/lib/calculations";
 
@@ -55,6 +56,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   ownerDiscountRate = 0,
   onRegisterClinicalPlanSave,
 }: DiagnosisPlanProps) {
+  const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 
@@ -81,10 +83,12 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   }, [treatments]);
 
   const handleRemoveItem = useCallback((id: number) => {
+    if (!canDelete) return;
     deleteMutation.mutate(String(id));
-  }, [deleteMutation]);
+  }, [canDelete, deleteMutation]);
 
   const handleUpdateItem = useCallback((id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
+    if (!canEdit) return;
     const input: UpdateTreatmentInput = {};
     if (field === "content") input.content = String(value);
     if (field === "memo") input.memo = String(value);
@@ -97,9 +101,10 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
     if (field === "selected") input.selected = Boolean(value);
 
     updateMutation.mutate({ treatmentId: String(id), input });
-  }, [updateMutation]);
+  }, [canEdit, updateMutation]);
 
   const handleAddRow = useCallback(() => {
+    if (!canCreate) return;
     const nextOrder = treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0;
     createMutation.mutate({
       item_type: "other" as TreatmentItemType,
@@ -111,9 +116,10 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       discount_amount: 0,
       sort_order: nextOrder,
     });
-  }, [treatments, createMutation]);
+  }, [canCreate, treatments, createMutation]);
 
   const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
+    if (!canCreate) return;
     const nextOrder = treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0;
     createMutation.mutate({
       item_type: (item.category === "薬品" ? "medicine" : item.category === "処置" ? "procedure" : "other") as TreatmentItemType,
@@ -126,7 +132,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       discount_amount: 0,
       sort_order: nextOrder,
     });
-  }, [treatments, createMutation]);
+  }, [canCreate, treatments, createMutation]);
 
   // Calculations
   const { subtotal, tax, total } = useMemo(() => {
@@ -160,7 +166,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
       {!isNewRecord && medicalRecordId ? (
         <div className="shrink-0">
-          <ClinicalPlanSection medicalRecordId={medicalRecordId} onRegisterSave={onRegisterClinicalPlanSave} />
+          <ClinicalPlanSection medicalRecordId={medicalRecordId} onRegisterSave={onRegisterClinicalPlanSave} canEdit={canEdit} />
         </div>
       ) : null}
 
@@ -168,20 +174,21 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       <div className="flex-1 min-h-0 flex flex-col">
         <h2 className={`text-sm font-bold ${C.text} mb-1.5`}>治療プラン</h2>
 
-        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-lg border border-[rgba(55,53,47,0.09)] overflow-hidden">
+        <div className={`flex-1 min-h-0 flex flex-col bg-white rounded-lg border ${C.borderLight} overflow-hidden`}>
           {isNewRecord ? (
             <div className={`flex-1 flex items-center justify-center border border-dashed rounded-lg text-sm ${C.text40}`}>
               カルテを保存してから治療プランを作成できます
             </div>
           ) : (
             <div className="flex-1 min-h-0">
-              <TreatmentTable 
+              <TreatmentTable
                 items={treatmentItems}
                 onUpdate={handleUpdateItem}
                 onRemove={handleRemoveItem}
-                onOpenSearch={() => setIsSearchOpen(true)}
-                onAddRow={handleAddRow}
+                onOpenSearch={canCreate ? () => setIsSearchOpen(true) : undefined}
+                onAddRow={canCreate ? handleAddRow : undefined}
                 showStatus={true}
+                disabled={!canEdit && !canCreate && !canDelete}
               />
             </div>
           )}

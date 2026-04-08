@@ -1,12 +1,8 @@
-import React, { useMemo } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { useGetStaffs } from "@/features/master/api/staffs";
+import React, { useMemo, useCallback } from "react";
+import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { Check } from "lucide-react";
+import { C, ICON } from "@/lib/design-tokens";
+import { useGetStaffs } from "@/features/master";
 
 interface StaffSelectionModalProps {
   open: boolean;
@@ -21,52 +17,75 @@ export const StaffSelectionModal = React.memo(function StaffSelectionModal({
   onSelect,
   onOpenChange,
 }: StaffSelectionModalProps) {
-  const { data: staffs = [], isLoading } = useGetStaffs();
+  const { data: staffs = [] } = useGetStaffs();
 
-  const activeStaffs = useMemo(
-    () => staffs.filter((s) => s.isActive),
-    [staffs]
+  const groupedStaffs = useMemo(() => {
+    const active = staffs.filter((s) => s.isActive);
+    const groups: Record<string, typeof active> = {};
+    const occupationOrder: string[] = [];
+    for (const s of active) {
+      const key = s.occupationName ?? "未設定";
+      if (!groups[key]) {
+        groups[key] = [];
+        occupationOrder.push(key);
+      }
+      groups[key].push(s);
+    }
+    return { groups, occupationOrder };
+  }, [staffs]);
+
+  const handleSelect = useCallback(
+    (staffId: string, staffName: string) => {
+      onSelect(staffId, staffName);
+      onOpenChange(false);
+    },
+    [onSelect, onOpenChange],
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="text-base font-bold text-[#37352F]">
-            医師を選択
-          </DialogTitle>
-        </DialogHeader>
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="担当医を選択"
+      description="担当するスタッフを検索・選択してください"
+    >
+      <CommandInput placeholder="スタッフ名で検索..." />
 
-        <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto py-2">
-          {isLoading ? (
-            <div className="text-center text-sm text-[#37352F]/60 py-4">
-              読み込み中...
-            </div>
-          ) : activeStaffs.length === 0 ? (
-            <div className="text-center text-sm text-[#37352F]/60 py-4">
-              医師情報がありません
-            </div>
-          ) : (
-            activeStaffs.map((staff) => (
-              <Button
-                key={staff.id}
-                variant="ghost"
-                className={`justify-start h-10 text-sm font-normal ${
-                  selectedStaffName === staff.name
-                    ? "bg-[#2EAADC] text-white hover:bg-[#2EAADC] hover:text-white"
-                    : "text-[#37352F] hover:bg-[#F7F6F3]"
-                }`}
-                onClick={() => {
-                  onSelect(staff.id, staff.name);
-                  onOpenChange(false);
-                }}
-              >
-                {staff.name}
-              </Button>
-            ))
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+      <CommandList className="max-h-[500px]">
+        <CommandEmpty className={`py-12 text-center text-sm ${C.text60}`}>
+          該当するスタッフが見つかりません。
+        </CommandEmpty>
+
+        {groupedStaffs.occupationOrder.map((occupationKey) => {
+          const items = groupedStaffs.groups[occupationKey];
+          if (!items || items.length === 0) return null;
+
+          return (
+            <CommandGroup key={occupationKey} heading={occupationKey}>
+              {items.map((staff) => {
+                const isSelected = selectedStaffName === staff.name;
+                return (
+                  <CommandItem
+                    key={staff.id}
+                    value={`${staff.name} ${occupationKey}`}
+                    onSelect={() => handleSelect(staff.id, staff.name)}
+                    className={`cursor-pointer !py-2 ${isSelected ? C.bgPage : ""}`}
+                  >
+                    <div className="flex flex-1 items-center justify-between">
+                      <span className={`font-medium ${C.text} text-sm`}>
+                        {staff.name}
+                      </span>
+                      {isSelected ? (
+                        <Check className={`${ICON.action} ${C.text}`} />
+                      ) : null}
+                    </div>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          );
+        })}
+      </CommandList>
+    </CommandDialog>
   );
 });

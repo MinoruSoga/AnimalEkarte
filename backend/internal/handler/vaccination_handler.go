@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -95,14 +96,32 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 		return
 	}
 
+	// Parse Date (required)
+	date, err := parseDate(input.Date)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid date: %v", err)))
+		return
+	}
+	if date == nil {
+		RespondError(c, apperrors.WrapInvalidInput("date is required"))
+		return
+	}
+
+	// Parse NextDate (optional)
+	nextDate, err := parseDate(input.NextDate)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid next_date: %v", err)))
+		return
+	}
+
 	vaccination := &model.Vaccination{
 		ClinicID:        clinicID,
 		MedicalRecordID: input.MedicalRecordID,
 		PetID:           input.PetID,
 		VaccineID:       input.VaccineID,
-		Date:            input.Date,
+		Date:            *date,
 		DoctorID:        input.DoctorID,
-		NextDate:        input.NextDate,
+		NextDate:        nextDate,
 		Supplemental:    input.Supplemental,
 		Lot1:            input.Lot1,
 		Lot2:            input.Lot2,
@@ -139,13 +158,27 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 		return
 	}
 
+	// Parse Date (optional)
+	date, err := parseDate(input.Date)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid date: %v", err)))
+		return
+	}
+
+	// Parse NextDate (optional)
+	nextDate, err := parseDate(input.NextDate)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid next_date: %v", err)))
+		return
+	}
+
 	svcInput := service.UpdateVaccinationInput{
 		MedicalRecordID: input.MedicalRecordID,
 		PetID:           input.PetID,
 		VaccineID:       input.VaccineID,
-		Date:            input.Date,
+		Date:            date,
 		DoctorID:        input.DoctorID,
-		NextDate:        input.NextDate,
+		NextDate:        nextDate,
 		Supplemental:    input.Supplemental,
 		Lot1:            input.Lot1,
 		Lot2:            input.Lot2,

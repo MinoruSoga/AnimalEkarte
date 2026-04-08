@@ -1,5 +1,5 @@
 import { memo, useState, useMemo, useCallback } from "react";
-import { UserRound, Shield } from "lucide-react";
+import { UserRound, Shield, Building2 } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,25 +9,32 @@ import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPil
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
 import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import {
-  useGetStaffs, useCreateStaff, useUpdateStaff, useDeleteStaff, STAFF_ROLE_LABELS,
+  useGetStaffs,
+  useCreateStaff,
+  useUpdateStaff,
+  useDeleteStaff,
+  useGetStaffPermissionGroups,
+  useSetStaffPermissionGroups,
+  useGetStaffClinics,
+  useSetStaffClinics,
+  useGetClinicsList,
+  useGetAllStaffPermissionGroupMap,
 } from "@/features/master/api/staffs";
-import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
+import type { Staff, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
-import {
-  useGetUsers,
-  useGetUser,
-  useSetUserPermissionGroups,
-} from "@/features/master/api/user-accounts";
-import { useGetPermissionGroups } from "@/features/master/api/permission-groups/permission-groups";
-import type { PermissionGroup } from "@/types/generated/models";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useGetPermissionGroups } from "@/features/master/api/permission-groups";
+import type { PermissionGroup } from "@/features/master/api/permission-groups";
+import type { ClinicSummary } from "@/features/master/api/staffs";
+import { useGetAllOccupations } from "@/features/master/api/occupations";
+import type { Occupation } from "@/features/master/api/occupations";
+import { ResourceMasterStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -41,43 +48,13 @@ const COLUMNS = [
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
-const STAFF_ROLE_SELECT_ITEMS = (
-  [
-    { value: "veterinarian" as StaffRoleValue, label: "獣医師" },
-    { value: "nurse" as StaffRoleValue, label: "看護師" },
-    { value: "trimmer" as StaffRoleValue, label: "トリマー" },
-    { value: "reception" as StaffRoleValue, label: "受付" },
-    { value: "manager" as StaffRoleValue, label: "運営管理者" },
-  ] satisfies { value: StaffRoleValue; label: string }[]
-).map((r) => (
-  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-));
-
-const STAFF_FILTER_PROPERTIES: FilterProperty[] = [
-  MASTER_STATUS_FILTER,
-  {
-    key: "staffRole",
-    label: "職種",
-    type: "select",
-    icon: UserRound,
-    conditions: CONDITIONS_NO_EMPTY,
-    options: [
-      { value: "veterinarian", label: "獣医師" },
-      { value: "nurse", label: "看護師" },
-      { value: "trimmer", label: "トリマー" },
-      { value: "reception", label: "受付" },
-      { value: "manager", label: "運営管理者" },
-    ],
-  },
-];
-
 // ─────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────
 
 interface StaffFormData {
   name: string;
-  staffRole: StaffRoleValue;
+  jobTitleId: string | null;
   licenseNumber: string;
   isActive: boolean;
   email: string;
@@ -92,13 +69,18 @@ interface StaffSidePanelProps {
   item: Staff | null;
   onClose: () => void;
   onSave: (d: StaffFormData) => void;
-  onDeleteRequest: (i: Staff) => void;
+  onDeleteRequest?: (i: Staff) => void;
+  readOnly?: boolean;
+  /** All occupations (職種) available in this clinic */
+  allOccupations: Occupation[];
   /** All permission groups available in this clinic */
   allGroups: PermissionGroup[];
-  /** user_accounts.id linked to this staff (null if new or not yet linked) */
-  linkedUserId: string | null;
-  /** Called when groups should be saved for this user */
-  onSaveGroups: (userId: string, groupIds: number[]) => void;
+  /** Called when groups should be saved for this staff */
+  onSaveGroups: (staffId: string, groupIds: string[]) => void;
+  /** All clinics available for assignment */
+  allClinics: ClinicSummary[];
+  /** Called when clinics should be saved for this staff */
+  onSaveClinics: (staffId: string, clinicIds: string[]) => void;
 }
 
 const StaffSidePanel = memo(function StaffSidePanel({
@@ -106,45 +88,77 @@ const StaffSidePanel = memo(function StaffSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
+  allOccupations,
   allGroups,
-  linkedUserId,
   onSaveGroups,
+  allClinics,
+  onSaveClinics,
 }: StaffSidePanelProps) {
   const isNew = item === null;
+  const staffId = item?.id ?? null;
 
   const [f, setF] = useState<StaffFormData>(() => ({
     name: item?.name ?? "",
-    staffRole: item?.staffRole ?? "veterinarian",
+    jobTitleId: item?.occupationId ?? null,
     licenseNumber: item?.licenseNumber ?? "",
     isActive: item?.isActive ?? true,
-    email: "",
+    email: item?.email ?? "",
     password: "",
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
+  // ── Occupation select items (memoized) ────────────
+  const occupationSelectItems = useMemo(
+    () =>
+      allOccupations
+        .filter((oc) => oc.isActive)
+        .map((oc) => (
+          <SelectItem key={oc.id} value={oc.id}>{oc.name}</SelectItem>
+        )),
+    [allOccupations],
+  );
+
   // ── Permission groups state ──────────────────────
-  // null = ユーザーがまだ編集していない（サーバーデータを使用）
-  const [userEditedGroupIds, setUserEditedGroupIds] = useState<number[] | null>(null);
+  const { data: serverGroupIds } = useGetStaffPermissionGroups(staffId);
+  const [userEditedGroupIds, setUserEditedGroupIds] = useState<string[] | null>(null);
 
-  const { data: userDetail } = useGetUser(linkedUserId);
-
-  // サーバーデータ優先、ユーザー編集があればそちらを使用
   const groupIds = useMemo(
-    () => userEditedGroupIds ?? userDetail?.permissionGroupIds ?? [],
-    [userEditedGroupIds, userDetail?.permissionGroupIds],
+    () => userEditedGroupIds ?? serverGroupIds ?? [],
+    [userEditedGroupIds, serverGroupIds],
+  );
+
+  // ── Clinic assignments state ───────────────────
+  const { data: serverClinicIds } = useGetStaffClinics(staffId);
+  const [userEditedClinicIds, setUserEditedClinicIds] = useState<string[] | null>(null);
+
+  const clinicIds = useMemo(
+    () => userEditedClinicIds ?? serverClinicIds ?? [],
+    [userEditedClinicIds, serverClinicIds],
   );
 
   // ── Handlers ─────────────────────────────────────
+  const handleClinicToggle = useCallback(
+    (clinicId: string, checked: boolean) => {
+      setUserEditedClinicIds((prev) => {
+        const current = prev ?? serverClinicIds ?? [];
+        return checked ? [...current, clinicId] : current.filter((id) => id !== clinicId);
+      });
+      setIsDirty(true);
+    },
+    [serverClinicIds],
+  );
+
   const handleGroupToggle = useCallback(
-    (groupId: number, checked: boolean) => {
+    (groupId: string, checked: boolean) => {
       setUserEditedGroupIds((prev) => {
-        const current = prev ?? userDetail?.permissionGroupIds ?? [];
+        const current = prev ?? serverGroupIds ?? [];
         return checked ? [...current, groupId] : current.filter((id) => id !== groupId);
       });
       setIsDirty(true);
     },
-    [userDetail?.permissionGroupIds],
+    [serverGroupIds],
   );
 
   const handleSave = useCallback(() => {
@@ -154,11 +168,12 @@ const StaffSidePanel = memo(function StaffSidePanel({
     }
     setNameError("");
     onSave(f);
-    if (!isNew && linkedUserId) {
-      onSaveGroups(linkedUserId, groupIds);
+    if (!isNew && staffId) {
+      onSaveGroups(staffId, groupIds);
+      onSaveClinics(staffId, clinicIds);
     }
     setIsDirty(false);
-  }, [f, isNew, linkedUserId, groupIds, onSave, onSaveGroups]);
+  }, [f, isNew, staffId, groupIds, clinicIds, onSave, onSaveGroups, onSaveClinics]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -171,8 +186,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
     setIsDirty(true);
   }, []);
 
-  const handleStaffRoleChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, staffRole: v as StaffRoleValue }));
+  const handleOccupationChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, jobTitleId: v }));
     setIsDirty(true);
   }, []);
 
@@ -203,10 +218,12 @@ const StaffSidePanel = memo(function StaffSidePanel({
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleSave}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton
         isActive={f.isActive}
@@ -215,13 +232,13 @@ const StaffSidePanel = memo(function StaffSidePanel({
 
       <PropertyRow label="職種">
         <Select
-          value={f.staffRole}
-          onValueChange={handleStaffRoleChange}
+          value={f.jobTitleId ?? undefined}
+          onValueChange={handleOccupationChange}
         >
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
           </SelectTrigger>
-          <SelectContent>{STAFF_ROLE_SELECT_ITEMS}</SelectContent>
+          <SelectContent>{occupationSelectItems}</SelectContent>
         </Select>
       </PropertyRow>
 
@@ -256,7 +273,57 @@ const StaffSidePanel = memo(function StaffSidePanel({
             />
           </PropertyRow>
         </>
-      ) : null}
+      ) : (
+        <>
+          <PropertyRow label="メールアドレス">
+            <span className={`text-sm ${C.text65}`}>{item?.email || "未設定"}</span>
+          </PropertyRow>
+          <PropertyRow label="パスワード">
+            <input
+              type="password"
+              className={MASTER_INPUT_CLASS}
+              value={f.password}
+              onChange={handlePasswordChange}
+              placeholder="変更する場合のみ入力"
+            />
+          </PropertyRow>
+        </>
+      )}
+
+      {/* ── Clinic assignments ─────────────────────── */}
+      <div className="mt-4 border-t pt-4">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Building2 className={`${ICON.xs} text-muted-foreground`} />
+          <p className="text-xs font-medium text-muted-foreground">所属医院</p>
+        </div>
+
+        {isNew ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            スタッフ登録後に所属医院を設定できます
+          </p>
+        ) : allClinics.length === 0 ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            医院が登録されていません
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            {allClinics.map((clinic) => (
+              <label
+                key={clinic.id}
+                className="flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer hover:bg-muted/40 transition-colors"
+              >
+                <Checkbox
+                  checked={clinicIds.includes(clinic.id)}
+                  onCheckedChange={(checked) =>
+                    handleClinicToggle(clinic.id, checked === true)
+                  }
+                />
+                <span className="text-sm">{clinic.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── Permission groups ─────────────────────── */}
       <div className="mt-4 border-t pt-4">
@@ -288,7 +355,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
                 />
                 <div
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: group.color ?? "#6B7280" }}
+                  style={{ backgroundColor: group.color ?? PALETTE.defaultGray }}
                 />
                 <span className="text-sm">{group.name}</span>
               </label>
@@ -305,42 +372,57 @@ const StaffSidePanel = memo(function StaffSidePanel({
 // ─────────────────────────────────────────────────
 
 export function StaffSettings() {
-  const { currentClinicId } = useAuth();
-  const clinicId = currentClinicId ?? "";
-
   const { data } = useGetStaffs();
   const createMutation = useCreateStaff();
   const updateMutation = useUpdateStaff();
   const deleteMutation = useDeleteStaff();
 
-  // User accounts — needed to find linked userId per staff
-  const { data: users = [] } = useGetUsers(clinicId);
+  // Occupations (職種) — shown as select in the panel + filter
+  const { data: allOccupationsData } = useGetAllOccupations();
+  const allOccupations = useMemo(() => allOccupationsData ?? [], [allOccupationsData]);
 
   // Permission groups — shown as checkboxes in the panel
-  const { data: allGroups = [] } = useGetPermissionGroups(clinicId);
+  const { data: allGroupsData } = useGetPermissionGroups();
+  const allGroups = useMemo(() => allGroupsData ?? [], [allGroupsData]);
+
+  // Clinics — shown as checkboxes in the panel
+  const { data: allClinicsData } = useGetClinicsList("all");
+  const allClinics = useMemo(() => allClinicsData ?? [], [allClinicsData]);
 
   // Group assignment mutation
-  const setGroupsMutation = useSetUserPermissionGroups(clinicId);
+  const setGroupsMutation = useSetStaffPermissionGroups();
+  const setClinicsMutation = useSetStaffClinics();
 
-  // staff.id → user.id lookup map
-  const usersByStaffId = new Map<string, string>(
-    users
-      .filter((u) => u.staff_id != null)
-      .map((u) => [u.staff_id as string, u.id]),
-  );
+  // スタッフ全員の権限グループIDマップ（テーブル表示用）
+  const staffIds = useMemo(() => (data ?? []).map((s) => s.id), [data]);
+  const { data: staffGroupMap } = useGetAllStaffPermissionGroupMap(staffIds);
 
-  // staff.id → PermissionGroup[] lookup map（テーブル表示用）
-  const groupsByStaffId = useMemo(
-    () =>
-      new Map<string, PermissionGroup[]>(
-        users
-          .filter((u) => u.staff_id != null)
-          .map((u) => [
-            u.staff_id as string,
-            allGroups.filter((g) => u.permissionGroupIds?.includes(g.id)),
-          ]),
-      ),
-    [users, allGroups],
+  // staffId → PermissionGroup[] のルックアップ
+  const groupsByStaffId = useMemo(() => {
+    const map = new Map<string, typeof allGroups>();
+    if (!staffGroupMap) return map;
+    for (const [staffId, groupIds] of staffGroupMap.entries()) {
+      map.set(staffId, allGroups.filter((g) => groupIds.includes(g.id)));
+    }
+    return map;
+  }, [staffGroupMap, allGroups]);
+
+  // フィルタの職種選択肢を occupations マスタから動的生成
+  const staffFilterProperties = useMemo<FilterProperty[]>(
+    () => [
+      MASTER_STATUS_FILTER,
+      {
+        key: "occupationId",
+        label: "職種",
+        type: "select",
+        icon: UserRound,
+        conditions: CONDITIONS_NO_EMPTY,
+        options: allOccupations
+          .filter((oc) => oc.isActive)
+          .map((oc) => ({ value: oc.id, label: oc.name })),
+      },
+    ],
+    [allOccupations],
   );
 
   const crud = useMasterCRUD<Staff>({
@@ -349,7 +431,7 @@ export function StaffSettings() {
     entityLabel: "スタッフ",
     searchFilter: (s, lower) =>
       s.name.toLowerCase().includes(lower) ||
-      STAFF_ROLE_LABELS[s.staffRole].toLowerCase().includes(lower),
+      (s.occupationName?.toLowerCase().includes(lower) ?? false),
     activeFilterApply: (item, filters) => {
       for (const f of filters) {
         if (f.key === "status" && typeof f.value === "string") {
@@ -357,9 +439,9 @@ export function StaffSettings() {
           if (f.condition === "is" && item.isActive !== want) return false;
           if (f.condition === "is_not" && item.isActive === want) return false;
         }
-        if (f.key === "staffRole" && typeof f.value === "string") {
-          if (f.condition === "is" && item.staffRole !== f.value) return false;
-          if (f.condition === "is_not" && item.staffRole === f.value) return false;
+        if (f.key === "occupationId" && typeof f.value === "string") {
+          if (f.condition === "is" && item.occupationId !== f.value) return false;
+          if (f.condition === "is_not" && item.occupationId === f.value) return false;
         }
       }
       return true;
@@ -380,45 +462,54 @@ export function StaffSettings() {
     },
     toCreateRequest: (d) => ({
       name: d.name,
-      staff_role: d.staffRole,
       email: d.email,
       password: d.password,
       license_number: d.licenseNumber || undefined,
+      occupation_id: d.jobTitleId ?? undefined,
     }),
     toUpdateRequest: (d) => ({
       name: d.name,
-      staff_role: d.staffRole,
       license_number: d.licenseNumber || undefined,
       is_active: d.isActive,
+      occupation_id: d.jobTitleId ?? undefined,
+      password: d.password || undefined,
     }),
   });
 
   const handleSaveGroups = useCallback(
-    (userId: string, groupIds: number[]) => {
-      setGroupsMutation.mutate({ userId, groupIds });
+    (staffId: string, groupIds: string[]) => {
+      setGroupsMutation.mutate({ staffId, groupIds });
     },
     [setGroupsMutation],
+  );
+
+  const handleSaveClinics = useCallback(
+    (staffId: string, clinicIds: string[]) => {
+      setClinicsMutation.mutate({ staffId, clinicIds });
+    },
+    [setClinicsMutation],
   );
 
   return (
     <MasterCRUDPage
       title="スタッフマスタ"
-      icon={<UserRound className={`${ICON.page} text-[#37352F]`} />}
+      icon={<UserRound className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMasterStaff}
       entityLabel="スタッフ"
       searchPlaceholder="氏名、職種で検索..."
       emptyMessage="スタッフが登録されていません"
       crud={crud}
       handleSave={handleSave}
       columns={COLUMNS}
-      filterProperties={STAFF_FILTER_PROPERTIES}
-      renderRow={(item, onEdit) => {
+      filterProperties={staffFilterProperties}
+      renderRow={(item, onEdit, canEdit) => {
         const groups = groupsByStaffId.get(item.id) ?? [];
         const visibleGroups = groups.slice(0, 2);
         const extraCount = groups.length - visibleGroups.length;
         return (
-          <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+          <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
             <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-            <TableCell className={`text-base ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
+            <TableCell className={`text-base ${C.text}`}>{item.occupationName ?? "—"}</TableCell>
             <TableCell>
               <div className="flex flex-wrap items-center gap-1">
                 {visibleGroups.length === 0 ? (
@@ -430,13 +521,13 @@ export function StaffSettings() {
                         key={g.id}
                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[3px] text-xs"
                         style={{
-                          backgroundColor: g.color ? `${g.color}18` : "rgba(55,53,47,0.06)",
-                          color: g.color ?? "#37352F",
+                          backgroundColor: g.color ? `${g.color}18` : PALETTE.bgSkeleton,
+                          color: g.color ?? PALETTE.primary,
                         }}
                       >
                         <span
                           className="size-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: g.color ?? "#6B7280" }}
+                          style={{ backgroundColor: g.color ?? PALETTE.defaultGray }}
                         />
                         {g.name}
                       </span>
@@ -452,26 +543,26 @@ export function StaffSettings() {
               <NotionStatusPill isActive={item.isActive} />
             </TableCell>
             <TableCell className="p-0 text-right">
-              <RowActionButton onClick={() => onEdit(item)} />
+              {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
             </TableCell>
           </DataTableRow>
         );
       }}
-      renderSidePanel={({ item, onClose, onSave, onDeleteRequest }) => {
-        const linkedUserId = item ? (usersByStaffId.get(item.id) ?? null) : null;
-        return (
-          <StaffSidePanel
-            key={item?.id ?? "new"}
-            item={item}
-            onClose={onClose}
-            onSave={onSave}
-            onDeleteRequest={onDeleteRequest}
-            allGroups={allGroups}
-            linkedUserId={linkedUserId}
-            onSaveGroups={handleSaveGroups}
-          />
-        );
-      }}
+      renderSidePanel={({ item, onClose, onSave, onDeleteRequest, readOnly }) => (
+        <StaffSidePanel
+          key={item?.id ?? "new"}
+          item={item}
+          onClose={onClose}
+          onSave={onSave}
+          onDeleteRequest={onDeleteRequest}
+          readOnly={readOnly}
+          allOccupations={allOccupations}
+          allGroups={allGroups}
+          onSaveGroups={handleSaveGroups}
+          allClinics={allClinics}
+          onSaveClinics={handleSaveClinics}
+        />
+      )}
     />
   );
 }

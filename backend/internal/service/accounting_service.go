@@ -116,6 +116,10 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	if input.ScheduledDate.IsZero() {
 		return nil, apperrors.WrapInvalidInput("scheduled_date is required")
 	}
+	// BUG-142: 金額バリデーション
+	if input.TotalAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("金額は0以上で指定してください")
+	}
 	billing := &model.Billing{
 		ClinicID:          input.ClinicID,
 		MedicalRecordID:   input.MedicalRecordID,
@@ -141,6 +145,10 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 }
 
 func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error) {
+	// BUG-142: 金額バリデーション
+	if input.TotalAmount != nil && *input.TotalAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("金額は0以上で指定してください")
+	}
 	fields := buildBillingUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("no fields to update")
@@ -156,5 +164,22 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 }
 
 func (s *accountingService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return s.repo.Delete(ctx, clinicID, id)
+	// FK依存チェック: 請求に紐付く請求明細が存在する場合は削除を拒否
+	itemCount, err := s.repo.CountItemsByBillingID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check billing item dependencies")
+	}
+	if itemCount > 0 {
+		return apperrors.WrapConflict("請求明細が紐付いているため削除できません。先に請求明細を削除してください")
+	}
+
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete accounting")
+	}
+
+	slog.InfoContext(ctx, "billing deleted",
+		slog.Uint64("billing_id", id),
+		slog.Uint64("clinic_id", clinicID))
+
+	return nil
 }

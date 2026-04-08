@@ -3,6 +3,8 @@ import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
+import { ResourceMasterTrimming } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // External
 import { Plus, Scissors } from "lucide-react";
@@ -10,13 +12,7 @@ import { toast } from "sonner";
 
 // Shared
 import { TableCell } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -31,18 +27,7 @@ import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
-import {
-  useGetTrimmingCourses,
-  useCreateTrimmingCourse,
-  useUpdateTrimmingCourse,
-  useDeleteTrimmingCourse,
-  useGetTrimmingOptions,
-  useCreateTrimmingOption,
-  useUpdateTrimmingOption,
-  useDeleteTrimmingOption,
-  TARGET_SIZE_LABELS,
-  TARGET_SIZE_OPTIONS,
-} from "@/features/master/api/trimming";
+import { useGetTrimmingCourses, useCreateTrimmingCourse, useUpdateTrimmingCourse, useDeleteTrimmingCourse, useGetTrimmingOptions, useCreateTrimmingOption, useUpdateTrimmingOption, useDeleteTrimmingOption, TARGET_SIZE_LABELS, TARGET_SIZE_OPTIONS } from "@/features/master/api/trimming";
 
 // Types
 import type {
@@ -95,13 +80,13 @@ const TARGET_SIZE_SELECT_ITEMS = [
 function CombinablePill({ combinable }: { combinable: boolean }) {
   if (combinable) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base bg-[#DDEDEA] text-[#0F7B6C]">
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base ${C.bgStatusGreen} ${C.textStatusGreen}`}>
         可
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base bg-[#E3E2E0] text-[#37352F]/60">
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base ${C.bgInactive} ${C.text60}`}>
       不可
     </span>
   );
@@ -128,7 +113,8 @@ interface TrimmingCourseSidePanelProps {
   item: TrimmingCourse | null;
   onClose: () => void;
   onSave: (data: CourseFormData) => void;
-  onDeleteRequest: (item: TrimmingCourse) => void;
+  onDeleteRequest?: (item: TrimmingCourse) => void;
+  readOnly?: boolean;
 }
 
 const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
@@ -136,6 +122,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
 }: TrimmingCourseSidePanelProps) {
   const [formData, setFormData] = useState<CourseFormData>(() => ({
     name: item?.name ?? "",
@@ -161,10 +148,12 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
       title={formData.name}
       onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
-      action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      action={readOnly ? undefined : handleAction}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Scissors className={LAYOUT.pageIcon.innerIcon} />}
       titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}
     >
       <PropertyRow label="ステータス">
         <button
@@ -240,9 +229,10 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
 interface TrimmingCourseTabProps {
   editTarget: TrimmingCourse | "new" | null;
   onEditTargetChange: (v: TrimmingCourse | "new" | null) => void;
+  canEdit: boolean;
 }
 
-function TrimmingCourseTab({ editTarget: _editTarget, onEditTargetChange }: TrimmingCourseTabProps) {
+function TrimmingCourseTab({ editTarget: _editTarget, onEditTargetChange, canEdit }: TrimmingCourseTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
@@ -283,7 +273,7 @@ function TrimmingCourseTab({ editTarget: _editTarget, onEditTargetChange }: Trim
         data={filteredItems}
         emptyMessage="トリミングコースが登録されていません"
         renderRow={(item) => (
-          <DataTableRow key={item.id} onClick={() => onEditTargetChange(item)}>
+          <DataTableRow key={item.id} onClick={canEdit ? () => onEditTargetChange(item) : undefined}>
             <TableCell className={`font-medium text-base ${C.text}`}>
               {item.name}
             </TableCell>
@@ -327,7 +317,8 @@ interface TrimmingOptionSidePanelProps {
   item: TrimmingOption | null;
   onClose: () => void;
   onSave: (data: OptionFormData) => void;
-  onDeleteRequest: (item: TrimmingOption) => void;
+  onDeleteRequest?: (item: TrimmingOption) => void;
+  readOnly?: boolean;
 }
 
 const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
@@ -335,6 +326,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
 }: TrimmingOptionSidePanelProps) {
   const [formData, setFormData] = useState<OptionFormData>(() => ({
     name: item?.name ?? "",
@@ -360,10 +352,12 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
       title={formData.name}
       onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
-      action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      action={readOnly ? undefined : handleAction}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Scissors className={LAYOUT.pageIcon.innerIcon} />}
       titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}
     >
       <PropertyRow label="ステータス">
         <button
@@ -434,9 +428,10 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
 interface TrimmingOptionTabProps {
   editTarget: TrimmingOption | "new" | null;
   onEditTargetChange: (v: TrimmingOption | "new" | null) => void;
+  canEdit: boolean;
 }
 
-function TrimmingOptionTab({ editTarget: _editTarget, onEditTargetChange }: TrimmingOptionTabProps) {
+function TrimmingOptionTab({ editTarget: _editTarget, onEditTargetChange, canEdit }: TrimmingOptionTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
@@ -477,7 +472,7 @@ function TrimmingOptionTab({ editTarget: _editTarget, onEditTargetChange }: Trim
         data={filteredItems}
         emptyMessage="トリミングオプションが登録されていません"
         renderRow={(item) => (
-          <DataTableRow key={item.id} onClick={() => onEditTargetChange(item)}>
+          <DataTableRow key={item.id} onClick={canEdit ? () => onEditTargetChange(item) : undefined}>
             <TableCell className={`font-medium text-base ${C.text}`}>
               {item.name}
             </TableCell>
@@ -511,6 +506,7 @@ const TABS = [
 
 export function TrimmingSettings() {
   const navigate = useNavigate();
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterTrimming);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "course";
 
@@ -645,17 +641,20 @@ export function TrimmingSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="トリミングマスタ"
-            icon={<Scissors className={`${ICON.page} text-[#37352F]`} />}
+            icon={<Scissors className={`${ICON.page} ${C.text}`} />}
+            resource={ResourceMasterTrimming}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
-              <PrimaryButton onClick={() => {
-                if (activeTab === "course") courseCrud.handleNew();
-                else optionCrud.handleNew();
-              }}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
+              canCreate ? (
+                <PrimaryButton onClick={() => {
+                  if (activeTab === "course") courseCrud.handleNew();
+                  else optionCrud.handleNew();
+                }}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null
             }
           >
             <div className="flex flex-col gap-4">
@@ -666,7 +665,7 @@ export function TrimmingSettings() {
                       key={tab.value}
                       value={tab.value}
                       className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
-                        data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
+                        ${C.dataActiveBorderB} ${C.dataActiveText} data-[state=active]:font-medium`}
                     >
                       {tab.label}
                     </TabsPrimitive.Trigger>
@@ -676,12 +675,14 @@ export function TrimmingSettings() {
                   <TrimmingCourseTab
                     editTarget={courseCrud.editTarget}
                     onEditTargetChange={courseCrud.setEditTarget}
+                    canEdit={canEdit}
                   />
                 </TabsPrimitive.Content>
                 <TabsPrimitive.Content value="option" className="mt-4">
                   <TrimmingOptionTab
                     editTarget={optionCrud.editTarget}
                     onEditTargetChange={optionCrud.setEditTarget}
+                    canEdit={canEdit}
                   />
                 </TabsPrimitive.Content>
               </TabsPrimitive.Root>
@@ -695,7 +696,8 @@ export function TrimmingSettings() {
             item={courseCrud.panelItem}
             onClose={courseCrud.handleClose}
             onSave={handleCourseSave}
-            onDeleteRequest={courseCrud.setPendingDelete}
+            onDeleteRequest={canDelete ? courseCrud.setPendingDelete : undefined}
+            readOnly={!canEdit}
           />
         ) : null}
         {activeTab === "option" && optionCrud.isEditing === true ? (
@@ -704,7 +706,8 @@ export function TrimmingSettings() {
             item={optionCrud.panelItem}
             onClose={optionCrud.handleClose}
             onSave={handleOptionSave}
-            onDeleteRequest={optionCrud.setPendingDelete}
+            onDeleteRequest={canDelete ? optionCrud.setPendingDelete : undefined}
+            readOnly={!canEdit}
           />
         ) : null}
       </div>

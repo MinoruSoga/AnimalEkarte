@@ -12,17 +12,13 @@ import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/cons
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetInquiryTemplates,
-  useCreateInquiryTemplate,
-  useUpdateInquiryTemplate,
-  useDeleteInquiryTemplate,
-} from "@/features/master/api/inquiry-templates";
+import { useGetInquiryTemplates, useCreateInquiryTemplate, useUpdateInquiryTemplate, useDeleteInquiryTemplate } from "@/features/master/api/inquiry-templates";
 import type {
   InquiryTemplate,
   CreateInquiryTemplateRequest,
   UpdateInquiryTemplateRequest,
 } from "@/features/master/api/inquiry-templates";
+import { ResourceMasterMedical } from "@/types/generated/models";
 
 // BUG-042: Map English snake_case category codes to Japanese labels
 const INQUIRY_CATEGORY_LABELS: Record<string, string> = {
@@ -42,8 +38,8 @@ const COLUMNS = [
 interface FormData { category: string; title: string; content: string; isActive: boolean; }
 
 const SidePanel = memo(function SidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: InquiryTemplate | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest: (i: InquiryTemplate) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: InquiryTemplate | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: InquiryTemplate) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<FormData>(() => ({
     category: item?.category ?? "", title: item?.title ?? "", content: item?.content ?? "", isActive: item?.isActive ?? true,
   }));
@@ -89,10 +85,12 @@ const SidePanel = memo(function SidePanel({
   return (
     <MasterSidePanel isNew={item === null} title={f.title}
       onTitleChange={handleTitleChange} onClose={handleClose} action={handleSave}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       isDirty={isDirty}
       icon={<FileText className={LAYOUT.pageIcon.innerIcon} />}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カテゴリ">
         <input type="text" className={MASTER_INPUT_CLASS} value={f.category}
@@ -127,16 +125,16 @@ export function InterviewTemplateSettings() {
   });
 
   return (
-    <MasterCRUDPage title="問診テンプレートマスタ" icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
+    <MasterCRUDPage title="問診テンプレートマスタ" icon={<FileText className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterMedical}
       entityLabel="問診テンプレート" searchPlaceholder="カテゴリ、タイトルで検索..." emptyMessage="問診テンプレートが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS} deleteNameField="title"
       filterProperties={[MASTER_STATUS_FILTER]}
-      renderRow={(item, onEdit) => (
-        <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+      renderRow={(item, onEdit, canEdit) => (
+        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
           <TableCell className={`text-base ${C.text}`}>{INQUIRY_CATEGORY_LABELS[item.category] ?? item.category}</TableCell>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.title}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
+          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => <SidePanel key={props.item?.id ?? "new"} {...props} />}

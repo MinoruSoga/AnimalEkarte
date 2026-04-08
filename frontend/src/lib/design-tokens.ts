@@ -50,6 +50,11 @@ export const PALETTE = {
   /** Hover overlay – used for scrollbar thumb hover */
   hoverStrong: "rgba(55,53,47,0.35)",
 
+  /** Skeleton / light background fill (6% primary) */
+  bgSkeleton: "rgba(55,53,47,0.06)",
+  /** Semi-transparent white (80%) — toggle dot on active chart buttons */
+  whiteAlpha80: "rgba(255,255,255,0.8)",
+
   /** Notion blue accent */
   accent: "#2383E2",
   /** Accent hover */
@@ -164,6 +169,32 @@ export const PALETTE = {
   dotGray:    "#9B9A97",
   dotDefault: "#91918E",
 
+  /* ── Master settings default colors (DB-configurable) ── */
+  /** Default gray for badge when no color set */
+  defaultGray: "#6B7280",
+  /** Default blue for service type when no color set */
+  defaultBlue: "#3B82F6",
+  /** Light border for unselected items (Tailwind gray-200) */
+  borderUnselected: "#e5e7eb",
+
+  /* ── Medical accent blue (karte / hospitalization) ── */
+  /** Medical accent blue — used for focus rings, active states, board borders */
+  medicalBlue: "#2EAADC",
+
+  /* ── Chart colors (Recharts / VitalsGraph) ── */
+  /** Chart: temperature line */
+  chartTemperature: "#E07B54",
+  /** Chart: heart rate line */
+  chartHeartRate: "#37352F",
+  /** Chart: respiratory rate line */
+  chartRespiratory: "#9C6EDE",
+  /** Chart: body weight line */
+  chartWeight: "#4CAF82",
+  /** Chart: grid / axis stroke */
+  chartGrid: "#e8e6e3",
+  /** Chart: axis tick text fill */
+  chartAxisText: "#9B9B97",
+
   /* ── UI Primitive (checkbox, input, select, textarea) ── */
   /** Notion checkbox unchecked border */
   borderCheckbox:    "border-[#D3D1CB]",
@@ -182,6 +213,7 @@ export const PALETTE = {
 export const C = {
   /* ── Text ── */
   text:          "text-[#37352F]",
+  text90:        "text-[#37352F]/90",
   text80:        "text-[#37352F]/80",
   text70:        "text-[#37352F]/70",
   text65:        "text-[#37352F]/65",
@@ -200,6 +232,7 @@ export const C = {
 
   /* ── Background ── */
   bgPage:        "bg-[#F7F6F3]",
+  bgPage60:      "bg-[#F7F6F3]/60",
   bgPageHalf:    "bg-[#F7F6F3]/50",
   bgPage30:      "bg-[#F7F6F3]/30",
   bgInputLogin:  "bg-[rgba(242,241,238,0.6)]",
@@ -218,11 +251,17 @@ export const C = {
   bgLight:       "bg-[rgba(55,53,47,0.09)]",
 
   /* ── Brand (Hospital teal) ── */
+  textBrand:     "text-[#038B94]",
   bgBrand:       "bg-[#038B94]",
+  bgBrand10:     "bg-[#038B94]/10",
   bgBrandDot:    "bg-[#038B94]",
+  hoverBgBrand:  "hover:bg-[#027A82]",
+  focusRingBrand:"focus:ring-[#038B94]",
+  borderBrand:   "border-[#038B94]",
 
   /* ── Border ── */
   borderLight:   "border-[rgba(55,53,47,0.09)]",
+  borderLight50: "border-[rgba(55,53,47,0.09)]/50",
   borderMediumLight: "border-[rgba(55,53,47,0.12)]",
   borderMedium:  "border-[rgba(55,53,47,0.16)]",
   borderDivider: "border-[rgba(55,53,47,0.06)]",
@@ -231,6 +270,7 @@ export const C = {
   borderPrimary25: "border-[#37352F]/25",
   borderPrimary10: "border-[#37352F]/10",
   borderLPrimary: "border-l-[#37352F]",
+  borderBPrimary: "border-b-[#37352F]",
   divideDivider: "divide-[rgba(55,53,47,0.09)]",
   divideDividerFaint: "divide-[rgba(55,53,47,0.06)]",
 
@@ -239,9 +279,11 @@ export const C = {
   bgAccent:      "bg-[#2383E2]",
   bgAccentHover: "hover:bg-[#1B6EC2]",
   bgAccentLight: "bg-[#D3E5EF]",
+  bgAccentLight60: "bg-[#D3E5EF]/60",
   bgAccent5:     "bg-[#2383E2]/5",
   bgAccent8:     "bg-[#2383E2]/8",
   textAccentDark:"text-[#183B56]",
+  textAccentDark90:"text-[#183B56]/90",
   borderAccent:  "border-[#2383E2]",
   /** Light accent border for outline accent buttons */
   borderAccentLight: "border-[#2383E2]/30",
@@ -252,8 +294,14 @@ export const C = {
   /** Darker accent text on hover — use for outline accent buttons */
   hoverTextAccent: "hover:text-[#1B6EC2]",
   hoverBorderAccent40: "hover:border-[#2383E2]/40",
+  focusBorderAccent: "focus:border-[#2383E2]",
   focusRingAccent: "focus-visible:ring-[#2383E2]",
   focusRingAccent40: "focus-visible:ring-[#2383E2]/40",
+  /** data-state checked (Radix Checkbox) */
+  dataCheckedBgAccent: "data-[state=checked]:bg-[#2383E2]",
+  dataCheckedBorderAccent: "data-[state=checked]:border-[#2383E2]",
+  dataCheckedBgBrand: "data-[state=checked]:bg-[#038B94]",
+  dataCheckedBorderBrand: "data-[state=checked]:border-[#038B94]",
 
   /* ── Destructive — BUG-084: updated to #C0392B (7.1:1 contrast on white, WCAG AA) ── */
   danger:        "text-[#C0392B]",
@@ -299,9 +347,11 @@ export const C = {
   /* ── Success / Emerald green (会計リンク等) ── */
   textSuccess:       "text-[#10B981]",
   bgSuccess:         "bg-[#10B981]",
+  bgSuccess10:       "bg-[#10B981]/10",
   bgSuccessHover:    "hover:bg-[#059669]",
   borderSuccess30:   "border-[#10B981]/30",
   hoverBgSuccess10:  "hover:bg-[#10B981]/10",
+  hoverBgSuccess20:  "hover:bg-[#10B981]/20",
 
   /* ── Notion Yellow / Notice (注意・アラート) ── */
   textNotice:        "text-[#C29243]",
@@ -336,7 +386,7 @@ export const C = {
   textDiscount:  "text-[#D9730D]",
   bgDiscountLight: "bg-[#FAEBDD]",
 
-  /* ── Operational status (dashboard kanban) ── */
+  /* ── Operational status (reception kanban) ── */
   /** Notion purple — 診療中ステータス */
   textStatusPurple:  "text-[#6940A5]",
   bgStatusPurple:    "bg-[#EEE0F7]",
@@ -349,6 +399,7 @@ export const C = {
   /* ── Hover utilities ── */
   hoverBgPage:   "hover:bg-[#F7F6F3]",
   hoverBgPageHalf: "hover:bg-[#F7F6F3]/50",
+  hoverBgPage60: "hover:bg-[#F7F6F3]/60",
   hoverBgLight:  "hover:bg-[rgba(55,53,47,0.04)]",
   hoverBgMedium: "hover:bg-[rgba(55,53,47,0.08)]",
   hoverBgPrimary4:  "hover:bg-[#37352F]/4",
@@ -359,6 +410,7 @@ export const C = {
   hoverBorderPrimary30: "hover:border-[#37352F]/30",
   hoverBorderPrimary40: "hover:border-[#37352F]/40",
   hoverBorderMedium: "hover:border-[rgba(55,53,47,0.24)]",
+  hoverBorderMedium40: "hover:border-[rgba(55,53,47,0.40)]",
   hoverBgSubtle: "hover:bg-[#FAFAF8]",
 
   /** Search input hover bg (slightly darker page) */
@@ -381,6 +433,7 @@ export const C = {
   /* ── Notion Accent-light (badge / pill) — for status-helpers ── */
   /** Additional Accent tokens for badge combos */
   borderAccentBadge: "border-[#B8D4E3]",
+  borderAccentBadge50: "border-[#B8D4E3]/50",
 
   /** Notion Brown — 入院 reservation card */
   bgBrown:        "bg-[#EEE0DA]",
@@ -393,7 +446,10 @@ export const C = {
   borderPink:     "border-[#ECCBDA]",
 
   /** Notion muted (default fallback badge) */
+  bgMuted:        "bg-[#F1F0EE]",
   bgMutedBadge:   "bg-[#F1F1EF]",
+  hoverBgMutedBadge: "hover:bg-[#E8E7E4]",
+  bgMutedBadgeActive: "bg-[#E8E7E4]",
   textMuted:      "text-[#787774]",
   /** #E3E2E0 — PALETTE.grayLight; see also bgInactive, bgGrayTag */
   borderMuted:    "border-[#E3E2E0]",
@@ -410,12 +466,19 @@ export const C = {
   /** Notion Orange badge border */
   borderOrangeBadge: "border-[#F0C9A8]",
 
-  /* ── Dashboard Kanban column opacity variants ── */
+  /* ── Reception Kanban column opacity variants ── */
+  bgAccentLight8:        "bg-[#D3E5EF]/8",
+  bgAccentLight30:       "bg-[#D3E5EF]/30",
+  bgAccentLight40:       "bg-[#D3E5EF]/40",
   bgAccentLight50:       "bg-[#D3E5EF]/50",
+  hoverBgAccentLight:    "hover:bg-[#D3E5EF]",
+  hoverBgAccentLight60:  "hover:bg-[#D3E5EF]/60",
   textAccentDark60:      "text-[#183B56]/60",
   hoverBgAccentBadge40:  "hover:bg-[#B8D4E3]/40",
   hoverTextAccentDark:   "hover:text-[#183B56]",
 
+  bgStatusPurple30:      "bg-[#EEE0F7]/30",
+  bgStatusPurple40:      "bg-[#EEE0F7]/40",
   bgStatusPurple60:      "bg-[#EEE0F7]/60",
   textStatusPurple60:    "text-[#6940A5]/60",
   hoverBgPurpleLight40:  "hover:bg-[#D6C6E1]/40",
@@ -426,6 +489,10 @@ export const C = {
   hoverBgOrangeBadge40:  "hover:bg-[#F0C9A8]/40",
   hoverTextDiscount:     "hover:text-[#D9730D]",
 
+  bgStatusGreen30:       "bg-[#DDEDEA]/30",
+  bgStatusGreen40:       "bg-[#DDEDEA]/40",
+  hoverBgStatusGreenLight60: "hover:bg-[#DDEDEA]/60",
+  hoverBgStatusPurpleLight60: "hover:bg-[#EEE0F7]/60",
   bgStatusGreen60:       "bg-[#DDEDEA]/60",
   textStatusGreen60:     "text-[#0F7B6C]/60",
   hoverBgGreenBadge40:   "hover:bg-[#C3DFC3]/40",
@@ -454,6 +521,21 @@ export const C = {
   dotBrown:   "bg-[#937264]",
   dotGray:    "bg-[#9B9A97]",
   dotDefault: "bg-[#91918E]",
+
+  /* ── Medical accent blue (karte / hospitalization) ── */
+  bgMedicalBlue:          "bg-[#2EAADC]",
+  bgMedicalBlue5:         "bg-[#2EAADC]/5",
+  textMedicalBlue:        "text-[#2EAADC]",
+  borderMedicalBlue:      "border-[#2EAADC]",
+  borderLMedicalBlue:     "border-l-[#2EAADC]",
+  hoverBgMedicalBlue90:   "hover:bg-[#2EAADC]/90",
+  hoverBorderMedicalBlue50: "hover:border-[#2EAADC]/50",
+  ringMedicalBlue:        "ring-[#2EAADC]",
+  focusRingMedicalBlue:   "focus-visible:ring-[#2EAADC]",
+
+  /* ── Data-state active (Radix Tabs) ── */
+  dataActiveBorderB: "data-[state=active]:border-b-[#37352F]",
+  dataActiveText:    "data-[state=active]:text-[#37352F]",
 } as const;
 
 /* ================================================================== */
@@ -708,7 +790,7 @@ export const STYLE = {
 
   /* ── Side Peek ── */
   sidePeekPanel:
-    `flex flex-col h-full bg-white border-l ${C.borderLight} shadow-[-1px_0_5px_rgba(0,0,0,0.02)]`,
+    `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-[-1px_0_5px_rgba(0,0,0,0.02)]`,
   sidePeekToolbar:
     "flex items-center justify-between h-[48px] px-3 shrink-0",
   sidePeekToolbarBtn:
@@ -775,7 +857,7 @@ export const STYLE = {
     `bg-white p-6 rounded-lg shadow-sm border ${C.borderMedium}`,
 
   /** Standard multi-line text area */
-  textarea:     `w-full rounded-[3px] border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none focus:border-[#2383E2] transition-colors resize-none leading-relaxed font-mono`,
+  textarea:     `w-full rounded-[3px] border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed font-mono`,
 } as const;
 
 /* ================================================================== */

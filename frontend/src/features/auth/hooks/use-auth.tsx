@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-  useMemo,
-  use,
-} from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, use } from "react";
 import type { ReactNode } from "react";
 import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "../types";
 import { login as loginApi } from "../api/login";
@@ -68,7 +60,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return validClinic ? storedClinic : initialResult.user.mainClinicId;
   });
   
-  const [isSwitchingClinic, setIsSwitchingClinic] = useState(false);
+  // isSwitchingClinic: クリニック切替はフルリロードで行うため常に false
+  const isSwitchingClinic = false;
 
   // /me の定期ポーリング結果でユーザー情報（権限含む）を同期
   // 認証済みかつローディング完了後のみポーリングを有効化
@@ -95,18 +88,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const switchClinic = useCallback(
-    async (clinicId: string) => {
+    (clinicId: string) => {
       if (!user) return;
       if (clinicId === currentClinicId) return;
-      const isMember =
-        user.userType === "system_admin" ||
-        user.clinics.some((c) => c.clinicId === clinicId);
+      const isMember = user.clinics.some((c) => c.clinicId === clinicId);
       if (!isMember) return;
-      setIsSwitchingClinic(true);
-      await new Promise<void>((resolve) => setTimeout(resolve, 800));
-      setCurrentClinicId(clinicId);
+      // 1. localStorage 更新（リロード後に axios interceptor が新 clinic_id を送信する）
       saveClinicToStorage(clinicId);
-      setIsSwitchingClinic(false);
+      // 2. フルリロードで全データ（React Query + React Router loader）を新クリニックで再取得
+      window.location.reload();
     },
     [user, currentClinicId],
   );
@@ -114,8 +104,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const hasPermission = useCallback(
     (resource: Resource, action: ResourceAction): boolean => {
       if (!user) return false;
-      // system_admin / clinic_admin はバイパス（BEも全権限 true で返すが念のため）
-      if (user.userType === "system_admin" || user.userType === "clinic_admin") return true;
+      // system_admin はバイパス（BEも全権限 true で返すが念のため）
+      if (user.isSystemAdmin) return true;
       const resourcePerms = user.permissions[resource];
       if (!resourcePerms) return false;
       return resourcePerms[action] === true;

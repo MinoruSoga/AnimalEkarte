@@ -13,11 +13,12 @@ import (
 
 // mockVaccineRepository は VaccineRepository のテスト用モック実装
 type mockVaccineRepository struct {
-	findAllFn      func(ctx context.Context, species *string) ([]model.Vaccine, error)
-	findByIDFn     func(ctx context.Context, id uint64) (*model.Vaccine, error)
-	createFn       func(ctx context.Context, vaccine *model.Vaccine) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
-	deleteFn       func(ctx context.Context, id uint64) error
+	findAllFn               func(ctx context.Context, species *string) ([]model.Vaccine, error)
+	findByIDFn              func(ctx context.Context, id uint64) (*model.Vaccine, error)
+	createFn                func(ctx context.Context, vaccine *model.Vaccine) error
+	updateFieldsFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
+	deleteFn                func(ctx context.Context, id uint64) error
+	countUsageByVaccineIDFn func(ctx context.Context, vaccineID uint64) (int64, error)
 }
 
 func (m *mockVaccineRepository) FindAll(ctx context.Context, species *string) ([]model.Vaccine, error) {
@@ -44,8 +45,11 @@ func (m *mockVaccineRepository) Reorder(ctx context.Context, clinicID uint64, id
 	return nil
 }
 
-func (m *mockVaccineRepository) CountUsageByVaccineID(_ context.Context, _ uint64) (int64, error) {
-	return 0, nil
+func (m *mockVaccineRepository) CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error) {
+	if m.countUsageByVaccineIDFn == nil {
+		return 0, nil
+	}
+	return m.countUsageByVaccineIDFn(ctx, vaccineID)
 }
 
 func TestVaccineService_List(t *testing.T) {
@@ -302,38 +306,65 @@ func TestVaccineService_Update(t *testing.T) {
 
 func TestVaccineService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name          string
+		id            uint64
+		usageCount    int64
+		countUsageErr error
+		repoErr       error
+		wantErr       bool
+		wantNF        bool
+		wantConflict  bool
 	}{
 		{
-			name:    "deletes vaccine successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
-			wantNF:  false,
+			name:          "deletes vaccine successfully when no vaccinations use it",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       nil,
+			wantErr:       false,
 		},
 		{
-			name:    "returns not found error when vaccine does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("vaccine", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:          "returns conflict error when vaccine is used in vaccination records",
+			id:            1,
+			usageCount:    5,
+			countUsageErr: nil,
+			repoErr:       nil,
+			wantErr:       true,
+			wantConflict:  true,
 		},
 		{
-			name:    "returns error on repository failure",
-			id:      1,
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			name:          "returns error when usage count check fails",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: errors.New("db error"),
+			repoErr:       nil,
+			wantErr:       true,
+		},
+		{
+			name:          "returns not found error when vaccine does not exist",
+			id:            999,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       apperrors.WrapNotFound("vaccine", "999"),
+			wantErr:       true,
+			wantNF:        true,
+		},
+		{
+			name:          "returns error on repository failure",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       errors.New("db error"),
+			wantErr:       true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccineRepository{
+				countUsageByVaccineIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.usageCount, tt.countUsageErr
+				},
 				deleteFn: func(_ context.Context, _ uint64) error {
 					return tt.repoErr
 				},
@@ -346,6 +377,9 @@ func TestVaccineService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

@@ -5,7 +5,8 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { getHospitalizationStatusColor, getHospitalizationTypeColor } from "@/utils/status-helpers";
-import { STYLE } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
+import { formatDate } from "@/utils/format/date";
 
 // Types
 import type { Hospitalization } from "@/types";
@@ -25,9 +26,10 @@ const COLUMNS = [
 interface HospitalizationListViewProps {
   hospitalizations: Hospitalization[];
   onNavigate: (id: string) => void;
+  canEdit: boolean;
 }
 
-export function HospitalizationListView({ hospitalizations, onNavigate }: HospitalizationListViewProps) {
+export function HospitalizationListView({ hospitalizations, onNavigate, canEdit }: HospitalizationListViewProps) {
 
   return (
     <DataTable
@@ -51,8 +53,8 @@ export function HospitalizationListView({ hospitalizations, onNavigate }: Hospit
               {h.hospitalizationType}
             </StatusBadge>
           </TableCell>
-          <TableCell className={`${STYLE.tableCellMono}`}>{h.startDate}</TableCell>
-          <TableCell className={`${STYLE.tableCellMono} hidden lg:table-cell`}>{h.endDate}</TableCell>
+          <TableCell className={`${STYLE.tableCellMono}`}>{formatDate(h.startDate)}</TableCell>
+          <TableCell className={`${STYLE.tableCellMono} hidden lg:table-cell`}>{formatDate(h.endDate)}</TableCell>
           <TableCell className="py-2">
             <StatusBadge colorClass={getHospitalizationStatusColor(h.status)}>
               {h.status}
@@ -60,10 +62,10 @@ export function HospitalizationListView({ hospitalizations, onNavigate }: Hospit
           </TableCell>
           <TableCell className="text-right py-2">
             {h.petIsDeceased ? (
-              <span className="text-xs text-[#37352F]/40 font-medium">死亡</span>
-            ) : (
+              <span className={`text-xs ${C.text40} font-medium`}>死亡</span>
+            ) : canEdit ? (
               <RowActionButton onClick={() => onNavigate(h.id)} />
-            )}
+            ) : null}
           </TableCell>
         </DataTableRow>
       )}

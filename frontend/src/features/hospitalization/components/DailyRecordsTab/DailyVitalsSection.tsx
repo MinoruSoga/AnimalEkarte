@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback } from "react";
 
 // External
@@ -10,13 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 // Types
 import type { ApiVitalRecord, CreateVitalRecordRequest } from "@/features/hospitalization/api/daily-records-types";
@@ -25,6 +19,7 @@ interface DailyVitalsSectionProps {
     vitals: ApiVitalRecord[];
     onAddVital: (payload: CreateVitalRecordRequest) => void;
     isPending: boolean;
+    canCreate?: boolean;
 }
 
 interface VitalFormState {
@@ -50,7 +45,7 @@ function getCurrentTime(): string {
     return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVitalsSectionProps) {
+export function DailyVitalsSection({ vitals, onAddVital, isPending, canCreate = false }: DailyVitalsSectionProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [form, setForm] = useState<VitalFormState>(INITIAL_FORM);
 
@@ -89,23 +84,25 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
     return (
         <div>
             <div className="flex items-center justify-between mb-2">
-                <h4 className="flex items-center gap-1.5 text-sm font-bold text-[#37352F]">
+                <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
                     <Activity className={`${ICON.action} text-blue-500`} />
                     バイタル
                 </h4>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpen}
-                    className="h-7 gap-1 text-xs"
-                >
-                    <Plus className={ICON.action} />
-                    追加
-                </Button>
+                {canCreate ? (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpen}
+                        className="h-7 gap-1 text-xs"
+                    >
+                        <Plus className={ICON.action} />
+                        追加
+                    </Button>
+                ) : null}
             </div>
 
             {sorted.length === 0 ? (
-                <p className="text-xs text-[#37352F]/40 py-3 text-center bg-gray-50 rounded border border-dashed border-[rgba(55,53,47,0.16)]">
+                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed ${C.borderMedium}`}>
                     記録なし
                 </p>
             ) : (
@@ -118,7 +115,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="font-semibold text-blue-700">{v.time}</span>
                             </div>
-                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[#37352F]/70">
+                            <div className={`flex flex-wrap gap-x-3 gap-y-0.5 ${C.text70}`}>
                                 {v.temperature !== undefined && v.temperature !== null ? (
                                     <span className="flex items-center gap-1">
                                         <Thermometer className={ICON.action} />
@@ -145,7 +142,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                                 ) : null}
                             </div>
                             {v.notes ? (
-                                <p className="mt-1 text-[#37352F]/60">{v.notes}</p>
+                                <p className={`mt-1 ${C.text60}`}>{v.notes}</p>
                             ) : null}
                         </div>
                     ))}

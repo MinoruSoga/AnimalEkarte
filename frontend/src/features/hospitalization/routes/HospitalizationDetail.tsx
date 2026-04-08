@@ -12,6 +12,7 @@ import { HospitalizationExpandedView } from "../components/HospitalizationExpand
 import { HospitalizationTabbedView } from "../components/HospitalizationTabbedView";
 import { useHospitalizationDetail } from "../hooks/use-hospitalization-detail";
 import { paths } from "@/config/paths";
+import { ResourceHospitalization } from "@/types/generated/models";
 
 export function HospitalizationDetail() {
     const { id } = useParams();
@@ -19,14 +20,7 @@ export function HospitalizationDetail() {
 
     const {
         hospitalization,
-        plans,
-        records,
         isLoading,
-        handleAddPlan,
-        handleUpdatePlan,
-        handleDeletePlan,
-        handleAddVital,
-        handleAddLog,
         dischargeHospitalization
     } = useHospitalizationDetail(id);
 
@@ -50,36 +44,26 @@ export function HospitalizationDetail() {
         return <div className="p-8 text-center text-gray-500">読み込み中...</div>;
     }
 
-    const commonProps = {
-        hospitalization,
-        plans,
-        records,
-        onAddPlan: handleAddPlan,
-        onUpdatePlan: handleUpdatePlan,
-        onDeletePlan: handleDeletePlan,
-        onAddVital: handleAddVital,
-        onAddLog: handleAddLog
-    };
-
     return (
         <PageLayout
             title="入院詳細・カルテ"
             onBack={() => navigate(paths.hospitalization.getHref())}
+            resource={ResourceHospitalization}
             headerAction={
-                <HospitalizationDetailActions 
-                    hospitalization={hospitalization} 
-                    onDischargeClick={() => setShowDischargeDialog(true)} 
+                <HospitalizationDetailActions
+                    hospitalization={hospitalization}
+                    onDischargeClick={() => setShowDischargeDialog(true)}
                 />
             }
             maxWidth="max-w-[1600px]"
         >
             <div>
-                <HospitalizationExpandedView {...commonProps} />
-                <HospitalizationTabbedView {...commonProps} />
+                <HospitalizationExpandedView hospitalization={hospitalization} />
+                <HospitalizationTabbedView hospitalization={hospitalization} />
             </div>
 
-            <DischargeAlertDialog 
-                open={showDischargeDialog} 
+            <DischargeAlertDialog
+                open={showDischargeDialog}
                 onOpenChange={setShowDischargeDialog}
                 onConfirm={handleDischargeConfirm}
             />

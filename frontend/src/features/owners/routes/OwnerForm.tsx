@@ -3,19 +3,7 @@ import { useState, lazy, Suspense, memo, useCallback, useEffect } from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
 
 // External
-import {
-  Plus,
-  Edit,
-  User,
-  PawPrint,
-  MoreHorizontal,
-  Calendar,
-  FileText,
-  Scissors,
-  Bed,
-  CreditCard,
-  Trash2,
-} from "lucide-react";
+import { Plus, Edit, User, PawPrint, MoreHorizontal, Calendar, FileText, Scissors, Bed, CreditCard, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
@@ -24,22 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
@@ -52,7 +26,7 @@ import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Relative
 import { useOwnerForm } from "../hooks/use-owner-form";
@@ -65,6 +39,7 @@ const PetEditModal = lazy(() =>
 import { MEMBERSHIP_TYPE_VALUES } from "../types";
 import type { MembershipType } from "../types";
 import type { OwnerLoaderData } from "../loaders";
+import { ResourceOwners } from "@/types/generated/models";
 
 // rerender-memo: 会員区分ボタンを memo 化して ownerData の他フィールド変更による
 // 不要な再レンダリングと inline onClick 生成を排除する
@@ -104,6 +79,7 @@ interface PetTableRowProps {
   pet: PetFormData;
   ownerId: string | undefined;
   canEdit: boolean;
+  canCreate: boolean;
   canDelete: boolean;
   onEdit: (pet: PetFormData) => void;
   onDeleteRequest: (id: string, name: string) => void;
@@ -113,6 +89,7 @@ const PetTableRow = memo(function PetTableRow({
   pet,
   ownerId,
   canEdit,
+  canCreate,
   canDelete,
   onEdit,
   onDeleteRequest,
@@ -122,8 +99,8 @@ const PetTableRow = memo(function PetTableRow({
 
   return (
     <TableRow
-      className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 cursor-pointer`}
-      onClick={() => onEdit(pet)}
+      className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 ${canEdit ? "cursor-pointer" : "cursor-default"}`}
+      onClick={canEdit ? () => onEdit(pet) : undefined}
     >
       <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.petName}</TableCell>
@@ -158,34 +135,38 @@ const PetTableRow = memo(function PetTableRow({
                   詳細・編集
                 </DropdownMenuItem>
               ) : null}
-              <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
-                <Calendar className={`mr-2 ${ICON.action}`} />
-                予約作成
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <FileText className={`mr-2 ${ICON.action}`} />
-                カルテ作成
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <Scissors className={`mr-2 ${ICON.action}`} />
-                トリミング
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <Bed className={`mr-2 ${ICON.action}`} />
-                入院登録
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <CreditCard className={`mr-2 ${ICON.action}`} />
-                会計登録
-              </DropdownMenuItem>
+              {canCreate ? (
+                <>
+                  <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
+                    <Calendar className={`mr-2 ${ICON.action}`} />
+                    予約作成
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <FileText className={`mr-2 ${ICON.action}`} />
+                    カルテ作成
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <Scissors className={`mr-2 ${ICON.action}`} />
+                    トリミング
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <Bed className={`mr-2 ${ICON.action}`} />
+                    入院登録
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <CreditCard className={`mr-2 ${ICON.action}`} />
+                    会計登録
+                  </DropdownMenuItem>
+                </>
+              ) : null}
               {canDelete ? (
                 <>
                   <DropdownMenuSeparator />
@@ -312,6 +293,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
         <Input
           id="ownerName"
           value={ownerData.ownerName}
+          maxLength={100}
           aria-invalid={!!fieldErrors.ownerName}
           aria-describedby={fieldErrors.ownerName ? "ownerName-error" : undefined}
           onChange={(e) => { onChange("ownerName", e.target.value); onClearError("ownerName"); }}
@@ -321,7 +303,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="address1" className={`text-sm ${C.text60}`}>住所1（会社）</Label>
-        <Input id="address1" value={ownerData.address1} onChange={(e) => onChange("address1", e.target.value)} className={STYLE.formInput} />
+        <Input id="address1" value={ownerData.address1} onChange={(e) => onChange("address1", e.target.value)} maxLength={200} className={STYLE.formInput} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>郵便番号(自宅)</Label>
@@ -363,6 +345,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           id="remarks"
           rows={6}
           value={ownerData.remarks}
+          maxLength={1000}
           onChange={(e) => onChange("remarks", e.target.value)}
           className={`text-sm ${C.text} min-h-[140px] resize-none ${C.borderMedium} p-3`}
         />
@@ -386,17 +369,17 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="address2" className={`text-sm ${C.text60}`}>住所2（会社）</Label>
-        <Input id="address2" value={ownerData.address2} onChange={(e) => onChange("address2", e.target.value)} className={STYLE.formInput} />
+        <Input id="address2" value={ownerData.address2} onChange={(e) => onChange("address2", e.target.value)} maxLength={200} className={STYLE.formInput} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>住所1(自宅)</Label>
-        <Input id="homeAddress1" value={ownerData.homeAddress1} onChange={(e) => onChange("homeAddress1", e.target.value)} className={STYLE.formInput} />
+        <Input id="homeAddress1" value={ownerData.homeAddress1} onChange={(e) => onChange("homeAddress1", e.target.value)} maxLength={200} className={STYLE.formInput} />
       </div>
 
       {/* Row 4 */}
       <div className="space-y-1.5">
         <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>飼主生年月日</Label>
-        <NotionDatePicker id="birthDate" value={ownerData.birthDate} onChange={(val) => onChange("birthDate", val)} placeholder="生年月日を選択…" />
+        <NotionDatePicker id="birthDate" value={ownerData.birthDate} onChange={(val) => onChange("birthDate", val)} placeholder="生年月日を選択…" disabledDays={{ after: new Date() }} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="email" className={`text-sm ${C.text60}`}>メールアドレス</Label>
@@ -413,7 +396,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>住所2(自宅)</Label>
-        <Input id="homeAddress2" value={ownerData.homeAddress2} onChange={(e) => onChange("homeAddress2", e.target.value)} className={STYLE.formInput} />
+        <Input id="homeAddress2" value={ownerData.homeAddress2} onChange={(e) => onChange("homeAddress2", e.target.value)} maxLength={200} className={STYLE.formInput} />
       </div>
 
       {/* Row 5 */}
@@ -442,6 +425,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           id="discountRate"
           min={0}
           max={100}
+          step={1}
           value={ownerData.discountRate || ""}
           aria-invalid={!!fieldErrors.discountRate}
           aria-describedby={fieldErrors.discountRate ? "discountRate-error" : undefined}
@@ -458,7 +442,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
 export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
-  const { canEdit, canDelete } = usePermission("owners");
+  const { canEdit, canCreate, canDelete } = usePermission("owners");
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const [deletePetTarget, setDeletePetTarget] = useState<{
     id: string;
@@ -486,6 +470,8 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     fieldErrors,
     clearFieldError,
   } = useOwnerForm(ownerId, initialOwner, petMutations);
+
+  const canSubmit = isEdit ? canEdit : canCreate;
 
   useTitle(isEdit ? `飼主編集 (${ownerData.ownerName})` : "飼主登録");
 
@@ -589,9 +575,10 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
       <PageLayout
         title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
         onBack={handleBack}
+        resource={ResourceOwners}
         maxWidth="max-w-[1400px]"
         headerAction={
-          canEdit ? (
+          canSubmit ? (
             <SubmitButton size="sm">
               {isEdit ? "更新" : "登録"}
             </SubmitButton>
@@ -599,6 +586,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         }
       >
         <NavigationBlocker when={isDirty && !isLoading} />
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
 
       {/* Owner Information Form */}
       {/* rerender-memo: OwnerInfoSection はペット操作・モーダル開閉では再レンダーしない */}
@@ -658,6 +646,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
                     pet={pet}
                     ownerId={ownerId}
                     canEdit={canEdit}
+                    canCreate={canCreate}
                     canDelete={canDelete}
                     onEdit={handleEditPet}
                     onDeleteRequest={handleDeletePetRequest}
@@ -669,6 +658,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         </div>
       </div>
 
+        </fieldset>
       <Suspense fallback={null}>
         <PetEditModal
           key={editingPet?.id ?? "new"}

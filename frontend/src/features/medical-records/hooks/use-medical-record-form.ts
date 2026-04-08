@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
+import { usePermission } from "@/features/auth";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetMedicalRecord } from "../api/get-medical-record";
@@ -27,10 +28,11 @@ export function useMedicalRecordForm(recordId?: string) {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const isNewRecord = !recordId;
+  const { canEdit } = usePermission("medical-records");
 
   const [activeTab, setActiveTab] = useState("問診");
   const [visitType, setVisitType] = useState("再診");
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, startCreateTransition] = useTransition();
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
 
   // --- Focus Management (Accessibility) ---
@@ -177,6 +179,7 @@ export function useMedicalRecordForm(recordId?: string) {
             break;
 
           case "診察/治療プラン": {
+            if (!canEdit) break;
             if (diagnosis1CategoryId && !diagnosis1NameId) {
               const diagError = { diagnosis1_name_id: "診断名を選択してください" };
               setManualErrors(diagError);
@@ -202,7 +205,7 @@ export function useMedicalRecordForm(recordId?: string) {
 
         localStorage.removeItem(DRAFT_KEY);
         toast.success("保存しました");
-        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["reception"] });
         return { success: true, timestamp: Date.now() };
       } catch (error) {
         handleApiError(error, "保存");
@@ -274,8 +277,7 @@ export function useMedicalRecordForm(recordId?: string) {
     if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;
     hasAutoCreatedRef.current = true;
 
-    const autoCreate = async () => {
-      setIsCreating(true);
+    startCreateTransition(async () => {
       try {
         const today = new Date().toISOString().split("T")[0];
         const record = await createMutation.mutateAsync({
@@ -289,12 +291,8 @@ export function useMedicalRecordForm(recordId?: string) {
       } catch (error) {
         handleApiError(error, "カルテ作成");
         hasAutoCreatedRef.current = false;
-      } finally {
-        setIsCreating(false);
       }
-    };
-
-    autoCreate();
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run only when isNewRecord or petId changes; createMutation/navigate/visitType are stable references
   }, [isNewRecord, selectedPet?.id]);
 
@@ -341,6 +339,8 @@ export function useMedicalRecordForm(recordId?: string) {
     setDiagnosis2NameId,
     // 飼主割引率
     ownerDiscountRate,
+    // 医療記録
+    visitCount: existingRecord?.visitCount,
     // 担当医変更
     handleChangeDoctor,
     // 飼主変更

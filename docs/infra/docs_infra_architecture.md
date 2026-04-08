@@ -374,6 +374,29 @@ RDS は `PubliclyAccessible: true`、かつ RDS SG が `0.0.0.0/0:5432` を許�
   - GitHub Actions OIDC による短期認証（長期アクセスキーを排除）
   - plan/apply の承認フロー（環境分離、Change管理）
 
+### セキュリティ監査チェック（Stg環境）
+
+| カテゴリ | 項目 | 状態 |
+|---------|------|------|
+| インフラ | RDS暗号化 | ✅ |
+| インフラ | RDSパブリックアクセス制限 | ✅ (Stg: PubliclyAccessible) |
+| インフラ | VPC分離 (Public/Private) | ✅ |
+| インフラ | Security Group 最小権限 | ✅ |
+| インフラ | HTTPS終端 (CloudFront) | ✅ |
+| IAM | ECS Task Execution/Task Role | ✅ |
+| IAM | GitHub OIDC | ✅ |
+| IAM | Terraform Role 最小権限 | ⚠️ AdminAccess (Stg許容) |
+| アプリ | CORS制限 | ✅ (PR #10) |
+| アプリ | Cookie認証 (httpOnly) | ✅ |
+| アプリ | DB接続SSL | ✅ |
+| アプリ | 環境変数 (SSM) | ✅ |
+| 監査 | CloudWatch Logs | ✅ (30日保持) |
+| 監査 | RDSバックアップ | ✅ (1日) |
+| 監査 | CloudTrail | ❌ 未設定 |
+| 監査 | VPC Flow Logs | ❌ 未設定 |
+
+**月額コスト見積もり (Stg)**: 約 $79/月
+
 ---
 
 ## 10. 参考：現在の重要出力（terraform output）

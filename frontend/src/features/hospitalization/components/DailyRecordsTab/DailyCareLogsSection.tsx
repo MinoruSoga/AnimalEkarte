@@ -1,29 +1,16 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback } from "react";
 
 // External
-import {
-    UtensilsCrossed,
-    Droplets,
-    Pill,
-    Stethoscope,
-    MoreHorizontal,
-    Plus,
-} from "lucide-react";
+import { UtensilsCrossed, Droplets, Pill, Stethoscope, MoreHorizontal, Plus } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Types
@@ -35,6 +22,7 @@ interface DailyCareLogsSectionProps {
     careLogs: ApiCareLogRecord[];
     onAddCareLog: (payload: CreateCareLogRecordRequest) => void;
     isPending: boolean;
+    canCreate?: boolean;
 }
 
 interface CareLogFormState {
@@ -98,6 +86,7 @@ export function DailyCareLogsSection({
     careLogs,
     onAddCareLog,
     isPending,
+    canCreate = false,
 }: DailyCareLogsSectionProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [form, setForm] = useState<CareLogFormState>(INITIAL_FORM);
@@ -135,23 +124,25 @@ export function DailyCareLogsSection({
     return (
         <div>
             <div className="flex items-center justify-between mb-2">
-                <h4 className="flex items-center gap-1.5 text-sm font-bold text-[#37352F]">
+                <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
                     <UtensilsCrossed className={`${ICON.action} text-orange-500`} />
                     ケアログ
                 </h4>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpen}
-                    className="h-7 gap-1 text-xs"
-                >
-                    <Plus className={ICON.action} />
-                    追加
-                </Button>
+                {canCreate ? (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpen}
+                        className="h-7 gap-1 text-xs"
+                    >
+                        <Plus className={ICON.action} />
+                        追加
+                    </Button>
+                ) : null}
             </div>
 
             {sorted.length === 0 ? (
-                <p className="text-xs text-[#37352F]/40 py-3 text-center bg-gray-50 rounded border border-dashed border-[rgba(55,53,47,0.16)]">
+                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed ${C.borderMedium}`}>
                     記録なし
                 </p>
             ) : (
@@ -170,11 +161,11 @@ export function DailyCareLogsSection({
                                         {CARE_LOG_TYPE_LABELS[log.type as CareLogType] ?? log.type}
                                     </span>
                                     {log.value ? (
-                                        <span className="text-[#37352F]/70">{log.value}</span>
+                                        <span className={`${C.text70}`}>{log.value}</span>
                                     ) : null}
                                 </div>
                                 {log.notes ? (
-                                    <p className="text-[#37352F]/60 mt-0.5">{log.notes}</p>
+                                    <p className={`${C.text60} mt-0.5`}>{log.notes}</p>
                                 ) : null}
                             </div>
                         );

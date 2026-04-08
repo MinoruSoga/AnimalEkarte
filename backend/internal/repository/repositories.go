@@ -1,6 +1,8 @@
 package repository
 
 import (
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+
 	"gorm.io/gorm"
 )
 
@@ -10,7 +12,8 @@ type Repositories struct {
 	// TransactionFn はテスト時に差し替え可能なトランザクション関数。
 	// nil の場合は db.Transaction() を使用する（本番動作）。
 	TransactionFn          func(fn func(*Repositories) error) error
-	Auth                   AuthRepository
+	Account                AccountRepository
+	StaffClinicAssignment  StaffClinicAssignmentRepository
 	AnimalSpecies          AnimalSpeciesRepository
 	Owner                  OwnerRepository
 	Pet                    PetRepository
@@ -36,14 +39,14 @@ type Repositories struct {
 	DiagnosisName          DiagnosisNameRepository
 	CheckupType            CheckupTypeRepository
 	Clinic                 ClinicRepository
-	UserAccount            UserAccountRepository
 	Examination            ExaminationRepository
 	Vaccination            VaccinationRepository
-	JobTitle               JobTitleRepository
+	Occupation             OccupationRepository
 	ChiefComplaintCategory ChiefComplaintCategoryRepository
 	Inquiry                InquiryRepository
 	InquiryTemplate        InquiryTemplateRepository
 	Company                CompanyRepository
+	PermissionGroup        PermissionGroupRepository
 	BillingReview          BillingReviewRepository
 	CarePlanItem           CarePlanItemRepository
 	ShiftEntry             ShiftEntryRepository
@@ -58,7 +61,6 @@ type Repositories struct {
 	MerchandiseItem        MerchandiseItemRepository
 	BillingItem            BillingItemRepository
 	Refund                 RefundRepository
-	PermissionGroup        PermissionGroupRepository
 	Audit                  AuditRepository
 }
 
@@ -66,7 +68,8 @@ type Repositories struct {
 func NewRepositories(db *gorm.DB) *Repositories {
 	return &Repositories{
 		db:                     db,
-		Auth:                   NewAuthRepository(db),
+		Account:                NewAccountRepository(db),
+		StaffClinicAssignment:  NewStaffClinicAssignmentRepository(db),
 		AnimalSpecies:          NewAnimalSpeciesRepository(db),
 		Owner:                  NewOwnerRepository(db),
 		Pet:                    NewPetRepository(db),
@@ -92,14 +95,14 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		DiagnosisName:          NewDiagnosisNameRepository(db),
 		CheckupType:            NewCheckupTypeRepository(db),
 		Clinic:                 NewClinicRepository(db),
-		UserAccount:            NewUserAccountRepository(db),
 		Examination:            NewExaminationRepository(db),
 		Vaccination:            NewVaccinationRepository(db),
-		JobTitle:               NewJobTitleRepository(db),
+		Occupation:             NewOccupationRepository(db),
 		ChiefComplaintCategory: NewChiefComplaintCategoryRepository(db),
 		Inquiry:                NewInquiryRepository(db),
 		InquiryTemplate:        NewInquiryTemplateRepository(db),
 		Company:                NewCompanyRepository(db),
+		PermissionGroup:        NewPermissionGroupRepository(db),
 		BillingReview:          NewBillingReviewRepository(db),
 		CarePlanItem:           NewCarePlanItemRepository(db),
 		ShiftEntry:             NewShiftEntryRepository(db),
@@ -114,7 +117,6 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		MerchandiseItem:        NewMerchandiseItemRepository(db),
 		BillingItem:            NewBillingItemRepository(db),
 		Refund:                 NewRefundRepository(db),
-		PermissionGroup:        NewPermissionGroupRepository(db),
 		Audit:                  NewAuditRepository(db),
 	}
 }
@@ -125,8 +127,11 @@ func (r *Repositories) Transaction(fn func(repos *Repositories) error) error {
 	if r.TransactionFn != nil {
 		return r.TransactionFn(fn)
 	}
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	if err := r.db.Transaction(func(tx *gorm.DB) error {
 		txRepos := NewRepositories(tx)
 		return fn(txRepos)
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "transaction failed")
+	}
+	return nil
 }

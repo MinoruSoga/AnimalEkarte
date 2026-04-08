@@ -67,7 +67,7 @@ env:
       "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
     },
     "StringLike": {
-      "token.actions.githubusercontent.com:sub": "repo:MinoruSoga/AnimalEkarte:ref:refs/heads/main"
+      "token.actions.githubusercontent.com:sub": "repo:MinoruSoga/AnimalEkarte:ref:refs/heads/staging"
     }
   }
 }
@@ -300,6 +300,6 @@ CORS_ALLOWED_ORIGIN=https://stg.noah-karte.com,https://api.stg.noah-karte.com
 
 | リソース | 説明 |
 |---------|------|
-| [AWSリソース一覧](./deployment-status.md) | Terraform state、コスト |
+| [インフラ構成](../docs_infra_architecture.md) | AWSリソース、Terraform state |
 | [デプロイ前チェックリスト](./DEPLOYMENT-CHECKLIST.md) | デプロイ手順、DB作り直し |
 | [AWS OIDC](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect) | GitHub Actions OIDC 認証 |

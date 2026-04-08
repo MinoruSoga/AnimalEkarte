@@ -2,6 +2,8 @@
 sessions/
 plans/
 file-history/
+logs/
+worktrees/
 
 # OS files
 .DS_Store

@@ -12,13 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
@@ -32,11 +26,13 @@ import type { SortOrder } from "@/types";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { paths } from "@/config/paths";
+import { usePermission } from "@/features/auth";
 
 // Relative (direct file import, no barrel — bundle-barrel-imports)
 import { useTrimmingForm } from "../hooks/use-trimming-form";
 import type { TrimmingFormData } from "@/types/trimming";
 import { useGetTrimmingsByPetId } from "../api/get-trimming";
+import { ResourceTrimming } from "@/types/generated/models";
 
 // bundle-dynamic-imports: 重いモーダルは lazy() + Suspense で遅延ロード
 const MasterSelectModal = lazy(() =>
@@ -180,7 +176,7 @@ const LeftColumn = memo(function LeftColumn({
             </button>
           </div>
         ) : (
-          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer hover:bg-[#F7F6F3]`}>
+          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer ${C.hoverBgPage}`}>
             <div className="flex flex-col items-center">
               <Upload className={`${ICON.lg} ${C.text40} mb-1`} />
               <span className={`text-sm ${C.text60}`}>画像をアップロード</span>
@@ -293,7 +289,7 @@ const MiddleColumn = memo(function MiddleColumn({
             </button>
           </div>
         ) : (
-          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer hover:bg-[#F7F6F3]`}>
+          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer ${C.hoverBgPage}`}>
             <div className="flex flex-col items-center">
               <Upload className={`${ICON.lg} ${C.text40} mb-1`} />
               <span className={`text-sm ${C.text60}`}>画像をアップロード</span>
@@ -367,7 +363,7 @@ const RightColumn = memo(function RightColumn({
           sortedHistory.map((hist) => (
             <div
               key={hist.id}
-              className={`p-3 border ${C.borderMedium} rounded-lg bg-white hover:bg-[#F7F6F3] transition-colors cursor-pointer`}
+              className={`p-3 border ${C.borderMedium} rounded-lg bg-white ${C.hoverBgPage} transition-colors cursor-pointer`}
               onClick={() => onHistoryClick({ styleRequest: hist.styleRequest, staffName: hist.staff })}
             >
               <div className="flex items-start justify-between">
@@ -397,8 +393,8 @@ export function TrimmingForm() {
   const { data: coursesRaw = [] } = useMasterItems("trimmingCourse");
   const { data: optionsRaw = [] } = useMasterItems("trimmingOption");
   const { data: staffItems = [] } = useMasterItems("staff");
-  const courses = coursesRaw.map((c) => ({ ...c, id: String(c.id) }));
-  const options = optionsRaw.map((o) => ({ ...o, id: String(o.id) }));
+  const courses = useMemo(() => coursesRaw.map((c) => ({ ...c, id: String(c.id) })), [coursesRaw]);
+  const options = useMemo(() => optionsRaw.map((o) => ({ ...o, id: String(o.id) })), [optionsRaw]);
 
   const {
     mode,
@@ -417,8 +413,12 @@ export function TrimmingForm() {
     isSaving,
     isDeleting,
     fieldErrors,
+    isLoading,
+    notFound,
   } = useTrimmingForm(id);
 
+  const { canEdit, canCreate, canDelete } = usePermission("trimming");
+  const canSubmit = mode === "edit" ? canEdit : canCreate;
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   // --- Focus Management (Accessibility) ---
@@ -536,16 +536,33 @@ export function TrimmingForm() {
   if (!selectedPet && mode === "new" && petId) return null;
   if (!selectedPet && mode === "new") return null;
 
+  if (isLoading) {
+    return (
+      <PageLayout title="トリミング" onBack={handleBack} icon={<Scissors className={`${ICON.page} ${C.text}`} />}>
+        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>読み込み中...</div>
+      </PageLayout>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <PageLayout title="トリミング" onBack={handleBack} icon={<Scissors className={`${ICON.page} ${C.text}`} />}>
+        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>トリミング記録が見つかりません</div>
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout
       title={mode === "new" ? "トリミング登録" : "トリミング編集"}
       onBack={handleBack}
       icon={<Scissors className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceTrimming}
       maxWidth="max-w-[1400px]"
       headerAction={
         <div className="flex gap-2">
           {/* rendering-conditional-render: && → ? ... : null */}
-          {mode === "edit" ? (
+          {mode === "edit" && canDelete ? (
             <Button
               onClick={() => setDeleteConfirmOpen(true)}
               variant="ghost-danger"
@@ -557,15 +574,18 @@ export function TrimmingForm() {
               削除
             </Button>
           ) : null}
-          <SubmitButton className="h-10" disabled={isSaving}>
-            保存
-          </SubmitButton>
+          {canSubmit ? (
+            <SubmitButton className="h-10" disabled={isSaving}>
+              保存
+            </SubmitButton>
+          ) : null}
         </div>
       }
     >
       {/* NavigationBlocker: isSaving 中はブロック無効化 */}
       <NavigationBlocker when={isDirty && !isSaving} />
       <form action={formAction}>
+      <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
       {/* rendering-conditional-render: && → ? ... : null */}
       {selectedPet ? (
         <div className="space-y-6">
@@ -623,6 +643,7 @@ export function TrimmingForm() {
           </div>
         </div>
       ) : null}
+      </fieldset>
 
       <Suspense fallback={null}>
         {/* Course Modal */}

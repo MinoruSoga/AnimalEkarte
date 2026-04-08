@@ -47,7 +47,7 @@ export interface MenuItem {
     subItems?: MenuItem[];
 }
 
-// --- Dashboard / Calendar ---
+// --- Reception（当日の受付）/ Calendar ---
 export interface Appointment {
   id: string;
   time: string;
@@ -258,6 +258,7 @@ export interface MedicalRecord {
   prescription?: string;
   notes?: string;
   accountingId?: string;
+  visitCount?: number;
   version: number;
 }
 
@@ -382,10 +383,3 @@ export interface MasterItem {
 
 export type MasterCategory = "vaccine" | "serviceType" | "consultation" | "procedure" | "hospitalization" | "diagnosis_category" | "diagnosis_name" | "checkup";
 
-export const STAFF_ROLE_LABELS: Record<string, string> = {
-  veterinarian: '獣医師',
-  nurse: '看護師',
-  trimmer: 'トリマー',
-  reception: '受付',
-  manager: '管理職',
-};

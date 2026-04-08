@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -37,17 +36,18 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 		return nil, apperrors.Wrap(err, "failed to get billing")
 	}
 
-	// 返金可能残額チェック（過剰返金防止）
+	// BUG-142: 返金可能残額チェック（過剰返金防止）— Payment 有無に関わらず常にチェック
+	alreadyRefunded, sumErr := s.repo.SumByBillingID(ctx, clinicID, billingID)
+	if sumErr != nil {
+		return nil, apperrors.Wrap(sumErr, "sum refunds")
+	}
+	totalAmount := int64(billing.TotalAmount)
 	if len(billing.Payments) > 0 {
-		alreadyRefunded, err := s.repo.SumByBillingID(ctx, clinicID, billingID)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "sum refunds")
-		}
-		available := billing.Payments[0].TotalAmount - alreadyRefunded
-		if amount > available {
-			return nil, apperrors.WrapInvalidInput(
-				fmt.Sprintf("refund amount %d exceeds available balance %d", amount, available))
-		}
+		totalAmount = billing.Payments[0].TotalAmount
+	}
+	available := totalAmount - alreadyRefunded
+	if amount > available {
+		return nil, apperrors.WrapInvalidInput("リファンド額が請求残高を超えています")
 	}
 
 	refund := &model.BillingRefund{

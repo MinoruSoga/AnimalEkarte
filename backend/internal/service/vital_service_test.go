@@ -134,15 +134,37 @@ func TestVitalService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:            "creates vital with minimal fields",
+			name:            "creates vital with temperature only",
+			medicalRecordID: 1,
+			input: &CreateVitalInput{
+				PetID:       1,
+				RecordedAt:  recordedAt,
+				Temperature: &temperature,
+				Notes:       "Temperature only",
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:            "returns error when all vital values are nil",
 			medicalRecordID: 1,
 			input: &CreateVitalInput{
 				PetID:      1,
 				RecordedAt: recordedAt,
-				Notes:      "Minimal data",
+				Notes:      "No vital values",
 			},
 			repoErr: nil,
-			wantErr: false,
+			wantErr: true,
+		},
+		{
+			name:            "returns error when all vital values are nil and notes is empty",
+			medicalRecordID: 1,
+			input: &CreateVitalInput{
+				PetID:      1,
+				RecordedAt: recordedAt,
+			},
+			repoErr: nil,
+			wantErr: true,
 		},
 		{
 			name:            "returns error when pet_id is zero",

@@ -28,7 +28,7 @@ src/
 │
 ├── features/                              # 機能別モジュール（16 features）
 │   ├── auth/                              # 認証（ログイン・セッション管理）
-│   ├── dashboard/                         # ダッシュボード
+│   ├── reception/                         # 当日の受付
 │   ├── owners/                            # ★ ベストプラクティス参照実装
 │   ├── pets/                              # ペット（CRUD API のみ）
 │   ├── reservations/                      # 予約管理
@@ -268,34 +268,18 @@ features/[feature-name]/
 └── index.ts                    # 公開API（明示的named export のみ）
 ```
 
-#### Feature構成例: dashboard
+#### Feature構成例: reception
 
 ```
-features/dashboard/
+features/reception/
 ├── api/
-│   ├── getWorkflowStatus.ts    # + useWorkflowStatus()
-│   ├── updatePatientStatus.ts  # + useUpdatePatientStatus()
-│   └── getTodayStats.ts        # + useTodayStats()
-├── components/
-│   ├── KanbanBoard/
-│   │   ├── KanbanBoard.tsx
-│   │   ├── KanbanColumn.tsx
-│   │   ├── PatientCard.tsx
-│   │   └── index.ts
-│   ├── StatsCards/
-│   │   ├── StatsCards.tsx
-│   │   ├── StatCard.tsx
-│   │   └── index.ts
-│   └── QuickActions/
-│       ├── QuickActions.tsx
-│       └── index.ts
+│   ├── get-reception.ts        # + useGetReception()
+│   ├── update-appointment-status.ts  # + useUpdateAppointmentStatus()
+│   └── transforms.ts           # カラム変換ロジック
 ├── hooks/
-│   ├── useOptimisticStatusUpdate.ts  # 楽観的更新ロジック
-│   └── useKanbanDragDrop.ts          # ドラッグ&ドロップ状態
+│   └── use-reception-kanban.ts # カンバン状態管理
 ├── routes/
-│   └── Dashboard.tsx
-├── types/
-│   └── index.ts
+│   └── Reception.tsx
 └── index.ts
 ```
 
@@ -382,12 +366,12 @@ export const router = createBrowserRouter([
     ),
     errorElement: <RootErrorBoundary />,
     children: [
-      // ── Dashboard ────────────────────────────────────────────────
+      // ── Reception ────────────────────────────────────────────────
       {
         path: "/",
         lazy: async () => {
-          const { Dashboard } = await import("@/features/dashboard/routes");
-          return { Component: Dashboard };
+          const { Reception } = await import("@/features/reception");
+          return { Component: Reception };
         },
       },
 
@@ -1870,7 +1854,8 @@ describe("Button", () => {
 | default export | IDE補完が弱い | 名前付きexport |
 | インラインスタイル | 一貫性欠如 | Tailwind CSS |
 | `!important` | 詳細度問題 | クラス設計見直し |
-| barrel経由import（`@/features/xxx/api` 等） | tree-shaking阻害 | 直接ファイルimport（feature外からも同様） |
+| feature内部から自 feature の barrel（`../api` 等）を経由 | 不要な間接参照、tree-shaking 阻害 | 直接ファイル指定（`../api/delete-owner` 等） |
+| feature外から feature 内部ファイルを deep import（`@/features/xxx/api/get-xxx` 等） | Feature Indexing 違反、内部構造への依存 | feature の `index.ts` 経由（`@/features/xxx`） |
 | コメントのみ・空の index.ts | 死ファイル、混乱の原因 | 削除する |
 | re-exportのみで自身のロジックを持たないファイル | 参照ゼロなら死ファイル | 削除する |
 | 実ファイルが存在するフォルダの `.gitkeep` | 不要 | 削除する |
@@ -2080,23 +2065,34 @@ const PetEditModal = lazy(() =>
 </Suspense>
 ```
 
-#### `bundle-barrel-imports` — barrel index ファイル経由の import を避ける
+#### `bundle-feature-indexing` — feature の外からは必ず `index.ts` 経由、内部は直接ファイル指定
 
-feature 内からの import はもちろん、**feature 外（app層・shared hooks）からの import も直接ファイル指定**。
+import ルールは **呼び出し元が feature の外か内か** で使い分ける。
 
 ```typescript
-// ✅ 直接ファイルから import（tree-shaking が効く）
-import { deleteOwner } from "../api/delete-owner";          // feature 内
-import { useGetPets } from "@/features/pets/api/get-pets";  // feature 外
+// ── feature 外からの import（app/, hooks/, components/shared/ など） ──
+
+// ✅ feature の index.ts 経由（Feature Indexing — MANDATORY）
+import { useGetOwners, OwnerCard } from "@/features/owners";
+
+// ❌ deep import 禁止（index.ts を迂回）
+import { useGetOwners } from "@/features/owners/api/get-owners";  // ❌
+import { OwnerCard } from "@/features/owners/components/OwnerCard"; // ❌
+
+// ── feature 内部からの import（同一 feature 内） ──
+
+// ✅ 直接ファイルを指定（tree-shaking が効く）
+import { deleteOwner } from "../api/delete-owner";
 import { formatDate } from "@/utils/format/date";
 
-// ❌ barrel 経由（不要なモジュールも bundle に含まれる）
-import { deleteOwner } from "../api";                  // ❌ feature 内
-import { useGetPets } from "@/features/pets/api";      // ❌ feature 外も同様に禁止
-import { formatDate } from "@/utils";                  // ❌
+// ❌ feature 内部で自 feature の index.ts を経由するのは不要な迂回
+import { deleteOwner } from "../api";  // ❌ feature 内では直接ファイル指定
 ```
 
-**例外**: `features/xxx/api/index.ts` 等の barrel ファイルは **外部公開 API のカタログ** として存在してよいが、import 先としては使わない。
+**整理**:
+- **feature 外 → feature**: `index.ts` 経由（Public API として公開されたものだけを使う）
+- **feature 内部**: 直接ファイル指定（不要なモジュールを bundle に含めない）
+- `features/xxx/api/index.ts` 等の barrel ファイルは **外部公開 API のカタログ** として維持し、feature 内での自己参照には使わない
 
 ---
 

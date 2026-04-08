@@ -26,6 +26,7 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
+  const doctorId = searchParams.get("doctorId");
   const medicalRecordId = medicalRecordIdParam ?? searchParams.get("medicalRecordId") ?? "";
   const isEdit = !!id;
 
@@ -51,7 +52,13 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
   const formData: Partial<ExaminationRecord> =
     isEdit && existingExam
       ? { ...existingExam, ...localOverrides }
-      : { status: "依頼中" as const, ownerName: "", petName: "", ...localOverrides };
+      : {
+          status: "依頼中" as const,
+          ownerName: "",
+          petName: "",
+          ...(doctorId && { doctorId }),
+          ...localOverrides
+        };
 
   const setFormData = (next: Partial<ExaminationRecord>) => {
     setLocalOverrides((prev) => ({ ...prev, ...next }));

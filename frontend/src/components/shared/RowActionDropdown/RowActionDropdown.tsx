@@ -1,12 +1,7 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export interface RowActionDropdownAction {
   label: string;
@@ -30,7 +25,8 @@ export function RowActionDropdown({ actions }: RowActionDropdownProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-11 w-11 text-[#37352F]/60 hover:text-[#37352F]"
+            aria-label="操作"
+            className={`h-11 w-11 ${C.text60} ${C.hoverText}`}
             onClick={(e) => e.stopPropagation()}
           >
             <MoreHorizontal className={ICON.page} />

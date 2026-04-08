@@ -64,7 +64,7 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 	}
 	var req createOwnerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -132,7 +132,7 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 	}
 	var req updateOwnerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

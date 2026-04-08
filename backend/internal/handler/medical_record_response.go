@@ -17,6 +17,7 @@ type medicalRecordResponse struct {
 	ReservationAppointmentID *uint64                 `json:"reservation_appointment_id,omitempty"`
 	Status                   string                  `json:"status"`
 	AccountingID             *uint64                 `json:"accounting_id,omitempty"`
+	VisitCount               int64                   `json:"visit_count"`
 	CreatedAt                time.Time               `json:"created_at"`
 	UpdatedAt                time.Time               `json:"updated_at"`
 	Owner                    *ownerSummaryResponse   `json:"owner,omitempty"`
@@ -40,6 +41,10 @@ func toMedicalRecordResponseList(records []model.MedicalRecord) []medicalRecordR
 }
 
 func toMedicalRecordResponse(r *model.MedicalRecord) medicalRecordResponse {
+	return toMedicalRecordResponseWithVisitCount(r, 0)
+}
+
+func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount int64) medicalRecordResponse {
 	resp := medicalRecordResponse{
 		ID:                       r.ID,
 		ClinicID:                 r.ClinicID,
@@ -50,6 +55,7 @@ func toMedicalRecordResponse(r *model.MedicalRecord) medicalRecordResponse {
 		DoctorID:                 r.DoctorID,
 		ReservationAppointmentID: r.ReservationAppointmentID,
 		Status:                   string(r.Status),
+		VisitCount:               visitCount,
 		CreatedAt:                r.CreatedAt,
 		UpdatedAt:                r.UpdatedAt,
 		Owner:                    toOwnerSummary(r.Owner),

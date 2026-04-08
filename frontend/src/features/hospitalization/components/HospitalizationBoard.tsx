@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { memo, useCallback } from "react";
 
 // External
@@ -24,15 +24,19 @@ interface HospitalizationBoardProps {
   hospitalizations: Hospitalization[];
   onNavigateToForm: (id?: string) => void;
   onMovePet: (hospitalizationId: string, targetCageId: string) => void;
+  canCreate: boolean;
+  canEdit: boolean;
 }
 
 interface CageCardProps {
     cage: MasterItem;
     occupant?: Hospitalization;
     onNavigateToForm: (id?: string) => void;
+    canCreate: boolean;
+    canEdit: boolean;
 }
 
-const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm }: CageCardProps) {
+const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canCreate, canEdit }: CageCardProps) {
     const isDeceased = occupant?.petIsDeceased ?? false;
 
     const {
@@ -60,24 +64,24 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm }: Ca
                 className={`relative flex flex-col h-40 transition-all border touch-none
                   ${occupant
                       ? isDeceased
-                        ? "bg-[#F7F6F3] border-l-4 border-l-[#37352F]/20 opacity-40"
-                        : "bg-white border-l-4 border-l-[#2EAADC]"
-                      : "bg-[#F7F6F3] border-dashed border-[#37352F]/20"
+                        ? `${C.bgPage} border-l-4 ${C.borderPrimary20} opacity-40`
+                        : `bg-white border-l-4 ${C.borderLMedicalBlue}`
+                      : `${C.bgPage} border-dashed ${C.borderPrimary20}`
                   }
                   ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-md'}
-                  ${isOver ? 'ring-2 ring-[#2EAADC] ring-offset-2 bg-[#2EAADC]/5' : ''}
+                  ${isOver ? `ring-2 ${C.ringMedicalBlue} ring-offset-2 ${C.bgMedicalBlue5}` : ''}
                   ${isDeceased ? 'cursor-default' : 'cursor-pointer'}
                 `}
-                onClick={isDeceased ? undefined : () => onNavigateToForm(occupant?.id)}
+                onClick={isDeceased || !canEdit ? undefined : () => onNavigateToForm(occupant?.id)}
             >
                 <CardHeader className={`${H_STYLES.padding.card} pb-0 flex flex-row items-center justify-between space-y-0`}>
                   <div className="flex items-center gap-1">
                       {occupant ? (
-                          <div className="cursor-grab active:cursor-grabbing text-[#37352F]/20 hover:text-[#37352F]/60">
+                          <div className={`cursor-grab active:cursor-grabbing ${C.text20} ${C.hoverText60}`}>
                               <GripVertical className={ICON.action} />
                           </div>
                       ) : null}
-                      <span className={`${H_STYLES.text.sm} font-mono text-[#37352F]/60 font-bold`}>{cage.name}</span>
+                      <span className={`${H_STYLES.text.sm} font-mono ${C.text60} font-bold`}>{cage.name}</span>
                   </div>
                   {occupant ? (
                       <Badge variant="outline" className={`${getHospitalizationTypeColor(occupant.hospitalizationType)} ${H_STYLES.text.xs} px-1.5 py-0 h-5 border-none`}>
@@ -88,30 +92,32 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm }: Ca
                 <CardContent className={`${H_STYLES.padding.card} flex-1 flex flex-col justify-center items-center text-center`}>
                   {occupant ? (
                     <>
-                      <div className={`font-bold text-[#37352F] ${H_STYLES.text.lg} truncate w-full`} title={occupant.petName}>
+                      <div className={`font-bold ${C.text} ${H_STYLES.text.lg} truncate w-full`} title={occupant.petName}>
                           {occupant.petName}
                       </div>
-                      <div className={`${H_STYLES.text.sm} text-[#37352F]/60 truncate w-full mb-2`}>
+                      <div className={`${H_STYLES.text.sm} ${C.text60} truncate w-full mb-2`}>
                           {occupant.ownerName}
                       </div>
-                      <div className={`${H_STYLES.text.xs} text-[#37352F]/40 font-mono`}>
+                      <div className={`${H_STYLES.text.xs} ${C.text40} font-mono`}>
                          {occupant.species}
                       </div>
                     </>
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-[#37352F]/20">
+                    <div className={`flex flex-col items-center justify-center h-full ${C.text20}`}>
                        <span className={H_STYLES.text.sm}>空き</span>
-                       <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-10 w-10 mt-1 rounded-full hover:bg-[#37352F]/10 hover:text-[#37352F]/60"
-                          onClick={(e) => {
-                              e.stopPropagation();
-                              onNavigateToForm();
-                          }}
-                       >
-                          <Plus className={H_STYLES.button.icon} />
-                       </Button>
+                       {canCreate ? (
+                         <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-10 w-10 mt-1 rounded-full ${C.hoverBgPrimary10} ${C.hoverText60}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigateToForm();
+                            }}
+                         >
+                           <Plus className={H_STYLES.button.icon} />
+                         </Button>
+                       ) : null}
                     </div>
                   )}
                 </CardContent>
@@ -120,7 +126,7 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm }: Ca
     );
 });
 
-export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm, onMovePet }: HospitalizationBoardProps) {
+export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm, onMovePet, canCreate, canEdit }: HospitalizationBoardProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -157,7 +163,7 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
       <div className="space-y-6 overflow-x-auto pb-4">
         {Object.entries(cagesByArea).map(([area, areaCages]) => (
           <div key={area} className="min-w-[800px]">
-            <h3 className={`${H_STYLES.text.lg} font-bold text-[#37352F] mb-3 border-b pb-1 border-[#37352F]/10`}>
+            <h3 className={`${H_STYLES.text.lg} font-bold ${C.text} mb-3 border-b pb-1 ${C.borderPrimary10}`}>
               {area}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -169,6 +175,8 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
                       cage={cage}
                       occupant={occupant}
                       onNavigateToForm={onNavigateToForm}
+                      canCreate={canCreate}
+                      canEdit={canEdit}
                   />
                 );
               })}

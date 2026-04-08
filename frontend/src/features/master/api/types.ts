@@ -1,7 +1,20 @@
 /**
- * 汎用マスタアイテム作成リクエスト
- * 個別マスタ（Consultation, Procedure, Medicine 等）は専用 Request 型（src/types/treatment.ts 等）を使用。
- * この型は旧 master_items 汎用CRUD 用の legacy 型。
+ * Master API types
+ * Source: frontend/src/types/generated/models.ts (tygo generated)
+ *
+ * 個別マスタ（Consultation, Procedure, Medicine 等）の型定義は
+ * src/types/{treatment.ts, medicine.ts} に一元化済み。
+ *
+ * @deprecated Legacy types from old master_items CRUD. Use dedicated types instead:
+ * - Consultation: {@link import("@/types").CreateConsultationRequest}
+ * - Procedure: {@link import("@/types").CreateProcedureRequest}
+ * - Medicine: {@link import("@/types").CreateMedicineRequest}
+ * - Vaccine: {@link import("@/types").CreateVaccineRequest}
+ * - CheckupType: {@link import("@/types").CreateCheckupTypeRequest}
+ */
+
+/**
+ * @deprecated Use dedicated types from src/types/{treatment.ts, medicine.ts}
  */
 export interface CreateMasterItemRequest {
   name: string;
@@ -16,6 +29,9 @@ export interface CreateMasterItemRequest {
   duration?: number | null;
 }
 
+/**
+ * @deprecated Use dedicated types from src/types/{treatment.ts, medicine.ts}
+ */
 export interface UpdateMasterItemRequest {
   name?: string;
   category?: string;

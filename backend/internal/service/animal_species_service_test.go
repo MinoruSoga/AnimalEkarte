@@ -60,6 +60,8 @@ func (m *mockAnimalSpeciesRepository) Reorder(ctx context.Context, ids []uint64)
 	return nil
 }
 
+// Note: mockPetRepository is defined in pet_service_test.go (shared across tests in this package)
+
 // ---- Tests ----
 
 func TestAnimalSpeciesService_List(t *testing.T) {
@@ -105,7 +107,8 @@ func TestAnimalSpeciesService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewAnimalSpeciesService(repo)
+			petRepo := &mockPetRepository{}
+			svc := NewAnimalSpeciesService(repo, petRepo)
 
 			species, err := svc.List(context.Background())
 
@@ -126,7 +129,8 @@ func TestAnimalSpeciesService_Create(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewAnimalSpeciesService(repo)
+	petRepo := &mockPetRepository{}
+	svc := NewAnimalSpeciesService(repo, petRepo)
 
 	species, err := svc.Create(context.Background(), &CreateAnimalSpeciesInput{
 		Name:      "フェレット",
@@ -141,7 +145,8 @@ func TestAnimalSpeciesService_Create(t *testing.T) {
 
 func TestAnimalSpeciesService_Update_EmptyFields(t *testing.T) {
 	repo := &mockAnimalSpeciesRepository{}
-	svc := NewAnimalSpeciesService(repo)
+	petRepo := &mockPetRepository{}
+	svc := NewAnimalSpeciesService(repo, petRepo)
 
 	_, err := svc.Update(context.Background(), 1, &UpdateAnimalSpeciesInput{})
 	assert.Error(t, err)
@@ -149,8 +154,55 @@ func TestAnimalSpeciesService_Update_EmptyFields(t *testing.T) {
 
 func TestAnimalSpeciesService_Reorder_EmptyIDs(t *testing.T) {
 	repo := &mockAnimalSpeciesRepository{}
-	svc := NewAnimalSpeciesService(repo)
+	petRepo := &mockPetRepository{}
+	svc := NewAnimalSpeciesService(repo, petRepo)
 
 	err := svc.Reorder(context.Background(), []uint64{})
 	assert.Error(t, err)
+}
+
+func TestAnimalSpeciesService_Delete_WithPetReference(t *testing.T) {
+	tests := []struct {
+		name      string
+		petCount  int64
+		wantError bool
+		wantCode  string
+	}{
+		{
+			name:      "returns 409 when animal species is referenced by pets",
+			petCount:  2,
+			wantError: true,
+			wantCode:  "CONFLICT",
+		},
+		{
+			name:      "succeeds when animal species has no pet references",
+			petCount:  0,
+			wantError: false,
+			wantCode:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockAnimalSpeciesRepository{
+				deleteFn: func(_ context.Context, _ uint64) error {
+					return nil
+				},
+			}
+			petRepo := &mockPetRepository{
+				countByAnimalSpeciesIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.petCount, nil
+				},
+			}
+			svc := NewAnimalSpeciesService(repo, petRepo)
+
+			err := svc.Delete(context.Background(), 1)
+
+			if tt.wantError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

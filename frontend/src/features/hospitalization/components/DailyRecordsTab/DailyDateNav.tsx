@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useCallback, useMemo } from "react";
 
 // External
@@ -7,6 +7,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+
+const WEEK_DAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 interface DailyDateNavProps {
     selectedDate: string; // YYYY-MM-DD
@@ -51,8 +53,7 @@ export function DailyDateNav({
     // Format for display: YYYY-MM-DD -> YYYY年M月D日（曜日）
     const displayDate = useMemo(() => {
         const d = new Date(selectedDate + "T00:00:00");
-        const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
-        return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${weekDays[d.getDay()]}）`;
+        return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${WEEK_DAYS[d.getDay()]}）`;
     }, [selectedDate]);
 
     return (
@@ -67,7 +68,7 @@ export function DailyDateNav({
             >
                 <ChevronLeft className={ICON.action} />
             </Button>
-            <span className="text-sm font-semibold text-[#37352F]">{displayDate}</span>
+            <span className={`text-sm font-semibold ${C.text}`}>{displayDate}</span>
             <Button
                 variant="ghost"
                 size="sm"

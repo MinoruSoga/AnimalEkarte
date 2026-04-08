@@ -5,15 +5,11 @@ import { ja } from "date-fns/locale";
 import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
+import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
+import { ResourceReservations } from "@/types/generated/models";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { getCalendarViewLabel } from "@/utils/status-helpers";
@@ -26,8 +22,8 @@ const ReservationFormModal = lazy(() =>
   })),
 );
 import { useReservationManagement } from "../hooks/use-reservation-management";
-import { useServiceTypeColorMap } from "@/features/master/hooks/use-service-type-color-map";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { useServiceTypeColorMap } from "@/features/master";
+import { usePermission } from "@/features/auth";
 
 const MonthView = lazy(() =>
   import("../components/MonthView").then((m) => ({ default: m.MonthView })),
@@ -52,8 +48,8 @@ const VIEW_NAV_NEXT: Record<CalendarView, (d: Date) => Date> = {
 };
 
 export function ReservationManagement() {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const { canCreate } = usePermission("reservations");
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const { canCreate, canEdit, canDelete } = usePermission("reservations");
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
 
@@ -145,10 +141,11 @@ export function ReservationManagement() {
         icon={<CalendarIcon className={`${ICON.page} ${C.text}`} />}
         action={
           <div className="flex items-center gap-2">
+            <PermissionBadges resource={ResourceReservations} />
             {canCreate ? (
               <PrimaryButton className="gap-2" onClick={() => handleOpenForm()}>
                 <Plus className={ICON.action} />
-                <span className="hidden sm:inline">新規予約</span>
+                <span className="hidden sm:inline">新規予約登録</span>
                 <span className="sm:hidden">予約</span>
               </PrimaryButton>
             ) : null}
@@ -265,7 +262,7 @@ export function ReservationManagement() {
                 currentDate={currentDate}
                 appointments={filteredAppointments}
                 onAppointmentClick={handleOpenDetail}
-                onTimeSlotClick={handleTimeSlotClick}
+                onTimeSlotClick={canCreate ? handleTimeSlotClick : undefined}
                 onAppointmentUpdate={handleAppointmentUpdate}
                 dynamicColorMap={dynamicColorMap}
               />
@@ -281,6 +278,8 @@ export function ReservationManagement() {
           onClose={handleCloseForm}
           onSave={handleSave}
           initialData={editingAppointment}
+          canCreate={canCreate}
+          canEdit={canEdit}
         />
 
         {/* Detail Modal */}
@@ -288,10 +287,10 @@ export function ReservationManagement() {
           isOpen={isDetailOpen}
           onClose={handleCloseDetail}
           appointment={detailAppointment}
-          onEdit={handleOpenFormFromAppointment}
-          onDelete={handleDelete}
+          onEdit={canEdit ? handleOpenFormFromAppointment : undefined}
+          onDelete={canDelete ? handleDelete : undefined}
           onCreateRecord={handleCreateRecord}
-          onStatusChange={handleStatusChange}
+          onStatusChange={canEdit ? handleStatusChange : undefined}
         />
       </Suspense>
 

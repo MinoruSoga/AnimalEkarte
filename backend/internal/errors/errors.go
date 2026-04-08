@@ -3,7 +3,9 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -45,8 +47,8 @@ func Wrap(err error, message string) error {
 func WrapNotFound(resource, id string) error {
 	return &AppError{
 		Code:    "NOT_FOUND",
-		Message: fmt.Sprintf("%s with id %s not found", resource, id),
-		Err:     ErrNotFound,
+		Message: "not found",
+		Err:     fmt.Errorf("%s(id=%s): %w", resource, id, ErrNotFound),
 	}
 }
 
@@ -105,13 +107,54 @@ func WrapForbidden(message string) error {
 	}
 }
 
+// WrapUnauthorized は認証エラーを生成する
+func WrapUnauthorized(message string) error {
+	return &AppError{
+		Code:    "UNAUTHORIZED",
+		Message: message,
+		Err:     ErrUnauthorized,
+	}
+}
+
+// WrapInternalServerError は内部サーバーエラーを生成する
+func WrapInternalServerError(message string) error {
+	return &AppError{
+		Code:    "INTERNAL",
+		Message: message,
+		Err:     errors.New("internal server error"),
+	}
+}
+
 // FromGORM は GORM のエラーを AppError に変換する
-func FromGORM(err error, resource string, id string) error {
+func FromGORM(err error, resource, id string) error {
 	if err == nil {
 		return nil
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return WrapNotFound(resource, id)
 	}
-	return Wrap(err, fmt.Sprintf("database error on %s", resource))
+	// BUG-138: pgx ドライバのエンコードエラー（pgconn.PgError ではない）をキャッチ。
+	// int32 範囲超過などで "unable to encode" が発生した場合。
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "unable to encode") ||
+		strings.Contains(errMsg, "greater than maximum value") ||
+		strings.Contains(errMsg, "less than minimum value") {
+		return WrapInvalidInput("数値が範囲外です")
+	}
+	// BUG-138: PostgreSQL エラーコードに基づくハンドリング
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23503": // foreign_key_violation
+			return WrapInvalidInput("参照先が存在しません")
+		case "23505": // unique_violation
+			return WrapAlreadyExists(resource, "")
+		case "22003": // numeric_value_out_of_range
+			return WrapInvalidInput("数値が範囲外です")
+		case "22P02": // invalid_text_representation (e.g. invalid integer)
+			return WrapInvalidInput("入力値の形式が正しくありません")
+		}
+	}
+	// BUG-129: リソース名は内部ログ用。ユーザーには汎化メッセージを返す
+	return Wrap(err, "database error")
 }

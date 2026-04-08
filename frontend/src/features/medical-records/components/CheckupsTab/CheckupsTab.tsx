@@ -12,13 +12,14 @@ import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
 // Relative
+import { usePermission } from "@/features/auth";
 import { useGetCheckups } from "@/features/medical-records/api/checkups";
 import { useCreateCheckup } from "@/features/medical-records/api/checkups";
 import { useUpdateCheckup } from "@/features/medical-records/api/checkups";
 import { useDeleteCheckup } from "@/features/medical-records/api/checkups";
-import { useGetAllCheckupTypes } from "@/features/master/api/checkup-types";
+import { useGetAllCheckupTypes } from "@/features/master";
 import type { Checkup, CreateCheckupInput, UpdateCheckupInput } from "@/features/medical-records/api/checkups";
-import type { CheckupTypeItem } from "@/features/master/api/checkup-types";
+import type { CheckupTypeItem } from "@/features/master";
 
 // ── 静的定数 ────────────────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
           onChange={(e: ChangeEvent<HTMLSelectElement>) =>
             handleChange("checkup_type_id", e.target.value ? Number(e.target.value) : null)
           }
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`}
+          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         >
           <option value="">選択してください</option>
           {checkupTypes.map((type: CheckupTypeItem) => (
@@ -132,7 +133,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
           value={form.result ?? ""}
           onChange={(e) => handleChange("result", e.target.value)}
           placeholder="結果を入力..."
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`}
+          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         />
       </td>
       <td className="px-2 py-2">
@@ -168,6 +169,7 @@ interface CheckupsTabProps {
 // ── Component ──────────────────────────────────────────────────────────
 
 export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
+  const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const createMutation = useCreateCheckup(medicalRecordId);
@@ -200,6 +202,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
   );
 
   const handleAddSubmit = useCallback(() => {
+    if (!canCreate) return;
     if (!addForm.date || !addForm.checkup_type_id) {
       toast.error("日付と健診種別IDは必須です");
       return;
@@ -217,7 +220,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
         toast.success("健診記録を追加しました");
       },
     });
-  }, [addForm, createMutation]);
+  }, [canCreate, addForm, createMutation]);
 
   const handleAddCancel = useCallback(() => {
     setAddForm(EMPTY_ADD_FORM);
@@ -226,6 +229,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
 
   const handleEditSave = useCallback(
     (checkupId: string, input: UpdateCheckupInput) => {
+      if (!canEdit) return;
       updateMutation.mutate(
         { checkupId, input },
         {
@@ -236,7 +240,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
         }
       );
     },
-    [updateMutation]
+    [canEdit, updateMutation]
   );
 
   const handleEditCancel = useCallback(() => {
@@ -245,13 +249,14 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
 
   const handleDelete = useCallback(
     (checkupId: string) => {
+      if (!canDelete) return;
       deleteMutation.mutate(checkupId, {
         onSuccess: () => {
           toast.success("健診記録を削除しました");
         },
       });
     },
-    [deleteMutation]
+    [canDelete, deleteMutation]
   );
 
   // ── render ──
@@ -307,17 +312,21 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
                     <td className={`px-3 text-sm ${C.text}`}>{checkup.result}</td>
                     <td className="px-2">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => setEditingId(checkup.id)}
-                          className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
-                          title="編集"
-                        >
-                          <Pencil className={`${ICON.xs}`} />
-                        </button>
-                        <DeleteIconButton
-                          onClick={() => handleDelete(checkup.id)}
-                          disabled={deleteMutation.isPending}
-                        />
+                        {canEdit ? (
+                          <button
+                            onClick={() => setEditingId(checkup.id)}
+                            className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
+                            title="編集"
+                          >
+                            <Pencil className={`${ICON.xs}`} />
+                          </button>
+                        ) : null}
+                        {canDelete ? (
+                          <DeleteIconButton
+                            onClick={() => handleDelete(checkup.id)}
+                            disabled={deleteMutation.isPending}
+                          />
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -339,7 +348,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
             <select
               value={addForm.checkup_type_id}
               onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("checkup_type_id", e.target.value)}
-              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-32`}
+              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-32`}
             >
               <option value="">選択</option>
               {checkupTypeOptions}
@@ -360,7 +369,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
                 if (e.key === "Enter") handleAddSubmit();
                 if (e.key === "Escape") handleAddCancel();
               }}
-              className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2]`}
+              className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent}`}
             />
             <Button
               size="sm"
@@ -380,10 +389,12 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
             </Button>
           </div>
         ) : (
-          <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
-            <Plus className={`${ICON.xs}`} />
-            <span>記録を追加</span>
-          </button>
+          canCreate ? (
+            <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
+              <Plus className={`${ICON.xs}`} />
+              <span>記録を追加</span>
+            </button>
+          ) : null
         )}
       </div>
 

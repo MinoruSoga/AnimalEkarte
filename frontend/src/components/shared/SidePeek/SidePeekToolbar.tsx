@@ -6,20 +6,22 @@ interface SidePeekToolbarProps {
   isNew: boolean;
   onClose: () => void;
   onDelete?: () => void;
+  /** BUG-158: true の場合、ラベルを「詳細」に変更 */
+  readOnly?: boolean;
 }
 
-export function SidePeekToolbar({ isNew, onClose, onDelete }: SidePeekToolbarProps) {
+export function SidePeekToolbar({ isNew, onClose, onDelete, readOnly }: SidePeekToolbarProps) {
   return (
     <div className={STYLE.sidePeekToolbar}>
       <span className={`text-xs ${C.text35} pl-1 select-none`}>
-        {isNew ? "新規作成" : "編集"}
+        {readOnly ? "詳細" : isNew ? "新規作成" : "編集"}
       </span>
       <div className="flex items-center gap-1">
         {onDelete ? (
           <button
             type="button"
             onClick={onDelete}
-            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${C.danger} ${C.hoverBgDanger5}`}
           >
             <Trash2 className={ICON.toolbar} />
           </button>

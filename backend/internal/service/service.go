@@ -6,7 +6,9 @@ import (
 
 // Services はすべてのサービスを保持するDIコンテナ
 type Services struct {
-	Auth                   AuthService
+	Account                AccountService
+	StaffClinicAssignment  StaffClinicAssignmentService
+	Audit                  AuditService
 	AnimalSpecies          AnimalSpeciesService
 	Owner                  OwnerService
 	Pet                    PetService
@@ -32,14 +34,14 @@ type Services struct {
 	DiagnosisName          DiagnosisNameService
 	CheckupType            CheckupTypeService
 	Clinic                 ClinicService
-	UserAccount            UserAccountService
 	Examination            ExaminationService
 	Vaccination            VaccinationService
-	JobTitle               JobTitleService
+	Occupation             OccupationService
 	ChiefComplaintCategory ChiefComplaintCategoryService
 	Inquiry                InquiryService
 	InquiryTemplate        InquiryTemplateService
 	Company                CompanyService
+	PermissionGroup        PermissionGroupService
 	BillingReview          BillingReviewService
 	CarePlanItem           CarePlanItemService
 	ShiftEntry             ShiftEntryService
@@ -54,16 +56,17 @@ type Services struct {
 	MerchandiseItem        MerchandiseItemService
 	BillingItem            BillingItemService
 	Refund                 RefundService
-	PermissionGroup        PermissionGroupService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
 func NewServices(repos *repository.Repositories) *Services {
 	return &Services{
-		Auth:                   NewAuthService(repos.Auth, repos.UserAccount),
-		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies),
+		Account:                NewAccountService(repos.Account),
+		StaffClinicAssignment:  NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
+		Audit:                  NewAuditService(repos.Audit),
+		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
 		Owner:                  NewOwnerService(repos.Owner),
-		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance),
+		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
 		Reservation:            NewReservationService(repos.Reservation),
 		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet),
 		Hospitalization:        NewHospitalizationService(repos),
@@ -86,14 +89,14 @@ func NewServices(repos *repository.Repositories) *Services {
 		DiagnosisName:          NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisCategory),
 		CheckupType:            NewCheckupTypeService(repos.CheckupType),
 		Clinic:                 NewClinicService(repos.Clinic),
-		UserAccount:            NewUserAccountService(repos.UserAccount, repos.PermissionGroup),
 		Examination:            NewExaminationService(repos.Examination),
 		Vaccination:            NewVaccinationService(repos.Vaccination),
-		JobTitle:               NewJobTitleService(repos.JobTitle),
+		Occupation:             NewOccupationService(repos.Occupation),
 		ChiefComplaintCategory: NewChiefComplaintCategoryService(repos.ChiefComplaintCategory, repos.Inquiry),
 		Inquiry:                NewInquiryService(repos.Inquiry),
 		InquiryTemplate:        NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                NewCompanyService(repos.Company),
+		PermissionGroup:        NewPermissionGroupService(repos.PermissionGroup),
 		BillingReview:          NewBillingReviewService(repos.BillingReview),
 		CarePlanItem:           NewCarePlanItemService(repos.CarePlanItem),
 		ShiftEntry:             NewShiftEntryService(repos.ShiftEntry),
@@ -108,6 +111,5 @@ func NewServices(repos *repository.Repositories) *Services {
 		MerchandiseItem:        NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:            NewBillingItemService(repos.BillingItem),
 		Refund:                 NewRefundService(repos.Refund, repos.Accounting),
-		PermissionGroup:        NewPermissionGroupService(repos.PermissionGroup),
 	}
 }

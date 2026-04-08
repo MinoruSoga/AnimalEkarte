@@ -139,6 +139,27 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+
+	// BUG-144: staff_id のクリニック所属チェック（クロスクリニック FK 防止）
+	if reservation.DoctorID != nil {
+		assignments, asgErr := h.svc.StaffClinicAssignment.FindByStaffID(ctx, *reservation.DoctorID)
+		if asgErr != nil {
+			RespondError(c, apperrors.Wrap(asgErr, "failed to verify staff assignment"))
+			return
+		}
+		assigned := false
+		for _, a := range assignments {
+			if a.ClinicID == clinicID {
+				assigned = true
+				break
+			}
+		}
+		if !assigned {
+			RespondError(c, apperrors.WrapInvalidInput("指定されたスタッフはこのクリニックに所属していません"))
+			return
+		}
+	}
+
 	if err := h.svc.Reservation.Create(ctx, reservation); err != nil {
 		RespondError(c, err)
 		return
@@ -202,6 +223,27 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+
+	// BUG-144: staff_id のクリニック所属チェック（Update時も）
+	if svcInput.DoctorID != nil {
+		assignments, asgErr := h.svc.StaffClinicAssignment.FindByStaffID(ctx, *svcInput.DoctorID)
+		if asgErr != nil {
+			RespondError(c, apperrors.Wrap(asgErr, "failed to verify staff assignment"))
+			return
+		}
+		assigned := false
+		for _, a := range assignments {
+			if a.ClinicID == clinicID {
+				assigned = true
+				break
+			}
+		}
+		if !assigned {
+			RespondError(c, apperrors.WrapInvalidInput("指定されたスタッフはこのクリニックに所属していません"))
+			return
+		}
+	}
+
 	reservation, err := h.svc.Reservation.Update(ctx, clinicID, id, &svcInput)
 	if err != nil {
 		RespondError(c, err)
@@ -261,9 +303,17 @@ func (h *Handler) autoCreateMedicalRecord(ctx context.Context, clinicID uint64, 
 		return
 	}
 
-	// サブテーブル（inquiry, clinical_plan）を空レコードで作成
-	_, _ = h.svc.Inquiry.Upsert(ctx, service.UpsertInquiryInput{MedicalRecordID: record.ID})
-	_, _ = h.svc.ClinicalPlan.GetOrCreate(ctx, record.ID)
+	// サブテーブル（inquiry, clinical_plan）を空レコードで作成（best-effort）
+	if _, err := h.svc.Inquiry.Upsert(ctx, service.UpsertInquiryInput{MedicalRecordID: record.ID}); err != nil {
+		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to upsert inquiry",
+			slog.Uint64("medical_record_id", record.ID),
+			slog.String("error", err.Error()))
+	}
+	if _, err := h.svc.ClinicalPlan.GetOrCreate(ctx, record.ID); err != nil {
+		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to get or create clinical plan",
+			slog.Uint64("medical_record_id", record.ID),
+			slog.String("error", err.Error()))
+	}
 }
 
 // DeleteReservation godoc
@@ -288,8 +338,8 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 func (h *Handler) RegisterReservationRoutes(rg *gin.RouterGroup) {
 	reservations := rg.Group("/reservations")
 	reservations.GET("", h.ListReservations)
-	reservations.POST("", h.CreateReservation)
 	reservations.GET("/:id", h.GetReservation)
-	reservations.PATCH("/:id", h.UpdateReservation)
-	reservations.DELETE("/:id", h.DeleteReservation)
+	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "create"), h.CreateReservation)
+	reservations.PATCH("/:id", h.RequirePermission(string(model.ResourceReservations), "edit"), h.UpdateReservation)
+	reservations.DELETE("/:id", h.RequirePermission(string(model.ResourceReservations), "delete"), h.DeleteReservation)
 }

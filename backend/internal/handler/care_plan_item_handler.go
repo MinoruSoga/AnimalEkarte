@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -43,7 +44,7 @@ func (h *Handler) CreateCarePlanItem(c *gin.Context) {
 
 	var req createCarePlanItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -87,7 +88,7 @@ func (h *Handler) UpdateCarePlanItem(c *gin.Context) {
 
 	var req updateCarePlanItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -142,7 +143,7 @@ func (h *Handler) DeleteCarePlanItem(c *gin.Context) {
 // RegisterCarePlanItemRoutes はケアプランアイテム関連のルートを登録する
 func (h *Handler) RegisterCarePlanItemRoutes(rg *gin.RouterGroup) {
 	rg.GET("/:id/care-plan-items", h.ListCarePlanItems)
-	rg.POST("/:id/care-plan-items", h.CreateCarePlanItem)
-	rg.PATCH("/:id/care-plan-items/:itemId", h.UpdateCarePlanItem)
-	rg.DELETE("/:id/care-plan-items/:itemId", h.DeleteCarePlanItem)
+	rg.POST("/:id/care-plan-items", h.RequirePermission(string(model.ResourceHospitalization), "create"), h.CreateCarePlanItem)
+	rg.PATCH("/:id/care-plan-items/:itemId", h.RequirePermission(string(model.ResourceHospitalization), "edit"), h.UpdateCarePlanItem)
+	rg.DELETE("/:id/care-plan-items/:itemId", h.RequirePermission(string(model.ResourceHospitalization), "delete"), h.DeleteCarePlanItem)
 }

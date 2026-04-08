@@ -1,22 +1,10 @@
 import { useState, useEffect, useCallback, useTransition } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import type { Shift, ShiftType, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
 import { SHIFT_TYPE_LABELS } from "@/features/shifts/types";
@@ -52,6 +40,8 @@ interface ShiftFormDialogProps {
   staffName: string;
   date: string; // YYYY-MM-DD
   editShift?: Shift;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 interface FormValues {
@@ -68,6 +58,8 @@ export function ShiftFormDialog({
   staffName,
   date,
   editShift,
+  canEdit = false,
+  canDelete = false,
 }: ShiftFormDialogProps) {
   const isEdit = editShift !== undefined;
 
@@ -240,7 +232,7 @@ export function ShiftFormDialog({
           </div>
 
           <DialogFooter className="gap-2">
-            {isEdit ? (
+            {isEdit && canDelete ? (
               <Button
                 type="button"
                 variant="destructive"
@@ -254,9 +246,11 @@ export function ShiftFormDialog({
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending || isDeletePending}>
               キャンセル
             </Button>
-            <Button type="submit" size="sm" disabled={isPending || isDeletePending}>
-              {isPending ? "保存中..." : "保存"}
-            </Button>
+            {canEdit ? (
+              <Button type="submit" size="sm" disabled={isPending || isDeletePending}>
+                {isPending ? "保存中..." : "保存"}
+              </Button>
+            ) : null}
           </DialogFooter>
         </form>
       </DialogContent>

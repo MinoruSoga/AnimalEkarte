@@ -33,7 +33,7 @@ import { transformUpdatePetRequest } from "@/lib/transforms/pet";
 import { handleApiError } from "@/lib/handle-api-error";
 // bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport
 import { deleteOwner } from "../api/delete-owner";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // bundle-dynamic-imports: PetEditModal を遅延ロード
 const PetEditModal = lazy(() =>
@@ -51,6 +51,7 @@ import type {
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+import { ResourceOwners } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的ソートプロパティ定義
 const OWNER_SORT_PROPERTIES: SortProperty[] = [
@@ -319,7 +320,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const renderRow = useCallback((pet: (typeof filteredPets)[number]) => (
     <DataTableRow
       key={pet.id}
-      onClick={() => handleRowClick(pet)}
+      onClick={canEdit ? () => handleRowClick(pet) : undefined}
     >
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap hidden lg:table-cell`}>
         {pet.ownerNumber ?? "-"}
@@ -457,6 +458,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   return (
     <PageLayout
       title="飼主・ペット一覧"
+      resource={ResourceOwners}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={handleCreate}>

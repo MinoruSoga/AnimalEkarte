@@ -6,11 +6,9 @@ import { Button } from "@/components/ui/button";
 import { EstimateForm } from "./EstimateForm";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
-import {
-  useGetEstimateByRecord,
-  useCreateEstimateRecord,
-  useUpdateEstimateRecord,
-} from "../api/save-estimate";
+import { useGetEstimateByRecord, useCreateEstimateRecord, useUpdateEstimateRecord } from "../api/save-estimate";
+import { C } from "@/lib/design-tokens";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 interface MedicalRecordEstimateProps {
   isNewRecord?: boolean;
@@ -31,6 +29,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
   const [, startSaveTransition] = useTransition();
 
+  const { canEdit } = usePermission("medical-records");
   const [items, setItems] = useState<TreatmentItem[]>([]);
 
   // Load existing estimate
@@ -155,9 +154,9 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   }, []);
 
   return (
-    <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-10 pr-1">
+    <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-24 pr-1">
       {/* Subject */}
-      <EstimateForm subject={subject} onSubjectChange={setSubject} />
+      <EstimateForm subject={subject} onSubjectChange={setSubject} canEdit={canEdit} />
 
       {/* Items Table */}
       <TreatmentTable
@@ -166,6 +165,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
         onRemove={handleRemoveItem}
         onAddRow={handleAddItem}
         showStatus={false}
+        disabled={!canEdit}
       />
 
       {/* Summary Table */}
@@ -177,28 +177,31 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
         discountAmount={globalDiscountAmount}
         onUpdateDiscountAmount={setGlobalDiscountAmount}
         isDiscountRateReadonly
+        disabled={!canEdit}
       />
 
       {/* Comments & Remarks */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             コメント
           </Label>
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] min-h-[60px] resize-none p-2 text-sm text-[#37352F]"
+            className={`bg-white ${C.borderMedium} min-h-[60px] resize-none p-2 text-sm ${C.text}`}
+            disabled={!canEdit}
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label className="text-sm font-medium text-[#37352F]/60">
+          <Label className={`text-sm font-medium ${C.text60}`}>
             備考
           </Label>
           <Textarea
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] min-h-[60px] resize-none p-2 text-sm text-[#37352F]"
+            className={`bg-white ${C.borderMedium} min-h-[60px] resize-none p-2 text-sm ${C.text}`}
+            disabled={!canEdit}
           />
         </div>
       </div>
@@ -207,7 +210,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       <div className="flex justify-end gap-2 pt-2">
         <Button
           variant="outline"
-          className="h-10 px-4 text-sm border-[rgba(55,53,47,0.16)] text-[#37352F] hover:bg-[#F7F6F3]"
+          className={`h-10 px-4 text-sm ${C.borderMedium} ${C.text} ${C.hoverBgPage}`}
           onClick={handlePdfExport}
         >
           PDF出力

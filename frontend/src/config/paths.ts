@@ -225,9 +225,13 @@ export const paths = {
       path: "/settings/insurance",
       getHref: () => "/settings/insurance",
     },
-    jobTitle: {
-      path: "/settings/job-title",
-      getHref: () => "/settings/job-title",
+    occupations: {
+      path: "/settings/occupations",
+      getHref: () => "/settings/occupations",
+    },
+    permissionGroups: {
+      path: "/settings/permission-groups",
+      getHref: () => "/settings/permission-groups",
     },
     inquiryTemplates: {
       path: "/settings/inquiry-templates",
@@ -236,10 +240,6 @@ export const paths = {
     merchandiseItems: {
       path: "/settings/merchandise-items",
       getHref: () => "/settings/merchandise-items",
-    },
-    permissionGroups: {
-      path: "/settings/permission-groups",
-      getHref: () => "/settings/permission-groups",
     },
     interview: {
       chiefComplaint: {

@@ -1,8 +1,10 @@
 import { memo, type ReactNode } from "react";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { MasterListPage } from "@/features/master/components/MasterListPage";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import type { UseMasterCRUDReturn } from "@/features/master/hooks/use-master-crud";
 import type { FilterProperty, SortProperty } from "@/components/shared/NotionFilter/types";
+import type { Resource } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -22,7 +24,9 @@ interface SidePanelRenderProps<T> {
   item: T | null;
   onClose: () => void;
   onSave: (data: never) => void;
-  onDeleteRequest: (item: T) => void;
+  onDeleteRequest: ((item: T) => void) | undefined;
+  /** BUG-158: true の場合、保存・削除ボタンを非表示にする */
+  readOnly?: boolean;
 }
 
 interface MasterCRUDPageProps<T extends MasterEntity> {
@@ -30,6 +34,8 @@ interface MasterCRUDPageProps<T extends MasterEntity> {
   title: string;
   /** Page icon element */
   icon: ReactNode;
+  /** 権限バッジ表示用リソース */
+  resource?: Resource;
   /** Entity label for delete dialog (e.g. "役職") */
   entityLabel: string;
   /** Search placeholder */
@@ -44,8 +50,8 @@ interface MasterCRUDPageProps<T extends MasterEntity> {
 
   /** Table columns */
   columns: Column[];
-  /** Table row renderer. Called with (item, onEdit). */
-  renderRow: (item: T, onEdit: (item: T) => void) => ReactNode;
+  /** Table row renderer. Called with (item, onEdit, canEdit). */
+  renderRow: (item: T, onEdit: (item: T) => void, canEdit: boolean) => ReactNode;
 
   /** SidePanel render prop */
   renderSidePanel: (props: SidePanelRenderProps<T>) => ReactNode;
@@ -86,7 +92,11 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
   deleteDescription,
   filterProperties,
   sortProperties,
+  resource,
 }: MasterCRUDPageProps<T>) {
+  // BUG-158: edit/delete 権限で保存・削除ボタンの表示を制御
+  const { canEdit, canDelete } = usePermission(resource ?? "");
+
   const deleteName = crud.pendingDelete
     ? String((crud.pendingDelete as Record<string, unknown>)[deleteNameField] ?? "")
     : "";
@@ -95,6 +105,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
     <MasterListPage
       title={title}
       icon={icon}
+      resource={resource}
       searchTerm={crud.searchTerm}
       onSearchChange={crud.setSearchTerm}
       searchPlaceholder={searchPlaceholder}
@@ -112,7 +123,8 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
               item: crud.panelItem,
               onClose: crud.handleClose,
               onSave: handleSave,
-              onDeleteRequest: crud.setPendingDelete,
+              onDeleteRequest: canDelete ? crud.setPendingDelete : undefined,
+              readOnly: !canEdit,
             })
           : null
       }
@@ -130,7 +142,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
           columns={columns}
           data={crud.filteredItems}
           emptyMessage={emptyMessage}
-          renderRow={(item) => renderRow(item, crud.handleEdit)}
+          renderRow={(item) => renderRow(item, crud.handleEdit, canEdit)}
         />
       )}
     </MasterListPage>

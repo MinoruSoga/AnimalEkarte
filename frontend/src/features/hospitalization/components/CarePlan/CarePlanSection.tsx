@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Relative
 import { CarePlanItemRow } from "@/features/hospitalization/components/CarePlan/CarePlanItemRow";
@@ -27,6 +28,7 @@ interface CarePlanSectionProps {
 }
 
 export const CarePlanSection = memo(function CarePlanSection({ plans, onAdd, onUpdate, onDelete }: CarePlanSectionProps) {
+    const { canCreate, canDelete } = usePermission("hospitalization");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<CarePlanItem | undefined>(undefined);
 
@@ -46,20 +48,22 @@ export const CarePlanSection = memo(function CarePlanSection({ plans, onAdd, onU
                 key={plan.id}
                 plan={plan}
                 onEdit={handleOpenEdit}
-                onDelete={onDelete}
+                onDelete={canDelete ? onDelete : undefined}
             />
         )),
-        [plans, handleOpenEdit, onDelete]
+        [plans, handleOpenEdit, onDelete, canDelete]
     );
 
     return (
         <div className={H_STYLES.layout.section_mb}>
             <div className="flex items-center justify-between mb-2">
                 <h3 className={`${H_STYLES.text.lg} ${C.text}`}>入院治療プラン</h3>
-                <Button variant="primary" onClick={handleOpenCreate} className={`gap-2 ${H_STYLES.button.action}`}>
-                    <Plus className={H_STYLES.button.icon} />
-                    プラン追加
-                </Button>
+                {canCreate ? (
+                    <Button variant="primary" onClick={handleOpenCreate} className={`gap-2 ${H_STYLES.button.action}`}>
+                        <Plus className={H_STYLES.button.icon} />
+                        プラン追加
+                    </Button>
+                ) : null}
             </div>
 
             <div className={`flex flex-col ${H_STYLES.gap.tight}`}>

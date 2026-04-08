@@ -42,6 +42,7 @@ interface TreatmentRowProps {
   onMoveUp: (treatmentId: string) => void;
   onMoveDown: (treatmentId: string) => void;
   isUpdating: boolean;
+  canDelete?: boolean;
   /** 新規追加直後に数量フィールドへ自動フォーカスする */
   autoFocusQuantity?: boolean;
   /** autoFocusQuantity 完了後に親へ通知するコールバック */
@@ -59,6 +60,7 @@ export const TreatmentRow = memo(function TreatmentRow({
   onMoveUp,
   onMoveDown,
   isUpdating,
+  canDelete = true,
   autoFocusQuantity = false,
   onAutoFocusDone,
 }: TreatmentRowProps) {
@@ -206,7 +208,7 @@ export const TreatmentRow = memo(function TreatmentRow({
         <Checkbox
           checked={treatment.selected}
           onCheckedChange={handleSelectedChange}
-          className="data-[state=checked]:bg-[#2383E2] data-[state=checked]:border-[#2383E2]"
+          className={`${C.dataCheckedBgAccent} ${C.dataCheckedBorderAccent}`}
         />
       </td>
 
@@ -247,7 +249,7 @@ export const TreatmentRow = memo(function TreatmentRow({
         <Checkbox
           checked={treatment.insurance}
           onCheckedChange={handleInsuranceChange}
-          className="data-[state=checked]:bg-[#038B94] data-[state=checked]:border-[#038B94]"
+          className={`${C.dataCheckedBgBrand} ${C.dataCheckedBorderBrand}`}
         />
         {treatment.insurance ? (
           <Shield className={`${ICON.xs} mt-0.5 mx-auto ${C.textStatusGreen}`} />
@@ -379,10 +381,12 @@ export const TreatmentRow = memo(function TreatmentRow({
           >
             <ChevronDown className={`${ICON.xs}`} />
           </Button>
-          <DeleteIconButton
-            onClick={handleDelete}
-            className="size-7"
-          />
+          {canDelete ? (
+            <DeleteIconButton
+              onClick={handleDelete}
+              className="size-7"
+            />
+          ) : null}
         </div>
       </td>
     </tr>

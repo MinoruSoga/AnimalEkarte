@@ -1,40 +1,28 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // JWTClaims はJWTのペイロード
 type JWTClaims struct {
-	UserID   string `json:"user_id"`
-	ClinicID string `json:"clinic_id"`
-	UserType string `json:"user_type"`
+	UserID        string   `json:"user_id"`
+	ClinicID      string   `json:"clinic_id"`
+	IsSystemAdmin bool     `json:"is_system_admin"`
+	ClinicIDs     []uint64 `json:"clinic_ids,omitempty"`
 	jwt.RegisteredClaims
-}
-
-// ActiveUserFinder はアクティブなユーザーをIDで取得するインターフェース（循環インポート回避）
-type ActiveUserFinder interface {
-	FindActiveByID(ctx context.Context, id uint64) (*model.UserAccount, error)
 }
 
 // Auth はJWTトークンを検証する認証ミドルウェア。
 // httpOnly Cookie を優先して読み、なければ Authorization Bearer ヘッダにフォールバックする。
 // secret には config.Config.JWTSecret を渡す。
-// userRepo を指定するとJWT検証後にDBのアカウント状態もチェックする（BUG-061対応）。
-func Auth(secret string, userRepo ...ActiveUserFinder) gin.HandlerFunc {
+func Auth(secret string) gin.HandlerFunc {
 	key := []byte(secret)
-	var repo ActiveUserFinder
-	if len(userRepo) > 0 {
-		repo = userRepo[0]
-	}
 	return func(c *gin.Context) {
 		var tokenStr string
 
@@ -78,25 +66,40 @@ func Auth(secret string, userRepo ...ActiveUserFinder) gin.HandlerFunc {
 			return
 		}
 
-		// DBのアカウント状態をチェックする（BUG-061: アカウント停止・削除ユーザーの遮断）
-		if repo != nil {
-			userIDUint, parseErr := strconv.ParseUint(claims.UserID, 10, 64)
-			if parseErr != nil {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
-				c.Abort()
-				return
-			}
-			if _, err := repo.FindActiveByID(c.Request.Context(), userIDUint); err != nil {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "account is disabled or deleted"})
-				c.Abort()
-				return
-			}
-		}
-
 		// err == nil が確定しているためクレームを安全に格納
 		c.Set("user_id", claims.UserID)
-		c.Set("clinic_id", claims.ClinicID)
-		c.Set("user_type", claims.UserType)
+		c.Set("is_system_admin", claims.IsSystemAdmin)
+
+		// クリニック切替: X-Clinic-ID ヘッダーが送信された場合、所属チェック後に上書き（BUG-128）
+		clinicID := claims.ClinicID
+		if headerClinicID := c.GetHeader("X-Clinic-ID"); headerClinicID != "" {
+			if claims.IsSystemAdmin {
+				// system_admin はすべてのクリニックにアクセス可能
+				clinicID = headerClinicID
+			} else {
+				hID, err := strconv.ParseUint(headerClinicID, 10, 64)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "invalid clinic id"})
+					c.Abort()
+					return
+				}
+				found := false
+				for _, cid := range claims.ClinicIDs {
+					if cid == hID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					c.JSON(http.StatusForbidden, gin.H{"error": "not assigned to this clinic"})
+					c.Abort()
+					return
+				}
+				clinicID = headerClinicID
+			}
+		}
+		c.Set("clinic_id", clinicID)
+
 		c.Next()
 	}
 }

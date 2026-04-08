@@ -1,12 +1,5 @@
-import { ReactNode } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { memo, ReactNode } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { STYLE } from "@/lib/design-tokens";
 
 interface DataTableProps<T> {
@@ -21,7 +14,7 @@ interface DataTableProps<T> {
   className?: string;
 }
 
-export function DataTable<T>({
+export const DataTable = memo(function DataTable<T>({
   columns,
   data,
   renderRow,
@@ -65,4 +58,4 @@ export function DataTable<T>({
       </div>
     </div>
   );
-}
+}) as <T>(props: DataTableProps<T>) => React.ReactElement;

@@ -1,3 +1,4 @@
+// Package repository provides data access implementations for PermissionGroup entity.
 package repository
 
 import (
@@ -10,154 +11,228 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// PermissionGroupRepository は権限グループのデータアクセスインターフェース
+// ---- PermissionGroup ----
+
 type PermissionGroupRepository interface {
-	FindByCompanyID(ctx context.Context, companyID uint64) ([]model.PermissionGroup, error)
+	FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
 	FindByID(ctx context.Context, id uint64) (*model.PermissionGroup, error)
 	Create(ctx context.Context, group *model.PermissionGroup) error
-	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
-	HasPermission(ctx context.Context, userID uint64, resource model.Resource, action string) (bool, error)
-	VerifyGroupExists(ctx context.Context, groupID uint64) error
-	CountStaffsByPermissionGroupID(ctx context.Context, groupID uint64) (int64, error)
+	CountStaffsByGroupID(ctx context.Context, groupID uint64) (int64, error)
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	// GetEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
+	// UNION (bool_or) して実効権限を返す。
+	GetEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
+	// GetGroupIDsByStaffID はスタッフが所属する権限グループIDリストを返す。
+	GetGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error)
+	// SetStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
+	SetStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error
 }
 
-type permissionGroupRepository struct {
-	db *gorm.DB
-}
+type permissionGroupRepository struct{ db *gorm.DB }
 
-// NewPermissionGroupRepository はPermissionGroupRepositoryを初期化して返す
 func NewPermissionGroupRepository(db *gorm.DB) PermissionGroupRepository {
 	return &permissionGroupRepository{db: db}
 }
 
-func (r *permissionGroupRepository) FindByCompanyID(ctx context.Context, companyID uint64) ([]model.PermissionGroup, error) {
-	var groups []model.PermissionGroup
-	if err := r.db.WithContext(ctx).
+func (r *permissionGroupRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
+	groups := make([]model.PermissionGroup, 0)
+	err := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Rules").
-		Where("company_id = ? AND deleted_at IS NULL", companyID).
-		Order("id ASC").
-		Find(&groups).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", companyID))
+		Order("sort_order ASC, name ASC").
+		Find(&groups).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "permission_group", "")
 	}
 	return groups, nil
 }
 
 func (r *permissionGroupRepository) FindByID(ctx context.Context, id uint64) (*model.PermissionGroup, error) {
 	var group model.PermissionGroup
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Rules").
-		Where("id = ? AND deleted_at IS NULL", id).
-		First(&group).Error; err != nil {
+		First(&group, "id = ? AND deleted_at IS NULL", id).Error
+	if err != nil {
 		return nil, apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
 	}
 	return &group, nil
 }
 
 func (r *permissionGroupRepository) Create(ctx context.Context, group *model.PermissionGroup) error {
-	if err := r.db.WithContext(ctx).Create(group).Error; err != nil {
-		// BUG-032: 同一 company 内のグループ名重複は 409 に変換する
+	err := r.db.WithContext(ctx).Create(group).Error
+	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("permission_group", group.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.Wrap(err, "create permission group")
+		return apperrors.FromGORM(err, "permission_group", "")
 	}
 	return nil
 }
 
-func (r *permissionGroupRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]any) error {
-	if err := r.db.WithContext(ctx).
+func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	result := r.db.WithContext(ctx).
 		Model(&model.PermissionGroup{}).
-		Where("id = ? AND deleted_at IS NULL", id).
-		Updates(fields).Error; err != nil {
-		return apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
+		Updates(fields)
+	if result.Error != nil {
+		if isUniqueConstraintErr(result.Error) {
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
+		}
+		return apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("permission_group", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
 
 func (r *permissionGroupRepository) Delete(ctx context.Context, id uint64) error {
-	if err := r.db.WithContext(ctx).
-		Where("id = ? AND deleted_at IS NULL", id).
-		Delete(&model.PermissionGroup{}).Error; err != nil {
-		return apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
+	result := r.db.WithContext(ctx).
+		Model(&model.PermissionGroup{}).
+		Where("id = ?", id).
+		Update("deleted_at", gorm.Expr("now()"))
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("permission_group", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
 
-// SetRules はトランザクション内で既存ルールを全削除→新規一括挿入する
+// SetRules はトランザクション内で権限グループの全ルールを置き換える（全削除→再挿入）
 func (r *permissionGroupRepository) SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 既存ルールを全削除
 		if err := tx.Where("group_id = ?", groupID).Delete(&model.PermissionGroupRule{}).Error; err != nil {
-			return err
+			return apperrors.FromGORM(err, "permission_group_rule", "")
 		}
-		if len(rules) == 0 {
-			return nil
+
+		// 新しいルールを一括作成
+		if len(rules) > 0 {
+			for i := range rules {
+				rules[i].GroupID = groupID
+			}
+			if err := tx.CreateInBatches(rules, 100).Error; err != nil {
+				return apperrors.FromGORM(err, "permission_group_rule", "")
+			}
 		}
-		return tx.Create(&rules).Error
+
+		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "set permission group rules")
+		return apperrors.Wrap(err, "failed to set permission group rules")
 	}
 	return nil
 }
 
-// VerifyGroupExists は権限グループが存在するかどうかを確認する（BUG-031: 存在しない場合はErrNotFoundを返す）
-func (r *permissionGroupRepository) VerifyGroupExists(ctx context.Context, groupID uint64) error {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.PermissionGroup{}).
-		Where("id = ? AND deleted_at IS NULL", groupID).
-		Count(&count).Error
-	if err != nil {
-		return apperrors.Wrap(err, "verify group exists")
-	}
-	if count == 0 {
-		return apperrors.WrapNotFound("permission_group", fmt.Sprintf("%d", groupID))
-	}
-	return nil
-}
-
-// CountStaffsByPermissionGroupID は指定権限グループに所属するスタッフ数を返す（BUG-104）
-func (r *permissionGroupRepository) CountStaffsByPermissionGroupID(ctx context.Context, groupID uint64) (int64, error) {
+// CountStaffsByGroupID は指定グループを参照しているスタッフ数を返す（削除前の依存チェック用）
+func (r *permissionGroupRepository) CountStaffsByGroupID(ctx context.Context, groupID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
-		Table("user_permission_groups").
+		Model(&model.StaffPermissionGroup{}).
 		Where("group_id = ?", groupID).
 		Count(&count).Error; err != nil {
-		return 0, apperrors.Wrap(err, "count staffs by permission group id")
+		return 0, apperrors.FromGORM(err, "staff_permission_group", "")
 	}
 	return count, nil
 }
 
-// HasPermission はユーザーが指定リソースに対して指定アクションの権限を持つかどうかを確認する
-func (r *permissionGroupRepository) HasPermission(ctx context.Context, userID uint64, resource model.Resource, action string) (bool, error) {
-	type result struct {
-		HasPerm bool
-	}
-	var res result
-
-	column := ""
-	switch action {
-	case "view":
-		column = "bool_or(pgr.can_view)"
-	case "create":
-		column = "bool_or(pgr.can_create)"
-	case "edit":
-		column = "bool_or(pgr.can_edit)"
-	case "delete":
-		column = "bool_or(pgr.can_delete)"
-	default:
-		return false, nil
-	}
-
-	err := r.db.WithContext(ctx).Raw(fmt.Sprintf(`
-		SELECT COALESCE(%s, false) AS has_perm
-		FROM user_permission_groups upg
-		JOIN permission_groups pg ON pg.id = upg.group_id AND pg.deleted_at IS NULL
-		JOIN permission_group_rules pgr ON pgr.group_id = pg.id AND pgr.resource = ?
-		WHERE upg.user_id = ?
-	`, column), string(resource), userID).Scan(&res).Error
+// GetEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
+// UNION (bool_or) して実効権限を返す。
+// 戻り値の各要素は resource 毎に集約済み（GroupID=0, ID=0）。
+func (r *permissionGroupRepository) GetEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
+	var rules []model.PermissionGroupRule
+	// staff_permission_groups → permission_groups (active & not deleted) → permission_group_rules を JOIN し
+	// resource 毎に bool_or で集約する
+	err := r.db.WithContext(ctx).
+		Raw(`
+			SELECT
+				pgr.resource,
+				bool_or(pgr.can_view)   AS can_view,
+				bool_or(pgr.can_create) AS can_create,
+				bool_or(pgr.can_edit)   AS can_edit,
+				bool_or(pgr.can_delete) AS can_delete
+			FROM staff_permission_groups spg
+			JOIN permission_groups pg
+				ON pg.id = spg.group_id
+				AND pg.deleted_at IS NULL
+				AND pg.is_active = true
+			JOIN permission_group_rules pgr
+				ON pgr.group_id = pg.id
+			WHERE spg.staff_id = ?
+			GROUP BY pgr.resource
+		`, staffID).
+		Scan(&rules).Error
 	if err != nil {
-		return false, apperrors.Wrap(err, "check permission")
+		return nil, apperrors.FromGORM(err, "effective_permissions", fmt.Sprintf("staff:%d", staffID))
 	}
-	return res.HasPerm, nil
+	return rules, nil
+}
+
+// GetGroupIDsByStaffID はスタッフが所属する権限グループIDリストを返す。
+func (r *permissionGroupRepository) GetGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
+	var rows []struct {
+		GroupID uint64
+	}
+	if err := r.db.WithContext(ctx).
+		Model(&model.StaffPermissionGroup{}).
+		Select("group_id").
+		Where("staff_id = ?", staffID).
+		Scan(&rows).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
+	}
+	ids := make([]uint64, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.GroupID)
+	}
+	return ids, nil
+}
+
+// SetStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
+func (r *permissionGroupRepository) SetStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 既存の紐付けを全削除
+		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffPermissionGroup{}).Error; err != nil {
+			return apperrors.FromGORM(err, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
+		}
+		// 新しい紐付けを挿入
+		if len(groupIDs) > 0 {
+			rows := make([]model.StaffPermissionGroup, 0, len(groupIDs))
+			for _, gid := range groupIDs {
+				rows = append(rows, model.StaffPermissionGroup{StaffID: staffID, GroupID: gid})
+			}
+			if err := tx.CreateInBatches(rows, 100).Error; err != nil {
+				return apperrors.FromGORM(err, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
+			}
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to set staff permission groups")
+	}
+	return nil
+}
+
+// Reorder は指定されたIDリストの順序でソート順を更新する
+func (r *permissionGroupRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			result := tx.Model(&model.PermissionGroup{}).
+				Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
+				Update("sort_order", i+1)
+			if result.Error != nil {
+				return apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("permission_group id %d not found in this clinic", id))
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return apperrors.Wrap(err, "reorder permission group")
+	}
+	return nil
 }

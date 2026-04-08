@@ -6,6 +6,8 @@ import { useGetRecordImages } from "../api/get-record-images";
 import { useUploadImages, useDeleteImage } from "../api/record-images";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
+import { usePermission } from "@/features/auth";
+import { C } from "@/lib/design-tokens";
 
 interface MedicalRecordImageProps {
   isNewRecord?: boolean;
@@ -16,6 +18,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
   isNewRecord = false,
   medicalRecordId,
 }: MedicalRecordImageProps) {
+  const { canCreate, canDelete } = usePermission("medical-records");
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
   const [dateStart, setDateStart] = useState("");
@@ -42,21 +45,21 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
   const handleFilesSelected = useCallback(
     (files: File[]) => {
-      if (!resolvedId) return;
+      if (!canCreate || !resolvedId) return;
       uploadMutation.mutate(files);
     },
-    [resolvedId, uploadMutation],
+    [canCreate, resolvedId, uploadMutation],
   );
 
   const handleDeleteImage = useCallback(
     (imageId: number) => {
-      if (!resolvedId) return;
+      if (!canDelete || !resolvedId) return;
       setDeletingId(imageId);
       deleteMutation.mutate(imageId, {
         onSettled: () => setDeletingId(null),
       });
     },
-    [resolvedId, deleteMutation],
+    [canDelete, resolvedId, deleteMutation],
   );
 
   return (
@@ -73,20 +76,21 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
         onSortOrderChange={setSortOrder}
         isUploading={uploadMutation.isPending}
         onFilesSelected={handleFilesSelected}
+        canUpload={canCreate}
       />
 
       {/* Results Title */}
       <div>
-        <h2 className="text-sm font-bold text-[#37352F] pl-1">検査結果</h2>
+        <h2 className={`text-sm font-bold ${C.text} pl-1`}>検査結果</h2>
       </div>
 
       {/* Image Groups */}
       {isLoading ? (
-        <div className="flex items-center justify-center h-24 text-sm text-[#37352F]/40 pl-1">
+        <div className={`flex items-center justify-center h-24 text-sm ${C.text40} pl-1`}>
           読み込み中...
         </div>
       ) : imageGroups.length === 0 ? (
-        <div className="flex items-center justify-center h-24 text-sm text-[#37352F]/40 pl-1">
+        <div className={`flex items-center justify-center h-24 text-sm ${C.text40} pl-1`}>
           画像がありません
         </div>
       ) : null}
@@ -96,7 +100,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
               <ImageGalleryGroup
                 key={group.id}
                 group={group}
-                onDeleteImage={resolvedId ? handleDeleteImage : undefined}
+                onDeleteImage={resolvedId && canDelete ? handleDeleteImage : undefined}
                 isDeletingId={deletingId}
               />
             ))

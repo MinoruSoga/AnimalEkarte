@@ -59,7 +59,7 @@ func (h *Handler) CreateVital(c *gin.Context) {
 
 	var req createVitalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -111,7 +111,7 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 
 	var req updateVitalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -176,7 +176,7 @@ func toBodyWeightUnit(s *string) *model.BodyWeightUnit {
 // RegisterVitalRoutes はバイタル関連のルートをmedical-recordsグループに登録する
 func (h *Handler) RegisterVitalRoutes(rg *gin.RouterGroup) {
 	rg.GET("/:id/vitals", h.ListVitals)
-	rg.POST("/:id/vitals", h.CreateVital)
-	rg.PATCH("/:id/vitals/:vitalId", h.UpdateVital)
-	rg.DELETE("/:id/vitals/:vitalId", h.DeleteVital)
+	rg.POST("/:id/vitals", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.CreateVital)
+	rg.PATCH("/:id/vitals/:vitalId", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateVital)
+	rg.DELETE("/:id/vitals/:vitalId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteVital)
 }

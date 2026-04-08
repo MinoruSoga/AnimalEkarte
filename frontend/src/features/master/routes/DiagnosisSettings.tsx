@@ -5,14 +5,8 @@ import { paths } from "@/config/paths";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 
 // DnD
-import {
-  DndContext,
-  closestCenter,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { DndContext, closestCenter } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 // Shared hooks
 import { useSortableList } from "@/hooks/use-sortable-list";
@@ -25,13 +19,7 @@ import { toast } from "sonner";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -46,18 +34,7 @@ import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
-import {
-  useGetDiagnosisCategories,
-  useCreateDiagnosisCategory,
-  useUpdateDiagnosisCategory,
-  useDeleteDiagnosisCategory,
-  useReorderDiagnosisCategories,
-  useGetDiagnosisNames,
-  useCreateDiagnosisName,
-  useUpdateDiagnosisName,
-  useDeleteDiagnosisName,
-  useReorderDiagnosisNames,
-} from "@/features/master/api/diagnosis";
+import { useGetDiagnosisCategories, useCreateDiagnosisCategory, useUpdateDiagnosisCategory, useDeleteDiagnosisCategory, useReorderDiagnosisCategories, useGetDiagnosisNames, useCreateDiagnosisName, useUpdateDiagnosisName, useDeleteDiagnosisName, useReorderDiagnosisNames } from "@/features/master/api/diagnosis";
 
 // Types
 import type { DiagnosisCategory, DiagnosisName } from "@/features/master/api/diagnosis";
@@ -67,6 +44,8 @@ import type {
   CreateDiagnosisNameRequest,
   UpdateDiagnosisNameRequest,
 } from "@/types/diagnosis";
+import { ResourceMasterMedical } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // ─────────────────────────────────────────────────
 // Columns
@@ -118,7 +97,8 @@ interface DiagnosisCategorySidePanelProps {
   item: DiagnosisCategory | null;
   onClose: () => void;
   onSave: (data: DiagnosisCategoryFormData) => void;
-  onDeleteRequest: (item: DiagnosisCategory) => void;
+  onDeleteRequest?: (item: DiagnosisCategory) => void;
+  readOnly?: boolean;
 }
 
 const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
@@ -126,6 +106,7 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
 }: DiagnosisCategorySidePanelProps) {
   const [formData, setFormData] = useState<DiagnosisCategoryFormData>(() => ({
     name: item?.name ?? "",
@@ -173,10 +154,12 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<FolderTree className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton
         isActive={formData.isActive}
@@ -202,7 +185,8 @@ interface DiagnosisNameSidePanelProps {
   categories: DiagnosisCategory[];
   onClose: () => void;
   onSave: (data: DiagnosisNameFormData) => void;
-  onDeleteRequest: (item: DiagnosisName) => void;
+  onDeleteRequest?: (item: DiagnosisName) => void;
+  readOnly?: boolean;
 }
 
 const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
@@ -211,6 +195,7 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
 }: DiagnosisNameSidePanelProps) {
   const [formData, setFormData] = useState<DiagnosisNameFormData>(() => ({
     name: item?.name ?? "",
@@ -276,10 +261,12 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<ClipboardList className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton
         isActive={formData.isActive}
@@ -316,9 +303,10 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
 interface DiagnosisCategoryTabProps {
   editTarget: DiagnosisCategory | "new" | null;
   onEditTargetChange: (v: DiagnosisCategory | "new" | null) => void;
+  canEdit: boolean;
 }
 
-function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: DiagnosisCategoryTabProps) {
+function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange, canEdit }: DiagnosisCategoryTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: rawCategories } = useGetDiagnosisCategories();
@@ -370,7 +358,7 @@ function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: D
               <SortableDataTableRow
                 key={item.id}
                 id={item.id}
-                onClick={() => onEditTargetChange(item)}
+                onClick={canEdit ? () => onEditTargetChange(item) : undefined}
               >
                 <TableCell className={`font-medium text-base ${C.text}`}>
                   {item.name}
@@ -382,7 +370,7 @@ function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: D
                   <NotionStatusPill isActive={item.isActive} />
                 </TableCell>
                 <TableCell className="p-0 text-right">
-                  <RowActionButton onClick={() => onEditTargetChange(item)} />
+                  {canEdit ? <RowActionButton onClick={() => onEditTargetChange(item)} /> : null}
                 </TableCell>
               </SortableDataTableRow>
             )}
@@ -400,9 +388,10 @@ function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: D
 interface DiagnosisNameTabProps {
   editTarget: DiagnosisName | "new" | null;
   onEditTargetChange: (v: DiagnosisName | "new" | null) => void;
+  canEdit: boolean;
 }
 
-function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: DiagnosisNameTabProps) {
+function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange, canEdit }: DiagnosisNameTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: rawCategories } = useGetDiagnosisCategories();
@@ -461,7 +450,7 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: Diagn
               <SortableDataTableRow
                 key={item.id}
                 id={item.id}
-                onClick={() => onEditTargetChange(item)}
+                onClick={canEdit ? () => onEditTargetChange(item) : undefined}
               >
                 <TableCell className={`text-base ${C.text70}`}>
                   {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
@@ -473,7 +462,7 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: Diagn
                   <NotionStatusPill isActive={item.isActive} />
                 </TableCell>
                 <TableCell className="p-0 text-right">
-                  <RowActionButton onClick={() => onEditTargetChange(item)} />
+                  {canEdit ? <RowActionButton onClick={() => onEditTargetChange(item)} /> : null}
                 </TableCell>
               </SortableDataTableRow>
             )}
@@ -490,6 +479,7 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: Diagn
 
 export function DiagnosisSettings() {
   const navigate = useNavigate();
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "diagnosis_category";
 
@@ -614,17 +604,20 @@ export function DiagnosisSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="診断病名マスタ"
-            icon={<ClipboardList className={`${ICON.page} text-[#37352F]`} />}
+            icon={<ClipboardList className={`${ICON.page} ${C.text}`} />}
+            resource={ResourceMasterMedical}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
-              <PrimaryButton onClick={() => {
-                if (activeTab === "diagnosis_category") catCrud.handleNew();
-                else nameCrud.handleNew();
-              }}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
+              canCreate ? (
+                <PrimaryButton onClick={() => {
+                  if (activeTab === "diagnosis_category") catCrud.handleNew();
+                  else nameCrud.handleNew();
+                }}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null
             }
           >
             <TabsPrimitive.Root
@@ -640,7 +633,7 @@ export function DiagnosisSettings() {
                     key={tab.value}
                     value={tab.value}
                     className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
-                      data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
+                      ${C.dataActiveBorderB} ${C.dataActiveText} data-[state=active]:font-medium`}
                   >
                     {tab.label}
                   </TabsPrimitive.Trigger>
@@ -650,12 +643,14 @@ export function DiagnosisSettings() {
                 <DiagnosisCategoryTab
                   editTarget={catCrud.editTarget}
                   onEditTargetChange={catCrud.setEditTarget}
+                  canEdit={canEdit}
                 />
               </TabsPrimitive.Content>
               <TabsPrimitive.Content value="diagnosis_name" className="mt-4">
                 <DiagnosisNameTab
                   editTarget={nameCrud.editTarget}
                   onEditTargetChange={nameCrud.setEditTarget}
+                  canEdit={canEdit}
                 />
               </TabsPrimitive.Content>
             </TabsPrimitive.Root>
@@ -668,7 +663,8 @@ export function DiagnosisSettings() {
             item={catCrud.panelItem}
             onClose={catCrud.handleClose}
             onSave={handleCategorySave}
-            onDeleteRequest={catCrud.setPendingDelete}
+            onDeleteRequest={canDelete ? catCrud.setPendingDelete : undefined}
+            readOnly={!canEdit}
           />
         ) : null}
         {activeTab === "diagnosis_name" && nameCrud.isEditing ? (
@@ -678,7 +674,8 @@ export function DiagnosisSettings() {
             categories={rawCategories ?? []}
             onClose={nameCrud.handleClose}
             onSave={handleNameSave}
-            onDeleteRequest={nameCrud.setPendingDelete}
+            onDeleteRequest={canDelete ? nameCrud.setPendingDelete : undefined}
+            readOnly={!canEdit}
           />
         ) : null}
       </div>

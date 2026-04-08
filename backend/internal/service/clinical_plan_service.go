@@ -64,7 +64,8 @@ func (s *clinicalPlanService) Update(ctx context.Context, medicalRecordID uint64
 	}
 	fields := buildClinicalPlanUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		// 全フィールドが未指定の場合は no-op として現在のレコードをそのまま返す
+		return plan, nil
 	}
 	if err := s.repo.Update(ctx, plan.ID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update clinical plan")

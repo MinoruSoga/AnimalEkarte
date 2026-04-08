@@ -15,10 +15,10 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetAnimalSpecies, useCreateAnimalSpecies, useUpdateAnimalSpecies, useDeleteAnimalSpecies, useReorderAnimalSpecies,
-} from "@/features/master/api/animal-species";
+import { usePermission } from "@/features/auth/hooks/use-permission";
+import { useGetAnimalSpecies, useCreateAnimalSpecies, useUpdateAnimalSpecies, useDeleteAnimalSpecies, useReorderAnimalSpecies } from "@/features/master/api/animal-species";
 import type { AnimalSpecies, UpdateAnimalSpeciesRequest } from "@/features/master/api/animal-species";
+import { ResourceMasterAnimalSpecies } from "@/types/generated/models";
 
 const COLUMNS = [
   { header: "", className: "w-[32px]" },
@@ -30,8 +30,8 @@ const COLUMNS = [
 interface FormData { name: string; isActive: boolean; }
 
 const SidePanel = memo(function SidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: AnimalSpecies | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest: (i: AnimalSpecies) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: AnimalSpecies | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: AnimalSpecies) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<FormData>(() => ({ name: item?.name ?? "", isActive: item?.isActive ?? true }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
@@ -65,16 +65,19 @@ const SidePanel = memo(function SidePanel({
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
-      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onClose={handleClose} action={readOnly ? undefined : handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<PawPrint className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
     </MasterSidePanel>
   );
 });
 
 export function AnimalSpeciesSettings() {
+  const { canEdit } = usePermission(ResourceMasterAnimalSpecies);
   const { data } = useGetAnimalSpecies();
   const createMutation = useCreateAnimalSpecies();
   const updateMutation = useUpdateAnimalSpecies();
@@ -96,13 +99,13 @@ export function AnimalSpeciesSettings() {
   });
 
   return (
-    <MasterCRUDPage title="動物種類マスタ" icon={<PawPrint className={`${ICON.page} text-[#37352F]`} />}
+    <MasterCRUDPage title="動物種類マスタ" icon={<PawPrint className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterAnimalSpecies}
       entityLabel="動物種類" searchPlaceholder="動物種類名で検索..." emptyMessage="動物種類が登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       deleteDescription={`「${crud.pendingDelete?.name}」を削除します。ペットで使用中の場合は削除できません。この操作は取り消せません。`}
       renderRow={() => null}
-      renderSidePanel={(props) => <SidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={({ readOnly, ...props }) => <SidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />}
     >
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
@@ -111,7 +114,7 @@ export function AnimalSpeciesSettings() {
               <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
                 <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
                 <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-                <TableCell className="p-0 text-right"><RowActionButton onClick={() => crud.handleEdit(item)} /></TableCell>
+                <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}</TableCell>
               </SortableDataTableRow>
             )}
           />

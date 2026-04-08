@@ -31,7 +31,7 @@ import { useStaffValidation } from "@/hooks/use-staff-validation";
 // Relative
 import { useFilterMedicalRecords } from "../hooks/use-medical-records";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type {
@@ -41,6 +41,7 @@ import type {
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
 import type { MedicalRecordFilters } from "../api/get-medical-records";
+import { ResourceMedicalRecords } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（担当医・種は動的オプションのためコンポーネント内で構築）
 const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
@@ -199,11 +200,12 @@ export function MedicalRecords() {
     <PageLayout
       title="カルテ管理"
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMedicalRecords}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={() => handleNavigateToForm()}>
             <Plus className={ICON.action} />
-            新規カルテ作成
+            新規カルテ登録
           </PrimaryButton>
         ) : null
       }
@@ -249,7 +251,7 @@ export function MedicalRecords() {
                         e.stopPropagation();
                         navigate(`/accounting/${r.accountingId}`);
                       }}
-                      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-[3px] border ${C.textSuccess} bg-[#10B981]/10 border-[#10B981]/30 hover:bg-[#10B981]/20 transition-colors`}
+                      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-[3px] border ${C.textSuccess} ${C.bgSuccess10} ${C.borderSuccess30} ${C.hoverBgSuccess20} transition-colors`}
                     >
                       <Receipt className={ICON.xs} />
                       会計

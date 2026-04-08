@@ -1,5 +1,8 @@
+// External
+import { memo } from "react";
+
 // Internal
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { Textarea } from "@/components/ui/textarea";
 
 // Relative
@@ -17,11 +20,11 @@ interface HospitalizationNoteCardProps {
   placeholder?: string;
 }
 
-export function HospitalizationNoteCard({ id, title, icon: Icon, value, onChange, placeholder }: HospitalizationNoteCardProps) {
+export const HospitalizationNoteCard = memo(function HospitalizationNoteCard({ id, title, icon: Icon, value, onChange, placeholder }: HospitalizationNoteCardProps) {
   return (
-    <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} h-full`}>
-      <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 text-[#37352F]`}>
-        <Icon className={`${ICON.action} text-[#37352F]/60`} />
+    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} ${H_STYLES.padding.box} h-full`}>
+      <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
+        <Icon className={`${ICON.action} ${C.text60}`} />
         {title}
       </h2>
       <Textarea
@@ -29,8 +32,8 @@ export function HospitalizationNoteCard({ id, title, icon: Icon, value, onChange
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`min-h-[200px] ${H_STYLES.text.base} resize-none bg-white border-[rgba(55,53,47,0.16)] focus-visible:ring-[#2EAADC]`}
+        className={`min-h-[200px] ${H_STYLES.text.base} resize-none bg-white ${C.borderMedium} ${C.focusRingMedicalBlue}`}
       />
     </div>
   );
-}
+});

@@ -42,20 +42,10 @@
 
 ---
 
-## 4. デプロイメント (AWS / ECS)
+## 4. デプロイメント
 
-テスト環境へのデプロイは GitHub Actions により自動化されています。
-
-### 4.1 自動デプロイ (CI/CD)
-- **トリガー**: `main` ブランチへの push またはプルリクエストの合流。
-- **ワークフロー**: `.github/workflows/backend-deploy.yml`
-  1. Go テストの実行
-  2. Docker イメージのビルド（linux/amd64）
-  3. Amazon ECR への push
-  4. ECS Service の強制更新（Fargate）
-
-### 4.2 手動デプロイ (緊急時)
-インフラ詳細ドキュメント (`docs/infra/docs_infra_architecture.md`) の「6. デプロイ手順」を参照してください。
+デプロイ手順は [CI-CD-PIPELINE.md](./infra/deploy/CI-CD-PIPELINE.md) を参照。
+インフラ構成は [docs_infra_architecture.md](./infra/docs_infra_architecture.md) を参照。
 
 ---
 

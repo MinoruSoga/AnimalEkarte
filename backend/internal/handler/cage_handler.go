@@ -51,7 +51,7 @@ func (h *Handler) CreateCage(c *gin.Context) {
 	}
 	var input createCageRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -86,7 +86,7 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 	}
 	var input updateCageRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -127,7 +127,7 @@ func (h *Handler) ReorderCages(c *gin.Context) {
 	}
 	var req reorderCageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.Cage.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

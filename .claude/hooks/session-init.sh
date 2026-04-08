@@ -4,24 +4,17 @@ echo "=== Claude Code Session Started ==="
 echo "Project: $CLAUDE_PROJECT_DIR"
 echo "Time: $(date)"
 
-# プロジェクトタイプを検出
-if [[ -f "$CLAUDE_PROJECT_DIR/package.json" ]]; then
-    echo "Node.js project detected"
+# 前回セッションの進捗を読み込み
+PROGRESS_FILE="$CLAUDE_PROJECT_DIR/.claude/logs/session-progress.md"
+if [[ -f "$PROGRESS_FILE" ]]; then
+    echo ""
+    echo "=== Previous Session Context ==="
+    cat "$PROGRESS_FILE"
+    echo "=== End Previous Context ==="
+    echo ""
 fi
 
-if [[ -f "$CLAUDE_PROJECT_DIR/requirements.txt" ]]; then
-    echo "Python project detected"
-fi
-
-if [[ -f "$CLAUDE_PROJECT_DIR/go.mod" ]]; then
-    echo "Go project detected"
-fi
-
-if [[ -f "$CLAUDE_PROJECT_DIR/Cargo.toml" ]]; then
-    echo "Rust project detected"
-fi
-
-# 進捗ファイルの存在確認
+# 進捗ファイルの存在確認（旧形式互換）
 if [[ -f "$CLAUDE_PROJECT_DIR/claude-progress.txt" ]]; then
     echo "Progress file found - run /status to check progress"
 fi

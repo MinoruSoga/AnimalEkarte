@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Internal
 import { axios } from "@/lib/axios";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@/features/auth";
 
 // Relative
 import type { BillingReview, ReturnBillingReviewInput } from "../types";
@@ -38,8 +38,13 @@ export function useConfirmBillingReview(medicalRecordId: string) {
         input
       ),
     onSuccess: () => {
+      // Invalidate billing-review cache for current medical record
       void queryClient.invalidateQueries({
         queryKey: billingReviewQueryKey(medicalRecordId),
+      });
+      // Invalidate accountings list cache so new billing appears immediately
+      void queryClient.invalidateQueries({
+        queryKey: ["accountings"],
       });
     },
   });
@@ -60,8 +65,13 @@ export function useReturnBillingReview(medicalRecordId: string) {
         }
       ),
     onSuccess: () => {
+      // Invalidate billing-review cache for current medical record
       void queryClient.invalidateQueries({
         queryKey: billingReviewQueryKey(medicalRecordId),
+      });
+      // Invalidate accountings list cache in case billing status changes
+      void queryClient.invalidateQueries({
+        queryKey: ["accountings"],
       });
     },
   });

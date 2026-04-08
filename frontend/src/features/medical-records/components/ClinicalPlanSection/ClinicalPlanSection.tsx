@@ -14,11 +14,12 @@ import type { UpdateClinicalPlanInput } from "@/features/medical-records/api/cli
 interface ClinicalPlanSectionProps {
   medicalRecordId: string;
   onRegisterSave?: (fn: () => Promise<void>) => void;
+  canEdit?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: ClinicalPlanSectionProps) {
+export function ClinicalPlanSection({ medicalRecordId, onRegisterSave, canEdit = false }: ClinicalPlanSectionProps) {
   const { data, isLoading } = useGetClinicalPlan(medicalRecordId);
   const updateMutation = useUpdateClinicalPlan(medicalRecordId);
 
@@ -41,6 +42,7 @@ export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: Clinica
   }, [data]);
 
   const handleSave = useCallback(async (): Promise<void> => {
+    if (!canEdit) return;
     const input: UpdateClinicalPlanInput = {
       physical_exam: physicalExam,
       diagnosis_category_id: diagnosisCategoryId ? Number(diagnosisCategoryId) : null,
@@ -49,7 +51,7 @@ export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: Clinica
       treatment_policy: treatmentPolicy,
     };
     await updateMutation.mutateAsync(input);
-  }, [physicalExam, diagnosisCategoryId, diagnosisNameId, diagnosisDetails, treatmentPolicy, updateMutation]);
+  }, [canEdit, physicalExam, diagnosisCategoryId, diagnosisNameId, diagnosisDetails, treatmentPolicy, updateMutation]);
 
   // Register save function with parent
   useEffect(() => {
@@ -78,6 +80,7 @@ export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: Clinica
             onChange={setPhysicalExam}
             placeholder="身体検査所見を入力してください"
             textareaClassName={`min-h-[100px] ${C.text} text-sm`}
+            disabled={!canEdit}
           />
         </div>
 
@@ -94,6 +97,7 @@ export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: Clinica
             onChange={(e) => setDiagnosisCategoryId(e.target.value)}
             placeholder="カテゴリを選択"
             className={`${STYLE.formInput} border rounded-[4px] px-3 outline-none focus:ring-0`}
+            disabled={!canEdit}
           />
         </div>
 
@@ -110,6 +114,7 @@ export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: Clinica
             onChange={(e) => setDiagnosisNameId(e.target.value)}
             placeholder="病名を選択"
             className={`${STYLE.formInput} border rounded-[4px] px-3 outline-none focus:ring-0`}
+            disabled={!canEdit}
           />
         </div>
 
@@ -121,6 +126,7 @@ export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: Clinica
             onChange={setDiagnosisDetails}
             placeholder="診断詳細を入力してください"
             textareaClassName={`min-h-[100px] ${C.text} text-sm`}
+            disabled={!canEdit}
           />
         </div>
 
@@ -132,6 +138,7 @@ export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: Clinica
             onChange={setTreatmentPolicy}
             placeholder="治療方針を入力してください"
             textareaClassName={`min-h-[100px] ${C.text} text-sm`}
+            disabled={!canEdit}
           />
         </div>
 

@@ -1,13 +1,27 @@
 package handler
 
-// MeClinicMembership は GET /me のクリニック所属情報
-type MeClinicMembership struct {
-	ClinicID   string `json:"clinic_id"`
-	ClinicName string `json:"clinic_name"`
-	IsMain     bool   `json:"is_main"`
+// LoginResponse はログインレスポンスの構造
+type LoginResponse struct {
+	Token         string      `json:"token"`
+	ExpiresAt     int64       `json:"expires_at"`
+	IsSystemAdmin bool        `json:"is_system_admin"`
+	User          *MeResponse `json:"user"`
 }
 
-// MeClinicInfo は GET /me のメイン医院詳細情報
+// MeResponse はユーザー情報レスポンスの構造
+type MeResponse struct {
+	ID            string               `json:"id"`
+	Email         string               `json:"email"`
+	DisplayName   string               `json:"display_name"`
+	IsSystemAdmin bool                 `json:"is_system_admin"`
+	Occupation    *string              `json:"occupation,omitempty"`
+	MainClinicID  string               `json:"main_clinic_id"`
+	Clinic        *MeClinicInfo        `json:"clinic,omitempty"`
+	Clinics       []MeClinicMembership `json:"clinics,omitempty"`
+	Permissions   EffectivePermissions `json:"permissions"`
+}
+
+// MeClinicInfo はユーザー所属クリニックの詳細情報
 type MeClinicInfo struct {
 	ID                 string  `json:"id"`
 	Name               string  `json:"name"`
@@ -19,40 +33,23 @@ type MeClinicInfo struct {
 	DirectorName       string  `json:"director_name"`
 	Email              string  `json:"email"`
 	Website            string  `json:"website"`
-	LogoURL            *string `json:"logo_url"`
+	LogoURL            *string `json:"logo_url,omitempty"`
 }
 
-// ResourcePermission は1リソースのCRUD権限
+// MeClinicMembership はユーザーのクリニック所属情報
+type MeClinicMembership struct {
+	ClinicID   string `json:"clinic_id"`
+	ClinicName string `json:"clinic_name"`
+	IsMain     bool   `json:"is_main"`
+}
+
+// EffectivePermissions はユーザーの実効権限マップ
+type EffectivePermissions map[string]ResourcePermission
+
+// ResourcePermission はリソース単位の権限
 type ResourcePermission struct {
 	View   bool `json:"view"`
 	Create bool `json:"create"`
 	Edit   bool `json:"edit"`
 	Delete bool `json:"delete"`
-}
-
-// EffectivePermissions は resource → CRUD のフラットマップ（company単位）
-// 例: {"accounting": {View: true, Create: true, Edit: false, Delete: false}}
-type EffectivePermissions = map[string]ResourcePermission
-
-// MeResponse は GET /me のレスポンス（フロントエンド AuthUser と対応）
-type MeResponse struct {
-	ID           string               `json:"id"`
-	Email        string               `json:"email"`
-	DisplayName  string               `json:"display_name"`
-	UserType     string               `json:"user_type"`
-	StaffRole    *string              `json:"staff_role"`
-	JobTitle     *string              `json:"job_title"`
-	AvatarURL    *string              `json:"avatar_url"`
-	MainClinicID string               `json:"main_clinic_id"`
-	Clinic       *MeClinicInfo        `json:"clinic"`
-	Clinics      []MeClinicMembership `json:"clinics"`
-	Permissions  EffectivePermissions `json:"permissions"`
-}
-
-// LoginResponse はログイン成功時のレスポンス
-type LoginResponse struct {
-	Token     string      `json:"token"` // JWT トークン（Authorization Bearer で送信）
-	ExpiresAt int64       `json:"expires_at"`
-	UserType  string      `json:"user_type"`
-	User      *MeResponse `json:"user"`
 }

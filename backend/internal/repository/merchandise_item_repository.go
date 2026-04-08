@@ -17,6 +17,7 @@ import (
 type MerchandiseItemRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
+	CountUsageByMerchandiseItemID(ctx context.Context, merchandiseItemID uint64) (int64, error)
 	Create(ctx context.Context, item *model.MerchandiseItem) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -112,6 +113,29 @@ func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64
 		return apperrors.Wrap(err, "reorder merchandise item")
 	}
 	return nil
+}
+
+// CountUsageByMerchandiseItemID は物販品目を参照している billing_items と estimate_items の件数の合計を返す（BUG-109）
+// Migration 002 でFK カラムが追加された後、このメソッドで依存チェックを実行する
+func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Context, merchandiseItemID uint64) (int64, error) {
+	var billingCount int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.BillingItem{}).
+		Where("merchandise_item_id = ? AND deleted_at IS NULL", merchandiseItemID).
+		Count(&billingCount).Error; err != nil {
+		return 0, apperrors.Wrap(err, "count billing items by merchandise_item_id")
+	}
+
+	var estimateCount int64
+	// BUG-154: estimate_items に deleted_at カラムがないため条件を削除
+	if err := r.db.WithContext(ctx).
+		Model(&model.EstimateItem{}).
+		Where("merchandise_item_id = ?", merchandiseItemID).
+		Count(&estimateCount).Error; err != nil {
+		return 0, apperrors.Wrap(err, "count estimate items by merchandise_item_id")
+	}
+
+	return billingCount + estimateCount, nil
 }
 
 func (r *merchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -20,6 +20,7 @@ type OwnerRepository interface {
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
+	CountPetsByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
 
 type ownerRepository struct {
@@ -154,4 +155,17 @@ func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error
 		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountPetsByOwnerID は指定されたオーナーに紐付いているペット数を返す
+func (r *ownerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Pet{}).
+		Where("clinic_id = ? AND owner_id = ?", clinicID, ownerID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.Wrap(err, "count pets by owner")
+	}
+	return count, nil
 }

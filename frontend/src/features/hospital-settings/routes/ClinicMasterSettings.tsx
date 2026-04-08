@@ -1,13 +1,7 @@
 // React/Framework
+import { memo } from "react";
 import type { ReactNode } from "react";
-import {
-  useCallback,
-  useDeferredValue,
-  useMemo,
-  useState,
-  useActionState,
-  useEffect,
-} from "react";
+import { useCallback, useDeferredValue, useMemo, useState, useActionState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -27,12 +21,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
-import {
-  useGetClinics,
-  useCreateClinic,
-  useUpdateClinic,
-  useDeleteClinic,
-} from "@/features/hospital-settings/api/clinics";
+import { useGetClinics, useCreateClinic, useUpdateClinic, useDeleteClinic } from "@/features/hospital-settings/api/clinics";
 
 // Types
 import type {
@@ -40,6 +29,8 @@ import type {
   CreateClinicRequest,
   UpdateClinicRequest,
 } from "@/features/hospital-settings/api/clinics";
+import { ResourceHospitalSettings } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -56,7 +47,7 @@ const COLUMNS = [
 // Property Row (Notion-style)
 // ─────────────────────────────────────────────────
 
-function PropertyRow({
+const PropertyRow = memo(function PropertyRow({
   label,
   children,
 }: {
@@ -64,14 +55,14 @@ function PropertyRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex gap-2 py-2 px-2 -mx-2 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors min-h-[40px]">
-      <div className="w-[140px] shrink-0 text-sm text-[#37352F]/65 select-none truncate flex items-center">
+    <div className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}>
+      <div className={`w-[140px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
         {label}
       </div>
       <div className="flex-1 flex items-center">{children}</div>
     </div>
   );
-}
+});
 
 // ─────────────────────────────────────────────────
 // Status Pill
@@ -79,16 +70,16 @@ function PropertyRow({
 
 const STATUS_CONFIG = {
   active: {
-    dot: "bg-[#2383E2]",
+    dot: `${C.bgAccent}`,
     label: "有効",
-    bg: "bg-[#D3E5EF]",
-    text: "text-[#183B56]",
+    bg: `${C.bgAccentLight}`,
+    text: `${C.textAccentDark}`,
   },
   inactive: {
-    dot: "bg-[#37352F]/10",
+    dot: C.bgPrimary10,
     label: "無効",
-    bg: "bg-[#E3E2E0]",
-    text: "text-[#37352F]/60",
+    bg: `${C.bgInactive}`,
+    text: C.text60,
   },
 } as const;
 
@@ -142,7 +133,7 @@ const DEFAULT_FORM_DATA: ClinicFormData = {
 // PropertyInput class
 // ─────────────────────────────────────────────────
 
-const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`;
+const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
 
 // ─────────────────────────────────────────────────
 // ClinicMasterSettings
@@ -150,6 +141,7 @@ const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none b
 
 export function ClinicMasterSettings() {
   const navigate = useNavigate();
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceHospitalSettings);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Clinic | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -298,13 +290,16 @@ export function ClinicMasterSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="医院マスタ"
-            icon={<Building2 className={`${ICON.page} text-[#37352F]`} />}
+            resource={ResourceHospitalSettings}
+            icon={<Building2 className={`${ICON.page} ${C.text}`} />}
             onBack={() => navigate(paths.settings.getHref())}
             headerAction={
-              <PrimaryButton onClick={handleCreate}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
+              canCreate ? (
+                <PrimaryButton onClick={handleCreate}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null
             }
             maxWidth="max-w-full"
           >
@@ -324,20 +319,20 @@ export function ClinicMasterSettings() {
                 data={filteredItems}
                 emptyMessage="医院が登録されていません"
                 renderRow={(item) => (
-                  <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-                    <TableCell className="font-medium text-sm text-[#37352F] py-2.5">
+                  <DataTableRow key={item.id} onClick={canEdit ? () => handleEdit(item) : undefined}>
+                    <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
                       {item.name}
                     </TableCell>
-                    <TableCell className="font-mono text-sm text-[#37352F]/80 py-2.5">
+                    <TableCell className={`font-mono text-sm ${C.text80} py-2.5`}>
                       {item.phoneNumber || "-"}
                     </TableCell>
-                    <TableCell className="text-sm text-[#37352F]/80 py-2.5">
+                    <TableCell className={`text-sm ${C.text80} py-2.5`}>
                       {item.email || "-"}
                     </TableCell>
                     <TableCell className="text-right py-2.5">
                       <span className="inline-flex items-center gap-1.5">
-                        <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
-                        <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
+                        <span className={`size-[7px] rounded-full ${item.isActive ? C.bgAccent : C.bgPrimary10}`} />
+                        <span className={`text-sm ${item.isActive ? C.text65 : C.text35}`}>
                           {item.isActive ? "有効" : "無効"}
                         </span>
                       </span>
@@ -345,14 +340,16 @@ export function ClinicMasterSettings() {
                   </DataTableRow>
                 )}
               />
-              <button
-                type="button"
-                onClick={handleCreate}
-                className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
-              >
-                <Plus className={`${ICON.xs}`} />
-                新しい医院を追加...
-              </button>
+              {canCreate ? (
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  className={`flex items-center gap-1.5 w-full px-3 py-2 text-sm ${C.text40} ${C.hoverText60} ${C.hoverBgLight} transition-colors rounded`}
+                >
+                  <Plus className={`${ICON.xs}`} />
+                  新しい医院を追加...
+                </button>
+              ) : null}
             </div>
           </PageLayout>
         </div>
@@ -364,11 +361,11 @@ export function ClinicMasterSettings() {
           >
             {/* Toolbar */}
             <div className={STYLE.sidePeekToolbar}>
-              <span className="text-xs text-[#37352F]/35 pl-1 select-none">
+              <span className={`text-xs ${C.text35} pl-1 select-none`}>
                 {selectedItem ? "編集" : "新規作成"}
               </span>
               <div className="flex items-center gap-1">
-                {selectedItem ? (
+                {selectedItem && canDelete ? (
                   <DeleteIconButton onClick={() => setPendingDelete(selectedItem)} />
                 ) : null}
                 <button
@@ -383,6 +380,7 @@ export function ClinicMasterSettings() {
 
             {/* Body */}
             <form action={formAction} className="flex-1 flex flex-col min-h-0">
+            <fieldset disabled={!canEdit} className="border-0 p-0 m-0 min-w-0">
             <div className={STYLE.sidePeekBody}>
               <div className="px-16 pb-8">
                 {/* Page icon */}
@@ -396,7 +394,7 @@ export function ClinicMasterSettings() {
                 <div className="pb-1 mb-4">
                   <input
                     type="text"
-                    className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+                    className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0`}
                     style={{
                       fontSize: LAYOUT.pageTitle.fontSize,
                       fontWeight: LAYOUT.pageTitle.fontWeight,
@@ -425,7 +423,7 @@ export function ClinicMasterSettings() {
                           is_active: !prev.is_active,
                         }))
                       }
-                      className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
+                      className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
                     >
                       <NotionStatusPill
                         status={formData.is_active ? "active" : "inactive"}
@@ -554,7 +552,7 @@ export function ClinicMasterSettings() {
 
                   {/* 税率セクション */}
                   <div className={`${STYLE.sectionDivider} my-2`} />
-                  <div className="flex items-center gap-1.5 py-1.5 text-xs text-[#37352F]/45 select-none">
+                  <div className={`flex items-center gap-1.5 py-1.5 text-xs ${C.text45} select-none`}>
                     <Percent className={ICON.xs} />
                     消費税率
                   </div>
@@ -576,7 +574,7 @@ export function ClinicMasterSettings() {
                           }))
                         }
                       />
-                      <span className="text-sm text-[#37352F]/50">%</span>
+                      <span className={`text-sm ${C.text50}`}>%</span>
                     </div>
                   </PropertyRow>
 
@@ -597,7 +595,7 @@ export function ClinicMasterSettings() {
                           }))
                         }
                       />
-                      <span className="text-sm text-[#37352F]/50">%</span>
+                      <span className={`text-sm ${C.text50}`}>%</span>
                     </div>
                   </PropertyRow>
                 </div>
@@ -613,12 +611,15 @@ export function ClinicMasterSettings() {
               >
                 キャンセル
               </button>
-              <SubmitButton
-                className={STYLE.sidePeekSaveBtn}
-              >
-                保存
-              </SubmitButton>
+              {canEdit ? (
+                <SubmitButton
+                  className={STYLE.sidePeekSaveBtn}
+                >
+                  保存
+                </SubmitButton>
+              ) : null}
             </div>
+            </fieldset>
             </form>
           </div>
         ) : null}

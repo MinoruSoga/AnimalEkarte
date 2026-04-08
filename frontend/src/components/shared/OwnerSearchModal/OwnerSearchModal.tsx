@@ -1,18 +1,12 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
-import { useState, useCallback, useMemo, useDeferredValue, memo } from "react";
+import { C, ICON } from "@/lib/design-tokens";
+import { useState, useCallback, useMemo, useDeferredValue, useTransition, memo } from "react";
 
 // External
 import { Search, Users } from "lucide-react";
 
 // Internal
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -53,24 +47,23 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
   const [owners, setOwners] = useState<OwnerSummary[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [isSearching, startSearchTransition] = useTransition();
   const [hasSearched, setHasSearched] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<OwnerSummary | null>(null);
 
-  const handleSearch = useCallback(async () => {
+  const handleSearch = useCallback(() => {
     if (!searchTerm.trim()) return;
-    setIsSearching(true);
     setHasSearched(true);
-    try {
-      const { data } = await axios.get<{ data: BackendOwner[] }>("/v1/owners", {
-        params: { search: searchTerm.trim() },
-      });
-      setOwners((data.data ?? []).map(transformOwner));
-    } catch {
-      setOwners([]);
-    } finally {
-      setIsSearching(false);
-    }
+    startSearchTransition(async () => {
+      try {
+        const { data } = await axios.get<{ data: BackendOwner[] }>("/v1/owners", {
+          params: { search: searchTerm.trim() },
+        });
+        setOwners((data.data ?? []).map(transformOwner));
+      } catch {
+        setOwners([]);
+      }
+    });
   }, [searchTerm]);
 
   const handleKeyDown = useCallback(
@@ -121,11 +114,11 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-semibold text-[#37352F]">
+            <DialogTitle className={`flex items-center gap-2 text-base font-semibold ${C.text}`}>
               <Users className={ICON.action} />
               飼主検索
             </DialogTitle>
-            <DialogDescription className="text-sm text-[#37352F]/50">
+            <DialogDescription className={`text-sm ${C.text50}`}>
               飼主名、飼主No、電話番号で検索できます
             </DialogDescription>
           </DialogHeader>
@@ -133,14 +126,14 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
           {/* Search */}
           <div className="flex items-center gap-2 px-1">
             <div className="relative flex-1">
-              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${ICON.action} text-[#37352F]/40`} />
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text40}`} />
               <Input
                 autoFocus
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="飼主名 / 飼主No / 電話番号"
-                className="pl-9 h-10 text-base bg-[#F7F6F3] border-[rgba(55,53,47,0.16)] focus:border-[#2383E2] rounded-[4px]"
+                className={`pl-9 h-10 text-base ${C.bgPage} ${C.borderMedium} ${C.focusBorderAccent} rounded-[4px]`}
               />
             </div>
             <Button
@@ -155,17 +148,17 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
           {/* Results */}
           <div className={`flex-1 overflow-auto min-h-[200px] ${isFiltering ? "opacity-60" : ""}`}>
             {isSearching ? (
-              <div className="flex items-center justify-center h-full text-sm text-[#37352F]/40">
+              <div className={`flex items-center justify-center h-full text-sm ${C.text40}`}>
                 検索中...
               </div>
             ) : filteredOwners.length > 0 ? (
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[rgba(55,53,47,0.09)] bg-[#F7F6F3]">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-[#37352F]/60">飼主No</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-[#37352F]/60">飼主名</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-[#37352F]/60">電話番号</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-[#37352F]/60">住所</th>
+                  <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
+                    <th className={`px-3 py-2 text-left text-xs font-medium ${C.text60}`}>飼主No</th>
+                    <th className={`px-3 py-2 text-left text-xs font-medium ${C.text60}`}>飼主名</th>
+                    <th className={`px-3 py-2 text-left text-xs font-medium ${C.text60}`}>電話番号</th>
+                    <th className={`px-3 py-2 text-left text-xs font-medium ${C.text60}`}>住所</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -173,22 +166,22 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                     <tr
                       key={owner.id}
                       onClick={() => handleRowClick(owner)}
-                      className="border-b border-[rgba(55,53,47,0.06)] cursor-pointer hover:bg-[rgba(55,53,47,0.04)] transition-colors"
+                      className={`border-b ${C.borderDivider} cursor-pointer ${C.hoverBgLight} transition-colors`}
                     >
-                      <td className="px-3 py-2.5 text-sm text-[#37352F]/60 font-mono">{owner.id}</td>
-                      <td className="px-3 py-2.5 text-sm font-medium text-[#37352F]">{owner.name}</td>
-                      <td className="px-3 py-2.5 text-sm text-[#37352F]">{owner.phone || "-"}</td>
-                      <td className="px-3 py-2.5 text-sm text-[#37352F]/60 truncate max-w-[200px]">{owner.address || "-"}</td>
+                      <td className={`px-3 py-2.5 text-sm ${C.text60} font-mono`}>{owner.id}</td>
+                      <td className={`px-3 py-2.5 text-sm font-medium ${C.text}`}>{owner.name}</td>
+                      <td className={`px-3 py-2.5 text-sm ${C.text}`}>{owner.phone || "-"}</td>
+                      <td className={`px-3 py-2.5 text-sm ${C.text60} truncate max-w-[200px]`}>{owner.address || "-"}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             ) : hasSearched ? (
-              <div className="flex items-center justify-center h-full text-sm text-[#37352F]/40">
+              <div className={`flex items-center justify-center h-full text-sm ${C.text40}`}>
                 該当する飼主が見つかりません
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-sm text-[#37352F]/30">
+              <div className={`flex items-center justify-center h-full text-sm ${C.text30}`}>
                 検索してください
               </div>
             )}

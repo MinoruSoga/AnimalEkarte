@@ -13,12 +13,14 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useGetCompany, useUpdateCompany } from "@/features/master/api/company";
 import type { UpdateCompanyRequest } from "@/features/master/api/company";
+import { ResourceHospitalSettings } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // ─────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────
 
-const PROP_INPUT_CLASS = `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`;
+const PROP_INPUT_CLASS = `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
 
 // ─────────────────────────────────────────────────
 // Form state
@@ -56,6 +58,7 @@ const DEFAULT_FORM_DATA: CompanyFormData = {
 
 export function CompanySettings() {
   const navigate = useNavigate();
+  const { canEdit } = usePermission(ResourceHospitalSettings);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<CompanyFormData>(DEFAULT_FORM_DATA);
 
@@ -138,14 +141,15 @@ export function CompanySettings() {
       <div className="flex-1 min-w-0">
         <PageLayout
           title="法人情報"
-          icon={<Building2 className={`${ICON.page} text-[#37352F]`} />}
+          icon={<Building2 className={`${ICON.page} ${C.text}`} />}
+          resource={ResourceHospitalSettings}
           onBack={() => navigate(paths.settings.getHref())}
           headerAction={
-            isLoading ? null : (
+            isLoading || !canEdit ? null : (
               <button
                 type="button"
                 onClick={handleEdit}
-                className={`px-4 py-[7px] text-base ${C.text65} hover:bg-[rgba(55,53,47,0.04)] border ${C.borderMedium} rounded-[3px] transition-colors cursor-pointer`}
+                className={`px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} border ${C.borderMedium} rounded-[3px] transition-colors cursor-pointer`}
               >
                 編集
               </button>
@@ -245,7 +249,7 @@ export function CompanySettings() {
         >
           {/* Toolbar */}
           <div className={STYLE.sidePeekToolbar}>
-            <span className="text-base text-[#37352F]/35 pl-1 select-none">編集</span>
+            <span className={`text-base ${C.text35} pl-1 select-none`}>編集</span>
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -271,7 +275,7 @@ export function CompanySettings() {
               <div className="pb-1 mb-4">
                 <input
                   type="text"
-                  className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+                  className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0`}
                   style={{
                     fontSize: LAYOUT.pageTitle.fontSize,
                     fontWeight: LAYOUT.pageTitle.fontWeight,

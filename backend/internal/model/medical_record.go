@@ -27,6 +27,7 @@ type MedicalRecord struct {
 	CreatedAt                time.Time           `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt                time.Time           `gorm:"autoUpdateTime"                                 json:"updated_at"`
 	DeletedAt                gorm.DeletedAt      `                                                      json:"-" swaggerignore:"true"`
+	VisitCount               int64               `gorm:"-"                                              json:"visit_count"`
 
 	// Relations
 	Owner         *Owner         `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`

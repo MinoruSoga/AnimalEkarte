@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -152,7 +153,7 @@ func (h *Handler) AddCareLogRecord(c *gin.Context) {
 
 	var req addCareLogRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -197,7 +198,7 @@ func (h *Handler) AddStaffNoteRecord(c *gin.Context) {
 
 	var req addStaffNoteRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -223,10 +224,11 @@ func (h *Handler) AddStaffNoteRecord(c *gin.Context) {
 
 // RegisterDailyRecordRoutes は日次記録関連のルートを登録する
 func (h *Handler) RegisterDailyRecordRoutes(rg *gin.RouterGroup) {
+	permCreate := h.RequirePermission(string(model.ResourceHospitalization), "create")
 	rg.GET("/:id/daily-records", h.ListDailyRecords)
-	rg.POST("/:id/daily-records", h.CreateDailyRecord)
+	rg.POST("/:id/daily-records", permCreate, h.CreateDailyRecord)
 	rg.GET("/:id/daily-records/:date", h.GetDailyRecord)
-	rg.POST("/:id/daily-records/:date/vitals", h.AddVitalRecord)
-	rg.POST("/:id/daily-records/:date/care-logs", h.AddCareLogRecord)
-	rg.POST("/:id/daily-records/:date/staff-notes", h.AddStaffNoteRecord)
+	rg.POST("/:id/daily-records/:date/vitals", permCreate, h.AddVitalRecord)
+	rg.POST("/:id/daily-records/:date/care-logs", permCreate, h.AddCareLogRecord)
+	rg.POST("/:id/daily-records/:date/staff-notes", permCreate, h.AddStaffNoteRecord)
 }

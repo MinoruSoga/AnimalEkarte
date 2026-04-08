@@ -5,6 +5,7 @@ import { memo, useDeferredValue, useMemo, useState } from "react";
 import { useGetRecordExaminations } from "../api/get-record-examinations";
 import { ExaminationFilter } from "./ExaminationFilter";
 import { ExaminationGroup } from "./ExaminationGroup";
+import { C } from "@/lib/design-tokens";
 
 interface MedicalRecordExaminationProps {
   isNewRecord?: boolean;
@@ -48,24 +49,25 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
 
       {/* Results Title */}
       <div>
-        <h2 className="text-sm font-bold text-[#37352F] pl-1">検査結果一覧</h2>
+        <h2 className={`text-sm font-bold ${C.text} pl-1`}>検査結果一覧</h2>
       </div>
 
       {/* Exam Groups */}
       {isLoading ? (
-        <div className="flex items-center justify-center h-24 text-sm text-[#37352F]/40 pl-1">
+        <div className={`flex items-center justify-center h-24 text-sm ${C.text40} pl-1`}>
           読み込み中...
         </div>
       ) : examGroups.length === 0 ? (
-        <div className="flex items-center justify-center h-24 text-sm text-[#37352F]/40 pl-1">
+        <div className={`flex items-center justify-center h-24 text-sm ${C.text40} pl-1`}>
           検査記録がありません
         </div>
       ) : null}
       <div className="flex flex-col gap-4 pl-1">
-        {!isLoading &&
-          examGroups.map((group) => (
-            <ExaminationGroup key={group.id} group={group} />
-          ))}
+        {!isLoading
+          ? examGroups.map((group) => (
+              <ExaminationGroup key={group.id} group={group} />
+            ))
+          : null}
       </div>
     </div>
   );

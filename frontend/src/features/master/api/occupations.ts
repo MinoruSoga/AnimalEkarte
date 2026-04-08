@@ -1,0 +1,119 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import type { Occupation as ModelOccupation } from "@/types/generated/models";
+
+// ─────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────
+
+export interface CreateOccupationRequest {
+  name: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface UpdateOccupationRequest {
+  name?: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+// ─────────────────────────────────────────────────
+// Transform
+// ─────────────────────────────────────────────────
+
+function transformOccupation(data: ModelOccupation) {
+  return {
+    id: String(data.id ?? 0),
+    name: data.name,
+    description: data.description,
+    isActive: data.is_active,
+    sortOrder: data.sort_order,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+export type Occupation = ReturnType<typeof transformOccupation>;
+
+// ─────────────────────────────────────────────────
+// API functions
+// ─────────────────────────────────────────────────
+
+const getAllOccupations = async (): Promise<Occupation[]> => {
+  const { data } = await axios.get<ModelOccupation[]>("/v1/masters/occupations");
+  return data.map(transformOccupation);
+};
+
+const createOccupation = async (req: CreateOccupationRequest): Promise<Occupation> => {
+  const { data } = await axios.post<ModelOccupation>("/v1/masters/occupations", req);
+  return transformOccupation(data);
+};
+
+const updateOccupation = async (id: string, req: UpdateOccupationRequest): Promise<Occupation> => {
+  const { data } = await axios.patch<ModelOccupation>(`/v1/masters/occupations/${id}`, req);
+  return transformOccupation(data);
+};
+
+const deleteOccupation = async (id: string): Promise<void> => {
+  await axios.delete(`/v1/masters/occupations/${id}`);
+};
+
+const reorderOccupations = async (req: { ids: number[] }): Promise<void> => {
+  await axios.patch("/v1/masters/occupations/reorder", req);
+};
+
+// ─────────────────────────────────────────────────
+// Query hooks
+// ─────────────────────────────────────────────────
+
+export const useGetAllOccupations = () => {
+  return useQuery({
+    queryKey: ["masters", "occupations"],
+    queryFn: getAllOccupations,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
+  });
+};
+
+export const useCreateOccupation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createOccupation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
+    },
+  });
+};
+
+export const useUpdateOccupation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, req }: { id: string; req: UpdateOccupationRequest }) =>
+      updateOccupation(id, req),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
+    },
+  });
+};
+
+export const useDeleteOccupation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteOccupation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
+    },
+  });
+};
+
+export const useReorderOccupations = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reorderOccupations,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
+    },
+  });
+};

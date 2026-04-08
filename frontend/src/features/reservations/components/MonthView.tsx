@@ -7,8 +7,8 @@ import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, format, isSameMonth, 
 import { ja } from "date-fns/locale";
 
 // Internal
-import { getReservationTypeColor } from "@/utils/status-helpers";
 import { C } from "@/lib/design-tokens";
+import { getReservationTypeColor } from "@/utils/status-helpers";
 
 // Types
 import type { ReservationAppointment } from "@/types";
@@ -114,7 +114,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
                     );
                 })}
                 {dayAppointments.length > 4 ? (
-                    <div className="text-sm text-[#37352F]/60 pl-1">
+                    <div className={`text-sm ${C.text60} pl-1`}>
                         他 {dayAppointments.length - 4} 件
                     </div>
                 ) : null}
@@ -135,7 +135,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
   }, [currentDate, appointments, dynamicColorMap, onAppointmentClick, onDateClick]);
 
   return (
-    <div className="flex flex-col h-full border-l border-t border-[rgba(55,53,47,0.16)] rounded-lg overflow-hidden bg-white shadow-sm">
+    <div className={`flex flex-col h-full border-l border-t ${C.borderMedium} rounded-lg overflow-hidden bg-white shadow-sm`}>
       {HEADER_ROW}
       <div className="flex-1 flex flex-col">
         {rows}

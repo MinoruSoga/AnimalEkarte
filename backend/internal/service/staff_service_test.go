@@ -15,24 +15,32 @@ import (
 
 // mockStaffRepository は StaffRepository のテスト用モック実装
 type mockStaffRepository struct {
-	findAllFn           func(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
-	findByIDFn          func(ctx context.Context, id uint64) (*model.Staff, error)
-	createWithAccountFn func(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
-	updateFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn            func(ctx context.Context, clinicID, id uint64) error
-	reorderErr          error
+	findAllFn         func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
+	findByIDFn        func(ctx context.Context, id uint64) (*model.Staff, error)
+	findByAccountIDFn func(ctx context.Context, accountID uint64) (*model.Staff, error)
+	createFn          func(ctx context.Context, staff *model.Staff) error
+	updateFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn          func(ctx context.Context, clinicID, id uint64) error
+	reorderErr        error
 }
 
-func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
-	return m.findAllFn(ctx, clinicID, role, page, limit)
+func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error) {
+	return m.findAllFn(ctx, clinicID, page, limit)
 }
 
 func (m *mockStaffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	return m.findByIDFn(ctx, id)
 }
 
-func (m *mockStaffRepository) CreateWithAccount(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error {
-	return m.createWithAccountFn(ctx, staff, account, membership)
+func (m *mockStaffRepository) FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error) {
+	if m.findByAccountIDFn != nil {
+		return m.findByAccountIDFn(ctx, accountID)
+	}
+	return nil, apperrors.WrapNotFound("staff", "account_id")
+}
+
+func (m *mockStaffRepository) Create(ctx context.Context, staff *model.Staff) error {
+	return m.createFn(ctx, staff)
 }
 
 func (m *mockStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
@@ -116,7 +124,6 @@ func TestStaffService_List(t *testing.T) {
 	tests := []struct {
 		name       string
 		clinicID   uint64
-		role       *string
 		repoStaffs []model.Staff
 		repoTotal  int64
 		repoErr    error
@@ -125,12 +132,11 @@ func TestStaffService_List(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name:     "returns all staffs without role filter",
+			name:     "returns all staffs",
 			clinicID: 1,
-			role:     nil,
 			repoStaffs: []model.Staff{
-				{ID: 1, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
-				{ID: 2, ClinicID: 1, Name: "鈴木 花子", StaffRole: model.StaffRoleNurse},
+				{ID: 1, Name: "山田 太郎"},
+				{ID: 2, Name: "鈴木 花子"},
 			},
 			repoTotal: 2,
 			repoErr:   nil,
@@ -139,22 +145,8 @@ func TestStaffService_List(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:     "filters staffs by role",
-			clinicID: 1,
-			role:     ptrString("veterinarian"),
-			repoStaffs: []model.Staff{
-				{ID: 1, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
-			},
-			repoTotal: 1,
-			repoErr:   nil,
-			wantLen:   1,
-			wantTotal: 1,
-			wantErr:   false,
-		},
-		{
 			name:       "returns empty list when no staffs exist",
 			clinicID:   1,
-			role:       nil,
 			repoStaffs: []model.Staff{},
 			repoTotal:  0,
 			repoErr:    nil,
@@ -165,7 +157,6 @@ func TestStaffService_List(t *testing.T) {
 		{
 			name:       "propagates repository error",
 			clinicID:   1,
-			role:       nil,
 			repoStaffs: nil,
 			repoTotal:  0,
 			repoErr:    errors.New("db connection error"),
@@ -177,12 +168,10 @@ func TestStaffService_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			capturedRole := (*string)(nil)
 			capturedPage := 0
 			capturedLimit := 0
 			repo := &mockStaffRepository{
-				findAllFn: func(_ context.Context, _ uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
-					capturedRole = role
+				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.Staff, int64, error) {
 					capturedPage = page
 					capturedLimit = limit
 					return tt.repoStaffs, tt.repoTotal, tt.repoErr
@@ -190,7 +179,7 @@ func TestStaffService_List(t *testing.T) {
 			}
 			svc := newTestStaffService(repo)
 
-			staffs, total, err := svc.List(context.Background(), tt.clinicID, tt.role, 1, 20)
+			staffs, total, err := svc.List(context.Background(), tt.clinicID, 1, 20)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -199,7 +188,6 @@ func TestStaffService_List(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Len(t, staffs, tt.wantLen)
 				assert.Equal(t, tt.wantTotal, total)
-				assert.Equal(t, tt.role, capturedRole)
 				assert.Equal(t, 1, capturedPage)
 				assert.Equal(t, 20, capturedLimit)
 			}
@@ -219,9 +207,9 @@ func TestStaffService_GetByID(t *testing.T) {
 		{
 			name:      "returns staff when found",
 			id:        10,
-			repoStaff: &model.Staff{ID: 10, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
+			repoStaff: &model.Staff{ID: 10, Name: "山田 太郎"},
 			repoErr:   nil,
-			wantStaff: &model.Staff{ID: 10, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
+			wantStaff: &model.Staff{ID: 10, Name: "山田 太郎"},
 			wantErr:   nil,
 		},
 		{
@@ -281,10 +269,10 @@ func TestStaffService_GetByID_NotFound(t *testing.T) {
 	assert.True(t, apperrors.IsNotFound(err))
 }
 
-// TestStaffService_CreateWithAccount_Success は bcrypt を呼び出すため正常ケースのみテストする。
-func TestStaffService_CreateWithAccount_Success(t *testing.T) {
+// TestStaffService_Create_Success はスタッフ作成の正常ケースをテストする。
+func TestStaffService_Create_Success(t *testing.T) {
 	repo := &mockStaffRepository{
-		createWithAccountFn: func(_ context.Context, staff *model.Staff, _ *model.UserAccount, _ *model.UserClinicMembership) error {
+		createFn: func(_ context.Context, staff *model.Staff) error {
 			// IDをシミュレート
 			staff.ID = 1
 			return nil
@@ -293,61 +281,48 @@ func TestStaffService_CreateWithAccount_Success(t *testing.T) {
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		ClinicID:  1,
-		Name:      "新規 スタッフ",
-		StaffRole: model.StaffRoleVeterinarian,
-		Email:     "new@example.com",
-		Password:  "securepassword123",
+		Name: "新規 スタッフ",
 	}
 
-	staff, err := svc.CreateWithAccount(context.Background(), input)
+	staff, err := svc.Create(context.Background(), input)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, staff)
 	assert.Equal(t, "新規 スタッフ", staff.Name)
-	assert.Equal(t, model.StaffRoleVeterinarian, staff.StaffRole)
 	assert.True(t, staff.IsActive)
 }
 
-func TestStaffService_CreateWithAccount_RepositoryError(t *testing.T) {
+func TestStaffService_Create_RepositoryError(t *testing.T) {
 	repo := &mockStaffRepository{
-		createWithAccountFn: func(_ context.Context, _ *model.Staff, _ *model.UserAccount, _ *model.UserClinicMembership) error {
+		createFn: func(_ context.Context, _ *model.Staff) error {
 			return errors.New("db connection error")
 		},
 	}
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		ClinicID:  1,
-		Name:      "エラー スタッフ",
-		StaffRole: model.StaffRoleNurse,
-		Email:     "error@example.com",
-		Password:  "password123",
+		Name: "エラー スタッフ",
 	}
 
-	staff, err := svc.CreateWithAccount(context.Background(), input)
+	staff, err := svc.Create(context.Background(), input)
 
 	assert.Error(t, err)
 	assert.Nil(t, staff)
 }
 
-func TestStaffService_CreateWithAccount_DuplicateEmail(t *testing.T) {
+func TestStaffService_Create_DuplicateName(t *testing.T) {
 	repo := &mockStaffRepository{
-		createWithAccountFn: func(_ context.Context, _ *model.Staff, _ *model.UserAccount, _ *model.UserClinicMembership) error {
-			return apperrors.WrapAlreadyExists("user_account", "existing@example.com")
+		createFn: func(_ context.Context, _ *model.Staff) error {
+			return apperrors.WrapAlreadyExists("staff", "existing@example.com")
 		},
 	}
 	svc := newTestStaffService(repo)
 
 	input := &CreateStaffInput{
-		ClinicID:  1,
-		Name:      "重複 スタッフ",
-		StaffRole: model.StaffRoleReception,
-		Email:     "existing@example.com",
-		Password:  "password123",
+		Name: "重複 スタッフ",
 	}
 
-	staff, err := svc.CreateWithAccount(context.Background(), input)
+	staff, err := svc.Create(context.Background(), input)
 
 	assert.Error(t, err)
 	assert.Nil(t, staff)
@@ -355,7 +330,6 @@ func TestStaffService_CreateWithAccount_DuplicateEmail(t *testing.T) {
 }
 
 func TestStaffService_Update(t *testing.T) {
-	role := model.StaffRoleVeterinarian
 	name := "更新後 スタッフ"
 	tests := []struct {
 		name     string
@@ -370,7 +344,7 @@ func TestStaffService_Update(t *testing.T) {
 			name:     "updates staff successfully",
 			clinicID: 1,
 			id:       1,
-			input:    &UpdateStaffInput{Name: &name, StaffRole: &role},
+			input:    &UpdateStaffInput{Name: &name},
 			repoErr:  nil,
 			wantErr:  false,
 		},
@@ -478,36 +452,98 @@ func TestStaffService_Reorder(t *testing.T) {
 
 func TestStaffService_Delete(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name                string
+		clinicID            uint64
+		id                  uint64
+		reservationExists   bool
+		shiftExists         bool
+		checkReservationErr error
+		checkShiftErr       error
+		repoErr             error
+		wantErr             bool
+		wantNF              bool
+		wantConflict        bool
 	}{
 		{
-			name:     "deletes staff successfully",
-			clinicID: 1,
-			id:       10,
-			repoErr:  nil,
-			wantErr:  false,
-			wantNF:   false,
+			name:                "deletes staff successfully when no dependencies exist",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   false,
+			shiftExists:         false,
+			checkReservationErr: nil,
+			checkShiftErr:       nil,
+			repoErr:             nil,
+			wantErr:             false,
 		},
 		{
-			name:     "returns not found error when staff does not exist",
-			clinicID: 1,
-			id:       999,
-			repoErr:  apperrors.WrapNotFound("staff", "999"),
-			wantErr:  true,
-			wantNF:   true,
+			name:                "returns conflict error when staff has reservations",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   true,
+			shiftExists:         false,
+			checkReservationErr: nil,
+			checkShiftErr:       nil,
+			repoErr:             nil,
+			wantErr:             true,
+			wantConflict:        true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			id:       10,
-			repoErr:  errors.New("db error"),
-			wantErr:  true,
-			wantNF:   false,
+			name:                "returns conflict error when staff has shift entries",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   false,
+			shiftExists:         true,
+			checkReservationErr: nil,
+			checkShiftErr:       nil,
+			repoErr:             nil,
+			wantErr:             true,
+			wantConflict:        true,
+		},
+		{
+			name:                "returns conflict error when staff has both reservations and shifts",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   true,
+			shiftExists:         true,
+			checkReservationErr: nil,
+			checkShiftErr:       nil,
+			repoErr:             nil,
+			wantErr:             true,
+			wantConflict:        true,
+		},
+		{
+			name:                "returns error when reservation check fails",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   false,
+			shiftExists:         false,
+			checkReservationErr: errors.New("db error"),
+			checkShiftErr:       nil,
+			repoErr:             nil,
+			wantErr:             true,
+		},
+		{
+			name:                "returns error when shift check fails",
+			clinicID:            1,
+			id:                  10,
+			reservationExists:   false,
+			shiftExists:         false,
+			checkReservationErr: nil,
+			checkShiftErr:       errors.New("db error"),
+			repoErr:             nil,
+			wantErr:             true,
+		},
+		{
+			name:                "returns not found error when staff does not exist",
+			clinicID:            1,
+			id:                  999,
+			reservationExists:   false,
+			shiftExists:         false,
+			checkReservationErr: nil,
+			checkShiftErr:       nil,
+			repoErr:             apperrors.WrapNotFound("staff", "999"),
+			wantErr:             true,
+			wantNF:              true,
 		},
 	}
 
@@ -518,7 +554,17 @@ func TestStaffService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := newTestStaffService(repo)
+			reservationRepo := &mockReservationForStaff{
+				existsByStaffIDFn: func(_ context.Context, _ uint64) (bool, error) {
+					return tt.reservationExists, tt.checkReservationErr
+				},
+			}
+			shiftRepo := &mockShiftEntryForStaff{
+				existsByStaffIDFn: func(_ context.Context, _ uint64) (bool, error) {
+					return tt.shiftExists, tt.checkShiftErr
+				},
+			}
+			svc := NewStaffService(repo, reservationRepo, shiftRepo)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -526,6 +572,9 @@ func TestStaffService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

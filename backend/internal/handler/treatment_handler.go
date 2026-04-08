@@ -52,7 +52,7 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 
 	var req createTreatmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -108,7 +108,7 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 
 	var req updateTreatmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -182,7 +182,7 @@ func (h *Handler) BulkUpdateTreatments(c *gin.Context) {
 
 	var req bulkUpdateTreatmentsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -205,8 +205,8 @@ func (h *Handler) BulkUpdateTreatments(c *gin.Context) {
 // RegisterTreatmentRoutes は治療項目関連のルートをカルテサブリソースとして登録する
 func (h *Handler) RegisterTreatmentRoutes(rg *gin.RouterGroup) {
 	rg.GET("/:id/treatments", h.ListTreatments)
-	rg.POST("/:id/treatments", h.CreateTreatment)
-	rg.PATCH("/:id/treatments/:treatmentId", h.UpdateTreatment)
-	rg.DELETE("/:id/treatments/:treatmentId", h.DeleteTreatment)
-	rg.PUT("/:id/treatments", h.BulkUpdateTreatments)
+	rg.POST("/:id/treatments", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateTreatment)
+	rg.PATCH("/:id/treatments/:treatmentId", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateTreatment)
+	rg.DELETE("/:id/treatments/:treatmentId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteTreatment)
+	rg.PUT("/:id/treatments", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.BulkUpdateTreatments)
 }

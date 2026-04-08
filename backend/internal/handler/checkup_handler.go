@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -42,20 +43,20 @@ func (h *Handler) CreateCheckup(c *gin.Context) {
 
 	var req createCheckupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "date must be YYYY-MM-DD format"})
+		RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
 		return
 	}
 	var nextDate *time.Time
 	if req.NextDate != nil && *req.NextDate != "" {
 		nd, err2 := time.Parse("2006-01-02", *req.NextDate)
 		if err2 != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "next_date must be YYYY-MM-DD format"})
+			RespondError(c, apperrors.WrapInvalidInput("next_date must be YYYY-MM-DD format"))
 			return
 		}
 		nextDate = &nd
@@ -93,7 +94,7 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 
 	var req updateCheckupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -101,7 +102,7 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 	if req.Date != nil && *req.Date != "" {
 		d, err2 := time.Parse("2006-01-02", *req.Date)
 		if err2 != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "date must be YYYY-MM-DD format"})
+			RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
 			return
 		}
 		updateDate = &d
@@ -110,7 +111,7 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 	if req.NextDate != nil && *req.NextDate != "" {
 		nd, err2 := time.Parse("2006-01-02", *req.NextDate)
 		if err2 != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "next_date must be YYYY-MM-DD format"})
+			RespondError(c, apperrors.WrapInvalidInput("next_date must be YYYY-MM-DD format"))
 			return
 		}
 		updateNextDate = &nd
@@ -190,9 +191,11 @@ func (h *Handler) RegisterGlobalCheckupRoutes(rg *gin.RouterGroup) {
 }
 
 // RegisterCheckupRoutes は健診記録関連のルートを登録する
+// RegisterCheckupRoutes はカルテ内の定期健診サブリソースルートを登録する。
+// 子リソースは親（medical-records）の権限に従う（BUG-133: vitals/treatments 等と統一）。
 func (h *Handler) RegisterCheckupRoutes(rg *gin.RouterGroup) {
 	rg.GET("/:id/checkups", h.ListCheckups)
-	rg.POST("/:id/checkups", h.CreateCheckup)
-	rg.PATCH("/:id/checkups/:checkupId", h.UpdateCheckup)
-	rg.DELETE("/:id/checkups/:checkupId", h.DeleteCheckup)
+	rg.POST("/:id/checkups", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateCheckup)
+	rg.PATCH("/:id/checkups/:checkupId", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateCheckup)
+	rg.DELETE("/:id/checkups/:checkupId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteCheckup)
 }

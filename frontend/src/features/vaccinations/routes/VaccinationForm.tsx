@@ -20,13 +20,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { VaccinationCard } from "../components/VaccinationCard";
 import { useGetVaccinations } from "../api/get-vaccinations";
@@ -34,12 +28,13 @@ import type { SortOrder } from "@/types";
 
 // Relative
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
+import { ResourceVaccinations } from "@/types/generated/models";
 
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { canEdit, canDelete } = usePermission("vaccinations");
+  const { canEdit, canCreate, canDelete } = usePermission("vaccinations");
 
   const {
     isEdit,
@@ -53,6 +48,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
     isDeleting,
     historyFilter,
   } = useVaccinationForm(id);
+
+  const canSubmit = isEdit ? canEdit : canCreate;
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -149,6 +146,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
     <form action={formAction}>
       <PageLayout
         title={isEdit ? "予防接種詳細・編集" : "新規予防接種登録"}
+        resource={ResourceVaccinations}
         onBack={handleBack}
         maxWidth="max-w-[1200px]"
         headerAction={
@@ -165,7 +163,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                 {isDeleting ? "削除中..." : "削除"}
               </Button>
             ) : null}
-            {canEdit ? (
+            {canSubmit ? (
               <SubmitButton
                 className={`${C.bgAccent} ${C.bgAccentHover} text-white shadow-sm px-6 h-10 text-sm`}
               >
@@ -177,6 +175,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
       >
         <NavigationBlocker when={isDirty && !isSaving} />
 
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         {selectedPet ? (
           <PatientInfoCard
             ownerName={selectedPet.ownerName}
@@ -189,7 +188,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* ===== 左カラム: 入力フォーム ===== */}
           <div className="lg:col-span-3">
-            <div className="bg-white p-6 rounded-lg border border-[rgba(55,53,47,0.09)] space-y-6">
+            <div className={`bg-white p-6 rounded-lg border ${C.borderLight} space-y-6`}>
               {/* 接種日 / ワクチン */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -200,6 +199,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                     id="vaccination-date"
                     value={date}
                     onChange={(v) => { markDirty(); setDate(v); }}
+                    disabledDays={{ after: new Date() }}
                   />
                   <FormFieldError message={fieldErrors.date} />
                 </div>
@@ -235,35 +235,39 @@ export const VaccinationForm = memo(function VaccinationForm() {
                 <Label>LOT番号</Label>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-[#37352F]/60">LOT 1</Label>
+                    <Label className={`text-xs ${C.text60}`}>LOT 1</Label>
                     <Input
                       value={lot1}
                       onChange={(e) => { markDirty(); setLot1(e.target.value); }}
                       placeholder="LOT番号 1"
+                      maxLength={50}
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-[#37352F]/60">LOT 2</Label>
+                    <Label className={`text-xs ${C.text60}`}>LOT 2</Label>
                     <Input
                       value={lot2}
                       onChange={(e) => { markDirty(); setLot2(e.target.value); }}
                       placeholder="LOT番号 2"
+                      maxLength={50}
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-[#37352F]/60">LOT 3</Label>
+                    <Label className={`text-xs ${C.text60}`}>LOT 3</Label>
                     <Input
                       value={lot3}
                       onChange={(e) => { markDirty(); setLot3(e.target.value); }}
                       placeholder="LOT番号 3"
+                      maxLength={50}
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-[#37352F]/60">LOT 4</Label>
+                    <Label className={`text-xs ${C.text60}`}>LOT 4</Label>
                     <Input
                       value={lot4}
                       onChange={(e) => { markDirty(); setLot4(e.target.value); }}
                       placeholder="LOT番号 4"
+                      maxLength={50}
                     />
                   </div>
                 </div>
@@ -340,6 +344,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
           </div>
         </div>
 
+        </fieldset>
         <ConfirmDialog
           open={deleteConfirmOpen}
           onClose={() => setDeleteConfirmOpen(false)}

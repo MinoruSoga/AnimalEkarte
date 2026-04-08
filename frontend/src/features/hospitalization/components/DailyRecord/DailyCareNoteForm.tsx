@@ -9,6 +9,9 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
+// Internal
+import { C } from "@/lib/design-tokens";
+
 // Relative
 import { H_STYLES } from "@/features/hospitalization/styles";
 
@@ -38,7 +41,7 @@ export function DailyCareNoteForm({ onSave }: DailyCareNoteFormProps) {
     };
 
     return (
-        <div className={`flex flex-col ${H_STYLES.gap.default} ${H_STYLES.padding.box} bg-white border border-[rgba(55,53,47,0.16)] rounded-md mb-3 shadow-sm`}>
+        <div className={`flex flex-col ${H_STYLES.gap.default} ${H_STYLES.padding.box} bg-white border ${C.borderMedium} rounded-md mb-3 shadow-sm`}>
             <Textarea
                 placeholder="経過記録や特記事項を入力..."
                 value={note}

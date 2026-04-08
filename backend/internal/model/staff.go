@@ -6,23 +6,12 @@ import (
 	"gorm.io/gorm"
 )
 
-type StaffRole string
-
-const (
-	StaffRoleVeterinarian StaffRole = "veterinarian"
-	StaffRoleNurse        StaffRole = "nurse"
-	StaffRoleTrimmer      StaffRole = "trimmer"
-	StaffRoleReception    StaffRole = "reception"
-	StaffRoleManager      StaffRole = "manager"
-)
-
 type Staff struct {
 	ID            uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID      uint64         `gorm:"not null"                                       json:"clinic_id"`
+	AccountID     *uint64        `                                                      json:"account_id,omitempty"`
 	Name          string         `gorm:"not null"                                       json:"name"`
 	IsActive      bool           `gorm:"default:true"                                   json:"is_active"`
-	StaffRole     StaffRole      `gorm:"type:staff_role;not null"                       json:"staff_role"`
-	JobTitleID    *uint64        `                                                      json:"job_title_id,omitempty"`
+	OccupationID  *uint64        `                                                      json:"occupation_id,omitempty"`
 	LicenseNumber string         `gorm:"default:''"                                     json:"license_number"`
 	SortOrder     int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	DeletedAt     gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
@@ -30,7 +19,9 @@ type Staff struct {
 	UpdatedAt     time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	JobTitle *JobTitle `gorm:"foreignKey:JobTitleID" json:"job_title,omitempty"`
+	Account           *Account                `gorm:"foreignKey:AccountID" json:"account,omitempty"`
+	Occupation        *Occupation             `gorm:"foreignKey:OccupationID" json:"occupation,omitempty"`
+	ClinicAssignments []StaffClinicAssignment `gorm:"foreignKey:StaffID" json:"clinic_assignments,omitempty"`
 }
 
 func (Staff) TableName() string { return "staffs" }

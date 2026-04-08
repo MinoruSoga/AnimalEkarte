@@ -17,6 +17,7 @@ type HospitalizationRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ExistsByCageID(ctx context.Context, cageID uint64) (bool, error)
+	CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
 }
 
 type hospitalizationRepository struct {
@@ -120,4 +121,17 @@ func (r *hospitalizationRepository) ExistsByCageID(ctx context.Context, cageID u
 		return false, apperrors.FromGORM(err, "hospitalization", "")
 	}
 	return count > 0, nil
+}
+
+func (r *hospitalizationRepository) CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.CarePlanItem{}).
+		Joins("JOIN hospitalizations ON care_plan_items.hospitalization_id = hospitalizations.id").
+		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ?", clinicID, hospitalizationID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "care_plan_item", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))
+	}
+	return count, nil
 }

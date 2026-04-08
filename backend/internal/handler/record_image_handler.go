@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -88,7 +89,7 @@ func (h *Handler) CreateRecordImage(c *gin.Context) {
 
 	var req createRecordImageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -204,7 +205,7 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 
 	// Create upload directory
 	uploadDir := fmt.Sprintf("%s/%d", uploadsBaseDir, medicalRecordID)
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
 		RespondError(c, apperrors.Wrap(err, "failed to create upload directory"))
 		return
 	}
@@ -238,8 +239,10 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 
 	image, err := h.svc.RecordImage.Create(c.Request.Context(), medicalRecordID, input)
 	if err != nil {
-		// Clean up saved file on service error
-		_ = os.Remove(storedPath)
+		// Clean up saved file on service error (non-fatal)
+		if removeErr := os.Remove(storedPath); removeErr != nil {
+			slog.WarnContext(c.Request.Context(), "failed to clean up uploaded file", "path", storedPath, "error", removeErr)
+		}
 		RespondError(c, err)
 		return
 	}
@@ -249,7 +252,7 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 // RegisterRecordImageRoutes は診療画像関連のルートをmedical-recordsグループに登録する
 func (h *Handler) RegisterRecordImageRoutes(rg *gin.RouterGroup) {
 	rg.GET("/:id/images", h.ListRecordImages)
-	rg.POST("/:id/images", h.CreateRecordImage)
-	rg.POST("/:id/images/upload", h.UploadRecordImage)
-	rg.DELETE("/:id/images/:imageId", h.DeleteRecordImage)
+	rg.POST("/:id/images", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateRecordImage)
+	rg.POST("/:id/images/upload", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.UploadRecordImage)
+	rg.DELETE("/:id/images/:imageId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteRecordImage)
 }

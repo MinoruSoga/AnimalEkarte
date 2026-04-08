@@ -48,27 +48,23 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	// Health check エンドポイント（ルートレベル）
 	r.GET("/health", h.Health)
 
-	// Static file serving for uploaded images
-	r.Static("/uploads", "/app/uploads")
-
-	// レートリミッター初期化
-	rateLimitStore := middleware.NewRateLimitStore()
+	// Static file serving for uploaded images（BUG-141: ディレクトリリスティング無効化）
+	r.StaticFS("/uploads", gin.Dir("/app/uploads", false))
 
 	api := r.Group("/api/v1")
 
-	// ログイン・ログアウトのレート制限（10 req/min, burst 5）
-	loginGroup := api.Group("")
-	loginGroup.Use(middleware.RateLimit(rateLimitStore, 0.167, 5))
-	loginGroup.POST("/login", h.Login)
-	loginGroup.POST("/logout", h.Logout)
-	loginGroup.POST("/auth/refresh", h.RefreshToken)
-	loginGroup.POST("/auth/forgot-password", h.ForgotPassword)
-	loginGroup.POST("/auth/reset-password", h.ResetPassword)
+	// 認証関連（保護なし）— ログインにはレートリミット適用（BUG-130: ブルートフォース対策）
+	loginRateStore := middleware.NewRateLimitStore()
+	api.POST("/login", middleware.RateLimit(loginRateStore, 5.0/60, 5), h.Login) // 5回/分
+	api.POST("/logout", h.Logout)
+	api.POST("/auth/refresh", h.RefreshToken) // BUG-136: refresh token エンドポイント
 
 	protected := api.Group("")
-	protected.Use(middleware.Auth(h.cfg.JWTSecret, h.repos.UserAccount))
+	protected.Use(middleware.Auth(h.cfg.JWTSecret))
+	protected.Use(middleware.SanitizeNullBytes()) // BUG-067: NULL バイト・制御文字を除去
 
 	protected.GET("/me", h.GetMe)
+	protected.PUT("/users/me/password", h.ChangeMyPassword) // BUG-148: 自分のパスワード変更
 
 	// BUG-020: 各リソースの write 操作に権限チェックを適用
 	h.registerOwnerRoutesWithAuth(protected)
@@ -83,45 +79,31 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	h.registerInventoryRoutesWithAuth(protected)
 	h.registerMasterRoutesWithAuth(protected)
 	h.RegisterClinicRoutes(protected)
-	h.RegisterUserRoutes(protected)
 	h.registerEstimateRoutesWithAuth(protected)
 	h.RegisterShiftRoutes(protected)
 	h.RegisterCompanyRoutes(protected)
 	h.RegisterGlobalCheckupRoutes(protected)
 	h.RegisterBillingItemRoutes(protected)
-	h.registerPermissionGroupRoutesWithAuth(protected)
 }
 
-// registerOwnerRoutesWithAuth は飼主ルートに create/edit/delete 権限チェックを追加する（BUG-020）
+// registerOwnerRoutesWithAuth は飼主ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners := rg.Group("/owners")
 	owners.GET("", h.ListOwners)
 	owners.GET("/:id", h.GetOwner)
-	owners.POST("",
-		middleware.RequirePermission(model.ResourceOwners, "create", h.repos.PermissionGroup),
-		h.CreateOwner)
-	owners.PATCH("/:id",
-		middleware.RequirePermission(model.ResourceOwners, "edit", h.repos.PermissionGroup),
-		h.UpdateOwner)
-	owners.DELETE("/:id",
-		middleware.RequirePermission(model.ResourceOwners, "delete", h.repos.PermissionGroup),
-		h.DeleteOwner)
+	owners.POST("", h.RequirePermission(string(model.ResourceOwners), "create"), h.CreateOwner)
+	owners.PATCH("/:id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwner)
+	owners.DELETE("/:id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwner)
 }
 
-// registerMedicalRecordRoutesWithAuth はカルテルートに create/edit/delete 権限チェックを追加する（BUG-020）
+// registerMedicalRecordRoutesWithAuth はカルテルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	records := rg.Group("/medical-records")
 	records.GET("", h.ListMedicalRecords)
 	records.GET("/:id", h.GetMedicalRecord)
-	records.POST("",
-		middleware.RequirePermission(model.ResourceMedicalRecords, "create", h.repos.PermissionGroup),
-		h.CreateMedicalRecord)
-	records.PATCH("/:id",
-		middleware.RequirePermission(model.ResourceMedicalRecords, "edit", h.repos.PermissionGroup),
-		h.UpdateMedicalRecord)
-	records.DELETE("/:id",
-		middleware.RequirePermission(model.ResourceMedicalRecords, "delete", h.repos.PermissionGroup),
-		h.DeleteMedicalRecord)
+	records.POST("", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateMedicalRecord)
+	records.PATCH("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateMedicalRecord)
+	records.DELETE("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteMedicalRecord)
 
 	h.RegisterVitalRoutes(records)
 	h.RegisterTreatmentRoutes(records)
@@ -133,145 +115,86 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	h.RegisterInquiryRoutes(records)
 }
 
-// registerHospitalizationRoutesWithAuth は入院ルートに create/edit 権限チェックを追加する（BUG-020）
+// registerHospitalizationRoutesWithAuth は入院ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerHospitalizationRoutesWithAuth(rg *gin.RouterGroup) {
 	hospitalizations := rg.Group("/hospitalizations")
 	hospitalizations.GET("", h.ListHospitalizations)
 	hospitalizations.GET("/:id", h.GetHospitalization)
-	hospitalizations.POST("",
-		middleware.RequirePermission(model.ResourceHospitalization, "create", h.repos.PermissionGroup),
-		h.CreateHospitalization)
-	hospitalizations.PATCH("/:id",
-		middleware.RequirePermission(model.ResourceHospitalization, "edit", h.repos.PermissionGroup),
-		h.UpdateHospitalization)
-	hospitalizations.DELETE("/:id",
-		middleware.RequirePermission(model.ResourceHospitalization, "delete", h.repos.PermissionGroup),
-		h.DeleteHospitalization)
-	hospitalizations.POST("/:id/discharge-with-billing",
-		middleware.RequirePermission(model.ResourceHospitalization, "edit", h.repos.PermissionGroup),
-		h.DischargeWithBilling)
+	hospitalizations.POST("", h.RequirePermission(string(model.ResourceHospitalization), "create"), h.CreateHospitalization)
+	hospitalizations.PATCH("/:id", h.RequirePermission(string(model.ResourceHospitalization), "edit"), h.UpdateHospitalization)
+	hospitalizations.DELETE("/:id", h.RequirePermission(string(model.ResourceHospitalization), "delete"), h.DeleteHospitalization)
+	hospitalizations.POST("/:id/discharge-with-billing", h.RequirePermission(string(model.ResourceHospitalization), "edit"), h.DischargeWithBilling)
+
 	h.RegisterDailyRecordRoutes(hospitalizations)
 	h.RegisterCarePlanItemRoutes(hospitalizations)
 	h.RegisterTreatmentPlanHospitalizationRoutes(hospitalizations)
 }
 
-// registerTrimmingRoutesWithAuth はトリミングルートに create/edit 権限チェックを追加する（BUG-020）
+// registerTrimmingRoutesWithAuth はトリミングルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerTrimmingRoutesWithAuth(rg *gin.RouterGroup) {
 	trimmings := rg.Group("/trimmings")
 	trimmings.GET("", h.ListTrimmings)
 	trimmings.GET("/:id", h.GetTrimming)
-	trimmings.POST("",
-		middleware.RequirePermission(model.ResourceTrimming, "create", h.repos.PermissionGroup),
-		h.CreateTrimming)
-	trimmings.PATCH("/:id",
-		middleware.RequirePermission(model.ResourceTrimming, "edit", h.repos.PermissionGroup),
-		h.UpdateTrimming)
-	trimmings.DELETE("/:id",
-		middleware.RequirePermission(model.ResourceTrimming, "delete", h.repos.PermissionGroup),
-		h.DeleteTrimming)
+	trimmings.POST("", h.RequirePermission(string(model.ResourceTrimming), "create"), h.CreateTrimming)
+	trimmings.PATCH("/:id", h.RequirePermission(string(model.ResourceTrimming), "edit"), h.UpdateTrimming)
+	trimmings.DELETE("/:id", h.RequirePermission(string(model.ResourceTrimming), "delete"), h.DeleteTrimming)
 }
 
-// registerExaminationRoutesWithAuth は検査ルートに create/edit 権限チェックを追加する（BUG-020）
+// registerExaminationRoutesWithAuth は検査ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerExaminationRoutesWithAuth(rg *gin.RouterGroup) {
 	examinations := rg.Group("/examinations")
 	examinations.GET("", h.ListExaminations)
 	examinations.GET("/:id", h.GetExamination)
-	examinations.POST("",
-		middleware.RequirePermission(model.ResourceExaminations, "create", h.repos.PermissionGroup),
-		h.CreateExamination)
-	examinations.PATCH("/:id",
-		middleware.RequirePermission(model.ResourceExaminations, "edit", h.repos.PermissionGroup),
-		h.UpdateExamination)
-	examinations.DELETE("/:id",
-		middleware.RequirePermission(model.ResourceExaminations, "delete", h.repos.PermissionGroup),
-		h.DeleteExamination)
+	examinations.POST("", h.RequirePermission(string(model.ResourceExaminations), "create"), h.CreateExamination)
+	examinations.PATCH("/:id", h.RequirePermission(string(model.ResourceExaminations), "edit"), h.UpdateExamination)
+	examinations.DELETE("/:id", h.RequirePermission(string(model.ResourceExaminations), "delete"), h.DeleteExamination)
 }
 
-// registerVaccinationRoutesWithAuth はワクチンルートに create/edit 権限チェックを追加する（BUG-020）
+// registerVaccinationRoutesWithAuth はワクチンルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerVaccinationRoutesWithAuth(rg *gin.RouterGroup) {
 	vaccinations := rg.Group("/vaccinations")
 	vaccinations.GET("", h.ListVaccinations)
 	vaccinations.GET("/:id", h.GetVaccination)
-	vaccinations.POST("",
-		middleware.RequirePermission(model.ResourceVaccinations, "create", h.repos.PermissionGroup),
-		h.CreateVaccination)
-	vaccinations.PATCH("/:id",
-		middleware.RequirePermission(model.ResourceVaccinations, "edit", h.repos.PermissionGroup),
-		h.UpdateVaccination)
-	vaccinations.DELETE("/:id",
-		middleware.RequirePermission(model.ResourceVaccinations, "delete", h.repos.PermissionGroup),
-		h.DeleteVaccination)
+	vaccinations.POST("", h.RequirePermission(string(model.ResourceVaccinations), "create"), h.CreateVaccination)
+	vaccinations.PATCH("/:id", h.RequirePermission(string(model.ResourceVaccinations), "edit"), h.UpdateVaccination)
+	vaccinations.DELETE("/:id", h.RequirePermission(string(model.ResourceVaccinations), "delete"), h.DeleteVaccination)
 }
 
-// registerAccountingRoutesWithAuth は会計ルートに create/edit 権限チェックを追加する（BUG-020）
+// registerAccountingRoutesWithAuth は会計ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
 	accountings := rg.Group("/accountings")
 	accountings.GET("", h.ListAccountings)
 	accountings.GET("/:id", h.GetAccounting)
 	accountings.GET("/:id/refunds", h.ListRefunds)
-	accountings.POST("",
-		middleware.RequirePermission(model.ResourceAccounting, "create", h.repos.PermissionGroup),
-		h.CreateAccounting)
-	accountings.PATCH("/:id",
-		middleware.RequirePermission(model.ResourceAccounting, "edit", h.repos.PermissionGroup),
-		h.UpdateAccounting)
-	accountings.DELETE("/:id",
-		middleware.RequirePermission(model.ResourceAccounting, "delete", h.repos.PermissionGroup),
-		h.DeleteAccounting)
-	accountings.POST("/:id/refunds",
-		middleware.RequirePermission(model.ResourceAccounting, "edit", h.repos.PermissionGroup),
-		h.CreateRefund)
+	accountings.POST("", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateAccounting)
+	accountings.PATCH("/:id", h.RequirePermission(string(model.ResourceAccounting), "edit"), h.UpdateAccounting)
+	accountings.DELETE("/:id", h.RequirePermission(string(model.ResourceAccounting), "delete"), h.DeleteAccounting)
+	accountings.POST("/:id/refunds", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateRefund)
 }
 
-// registerInventoryRoutesWithAuth は在庫ルートに create/edit 権限チェックを追加する（BUG-020）
+// registerInventoryRoutesWithAuth は在庫ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerInventoryRoutesWithAuth(rg *gin.RouterGroup) {
 	inventory := rg.Group("/inventory")
 	inventory.GET("", h.ListInventory)
 	inventory.GET("/:id", h.GetInventory)
-	inventory.POST("",
-		middleware.RequirePermission(model.ResourceInventory, "create", h.repos.PermissionGroup),
-		h.CreateInventory)
-	inventory.PATCH("/:id",
-		middleware.RequirePermission(model.ResourceInventory, "edit", h.repos.PermissionGroup),
-		h.UpdateInventory)
-	inventory.DELETE("/:id",
-		middleware.RequirePermission(model.ResourceInventory, "delete", h.repos.PermissionGroup),
-		h.DeleteInventory)
+	inventory.POST("", h.RequirePermission(string(model.ResourceInventory), "create"), h.CreateInventory)
+	inventory.PATCH("/:id", h.RequirePermission(string(model.ResourceInventory), "edit"), h.UpdateInventory)
+	inventory.DELETE("/:id", h.RequirePermission(string(model.ResourceInventory), "delete"), h.DeleteInventory)
 }
 
-// registerMasterRoutesWithAuth はマスタルートに権限チェックを追加する（BUG-020）
+// registerMasterRoutesWithAuth はマスタルートに権限チェックを追加する（BUG-122）
 func (h *Handler) registerMasterRoutesWithAuth(rg *gin.RouterGroup) {
 	h.RegisterMasterRoutes(rg)
 }
 
-// registerEstimateRoutesWithAuth は見積書ルートに create/edit 権限チェックを追加する（BUG-020）
+// registerEstimateRoutesWithAuth は見積書ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerEstimateRoutesWithAuth(rg *gin.RouterGroup) {
 	estimates := rg.Group("/estimates")
 	estimates.GET("", h.ListEstimates)
 	estimates.GET("/:id", h.GetEstimate)
-	estimates.POST("",
-		middleware.RequirePermission(model.ResourceEstimates, "create", h.repos.PermissionGroup),
-		h.CreateEstimate)
-	estimates.PATCH("/:id",
-		middleware.RequirePermission(model.ResourceEstimates, "edit", h.repos.PermissionGroup),
-		h.UpdateEstimate)
-	estimates.DELETE("/:id",
-		middleware.RequirePermission(model.ResourceEstimates, "delete", h.repos.PermissionGroup),
-		h.DeleteEstimate)
+	estimates.POST("", h.RequirePermission(string(model.ResourceEstimates), "create"), h.CreateEstimate)
+	estimates.PATCH("/:id", h.RequirePermission(string(model.ResourceEstimates), "edit"), h.UpdateEstimate)
+	estimates.DELETE("/:id", h.RequirePermission(string(model.ResourceEstimates), "delete"), h.DeleteEstimate)
 }
 
 // registerPermissionGroupRoutesWithAuth は権限グループ管理ルートを認可ミドルウェア付きで登録する
-func (h *Handler) registerPermissionGroupRoutesWithAuth(rg *gin.RouterGroup) {
-	pg := rg.Group("/permission-groups")
-	// 閲覧は全員許可
-	pg.GET("", h.ListPermissionGroups)
-	pg.GET("/:id", h.GetPermissionGroup)
-
-	// 作成・更新・削除・ルール変更は clinic_admin 以上のみ
-	adminPG := pg.Group("")
-	adminPG.Use(middleware.RequireClinicAdmin())
-	adminPG.POST("", h.CreatePermissionGroup)
-	adminPG.PATCH("/:id", h.UpdatePermissionGroup)
-	adminPG.DELETE("/:id", h.DeletePermissionGroup)
-	adminPG.PUT("/:id/rules", h.SetPermissionGroupRules)
-}

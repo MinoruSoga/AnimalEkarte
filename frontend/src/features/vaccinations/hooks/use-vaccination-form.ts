@@ -122,24 +122,38 @@ export function useVaccinationForm(id?: string) {
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
       // BUG-024/074: バリデーション
       const errors: Record<string, string> = {};
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       if (!isEdit) {
         if (!formData.vaccineId || formData.vaccineId === "0") {
           errors.vaccineId = "ワクチン種別を選択してください";
         }
         if (!formData.date) {
           errors.date = "接種日を入力してください";
+        } else if (new Date(formData.date) > today) {
+          // BUG-024: 実施日は今日以前であること
+          errors.date = "接種日は今日以前の日付を入力してください";
         }
       } else {
         if (!formData.date) {
           errors.date = "接種日を入力してください";
+        } else if (new Date(formData.date) > today) {
+          // BUG-024: 実施日は今日以前であること
+          errors.date = "接種日は今日以前の日付を入力してください";
         }
       }
       // BUG-096: 新規登録時、次回予定日は本日以降
       if (!isEdit && formData.nextDate) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
         if (new Date(formData.nextDate) < today) {
           errors.nextDate = "次回予定日は本日以降の日付を入力してください";
+        }
+      }
+      // BUG-024: 次回予定日は実施日より後であること（新規・編集共通）
+      if (formData.date && formData.nextDate) {
+        const dateVal = new Date(formData.date);
+        const nextDateVal = new Date(formData.nextDate);
+        if (!isNaN(dateVal.getTime()) && !isNaN(nextDateVal.getTime()) && nextDateVal <= dateVal) {
+          errors.nextDate = "次回予定日は接種日より後の日付を入力してください";
         }
       }
       if (Object.keys(errors).length > 0) {

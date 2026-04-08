@@ -14,12 +14,13 @@ import (
 // ---- Procedure モック ----
 
 type mockProcedureRepository struct {
-	findAllFn      func(ctx context.Context) ([]model.Procedure, error)
-	findByIDFn     func(ctx context.Context, id uint64) (*model.Procedure, error)
-	createFn       func(ctx context.Context, procedure *model.Procedure) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
-	deleteFn       func(ctx context.Context, id uint64) error
-	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                 func(ctx context.Context) ([]model.Procedure, error)
+	findByIDFn                func(ctx context.Context, id uint64) (*model.Procedure, error)
+	createFn                  func(ctx context.Context, procedure *model.Procedure) error
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
+	deleteFn                  func(ctx context.Context, id uint64) error
+	countUsageByProcedureIDFn func(ctx context.Context, procedureID uint64) (int64, error)
+	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockProcedureRepository) FindAll(ctx context.Context) ([]model.Procedure, error) {
@@ -49,8 +50,11 @@ func (m *mockProcedureRepository) Reorder(ctx context.Context, clinicID uint64, 
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockProcedureRepository) CountUsageByProcedureID(_ context.Context, _ uint64) (int64, error) {
-	return 0, nil
+func (m *mockProcedureRepository) CountUsageByProcedureID(ctx context.Context, procedureID uint64) (int64, error) {
+	if m.countUsageByProcedureIDFn == nil {
+		return 0, nil
+	}
+	return m.countUsageByProcedureIDFn(ctx, procedureID)
 }
 
 // ---- Tests ----
@@ -281,28 +285,65 @@ func TestProcedureService_Update(t *testing.T) {
 
 func TestProcedureService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
+		name          string
+		id            uint64
+		usageCount    int64
+		countUsageErr error
+		repoErr       error
+		wantErr       bool
+		wantNotFound  bool
+		wantConflict  bool
 	}{
 		{
-			name:    "deletes procedure successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
+			name:          "deletes procedure successfully when no medical records use it",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       nil,
+			wantErr:       false,
 		},
 		{
-			name:    "returns error when procedure not found",
-			id:      999,
-			repoErr: errors.New("not found"),
-			wantErr: true,
+			name:          "returns conflict error when procedure is used in medical records",
+			id:            1,
+			usageCount:    2,
+			countUsageErr: nil,
+			repoErr:       nil,
+			wantErr:       true,
+			wantConflict:  true,
+		},
+		{
+			name:          "returns error when usage count check fails",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: errors.New("db error"),
+			repoErr:       nil,
+			wantErr:       true,
+		},
+		{
+			name:          "returns not found error when procedure does not exist",
+			id:            999,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       apperrors.WrapNotFound("procedure", "999"),
+			wantErr:       true,
+			wantNotFound:  true,
+		},
+		{
+			name:          "returns error on repository failure",
+			id:            1,
+			usageCount:    0,
+			countUsageErr: nil,
+			repoErr:       errors.New("db error"),
+			wantErr:       true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockProcedureRepository{
+				countUsageByProcedureIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.usageCount, tt.countUsageErr
+				},
 				deleteFn: func(_ context.Context, _ uint64) error {
 					return tt.repoErr
 				},
@@ -313,6 +354,12 @@ func TestProcedureService_Delete(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantNotFound {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
+				}
 			} else {
 				assert.NoError(t, err)
 			}

@@ -28,6 +28,17 @@ function requestInterceptor(config: InternalAxiosRequestConfig) {
   config.headers["X-Request-ID"] = crypto.randomUUID();
   // Authorization ヘッダは不要 — httpOnly Cookie が自動送信される（withCredentials: true）
 
+  // クリニック切替: localStorage の選択クリニック ID をヘッダーで送信
+  // バックエンドの auth ミドルウェアが X-Clinic-ID を優先して clinic_id コンテキストを上書きする
+  try {
+    const clinicId = localStorage.getItem("auth_current_clinic:v1");
+    if (clinicId) {
+      config.headers["X-Clinic-ID"] = clinicId;
+    }
+  } catch {
+    /* SSR / localStorage 無効環境では無視 */
+  }
+
   // BUG-067: POST/PATCH/PUT のリクエストボディから NULL バイトを除去
   const method = config.method?.toLowerCase();
   if ((method === "post" || method === "patch" || method === "put") && config.data) {

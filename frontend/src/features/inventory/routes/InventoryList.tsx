@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -29,20 +29,18 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
-import {
-  getInventoryStatusColor,
-  getInventoryStatusLabel,
-} from "@/utils/status-helpers";
+import { getInventoryStatusColor, getInventoryStatusLabel } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 
 // Relative
 import { useInventory } from "../hooks/use-inventory";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type { InventoryItem } from "@/types";
+import { ResourceInventory } from "@/types/generated/models";
 
 type CategoryFilter = InventoryItem["category"] | "all";
 type StatusFilter = InventoryItem["status"] | "all";
@@ -208,23 +206,23 @@ export function InventoryList() {
 
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((item: InventoryItem) => (
-    <DataTableRow key={item.id} onClick={() => handleEdit(item.id)}>
-      <TableCell className="text-base font-medium text-[#37352F] py-2">
+    <DataTableRow key={item.id} onClick={canEdit ? () => handleEdit(item.id) : undefined}>
+      <TableCell className={`text-base font-medium ${C.text} py-2`}>
         {item.name}
       </TableCell>
-      <TableCell className="text-base text-[#37352F] py-2">
+      <TableCell className={`text-base ${C.text} py-2`}>
         {CATEGORY_LABELS[item.category]}
       </TableCell>
-      <TableCell className="text-base text-[#37352F] py-2 text-right font-mono">
+      <TableCell className={`text-base ${C.text} py-2 text-right font-mono`}>
         {item.quantity} {item.unit}
       </TableCell>
-      <TableCell className="text-base text-[#37352F]/60 py-2 text-right font-mono hidden lg:table-cell">
+      <TableCell className={`text-base ${C.text60} py-2 text-right font-mono hidden lg:table-cell`}>
         {item.minStockLevel} {item.unit}
       </TableCell>
-      <TableCell className="text-base text-[#37352F] py-2">
+      <TableCell className={`text-base ${C.text} py-2`}>
         {item.location ?? "-"}
       </TableCell>
-      <TableCell className="text-base text-[#37352F] py-2 font-mono hidden lg:table-cell">
+      <TableCell className={`text-base ${C.text} py-2 font-mono hidden lg:table-cell`}>
         {item.expiryDate ?? "-"}
       </TableCell>
       <TableCell className="py-2">
@@ -241,17 +239,20 @@ export function InventoryList() {
   return (
     <PageLayout
       title="在庫管理"
-      icon={<Package className={`${ICON.page} text-[#37352F]`} />}
+      resource={ResourceInventory}
+      icon={<Package className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className="h-10 text-base gap-2 bg-white"
-            onClick={() => {}}
-          >
-            <FileSpreadsheet className={ICON.action} />
-            データ取込
-          </Button>
+          {canCreate ? (
+            <Button
+              variant="outline"
+              className="h-10 text-base gap-2 bg-white"
+              onClick={() => {}}
+            >
+              <FileSpreadsheet className={ICON.action} />
+              データ取込
+            </Button>
+          ) : null}
           {canCreate ? (
             <PrimaryButton onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />

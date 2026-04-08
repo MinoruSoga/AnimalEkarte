@@ -46,6 +46,7 @@ service-account-key.json
 
 # Local development configuration
 .claude/settings.local.json
+.claude/logs/
 .vscode/settings.json
 .DS_Store
 

@@ -31,7 +31,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/D
 // Relative
 import { useGetAccountings } from "../api/get-accountings";
 import type { AccountingFilters } from "../api/get-accountings";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
@@ -41,6 +41,7 @@ import type {
   ActiveFilter,
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
+import { ResourceAccounting } from "@/types/generated/models";
 
 // ── 静的定数（rendering-hoist-jsx）──────────────────────────
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -352,6 +353,7 @@ export function AccountingList() {
   return (
     <PageLayout
       title="会計管理"
+      resource={ResourceAccounting}
       icon={<CreditCard className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (

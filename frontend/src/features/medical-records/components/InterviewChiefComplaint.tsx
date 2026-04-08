@@ -10,14 +10,9 @@ import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, LAYOUT, ICON, STYLE } from "@/lib/design-tokens";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Relative
 import { useGetChiefComplaintCategories } from "../api/get-chief-complaint-categories";
@@ -42,6 +37,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   onInsertTemplate,
 }: InterviewChiefComplaintProps) {
   const navigate = useNavigate();
+  const { canEdit } = usePermission("medical-records");
   const { data: categories = [], isLoading } = useGetChiefComplaintCategories();
 
   return (
@@ -56,19 +52,21 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label className={`text-sm ${C.text60}`}>主訴区分</Label>
-            <button
-              onClick={() => navigate(paths.settings.interview.chiefComplaint.getHref())}
-              className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
-              type="button"
-            >
-              <Settings className={ICON.xs} />
-              マスタ編集
-            </button>
+            {canEdit ? (
+              <button
+                onClick={() => navigate(paths.settings.interview.chiefComplaint.getHref())}
+                className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
+                type="button"
+              >
+                <Settings className={ICON.xs} />
+                マスタ編集
+              </button>
+            ) : null}
           </div>
           <Select
             value={chiefComplaintCategoryId ? String(chiefComplaintCategoryId) : ""}
             onValueChange={(value) => setChiefComplaintCategoryId(value ? Number(value) : null)}
-            disabled={isLoading}
+            disabled={isLoading || !canEdit}
           >
             <SelectTrigger className={`w-full ${LAYOUT.touch.md} bg-white ${C.borderMedium} text-sm ${C.text}`}>
               <SelectValue placeholder={isLoading ? "読み込み中..." : "選択してください"} />
@@ -86,14 +84,16 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label className={`text-sm ${C.text60}`}>定型文挿入</Label>
-            <button
-              onClick={() => navigate(paths.settings.interview.interviewTemplate.getHref())}
-              className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
-              type="button"
-            >
-              <Settings className={ICON.xs} />
-              マスタ編集
-            </button>
+            {canEdit ? (
+              <button
+                onClick={() => navigate(paths.settings.interview.interviewTemplate.getHref())}
+                className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
+                type="button"
+              >
+                <Settings className={ICON.xs} />
+                マスタ編集
+              </button>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             {templates.map((tmpl) => (
@@ -103,6 +103,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
                 size="sm"
                 className={`${LAYOUT.touch.md} text-sm px-3 bg-white ${C.hoverBgPage} ${C.text60} ${C.borderMedium}`}
                 onClick={() => onInsertTemplate(tmpl.text)}
+                disabled={!canEdit}
               >
                 {tmpl.label}
               </Button>
@@ -117,6 +118,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             onChange={setChiefComplaint}
             className="flex-1 min-h-0"
             textareaClassName={`${STYLE.textarea} min-h-0`}
+            disabled={!canEdit}
           />
         </div>
       </div>

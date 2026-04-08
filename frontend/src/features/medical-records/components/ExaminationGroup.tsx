@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import React from "react";
 
 // External
@@ -32,14 +32,14 @@ export const ExaminationGroup = React.memo(function ExaminationGroup({
 }: ExaminationGroupProps) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between w-full border-b border-[#37352F]/20 pb-2">
+      <div className={`flex items-center justify-between w-full border-b ${C.borderPrimary20} pb-2`}>
         <div className="flex items-center gap-4">
-          <h3 className="text-base font-bold text-[#37352F] font-mono">
+          <h3 className={`text-base font-bold ${C.text} font-mono`}>
             {group.date}
           </h3>
           <Badge
             variant="secondary"
-            className="bg-[#F7F6F3] text-[#37352F]/80 hover:bg-[#F7F6F3] font-normal px-2 py-0.5 text-sm h-10 border border-[rgba(55,53,47,0.16)]"
+            className={`${C.bgPage} ${C.text80} ${C.hoverBgPage} font-normal px-2 py-0.5 text-sm h-10 border ${C.borderMedium}`}
           >
             {group.machine}
           </Badge>
@@ -47,24 +47,24 @@ export const ExaminationGroup = React.memo(function ExaminationGroup({
         <Button
           variant="ghost"
           size="sm"
-          className="h-10 text-sm text-[#37352F]/60 hover:text-[#37352F]"
+          className={`h-10 text-sm ${C.text60} ${C.hoverText}`}
         >
           詳細を表示
         </Button>
       </div>
 
-      <div className="border border-[rgba(55,53,47,0.16)] rounded-lg bg-white overflow-hidden shadow-sm overflow-x-auto">
-        <div className="min-w-[600px] grid grid-cols-[2fr_1.5fr_1.5fr_2fr_1.5fr] gap-0 border-b border-[rgba(55,53,47,0.16)] bg-[#F7F6F3] text-sm font-bold text-[#37352F]/80 h-12 items-center">
-          <div className="p-2 border-r border-[rgba(55,53,47,0.16)] pl-3">
+      <div className={`border ${C.borderMedium} rounded-lg bg-white overflow-hidden shadow-sm overflow-x-auto`}>
+        <div className={`min-w-[600px] grid grid-cols-[2fr_1.5fr_1.5fr_2fr_1.5fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} h-12 items-center`}>
+          <div className={`p-2 border-r ${C.borderMedium} pl-3`}>
             項目名
           </div>
-          <div className="p-2 border-r border-[rgba(55,53,47,0.16)] text-right">
+          <div className={`p-2 border-r ${C.borderMedium} text-right`}>
             結果値
           </div>
-          <div className="p-2 border-r border-[rgba(55,53,47,0.16)] text-center">
+          <div className={`p-2 border-r ${C.borderMedium} text-center`}>
             単位
           </div>
-          <div className="p-2 border-r border-[rgba(55,53,47,0.16)] text-center">
+          <div className={`p-2 border-r ${C.borderMedium} text-center`}>
             基準値
           </div>
           <div className="p-2 text-center">判定</div>
@@ -74,15 +74,15 @@ export const ExaminationGroup = React.memo(function ExaminationGroup({
             key={item.id}
             className={`min-w-[600px] grid grid-cols-[2fr_1.5fr_1.5fr_2fr_1.5fr] gap-0 ${
               idx !== group.items.length - 1
-                ? "border-b border-[rgba(55,53,47,0.16)]"
+                ? `border-b ${C.borderMedium}`
                 : ""
-            } bg-white text-sm text-[#37352F] items-center hover:bg-[#F7F6F3]/50 h-12 transition-colors`}
+            } bg-white text-sm ${C.text} items-center ${C.hoverBgPageHalf} h-12 transition-colors`}
           >
-            <div className="p-2 border-r border-[rgba(55,53,47,0.16)] pl-3 font-medium">
+            <div className={`p-2 border-r ${C.borderMedium} pl-3 font-medium`}>
               {item.name}
             </div>
             <div
-              className={`p-2 border-r border-[rgba(55,53,47,0.16)] text-right font-mono ${
+              className={`p-2 border-r ${C.borderMedium} text-right font-mono ${
                 item.status === "high"
                   ? "text-red-600 font-bold"
                   : item.status === "low"
@@ -92,10 +92,10 @@ export const ExaminationGroup = React.memo(function ExaminationGroup({
             >
               {item.result}
             </div>
-            <div className="p-2 border-r border-[rgba(55,53,47,0.16)] text-center text-[#37352F]/60 text-sm">
+            <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
               {item.unit}
             </div>
-            <div className="p-2 border-r border-[rgba(55,53,47,0.16)] text-center text-[#37352F]/60 text-sm">
+            <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
               {item.ref}
             </div>
             <div className="p-2 flex justify-center items-center">

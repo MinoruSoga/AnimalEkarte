@@ -3,6 +3,35 @@
 // DO NOT EDIT manually — run `make codegen` to regenerate
 
 //////////
+// source: account.go
+
+export interface Account {
+  id: number /* uint64 */;
+  email: string;
+  is_active: boolean;
+  is_system_admin: boolean;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  staff?: Staff;
+}
+export interface StaffClinicAssignment {
+  id: number /* uint64 */;
+  staff_id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  is_main: boolean;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  staff?: Staff;
+  clinic?: Clinic;
+}
+
+//////////
 // source: accounting.go
 
 export type TaxType = string;
@@ -73,6 +102,7 @@ export interface BillingItem {
   tax_rate: number /* float64 */;
   is_insurance_applicable: boolean;
   source: ItemSource;
+  merchandise_item_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
 }
@@ -321,14 +351,6 @@ export interface ChiefComplaintCategory {
 //////////
 // source: clinic.go
 
-export type UserType = string;
-export const UserTypeSystemAdmin: UserType = "system_admin";
-export const UserTypeClinicAdmin: UserType = "clinic_admin";
-export const UserTypeStaff: UserType = "staff";
-export type AccountStatus = string;
-export const AccountStatusActive: AccountStatus = "active";
-export const AccountStatusInactive: AccountStatus = "inactive";
-export const AccountStatusLocked: AccountStatus = "locked";
 export interface Clinic {
   id: number /* uint64 */;
   company_id: number /* uint64 */;
@@ -347,67 +369,6 @@ export interface Clinic {
   reduced_tax_rate: number /* float64 */;
   created_at: string;
   updated_at: string;
-}
-export interface UserAccount {
-  id: number /* uint64 */;
-  email: string;
-  display_name: string;
-  display_name_kana: string;
-  user_type: UserType;
-  job_title_id?: number /* uint64 */;
-  status: AccountStatus;
-  avatar_url: string;
-  staff_id?: number /* uint64 */;
-  created_at: string;
-  updated_at: string;
-  /**
-   * Relations
-   */
-  staff?: Staff;
-  job_title?: JobTitle;
-}
-export interface UserClinicMembership {
-  id: number /* uint64 */;
-  user_id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  is_main: boolean;
-  joined_at: string;
-}
-/**
- * PermissionGroup は権限グループ定義（company単位で管理）
- */
-export interface PermissionGroup {
-  id: number /* uint64 */;
-  company_id: number /* uint64 */;
-  name: string;
-  description: string;
-  color: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at?: string | null;
-  /**
-   * Relations
-   */
-  rules?: PermissionGroupRule[];
-}
-/**
- * PermissionGroupRule はグループ×ページ×CRUD権限
- */
-export interface PermissionGroupRule {
-  id: number /* uint64 */;
-  group_id: number /* uint64 */;
-  resource: Resource;
-  can_view: boolean;
-  can_create: boolean;
-  can_edit: boolean;
-  can_delete: boolean;
-}
-/**
- * UserPermissionGroup はユーザー→グループ紐付け
- */
-export interface UserPermissionGroup {
-  user_id: number /* uint64 */;
-  group_id: number /* uint64 */;
 }
 
 //////////
@@ -573,6 +534,7 @@ export interface EstimateItem {
   consultation_id?: number /* uint64 */;
   procedure_id?: number /* uint64 */;
   medicine_id?: number /* uint64 */;
+  merchandise_item_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -961,23 +923,6 @@ export interface InventoryItem {
 }
 
 //////////
-// source: job_title.go
-
-/**
- * JobTitle は職種マスタ（v16.0 job_title ENUM廃止→マスタテーブル化）
- */
-export interface JobTitle {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  name: string;
-  description: string;
-  sort_order: number /* int */;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-//////////
 // source: medical_record.go
 
 export type MedicalRecordStatus = string;
@@ -996,6 +941,7 @@ export interface MedicalRecord {
   version: number /* int */;
   created_at: string;
   updated_at: string;
+  visit_count: number /* int64 */;
   /**
    * Relations
    */
@@ -1072,6 +1018,23 @@ export interface MerchandiseItem {
 }
 
 //////////
+// source: occupation.go
+
+/**
+ * Occupation は職種マスタ（クリニックごとにカスタマイズ可能な職種定義）
+ */
+export interface Occupation {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  description: string;
+  sort_order: number /* int */;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: owner.go
 
 export type MembershipType = string;
@@ -1114,7 +1077,7 @@ export interface Owner {
  * Resource はフロントエンドのページ識別子（権限管理用）
  */
 export type Resource = string;
-export const ResourceDashboard: Resource = "dashboard";
+export const ResourceReception: Resource = "reception";
 export const ResourceOwners: Resource = "owners";
 export const ResourceReservations: Resource = "reservations";
 export const ResourceMedicalRecords: Resource = "medical-records";
@@ -1127,8 +1090,73 @@ export const ResourceCheckups: Resource = "checkups";
 export const ResourceInventory: Resource = "inventory";
 export const ResourceEstimates: Resource = "estimates";
 export const ResourceShifts: Resource = "shifts";
-export const ResourceMaster: Resource = "master";
 export const ResourceHospitalSettings: Resource = "hospital-settings";
+/**
+ * マスタ設定: 個別リソース
+ */
+export const ResourceMasterAnimalSpecies: Resource = "master-animal-species";
+export const ResourceMasterMedical: Resource = "master-medical";
+export const ResourceMasterServiceType: Resource = "master-service-type";
+export const ResourceMasterHospitalization: Resource = "master-hospitalization";
+export const ResourceMasterTrimming: Resource = "master-trimming";
+export const ResourceMasterPermission: Resource = "master-permission";
+export const ResourceMasterStaff: Resource = "master-staff";
+export const ResourceMasterInsurance: Resource = "master-insurance";
+export const ResourceMasterMerchandise: Resource = "master-merchandise";
+
+//////////
+// source: permission_group.go
+
+/**
+ * PermissionGroup は権限グループマスタ（クリニック単位で権限を管理）
+ */
+export interface PermissionGroup {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  description: string;
+  color: string;
+  is_active: boolean;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  rules?: PermissionGroupRule[];
+  staffs?: Staff[];
+}
+/**
+ * PermissionGroupRule は権限グループ内のリソース×CRUD権限
+ */
+export interface PermissionGroupRule {
+  id: number /* uint64 */;
+  group_id: number /* uint64 */;
+  resource: string;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  permission_group?: PermissionGroup;
+}
+/**
+ * StaffPermissionGroup はスタッフと権限グループの中間テーブル（M:N）
+ */
+export interface StaffPermissionGroup {
+  staff_id: number /* uint64 */;
+  group_id: number /* uint64 */;
+  created_at: string;
+  /**
+   * Relations
+   */
+  staff?: Staff;
+  group?: PermissionGroup;
+}
 
 //////////
 // source: pet.go
@@ -1305,19 +1333,12 @@ export interface ServiceType {
 //////////
 // source: staff.go
 
-export type StaffRole = string;
-export const StaffRoleVeterinarian: StaffRole = "veterinarian";
-export const StaffRoleNurse: StaffRole = "nurse";
-export const StaffRoleTrimmer: StaffRole = "trimmer";
-export const StaffRoleReception: StaffRole = "reception";
-export const StaffRoleManager: StaffRole = "manager";
 export interface Staff {
   id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
+  account_id?: number /* uint64 */;
   name: string;
   is_active: boolean;
-  staff_role: StaffRole;
-  job_title_id?: number /* uint64 */;
+  occupation_id?: number /* uint64 */;
   license_number: string;
   sort_order: number /* int */;
   created_at: string;
@@ -1325,7 +1346,9 @@ export interface Staff {
   /**
    * Relations
    */
-  job_title?: JobTitle;
+  account?: Account;
+  occupation?: Occupation;
+  clinic_assignments?: StaffClinicAssignment[];
 }
 export type ShiftType = string;
 export const ShiftTypeFull: ShiftType = "full";

@@ -174,6 +174,14 @@ func (s *merchandiseItemService) Delete(ctx context.Context, clinicID, id uint64
 		return apperrors.Wrap(err, "failed to get merchandise item")
 	}
 
+	count, err := s.repo.CountUsageByMerchandiseItemID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check merchandise item dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この物販品目は請求・見積データで使用中のため削除できません")
+	}
+
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete merchandise item")
 	}

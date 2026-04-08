@@ -12,13 +12,12 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth, usePermission } from "@/features/auth";
 
 // Relative
 import { useHospitalizationForm } from "../hooks/use-hospitalization-form";
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth/hooks/use-permission";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo";
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
@@ -27,6 +26,7 @@ import { HospitalizationCostSummary } from "../components/HospitalizationCostSum
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { ResourceHospitalization } from "@/types/generated/models";
 
 export function HospitalizationForm() {
   const navigate = useNavigate();
@@ -38,7 +38,8 @@ export function HospitalizationForm() {
   const { data: cageItems } = useMasterItems("cage");
 
   const { user } = useAuth();
-  const { canEdit, canDelete } = usePermission("hospitalization");
+  const { canEdit, canCreate, canDelete } = usePermission("hospitalization");
+  const canSubmit = hospitalizationId ? canEdit : canCreate;
   const deleteMutation = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -138,7 +139,8 @@ export function HospitalizationForm() {
     <PageLayout
       title={hospitalizationId ? "入院編集" : "入院登録"}
       onBack={handleBack}
-      icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
+      icon={<FileText className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceHospitalization}
       maxWidth="max-w-[1400px]"
       headerAction={
         <div className="flex gap-2">
@@ -166,7 +168,7 @@ export function HospitalizationForm() {
                   ) : null}
                 </>
             ) : null}
-            {canEdit ? (
+            {canSubmit ? (
               <SubmitButton
               className={`${C.bgAccent} ${C.bgAccentHover} text-white rounded-[6px] h-10 text-sm px-4`}
               >
@@ -177,6 +179,7 @@ export function HospitalizationForm() {
       }
     >
         <NavigationBlocker when={isDirty} />
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         {/* Patient Info Card */}
         {selectedPet ? (
             <PatientInfoCard
@@ -225,21 +228,22 @@ export function HospitalizationForm() {
         </div>
 
         {/* 治療プラン */}
-        <HospitalizationTreatmentTable 
+        <HospitalizationTreatmentTable
             treatmentPlans={treatmentPlans}
             onAdd={addTreatmentPlan}
             onUpdate={updateTreatmentPlan}
-            onRemove={removeTreatmentPlan}
+            onRemove={canDelete ? removeTreatmentPlan : undefined}
         />
 
         {/* 診療費計算 */}
-        <HospitalizationCostSummary 
+        <HospitalizationCostSummary
             totals={totals}
             globalDiscount={globalDiscount}
             setGlobalDiscount={handleGlobalDiscountChange}
             globalDiscountAmount={globalDiscountAmount}
             setGlobalDiscountAmount={handleGlobalDiscountAmountChange}
         />
+        </fieldset>
     </PageLayout>
     </form>
     <ConfirmDialog

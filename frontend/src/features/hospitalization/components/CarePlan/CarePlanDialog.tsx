@@ -23,6 +23,7 @@ import { H_STYLES } from "@/features/hospitalization/styles";
 // Types
 import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "@/features/hospitalization/types";
 import type { CarePlanTiming } from "@/types";
+import { C } from "@/lib/design-tokens";
 
 interface CarePlanDialogProps {
     open: boolean;
@@ -108,16 +109,16 @@ export const CarePlanDialog = memo(function CarePlanDialog({
             >
                 <div className="space-y-4 py-4">
                     {/* Search Action */}
-                    <div className="flex items-end gap-3 mb-2 p-3 bg-[#F7F6F3] rounded-md border border-[rgba(55,53,47,0.09)]">
+                    <div className={`flex items-end gap-3 mb-2 p-3 ${C.bgPage} rounded-md border ${C.borderLight}`}>
                         <div className="flex-1">
-                            <Label className={`${H_STYLES.text.sm} text-[#37352F]/60 mb-1 block`}>マスタから引用</Label>
-                            <div className={`${H_STYLES.text.base} text-[#37352F]`}>
+                            <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1 block`}>マスタから引用</Label>
+                            <div className={`${H_STYLES.text.base} ${C.text}`}>
                                 処置・検査・薬などをマスタから検索して入力できます
                             </div>
                         </div>
                         <Button
                             variant="outline"
-                            className={`bg-white gap-2 text-[#37352F] ${H_STYLES.button.action}`}
+                            className={`bg-white gap-2 ${C.text} ${H_STYLES.button.action}`}
                             onClick={() => setIsSearchOpen(true)}
                         >
                             <Search className={H_STYLES.button.icon} />
@@ -163,7 +164,7 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                     </div>
 
                     {formData.unitPrice !== undefined ? (
-                        <div className={`flex items-center gap-2 ${H_STYLES.text.base} text-[#37352F]/60 px-1`}>
+                        <div className={`flex items-center gap-2 ${H_STYLES.text.base} ${C.text60} px-1`}>
                             <Badge variant="outline" className="font-mono bg-purple-50 text-purple-700 border-purple-200">
                                 マスタ連動中
                             </Badge>
@@ -190,8 +191,8 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                                     className={`
                                         px-3 py-1.5 rounded-md ${H_STYLES.text.base} border cursor-pointer select-none transition-colors
                                         ${formData.timing?.includes(time)
-                                            ? "bg-[#2EAADC] text-white border-[#2EAADC]"
-                                            : "bg-white text-[#37352F] border-[rgba(55,53,47,0.16)] hover:bg-gray-50"}
+                                            ? `${C.bgMedicalBlue} text-white ${C.borderMedicalBlue}`
+                                            : `bg-white ${C.text} ${C.borderMedium} hover:bg-gray-50`}
                                     `}
                                 >
                                     {time === 'morning' ? '朝' : time === 'noon' ? '昼' : '夜'}

@@ -5,16 +5,8 @@ import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
 // DnD
-import {
-  DndContext,
-  DragOverlay,
-  closestCenter,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { DndContext, DragOverlay, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 // External
 import { AnimatePresence, motion } from "motion/react";
@@ -38,44 +30,22 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useSortableList } from "@/hooks/use-sortable-list";
 
 // Internal – feature API (direct import, no barrel)
-import {
-  useGetAllMedicines,
-  useCreateMedicine,
-  useUpdateMedicine,
-  useDeleteMedicine,
-  useReorderMedicines,
-} from "../api/medicines";
+import { useGetAllMedicines, useCreateMedicine, useUpdateMedicine, useDeleteMedicine, useReorderMedicines } from "../api/medicines";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import type { TaxType } from "@/types/generated/models";
+import { ResourceMasterMedical } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type { Medicine } from "@/types";
@@ -152,13 +122,15 @@ function SortableMedicineRow({
   medicine,
   onEdit,
   grouped,
+  canEdit,
 }: {
   medicine: Medicine;
   onEdit: (medicine: Medicine) => void;
   grouped: boolean;
+  canEdit: boolean;
 }) {
   return (
-    <SortableDataTableRow id={medicine.id} onClick={() => onEdit(medicine)}>
+    <SortableDataTableRow id={medicine.id} onClick={canEdit ? () => onEdit(medicine) : undefined}>
       <TableCell className={`${STYLE.tableCell} font-medium ${grouped ? "pl-12!" : "pl-2"}`}>
         {medicine.name}
       </TableCell>
@@ -172,28 +144,30 @@ function SortableMedicineRow({
         <NotionStatusPill isActive={medicine.isActive} />
       </TableCell>
       <TableCell className="w-[80px] py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors"
-              >
-                <MoreHorizontal className={ICON.action} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit(medicine)}>編集</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            type="button"
-            onClick={() => onEdit(medicine)}
-            className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors"
-          >
-            <Maximize2 className={`${ICON.xs}`} />
-          </button>
-        </div>
+        {canEdit ? (
+          <div className="flex items-center justify-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
+                >
+                  <MoreHorizontal className={ICON.action} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(medicine)}>編集</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
+              type="button"
+              onClick={() => onEdit(medicine)}
+              className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
+            >
+              <Maximize2 className={`${ICON.xs}`} />
+            </button>
+          </div>
+        ) : null}
       </TableCell>
     </SortableDataTableRow>
   );
@@ -215,13 +189,13 @@ function MedicineRowOverlay({
       className={`flex items-center h-12 bg-white border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`}
       style={{ width: "100%" }}
     >
-      <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50">
+      <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}>
         <GripVertical className={ICON.action} />
       </div>
       <div className={`flex-1 min-w-0 text-base font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}>
         {medicine.name}
       </div>
-      <div className="w-[100px] shrink-0 text-center text-base text-[#37352F]/65">
+      <div className={`w-[100px] shrink-0 text-center text-base ${C.text65}`}>
         {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
       </div>
       <div className={`w-[130px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>
@@ -250,6 +224,8 @@ interface MedicineSidePanelProps {
   handleCloseEdit: () => void;
   handleSave: () => void;
   handleDeleteRequest: () => void;
+  readOnly?: boolean;
+  canDelete?: boolean;
 }
 
 const MedicineSidePanel = memo(function MedicineSidePanel({
@@ -263,6 +239,8 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
   handleCloseEdit,
   handleSave,
   handleDeleteRequest,
+  readOnly,
+  canDelete,
 }: MedicineSidePanelProps) {
   const [nameError, setNameError] = useState("");
   const handleAction = () => {
@@ -290,10 +268,12 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
             onTitleChange={(v) => { updateForm({ name: v }); if (v.trim()) setNameError(""); }}
             onClose={handleCloseEdit}
             action={handleAction}
-            onDelete={selectedMedicine ? handleDeleteRequest : undefined}
+            onDelete={selectedMedicine && canDelete ? handleDeleteRequest : undefined}
             icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
             titlePlaceholder="薬品名"
             titleError={nameError}
+            titleMaxLength={100}
+            readOnly={readOnly}
           >
             {/* Properties */}
             {/* Parent category select */}
@@ -361,7 +341,7 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
               <button
                 type="button"
                 onClick={() => updateForm({ isActive: !formData.isActive })}
-                className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
+                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
               >
                 <NotionStatusPill isActive={formData.isActive} />
               </button>
@@ -432,6 +412,7 @@ function isCategoryMedicine(m: Medicine | null): boolean {
 
 export function MedicineSettings() {
   const navigate = useNavigate();
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const reduced = useReducedMotion();
   const panelDuration = reduced ? 0 : 0.2;
 
@@ -770,7 +751,7 @@ export function MedicineSettings() {
                   {/* Group header row — クリックでカテゴリ編集パネルを開く */}
                   <TableRow
                     onClick={() => handleEdit(header)}
-                    className={`${STYLE.tableRow} border-b ${C.borderLight} bg-[#F7F6F3]/30 group/header hover:bg-[#F7F6F3]/60`}
+                    className={`${STYLE.tableRow} border-b ${C.borderLight} ${C.bgPage30} group/header ${C.hoverBgPage60}`}
                   >
                     {/* Grip handle — left (クリック伝播を止める) */}
                     <TableCell className="w-8 px-0 py-0">
@@ -778,7 +759,7 @@ export function MedicineSettings() {
                         type="button"
                         tabIndex={-1}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/20 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F]/50 transition-colors cursor-grab"
+                        className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text20} ${C.hoverBgMedium} ${C.hoverText60} transition-colors cursor-grab`}
                       >
                         <GripVertical className={ICON.action} />
                       </button>
@@ -793,29 +774,31 @@ export function MedicineSettings() {
                             e.stopPropagation();
                             toggleGroup(parentId);
                           }}
-                          className="flex items-center gap-1.5 py-1.5 px-1 hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] transition-colors"
+                          className={`flex items-center gap-1.5 py-1.5 px-1 ${C.hoverBgLight} rounded-[3px] transition-colors`}
                         >
                           <ChevronRight
-                            className={`size-5 text-[#37352F]/50 transition-transform duration-150 ${
+                            className={`size-5 ${C.text50} transition-transform duration-150 ${
                               isCollapsed ? "" : "rotate-90"
                             }`}
                           />
-                          <span className="text-base font-medium text-[#37352F]/65">
+                          <span className={`text-base font-medium ${C.text65}`}>
                             {header.name}
                           </span>
-                          <span className="text-base text-[#37352F]/40 ml-0.5">{items.length}</span>
+                          <span className={`text-base ${C.text40} ml-0.5`}>{items.length}</span>
                         </button>
                         <div className="flex-1" />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCreate(parentId);
-                          }}
-                          className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors opacity-0 group-hover/header:opacity-100"
-                        >
-                          <Plus className={`${ICON.xs}`} />
-                        </button>
+                        {canCreate ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCreate(parentId);
+                            }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
+                          >
+                            <Plus className={`${ICON.xs}`} />
+                          </button>
+                        ) : null}
                       </div>
                     </TableCell>
 
@@ -832,19 +815,21 @@ export function MedicineSettings() {
 
                     {/* Actions column — category */}
                     <TableCell className="w-[80px] py-0 text-center" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors opacity-0 group-hover/header:opacity-100"
-                          >
-                            <MoreHorizontal className={ICON.action} />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(header)}>編集</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {canEdit ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
+                            >
+                              <MoreHorizontal className={ICON.action} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(header)}>編集</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : null}
                     </TableCell>
                   </TableRow>
 
@@ -860,6 +845,7 @@ export function MedicineSettings() {
                           medicine={medicine}
                           onEdit={handleEdit}
                           grouped
+                          canEdit={canEdit}
                         />
                       ))}
                     </SortableContext>
@@ -879,6 +865,7 @@ export function MedicineSettings() {
                   medicine={medicine}
                   onEdit={handleEdit}
                   grouped={false}
+                  canEdit={canEdit}
                 />
               ))}
             </SortableContext>
@@ -895,15 +882,17 @@ export function MedicineSettings() {
         </DndContext>
       </div>
 
-      {/* Inline add row */}
-      <button
-        type="button"
-        onClick={() => handleCreate()}
-        className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]"
-      >
-        <Plus className={`${ICON.xs}`} />
-        新しい薬剤を追加...
-      </button>
+      {/* Inline add row — BUG-157: create 権限で制御 */}
+      {canCreate ? (
+        <button
+          type="button"
+          onClick={() => handleCreate()}
+          className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}
+        >
+          <Plus className={`${ICON.xs}`} />
+          新しい薬剤を追加...
+        </button>
+      ) : null}
     </div>
   );
 
@@ -913,14 +902,17 @@ export function MedicineSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="薬剤マスタ"
-            icon={<Pill className={`${ICON.page} text-[#37352F]`} />}
+            icon={<Pill className={`${ICON.page} ${C.text}`} />}
+            resource={ResourceMasterMedical}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
-              <PrimaryButton onClick={() => handleCreate()}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
+              canCreate ? (
+                <PrimaryButton onClick={() => handleCreate()}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null
             }
           >
             <div className="flex flex-col gap-4">
@@ -948,6 +940,8 @@ export function MedicineSettings() {
           handleCloseEdit={handleCloseEdit}
           handleSave={handleSave}
           handleDeleteRequest={handleDeleteRequest}
+          readOnly={!canEdit}
+          canDelete={canDelete}
         />
       </div>
 

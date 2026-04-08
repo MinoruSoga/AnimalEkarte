@@ -24,20 +24,18 @@ export interface UpdateClinicRequest {
 
 export interface CreateStaffRequest {
   name: string;
-  staff_role: "veterinarian" | "nurse" | "trimmer" | "reception" | "manager";
   email: string;
   password: string;
   staff_code?: string;
   license_number?: string;
-  job_title_id?: string | null;
+  occupation_id?: string | null;
   sort_order: number;
 }
 
 export interface UpdateStaffRequest {
   name?: string;
-  staff_role?: "veterinarian" | "nurse" | "trimmer" | "reception" | "manager";
   license_number?: string;
-  job_title_id?: string | null;
+  occupation_id?: string | null;
   sort_order?: number;
   is_active?: boolean;
 }

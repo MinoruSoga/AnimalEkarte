@@ -13,10 +13,9 @@ import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/cons
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetAllInsurances, useCreateInsurance, useUpdateInsurance, useDeleteInsurance,
-} from "@/features/master/api/insurances";
+import { useGetAllInsurances, useCreateInsurance, useUpdateInsurance, useDeleteInsurance } from "@/features/master/api/insurances";
 import type { Insurance, CreateInsuranceRequest, UpdateInsuranceRequest } from "@/features/master/api/insurances";
+import { ResourceMasterInsurance } from "@/types/generated/models";
 
 const COLUMNS = [
   { header: "名称", className: "flex-1" },
@@ -29,8 +28,8 @@ const COLUMNS = [
 interface InsuranceFormData { name: string; description: string; coverageRate: string; contactPhone: string; isActive: boolean; }
 
 const InsuranceSidePanel = memo(function InsuranceSidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: Insurance | null; onClose: () => void; onSave: (d: InsuranceFormData) => void; onDeleteRequest: (i: Insurance) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: Insurance | null; onClose: () => void; onSave: (d: InsuranceFormData) => void; onDeleteRequest?: (i: Insurance) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<InsuranceFormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "",
     coverageRate: item?.coverageRate != null ? String(item.coverageRate) : "0",
@@ -84,10 +83,12 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose} action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="補償率(%)">
         <input type="number" min={0} max={100} className={MASTER_INPUT_CLASS}
@@ -126,17 +127,17 @@ export function InsuranceSettings() {
   });
 
   return (
-    <MasterCRUDPage title="保険マスタ" icon={<Shield className={`${ICON.page} text-[#37352F]`} />}
+    <MasterCRUDPage title="保険マスタ" icon={<Shield className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterInsurance}
       entityLabel="保険" searchPlaceholder="保険名で検索..." emptyMessage="保険が登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
-      renderRow={(item, onEdit) => (
-        <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+      renderRow={(item, onEdit, canEdit) => (
+        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base text-center ${C.text}`}>{item.coverageRate > 0 ? `${item.coverageRate}%` : "-"}</TableCell>
           <TableCell className={`text-base ${C.text70}`}>{item.contactPhone || "-"}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
+          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => <InsuranceSidePanel key={props.item?.id ?? "new"} {...props} />}

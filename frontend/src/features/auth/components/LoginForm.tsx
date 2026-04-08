@@ -16,26 +16,34 @@ import { useAuth } from "../hooks/use-auth";
 interface DemoCredential {
   email: string;
   displayName: string;
-  roleLabel: string;
+  occupationLabel: string;
   permissionLabel: string;
+  clinicLabel: string;
+  isSystemAdmin?: boolean;
 }
 
 const DEMO_ACCOUNTS: readonly DemoCredential[] = [
-  { email: "admin@example.com",     displayName: "田中 太郎",  roleLabel: "医院管理者", permissionLabel: "全権限"     },
-  { email: "manager@example.com",   displayName: "渡辺 院長",  roleLabel: "管理者",     permissionLabel: "管理者グループ" },
-  { email: "exec@example.com",      displayName: "小林 部長",  roleLabel: "執行",       permissionLabel: "執行グループ"  },
-  { email: "vet@example.com",       displayName: "山田 花子",  roleLabel: "医師",       permissionLabel: "一般グループ"  },
-  { email: "nurse@example.com",     displayName: "佐藤 美咲",  roleLabel: "看護師",     permissionLabel: "一般グループ"  },
-  { email: "reception@example.com", displayName: "鈴木 一郎",  roleLabel: "受付",       permissionLabel: "一般グループ"  },
-  { email: "trimmer@example.com",   displayName: "高橋 さくら", roleLabel: "トリマー",   permissionLabel: "一般グループ"  },
-  { email: "system@example.com",    displayName: "本部 管理者", roleLabel: "運営管理者", permissionLabel: "全権限"     },
+  // システム管理者（全医院）
+  { email: "admin@noavet.jp",        displayName: "システム管理 太郎", occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "全医院", isSystemAdmin: true },
+  // 八王子院
+  { email: "admin@example.com",      displayName: "執行 太郎",       occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "八王子院" },
+  { email: "vet@example.com",        displayName: "一般 花子",       occupationLabel: "獣医師",   permissionLabel: "一般", clinicLabel: "八王子院" },
+  { email: "nurse@example.com",      displayName: "一般 美咲",       occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子院" },
+  { email: "reception@example.com",  displayName: "一般 一郎",       occupationLabel: "受付",     permissionLabel: "一般", clinicLabel: "八王子院" },
+  { email: "trimmer@example.com",    displayName: "一般 さくら",     occupationLabel: "トリマー", permissionLabel: "一般", clinicLabel: "八王子院" },
+  // 城東医院
+  { email: "joto-vet@example.com",   displayName: "城東 獣医",       occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "城東医院" },
+  // 敷島医院
+  { email: "shiki-vet@example.com",  displayName: "敷島 獣医",       occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "敷島医院" },
 ];
 
 const DemoAccount = memo(function DemoAccount({
   email,
   displayName,
-  roleLabel,
+  occupationLabel,
   permissionLabel,
+  clinicLabel,
+  isSystemAdmin,
   onSelect,
 }: DemoCredential & { onSelect: (email: string) => void }) {
   return (
@@ -48,16 +56,25 @@ const DemoAccount = memo(function DemoAccount({
         <span className={`text-sm font-medium ${C.text65}`}>{displayName.charAt(0)}</span>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className={`text-sm font-medium ${C.text}`}>{displayName}</span>
           <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.text50} ${C.bgInactive}`}>
-            {roleLabel}
+            {occupationLabel}
           </span>
-          <span className={`text-xs px-1.5 py-px rounded-[3px] text-[#038B94] bg-[#038B94]/10`}>
+          <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.textBrand} ${C.bgBrand10}`}>
             {permissionLabel}
           </span>
+          {isSystemAdmin ? (
+            <span className="text-xs px-1.5 py-px rounded-[3px] text-red-600 bg-red-50">
+              システム管理者
+            </span>
+          ) : null}
         </div>
-        <span className={`text-xs ${C.text35} block truncate`}>{email}</span>
+        <div className="flex items-center gap-1.5">
+          <span className={`text-xs ${C.text35} truncate`}>{email}</span>
+          <span className={`text-xs ${C.text35}`}>·</span>
+          <span className={`text-xs ${C.text50}`}>{clinicLabel}</span>
+        </div>
       </div>
     </button>
   );
@@ -65,7 +82,7 @@ const DemoAccount = memo(function DemoAccount({
 
 /* ---- Shared input classes (padding-x set per field to avoid conflict) ---- */
 // Figma実測: fontSize=15px, height=~48px, bg=rgba(242,241,238,0.6), borderRadius=3px
-const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 focus:ring-[#038B94] focus:border-transparent disabled:opacity-60`;
+const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingBrand} focus:border-transparent disabled:opacity-60`;
 
 /* ---- Login Form ---- */
 
@@ -180,6 +197,7 @@ export function LoginForm() {
               value={password}
               onChange={handlePasswordChange}
               placeholder="パスワードを入力"
+              minLength={6}
               className={`${INPUT_BASE} pl-2.5 pr-10`}
               aria-invalid={formState.error !== null}
               aria-describedby={formState.error ? "login-error" : undefined}
@@ -200,7 +218,7 @@ export function LoginForm() {
 
         {/* Submit */}
         <SubmitButton
-          className="w-full h-[52px] text-base font-medium rounded-[3px] bg-[#038B94] hover:bg-[#027A82] transition-colors text-white"
+          className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} ${C.hoverBgBrand} transition-colors text-white`}
           loadingText="ログイン中..."
         >
           ログイン
@@ -228,10 +246,7 @@ export function LoginForm() {
           {DEMO_ACCOUNTS.map((cred) => (
             <DemoAccount
               key={cred.email}
-              email={cred.email}
-              displayName={cred.displayName}
-              roleLabel={cred.roleLabel}
-              permissionLabel={cred.permissionLabel}
+              {...cred}
               onSelect={handleSelectDemo}
             />
           ))}

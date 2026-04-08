@@ -1,4 +1,5 @@
 export { AuthProvider, useAuth } from "./hooks/use-auth";
+export { usePermission } from "./hooks/use-permission";
 export { Login } from "./routes/Login";
 export { ChangePasswordDialog } from "./components/ChangePasswordDialog";
 export { ForgotPasswordPage } from "./routes/ForgotPasswordPage";
@@ -10,7 +11,4 @@ export type {
   ResourcePermission,
   ResourcePermissions,
   ResourceAction,
-  UserType,
-  JobTitle,
-  StaffRole,
 } from "./types";

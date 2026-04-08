@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback, useMemo, useTransition } from "react";
 
 // External
@@ -14,13 +14,8 @@ import { DailyDateNav } from "@/features/hospitalization/components/DailyRecords
 import { DailyVitalsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyVitalsSection";
 import { DailyCareLogsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyCareLogsSection";
 import { DailyStaffNotesSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyStaffNotesSection";
-import {
-    useDailyRecord,
-    useCreateDailyRecord,
-    useCreateDailyVital,
-    useCreateCareLog,
-    useCreateStaffNote,
-} from "@/features/hospitalization/api/daily-records";
+import { useDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "@/features/hospitalization/api/daily-records";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type { CreateVitalRecordRequest, CreateCareLogRecordRequest, CreateStaffNoteRecordRequest } from "@/features/hospitalization/api/daily-records-types";
@@ -46,6 +41,7 @@ export function DailyRecordsTab({
     admissionDate,
     dischargeDate,
 }: DailyRecordsTabProps) {
+    const { canCreate } = usePermission("hospitalization");
     const today = useMemo(() => getTodayStr(), []);
     const effectiveMax = useMemo(
         () => (dischargeDate && dischargeDate < today ? dischargeDate : today),
@@ -124,27 +120,29 @@ export function DailyRecordsTab({
             />
 
             {isLoading ? (
-                <div className="flex items-center justify-center py-10 text-[#37352F]/40">
+                <div className={`flex items-center justify-center py-10 ${C.text40}`}>
                     <Loader2 className={`${ICON.page} animate-spin mr-2`} />
                     <span className="text-sm">読み込み中...</span>
                 </div>
             ) : isError ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <p className="text-sm text-[#37352F]/50">この日の記録はまだありません</p>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCreateDailyRecord}
-                        disabled={isCreateRecordPending}
-                        className="gap-1.5"
-                    >
-                        {isCreateRecordPending ? (
-                            <Loader2 className={`${ICON.action} animate-spin`} />
-                        ) : (
-                            <PlusCircle className={ICON.action} />
-                        )}
-                        この日の記録を作成
-                    </Button>
+                    <p className={`text-sm ${C.text50}`}>この日の記録はまだありません</p>
+                    {canCreate ? (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleCreateDailyRecord}
+                            disabled={isCreateRecordPending}
+                            className="gap-1.5"
+                        >
+                            {isCreateRecordPending ? (
+                                <Loader2 className={`${ICON.action} animate-spin`} />
+                            ) : (
+                                <PlusCircle className={ICON.action} />
+                            )}
+                            この日の記録を作成
+                        </Button>
+                    ) : null}
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -152,6 +150,7 @@ export function DailyRecordsTab({
                         vitals={vitals}
                         onAddVital={handleAddVital}
                         isPending={isVitalPending}
+                        canCreate={canCreate}
                     />
 
                     <Separator className="opacity-50" />
@@ -160,6 +159,7 @@ export function DailyRecordsTab({
                         careLogs={careLogs}
                         onAddCareLog={handleAddCareLog}
                         isPending={isCareLogPending}
+                        canCreate={canCreate}
                     />
 
                     <Separator className="opacity-50" />
@@ -168,6 +168,7 @@ export function DailyRecordsTab({
                         staffNotes={staffNotes}
                         onAddStaffNote={handleAddStaffNote}
                         isPending={isStaffNotePending}
+                        canCreate={canCreate}
                     />
                 </div>
             )}

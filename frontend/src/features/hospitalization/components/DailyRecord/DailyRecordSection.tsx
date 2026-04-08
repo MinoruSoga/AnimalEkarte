@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { lazy, memo, Suspense, useCallback, useState } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { Activity, Sun, Moon, Coffee, Plus } from "lucide-react";
@@ -62,7 +62,7 @@ export const DailyRecordSection = memo(function DailyRecordSection({ records, pl
             <div className="pr-4">
                 <div className="space-y-3">
                     {tasks.length === 0 ? (
-                        <div className="text-center py-6 text-xs text-[#37352F]/40 bg-[#F7F6F3] rounded border border-dashed border-[rgba(55,53,47,0.16)]">
+                        <div className={`text-center py-6 text-xs ${C.text40} ${C.bgPage} rounded border border-dashed ${C.borderMedium}`}>
                             予定なし
                         </div>
                     ) : null}
@@ -90,9 +90,9 @@ export const DailyRecordSection = memo(function DailyRecordSection({ records, pl
                     />
                 </div>
 
-                <div className="mt-1 pt-1 border-t border-[rgba(55,53,47,0.09)]">
+                <div className={`mt-1 pt-1 border-t ${C.borderLight}`}>
                     <div className="flex items-center justify-between mb-2">
-                        <h3 className={`font-bold text-[#37352F] flex items-center gap-2 ${H_STYLES.text.lg}`}>
+                        <h3 className={`font-bold ${C.text} flex items-center gap-2 ${H_STYLES.text.lg}`}>
                             <Activity className={ICON.page} />
                             その他・記録履歴
                         </h3>

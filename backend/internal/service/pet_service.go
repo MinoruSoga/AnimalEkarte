@@ -93,20 +93,23 @@ type PetService interface {
 // --- Implementation ---
 
 type petService struct {
-	repo          repository.PetRepository
-	ownerRepo     repository.OwnerRepository
-	insuranceRepo repository.InsuranceRepository
+	repo              repository.PetRepository
+	ownerRepo         repository.OwnerRepository
+	insuranceRepo     repository.InsuranceRepository
+	medicalRecordRepo repository.MedicalRecordRepository
 }
 
 func NewPetService(
 	repo repository.PetRepository,
 	ownerRepo repository.OwnerRepository,
 	insuranceRepo repository.InsuranceRepository,
+	medicalRecordRepo repository.MedicalRecordRepository,
 ) PetService {
 	return &petService{
-		repo:          repo,
-		ownerRepo:     ownerRepo,
-		insuranceRepo: insuranceRepo,
+		repo:              repo,
+		ownerRepo:         ownerRepo,
+		insuranceRepo:     insuranceRepo,
+		medicalRecordRepo: medicalRecordRepo,
 	}
 }
 
@@ -353,6 +356,15 @@ func buildPetUpdateFields(input *UpdatePetInput) map[string]any {
 }
 
 func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
+	// FK依存チェック: カルテが紐付いている場合は削除を拒否
+	recordCount, err := s.medicalRecordRepo.CountByPetID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check medical record dependencies")
+	}
+	if recordCount > 0 {
+		return apperrors.WrapConflict("カルテが紐付いているため削除できません。先にカルテを削除またはこのペットを変更してください")
+	}
+
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete pet")
 	}

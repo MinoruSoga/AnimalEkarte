@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router";
 
@@ -21,7 +21,7 @@ import { HospitalizationListView } from "../components/HospitalizationListView";
 import { useHospitalizationList } from "../hooks/use-hospitalization-list";
 import { useGetHospitalizations } from "../api/get-hospitalizations";
 import { HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_STATUS } from "../constants";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type { HospitalizationFilterStatus } from "../constants";
@@ -34,6 +34,7 @@ import type {
   ActiveSort,
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+import { ResourceHospitalization } from "@/types/generated/models";
 
 type SortKey = "startDate" | "ownerName" | "petName" | "species" | "status";
 
@@ -84,7 +85,7 @@ export function HospitalizationList() {
     movePet,
     handleNavigateToForm
   } = useHospitalizationList();
-  const { canCreate } = usePermission("hospitalization");
+  const { canCreate, canEdit } = usePermission("hospitalization");
 
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -224,6 +225,7 @@ export function HospitalizationList() {
   return (
     <PageLayout
       title="入院・ホテル管理"
+      resource={ResourceHospitalization}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={() => handleNavigateToForm()}>
@@ -261,7 +263,7 @@ export function HospitalizationList() {
                   onSortChange={handleSortChange}
                 />
             </div>
-            <div className="bg-white rounded-[6px] border border-[rgba(55,53,47,0.16)] p-1 h-11 flex items-center">
+            <div className={`bg-white rounded-[6px] border ${C.borderMedium} p-1 h-11 flex items-center`}>
                 <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && isValidViewMode(v) && setViewMode(v)}>
                     <ToggleGroupItem value="board" size="sm" aria-label="Board View">
                         <LayoutGrid className={ICON.action} />
@@ -280,12 +282,15 @@ export function HospitalizationList() {
                 hospitalizations={typeFilteredHospitalizations}
                 onNavigateToForm={handleNavigateToForm}
                 onMovePet={movePet}
+                canCreate={canCreate}
+                canEdit={canEdit}
             />
         ) : (
             <>
               <HospitalizationListView
                   hospitalizations={pagination.paginatedData}
                   onNavigate={handleNavigateToForm}
+                  canEdit={canEdit}
               />
               {pagination.totalPages > 1 ? (
                 <Pagination

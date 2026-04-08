@@ -62,7 +62,7 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 
 	var req createMedicineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -104,7 +104,7 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 
 	var req updateMedicineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -140,7 +140,7 @@ func (h *Handler) ReorderMedicines(c *gin.Context) {
 	}
 	var req reorderMedicineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.Medicine.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

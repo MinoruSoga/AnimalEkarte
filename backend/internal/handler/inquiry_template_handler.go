@@ -52,7 +52,7 @@ func (h *Handler) CreateInquiryTemplate(c *gin.Context) {
 
 	var req createInquiryTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -86,7 +86,7 @@ func (h *Handler) UpdateInquiryTemplate(c *gin.Context) {
 
 	var req updateInquiryTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

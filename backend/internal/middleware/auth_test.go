@@ -25,10 +25,10 @@ func makeToken(t *testing.T, method jwt.SigningMethod, claims jwt.MapClaims) str
 
 func validClaims() jwt.MapClaims {
 	return jwt.MapClaims{
-		"user_id":   "user-uuid-123",
-		"clinic_id": "clinic-uuid-456",
-		"user_type": "admin",
-		"exp":       time.Now().Add(time.Hour).Unix(),
+		"user_id":         "user-uuid-123",
+		"clinic_id":       "clinic-uuid-456",
+		"is_system_admin": false,
+		"exp":             time.Now().Add(time.Hour).Unix(),
 	}
 }
 
@@ -78,10 +78,10 @@ func TestAuth(t *testing.T) {
 
 	t.Run("expired token returns 401", func(t *testing.T) {
 		expiredClaims := jwt.MapClaims{
-			"user_id":   "user-uuid-123",
-			"clinic_id": "clinic-uuid-456",
-			"user_type": "admin",
-			"exp":       time.Now().Add(-time.Hour).Unix(),
+			"user_id":         "user-uuid-123",
+			"clinic_id":       "clinic-uuid-456",
+			"is_system_admin": false,
+			"exp":             time.Now().Add(-time.Hour).Unix(),
 		}
 		token := makeToken(t, jwt.SigningMethodHS256, expiredClaims)
 		w, _ := runAuthMiddleware(t, "Bearer "+token)
@@ -117,7 +117,7 @@ func TestAuth(t *testing.T) {
 		assert.NotNil(t, captured)
 		assert.Equal(t, "user-uuid-123", captured.GetString("user_id"))
 		assert.Equal(t, "clinic-uuid-456", captured.GetString("clinic_id"))
-		assert.Equal(t, "admin", captured.GetString("user_type"))
+		assert.Equal(t, false, captured.GetBool("is_system_admin"))
 	})
 
 	t.Run("Bearer scheme is case-insensitive", func(t *testing.T) {

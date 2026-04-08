@@ -42,47 +42,19 @@ import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // API hooks
-import {
-  useGetAllConsultations,
-  useCreateConsultation,
-  useUpdateConsultation,
-  useDeleteConsultation,
-  useReorderConsultations,
-} from "@/features/master/api/consultations";
-import {
-  useGetAllExaminationTypes,
-  useCreateExaminationType,
-  useUpdateExaminationType,
-  useDeleteExaminationType,
-  useReorderExaminationTypes,
-} from "@/features/master/api/exam-types-master";
-import {
-  useGetAllProcedures,
-  useCreateProcedure,
-  useUpdateProcedure,
-  useDeleteProcedure,
-  useReorderProcedures,
-} from "@/features/master/api/procedures";
-import {
-  useGetAllVaccinesMaster,
-  useCreateVaccineMaster,
-  useUpdateVaccineMaster,
-  useDeleteVaccineMaster,
-  useReorderVaccinesMaster,
-} from "@/features/master/api/vaccines-master";
-import {
-  useGetAllCheckupTypes,
-  useCreateCheckupType,
-  useUpdateCheckupType,
-  useDeleteCheckupType,
-  useReorderCheckupTypes,
-} from "@/features/master/api/checkup-types";
+import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useDeleteConsultation, useReorderConsultations } from "@/features/master/api/consultations";
+import { useGetAllExaminationTypes, useCreateExaminationType, useUpdateExaminationType, useDeleteExaminationType, useReorderExaminationTypes } from "@/features/master/api/exam-types-master";
+import { useGetAllProcedures, useCreateProcedure, useUpdateProcedure, useDeleteProcedure, useReorderProcedures } from "@/features/master/api/procedures";
+import { useGetAllVaccinesMaster, useCreateVaccineMaster, useUpdateVaccineMaster, useDeleteVaccineMaster, useReorderVaccinesMaster } from "@/features/master/api/vaccines-master";
+import { useGetAllCheckupTypes, useCreateCheckupType, useUpdateCheckupType, useDeleteCheckupType, useReorderCheckupTypes } from "@/features/master/api/checkup-types";
 
 // Types
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type { TaxType } from "@/types/generated/models";
+import { ResourceMasterMedical } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -166,7 +138,8 @@ interface TreatmentItemSidePanelProps {
   item: TreatmentItem | null;
   onClose: () => void;
   onSave: (data: TreatmentFormData) => void;
-  onDeleteRequest: () => void;
+  onDeleteRequest?: () => void;
+  readOnly?: boolean;
 }
 
 const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
@@ -174,6 +147,7 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
 }: TreatmentItemSidePanelProps) {
   // rerender-lazy-state-init: 初回マウント時のみ item から初期化
   const [formData, setFormData] = useState<TreatmentFormData>(() => ({
@@ -200,10 +174,12 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
       title={formData.name}
       onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
-      action={handleAction}
-      onDelete={item !== null ? onDeleteRequest : undefined}
+      action={readOnly ? undefined : handleAction}
+      onDelete={!readOnly && item !== null && onDeleteRequest ? onDeleteRequest : undefined}
       icon={<Stethoscope className={LAYOUT.pageIcon.innerIcon} />}
       titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton
         isActive={formData.isActive}
@@ -243,9 +219,11 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
 function ChildTreatmentRow({
   item,
   onEdit,
+  canEdit,
 }: {
   item: TreatmentItem;
   onEdit: () => void;
+  canEdit: boolean;
 }) {
   return (
     <DataTableRow onClick={onEdit}>
@@ -265,7 +243,7 @@ function ChildTreatmentRow({
         <NotionStatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="p-0 text-right">
-        <RowActionButton onClick={onEdit} />
+        {canEdit ? <RowActionButton onClick={onEdit} /> : null}
       </TableCell>
     </DataTableRow>
   );
@@ -279,9 +257,10 @@ interface TreatmentTabContentProps extends TreatmentTabConfig {
   editTarget: TreatmentItem | "new" | null;
   onEditTargetChange: (v: TreatmentItem | "new" | null) => void;
   onSave: (data: TreatmentFormData) => void;
-  onDeleteRequest: () => void;
+  onDeleteRequest?: () => void;
   pendingDelete: TreatmentItem | null;
   onPendingDeleteChange: (item: TreatmentItem | null) => void;
+  canEdit: boolean;
 }
 
 function TreatmentTabContent({
@@ -294,6 +273,7 @@ function TreatmentTabContent({
   onEditTargetChange,
   pendingDelete,
   onPendingDeleteChange,
+  canEdit,
 }: TreatmentTabContentProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -443,7 +423,7 @@ function TreatmentTabContent({
                         <NotionStatusPill isActive={row.item.isActive} />
                       </TableCell>
                       <TableCell className="p-0 text-right">
-                        <RowActionButton onClick={() => handleEdit(row.item)} />
+                        {canEdit ? <RowActionButton onClick={() => handleEdit(row.item)} /> : null}
                       </TableCell>
                     </SortableDataTableRow>
                   );
@@ -453,6 +433,7 @@ function TreatmentTabContent({
                     key={row.item.id}
                     item={row.item}
                     onEdit={() => handleEdit(row.item)}
+                    canEdit={canEdit}
                   />
                 );
               }}
@@ -480,6 +461,7 @@ function TreatmentTabContent({
 
 export function TreatmentPlanMaster() {
   const navigate = useNavigate();
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "consultation";
   const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
@@ -758,14 +740,17 @@ export function TreatmentPlanMaster() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="治療プランマスタ"
-            icon={<Stethoscope className={`${ICON.page} text-[#37352F]`} />}
+            icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
+            resource={ResourceMasterMedical}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
-              <PrimaryButton onClick={() => setEditTarget("new")}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
+              canCreate ? (
+                <PrimaryButton onClick={() => setEditTarget("new")}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null
             }
           >
             <TabsPrimitive.Root
@@ -781,7 +766,7 @@ export function TreatmentPlanMaster() {
                     key={tab.value}
                     value={tab.value}
                     className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
-                      data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
+                      ${C.dataActiveBorderB} ${C.dataActiveText} data-[state=active]:font-medium`}
                   >
                     {tab.label}
                   </TabsPrimitive.Trigger>
@@ -800,6 +785,7 @@ export function TreatmentPlanMaster() {
                       onDeleteRequest={handleDeleteRequest}
                       pendingDelete={pendingDelete}
                       onPendingDeleteChange={setPendingDelete}
+                      canEdit={canEdit}
                     />
                   </TabsPrimitive.Content>
                 );
@@ -814,7 +800,8 @@ export function TreatmentPlanMaster() {
             item={selectedItem}
             onClose={handleClose}
             onSave={handleSave}
-            onDeleteRequest={handleDeleteRequest}
+            onDeleteRequest={canDelete ? handleDeleteRequest : undefined}
+            readOnly={!canEdit}
           />
         ) : null}
       </div>

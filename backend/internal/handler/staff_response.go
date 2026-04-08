@@ -6,7 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type jobTitleInStaffResponse struct {
+type occupationInStaffResponse struct {
 	ID        uint64    `json:"id"`
 	ClinicID  uint64    `json:"clinic_id"`
 	Name      string    `json:"name"`
@@ -17,45 +17,47 @@ type jobTitleInStaffResponse struct {
 }
 
 type staffResponse struct {
-	ID            uint64                   `json:"id"`
-	ClinicID      uint64                   `json:"clinic_id"`
-	Name          string                   `json:"name"`
-	IsActive      bool                     `json:"is_active"`
-	StaffRole     string                   `json:"staff_role"`
-	JobTitleID    *uint64                  `json:"job_title_id,omitempty"`
-	LicenseNumber string                   `json:"license_number"`
-	SortOrder     int                      `json:"sort_order"`
-	JobTitle      *jobTitleInStaffResponse `json:"job_title,omitempty"`
-	CreatedAt     time.Time                `json:"created_at"`
-	UpdatedAt     time.Time                `json:"updated_at"`
+	ID            uint64                     `json:"id"`
+	Name          string                     `json:"name"`
+	IsActive      bool                       `json:"is_active"`
+	OccupationID  *uint64                    `json:"occupation_id,omitempty"`
+	LicenseNumber string                     `json:"license_number"`
+	SortOrder     int                        `json:"sort_order"`
+	Email         string                     `json:"email"`
+	Occupation    *occupationInStaffResponse `json:"occupation,omitempty"`
+	CreatedAt     time.Time                  `json:"created_at"`
+	UpdatedAt     time.Time                  `json:"updated_at"`
 }
 
-func toJobTitleInStaffResponse(jt *model.JobTitle) *jobTitleInStaffResponse {
-	if jt == nil {
+func toOccupationInStaffResponse(occ *model.Occupation) *occupationInStaffResponse {
+	if occ == nil {
 		return nil
 	}
-	return &jobTitleInStaffResponse{
-		ID:        jt.ID,
-		ClinicID:  jt.ClinicID,
-		Name:      jt.Name,
-		SortOrder: jt.SortOrder,
-		IsActive:  jt.IsActive,
-		CreatedAt: jt.CreatedAt,
-		UpdatedAt: jt.UpdatedAt,
+	return &occupationInStaffResponse{
+		ID:        occ.ID,
+		ClinicID:  occ.ClinicID,
+		Name:      occ.Name,
+		SortOrder: occ.SortOrder,
+		IsActive:  occ.IsActive,
+		CreatedAt: occ.CreatedAt,
+		UpdatedAt: occ.UpdatedAt,
 	}
 }
 
 func toStaffResponse(s *model.Staff) staffResponse {
+	email := ""
+	if s.Account != nil {
+		email = s.Account.Email
+	}
 	return staffResponse{
 		ID:            s.ID,
-		ClinicID:      s.ClinicID,
 		Name:          s.Name,
 		IsActive:      s.IsActive,
-		StaffRole:     string(s.StaffRole),
-		JobTitleID:    s.JobTitleID,
+		OccupationID:  s.OccupationID,
 		LicenseNumber: s.LicenseNumber,
 		SortOrder:     s.SortOrder,
-		JobTitle:      toJobTitleInStaffResponse(s.JobTitle),
+		Email:         email,
+		Occupation:    toOccupationInStaffResponse(s.Occupation),
 		CreatedAt:     s.CreatedAt,
 		UpdatedAt:     s.UpdatedAt,
 	}
@@ -71,9 +73,8 @@ func toStaffResponseList(staffs []model.Staff) []staffResponse {
 
 // staffSummaryResponse はネストされたレスポンスで使用するスタッフの要約型
 type staffSummaryResponse struct {
-	ID        uint64 `json:"id"`
-	Name      string `json:"name"`
-	StaffRole string `json:"staff_role"`
+	ID   uint64 `json:"id"`
+	Name string `json:"name"`
 }
 
 // toStaffSummary は *model.Staff を *staffSummaryResponse に変換する。nilの場合はnilを返す。
@@ -82,8 +83,7 @@ func toStaffSummary(s *model.Staff) *staffSummaryResponse {
 		return nil
 	}
 	return &staffSummaryResponse{
-		ID:        s.ID,
-		Name:      s.Name,
-		StaffRole: string(s.StaffRole),
+		ID:   s.ID,
+		Name: s.Name,
 	}
 }

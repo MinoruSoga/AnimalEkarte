@@ -4,38 +4,21 @@ import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Calendar, Clock, Stethoscope, FileText, Pencil, Scissors, Building2, FilePlus2, PawPrint, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import type { ReservationAppointment, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import { useServiceTypeColorMap } from "@/features/master/hooks/use-service-type-color-map";
-import {
-  RESERVATION_STATUS_COLORS,
-  getReservationStatusColor,
-  getVisitTypeColor,
-} from "@/utils/constants/status-colors";
+import { useServiceTypeColorMap } from "@/features/master";
+import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/utils/constants/status-colors";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEdit: (appointment: ReservationAppointment) => void;
+  onEdit?: (appointment: ReservationAppointment) => void;
   onDelete?: (appointment: ReservationAppointment) => void;
   onCreateRecord?: (appointment: ReservationAppointment) => void;
   onStatusChange?: (appointment: ReservationAppointment, status: ReservationStatus) => void;
@@ -226,15 +209,17 @@ export function ReservationDetailModal({
             ) : null}
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onEdit(appointment)}
-              className={`h-9 text-sm gap-1.5 ${C.borderMedium} bg-white ${C.text} ${C.hoverBgPage}`}
-            >
-              <Pencil className={`${ICON.xs}`} />
-              編集
-            </Button>
+            {onEdit ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(appointment)}
+                className={`h-9 text-sm gap-1.5 ${C.borderMedium} bg-white ${C.text} ${C.hoverBgPage}`}
+              >
+                <Pencil className={`${ICON.xs}`} />
+                編集
+              </Button>
+            ) : null}
             {onCreateRecord ? (
               <Button
                 size="sm"

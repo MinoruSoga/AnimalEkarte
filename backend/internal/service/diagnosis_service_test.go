@@ -16,12 +16,13 @@ const testClinicID uint64 = 1
 // ---- DiagnosisCategory モック ----
 
 type mockDiagnosisCategoryRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error)
-	createFn   func(ctx context.Context, category *model.DiagnosisCategory) error
-	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
-	reorderFn  func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error)
+	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error)
+	createFn                 func(ctx context.Context, category *model.DiagnosisCategory) error
+	updateFn                 func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                func(ctx context.Context, clinicID uint64, ids []uint64) error
+	countNamesByCategoryIDFn func(ctx context.Context, categoryID uint64) (int64, error)
 }
 
 func (m *mockDiagnosisCategoryRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error) {
@@ -48,8 +49,11 @@ func (m *mockDiagnosisCategoryRepository) Reorder(ctx context.Context, clinicID 
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockDiagnosisCategoryRepository) CountNamesByCategoryID(_ context.Context, _ uint64) (int64, error) {
-	return 0, nil
+func (m *mockDiagnosisCategoryRepository) CountNamesByCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
+	if m.countNamesByCategoryIDFn == nil {
+		return 0, nil
+	}
+	return m.countNamesByCategoryIDFn(ctx, categoryID)
 }
 
 // ---- DiagnosisName モック ----
@@ -359,38 +363,65 @@ func TestDiagnosisCategoryService_Update(t *testing.T) {
 
 func TestDiagnosisCategoryService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name          string
+		id            uint64
+		nameCount     int64
+		countNamesErr error
+		repoErr       error
+		wantErr       bool
+		wantNF        bool
+		wantConflict  bool
 	}{
 		{
-			name:    "deletes category successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
-			wantNF:  false,
+			name:          "deletes category successfully when no diagnosis names exist",
+			id:            1,
+			nameCount:     0,
+			countNamesErr: nil,
+			repoErr:       nil,
+			wantErr:       false,
 		},
 		{
-			name:    "returns not found error when category does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("diagnosis_category", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:          "returns conflict error when category has diagnosis names",
+			id:            1,
+			nameCount:     3,
+			countNamesErr: nil,
+			repoErr:       nil,
+			wantErr:       true,
+			wantConflict:  true,
 		},
 		{
-			name:    "returns error on repository failure",
-			id:      1,
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			name:          "returns error when diagnosis name count check fails",
+			id:            1,
+			nameCount:     0,
+			countNamesErr: errors.New("db error"),
+			repoErr:       nil,
+			wantErr:       true,
+		},
+		{
+			name:          "returns not found error when category does not exist",
+			id:            999,
+			nameCount:     0,
+			countNamesErr: nil,
+			repoErr:       apperrors.WrapNotFound("diagnosis_category", "999"),
+			wantErr:       true,
+			wantNF:        true,
+		},
+		{
+			name:          "returns error on repository failure",
+			id:            1,
+			nameCount:     0,
+			countNamesErr: nil,
+			repoErr:       errors.New("db error"),
+			wantErr:       true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockDiagnosisCategoryRepository{
+				countNamesByCategoryIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.nameCount, tt.countNamesErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -403,6 +434,9 @@ func TestDiagnosisCategoryService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

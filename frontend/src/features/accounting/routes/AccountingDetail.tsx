@@ -1,6 +1,6 @@
 // React/Framework
 import { ICON, C } from "@/lib/design-tokens";
-import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, useDeferredValue, useActionState, useEffect } from "react";
+import { useState, useMemo, useCallback, memo, useTransition, useDeferredValue, useActionState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
@@ -12,38 +12,17 @@ import { toast } from "sonner";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 
 // Shared Hooks
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth, usePermission } from "@/features/auth";
 
 // Relative
 import { useGetAccountingDetail } from "../api/get-accounting";
@@ -61,10 +40,7 @@ import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSele
 import { queryKeys } from "@/lib/query-keys";
 import { handleApiError } from "@/lib/handle-api-error";
 import { calculateBillingTotals } from "@/lib/calculations";
-// bundle-dynamic-imports: 191行のコンポーネントを遅延ロード
-const AccountingDocument = lazy(() =>
-  import("../components/AccountingDocument").then((m) => ({ default: m.AccountingDocument }))
-);
+import { AccountingDocument } from "../components/AccountingDocument";
 import { paths } from "@/config/paths";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
@@ -73,6 +49,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 // Types
 import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
 import type { TaxType } from "@/types/generated/models";
+import { ResourceAccounting } from "@/types/generated/models";
 
 // ── 静的定数（rendering-hoist-jsx）──────────────────────────
 
@@ -100,6 +77,8 @@ interface ItemListCardProps {
   onDeleteItem: (id: string) => void;
   billingId?: string;
   onUpdateItemTax?: (itemId: string, taxType: TaxType, taxRate: number) => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 const MERCHANDISE_CATEGORY_OPTIONS = [
@@ -120,6 +99,8 @@ const ItemListCard = memo(function ItemListCard({
   onDeleteItem,
   billingId,
   onUpdateItemTax,
+  canEdit,
+  canDelete,
 }: ItemListCardProps) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [merchandiseSearch, setMerchandiseSearch] = useState("");
@@ -151,11 +132,82 @@ const ItemListCard = memo(function ItemListCard({
     [onAddItem],
   );
 
+  const itemRows = useMemo(
+    () =>
+      items.map((item) => (
+        <TableRow key={item.id} className="h-12">
+          <TableCell>
+            <Badge variant="outline" className="font-normal text-xs">
+              {CATEGORY_LABELS[item.category as ItemCategory] ?? "その他"}
+            </Badge>
+          </TableCell>
+          <TableCell className="font-medium">
+            {item.name}
+            {item.source === "medical_record" ? (
+              <span className="ml-2 text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                カルテ連携
+              </span>
+            ) : null}
+          </TableCell>
+          <TableCell className="text-right">
+            ¥{item.unitPrice.toLocaleString()}
+          </TableCell>
+          <TableCell className="text-center">
+            <div className="flex items-center justify-center gap-2">
+              {item.quantity}
+            </div>
+          </TableCell>
+          <TableCell className="text-center">
+            {billingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
+              <TaxTypeSelector
+                value={item.taxType}
+                onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
+              />
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                {item.taxType === "excluded" ? "外税" : item.taxType === "included" ? "内税" : "非課税"}
+              </span>
+            )}
+          </TableCell>
+          <TableCell className="text-center">
+            {billingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
+              <TaxRateSelector
+                value={item.taxRate}
+                onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
+              />
+            ) : (
+              <span className="text-sm text-muted-foreground">{Math.round(item.taxRate * 100)}%</span>
+            )}
+          </TableCell>
+          <TableCell className="text-right font-mono text-sm">
+            ¥{item.taxAmount.toLocaleString()}
+          </TableCell>
+          <TableCell className="text-center">
+            {item.isInsuranceApplicable ? (
+              <span className="text-green-600 font-bold text-xs">●</span>
+            ) : (
+              <span className="text-gray-300 text-xs">-</span>
+            )}
+          </TableCell>
+          <TableCell className="text-right font-medium">
+            ¥{(item.subtotal + item.taxAmount).toLocaleString()}
+          </TableCell>
+          <TableCell>
+            {item.source === "manual" && canDelete ? (
+              <DeleteIconButton onClick={() => onDeleteItem(item.id)} />
+            ) : null}
+          </TableCell>
+        </TableRow>
+      )),
+    [items, billingId, onDeleteItem, onUpdateItemTax, canEdit, canDelete],
+  );
+
   return (
     <Card className="flex-1 flex flex-col overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between py-4 border-b shrink-0">
         <CardTitle className="text-base font-medium">明細一覧</CardTitle>
-        <Dialog open={newItemOpen} onOpenChange={onNewItemOpenChange}>
+        {canEdit ? (
+          <Dialog open={newItemOpen} onOpenChange={onNewItemOpenChange}>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" className="h-9">
               <Plus className={`mr-2 ${ICON.action}`} />
@@ -272,6 +324,7 @@ const ItemListCard = memo(function ItemListCard({
                   <Input
                     id="manual-price"
                     type="number"
+                    step={1}
                     min={0}
                     value={manualPrice}
                     onChange={(e) => setManualPrice(e.target.value)}
@@ -307,6 +360,7 @@ const ItemListCard = memo(function ItemListCard({
             )}
           </DialogContent>
         </Dialog>
+        ) : null}
       </CardHeader>
       <CardContent className="p-0 overflow-auto flex-1">
         <Table>
@@ -325,71 +379,7 @@ const ItemListCard = memo(function ItemListCard({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((item) => (
-              <TableRow key={item.id} className="h-12">
-                <TableCell>
-                  <Badge variant="outline" className="font-normal text-xs">
-                    {CATEGORY_LABELS[item.category as ItemCategory] ?? "その他"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="font-medium">
-                  {item.name}
-                  {item.source === "medical_record" ? (
-                    <span className="ml-2 text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
-                      カルテ連携
-                    </span>
-                  ) : null}
-                </TableCell>
-                <TableCell className="text-right">
-                  ¥{item.unitPrice.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    {item.quantity}
-                  </div>
-                </TableCell>
-                <TableCell className="text-center">
-                  {billingId !== undefined && onUpdateItemTax !== undefined ? (
-                    <TaxTypeSelector
-                      value={item.taxType}
-                      onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
-                    />
-                  ) : (
-                    <span className="text-sm text-muted-foreground">
-                      {item.taxType === "excluded" ? "外税" : item.taxType === "included" ? "内税" : "非課税"}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="text-center">
-                  {billingId !== undefined && onUpdateItemTax !== undefined ? (
-                    <TaxRateSelector
-                      value={item.taxRate}
-                      onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
-                    />
-                  ) : (
-                    <span className="text-sm text-muted-foreground">{Math.round(item.taxRate * 100)}%</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  ¥{item.taxAmount.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-center">
-                  {item.isInsuranceApplicable ? (
-                    <span className="text-green-600 font-bold text-xs">●</span>
-                  ) : (
-                    <span className="text-gray-300 text-xs">-</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  ¥{(item.subtotal + item.taxAmount).toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  {item.source === "manual" ? (
-                    <DeleteIconButton onClick={() => onDeleteItem(item.id)} />
-                  ) : null}
-                </TableCell>
-              </TableRow>
-            ))}
+            {itemRows}
           </TableBody>
         </Table>
       </CardContent>
@@ -468,6 +458,9 @@ interface PaymentCardProps {
   onReceivedAmountChange: (v: string) => void;
   isCompleted: boolean;
   id?: string;
+  canEdit: boolean;
+  canCreate: boolean;
+  isEditMode: boolean;
 }
 
 const PaymentCard = memo(function PaymentCard({
@@ -479,7 +472,11 @@ const PaymentCard = memo(function PaymentCard({
   onReceivedAmountChange,
   isCompleted,
   id,
+  canEdit,
+  canCreate,
+  isEditMode,
 }: PaymentCardProps) {
+  const canSubmit = isEditMode ? canEdit : canCreate;
   return (
     <Card className="flex-1">
       <CardHeader className="py-3 px-4 border-b">
@@ -495,80 +492,89 @@ const PaymentCard = memo(function PaymentCard({
 
         <Separator />
 
-        <div className="space-y-4">
+        {canEdit ? (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>支払方法</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  type="button"
+                  variant={paymentMethod === "cash" ? "default" : "outline"}
+                  onClick={() => onPaymentMethodChange("cash")}
+                  className="h-12"
+                >
+                  現金
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentMethod === "credit_card" ? "default" : "outline"}
+                  onClick={() => onPaymentMethodChange("credit_card")}
+                  className="h-12"
+                >
+                  カード
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentMethod === "electronic_money" ? "default" : "outline"}
+                  onClick={() => onPaymentMethodChange("electronic_money")}
+                  className="h-12"
+                >
+                  電子マネー
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>お預かり金額</Label>
+              <NumberInput
+                id={id}
+                className="h-14 text-xl font-bold"
+                value={receivedAmount}
+                onChange={onReceivedAmountChange}
+                suffix="円"
+                align="right"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onReceivedAmountChange(billingAmount.toString())}
+                >
+                  丁度
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    onReceivedAmountChange(
+                      (Math.ceil(billingAmount / 1000) * 1000).toString(),
+                    )
+                  }
+                >
+                  千円単位
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    onReceivedAmountChange(
+                      (Math.ceil(billingAmount / 10000) * 10000).toString(),
+                    )
+                  }
+                >
+                  一万単位
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
           <div className="space-y-2">
             <Label>支払方法</Label>
-            <div className="grid grid-cols-3 gap-2">
-              <Button
-                type="button"
-                variant={paymentMethod === "cash" ? "default" : "outline"}
-                onClick={() => onPaymentMethodChange("cash")}
-                className="h-12"
-              >
-                現金
-              </Button>
-              <Button
-                type="button"
-                variant={paymentMethod === "credit_card" ? "default" : "outline"}
-                onClick={() => onPaymentMethodChange("credit_card")}
-                className="h-12"
-              >
-                カード
-              </Button>
-              <Button
-                type="button"
-                variant={paymentMethod === "electronic_money" ? "default" : "outline"}
-                onClick={() => onPaymentMethodChange("electronic_money")}
-                className="h-12"
-              >
-                電子マネー
-              </Button>
-            </div>
+            <p className="text-sm font-medium">
+              {paymentMethod === "cash" ? "現金" : paymentMethod === "credit_card" ? "カード" : paymentMethod === "electronic_money" ? "電子マネー" : "-"}
+            </p>
           </div>
-
-          <div className="space-y-2">
-            <Label>お預かり金額</Label>
-            <NumberInput
-              id={id}
-              className="h-14 text-xl font-bold"
-              value={receivedAmount}
-              onChange={onReceivedAmountChange}
-              suffix="円"
-              align="right"
-            />
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onReceivedAmountChange(billingAmount.toString())}
-              >
-                丁度
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  onReceivedAmountChange(
-                    (Math.ceil(billingAmount / 1000) * 1000).toString(),
-                  )
-                }
-              >
-                千円単位
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  onReceivedAmountChange(
-                    (Math.ceil(billingAmount / 10000) * 10000).toString(),
-                  )
-                }
-              >
-                一万単位
-              </Button>
-            </div>
-          </div>
-        </div>
+        )}
 
         <div className="bg-gray-100 p-4 rounded-lg flex justify-between items-center">
           <span className="font-bold text-gray-600">お釣り</span>
@@ -579,19 +585,21 @@ const PaymentCard = memo(function PaymentCard({
           </span>
         </div>
 
-        <SubmitButton
-          className="w-full h-14 text-lg font-bold mt-4"
-          size="lg"
-          disabled={
-            changeAmount < 0 ||
-            !receivedAmount ||
-            isCompleted
-          }
-          loadingText="処理中..."
-        >
-          <Save className={`mr-2 ${ICON.action}`} />
-          {isCompleted ? "精算完了済み" : "会計を確定する"}
-        </SubmitButton>
+        {canSubmit ? (
+          <SubmitButton
+            className="w-full h-14 text-lg font-bold mt-4"
+            size="lg"
+            disabled={
+              changeAmount < 0 ||
+              !receivedAmount ||
+              isCompleted
+            }
+            loadingText="処理中..."
+          >
+            <Save className={`mr-2 ${ICON.action}`} />
+            {isCompleted ? "精算完了済み" : "会計を確定する"}
+          </SubmitButton>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -603,6 +611,7 @@ interface RefundSectionProps {
   totalAmount: number;
   isRefunding: boolean;
   onRefund: (amount: number, reason: string) => void;
+  canEdit: boolean;
 }
 
 const RefundSection = memo(function RefundSection({
@@ -610,6 +619,7 @@ const RefundSection = memo(function RefundSection({
   totalAmount,
   isRefunding,
   onRefund,
+  canEdit,
 }: RefundSectionProps) {
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState("");
@@ -628,6 +638,7 @@ const RefundSection = memo(function RefundSection({
     setRefundReason("");
   }, [refundAmount, refundReason, onRefund]);
 
+
   return (
     <Card>
       <CardHeader className="py-3 px-4 bg-gray-50 border-b">
@@ -644,7 +655,8 @@ const RefundSection = memo(function RefundSection({
               </span>
             ) : null}
           </CardTitle>
-          <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+          {canEdit ? (
+            <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
             <DialogTrigger asChild>
               <Button
                 variant="outline"
@@ -666,6 +678,7 @@ const RefundSection = memo(function RefundSection({
                   <Label>返金金額（円）</Label>
                   <Input
                     type="number"
+                    step={1}
                     min={1}
                     value={refundAmount}
                     onChange={(e) => setRefundAmount(e.target.value)}
@@ -696,6 +709,7 @@ const RefundSection = memo(function RefundSection({
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          ) : null}
         </div>
       </CardHeader>
       {refunds.length > 0 ? (
@@ -781,13 +795,16 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
     };
   }, [id, fetchedAccounting, locationState, newPetId, newPetData]);
 
+  // baseAccounting.items の安定参照 — useCallback deps に配列オブジェクトを渡さないための useMemo
+  const baseItems = useMemo(() => baseAccounting?.items ?? [], [baseAccounting]);
+
   // ユーザー操作による追加・削除を管理するローカル明細
   const [localItems, setLocalItems] = useState<AccountingItem[] | null>(null);
 
   // 表示する明細: ローカル編集があればそちら優先
   const displayItems = useMemo(
-    () => localItems ?? baseAccounting?.items ?? [],
-    [localItems, baseAccounting?.items],
+    () => localItems ?? baseItems,
+    [localItems, baseItems],
   );
 
   // 決済完了フラグ（API 更新後に画面に反映するためのローカル状態）
@@ -945,6 +962,8 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
 
   // clinic 情報（AccountingDocument に props 注入）
   const { user } = useAuth();
+  const { canEdit, canCreate, canDelete } = usePermission("accounting");
+  const canSubmit = id ? canEdit : canCreate;
   const clinicForDocument = useMemo(() => {
     const baseClinic = user?.clinic ?? null;
     if (!baseClinic) return null;
@@ -975,7 +994,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
 
     // BUG-045: localItems が null (未編集) の場合は baseAccounting.items を seed として使用し、
     // 既存の治療明細を失わないようにする
-    setLocalItems((prev) => [...(prev ?? baseAccounting?.items ?? []), newItem]);
+    setLocalItems((prev) => [...(prev ?? baseItems), newItem]);
     setNewItemOpen(false);
     toast.success("明細を追加しました");
 
@@ -1002,12 +1021,12 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
         }
       });
     }
-  }, [id, queryClient, baseAccounting?.items]);
+  }, [id, queryClient, baseItems]);
 
   // BUG-045: 削除時も baseAccounting.items を seed として使用
   const handleDeleteItem = useCallback((itemId: string) => {
-    setLocalItems((prev) => (prev ?? baseAccounting?.items ?? []).filter((i) => i.id !== itemId));
-  }, [baseAccounting?.items]);
+    setLocalItems((prev) => (prev ?? baseItems).filter((i) => i.id !== itemId));
+  }, [baseItems]);
 
   const handleUpdateItemTax = useCallback(
     (itemId: string, taxType: TaxType, taxRate: number) => {
@@ -1051,6 +1070,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
       <PageLayout
         className="print:hidden"
         title="会計精算"
+        resource={ResourceAccounting}
         description={`受付No: ${accounting.id} | ${accounting.ownerName}様 - ${accounting.petName}ちゃん`}
         onBack={() => navigate(paths.accounting.getHref())}
         headerAction={
@@ -1068,6 +1088,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
           ) : undefined
         }
       >
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
           {/* 左カラム：明細リスト */}
           <div className="flex-1 flex flex-col gap-4 overflow-hidden">
@@ -1082,6 +1103,8 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
               onDeleteItem={handleDeleteItem}
               billingId={id}
               onUpdateItemTax={handleUpdateItemTax}
+              canEdit={canEdit}
+              canDelete={canDelete}
             />
           </div>
 
@@ -1104,6 +1127,9 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
               receivedAmount={receivedAmount}
               onReceivedAmountChange={setReceivedAmount}
               isCompleted={accounting.status === "completed"}
+              canEdit={canEdit}
+              canCreate={canCreate}
+              isEditMode={!!id}
             />
 
             {id && accounting.status === "completed" ? (
@@ -1112,10 +1138,12 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
                 totalAmount={accounting.payment?.totalAmount ?? 0}
                 isRefunding={isRefunding}
                 onRefund={handleRefund}
+                canEdit={canEdit}
               />
             ) : null}
           </div>
         </div>
+        </fieldset>
 
         {/* Document Preview Modal */}
         <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
@@ -1129,14 +1157,12 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
             <div className="flex-1 bg-gray-100 overflow-auto p-8 flex items-center justify-center">
               <div className="shadow-lg transform scale-100 origin-top">
                 {accounting.payment ? (
-                  <Suspense fallback={<div className="p-8 text-center text-sm text-gray-400">読み込み中...</div>}>
-                    <AccountingDocument
-                      type={previewType}
-                      accounting={accounting}
-                      paymentInfo={accounting.payment}
-                      clinic={clinicForDocument}
-                    />
-                  </Suspense>
+                  <AccountingDocument
+                    type={previewType}
+                    accounting={accounting}
+                    paymentInfo={accounting.payment}
+                    clinic={clinicForDocument}
+                  />
                 ) : null}
               </div>
             </div>
@@ -1164,14 +1190,12 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
             `}
           </style>
           <div className="p-8">
-            <Suspense fallback={null}>
-              <AccountingDocument
-                type={previewType}
-                accounting={accounting}
-                paymentInfo={accounting.payment}
-                clinic={clinicForDocument}
-              />
-            </Suspense>
+            <AccountingDocument
+              type={previewType}
+              accounting={accounting}
+              paymentInfo={accounting.payment}
+              clinic={clinicForDocument}
+            />
           </div>
         </div>
       ) : null}

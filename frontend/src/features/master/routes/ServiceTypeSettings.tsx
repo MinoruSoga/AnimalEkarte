@@ -13,16 +13,16 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetServiceTypes, useCreateServiceType, useUpdateServiceType, useDeleteServiceType, useReorderServiceTypes,
-} from "@/features/master/api/service-types";
+import { usePermission } from "@/features/auth/hooks/use-permission";
+import { useGetServiceTypes, useCreateServiceType, useUpdateServiceType, useDeleteServiceType, useReorderServiceTypes } from "@/features/master/api/service-types";
 import type { ServiceType } from "@/features/master/api/service-types";
 import type { CreateServiceTypeRequest, UpdateServiceTypeRequest } from "@/types/service-type";
+import { ResourceMasterServiceType } from "@/types/generated/models";
 
 const COLUMNS = [
   { header: "", className: "w-[32px]" }, { header: "名称" },
@@ -34,10 +34,10 @@ const COLUMNS = [
 interface ServiceTypeFormData { name: string; description: string; color: string; isActive: boolean; }
 
 const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: ServiceType | null; onClose: () => void; onSave: (d: ServiceTypeFormData) => void; onDeleteRequest: (i: ServiceType) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: ServiceType | null; onClose: () => void; onSave: (d: ServiceTypeFormData) => void; onDeleteRequest?: (i: ServiceType) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<ServiceTypeFormData>(() => ({
-    name: item?.name ?? "", description: item?.description ?? "", color: item?.color ?? "#3B82F6", isActive: item?.isActive ?? true,
+    name: item?.name ?? "", description: item?.description ?? "", color: item?.color ?? PALETTE.defaultBlue, isActive: item?.isActive ?? true,
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
@@ -86,10 +86,12 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
-      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onClose={handleClose} action={readOnly ? undefined : handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Activity className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カラー">
         <div className="flex items-center gap-2">
@@ -106,6 +108,7 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
 });
 
 export function ServiceTypeSettings() {
+  const { canEdit } = usePermission(ResourceMasterServiceType);
   const { data } = useGetServiceTypes();
   const createMutation = useCreateServiceType();
   const updateMutation = useUpdateServiceType();
@@ -133,12 +136,12 @@ export function ServiceTypeSettings() {
   });
 
   return (
-    <MasterCRUDPage title="診療サービスマスタ" icon={<Activity className={`${ICON.page} text-[#37352F]`} />}
+    <MasterCRUDPage title="診療サービスマスタ" icon={<Activity className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterServiceType}
       entityLabel="診療サービス" searchPlaceholder="診療サービス名で検索..." emptyMessage="診療サービスが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={() => null}
-      renderSidePanel={(props) => <ServiceTypeSidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={({ readOnly, ...props }) => <ServiceTypeSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />}
     >
       <DndContext sensors={sensors} collisionDetection={closestCenter}
         onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
@@ -154,7 +157,7 @@ export function ServiceTypeSettings() {
                 </TableCell>
                 <TableCell className={`text-base ${C.text70} truncate max-w-[240px]`}>{item.description || "-"}</TableCell>
                 <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-                <TableCell className="p-0 text-right"><RowActionButton onClick={() => crud.handleEdit(item)} /></TableCell>
+                <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}</TableCell>
               </SortableDataTableRow>
             )}
           />

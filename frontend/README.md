@@ -65,7 +65,7 @@ frontend/src/
 │
 ├── features/               # 機能別モジュール（16 features）
 │   ├── auth/               # ★ 認証（ログイン・セッション管理）
-│   ├── dashboard/          # ダッシュボード
+│   ├── reception/          # 当日の受付（カンバンボード）
 │   ├── owners/             # ★ ベストプラクティス参照実装
 │   ├── pets/               # ペット（CRUD API のみ）
 │   ├── reservations/       # 予約管理

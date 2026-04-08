@@ -4,10 +4,13 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -20,14 +23,10 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var role *string
-	if r := c.Query("role"); r != "" {
-		role = &r
-	}
 
 	// NOTE: pagination パラメータは無視（全件返却）
 	// 将来的にページネーション対応が必要な場合は、別エンドポイント化を検討
-	staffs, _, err := h.svc.Staff.List(c.Request.Context(), clinicID, role, 1, 1000)
+	staffs, _, err := h.svc.Staff.List(c.Request.Context(), clinicID, 1, 1000)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -39,7 +38,7 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 func (h *Handler) CreateStaff(c *gin.Context) {
 	var req createStaffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -48,19 +47,68 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 		return
 	}
 
-	staff, err := h.svc.Staff.CreateWithAccount(c.Request.Context(), &service.CreateStaffInput{
+	ctx := c.Request.Context()
+
+	// BUG-145: email が指定されている場合は重複チェックを行い、Account を作成してスタッフに紐づける。
+	email := strings.TrimSpace(req.Email)
+	var accountID *uint64
+	if email != "" {
+		existing, _ := h.repos.Account.FindByEmail(ctx, email)
+		if existing != nil {
+			RespondError(c, apperrors.WrapAlreadyExists("account", email))
+			return
+		}
+		if req.Password == "" {
+			RespondError(c, apperrors.WrapInvalidInput("password is required when email is provided"))
+			return
+		}
+		if err := validatePassword(req.Password); err != nil {
+			RespondError(c, err)
+			return
+		}
+		hashed, hashErr := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if hashErr != nil {
+			RespondError(c, apperrors.Wrap(hashErr, "failed to hash password"))
+			return
+		}
+		account := &model.Account{
+			Email:        email,
+			PasswordHash: string(hashed),
+			IsActive:     true,
+		}
+		if createErr := h.repos.Account.Create(ctx, account); createErr != nil {
+			RespondError(c, createErr)
+			return
+		}
+		accountID = &account.ID
+	}
+
+	staff, err := h.svc.Staff.Create(ctx, &service.CreateStaffInput{
 		ClinicID:      clinicID,
 		Name:          req.Name,
-		StaffRole:     req.StaffRole,
-		Email:         req.Email,
-		Password:      req.Password,
 		LicenseNumber: req.LicenseNumber,
-		JobTitleID:    req.JobTitleID,
+		OccupationID:  req.OccupationID,
 		SortOrder:     req.SortOrder,
+		AccountID:     accountID,
 	})
 	if err != nil {
 		RespondError(c, err)
 		return
+	}
+
+	// BUG-153: 現在のクリニックに自動割り当て
+	if asgErr := h.svc.StaffClinicAssignment.Create(ctx, &model.StaffClinicAssignment{
+		StaffID:  staff.ID,
+		ClinicID: clinicID,
+		IsMain:   true,
+	}); asgErr != nil {
+		RespondError(c, apperrors.Wrap(asgErr, "failed to assign staff to clinic"))
+		return
+	}
+
+	// Account を Preload して email を返すため再取得する
+	if reloaded, reloadErr := h.repos.Staff.FindByID(ctx, staff.ID); reloadErr == nil {
+		staff = reloaded
 	}
 	c.JSON(http.StatusCreated, toStaffResponse(staff))
 }
@@ -78,22 +126,68 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	}
 	var req updateStaffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	staff, err := h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
-		Name:          req.Name,
-		StaffRole:     req.StaffRole,
-		LicenseNumber: req.LicenseNumber,
-		JobTitleID:    req.JobTitleID,
-		SortOrder:     req.SortOrder,
-		IsActive:      req.IsActive,
-	})
-	if err != nil {
-		RespondError(c, err)
+	// パスワードのみの更新かどうかを判定（BUG-131）
+	hasProfileUpdate := req.Name != nil || req.LicenseNumber != nil || req.OccupationID != nil || req.SortOrder != nil || req.IsActive != nil
+	hasPasswordUpdate := req.Password != nil && *req.Password != ""
+
+	if !hasProfileUpdate && !hasPasswordUpdate {
+		RespondError(c, apperrors.WrapInvalidInput("at least one field must be provided"))
 		return
 	}
+
+	var staff *model.Staff
+	if hasProfileUpdate {
+		var svcErr error
+		staff, svcErr = h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
+			Name:          req.Name,
+			LicenseNumber: req.LicenseNumber,
+			OccupationID:  req.OccupationID,
+			SortOrder:     req.SortOrder,
+			IsActive:      req.IsActive,
+		})
+		if svcErr != nil {
+			RespondError(c, svcErr)
+			return
+		}
+	} else {
+		// パスワードのみ更新の場合、既存スタッフを取得
+		var findErr error
+		staff, findErr = h.repos.Staff.FindByID(c.Request.Context(), id)
+		if findErr != nil {
+			RespondError(c, findErr)
+			return
+		}
+	}
+
+	// パスワード変更（任意）: password フィールドが送信された場合のみ
+	if hasPasswordUpdate {
+		if err := validatePassword(*req.Password); err != nil {
+			RespondError(c, err)
+			return
+		}
+		if staff.AccountID != nil {
+			account, accErr := h.repos.Account.GetByID(c.Request.Context(), *staff.AccountID)
+			if accErr != nil {
+				RespondError(c, accErr)
+				return
+			}
+			hashed, hashErr := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
+			if hashErr != nil {
+				RespondError(c, apperrors.Wrap(hashErr, "failed to hash password"))
+				return
+			}
+			account.PasswordHash = string(hashed)
+			if updErr := h.repos.Account.Update(c.Request.Context(), account); updErr != nil {
+				RespondError(c, updErr)
+				return
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, toStaffResponse(staff))
 }
 
@@ -130,6 +224,107 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// GetStaffPermissionGroups godoc
+// GET /v1/masters/staffs/:id/permission-groups
+func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	groupIDs, err := h.repos.PermissionGroup.GetGroupIDsByStaffID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"group_ids": groupIDs})
+}
+
+// SetStaffPermissionGroups godoc
+// PUT /v1/masters/staffs/:id/permission-groups
+func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	var req struct {
+		GroupIDs []uint64 `json:"group_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if req.GroupIDs == nil {
+		req.GroupIDs = []uint64{}
+	}
+	if err := h.repos.PermissionGroup.SetStaffGroups(c.Request.Context(), id, req.GroupIDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"group_ids": req.GroupIDs})
+}
+
+// GetStaffClinicAssignments godoc
+// GET /v1/masters/staffs/:id/clinics
+func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	clinicIDs := make([]uint64, 0, len(assignments))
+	for _, a := range assignments {
+		clinicIDs = append(clinicIDs, a.ClinicID)
+	}
+	c.JSON(http.StatusOK, gin.H{"clinic_ids": clinicIDs})
+}
+
+// SetStaffClinicAssignments godoc
+// PUT /v1/masters/staffs/:id/clinics
+func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	var req struct {
+		ClinicIDs []uint64 `json:"clinic_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if req.ClinicIDs == nil {
+		req.ClinicIDs = []uint64{}
+	}
+
+	ctx := c.Request.Context()
+	// 既存の割当を全削除
+	if err := h.repos.StaffClinicAssignment.DeleteByStaffID(ctx, id); err != nil {
+		RespondError(c, err)
+		return
+	}
+	// 新しい割当を作成（最初の1件を is_main=true とする）
+	for i, clinicID := range req.ClinicIDs {
+		assignment := &model.StaffClinicAssignment{
+			StaffID:  id,
+			ClinicID: clinicID,
+			IsMain:   i == 0,
+		}
+		if err := h.repos.StaffClinicAssignment.Create(ctx, assignment); err != nil {
+			RespondError(c, err)
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"clinic_ids": req.ClinicIDs})
+}
+
 // ReorderStaffs godoc
 func (h *Handler) ReorderStaffs(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -138,7 +333,7 @@ func (h *Handler) ReorderStaffs(c *gin.Context) {
 	}
 	var req reorderStaffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.Staff.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
@@ -148,145 +343,183 @@ func (h *Handler) ReorderStaffs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
 }
 
-// RegisterMasterRoutes はマスタ関連の全ルートを登録する
+// RegisterMasterRoutes はマスタ関連の全ルートを登録する（BUG-122: RBAC権限チェック適用）
 func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters := rg.Group("/masters")
 
+	// --- Permission middleware helpers (BUG-125: CRUD個別ガード) ---
+	perm := func(resource model.Resource, action string) gin.HandlerFunc {
+		return h.RequirePermission(string(resource), action)
+	}
+
+	// Animal Species
 	masters.GET("/animal-species", h.ListAnimalSpecies)
-	masters.POST("/animal-species", h.CreateAnimalSpecies)
-	masters.PATCH("/animal-species/reorder", h.ReorderAnimalSpecies) // 静的パスを /:id より前に登録
+	masters.POST("/animal-species", perm(model.ResourceMasterAnimalSpecies, "create"), h.CreateAnimalSpecies)
+	masters.PATCH("/animal-species/reorder", perm(model.ResourceMasterAnimalSpecies, "edit"), h.ReorderAnimalSpecies)
 	masters.GET("/animal-species/:id", h.GetAnimalSpecies)
-	masters.PATCH("/animal-species/:id", h.UpdateAnimalSpecies)
-	masters.DELETE("/animal-species/:id", h.DeleteAnimalSpecies)
+	masters.PATCH("/animal-species/:id", perm(model.ResourceMasterAnimalSpecies, "edit"), h.UpdateAnimalSpecies)
+	masters.DELETE("/animal-species/:id", perm(model.ResourceMasterAnimalSpecies, "delete"), h.DeleteAnimalSpecies)
 
+	// Staffs
 	masters.GET("/staffs", h.ListStaffs)
-	masters.POST("/staffs", h.CreateStaff)
-	masters.PATCH("/staffs/reorder", h.ReorderStaffs) // 静的パスを /:id より前に登録
+	masters.POST("/staffs", perm(model.ResourceMasterStaff, "create"), h.CreateStaff)
+	masters.PATCH("/staffs/reorder", perm(model.ResourceMasterStaff, "edit"), h.ReorderStaffs)
 	masters.GET("/staffs/:id", h.GetStaff)
-	masters.PATCH("/staffs/:id", h.UpdateStaff)
-	masters.DELETE("/staffs/:id", h.DeleteStaff)
+	masters.PATCH("/staffs/:id", perm(model.ResourceMasterStaff, "edit"), h.UpdateStaff)
+	masters.DELETE("/staffs/:id", perm(model.ResourceMasterStaff, "delete"), h.DeleteStaff)
+	masters.GET("/staffs/:id/permission-groups", h.GetStaffPermissionGroups)
+	masters.PUT("/staffs/:id/permission-groups", perm(model.ResourceMasterStaff, "edit"), h.SetStaffPermissionGroups)
+	masters.GET("/staffs/:id/clinics", h.GetStaffClinicAssignments)
+	masters.PUT("/staffs/:id/clinics", perm(model.ResourceMasterStaff, "edit"), h.SetStaffClinicAssignments)
 
+	// Cages
 	masters.GET("/cages", h.ListCages)
-	masters.POST("/cages", h.CreateCage)
-	masters.PATCH("/cages/reorder", h.ReorderCages) // 静的パスを /:id より前に登録
+	masters.POST("/cages", perm(model.ResourceMasterHospitalization, "create"), h.CreateCage)
+	masters.PATCH("/cages/reorder", perm(model.ResourceMasterHospitalization, "edit"), h.ReorderCages)
 	masters.GET("/cages/:id", h.GetCage)
-	masters.PATCH("/cages/:id", h.UpdateCage)
-	masters.DELETE("/cages/:id", h.DeleteCage)
+	masters.PATCH("/cages/:id", perm(model.ResourceMasterHospitalization, "edit"), h.UpdateCage)
+	masters.DELETE("/cages/:id", perm(model.ResourceMasterHospitalization, "delete"), h.DeleteCage)
 
+	// Medicines
 	masters.GET("/medicines", h.ListMedicines)
-	masters.POST("/medicines", h.CreateMedicine)
-	masters.PATCH("/medicines/reorder", h.ReorderMedicines) // 静的パスを /:id より前に登録
+	masters.POST("/medicines", perm(model.ResourceMasterMedical, "create"), h.CreateMedicine)
+	masters.PATCH("/medicines/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderMedicines)
 	masters.GET("/medicines/:id", h.GetMedicine)
-	masters.PATCH("/medicines/:id", h.UpdateMedicine)
-	masters.DELETE("/medicines/:id", h.DeleteMedicine)
+	masters.PATCH("/medicines/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateMedicine)
+	masters.DELETE("/medicines/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteMedicine)
 
+	// Vaccines
 	masters.GET("/vaccines", h.ListVaccines)
-	masters.POST("/vaccines", h.CreateVaccine)
-	masters.PATCH("/vaccines/reorder", h.ReorderVaccines) // 静的パスを /:id より前に登録
+	masters.POST("/vaccines", perm(model.ResourceMasterMedical, "create"), h.CreateVaccine)
+	masters.PATCH("/vaccines/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderVaccines)
 	masters.GET("/vaccines/:id", h.GetVaccine)
-	masters.PATCH("/vaccines/:id", h.UpdateVaccine)
-	masters.DELETE("/vaccines/:id", h.DeleteVaccine)
+	masters.PATCH("/vaccines/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateVaccine)
+	masters.DELETE("/vaccines/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteVaccine)
 
+	// Insurances
 	masters.GET("/insurances", h.ListInsurances)
-	masters.POST("/insurances", h.CreateInsurance)
-	masters.PATCH("/insurances/reorder", h.ReorderInsurances) // 静的パスを /:id より前に登録
+	masters.POST("/insurances", perm(model.ResourceMasterInsurance, "create"), h.CreateInsurance)
+	masters.PATCH("/insurances/reorder", perm(model.ResourceMasterInsurance, "edit"), h.ReorderInsurances)
 	masters.GET("/insurances/:id", h.GetInsurance)
-	masters.PATCH("/insurances/:id", h.UpdateInsurance)
-	masters.DELETE("/insurances/:id", h.DeleteInsurance)
+	masters.PATCH("/insurances/:id", perm(model.ResourceMasterInsurance, "edit"), h.UpdateInsurance)
+	masters.DELETE("/insurances/:id", perm(model.ResourceMasterInsurance, "delete"), h.DeleteInsurance)
 
+	// Service Types
 	masters.GET("/service-types", h.ListServiceTypes)
-	masters.POST("/service-types", h.CreateServiceType)
-	masters.PATCH("/service-types/reorder", h.ReorderServiceTypes) // 静的パスを /:id より前に登録
+	masters.POST("/service-types", perm(model.ResourceMasterServiceType, "create"), h.CreateServiceType)
+	masters.PATCH("/service-types/reorder", perm(model.ResourceMasterServiceType, "edit"), h.ReorderServiceTypes)
 	masters.GET("/service-types/:id", h.GetServiceType)
-	masters.PATCH("/service-types/:id", h.UpdateServiceType)
-	masters.DELETE("/service-types/:id", h.DeleteServiceType)
+	masters.PATCH("/service-types/:id", perm(model.ResourceMasterServiceType, "edit"), h.UpdateServiceType)
+	masters.DELETE("/service-types/:id", perm(model.ResourceMasterServiceType, "delete"), h.DeleteServiceType)
 
+	// Consultations
 	masters.GET("/consultations", h.ListConsultations)
-	masters.POST("/consultations", h.CreateConsultation)
-	masters.PATCH("/consultations/reorder", h.ReorderConsultations) // 静的パスを /:id より前に登録
+	masters.POST("/consultations", perm(model.ResourceMasterMedical, "create"), h.CreateConsultation)
+	masters.PATCH("/consultations/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderConsultations)
 	masters.GET("/consultations/:id", h.GetConsultation)
-	masters.PATCH("/consultations/:id", h.UpdateConsultation)
-	masters.DELETE("/consultations/:id", h.DeleteConsultation)
+	masters.PATCH("/consultations/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateConsultation)
+	masters.DELETE("/consultations/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteConsultation)
 
+	// Procedures
 	masters.GET("/procedures", h.ListProcedures)
-	masters.POST("/procedures", h.CreateProcedure)
-	masters.PATCH("/procedures/reorder", h.ReorderProcedures) // 静的パスを /:id より前に登録
+	masters.POST("/procedures", perm(model.ResourceMasterMedical, "create"), h.CreateProcedure)
+	masters.PATCH("/procedures/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderProcedures)
 	masters.GET("/procedures/:id", h.GetProcedure)
-	masters.PATCH("/procedures/:id", h.UpdateProcedure)
-	masters.DELETE("/procedures/:id", h.DeleteProcedure)
+	masters.PATCH("/procedures/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateProcedure)
+	masters.DELETE("/procedures/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteProcedure)
 
+	// Hospitalization Plans
 	masters.GET("/hospitalization-plans", h.ListHospitalizationPlans)
-	masters.POST("/hospitalization-plans", h.CreateHospitalizationPlan)
-	masters.PATCH("/hospitalization-plans/reorder", h.ReorderHospitalizationPlans) // 静的パスを /:id より前に登録
+	masters.POST("/hospitalization-plans", perm(model.ResourceMasterHospitalization, "create"), h.CreateHospitalizationPlan)
+	masters.PATCH("/hospitalization-plans/reorder", perm(model.ResourceMasterHospitalization, "edit"), h.ReorderHospitalizationPlans)
 	masters.GET("/hospitalization-plans/:id", h.GetHospitalizationPlan)
-	masters.PATCH("/hospitalization-plans/:id", h.UpdateHospitalizationPlan)
-	masters.DELETE("/hospitalization-plans/:id", h.DeleteHospitalizationPlan)
+	masters.PATCH("/hospitalization-plans/:id", perm(model.ResourceMasterHospitalization, "edit"), h.UpdateHospitalizationPlan)
+	masters.DELETE("/hospitalization-plans/:id", perm(model.ResourceMasterHospitalization, "delete"), h.DeleteHospitalizationPlan)
 
+	// Trimming Courses
 	masters.GET("/trimming-courses", h.ListTrimmingCourses)
-	masters.POST("/trimming-courses", h.CreateTrimmingCourse)
-	masters.PATCH("/trimming-courses/reorder", h.ReorderTrimmingCourses) // 静的パスを /:id より前に登録
+	masters.POST("/trimming-courses", perm(model.ResourceMasterTrimming, "create"), h.CreateTrimmingCourse)
+	masters.PATCH("/trimming-courses/reorder", perm(model.ResourceMasterTrimming, "edit"), h.ReorderTrimmingCourses)
 	masters.GET("/trimming-courses/:id", h.GetTrimmingCourse)
-	masters.PATCH("/trimming-courses/:id", h.UpdateTrimmingCourse)
-	masters.DELETE("/trimming-courses/:id", h.DeleteTrimmingCourse)
+	masters.PATCH("/trimming-courses/:id", perm(model.ResourceMasterTrimming, "edit"), h.UpdateTrimmingCourse)
+	masters.DELETE("/trimming-courses/:id", perm(model.ResourceMasterTrimming, "delete"), h.DeleteTrimmingCourse)
 
+	// Trimming Options
 	masters.GET("/trimming-options", h.ListTrimmingOptions)
-	masters.POST("/trimming-options", h.CreateTrimmingOption)
-	masters.PATCH("/trimming-options/reorder", h.ReorderTrimmingOptions) // 静的パスを /:id より前に登録
+	masters.POST("/trimming-options", perm(model.ResourceMasterTrimming, "create"), h.CreateTrimmingOption)
+	masters.PATCH("/trimming-options/reorder", perm(model.ResourceMasterTrimming, "edit"), h.ReorderTrimmingOptions)
 	masters.GET("/trimming-options/:id", h.GetTrimmingOption)
-	masters.PATCH("/trimming-options/:id", h.UpdateTrimmingOption)
-	masters.DELETE("/trimming-options/:id", h.DeleteTrimmingOption)
+	masters.PATCH("/trimming-options/:id", perm(model.ResourceMasterTrimming, "edit"), h.UpdateTrimmingOption)
+	masters.DELETE("/trimming-options/:id", perm(model.ResourceMasterTrimming, "delete"), h.DeleteTrimmingOption)
 
+	// Examination Types
 	masters.GET("/examination-types", h.ListExaminationTypes)
-	masters.POST("/examination-types", h.CreateExaminationType)
-	masters.PATCH("/examination-types/reorder", h.ReorderExaminationTypes) // 静的パスを /:id より前に登録
+	masters.POST("/examination-types", perm(model.ResourceMasterMedical, "create"), h.CreateExaminationType)
+	masters.PATCH("/examination-types/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderExaminationTypes)
 	masters.GET("/examination-types/:id", h.GetExaminationType)
-	masters.PATCH("/examination-types/:id", h.UpdateExaminationType)
-	masters.DELETE("/examination-types/:id", h.DeleteExaminationType)
+	masters.PATCH("/examination-types/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateExaminationType)
+	masters.DELETE("/examination-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteExaminationType)
 
+	// Diagnosis Categories
 	masters.GET("/diagnosis-categories", h.ListDiagnosisCategories)
-	masters.POST("/diagnosis-categories", h.CreateDiagnosisCategory)
-	masters.PATCH("/diagnosis-categories/reorder", h.ReorderDiagnosisCategories) // 静的パスを /:id より前に登録
+	masters.POST("/diagnosis-categories", perm(model.ResourceMasterMedical, "create"), h.CreateDiagnosisCategory)
+	masters.PATCH("/diagnosis-categories/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderDiagnosisCategories)
 	masters.GET("/diagnosis-categories/:id", h.GetDiagnosisCategory)
-	masters.PATCH("/diagnosis-categories/:id", h.UpdateDiagnosisCategory)
-	masters.DELETE("/diagnosis-categories/:id", h.DeleteDiagnosisCategory)
+	masters.PATCH("/diagnosis-categories/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateDiagnosisCategory)
+	masters.DELETE("/diagnosis-categories/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteDiagnosisCategory)
 
+	// Diagnosis Names
 	masters.GET("/diagnosis-names", h.ListDiagnosisNames)
-	masters.POST("/diagnosis-names", h.CreateDiagnosisName)
-	masters.PATCH("/diagnosis-names/reorder", h.ReorderDiagnosisNames) // 静的パスを /:id より前に登録
+	masters.POST("/diagnosis-names", perm(model.ResourceMasterMedical, "create"), h.CreateDiagnosisName)
+	masters.PATCH("/diagnosis-names/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderDiagnosisNames)
 	masters.GET("/diagnosis-names/:id", h.GetDiagnosisName)
-	masters.PATCH("/diagnosis-names/:id", h.UpdateDiagnosisName)
-	masters.DELETE("/diagnosis-names/:id", h.DeleteDiagnosisName)
+	masters.PATCH("/diagnosis-names/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateDiagnosisName)
+	masters.DELETE("/diagnosis-names/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteDiagnosisName)
 
+	// Checkup Types
 	masters.GET("/checkup-types", h.ListCheckupTypes)
-	masters.POST("/checkup-types", h.CreateCheckupType)
-	masters.PATCH("/checkup-types/reorder", h.ReorderCheckupTypes) // 静的パスを /:id より前に登録
+	masters.POST("/checkup-types", perm(model.ResourceCheckups, "create"), h.CreateCheckupType)
+	masters.PATCH("/checkup-types/reorder", perm(model.ResourceCheckups, "edit"), h.ReorderCheckupTypes)
 	masters.GET("/checkup-types/:id", h.GetCheckupType)
-	masters.PATCH("/checkup-types/:id", h.UpdateCheckupType)
-	masters.DELETE("/checkup-types/:id", h.DeleteCheckupType)
+	masters.PATCH("/checkup-types/:id", perm(model.ResourceCheckups, "edit"), h.UpdateCheckupType)
+	masters.DELETE("/checkup-types/:id", perm(model.ResourceCheckups, "delete"), h.DeleteCheckupType)
 
-	masters.GET("/job-titles", h.ListJobTitles)
-	masters.POST("/job-titles", h.CreateJobTitle)
-	masters.PATCH("/job-titles/reorder", h.ReorderJobTitles) // 静的パスを /:id より前に登録
-	masters.GET("/job-titles/:id", h.GetJobTitle)
-	masters.PATCH("/job-titles/:id", h.UpdateJobTitle)
-	masters.DELETE("/job-titles/:id", h.DeleteJobTitle)
+	// Occupations
+	masters.GET("/occupations", h.ListOccupations)
+	masters.POST("/occupations", perm(model.ResourceMasterStaff, "create"), h.CreateOccupation)
+	masters.PATCH("/occupations/reorder", perm(model.ResourceMasterStaff, "edit"), h.ReorderOccupations)
+	masters.GET("/occupations/:id", h.GetOccupation)
+	masters.PATCH("/occupations/:id", perm(model.ResourceMasterStaff, "edit"), h.UpdateOccupation)
+	masters.DELETE("/occupations/:id", perm(model.ResourceMasterStaff, "delete"), h.DeleteOccupation)
 
+	// Permission Groups — CRUD個別ガード
+	masters.GET("/permission-groups", h.ListPermissionGroups)
+	masters.GET("/permission-groups/:id", h.GetPermissionGroup)
+	masters.POST("/permission-groups", perm(model.ResourceMasterPermission, "create"), h.CreatePermissionGroup)
+	masters.PATCH("/permission-groups", perm(model.ResourceMasterPermission, "edit"), h.ReorderPermissionGroups)
+	masters.PATCH("/permission-groups/:id", perm(model.ResourceMasterPermission, "edit"), h.UpdatePermissionGroup)
+	masters.DELETE("/permission-groups/:id", perm(model.ResourceMasterPermission, "delete"), h.DeletePermissionGroup)
+	masters.PUT("/permission-groups/:id/rules", perm(model.ResourceMasterPermission, "edit"), h.SetPermissionGroupRules)
+
+	// Chief Complaint Categories
 	masters.GET("/chief-complaint-categories", h.ListChiefComplaints)
-	masters.POST("/chief-complaint-categories", h.CreateChiefComplaint)
+	masters.POST("/chief-complaint-categories", perm(model.ResourceMasterMedical, "create"), h.CreateChiefComplaint)
 	masters.GET("/chief-complaint-categories/:id", h.GetChiefComplaint)
-	masters.PATCH("/chief-complaint-categories/:id", h.UpdateChiefComplaint)
-	masters.DELETE("/chief-complaint-categories/:id", h.DeleteChiefComplaint)
+	masters.PATCH("/chief-complaint-categories/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateChiefComplaint)
+	masters.DELETE("/chief-complaint-categories/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteChiefComplaint)
 
+	// Inquiry Templates
 	masters.GET("/inquiry-templates", h.ListInquiryTemplates)
-	masters.POST("/inquiry-templates", h.CreateInquiryTemplate)
+	masters.POST("/inquiry-templates", perm(model.ResourceMasterMedical, "create"), h.CreateInquiryTemplate)
 	masters.GET("/inquiry-templates/:id", h.GetInquiryTemplate)
-	masters.PATCH("/inquiry-templates/:id", h.UpdateInquiryTemplate)
-	masters.DELETE("/inquiry-templates/:id", h.DeleteInquiryTemplate)
+	masters.PATCH("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateInquiryTemplate)
+	masters.DELETE("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteInquiryTemplate)
 
+	// Merchandise Items
 	masters.GET("/merchandise-items", h.ListMerchandiseItems)
-	masters.POST("/merchandise-items", h.CreateMerchandiseItem)
-	masters.POST("/merchandise-items/reorder", h.ReorderMerchandiseItems) // 静的パスを /:id より前に登録
+	masters.POST("/merchandise-items", perm(model.ResourceMasterMerchandise, "create"), h.CreateMerchandiseItem)
+	masters.POST("/merchandise-items/reorder", perm(model.ResourceMasterMerchandise, "edit"), h.ReorderMerchandiseItems)
 	masters.GET("/merchandise-items/:id", h.GetMerchandiseItem)
-	masters.PATCH("/merchandise-items/:id", h.UpdateMerchandiseItem)
-	masters.DELETE("/merchandise-items/:id", h.DeleteMerchandiseItem)
+	masters.PATCH("/merchandise-items/:id", perm(model.ResourceMasterMerchandise, "edit"), h.UpdateMerchandiseItem)
+	masters.DELETE("/merchandise-items/:id", perm(model.ResourceMasterMerchandise, "delete"), h.DeleteMerchandiseItem)
 }

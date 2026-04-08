@@ -52,7 +52,10 @@ docker compose exec backend go test ./...
 
 ### Backend (Clean Architecture / Layered)
 - **`internal/handler/`**: HTTP layer. Bind requests/responses.
+  - `ShouldBindJSON` errors: Always use `RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))` (unified across all 31 handlers).
+  - Never use `c.JSON(http.StatusBadRequest, ...)` directly.
 - **`internal/service/`**: Business logic. Input validation.
+  - Master deletion: Always check FK dependencies via `CountUsageByXxxID()`. Return `apperrors.WrapConflict(...)` (409) if in use.
 - **`internal/repository/`**: Data access (GORM).
 - **`internal/model/`**: GORM models. **Single Source of Truth** for types.
 - **Context**: Always pass `context.Context` as the first argument to service/repository methods.
@@ -66,7 +69,7 @@ docker compose exec backend go test ./...
 - **Ref as Prop**: Use `ref` directly as a prop; do not use `forwardRef`.
 - **`useTransition`**: Standard for managing pending states in complex forms.
 - **`useDeferredValue`**: Use for non-urgent updates like search filters.
-- **`memo()`**: Use to break re-render boundaries in large forms (e.g., `OwnerForm.tsx`).
+- **`memo()`**: Use to break re-render boundaries in large forms (e.g., `OwnerForm.tsx`). Shared components (`DataTable`, `NotionFilter`, `Pagination`, `SidePeekPanel`) are already wrapped with `memo()`.
 - **Conditional Rendering**: Always use ternary `condition ? <Component /> : null`. Never use `&&`.
 
 ### State Management
@@ -81,4 +84,5 @@ docker compose exec backend go test ./...
 - `.claude/CLAUDE.md`: Original project rules and history.
 - `frontend/CODING_RULES.md`: Detailed frontend implementation rules.
 - `backend/CLAUDE.md`: Detailed backend implementation rules.
+- `docs/FUNCTIONAL_TEST_REPORT.md`: Functional test report (OK=2,111 / NG=274 / 未確認=1,514).
 - `.gemini/styleguide.md`: Gemini-specific style adjustments (Note: sync with this file).

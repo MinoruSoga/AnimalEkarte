@@ -18,10 +18,10 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import {
-  useGetAllCages, useCreateCage, useUpdateCage, useDeleteCage, useReorderCages,
-} from "@/features/master/api/cages";
+import { useGetAllCages, useCreateCage, useUpdateCage, useDeleteCage, useReorderCages } from "@/features/master/api/cages";
 import type { Cage, CageType, CageSize, CreateCageRequest, UpdateCageRequest } from "@/features/master/api/cages";
+import { ResourceMasterHospitalization } from "@/types/generated/models";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // ─── Constants ───
 const CAGE_TYPE_LABELS: Record<CageType, string> = { icu: "ICU", dog: "犬舎", cat: "猫舎", general: "汎用" };
@@ -42,8 +42,8 @@ interface CageFormData { name: string; cageType: CageType; cageSize: CageSize; p
 
 // ─── SidePanel ───
 const CageSidePanel = memo(function CageSidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: Cage | null; onClose: () => void; onSave: (d: CageFormData) => void; onDeleteRequest: (i: Cage) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: Cage | null; onClose: () => void; onSave: (d: CageFormData) => void; onDeleteRequest?: (i: Cage) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<CageFormData>(() => ({
     name: item?.name ?? "", cageType: item?.cageType ?? "general", cageSize: item?.cageSize ?? "medium",
     price: item?.price ?? 0, description: item?.description ?? "", isActive: item?.isActive ?? true,
@@ -100,10 +100,12 @@ const CageSidePanel = memo(function CageSidePanel({
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
-      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onClose={handleClose} action={readOnly ? undefined : handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
-      titleError={nameError}>
+      titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="エリア">
         <Select value={f.cageType} onValueChange={handleCageTypeChange}>
@@ -129,10 +131,10 @@ const CageSidePanel = memo(function CageSidePanel({
 function CageRowOverlay({ cage }: { cage: Cage }) {
   return (
     <div className={`flex items-center h-12 bg-white border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`} style={{ width: "100%" }}>
-      <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50"><GripVertical className={ICON.action} /></div>
+      <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}><GripVertical className={ICON.action} /></div>
       <div className={`flex-1 min-w-0 text-base font-medium ${C.text} px-3`}>{cage.name}</div>
-      <div className="w-[100px] shrink-0 text-base text-[#37352F]/65">{CAGE_TYPE_LABELS[cage.cageType]}</div>
-      <div className="w-[90px] shrink-0 text-base text-[#37352F]/65">{CAGE_SIZE_LABELS[cage.cageSize]}</div>
+      <div className={`w-[100px] shrink-0 text-base ${C.text65}`}>{CAGE_TYPE_LABELS[cage.cageType]}</div>
+      <div className={`w-[90px] shrink-0 text-base ${C.text65}`}>{CAGE_SIZE_LABELS[cage.cageSize]}</div>
       <div className={`w-[120px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>{cage.price != null ? `¥${cage.price.toLocaleString()}` : "-"}</div>
       <div className="w-[90px] shrink-0 flex justify-center"><NotionStatusPill isActive={cage.isActive} /></div>
       <div className="w-[80px] shrink-0" />
@@ -153,6 +155,7 @@ const TABLE_COLUMNS = [
 
 // ─── Page ───
 export function CageSettings() {
+  const { canCreate, canEdit } = usePermission(ResourceMasterHospitalization);
   const { data } = useGetAllCages();
   const createMutation = useCreateCage();
   const updateMutation = useUpdateCage();
@@ -182,12 +185,12 @@ export function CageSettings() {
 
   // CageSettings uses custom table (not DataTable) for DnD + DragOverlay + bottom "add" button
   return (
-    <MasterCRUDPage title="ケージマスタ" icon={<Building2 className={`${ICON.page} text-[#37352F]`} />}
+    <MasterCRUDPage title="ケージマスタ" icon={<Building2 className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterHospitalization}
       entityLabel="ケージ" searchPlaceholder="ケージ名で検索..." emptyMessage="ケージが登録されていません"
       crud={crud} handleSave={handleSave}
       filterProperties={[MASTER_STATUS_FILTER]}
       columns={[]} renderRow={() => null}
-      renderSidePanel={(props) => <CageSidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={({ readOnly, ...props }) => <CageSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />}
     >
       <div className={STYLE.tableContainer}>
         <div className="flex-1 overflow-auto relative">
@@ -215,7 +218,7 @@ export function CageSettings() {
                       <TableCell className={`text-base ${C.text70}`}>{CAGE_SIZE_LABELS[item.cageSize] || item.cageSize}</TableCell>
                       <TableCell className={`text-right font-mono text-base ${C.text} pr-4`}>{item.price != null ? `¥${item.price.toLocaleString()}` : "-"}</TableCell>
                       <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-                      <TableCell className="p-0 text-right pr-2"><RowActionButton onClick={() => crud.handleEdit(item)} /></TableCell>
+                      <TableCell className="p-0 text-right pr-2">{canEdit ? <RowActionButton onClick={() => crud.handleEdit(item)} /> : null}</TableCell>
                     </SortableDataTableRow>
                   ))}
                 </SortableContext>
@@ -226,10 +229,12 @@ export function CageSettings() {
             </DragOverlay>
           </DndContext>
         </div>
-        <button type="button" onClick={crud.handleNew}
-          className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]">
-          <Plus className={`${ICON.xs}`} />新しいケージを追加...
-        </button>
+        {canCreate ? (
+          <button type="button" onClick={crud.handleNew}
+            className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}>
+            <Plus className={`${ICON.xs}`} />新しいケージを追加...
+          </button>
+        ) : null}
       </div>
     </MasterCRUDPage>
   );

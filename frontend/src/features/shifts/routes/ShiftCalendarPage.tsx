@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { ResourceShifts } from "@/types/generated/models";
 import { useGetShifts } from "../api/get-shifts";
 import { useStaffsForShift } from "../api/get-staffs";
 import { ShiftCalendar as ShiftCalendarGrid } from "../components/ShiftCalendar/ShiftCalendar";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 function getInitialYearMonth(): string {
   const now = new Date();
@@ -14,7 +15,7 @@ function getInitialYearMonth(): string {
 
 export function ShiftCalendarPage() {
   const [yearMonth, setYearMonth] = useState<string>(getInitialYearMonth);
-  const { canCreate, canEdit } = usePermission("shifts");
+  const { canCreate, canEdit, canDelete } = usePermission("shifts");
   const [selectedStaffId, setSelectedStaffId] = useState<string>("all");
 
   const shiftsQuery = useGetShifts({
@@ -48,7 +49,7 @@ export function ShiftCalendarPage() {
   const staffs = staffsQuery.data ?? [];
 
   return (
-    <PageLayout title="シフト管理" maxWidth="max-w-full">
+    <PageLayout title="シフト管理" resource={ResourceShifts} maxWidth="max-w-full">
       {shiftsQuery.isError ? (
         <div className="flex items-center justify-center h-64 text-sm text-red-500">
           シフトデータの取得に失敗しました
@@ -61,6 +62,7 @@ export function ShiftCalendarPage() {
           selectedStaffId={selectedStaffId}
           canCreate={canCreate}
           canEdit={canEdit}
+          canDelete={canDelete}
           onPrevMonth={handlePrevMonth}
           onNextMonth={handleNextMonth}
           onStaffChange={handleStaffChange}

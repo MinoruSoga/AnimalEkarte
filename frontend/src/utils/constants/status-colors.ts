@@ -1,6 +1,6 @@
 /**
  * 予約ステータス・診察区分・ダッシュボードのカラー定数集約ファイル。
- * ReservationDetailModal / AppointmentCard / DashboardDetailModal のインライン定義を統合。
+ * ReservationDetailModal / AppointmentCard / ReceptionDetailModal のインライン定義を統合。
  */
 import { C } from "@/lib/design-tokens";
 import type { ReservationStatus } from "@/types";
@@ -42,9 +42,9 @@ export const VISIT_TYPE_COLORS = {
     text: "text-red-700",
     dot: "bg-red-500",
     // AppointmentCard バッジ用カラー
-    badgeBg: "bg-[#D3E5EF]/60",
-    badgeText: "text-[#183B56]/90",
-    badgeBorder: "border-[#B8D4E3]/50",
+    badgeBg: C.bgAccentLight60,
+    badgeText: C.textAccentDark90,
+    badgeBorder: C.borderAccentBadge50,
   },
   再診: {
     border: "border-blue-200",
@@ -52,9 +52,9 @@ export const VISIT_TYPE_COLORS = {
     text: "text-blue-700",
     dot: "bg-blue-500",
     // AppointmentCard バッジ用カラー
-    badgeBg: "bg-[#F7F6F3]/60",
-    badgeText: "text-[#37352F]/90",
-    badgeBorder: "border-[rgba(55,53,47,0.09)]/50",
+    badgeBg: C.bgPage60,
+    badgeText: C.text90,
+    badgeBorder: C.borderLight50,
   },
 } as const;
 
@@ -73,8 +73,8 @@ export function getVisitTypeColor(visitType: string) {
 // ダッシュボード表示用 日本語ステータスカラーマップ
 // ──────────────────────────────────────────────
 
-/** DashboardDetailModal のステータスバッジカラー（日本語キー） */
-export const DASHBOARD_STATUS_COLORS: Record<string, string> = {
+/** ReceptionDetailModal のステータスバッジカラー（日本語キー） */
+export const RECEPTION_STATUS_COLORS: Record<string, string> = {
   "受付予約": `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentLight}`,
   "受付済":   `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen}`,
   "診療中":   `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderStatusPurple}`,
@@ -82,5 +82,5 @@ export const DASHBOARD_STATUS_COLORS: Record<string, string> = {
   "会計済":   `${C.bgActive} ${C.text} ${C.borderLight}`,
 };
 
-/** DASHBOARD_STATUS_COLORS 未定義ステータスのフォールバッククラス */
-export const DASHBOARD_STATUS_COLOR_FALLBACK = "bg-gray-100 text-gray-600 border-gray-200";
+/** RECEPTION_STATUS_COLORS 未定義ステータスのフォールバッククラス */
+export const RECEPTION_STATUS_COLOR_FALLBACK = "bg-gray-100 text-gray-600 border-gray-200";

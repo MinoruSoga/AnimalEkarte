@@ -1,55 +1,12 @@
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import {
-  LayoutDashboard,
-  Users,
-  Calendar,
-  FileText,
-  TestTube,
-  CreditCard,
-  Bed,
-  Syringe,
-  Scissors,
-  Settings,
-  ChevronDown,
-  PanelLeftClose,
-  PanelLeft,
-  Pill,
-  ShieldCheck,
-  Shield,
-  Building2,
-  Activity,
-  Package,
-  CalendarDays,
-  ClipboardCheck,
-  Clipboard,
-  ClipboardList,
-  KeyRound,
-  LogOut,
-  User,
-  PawPrint,
-} from "lucide-react";
-import { useState, useEffect, memo } from "react";
+import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase } from "lucide-react";
+import { useState, useEffect, memo, useCallback } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Link, useLocation, useNavigate } from "react-router";
-import { useAuth } from "@/features/auth/hooks/use-auth";
-import { ChangePasswordDialog } from "@/features/auth/components/ChangePasswordDialog";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { useAuth, ChangePasswordDialog, usePermission } from "@/features/auth";
 import { paths } from "@/config/paths";
-import {
-  ResourceDashboard,
-  ResourceOwners,
-  ResourceReservations,
-  ResourceMedicalRecords,
-  ResourceExaminations,
-  ResourceAccounting,
-  ResourceHospitalization,
-  ResourceVaccinations,
-  ResourceCheckups,
-  ResourceInventory,
-  ResourceShifts,
-  ResourceTrimming,
-  ResourceMaster,
-  ResourceHospitalSettings,
-} from "@/types/generated/models";
+import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterServiceType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise } from "@/types/generated/models";
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */
@@ -189,7 +146,7 @@ interface SidebarItemWithPermissionProps {
  * - `item.resource` が設定されている場合、`usePermission` で `canView` を確認し、
  *   `false` なら `null` を返す（非表示）。
  * - `item.resource` が未設定の場合（サブアイテムの一部等）は常に表示する。
- * - `clinic_admin` / `system_admin` は `useAuth.hasPermission` 内部で常に `true` を返す。
+ * - `isSystemAdmin=true` の場合は `useAuth.hasPermission` 内部で常に `true` を返す。
  *
  * フックのルール（ループ内での呼び出し禁止）を遵守するため、
  * 各メニュー項目をこのコンポーネントに切り出し、フック呼び出しをここで行う。
@@ -215,8 +172,38 @@ export function Sidebar() {
     () => typeof window !== "undefined" && window.innerWidth < 1280,
   );
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
-  const { user, logout } = useAuth();
-  const clinicName = user?.clinic?.name ?? "";
+  const { user, logout, switchClinic, currentClinicId } = useAuth();
+  const [clinicPopoverOpen, setClinicPopoverOpen] = useState(false);
+  const [pendingSwitchClinicId, setPendingSwitchClinicId] = useState<string | null>(null);
+
+  // 現在のクリニック名: currentClinicId に一致する clinics から取得
+  const clinicName = user?.clinics.find((c) => c.clinicId === currentClinicId)?.clinicName
+    ?? user?.clinic?.name
+    ?? "";
+
+  // 所属医院が1つの場合は選択UIを無効化
+  const hasMultipleClinics = (user?.clinics.length ?? 0) > 1;
+
+  // 切替先のクリニック名
+  const pendingSwitchClinicName = pendingSwitchClinicId
+    ? user?.clinics.find((c) => c.clinicId === pendingSwitchClinicId)?.clinicName ?? ""
+    : "";
+
+  const handleRequestSwitch = useCallback((clinicId: string) => {
+    setClinicPopoverOpen(false);
+    setPendingSwitchClinicId(clinicId);
+  }, []);
+
+  const handleConfirmSwitch = useCallback(() => {
+    if (pendingSwitchClinicId) {
+      switchClinic(pendingSwitchClinicId);
+    }
+    setPendingSwitchClinicId(null);
+  }, [pendingSwitchClinicId, switchClinic]);
+
+  const handleCancelSwitch = useCallback(() => {
+    setPendingSwitchClinicId(null);
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1279px)");
@@ -235,14 +222,44 @@ export function Sidebar() {
       <div className={`h-[53px] flex items-center px-2.5 border-b ${C.borderDivider}`}>
         {!collapsed ? (
           <div className="flex items-center justify-between w-full">
-            <button
-              type="button"
-              className={`flex items-center gap-1 min-w-0 text-base font-semibold ${C.text} ${C.hoverBgLight} rounded-[3px] px-1.5 py-1 transition-colors outline-none`}
-            >
-              <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
-              <span className="truncate">{clinicName}</span>
-              <ChevronDown className={`${ICON.xs} opacity-40 shrink-0`} />
-            </button>
+            {hasMultipleClinics ? (
+              <Popover open={clinicPopoverOpen} onOpenChange={setClinicPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={`flex items-center gap-1 min-w-0 text-base font-semibold ${C.text} ${C.hoverBgLight} rounded-[3px] px-1.5 py-1 transition-colors outline-none`}
+                  >
+                    <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
+                    <span className="truncate">{clinicName}</span>
+                    <ChevronDown className={`${ICON.xs} opacity-40 shrink-0`} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[200px] p-1">
+                  {user?.clinics.map((c) => (
+                    <button
+                      key={c.clinicId}
+                      type="button"
+                      onClick={() => handleRequestSwitch(c.clinicId)}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-[3px] text-sm transition-colors flex items-center gap-2 ${
+                        c.clinicId === currentClinicId
+                          ? `font-medium ${C.text} ${C.bgBrand10}`
+                          : `${C.text65} ${C.hoverBgLight}`
+                      }`}
+                    >
+                      <span className={`size-1.5 rounded-full shrink-0 ${
+                        c.clinicId === currentClinicId ? C.bgBrand : C.bgInactive
+                      }`} />
+                      {c.clinicName}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <div className={`flex items-center gap-1 min-w-0 text-base font-semibold px-1.5 py-1 ${C.text}`}>
+                <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
+                <span className="truncate">{clinicName}</span>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setCollapsed(true)}
@@ -268,9 +285,9 @@ export function Sidebar() {
       <nav aria-label="メインナビゲーション" className="flex-1 px-1 py-2 space-y-6 overflow-y-auto">
         {/* Clinical Section */}
         <div className="space-y-px">
-          {!collapsed && <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>診療業務</p>}
+          {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>診療業務</p> : null}
           {[
-            { icon: <LayoutDashboard className={ICON.toolbar} />, label: "当日の受付",  path: paths.home.getHref(),            resource: ResourceDashboard },
+            { icon: <LayoutDashboard className={ICON.toolbar} />, label: "当日の受付",  path: paths.home.getHref(),            resource: ResourceReception },
             { icon: <Users         className={ICON.toolbar} />, label: "飼主・ペット", path: paths.owners.getHref(),          resource: ResourceOwners },
             { icon: <Calendar      className={ICON.toolbar} />, label: "予約管理",     path: paths.reservations.getHref(),    resource: ResourceReservations },
             { icon: <FileText      className={ICON.toolbar} />, label: "カルテ",       path: paths.medicalRecords.getHref(),  resource: ResourceMedicalRecords },
@@ -285,7 +302,7 @@ export function Sidebar() {
 
         {/* Operations Section */}
         <div className="space-y-px">
-          {!collapsed && <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>運用・管理</p>}
+          {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>運用・管理</p> : null}
           {[
             { icon: <CreditCard    className={ICON.toolbar} />, label: "会計管理",     path: paths.accounting.getHref(),      resource: ResourceAccounting },
             { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref(), resource: ResourceHospitalization },
@@ -298,33 +315,34 @@ export function Sidebar() {
 
         {/* Settings Section */}
         <div className="space-y-px">
-          {!collapsed && <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>システム設定</p>}
+          {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>システム設定</p> : null}
           <SidebarItemWithPermission 
             item={{
               icon: <Settings className={ICON.toolbar} />,
               label: "マスタ設定",
               path: paths.settings.getHref(),
-              resource: ResourceMaster,
               subItems: [
                 { icon: <Building2    className={ICON.toolbar} />, label: "医院",       path: paths.settings.clinic.getHref(), resource: ResourceHospitalSettings },
-                { icon: <PawPrint     className={ICON.toolbar} />, label: "動物種類",   path: paths.settings.animalSpecies.getHref() },
+                { icon: <PawPrint     className={ICON.toolbar} />, label: "動物種類",   path: paths.settings.animalSpecies.getHref(), resource: ResourceMasterAnimalSpecies },
                 {
                   icon: <FileText className={ICON.toolbar} />,
                   label: "カルテ関連",
+                  resource: ResourceMasterMedical,
                   subItems: [
-                    { icon: <ClipboardList  className={ICON.toolbar} />, label: "診療項目", path: paths.settings.treatmentItems.getHref() },
-                    { icon: <Clipboard      className={ICON.toolbar} />, label: "診断病名", path: paths.settings.diagnosis.getHref() },
-                    { icon: <ClipboardCheck className={ICON.toolbar} />, label: "問診設定", path: paths.settings.inquiryTemplates.getHref() },
-                    { icon: <Pill           className={ICON.toolbar} />, label: "薬剤マスタ", path: paths.settings.medicine.getHref() },
+                    { icon: <ClipboardList  className={ICON.toolbar} />, label: "診療項目", path: paths.settings.treatmentItems.getHref(), resource: ResourceMasterMedical },
+                    { icon: <Clipboard      className={ICON.toolbar} />, label: "診断病名", path: paths.settings.diagnosis.getHref(), resource: ResourceMasterMedical },
+                    { icon: <ClipboardCheck className={ICON.toolbar} />, label: "問診設定", path: paths.settings.inquiryTemplates.getHref(), resource: ResourceMasterMedical },
+                    { icon: <Pill           className={ICON.toolbar} />, label: "薬剤マスタ", path: paths.settings.medicine.getHref(), resource: ResourceMasterMedical },
                   ],
                 },
-                { icon: <Activity     className={ICON.toolbar} />, label: "診療サービス", path: paths.settings.serviceType.getHref() },
-                { icon: <Bed          className={ICON.toolbar} />, label: "入院・ケージ", path: paths.settings.hospitalization.getHref() },
-                { icon: <Scissors     className={ICON.toolbar} />, label: "トリミング", path: paths.settings.trimming.getHref() },
-                { icon: <Users        className={ICON.toolbar} />, label: "スタッフ管理", path: paths.settings.staff.getHref() },
-                { icon: <Shield       className={ICON.toolbar} />, label: "権限グループ", path: paths.settings.permissionGroups.getHref() },
-                { icon: <ShieldCheck  className={ICON.toolbar} />, label: "保険マスタ", path: paths.settings.insurance.getHref() },
-                { icon: <Package      className={ICON.toolbar} />, label: "物販・フード", path: paths.settings.merchandiseItems.getHref() },
+                { icon: <Activity     className={ICON.toolbar} />, label: "診療サービス", path: paths.settings.serviceType.getHref(), resource: ResourceMasterServiceType },
+                { icon: <Bed          className={ICON.toolbar} />, label: "入院・ケージ", path: paths.settings.hospitalization.getHref(), resource: ResourceMasterHosp },
+                { icon: <Scissors     className={ICON.toolbar} />, label: "トリミング", path: paths.settings.trimming.getHref(), resource: ResourceMasterTrim },
+                { icon: <Lock         className={ICON.toolbar} />, label: "権限グループ", path: paths.settings.permissionGroups.getHref(), resource: ResourceMasterPermission },
+                { icon: <Briefcase    className={ICON.toolbar} />, label: "職種マスタ", path: paths.settings.occupations.getHref(), resource: ResourceMasterStaff },
+                { icon: <Users        className={ICON.toolbar} />, label: "スタッフ管理", path: paths.settings.staff.getHref(), resource: ResourceMasterStaff },
+                { icon: <ShieldCheck  className={ICON.toolbar} />, label: "保険マスタ", path: paths.settings.insurance.getHref(), resource: ResourceMasterInsurance },
+                { icon: <Package      className={ICON.toolbar} />, label: "物販・フード", path: paths.settings.merchandiseItems.getHref(), resource: ResourceMasterMerchandise },
               ]
             } as MenuItem} 
             collapsed={collapsed} 
@@ -374,6 +392,17 @@ export function Sidebar() {
           </div>
         )}
       </div>
+
+      {/* クリニック切替確認ダイアログ */}
+      <ConfirmDialog
+        open={pendingSwitchClinicId !== null}
+        onClose={handleCancelSwitch}
+        onConfirm={handleConfirmSwitch}
+        title="医院を切り替えますか？"
+        description={`「${pendingSwitchClinicName}」に切り替えます。現在の画面データは新しい医院のデータに更新されます。`}
+        confirmLabel="切り替える"
+        cancelLabel="キャンセル"
+      />
     </div>
   );
 }

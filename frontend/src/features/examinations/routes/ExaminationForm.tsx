@@ -11,6 +11,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
@@ -26,8 +27,9 @@ import { useGetExaminations } from "../api/get-examinations";
 import { ExaminationCard } from "../components/ExaminationCard";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 import type { ExaminationRecord } from "@/types";
+import { ResourceExaminations } from "@/types/generated/models";
 
 // rendering-hoist-jsx: ステータス選択肢は静的なのでモジュール定数に巻き上げ
 const EXAM_STATUS_ITEMS = (
@@ -50,6 +52,7 @@ interface FormFieldsSectionProps {
   isDeleting: boolean;
   isConfirmed: boolean;
   canEdit: boolean;
+  canCreate: boolean;
   canDelete: boolean;
   onSetFormData: (next: Partial<ExaminationRecord>) => void;
   onBack: () => void;
@@ -64,11 +67,13 @@ const FormFieldsSection = memo(function FormFieldsSection({
   isDeleting,
   isConfirmed,
   canEdit,
+  canCreate,
   canDelete,
   onSetFormData,
   onBack,
   onDeleteClick,
 }: FormFieldsSectionProps) {
+  const canSubmit = isEdit ? canEdit : canCreate;
   return (
     <div className={`bg-white p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
       {isConfirmed ? (
@@ -122,6 +127,15 @@ const FormFieldsSection = memo(function FormFieldsSection({
       </div>
 
       <div className="space-y-1.5">
+        <Label className={`text-sm ${C.text60}`}>検査日</Label>
+        <NotionDatePicker
+          value={formData.date ? formData.date.split("T")[0] : ""}
+          onChange={(v) => onSetFormData({ date: v ? `${v}T00:00:00Z` : new Date().toISOString() })}
+          disabledDays={{ after: new Date() }}
+        />
+      </div>
+
+      <div className="space-y-1.5">
         <Label className={`text-sm ${C.text60}`}>ステータス</Label>
         <Select
           value={formData.status}
@@ -163,7 +177,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
             </Button>
           ) : null}
           <Button variant="outline" type="button" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
-          {canEdit ? (
+          {canSubmit ? (
             <SubmitButton
               className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`}
             >
@@ -183,12 +197,18 @@ export function ExaminationForm() {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const medicalRecordId = searchParams.get("medicalRecordId");
-  const { canEdit, canDelete } = usePermission("examinations");
+  const { canEdit, canCreate, canDelete } = usePermission("examinations");
 
   const { data: examTypesRaw } = useMasterItems("examination");
   const { data: staffListRaw } = useMasterItems("staff");
-  const examTypes = examTypesRaw.map((t) => ({ id: String(t.id), name: t.name }));
-  const staffList = staffListRaw.map((s) => ({ id: String(s.id), name: s.name }));
+  const examTypes = useMemo(
+    () => examTypesRaw.map((t) => ({ id: String(t.id), name: t.name })),
+    [examTypesRaw],
+  );
+  const staffList = useMemo(
+    () => staffListRaw.map((s) => ({ id: String(s.id), name: s.name })),
+    [staffListRaw],
+  );
 
   const {
     formData,
@@ -201,6 +221,8 @@ export function ExaminationForm() {
     isSaving,
     isDeleting,
   } = useExaminationForm(id, medicalRecordId ?? undefined);
+
+  const canSubmit = isEdit ? canEdit : canCreate;
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -319,12 +341,14 @@ export function ExaminationForm() {
   return (
     <PageLayout
       title={isEdit ? "検査詳細・編集" : "新規検査登録"}
+      resource={ResourceExaminations}
       onBack={handleBack}
       maxWidth="max-w-[1200px]"
       align="left"
     >
       <NavigationBlocker when={isDirty && !isSaving} />
       <form action={formAction}>
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <div className="flex flex-col gap-4">
           {/* rerender-memo: PatientInfoCard — フォームフィールド変更では再レンダーしない */}
           {selectedPet ? (
@@ -356,6 +380,7 @@ export function ExaminationForm() {
                 isDeleting={isDeleting}
                 isConfirmed={isConfirmed}
                 canEdit={canEdit}
+                canCreate={canCreate}
                 canDelete={canDelete}
                 onSetFormData={handleSetFormData}
                 onBack={handleBack}
@@ -393,6 +418,7 @@ export function ExaminationForm() {
             </div>
           </div>
         </div>
+        </fieldset>
       </form>
 
       <ConfirmDialog

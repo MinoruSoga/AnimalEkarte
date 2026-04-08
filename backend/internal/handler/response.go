@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,9 +13,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // RespondError はエラーを適切なHTTPステータスコードとメッセージにマッピングして返す。
@@ -43,9 +44,18 @@ func RespondError(c *gin.Context, err error) {
 		}
 		c.JSON(http.StatusConflict, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrUnauthorized):
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		var appErr *apperrors.AppError
+		msg := "unauthorized"
+		if errors.As(err, &appErr) {
+			msg = appErr.Message
+		}
+		c.JSON(http.StatusUnauthorized, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrForbidden):
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+	case isPgError(err):
+		// BUG-138: FromGORM を経由しなかった PostgreSQL エラーをここでキャッチ
+		pgMsg := classifyPgError(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": pgMsg})
 	default:
 		slog.ErrorContext(c.Request.Context(), "internal server error",
 			slog.String("error", err.Error()),
@@ -53,6 +63,30 @@ func RespondError(c *gin.Context, err error) {
 			slog.String("method", c.Request.Method))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
+}
+
+// isPgError はエラーチェーンに pgconn.PgError が含まれるか判定する
+func isPgError(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr)
+}
+
+// classifyPgError は PostgreSQL エラーコードに基づいてユーザー向けメッセージを返す
+func classifyPgError(err error) string {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23503": // foreign_key_violation
+			return "参照先が存在しません"
+		case "23505": // unique_violation
+			return "既に登録されています"
+		case "22003": // numeric_value_out_of_range
+			return "数値が範囲外です"
+		case "22P02": // invalid_text_representation
+			return "入力値の形式が正しくありません"
+		}
+	}
+	return "入力値が正しくありません"
 }
 
 // parseBindError は validator.ValidationErrors を人間可読メッセージに変換する。
@@ -66,22 +100,32 @@ func parseBindError(err error) string {
 		}
 		return strings.Join(msgs, "; ")
 	}
-	return err.Error()
+	// BUG-129: Go 内部エラーメッセージをサニタイズし、構造体名・フィールド型の漏洩を防止
+	var unmarshalErr *json.UnmarshalTypeError
+	if errors.As(err, &unmarshalErr) {
+		return fmt.Sprintf("%s: 正しい形式で入力してください", unmarshalErr.Field)
+	}
+	var syntaxErr *json.SyntaxError
+	if errors.As(err, &syntaxErr) {
+		return "リクエストの形式が正しくありません"
+	}
+	return "入力値が正しくありません"
 }
 
 func formatValidationError(fe validator.FieldError) string {
+	// BUG-155: json タグに近い snake_case フィールド名を返す（API 仕様として公開情報）
 	field := camelToSnake(fe.Field())
 	switch fe.Tag() {
 	case "required":
-		return field + " is required"
+		return fmt.Sprintf("%s は必須です", field)
 	case "min":
-		return fmt.Sprintf("%s must be at least %s", field, fe.Param())
+		return fmt.Sprintf("%s は %s 以上で入力してください", field, fe.Param())
 	case "max":
-		return fmt.Sprintf("%s must be at most %s", field, fe.Param())
+		return fmt.Sprintf("%s は %s 以下で入力してください", field, fe.Param())
 	case "oneof":
-		return fmt.Sprintf("%s must be one of: %s", field, strings.ReplaceAll(fe.Param(), " ", ", "))
+		return fmt.Sprintf("%s は次のいずれかで指定してください: %s", field, strings.ReplaceAll(fe.Param(), " ", ", "))
 	default:
-		return fmt.Sprintf("%s is invalid (%s)", field, fe.Tag())
+		return fmt.Sprintf("%s の値が正しくありません", field)
 	}
 }
 
@@ -111,6 +155,26 @@ func parseDateQuery(c *gin.Context, key string) (*string, error) {
 	return &s, nil
 }
 
+// extractStaffID はJWT認証済みコンテキストから user_id（=staff_id）を取得してパースする。
+func extractStaffID(c *gin.Context) (uint64, bool) {
+	val, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		return 0, false
+	}
+	userIDStr, ok := val.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		return 0, false
+	}
+	staffID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		return 0, false
+	}
+	return staffID, true
+}
+
 // extractClinicID はJWT認証済みコンテキストから clinic_id を取得してパースする。
 // 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
 // 呼び出し元はfalse時に即return すること。
@@ -133,45 +197,45 @@ func extractClinicID(c *gin.Context) (uint64, bool) {
 	return clinicID, true
 }
 
-// extractUserID はJWT認証済みコンテキストから user_id を uint64 で取得するヘルパー。
-// 取得失敗時はゼロ値を返す（監査ログなどのベストエフォート用）。
-func extractUserID(c *gin.Context) (uint64, bool) {
-	val, exists := c.Get("user_id")
-	if !exists {
-		return 0, false
-	}
-	s, ok := val.(string)
-	if !ok {
-		return 0, false
-	}
-	id, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		return 0, false
-	}
-	return id, true
-}
-
-// extractUserType はJWT認証済みコンテキストから user_type を取得する。
-// 取得失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
-func extractUserType(c *gin.Context) (model.UserType, bool) {
-	val, exists := c.Get("user_type")
+// extractIsSystemAdmin はJWT認証済みコンテキストから is_system_admin を取得する。
+// 取得失敗時は即座にHTTPエラーレスポンスを書いて (false, false) を返す。
+// 戻り値: (isSystemAdmin bool, ok bool)
+func extractIsSystemAdmin(c *gin.Context) (isSystemAdmin, ok bool) {
+	val, exists := c.Get("is_system_admin")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
-		return "", false
+		return false, false
 	}
-	ut, ok := val.(string)
+	isAdmin, ok := val.(bool)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
-		return "", false
+		return false, false
 	}
-	return model.UserType(ut), true
+	return isAdmin, true
+}
+
+// RequirePermission は指定リソース・アクションの権限を持つユーザーのみ通過させる gin ミドルウェアを返す。
+// system_admin は全権限バイパス。それ以外は permission_group_rules から判定する。
+func (h *Handler) RequirePermission(resource, action string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !h.hasPermission(c, resource, action) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }
 
 // parsePagination はページネーションパラメータを安全にパースする。
 // page: 1以上の整数, limit: 1〜100の整数
 func parsePagination(c *gin.Context) (page, limit int, err error) {
 	pageStr := c.DefaultQuery("page", "1")
-	limitStr := c.DefaultQuery("limit", "20")
+	// BUG-143: limit と per_page の両方をサポート（per_page は limit のエイリアス）
+	limitStr := c.DefaultQuery("limit", "")
+	if limitStr == "" {
+		limitStr = c.DefaultQuery("per_page", "20")
+	}
 
 	page, err = strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
