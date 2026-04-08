@@ -1,4 +1,4 @@
-# BUG-192: TypeScript strict モード無効
+# BUG-214: TypeScript strict モード無効
 
 | 項目 | 内容 |
 |------|------|
