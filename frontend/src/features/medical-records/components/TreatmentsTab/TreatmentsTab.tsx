@@ -1,13 +1,20 @@
 // React/Framework
-import { useState, useCallback, useMemo } from "react";
+import { lazy, Suspense, useState, useCallback, useMemo } from "react";
 
 // External
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
 import { usePermission } from "@/features/auth";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
+
+const TreatmentSearchDialog = lazy(() =>
+  import("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog").then((m) => ({
+    default: m.TreatmentSearchDialog,
+  }))
+);
 
 // Relative
 import { useGetTreatments } from "@/features/medical-records/api/treatments";
@@ -71,6 +78,9 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
   const updateMutation = useUpdateTreatment(medicalRecordId);
   const deleteMutation = useDeleteTreatment(medicalRecordId);
   const reorderMutation = useReorderTreatments(medicalRecordId);
+
+  // マスタ検索ダイアログ
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // 追加フォームの状態
   const [addItemType, setAddItemType] = useState<TreatmentItemType>("consultation");
@@ -205,6 +215,33 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
     setIsAdding(false);
   }, []);
 
+  const handleSelectFromMaster = useCallback((item: TreatmentMasterItem) => {
+    if (!canCreate) return;
+    const nextOrder =
+      sortedTreatments.length > 0
+        ? sortedTreatments[sortedTreatments.length - 1].sort_order + 1
+        : 0;
+    const itemType: TreatmentItemType =
+      item.category === "薬剤" ? "medicine"
+        : item.category === "処置" ? "procedure"
+        : item.category === "診察" ? "consultation"
+        : "other";
+    createMutation.mutate(
+      {
+        item_type: itemType,
+        content: item.name,
+        unit_price: item.unitPrice,
+        quantity: 1,
+        selected: true,
+        insurance: false,
+        discount_amount: 0,
+        sort_order: nextOrder,
+        memo: "",
+      },
+      { onSuccess: () => setFocusLastRow(true) },
+    );
+  }, [canCreate, sortedTreatments, createMutation]);
+
   // ── render ──
 
   if (isLoading) {
@@ -317,16 +354,33 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
           </div>
         ) : (
           canCreate ? (
-            <button
-              className={STYLE.inlineAddBtn}
-              onClick={() => setIsAdding(true)}
-            >
-              <Plus className={`${ICON.xs}`} />
-              <span>明細を追加</span>
-            </button>
+            <div className="flex items-center gap-0">
+              <button
+                className={STYLE.inlineAddBtn}
+                onClick={() => setIsSearchOpen(true)}
+              >
+                <Search className={`${ICON.xs}`} />
+                <span>マスタから追加</span>
+              </button>
+              <button
+                className={STYLE.inlineAddBtn}
+                onClick={() => setIsAdding(true)}
+              >
+                <Plus className={`${ICON.xs}`} />
+                <span>手入力で追加</span>
+              </button>
+            </div>
           ) : null
         )}
       </div>
+
+      <Suspense fallback={null}>
+        <TreatmentSearchDialog
+          open={isSearchOpen}
+          onOpenChange={setIsSearchOpen}
+          onSelect={handleSelectFromMaster}
+        />
+      </Suspense>
 
       {/* フッター: 合計金額 */}
       <div className={`bg-white border ${C.borderLight} rounded-[4px] px-4 py-3`}>
