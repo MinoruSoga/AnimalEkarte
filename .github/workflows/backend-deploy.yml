@@ -119,15 +119,18 @@ jobs:
             --query taskDefinition \
             --region ${{ env.AWS_REGION }} > migrate-task-definition-raw.json
 
-          DB_RESET_VALUE="${{ github.event.inputs.db_reset || 'false' }}"
+          # workflow_dispatch で db_reset が明示指定された場合のみ上書き。
+          # push トリガーでは .env.staging の DB_RESET 値をそのまま使用する。
+          DB_RESET_INPUT="${{ github.event.inputs.db_reset }}"
 
-          # DB_RESET を workflow input で上書き
           python3 -c "
           import json, sys
           vars = json.load(open('/tmp/env_vars.json'))
-          for v in vars:
-              if v['name'] == 'DB_RESET':
-                  v['value'] = '$DB_RESET_VALUE'
+          override = '$DB_RESET_INPUT'
+          if override:
+              for v in vars:
+                  if v['name'] == 'DB_RESET':
+                      v['value'] = override
           print(json.dumps(vars))
           " > /tmp/migrate_env_vars.json
 
