@@ -1631,7 +1631,7 @@ SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 -- -----------------------------------------------------------------------------
 -- ワクチン接種記録（八王子院: 5件）
 -- -----------------------------------------------------------------------------
-INSERT INTO vaccinations (id, clinic_id, medical_record_id, pet_id, vaccine_id, doctor_id, date, lot_number, next_schedule_type, next_schedule_date, notes) VALUES
+INSERT INTO vaccinations (id, clinic_id, medical_record_id, pet_id, vaccine_id, doctor_id, date, lot1, next_schedule_type, next_date, remarks) VALUES
     (1, 3, 1,  1,  1,  1, '2025-10-10', 'LOT-2025-A001', '1year',  '2026-10-10', '5種混合ワクチン接種。体調良好。'),
     (2, 3, 5,  3,  5,  1, '2025-09-15', 'LOT-2025-C001', '1year',  '2026-09-15', '3種混合ワクチン接種。'),
     (3, 3, 6,  3,  5,  2, '2026-01-06', 'LOT-2026-C001', '1year',  '2027-01-06', '3種混合ワクチン追加接種。'),

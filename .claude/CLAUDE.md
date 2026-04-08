@@ -34,15 +34,14 @@ Be direct, rational, and unfiltered.
 ```
 production  ← 本番環境（直接push禁止・タグ付き）
   ↑ --no-ff merge（リリース確定時のみ）
-staging     ← 開発統合ブランチ（CI/CD → stg.noah-karte.com）
+staging     ← ステージング環境（CI/CD → stg.noah-karte.com）
   ↑ PR merge
-feature/xxx
-bug/xxx
+main        ← 開発ブランチ（日常作業はここで行う）
 ```
 
-- **作業開始**: 必ず `staging` から切り出す
-- **PR**: 必ず `staging` ベース
-- **`main` ブランチ**: 廃止済み・新規作業禁止
+- **日常作業**: `main` ブランチで直接コミットしてよい
+- **PR**: `main` → `staging` へ PR を作成
+- **`staging`**: ステージング環境デプロイ用。直接 push 禁止
 - 詳細: `.claude/rules/git-workflow.md`
 
 ---
