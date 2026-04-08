@@ -65,7 +65,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
                   }
                   toast.success("更新しました");
                   crudHandleClose();
-                } catch (error) {
+                } catch {
                   toast.error("保存に失敗しました");
                 }
               },
@@ -82,7 +82,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
                 }
                 toast.success("登録しました");
                 crudHandleClose();
-              } catch (error) {
+              } catch {
                 toast.error("保存に失敗しました");
               }
             },

@@ -126,7 +126,7 @@ func WrapInternalServerError(message string) error {
 }
 
 // FromGORM は GORM のエラーを AppError に変換する
-func FromGORM(err error, resource string, id string) error {
+func FromGORM(err error, resource, id string) error {
 	if err == nil {
 		return nil
 	}

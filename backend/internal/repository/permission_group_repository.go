@@ -105,7 +105,7 @@ func (r *permissionGroupRepository) Delete(ctx context.Context, id uint64) error
 
 // SetRules はトランザクション内で権限グループの全ルールを置き換える（全削除→再挿入）
 func (r *permissionGroupRepository) SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存ルールを全削除
 		if err := tx.Where("group_id = ?", groupID).Delete(&model.PermissionGroupRule{}).Error; err != nil {
 			return apperrors.FromGORM(err, "permission_group_rule", "")
@@ -122,7 +122,10 @@ func (r *permissionGroupRepository) SetRules(ctx context.Context, groupID uint64
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to set permission group rules")
+	}
+	return nil
 }
 
 // CountStaffsByGroupID は指定グループを参照しているスタッフ数を返す（削除前の依存チェック用）
@@ -190,7 +193,7 @@ func (r *permissionGroupRepository) GetGroupIDsByStaffID(ctx context.Context, st
 
 // SetStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
 func (r *permissionGroupRepository) SetStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存の紐付けを全削除
 		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffPermissionGroup{}).Error; err != nil {
 			return apperrors.FromGORM(err, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
@@ -206,7 +209,10 @@ func (r *permissionGroupRepository) SetStaffGroups(ctx context.Context, staffID 
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to set staff permission groups")
+	}
+	return nil
 }
 
 // Reorder は指定されたIDリストの順序でソート順を更新する

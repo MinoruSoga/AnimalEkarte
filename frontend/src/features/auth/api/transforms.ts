@@ -36,7 +36,7 @@ export const backendMeResponseSchema = z.object({
   id: z.string(),
   email: z.string(),
   display_name: z.string(),
-  is_system_admin: z.boolean(),
+  is_system_admin: z.boolean().default(false),
   // occupation は職種マスタ名
   occupation: z.string().nullable().optional(),
   avatar_url: z.string().nullable().optional(),

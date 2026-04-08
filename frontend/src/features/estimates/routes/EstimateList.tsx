@@ -269,7 +269,7 @@ export function EstimateList() {
           renderRow={renderRow}
         />
 
-        {filtered.length > 0 && (
+        {filtered.length > 0 ? (
           <Pagination
             currentPage={pagination.currentPage}
             totalPages={pagination.totalPages}
@@ -280,7 +280,7 @@ export function EstimateList() {
             onPrev={pagination.prevPage}
             onNext={pagination.nextPage}
           />
-        )}
+        ) : null}
       </div>
 
       <ConfirmDialog

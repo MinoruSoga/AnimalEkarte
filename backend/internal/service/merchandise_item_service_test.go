@@ -13,13 +13,13 @@ import (
 
 // mockMerchandiseItemRepository は MerchandiseItemRepository のテスト用モック実装
 type mockMerchandiseItemRepository struct {
-	findAllFn                    func(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error)
-	findByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
+	findAllFn                     func(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error)
+	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 	countUsageByMerchandiseItemFn func(ctx context.Context, merchandiseItemID uint64) (int64, error)
-	createFn                     func(ctx context.Context, item *model.MerchandiseItem) error
-	updateFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
-	reorderFn                    func(ctx context.Context, clinicID uint64, ids []uint64) error
+	createFn                      func(ctx context.Context, item *model.MerchandiseItem) error
+	updateFn                      func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockMerchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error) {

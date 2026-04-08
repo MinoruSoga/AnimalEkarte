@@ -48,7 +48,7 @@ export function useTrimmingForm(id?: string) {
   const petSelection = usePetSelection();
   const { setSelectedPets, selectedPets } = petSelection;
 
-  const { data: existingTrimming, isLoading: isTrimmingLoading, error: trimmingError } = useGetTrimming(id ?? "");
+  const { data: existingTrimming, isLoading: isTrimmingLoading } = useGetTrimming(id ?? "");
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
   const createMutation = useCreateTrimming();
   const updateMutation = useUpdateTrimming();

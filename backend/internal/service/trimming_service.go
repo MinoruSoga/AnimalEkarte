@@ -3,9 +3,9 @@ package service
 
 import (
 	"context"
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"time"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )

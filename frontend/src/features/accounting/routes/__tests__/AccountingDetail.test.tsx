@@ -1,93 +1,40 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
-import { AccountingDetail } from '../AccountingDetail';
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
-// Mock dependencies
-vi.mock('react-router', () => ({
-  useParams: vi.fn(() => ({ id: '1' })),
-  useNavigate: vi.fn(),
-}));
-
-vi.mock('@/features/auth/context/auth-context', () => ({
-  useAuth: vi.fn(() => ({
-    user: { id: 1, name: 'Test User' },
-  })),
-}));
-
-vi.mock('@/features/accounting/api/get-accounting', () => ({
-  useGetAccounting: vi.fn(() => ({
-    data: {
-      id: 1,
-      clinicId: 1,
-      recordId: 1,
-      items: [],
-      payment: { method: 'cash' },
-    },
-    isLoading: false,
-  })),
-}));
-
-vi.mock('@/features/accounting/api/update-accounting', () => ({
-  useUpdateAccounting: vi.fn(() => ({
-    mutate: vi.fn(),
-    isPending: false,
-  })),
-}));
-
-interface MockAccountingDocumentProps {
-  ref?: React.Ref<HTMLDivElement>;
-}
-
-vi.mock('@/features/accounting/components/AccountingDocument', () => ({
-  AccountingDocument: ({ ref }: MockAccountingDocumentProps) => (
-    <div ref={ref} data-testid="accounting-document">
-      Mock Document
-    </div>
-  ),
-}));
-
+/**
+ * AccountingDetail — Print Performance (#20)
+ *
+ * AccountingDocument は印刷時に即座に DOM へ挿入される必要がある。
+ * lazy() + Suspense を使うと印刷が遅延するため、static import であることを検証する。
+ * ソースコード検査による静的解析テスト。
+ */
 describe('AccountingDetail - Print Performance (#20)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  const sourceCode = readFileSync(
+    resolve(__dirname, '../AccountingDetail.tsx'),
+    'utf-8'
+  );
+
+  it('AccountingDocument が static import されている（lazy でない）', () => {
+    // static import が存在する
+    expect(sourceCode).toContain('import { AccountingDocument }');
+
+    // lazy import が存在しない
+    expect(sourceCode).not.toMatch(/lazy\s*\(\s*\(\)\s*=>\s*import\(.*AccountingDocument/);
   });
 
-  it('AccountingDocument が Suspense ラッパーなしで直接レンダリングされる', () => {
-    const { container } = render(<AccountingDetail />);
-
-    // AccountingDocumentが直接マウントされていることを確認
-    const accountingDoc = container.querySelector('[data-testid="accounting-document"]');
-    expect(accountingDoc).toBeDefined();
+  it('AccountingDocument が Suspense でラップされていない', () => {
+    // Suspense で AccountingDocument をラップする記述がない
+    expect(sourceCode).not.toMatch(/<Suspense[\s\S]*?AccountingDocument/);
   });
 
-  it('静的インポート（lazy でない）であることをコード検査で確認', async () => {
-    // このテストは、AccountingDocument が static import されていることを確認
-    // ファイルのインポート部分を検査する（統合テスト）
-
-    const { container } = render(<AccountingDetail />);
-
-    // ドキュメント要素が即座に利用可能であることを確認
-    expect(container.querySelector('[data-testid="accounting-document"]')).toBeDefined();
+  it('window.print() が実装されている', () => {
+    // print 呼び出しがソース内に存在する
+    expect(sourceCode).toMatch(/window\.print\(\)/);
   });
 
-  it('印刷ボタンクリック後、即座に print() が呼ばれる', () => {
-    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
-
-    // このテストではprint()関数が呼ばれるタイミングを検証
-    // Suspenseがないため、遅延なく印刷できることを確認
-
-    render(<AccountingDetail />);
-
-    // AccountingDocumentが存在することを確認
-    // （実装では print() はユーザーアクショントリガーで呼ばれる）
-
-    printSpy.mockRestore();
-  });
-
-  it('ドキュメント要素が DOM に即座に挿入される（遅延ロードなし）', async () => {
-    const { findByTestId } = render(<AccountingDetail />);
-
-    // Suspenseラッパーがないため、findByTestId が即座に成功すべき
-    const doc = await findByTestId('accounting-document', {}, { timeout: 100 });
-    expect(doc).toBeDefined();
+  it('AccountingDocument が JSX 内で使用されている', () => {
+    // コンポーネントが JSX 内で呼び出されている
+    expect(sourceCode).toMatch(/<AccountingDocument/);
   });
 });

@@ -63,10 +63,11 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
         </div>
       ) : null}
       <div className="flex flex-col gap-4 pl-1">
-        {!isLoading &&
-          examGroups.map((group) => (
-            <ExaminationGroup key={group.id} group={group} />
-          ))}
+        {!isLoading
+          ? examGroups.map((group) => (
+              <ExaminationGroup key={group.id} group={group} />
+            ))
+          : null}
       </div>
     </div>
   );

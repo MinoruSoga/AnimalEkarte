@@ -8,26 +8,26 @@ import (
 )
 
 type permissionGroupResponse struct {
-	ID          string                          `json:"id"`
-	ClinicID    string                          `json:"clinic_id"`
-	Name        string                          `json:"name"`
-	Description string                          `json:"description"`
-	Color       string                          `json:"color"`
-	IsActive    bool                            `json:"is_active"`
-	SortOrder   int                             `json:"sort_order"`
-	Rules       []permissionGroupRuleResponse   `json:"rules,omitempty"`
-	CreatedAt   time.Time                       `json:"created_at"`
-	UpdatedAt   time.Time                       `json:"updated_at"`
+	ID          string                        `json:"id"`
+	ClinicID    string                        `json:"clinic_id"`
+	Name        string                        `json:"name"`
+	Description string                        `json:"description"`
+	Color       string                        `json:"color"`
+	IsActive    bool                          `json:"is_active"`
+	SortOrder   int                           `json:"sort_order"`
+	Rules       []permissionGroupRuleResponse `json:"rules,omitempty"`
+	CreatedAt   time.Time                     `json:"created_at"`
+	UpdatedAt   time.Time                     `json:"updated_at"`
 }
 
 type permissionGroupRuleResponse struct {
-	ID        string `json:"id"`
-	GroupID   string `json:"group_id"`
-	Resource  string `json:"resource"`
-	CanView   bool   `json:"can_view"`
-	CanCreate bool   `json:"can_create"`
-	CanEdit   bool   `json:"can_edit"`
-	CanDelete bool   `json:"can_delete"`
+	ID        string    `json:"id"`
+	GroupID   string    `json:"group_id"`
+	Resource  string    `json:"resource"`
+	CanView   bool      `json:"can_view"`
+	CanCreate bool      `json:"can_create"`
+	CanEdit   bool      `json:"can_edit"`
+	CanDelete bool      `json:"can_delete"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

@@ -20,8 +20,8 @@ type PermissionGroup struct {
 	DeletedAt   gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 
 	// Relations
-	Rules []PermissionGroupRule `gorm:"foreignKey:GroupID" json:"rules,omitempty"`
-	Staffs []Staff              `gorm:"many2many:staff_permission_groups;foreignKey:ID;joinForeignKey:GroupID;References:ID;joinReferences:StaffID" json:"staffs,omitempty"`
+	Rules  []PermissionGroupRule `gorm:"foreignKey:GroupID" json:"rules,omitempty"`
+	Staffs []Staff               `gorm:"many2many:staff_permission_groups;foreignKey:ID;joinForeignKey:GroupID;References:ID;joinReferences:StaffID" json:"staffs,omitempty"`
 }
 
 func (PermissionGroup) TableName() string { return "permission_groups" }
@@ -51,8 +51,8 @@ type StaffPermissionGroup struct {
 	CreatedAt time.Time `gorm:"autoCreateTime"                                       json:"created_at"`
 
 	// Relations
-	Staff *Staff                `gorm:"foreignKey:StaffID;references:ID" json:"staff,omitempty"`
-	Group *PermissionGroup      `gorm:"foreignKey:GroupID;references:ID" json:"group,omitempty"`
+	Staff *Staff           `gorm:"foreignKey:StaffID;references:ID" json:"staff,omitempty"`
+	Group *PermissionGroup `gorm:"foreignKey:GroupID;references:ID" json:"group,omitempty"`
 }
 
 func (StaffPermissionGroup) TableName() string { return "staff_permission_groups" }

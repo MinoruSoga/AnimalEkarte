@@ -1,15 +1,15 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
-import * as React from "react";
-import { useMemo } from "react";
+import { useState, useCallback, useMemo, memo, Fragment } from "react";
 
 // External
-import { X } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 // Internal
-import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandSeparator } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { C, ICON } from "@/lib/design-tokens";
 import { useGetAllConsultations } from "@/features/master/api/consultations";
 import { useGetAllProcedures } from "@/features/master/api/procedures";
 import { useGetAllVaccinesMaster } from "@/features/master/api/vaccines-master";
@@ -18,7 +18,6 @@ import { useGetAllCheckupTypes } from "@/features/master/api/checkup-types";
 // --- Types ---
 export type TreatmentMasterItem = {
   id: string;
-  code: string;
   name: string;
   unitPrice: number;
   category: string;
@@ -41,18 +40,18 @@ interface CategoryFilterProps {
   onSelectCategory: (category: string | null) => void;
 }
 
-const CategoryFilter = React.memo(function CategoryFilter({
+const CategoryFilter = memo(function CategoryFilter({
   categories,
   activeCategory,
   onSelectCategory,
 }: CategoryFilterProps) {
   return (
-    <div className={`flex gap-2 p-2 border-b overflow-x-auto items-center ${C.bgPage30} ${C.borderLight} [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}>
-      <div className="flex gap-1.5 min-w-max px-1">
+    <div className={`flex gap-2 overflow-x-auto items-center ${C.bgPage30} rounded-md p-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}>
+      <div className="flex gap-1.5 min-w-max">
         {activeCategory ? (
           <Badge
             variant="outline"
-            className={`h-10 px-3 text-sm cursor-pointer ${C.hoverBgMedium} gap-1 ${C.text60} border-transparent bg-transparent`}
+            className={`h-8 px-3 text-sm cursor-pointer ${C.hoverBgMedium} gap-1 ${C.text60} border-transparent bg-transparent`}
             onClick={() => onSelectCategory(null)}
             tabIndex={0}
             role="button"
@@ -74,9 +73,9 @@ const CategoryFilter = React.memo(function CategoryFilter({
               key={category}
               variant={isSelected ? "default" : "outline"}
               className={cn(
-                "h-10 px-2.5 text-sm cursor-pointer hover:opacity-80 transition-all",
+                "h-8 px-2.5 text-sm cursor-pointer hover:opacity-80 transition-all",
                 isSelected
-                  ? `${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} border-transparent`
+                  ? `${C.bgAccent} text-white ${C.bgAccentHover} border-transparent`
                   : `bg-white ${C.text} ${C.hoverBgLight} ${C.borderMedium}`
               )}
               onClick={() => onSelectCategory(isSelected ? null : category)}
@@ -105,7 +104,8 @@ export function TreatmentSearchDialog({
   onOpenChange,
   onSelect,
 }: TreatmentSearchDialogProps) {
-  const [activeCategory, setActiveCategory] = React.useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch master data from APIs
   const { data: consultations = [] } = useGetAllConsultations();
@@ -113,153 +113,152 @@ export function TreatmentSearchDialog({
   const { data: vaccines = [] } = useGetAllVaccinesMaster();
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
 
-  // Reset category when dialog closes
-  React.useEffect(() => {
-    if (!open) {
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
       setActiveCategory(null);
+      setSearchTerm("");
     }
-  }, [open]);
+    onOpenChange(nextOpen);
+  }, [onOpenChange]);
 
-  // Build treatment master from API data (動的・実データ使用)
+  // Build treatment master from API data
   const TREATMENT_MASTER = useMemo(() => {
     const items: TreatmentMasterItem[] = [];
 
-    // Consultations → 診察
-    consultations.forEach((c, idx) => {
+    consultations.forEach((c) => {
       if (c.isActive) {
-        items.push({
-          id: c.id,
-          code: `1${String(idx + 1).padStart(3, "0")}`,
-          name: c.name,
-          unitPrice: c.price,
-          category: "診察",
-        });
+        items.push({ id: c.id, name: c.name, unitPrice: c.price, category: "診察" });
       }
     });
 
-    // Procedures → 処置
-    procedures.forEach((p, idx) => {
+    procedures.forEach((p) => {
       if (p.isActive) {
-        items.push({
-          id: p.id,
-          code: `4${String(idx + 1).padStart(3, "0")}`,
-          name: p.name,
-          unitPrice: p.price,
-          category: "処置",
-        });
+        items.push({ id: p.id, name: p.name, unitPrice: p.price, category: "処置" });
       }
     });
 
-    // Vaccines → 予防
-    vaccines.forEach((v, idx) => {
+    vaccines.forEach((v) => {
       if (v.isActive) {
-        items.push({
-          id: v.id,
-          code: `2${String(idx + 1).padStart(3, "0")}`,
-          name: v.name,
-          unitPrice: v.price,
-          category: "予防",
-        });
+        items.push({ id: v.id, name: v.name, unitPrice: v.price, category: "予防" });
       }
     });
 
-    // CheckupTypes → 検査
-    checkupTypes.forEach((ct, idx) => {
+    checkupTypes.forEach((ct) => {
       if (ct.isActive) {
-        items.push({
-          id: ct.id,
-          code: `3${String(idx + 1).padStart(3, "0")}`,
-          name: ct.name,
-          unitPrice: ct.price,
-          category: "検査",
-        });
+        items.push({ id: ct.id, name: ct.name, unitPrice: ct.price, category: "検査" });
       }
     });
 
     return items;
   }, [consultations, procedures, vaccines, checkupTypes]);
 
-  // Memoize grouped items calculation
-  const groupedItems = React.useMemo(() => {
-    return TREATMENT_MASTER.reduce((acc, item) => {
+  // Filter items by search term and category
+  const filteredItems = useMemo(() => {
+    return TREATMENT_MASTER.filter((item) => {
+      const matchesSearch = !searchTerm || item.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = !activeCategory || item.category === activeCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [TREATMENT_MASTER, searchTerm, activeCategory]);
+
+  // Group filtered items by category
+  const groupedItems = useMemo(() => {
+    return filteredItems.reduce((acc, item) => {
       if (!acc[item.category]) acc[item.category] = [];
       acc[item.category].push(item);
       return acc;
     }, {} as Record<string, TreatmentMasterItem[]>);
-  }, [TREATMENT_MASTER]);
+  }, [filteredItems]);
 
   // Calculate all categories once
-  const allCategories = React.useMemo(() => {
+  const allCategories = useMemo(() => {
     return [
       ...CATEGORY_ORDER,
       ...Object.keys(groupedItems).filter((cat) => !CATEGORY_ORDER.includes(cat)),
     ];
   }, [groupedItems]);
 
-  const handleSelect = React.useCallback((item: TreatmentMasterItem) => {
+  const handleSelect = useCallback((item: TreatmentMasterItem) => {
     onSelect(item);
     onOpenChange(false);
+    setSearchTerm("");
+    setActiveCategory(null);
   }, [onSelect, onOpenChange]);
 
   return (
-    <CommandDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="治療プラン検索"
-      description="追加する治療プランを検索・選択してください"
-    >
-      <CommandInput placeholder="治療プランを検索... (例: 再診、ワクチン、3001)" />
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[560px] max-h-[80vh] flex flex-col gap-3">
+        <DialogHeader>
+          <DialogTitle className={`text-base font-bold ${C.text}`}>治療プラン検索</DialogTitle>
+        </DialogHeader>
 
-      <CategoryFilter
-        categories={allCategories}
-        activeCategory={activeCategory}
-        onSelectCategory={setActiveCategory}
-      />
+        {/* Search */}
+        <div className="relative">
+          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text40}`} />
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="治療プランを検索..."
+            className={`pl-9 h-11 text-sm bg-white ${C.borderMedium}`}
+          />
+          {searchTerm ? (
+            <button
+              onClick={() => setSearchTerm("")}
+              className={`absolute right-2.5 top-1/2 -translate-y-1/2 ${C.text40} ${C.hoverText}`}
+            >
+              <X className={ICON.xs} />
+            </button>
+          ) : null}
+        </div>
 
-      <CommandList className="max-h-[500px]">
-        <CommandEmpty className={`py-12 text-center text-sm ${C.text60}`}>該当する治療プランが見つかりません。</CommandEmpty>
+        {/* Category Filter */}
+        <CategoryFilter
+          categories={allCategories}
+          activeCategory={activeCategory}
+          onSelectCategory={setActiveCategory}
+        />
 
-        {allCategories.map((category) => {
-          // Optimization: Skip rendering logic early if category doesn't match active filter
-          if (activeCategory && activeCategory !== category) return null;
-
-          const items = groupedItems[category];
-          if (!items) return null;
-
-          return (
-            <React.Fragment key={category}>
-              <CommandGroup heading={category}>
-                {items.map((item) => (
-                  <CommandItem
-                    key={item.code}
-                    value={`${item.name} ${item.code} ${item.category}`}
-                    onSelect={() => handleSelect(item)}
-                    className={`data-[selected=true]:${C.bgPage} cursor-pointer !py-1.5`}
-                  >
-                    <div className="flex flex-1 items-center justify-between">
-                      <div className="flex flex-col gap-0.5">
-                        <span className={`font-medium ${C.text} text-sm`}>
-                          {item.name}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-sm ${C.text40} font-mono ${C.bgPage30} px-1 rounded`}>
-                            {item.code}
-                          </span>
-                        </div>
-                      </div>
-                      <span className={`font-mono font-bold ${C.text} text-sm`}>
-                        ¥{item.unitPrice.toLocaleString()}
-                      </span>
+        {/* Item List */}
+        <div className="flex-1 overflow-y-auto space-y-1 pr-1 max-h-[400px]">
+          {filteredItems.length === 0 ? (
+            <div className={`py-12 text-center text-sm ${C.text60}`}>
+              該当する治療プランが見つかりません。
+            </div>
+          ) : (
+            CATEGORY_ORDER.map((category) => {
+              const items = groupedItems[category];
+              if (!items?.length) return null;
+              return (
+                <Fragment key={category}>
+                  {/* Category Header */}
+                  {!activeCategory ? (
+                    <div className={`px-2 py-1.5 text-xs font-semibold ${C.text40} uppercase tracking-wider`}>
+                      {category}
                     </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-              {/* Show separator only when not filtering by category (cleaner look) */}
-              {!activeCategory ? <CommandSeparator className={C.bgLight} /> : null}
-            </React.Fragment>
-          );
-        })}
-      </CommandList>
-    </CommandDialog>
+                  ) : null}
+                  <div className="space-y-1.5">
+                    {items.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => handleSelect(item)}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all flex items-center justify-between group bg-white ${C.borderMedium} ${C.hoverBorderPrimary30} ${C.hoverBgPageHalf}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-sm font-medium ${C.text}`}>{item.name}</div>
+                          <div className={`text-xs ${C.text60} mt-0.5`}>
+                            ¥{item.unitPrice.toLocaleString()}
+                          </div>
+                        </div>
+                        <div className={`size-5 rounded-full border ${C.borderLight} group-hover:border-current transition-colors shrink-0 ml-3`} />
+                      </div>
+                    ))}
+                  </div>
+                </Fragment>
+              );
+            })
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

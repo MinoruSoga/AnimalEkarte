@@ -62,7 +62,7 @@ interface PermissionRuleTableProps {
 // ─────────────────────────────────────────────────
 
 export const PermissionRuleTable = memo(function PermissionRuleTable({
-  group,
+  group: _group,
   rules,
   onRuleChange,
   disabled,

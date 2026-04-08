@@ -30,7 +30,7 @@ func (s *auditService) Log(ctx context.Context, log *model.AuditLog) error {
 }
 
 // LogAuthLogin は認証イベントログを記録する
-func (s *auditService) LogAuthLogin(ctx context.Context, clinicID *uint64, staffID *uint64, action string, ipAddress string, userAgent string) error {
+func (s *auditService) LogAuthLogin(ctx context.Context, clinicID, staffID *uint64, action, ipAddress, userAgent string) error {
 	log := &model.AuditLog{
 		ClinicID:  clinicID,
 		ActorID:   staffID,

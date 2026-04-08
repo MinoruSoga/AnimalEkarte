@@ -107,10 +107,6 @@ func newTestServiceTypeService(repo *mockServiceTypeRepository) ServiceTypeServi
 	return NewServiceTypeService(repo, &mockReservationForServiceType{})
 }
 
-func newTestServiceTypeServiceWithReservation(repo *mockServiceTypeRepository, reservationRepo *mockReservationForServiceType) ServiceTypeService {
-	return NewServiceTypeService(repo, reservationRepo)
-}
-
 // ---- List ----
 
 func TestServiceTypeService_List(t *testing.T) {
