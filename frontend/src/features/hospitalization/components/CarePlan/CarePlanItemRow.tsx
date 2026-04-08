@@ -1,4 +1,4 @@
-import { ICON, C } from "@/lib/design-tokens";
+import { ICON, C, BADGE } from "@/lib/design-tokens";
 import { memo } from "react";
 // External
 import { Edit2, Utensils, Pill, ClipboardList, Stethoscope, CheckCircle2 } from "lucide-react";
@@ -43,10 +43,10 @@ export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onD
 
     const getTypeColor = (type: string) => {
         switch (type) {
-            case 'food': return 'bg-orange-100 text-orange-600';
-            case 'medicine': return 'bg-blue-100 text-blue-600';
-            case 'treatment': return 'bg-purple-100 text-purple-600';
-            default: return 'bg-gray-100 text-gray-600';
+            case 'food': return BADGE.orangeNoBorder;
+            case 'medicine': return BADGE.blueNoBorder;
+            case 'treatment': return BADGE.purpleNoBorder;
+            default: return BADGE.grayNoBorder;
         }
     };
 
@@ -59,8 +59,8 @@ export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onD
                 
                 <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${H_STYLES.text.base} ${C.text} leading-snug`}>
                     <span className="font-bold whitespace-nowrap">{plan.name}</span>
-                    <span className={`${H_STYLES.text.sm} ${C.text60} px-2 border-l border-r border-gray-200`}>{getTypeLabel(plan.type)}</span>
-                    <span className={`${H_STYLES.text.sm} bg-gray-50 px-2 py-0.5 rounded`}>{plan.description}</span>
+                    <span className={`${H_STYLES.text.sm} ${C.text60} px-2 border-l border-r ${C.borderMedium}`}>{getTypeLabel(plan.type)}</span>
+                    <span className={`${H_STYLES.text.sm} ${C.bgPage} px-2 py-0.5 rounded`}>{plan.description}</span>
                     
                     {plan.unitPrice ? (
                         <span className={`${H_STYLES.text.sm} ${C.text60} font-mono`}>¥{plan.unitPrice.toLocaleString()}</span>
@@ -68,7 +68,7 @@ export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onD
                     
                     <div className="flex gap-1 ml-1">
                         {plan.timing.map(t => (
-                            <span key={t} className={`${H_STYLES.text.sm} bg-gray-100 px-2 py-0.5 rounded text-gray-600`}>
+                            <span key={t} className={`${H_STYLES.text.sm} ${C.bgStatusGray} px-2 py-0.5 rounded ${C.textStatusGray}`}>
                                 {t === 'morning' ? '朝' : t === 'noon' ? '昼' : t === 'night' ? '夜' : t}
                             </span>
                         ))}
@@ -77,9 +77,9 @@ export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onD
             </div>
 
             <div className="flex items-center gap-2 ml-2 shrink-0">
-                <div className={`w-2 h-2 rounded-full ${plan.status === 'active' ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <div className={`w-2 h-2 rounded-full ${plan.status === 'active' ? C.bgStatusGreenDot : C.bgInactive}`} />
                 <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => onEdit(plan)} className="h-9 w-9 p-0 bg-gray-50 hover:bg-gray-100">
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(plan)} className={`h-9 w-9 p-0 ${C.bgPage} ${C.hoverBgPage}`}>
                         <Edit2 className={`${ICON.action} ${C.text60} ${C.hoverText}`} />
                     </Button>
                     {onDelete !== undefined ? (
