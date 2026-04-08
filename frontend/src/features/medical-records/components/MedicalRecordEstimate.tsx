@@ -154,7 +154,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   }, []);
 
   return (
-    <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-10 pr-1">
+    <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-24 pr-1">
       {/* Subject */}
       <EstimateForm subject={subject} onSubjectChange={setSubject} canEdit={canEdit} />
 

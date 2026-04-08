@@ -15,7 +15,7 @@ export const getTrimmings = async (filters?: TrimmingFilters): Promise<TrimmingU
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
   const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings", { params });
-  return data.data.map(transformTrimming);
+  return data.data.filter((d) => d.pet?.id != null).map(transformTrimming);
 };
 
 export const useGetTrimmings = (filters?: TrimmingFilters) => {

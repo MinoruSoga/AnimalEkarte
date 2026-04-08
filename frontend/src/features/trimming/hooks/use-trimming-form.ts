@@ -48,7 +48,7 @@ export function useTrimmingForm(id?: string) {
   const petSelection = usePetSelection();
   const { setSelectedPets, selectedPets } = petSelection;
 
-  const { data: existingTrimming } = useGetTrimming(id ?? "");
+  const { data: existingTrimming, isLoading: isTrimmingLoading, error: trimmingError } = useGetTrimming(id ?? "");
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
   const createMutation = useCreateTrimming();
   const updateMutation = useUpdateTrimming();
@@ -256,6 +256,9 @@ export function useTrimmingForm(id?: string) {
   const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;
   const mode = isEdit ? ("edit" as const) : ("new" as const);
 
+  const isLoading = isEdit ? isTrimmingLoading : isPetLoading;
+  const notFound = isEdit && !isTrimmingLoading && !existingTrimming && !!id;
+
   return {
     mode,
     formData,
@@ -273,5 +276,7 @@ export function useTrimmingForm(id?: string) {
     isSaving,
     isDeleting,
     fieldErrors,
+    isLoading,
+    notFound,
   };
 }

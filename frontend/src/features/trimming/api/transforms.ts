@@ -10,7 +10,7 @@ export function transformTrimming(data: BackendTrimming): TrimmingUI {
 
   return {
     id: String(data.id ?? 0),
-    date: data.date ? String(data.date).split("T")[0] : "",
+    date: data.date && !String(data.date).startsWith("0001") ? String(data.date).split("T")[0] : "",
     petId: data.pet?.id != null ? String(data.pet.id) : undefined,
     ownerId: data.pet?.owner?.id != null ? String(data.pet.owner.id) : undefined,
     petNumber: data.pet?.pet_number ?? "",

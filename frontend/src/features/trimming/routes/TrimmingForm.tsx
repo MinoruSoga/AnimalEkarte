@@ -413,6 +413,8 @@ export function TrimmingForm() {
     isSaving,
     isDeleting,
     fieldErrors,
+    isLoading,
+    notFound,
   } = useTrimmingForm(id);
 
   const { canEdit, canCreate, canDelete } = usePermission("trimming");
@@ -533,6 +535,22 @@ export function TrimmingForm() {
 
   if (!selectedPet && mode === "new" && petId) return null;
   if (!selectedPet && mode === "new") return null;
+
+  if (isLoading) {
+    return (
+      <PageLayout title="トリミング" onBack={handleBack} icon={<Scissors className={`${ICON.page} ${C.text}`} />}>
+        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>読み込み中...</div>
+      </PageLayout>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <PageLayout title="トリミング" onBack={handleBack} icon={<Scissors className={`${ICON.page} ${C.text}`} />}>
+        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>トリミング記録が見つかりません</div>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout
