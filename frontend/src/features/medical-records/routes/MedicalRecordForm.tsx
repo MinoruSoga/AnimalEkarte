@@ -24,7 +24,9 @@ import { MedicalRecordEstimate } from "../components/MedicalRecordEstimate";
 import { MedicalRecordBillCheck } from "../components/MedicalRecordBillCheck";
 import { MedicalRecordExamination } from "../components/MedicalRecordExamination";
 import { CheckupsTab } from "../components/CheckupsTab/CheckupsTab";
-import { StaffSelectionModal } from "../components/StaffSelectionModal";
+const StaffSelectionModal = lazy(() =>
+  import("../components/StaffSelectionModal").then((m) => ({ default: m.StaffSelectionModal }))
+);
 const VitalsModal = lazy(() =>
   import("../components/VitalsModal").then((m) => ({ default: m.VitalsModal }))
 );
@@ -499,12 +501,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       </Suspense>
 
       {/* Staff Selection Modal */}
-      <StaffSelectionModal
-        open={isStaffModalOpen}
-        selectedStaffName={staffName}
-        onSelect={handleSelectStaff}
-        onOpenChange={handleStaffModalOpenChange}
-      />
+      <Suspense fallback={null}>
+        <StaffSelectionModal
+          open={isStaffModalOpen}
+          selectedStaffName={staffName}
+          onSelect={handleSelectStaff}
+          onOpenChange={handleStaffModalOpenChange}
+        />
+      </Suspense>
 
       {/* Owner Search Modal (edit mode only) */}
       {!isNewRecord && recordId ? (

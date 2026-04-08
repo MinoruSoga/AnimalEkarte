@@ -22,7 +22,7 @@ interface HospitalizationNoteCardProps {
 
 export const HospitalizationNoteCard = memo(function HospitalizationNoteCard({ id, title, icon: Icon, value, onChange, placeholder }: HospitalizationNoteCardProps) {
   return (
-    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} ${H_STYLES.padding.box} h-full`}>
+    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} ${H_STYLES.padding.box} h-full`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
         <Icon className={`${ICON.action} ${C.text60}`} />
         {title}
@@ -32,7 +32,7 @@ export const HospitalizationNoteCard = memo(function HospitalizationNoteCard({ i
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`min-h-[200px] ${H_STYLES.text.base} resize-none bg-white ${C.borderMedium} ${C.focusRingMedicalBlue}`}
+        className={`min-h-[200px] ${H_STYLES.text.base} resize-none ${C.bgWhite} ${C.borderMedium} ${C.focusRingMedicalBlue}`}
       />
     </div>
   );

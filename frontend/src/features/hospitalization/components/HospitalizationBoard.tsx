@@ -65,7 +65,7 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
                   ${occupant
                       ? isDeceased
                         ? `${C.bgPage} border-l-4 ${C.borderPrimary20} opacity-40`
-                        : `bg-white border-l-4 ${C.borderLMedicalBlue}`
+                        : `${C.bgWhite} border-l-4 ${C.borderLMedicalBlue}`
                       : `${C.bgPage} border-dashed ${C.borderPrimary20}`
                   }
                   ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-md'}

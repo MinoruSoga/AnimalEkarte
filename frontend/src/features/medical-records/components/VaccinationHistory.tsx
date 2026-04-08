@@ -135,7 +135,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
                 <Button
                   variant="outline"
                   size="sm"
-                  className={`h-10 w-[50px] text-sm ${C.bgPrimary} ${C.textWhite} ${C.hoverBgPrimaryDark} hover:text-white border-transparent px-0`}
+                  className={`h-10 w-[50px] text-sm ${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} border-transparent px-0`}
                 >
                   複製
                 </Button>

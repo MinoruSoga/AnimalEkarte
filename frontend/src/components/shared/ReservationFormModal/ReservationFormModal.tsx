@@ -316,7 +316,7 @@ export function ReservationFormModal({
             {canSave ? (
               <Button
                 onClick={handleSave}
-                className={`${C.bgPrimary} ${C.textWhite} ${C.hoverBgPrimaryDark} h-10 text-sm min-w-[100px]`}
+                className={`${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} h-10 text-sm min-w-[100px]`}
               >
                 {isEditMode ? "更新する" : "予約を確定"}
               </Button>

@@ -223,7 +223,7 @@ export function ReservationDetailModal({
             {onCreateRecord ? (
               <Button
                 size="sm"
-                className={`${C.bgPrimary} ${C.textWhite} ${C.hoverBgPrimaryDark} h-9 text-sm gap-1.5 shadow-sm`}
+                className={`${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} h-9 text-sm gap-1.5 shadow-sm`}
                 onClick={() => onCreateRecord(appointment)}
               >
                 <actionConfig.Icon className={ICON.action} />

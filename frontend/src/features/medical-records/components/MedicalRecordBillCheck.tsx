@@ -135,7 +135,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
 
   if (isNewRecord) {
     return (
-      <div className={`flex flex-col items-center justify-center p-12 bg-white rounded-lg border border-dashed ${C.text40}`}>
+      <div className={`flex flex-col items-center justify-center p-12 ${C.bgWhite} rounded-lg border border-dashed ${C.text40}`}>
         カルテを保存してから会計確認を行えます
       </div>
     );
@@ -160,7 +160,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
           )}
         </div>
 
-        <div className={`flex-1 min-h-0 bg-white rounded-lg border ${C.borderLight} overflow-hidden flex flex-col`}>
+        <div className={`flex-1 min-h-0 ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden flex flex-col`}>
           <div className="flex-1 min-h-0">
             <TreatmentTable
               items={items}
