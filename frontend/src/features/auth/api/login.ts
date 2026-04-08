@@ -6,10 +6,9 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
-/** バックエンドのログインレスポンス。Cookie はバックエンドが Set-Cookie で設定する */
+/** バックエンドのログインレスポンス。JWT は httpOnly Cookie で設定されるためボディに含まれない */
 interface BackendLoginResponse {
-  token: string;
-  expires_at: number;
+  is_system_admin: boolean;
   user: BackendMeResponse;
 }
 

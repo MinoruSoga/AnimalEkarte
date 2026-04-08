@@ -1203,25 +1203,27 @@ erDiagram
         bigint merchandise_item_id FK
         integer sort_order
         timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
     payments {
         bigint id PK
-        bigint billing_id FK
-        integer total_amount
-        integer billing_amount
-        payment_method method
-        integer subtotal
-        integer tax_total
+        bigint billing_id FK "UNIQUE"
+        bigint subtotal
+        bigint tax_total
+        bigint total_amount
         text insurance_name
-        numeric insurance_ratio "小数(0.7等)"
-        integer insurance_amount
+        numeric insurance_ratio "numeric(3,2)"
+        bigint insurance_amount
         bigint discount_amount
-        integer received_amount
-        integer change_amount
+        bigint billing_amount
+        bigint received_amount
+        bigint change_amount
+        payment_method method
         timestamptz created_at
         timestamptz updated_at
+        timestamptz deleted_at
     }
 
     billing_refunds {
@@ -2970,6 +2972,7 @@ erDiagram
 | merchandise_item_id | bigint | YES | | FK → merchandise_items(id) SET NULL（物販マスタ参照） |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **CHECK制約:** `chk_billing_item_quantity` — quantity > 0
@@ -3001,6 +3004,7 @@ erDiagram
 | method | payment_method | YES | 'cash' | 支払い方法 |
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
+| deleted_at | timestamptz | YES | NULL | 論理削除日時 |
 
 **FK:** `billing_id` → `billings.id` (CASCADE)
 
