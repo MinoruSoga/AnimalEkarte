@@ -124,7 +124,7 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
           <Button
             type="button"
             variant="outline"
-            className={`h-10 ${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} hover:text-white border-transparent text-sm shadow-sm px-3`}
+            className={`h-10 ${C.bgAccent} text-white ${C.bgAccentHover} hover:text-white border-transparent text-sm shadow-sm px-3`}
           >
             検索
           </Button>
