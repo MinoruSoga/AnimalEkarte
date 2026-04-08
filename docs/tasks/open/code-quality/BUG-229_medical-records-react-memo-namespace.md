@@ -1,8 +1,8 @@
-# BUG-229: medical-records コンポーネントで `React.memo()` 名前空間プレフィックス使用
+# BUG-229: `React.memo()` 名前空間プレフィックス使用（medical-records 12 件 + HistoryFilterPanel 1 件）
 
 ## 概要
 
-`features/medical-records/components/` 配下の 12 ファイルが `import React from "react"` + `React.memo()` の形式を使用している。プロジェクト規約（参照実装 `features/owners/`）では `import { memo } from "react"` で名前付きインポートし、`memo()` を直接呼び出すことが標準。`React.` 名前空間プレフィックスは不統一であり、不要な `React` デフォルトインポートも含む。
+`features/medical-records/components/` 配下の 12 ファイルおよび `components/shared/HistoryFilterPanel/HistoryFilterPanel.tsx` の計 13 ファイルが `import React from "react"` + `React.memo()` の形式を使用している。プロジェクト規約（参照実装 `features/owners/`）では `import { memo } from "react"` で名前付きインポートし、`memo()` を直接呼び出すことが標準。`React.` 名前空間プレフィックスは不統一であり、不要な `React` デフォルトインポートも含む。
 
 ## 再現手順
 
@@ -18,9 +18,10 @@
 
 ## 現状コード
 
-### 影響を受ける 12 ファイル（抜粋）
+### 影響を受ける 13 ファイル（抜粋）
 
 ```
+components/shared/HistoryFilterPanel/HistoryFilterPanel.tsx:31
 features/medical-records/components/ExaminationGroup.tsx:30
 features/medical-records/components/ExaminationFilter.tsx:24
 features/medical-records/components/ImageGalleryFilter.tsx:29
@@ -55,6 +56,7 @@ const MembershipTypeButtons = memo(function MembershipTypeButtons({
 
 | 対象 | 詳細 | 状態 |
 |------|------|------|
+| `components/shared/HistoryFilterPanel/HistoryFilterPanel.tsx:31` | `React.memo()` 使用 | 未修正 |
 | `features/medical-records/components/ExaminationGroup.tsx:30` | `React.memo()` 使用 | 未修正 |
 | `features/medical-records/components/ExaminationFilter.tsx:24` | `React.memo()` 使用 | 未修正 |
 | `features/medical-records/components/ImageGalleryFilter.tsx:29` | `React.memo()` 使用 | 未修正 |
@@ -114,5 +116,6 @@ export const ExaminationGroup = memo(function ExaminationGroup({
 - なし
 
 ## 関連ファイル
+- `frontend/src/components/shared/HistoryFilterPanel/HistoryFilterPanel.tsx:31`
 - `frontend/src/features/medical-records/components/` — 対象 12 ファイル
 - `frontend/src/features/owners/routes/OwnerForm.tsx` — 参照実装
