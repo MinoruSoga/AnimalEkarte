@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -18,11 +19,12 @@ type Handler struct {
 	svc       *service.Services
 	repos     *repository.Repositories
 	auditRepo repository.AuditRepository
+	uploader  infra.FileUploader
 }
 
 // New はHandlerを初期化して返す
-func New(cfg *config.Config, svc *service.Services, repos *repository.Repositories) *Handler {
-	return &Handler{cfg: cfg, svc: svc, repos: repos, auditRepo: repos.Audit}
+func New(cfg *config.Config, svc *service.Services, repos *repository.Repositories, uploader infra.FileUploader) *Handler {
+	return &Handler{cfg: cfg, svc: svc, repos: repos, auditRepo: repos.Audit, uploader: uploader}
 }
 
 // PaginatedResponse はページネーション付きレスポンスの共通構造

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,8 +19,7 @@ import (
 )
 
 const (
-	maxUploadSize  = 10 * 1024 * 1024 // 10MB
-	uploadsBaseDir = "/app/uploads/medical-records"
+	maxUploadSize = 10 * 1024 * 1024 // 10MB
 )
 
 var allowedMIMETypes = map[string]bool{
@@ -203,13 +201,6 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 		return
 	}
 
-	// Create upload directory
-	uploadDir := fmt.Sprintf("%s/%d", uploadsBaseDir, medicalRecordID)
-	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
-		RespondError(c, apperrors.Wrap(err, "failed to create upload directory"))
-		return
-	}
-
 	// Generate unique filename to avoid collisions
 	randomBytes := make([]byte, 16)
 	if _, err := rand.Read(randomBytes); err != nil {
@@ -217,15 +208,14 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 		return
 	}
 	storedName := fmt.Sprintf("%d_%s%s", time.Now().UnixNano(), hex.EncodeToString(randomBytes), fileExt)
-	storedPath := filepath.Join(uploadDir, storedName)
 
-	if err := c.SaveUploadedFile(fileHeader, storedPath); err != nil {
-		RespondError(c, apperrors.Wrap(err, "failed to save uploaded file"))
+	// Upload via FileUploader (S3 or local)
+	key := fmt.Sprintf("medical-records/%d/%s", medicalRecordID, storedName)
+	imageURL, err := h.uploader.Upload(c.Request.Context(), key, file, mimeType)
+	if err != nil {
+		RespondError(c, apperrors.Wrap(err, "failed to upload file"))
 		return
 	}
-
-	// Build URL path for serving (relative to the server)
-	imageURL := fmt.Sprintf("/uploads/medical-records/%d/%s", medicalRecordID, storedName)
 
 	now := time.Now()
 	input := &service.CreateRecordImageInput{
@@ -239,9 +229,9 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 
 	image, err := h.svc.RecordImage.Create(c.Request.Context(), medicalRecordID, input)
 	if err != nil {
-		// Clean up saved file on service error (non-fatal)
-		if removeErr := os.Remove(storedPath); removeErr != nil {
-			slog.WarnContext(c.Request.Context(), "failed to clean up uploaded file", "path", storedPath, "error", removeErr)
+		// Clean up uploaded file on service error (non-fatal)
+		if removeErr := h.uploader.Delete(c.Request.Context(), key); removeErr != nil {
+			slog.WarnContext(c.Request.Context(), "failed to clean up uploaded file", "key", key, "error", removeErr)
 		}
 		RespondError(c, err)
 		return
