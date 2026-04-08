@@ -13,6 +13,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/handler"
+	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/logger"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -54,8 +55,29 @@ func main() {
 	// サービス初期化
 	svcs := service.NewServices(repos)
 
+	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
+	var uploader infra.FileUploader
+	if os.Getenv("STORAGE_TYPE") == "s3" {
+		s3Bucket := os.Getenv("S3_BUCKET")
+		s3Region := os.Getenv("S3_REGION")
+		if s3Bucket == "" || s3Region == "" {
+			logger.Error("S3_BUCKET and S3_REGION are required when STORAGE_TYPE=s3")
+			os.Exit(1)
+		}
+		s3Up, err := infra.NewS3Uploader(context.Background(), s3Bucket, s3Region)
+		if err != nil {
+			logger.Error("failed to initialize S3 uploader", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		uploader = s3Up
+		logger.Info("file uploader: S3", slog.String("bucket", s3Bucket), slog.String("region", s3Region))
+	} else {
+		uploader = infra.NewLocalUploader("/app/uploads", "/uploads")
+		logger.Info("file uploader: local filesystem")
+	}
+
 	// ハンドラー初期化
-	h := handler.New(cfg, svcs, repos)
+	h := handler.New(cfg, svcs, repos, uploader)
 
 	// ルーター設定
 	r := gin.New()
