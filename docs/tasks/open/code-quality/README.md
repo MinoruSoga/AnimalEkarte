@@ -17,6 +17,9 @@
 | [BUG-192](../infra/BUG-192_tsconfig-strict-false.md) | インフラ | tsconfig.json strict: false | High | infra/ |
 | [BUG-193](BUG-193_db-schema-confirmed-issues.md) | DB スキーマ | payments の deleted_at 欠落 + billing_items の updated_at 欠落 + リポジトリ clinicID 欠落 2件 | High | code-quality/ |
 | [BUG-194](BUG-194_vercel-react-best-practices-violations.md) | Vercel React BP | useDeferredValue 1件 + デザイントークン 19箇所/9ファイル | Medium | code-quality/ |
+| [BUG-221](BUG-221_mutation-not-wrapped-in-useTransition.md) | FE rerender-transitions | delete/update mutation が useTransition 未使用（7箇所/6ドメイン） | Medium | code-quality/ |
+| [BUG-222](BUG-222_useCallback-object-deps.md) | FE rerender-dependencies | useCallback deps にオブジェクト/配列（9箇所/4ドメイン） | Medium | code-quality/ |
+| [BUG-223](BUG-223_memo-default-nonprimitive-prop.md) | FE rerender-memo | DailyRecordSection の `plans = []` が memo を無効化 | Low | code-quality/ |
 
 ## 誤報として撤回した指摘
 
@@ -35,7 +38,7 @@
 |------|------|
 | /uploads 認証なし | `TASK-S3-IMAGE-UPLOAD` で S3 移行対応中 |
 
-## 修正優先順位
+## 修正優先順位（BUG-221〜223 追加後）
 
 1. **BUG-186** (Critical): LoginResponse から Token フィールド削除 — 5分
 2. **BUG-187** (High): デモアカウントを `import.meta.env.DEV` でゲート — 5分
@@ -45,3 +48,6 @@
 6. **BUG-193** (High): billing_items updated_at 追加 — 30分
 7. **BUG-190** (Medium): デザイントークン置換 — 要個別確認
 8. **BUG-191** (Medium): ShiftFormDialog useActionState 移行 — 1時間
+9. **BUG-221** (Medium): mutation を useTransition でラップ — 2時間（7箇所）
+10. **BUG-222** (Medium): useCallback deps を primitive に — 2時間（9箇所）
+11. **BUG-223** (Low): DailyRecordSection EMPTY_PLANS 定数化 — 5分
