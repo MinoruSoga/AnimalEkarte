@@ -186,8 +186,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
           <PatientInfoCard
             ownerName={selectedPet.ownerName}
             petName={selectedPet.name}
-            petNumber={selectedPet.petNumber}
-            weight={selectedPet.weight}
+            petNumber={selectedPet.petNumber ?? ""}
+            weight={selectedPet.weight ?? ""}
           />
         ) : null}
 
