@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,12 @@ export function PetSelection({
   className,
   listClassName,
 }: PetSelectionProps) {
+  // js-set-map-lookups: O(1) ルックアップのため Set を事前構築（レンダーループ内の O(n) some() を排除）
+  const selectedPetIdSet = useMemo(
+    () => new Set(selectedPets.map((p) => p.id)),
+    [selectedPets]
+  );
+
   return (
     <div className={cn("flex flex-col gap-2 border rounded-lg p-2 bg-white", className)}>
       <div>
@@ -46,7 +53,7 @@ export function PetSelection({
             </div>
         ) : (
             filteredPets.map((pet) => {
-            const isSelected = selectedPets.some((p) => p.id === pet.id);
+            const isSelected = selectedPetIdSet.has(pet.id);
             return (
                 <div
                 key={pet.id}

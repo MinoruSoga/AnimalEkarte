@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { Pet } from "@/types";
 
 type SelectionMode = "single" | "multiple" | "multiple-same-owner";
@@ -8,6 +8,12 @@ export function usePetSelection(
   mode: SelectionMode = "single"
 ) {
   const [selectedPets, setSelectedPets] = useState<Pet[]>(initialSelectedPets);
+
+  // js-set-map-lookups: O(1) ルックアップのため Set を事前構築
+  const selectedPetIdSet = useMemo(
+    () => new Set(selectedPets.map((p) => p.id)),
+    [selectedPets]
+  );
 
   const togglePetSelection = (pet: Pet) => {
     setSelectedPets((prev) => {
@@ -30,7 +36,10 @@ export function usePetSelection(
     });
   };
 
-  const isPetSelected = (pet: Pet) => selectedPets.some((p) => p.id === pet.id);
+  const isPetSelected = useCallback(
+    (pet: Pet) => selectedPetIdSet.has(pet.id),
+    [selectedPetIdSet]
+  );
 
   return {
     selectedPets,

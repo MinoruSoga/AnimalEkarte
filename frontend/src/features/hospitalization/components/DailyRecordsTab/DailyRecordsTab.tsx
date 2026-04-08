@@ -42,7 +42,8 @@ export function DailyRecordsTab({
     dischargeDate,
 }: DailyRecordsTabProps) {
     const { canCreate } = usePermission("hospitalization");
-    const today = useMemo(() => getTodayStr(), []);
+    // rerender-simple-expression-in-memo: string primitive は値比較のため useMemo 不要
+    const today = getTodayStr();
     const effectiveMax = useMemo(
         () => (dischargeDate && dischargeDate < today ? dischargeDate : today),
         [dischargeDate, today]

@@ -1,82 +1,50 @@
-# BUG-223: memo() コンポーネントのデフォルト非プリミティブ prop が毎レンダーで新参照を生成
+# BUG-223: DailyRecordSection の `plans = []` デフォルト値が memo を無効化
 
 ## 概要
-
-`memo()` でラップされた `DailyRecordSection` が `plans = []` というデフォルト値を持つ。
-`[]` はレンダーごとに新しい配列インスタンスを生成するため、親から `plans` を渡さない場合でも
-`memo()` の浅い比較が毎回 false となり、メモ化が完全に無効化される。
+`DailyRecordSection` コンポーネントで props のデフォルト値として `plans = []` を使用している。関数コンポーネントのデフォルト引数はレンダーごとに新しいリテラルを生成するため、`memo()` のシャロー比較が常に不一致となり、メモ化が完全に無効化される。
 
 ## 現状コード
 
-### `features/hospitalization/components/DailyRecord/DailyRecordSection.tsx:24`
-
+### `features/hospitalization/components/DailyRecordSection.tsx`
 ```typescript
+// ❌ plans = [] はレンダーごとに新しい配列参照 → memo 無効化
 export const DailyRecordSection = memo(function DailyRecordSection({
-  records,
-  plans = [],        // ❌ [] は毎レンダーで新参照 → memo が機能しない
-  onAddVital,
-  onAddLog,
-}: DailyRecordSectionProps) {
-```
-
-## 比較: 正しい実装（プロジェクト内参照実装）
-
-```typescript
-// features/owners/routes/OwnerForm.tsx — 非プリミティブ default はモジュール定数で宣言
-const PET_TABLE_HEADER = (
-  <SortableDataTableRow className="cursor-default select-none" clickable={false}>
-    ...
-  </SortableDataTableRow>
-);
-// 同様に空配列は:
-const EMPTY_PLANS: CarePlan[] = [];
-
-export const DailyRecordSection = memo(function DailyRecordSection({
-  records,
-  plans = EMPTY_PLANS,  // ✅ モジュール定数 = 常に同じ参照
-  onAddVital,
-  onAddLog,
-}: DailyRecordSectionProps) {
+  date,
+  plans = [],   // ← ここが問題
+  onUpdate,
+}: Props) {
+  // ...
+});
 ```
 
 ## 修正方針
 
-### `features/hospitalization/components/DailyRecord/DailyRecordSection.tsx`
+デフォルト値をモジュールレベルの定数に巻き上げる。
 
+### `features/hospitalization/components/DailyRecordSection.tsx`
 ```typescript
-// ① モジュール定数を追加（コンポーネント定義の外）
-import type { CarePlan } from "../../types";  // 既存の型を使用
-
+// ✅ モジュールスコープに定数として定義
 const EMPTY_PLANS: CarePlan[] = [];
 
-// ② props のデフォルト値をモジュール定数に変更
 export const DailyRecordSection = memo(function DailyRecordSection({
-  records,
-  plans = EMPTY_PLANS,  // ✅ 常に同じ参照
-  onAddVital,
-  onAddLog,
-}: DailyRecordSectionProps) {
+  date,
+  plans = EMPTY_PLANS,   // ← 常に同一参照
+  onUpdate,
+}: Props) {
+  // ...
+});
 ```
 
-## 影響範囲
+## 準拠すべきプロジェクト規約
 
-| ファイル | 行 | 内容 |
-|---------|-----|------|
-| `features/hospitalization/components/DailyRecord/DailyRecordSection.tsx` | 24 | `plans = []` → `EMPTY_PLANS` |
-
-## 準拠すべきプロジェクト規約・ベストプラクティス
-
-### Vercel React Best Practices — `rerender-memo-with-default-value`
-> Hoist default non-primitive props to module-level constants.
-> Default props like `[] {}` create new references each render, defeating `memo()`.
+### `.claude/rules/typescript-react.md` — rerender-memo-with-default-value
+> `memo()` に渡すハンドラは `useCallback` で安定化すること。非 primitive デフォルト値は必ずモジュール定数に巻き上げる。
 
 ### プロジェクト内参照実装
-`features/owners/routes/OwnerForm.tsx` — `PET_TABLE_HEADER` をモジュール定数として宣言
+`frontend/CODING_RULES.md` Section 12 — `rendering-hoist-jsx` パターン（モジュール定数への巻き上げ）
 
 ## 優先度
+**Low** — memo の有効化のみ。機能的影響なし。修正は5分。
 
-**Low** — 修正コストが非常に小さい（2行の変更）。`memo()` の有効性向上。
-
-## 関連チケット
-
-なし
+## 関連ファイル
+- `frontend/src/features/hospitalization/components/DailyRecordSection.tsx`

@@ -65,17 +65,20 @@ export function HospitalizationForm() {
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
+  // rerender-dependencies: location.state（オブジェクト）から primitive を抽出して deps に使用
+  const locationFrom = location.state?.from as string | undefined;
+
   // React 19 Action の成功を検知して遷移
   useEffect(() => {
     if (formState.success) {
       markClean();
-      if (location.state?.from) {
-        navigate(location.state.from as string);
+      if (locationFrom) {
+        navigate(locationFrom);
       } else {
         navigate(paths.hospitalization.getHref());
       }
     }
-  }, [formState.success, formState.timestamp, navigate, markClean, location.state]);
+  }, [formState.success, formState.timestamp, navigate, markClean, locationFrom]);
 
   // エラー発生時に最初のエラーフィールドにフォーカス
   useEffect(() => {
@@ -94,12 +97,12 @@ export function HospitalizationForm() {
   const totals = calculateTotals();
 
   const handleBack = useCallback(() => {
-    if (location.state?.from) {
-        navigate(location.state.from as string);
+    if (locationFrom) {
+        navigate(locationFrom);
     } else {
         navigate(paths.hospitalization.getHref());
     }
-  }, [location.state, navigate]);
+  }, [locationFrom, navigate]);
 
   const handleDelete = useCallback(() => {
     if (!hospitalizationId) return;

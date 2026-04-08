@@ -1,4 +1,4 @@
-import { useState, useEffect, useActionState } from "react";
+import { useState, useEffect, useActionState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -134,7 +134,6 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
 
   useEffect(() => {
     if (!hospitalizationData) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: initialize form from API data once loaded; functional setState avoids stale closure
     setFormData((prev) => ({
       ...prev,
       hospitalizationType:
@@ -165,7 +164,10 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
         } as Pet,
       ]);
     }
-  }, [hospitalizationData, setSelectedPets]);
+  // rerender-dependencies: hospitalizationData（オブジェクト）の代わりに id（primitive）を deps に使用
+  // setFormData, setSelectedPets は useState setter で安定参照のため deps 省略
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hospitalizationData?.id]);
 
   useEffect(() => {
     if (isError) {
@@ -196,7 +198,8 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
         }
       : formData;
 
-  const addTreatmentPlan = () => {
+  // rerender-functional-setstate: prev => 形式で treatmentPlans を deps から除外
+  const addTreatmentPlan = useCallback(() => {
     const newPlan: TreatmentPlan = {
       id: Date.now().toString(),
       treatmentContent: "",
@@ -208,20 +211,20 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
       discountAmount: 0,
       subtotal: 0,
     };
-    setTreatmentPlans([...treatmentPlans, newPlan]);
-  };
+    setTreatmentPlans((prev) => [...prev, newPlan]);
+  }, []);
 
-  const removeTreatmentPlan = (planId: string) => {
-    setTreatmentPlans(treatmentPlans.filter((plan) => plan.id !== planId));
-  };
+  const removeTreatmentPlan = useCallback((planId: string) => {
+    setTreatmentPlans((prev) => prev.filter((plan) => plan.id !== planId));
+  }, []);
 
-  const updateTreatmentPlan = (
+  const updateTreatmentPlan = useCallback((
     planId: string,
     field: keyof TreatmentPlan,
     value: string | number | boolean
   ) => {
-    setTreatmentPlans(
-      treatmentPlans.map((plan) => {
+    setTreatmentPlans((prev) =>
+      prev.map((plan) => {
         if (plan.id === planId) {
           const updated = { ...plan, [field]: value };
           if (
@@ -247,7 +250,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
         return plan;
       })
     );
-  };
+  }, []);
 
   const calculateTotals = () => {
     const result = calculateBillingTotals(treatmentPlans, globalDiscount, globalDiscountAmount);

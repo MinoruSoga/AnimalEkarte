@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useEffect, useState } from "react";
+import { lazy, memo, Suspense, useEffect, useState } from "react";
 
 // External
 import { Search } from "lucide-react";
@@ -14,7 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Shared
-import { TreatmentSearchDialog } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
+// bundle-dynamic-imports: TreatmentSearchDialog（266行）を lazy() で遅延ロード
+const TreatmentSearchDialog = lazy(() =>
+  import("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog").then((m) => ({
+    default: m.TreatmentSearchDialog,
+  }))
+);
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
 // Relative
@@ -238,11 +243,15 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                 </div>
             </FormDialog>
 
-            <TreatmentSearchDialog
-                open={isSearchOpen}
-                onOpenChange={setIsSearchOpen}
-                onSelect={handleSelectMaster}
-            />
+            {isSearchOpen ? (
+              <Suspense fallback={null}>
+                <TreatmentSearchDialog
+                    open={isSearchOpen}
+                    onOpenChange={setIsSearchOpen}
+                    onSelect={handleSelectMaster}
+                />
+              </Suspense>
+            ) : null}
         </>
     );
 });

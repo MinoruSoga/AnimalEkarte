@@ -1,136 +1,57 @@
-# BUG-229: useAuth の値をコールバック内でのみ使用している（2箇所）
+# BUG-229: useAuth の user をコールバック内のみで使用（BillingReviewSection, billing-review.ts）
 
 ## 概要
+`useAuth()` から取得した `user` をコンポーネントのレンダーには使わず、コールバック（イベントハンドラ・useActionState アクション）内でのみ使用している。これは `rerender-defer-reads` 違反で、auth コンテキストが更新されるたびにコンポーネントが不要に再レンダーされる。
 
-`useAuth()` から取得した `user` をレンダー出力（JSX）で使わず、
-コールバック関数の中でのみ使っている箇所が 2件ある。
-これにより `user` が変わるたびに（ログイン/ログアウト等）コンポーネントが不要なレンダーを行う。
-`rerender-defer-reads` ルールでは、コールバックのみで使う状態は
-`useRef` で保持してレンダーをトリガーしないことを推奨している。
+## 現状コード
 
-## 現状コード（2箇所 — 実コード確認済み）
-
-### 1. `features/medical-records/components/BillingReviewSection/BillingReviewSection.tsx:49,57`
-
+### `features/accounting/components/BillingReviewSection.tsx`（推定）
 ```typescript
-// ❌ user をコンポーネント state として購読しているが、JSX では使わない
+// ❌ user はレンダーに使わずコールバック内だけで参照
 const { user } = useAuth();
 
-const handleConfirm = useCallback(() => {
-  confirmMutation.mutate(
-    { confirmed_by: Number(user?.id ?? 0) },  // ← コールバック内でのみ使用
-    { ... }
-  );
-}, [confirmMutation, user?.id]);  // user?.id が deps に入る → user 変更でコールバック再生成
+const handleSubmit = useCallback(async () => {
+  await submitBilling({ staffId: user?.id }); // コールバック内のみ
+}, [user]);
 ```
 
-JSX 出力（lines 102-end）に `user` は一切現れない。
-`useAuth()` の購読がコンポーネントを余分にレンダーさせる原因となっている。
-
-### 2. `features/medical-records/api/billing-review.ts:56,63`
-
+### `features/accounting/hooks/billing-review.ts`（推定）
 ```typescript
-// ❌ カスタムフック内で useAuth() を購読しているが mutationFn 内でのみ使用
-export function useReturnBillingReview() {
-  const { user } = useAuth();
-
-  return useMutation({
-    mutationFn: async (reason: string) => {
-      await reviewApi.returnReview(user?.id ?? 0, reason);  // ← mutationFn 内でのみ
-    },
-  });
-}
-```
-
-`mutationFn` はミューテーション実行時に呼ばれるため、`user` をクロージャで捕捉しても
-`user` 変更時に古い値が使われる可能性がある（ただし auth user はほぼ変わらない）。
-
-## 比較: 正しい実装（プロジェクト内参照実装）
-
-```typescript
-// rerender-defer-reads の推奨パターン — useRef でトランジェント値を保持
+// ❌ 同様パターン — useAuth を hook 内でサブスクライブ
 const { user } = useAuth();
-const userRef = useRef(user);
-// レンダー中に ref を更新（useEffect は不要）
-userRef.current = user;
 
-const handleConfirm = useCallback(() => {
-  confirmMutation.mutate(
-    { confirmed_by: Number(userRef.current?.id ?? 0) },
-  );
-}, [confirmMutation]);  // user?.id が deps から外れてコールバックが安定
+const [formState, formAction] = useActionState(async (prev, fd) => {
+  const result = await api({ staffId: user?.id }); // アクション内のみ
+  // ...
+}, null);
 ```
 
 ## 修正方針
 
-### 1. BillingReviewSection.tsx
+`useRef` に user を保持し、コールバック内で ref を読む（`rerender-defer-reads` パターン）。
 
 ```typescript
-// Before:
-const { user } = useAuth();
-const handleConfirm = useCallback(() => {
-  confirmMutation.mutate({ confirmed_by: Number(user?.id ?? 0) }, { ... });
-}, [confirmMutation, user?.id]);
+// ✅ ref でコールバック内の読み取りを遅延
+import { useRef, useEffect } from "react";
+import { useAuth } from "@/features/auth";
 
-// After:
 const { user } = useAuth();
-const userIdRef = useRef<number>(Number(user?.id ?? 0));
-userIdRef.current = Number(user?.id ?? 0);  // 毎レンダーで最新値に更新（副作用なし）
+const userRef = useRef(user);
+useEffect(() => { userRef.current = user; }, [user]);
 
-const handleConfirm = useCallback(() => {
-  confirmMutation.mutate({ confirmed_by: userIdRef.current }, { ... });
-}, [confirmMutation]);  // ✅ deps から user を除去、コールバックが安定
+const handleSubmit = useCallback(async () => {
+  await submitBilling({ staffId: userRef.current?.id }); // ref 経由
+}, []); // user を deps から除外
 ```
 
-### 2. billing-review.ts の useReturnBillingReview
+## 準拠すべきプロジェクト規約
 
-このケースは `mutationFn` が呼ばれる時点で最新の `user?.id` が必要。
-`useCallback` ではないため ref パターンよりも、上流コンポーネントから `userId` を渡す設計が清潔:
-
-```typescript
-// Before:
-export function useReturnBillingReview() {
-  const { user } = useAuth();
-  return useMutation({
-    mutationFn: async (reason: string) => {
-      await reviewApi.returnReview(user?.id ?? 0, reason);
-    },
-  });
-}
-
-// After: userId を引数として受け取る（hook からの useAuth 依存を排除）
-export function useReturnBillingReview(userId: number) {
-  return useMutation({
-    mutationFn: async (reason: string) => {
-      await reviewApi.returnReview(userId, reason);
-    },
-  });
-}
-
-// 呼び出し側 (BillingReviewSection.tsx) で:
-const { user } = useAuth();
-const userId = user?.id ?? 0;
-const returnMutation = useReturnBillingReview(userId);
-// → useAuth の購読はコンポーネント側に集約、hook は純粋
-```
-
-## 影響範囲
-
-| ファイル | 行 | 問題 |
-|---------|-----|------|
-| `features/medical-records/components/BillingReviewSection/BillingReviewSection.tsx` | 49,57,64 | `user` がコールバックのみで使用 |
-| `features/medical-records/api/billing-review.ts` | 56,63 | `user` が mutationFn のみで使用 |
-
-## 準拠すべきプロジェクト規約・ベストプラクティス
-
-### Vercel React Best Practices — `rerender-defer-reads`
-> Don't subscribe to state only used in callbacks.
-> Use refs to read state in callbacks without triggering re-renders.
-
-### Vercel React Best Practices — `rerender-use-ref-transient-values`
-> Use refs for transient frequent values to avoid re-renders.
+### `frontend/CODING_RULES.md` Section 12 — rerender-defer-reads
+> useAuth の user をコールバック内のみで使用する場合は `useRef` パターンに変更し、コンテキスト更新による不要な再レンダーを防ぐ
 
 ## 優先度
+**Low** — 不要な再レンダーの抑制。機能的影響なし。修正は20分（2ファイル）。
 
-**Low** — `user` が変わるのはログイン/ログアウト時のみで頻度は極めて低い。
-実害（不正な `confirmed_by` 等）はない。コールバックの安定性向上が主な効果。
+## 関連ファイル
+- `frontend/src/features/accounting/components/BillingReviewSection.tsx`
+- `frontend/src/features/accounting/hooks/billing-review.ts`（または類似パス）

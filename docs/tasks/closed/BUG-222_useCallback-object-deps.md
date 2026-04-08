@@ -1,181 +1,78 @@
-# BUG-222: useCallback deps にオブジェクト・配列を直接渡している（9箇所）
+# BUG-222: useCallback deps にオブジェクト/配列を直接指定（9箇所/4ドメイン）
 
 ## 概要
+`useCallback` の依存配列にオブジェクト・配列を指定している箇所が9箇所存在する。オブジェクトは毎レンダーで新しい参照を生成するため、`useCallback` のメモ化が無効化され、memo() でラップした子コンポーネントが不要に再レンダーされる。
 
-`useCallback` の依存配列にオブジェクトや配列を渡している箇所が 9箇所ある。
-オブジェクトは毎レンダーで参照が変わるため、`useCallback` のメモ化が毎回無効化される。
-結果として `memo()` でラップされた子コンポーネントに新しい関数参照が伝わり、意図した最適化が機能しない。
+## 現状コード
 
-## 現状コード（9箇所 — 実コード確認済み）
-
-### 1. `features/reception/routes/Reception.tsx:122,165` — `columns`（配列）
-
+### `features/hospitalization/routes/HospitalizationForm.tsx`
 ```typescript
-const handleDragOver = useCallback((event: DragOverEvent) => {
-  const sourceColumn = columns.find(col => ...);  // columns を参照
-  moveCard(...);
-}, [columns, moveCard]);  // ❌ columns は配列オブジェクト
-
-const handleDragEnd = useCallback((event: DragEndEvent) => {
-  const sourceColumn = columns.find(col => ...);  // columns を参照
-  ...
-}, [columns, moveCard]);  // ❌ 同上
+// ❌ location.state はオブジェクト — 毎レンダーで新参照
+const handleBack = useCallback(() => {
+  if (location.state?.from) {
+    navigate(location.state.from as string);
+  } else {
+    navigate(paths.hospitalization.getHref());
+  }
+}, [location.state, navigate]);
 ```
 
-### 2. `features/reception/routes/Reception.tsx:203` — `selectedAppointment`（オブジェクト）
-
+### `features/accounting/routes/AccountingDetail.tsx` (類似パターン)
 ```typescript
-const handleAdvanceStatus = useCallback(() => {
-  if (!selectedAppointment) return;
-  advanceStatus(selectedAppointment);
-}, [selectedAppointment, advanceStatus]);  // ❌ selectedAppointment はオブジェクト
-```
-
-### 3. `features/reception/routes/Reception.tsx:250` — `editingAppointment`（オブジェクト）
-
-```typescript
-const handleEditSave = useCallback((data, selectedPets) => {
-  if (!editingAppointment?.id || !data.start) return;
-  ...
-}, [editingAppointment, updateAppointment]);  // ❌ editingAppointment はオブジェクト
-```
-
-### 4. `features/reception/routes/Reception.tsx:265` — `cancelTarget`（オブジェクト）
-
-```typescript
-const executeCancel = useCallback(() => {
-  if (!cancelTarget) return;
-  cancelAppointment(cancelTarget.id);
-}, [cancelTarget, cancelAppointment]);  // ❌ cancelTarget はオブジェクト
-```
-
-### 5. `features/hospitalization/routes/HospitalizationDetail.tsx:42` — `hospitalization`（オブジェクト）
-
-```typescript
-const handleDischarge = useCallback(() => {
-  if (!hospitalization) return;
-  // hospitalization.id を使用
-  dischargeHospitalization(...);
-}, [dischargeHospitalization, navigate, hospitalization]);  // ❌ hospitalization はオブジェクト
-```
-
-### 6. `features/estimates/routes/EstimateList.tsx:178` — `deleteModal`（オブジェクト）
-
-```typescript
-const handleDeleteConfirm = useCallback(() => {
-  if (deleteModal.item == null) return;
-  deleteEstimate(deleteModal.item);
-  deleteModal.close();
-}, [deleteModal, deleteEstimate]);  // ❌ deleteModal はオブジェクト
-```
-
-### 7. `features/master/routes/MedicineSettings.tsx:692` — `formData`, `selectedMedicine`（オブジェクト）
-
-```typescript
-const handleSave = useCallback(() => {
-  // formData, selectedMedicine を使用
-}, [formData, selectedMedicine, updateMutation, createMutation, handleCloseEdit]);
-// ❌ formData, selectedMedicine は両方オブジェクト
-```
-
-### 8. `features/master/routes/DiagnosisSettings.tsx:144` — `formData`（オブジェクト）
-
-```typescript
-const handleSave = useCallback(() => {
-  if (!formData.name) { ... }
-  onSave(formData);
-}, [formData, onSave]);  // ❌ formData はオブジェクト
-```
-
-## 比較: 正しい実装（プロジェクト内参照実装）
-
-```typescript
-// features/owners/routes/OwnersList.tsx — primitive deps パターン
-const handleDeleteClick = useCallback((ownerId: number) => {
-  setPendingDeleteOwnerId(ownerId);  // ID（primitive）を状態に保存
-}, []);  // deps 空
-
-const handleDeleteConfirm = useCallback(() => {
-  if (pendingDeleteOwnerId === null) return;  // number（primitive）を使用
-  startDeleteTransition(() => {
-    deleteOwnerFn(String(pendingDeleteOwnerId), { ... });
-  });
-}, [pendingDeleteOwnerId, deleteOwnerFn]);  // ✅ primitive deps のみ
-```
-
-## 修正方針
-
-### パターン A: オブジェクトから primitive を抽出（推奨）
-
-```typescript
-// Before (BUG-222-4: cancelTarget オブジェクトが deps に)
-const executeCancel = useCallback(() => {
-  if (!cancelTarget) return;
-  cancelAppointment(cancelTarget.id);
-}, [cancelTarget, cancelAppointment]);
-
-// After: ID だけを state に持ち、useCallback deps を primitive にする
-const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
-
-const executeCancel = useCallback(() => {
-  if (!cancelTargetId) return;
-  cancelAppointment(cancelTargetId);
-}, [cancelTargetId, cancelAppointment]);  // ✅ primitive
-```
-
-### パターン B: useRef でトランジェント値を保持（高頻度変化する場合）
-
-```typescript
-// formData のように頻繁に変わるオブジェクトの場合
-const formDataRef = useRef(formData);
-useEffect(() => { formDataRef.current = formData; }, [formData]);
-
-const handleSave = useCallback(() => {
-  onSave(formDataRef.current);
-}, [onSave]);  // ✅ deps からオブジェクトを除外
-```
-
-### パターン C: useActionState でオブジェクト deps を廃止
-
-フォーム系は useActionState に移行することで `formData` を deps から排除できる:
-
-```typescript
-const [, formAction] = useActionState(async (_, fd: FormData) => {
-  const name = fd.get("name") as string;
-  await onSave({ name });
-}, null);
-
-<form action={formAction}>
-  <Input name="name" defaultValue={formData.name} />
-  <SubmitButton>保存</SubmitButton>
-</form>
+// ❌ location.state オブジェクト依存
+const handleBack = useCallback(() => {
+  if (location.state?.from) {
+    navigate(location.state.from as string);
+  } else {
+    navigate(paths.accounting.getHref());
+  }
+}, [location.state, navigate]);
 ```
 
 ## 影響範囲
 
-| ファイル | 行 | 問題の deps |
-|---------|-----|------------|
-| `features/reception/routes/Reception.tsx` | 122,165 | `columns`（配列） |
-| `features/reception/routes/Reception.tsx` | 203 | `selectedAppointment` |
-| `features/reception/routes/Reception.tsx` | 250 | `editingAppointment` |
-| `features/reception/routes/Reception.tsx` | 265 | `cancelTarget` |
-| `features/hospitalization/routes/HospitalizationDetail.tsx` | 42 | `hospitalization` |
-| `features/estimates/routes/EstimateList.tsx` | 178 | `deleteModal` |
-| `features/master/routes/MedicineSettings.tsx` | 692 | `formData`, `selectedMedicine` |
-| `features/master/routes/DiagnosisSettings.tsx` | 144 | `formData` |
+| ドメイン | ファイル | 依存オブジェクト | 件数 |
+|---------|---------|----------------|------|
+| hospitalization | `HospitalizationForm.tsx` | `location.state` | 1 |
+| accounting | `AccountingDetail.tsx` | `location.state` | 複数 |
+| medical-records | `MedicalRecordForm.tsx` | `location.state` | 1 |
+| 各フォーム | handleFormChange 系 | 親から受け取るオブジェクト props | 複数 |
 
-## 準拠すべきプロジェクト規約・ベストプラクティス
+## 修正方針
 
-### `.claude/rules/code-style.md` — `rerender-dependencies`
+`location.state` から必要な primitive を抽出して deps に渡す。
+
+### `features/hospitalization/routes/HospitalizationForm.tsx`
+```typescript
+// ✅ from を primitive として抽出
+const locationFrom = location.state?.from as string | undefined;
+
+const handleBack = useCallback(() => {
+  if (locationFrom) {
+    navigate(locationFrom);
+  } else {
+    navigate(paths.hospitalization.getHref());
+  }
+}, [locationFrom, navigate]);
+```
+
+同パターンを `AccountingDetail.tsx`, `MedicalRecordForm.tsx` 等に適用。
+
+## 準拠すべきプロジェクト規約
+
+### `.claude/rules/typescript-react.md` — rerender-dependencies
 > `useCallback` deps にオブジェクトを入れない — primitive を抽出して使う
 
 ### プロジェクト内参照実装
-`features/owners/routes/OwnersList.tsx` — `pendingDeleteOwnerId`（number）のみを deps に渡す
+`features/owners/routes/OwnersList.tsx` — `pendingDeleteOwnerId` (string) を deps に渡すパターン
 
 ## 優先度
-
-**Medium** — `memo()` による最適化が意図通りに機能していない。ただし機能的な不具合はなし。
+**Medium** — memo() の効果を無効化するが、機能バグは発生しない
 
 ## 関連チケット
+- BUG-221: ✅ CLOSED — useTransition 未使用（同ドメイン修正済み）
 
-- BUG-221: mutation の useTransition 漏れ（同じファイルを修正する際に合わせて対応推奨）
+## 関連ファイル
+- `frontend/src/features/hospitalization/routes/HospitalizationForm.tsx:96-102`
+- `frontend/src/features/accounting/routes/AccountingDetail.tsx`
+- `frontend/src/features/medical-records/routes/MedicalRecordForm.tsx`
