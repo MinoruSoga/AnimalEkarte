@@ -14,27 +14,29 @@ GitHub/Git ワークフロー標準ルール。
 ```
 production  (本番環境・直接push禁止)
   ↑ --no-ff merge（リリース確定時のみ）
-staging     (開発統合ブランチ / CI/CD → stg.noah-karte.com)
+staging     (ステージング環境 / CI/CD → stg.noah-karte.com・直接push禁止)
   ↑ PR merge
-feature/xxx (機能開発)
-bug/xxx     (バグ修正)
+main        (開発ブランチ・日常作業)
 ```
 
 **ルール:**
-- `staging`: **開発統合ブランチ**。すべての feature/bug ブランチはここから切り出し、ここへマージする
-- `production`: 本番環境（直接pushは禁止。`staging` からの --no-ff マージのみ）
-- `feature/*`: 機能ブランチ（`staging` から切り出し）
-- `bug/*`: バグ修正ブランチ（`staging` から切り出し）
-- `main`: **使用しない**（過去の経緯で存在するが新規作業対象外）
+- `main`: **開発ブランチ**。日常の作業・コミットはここで直接行う
+- `staging`: ステージング環境デプロイ用。`main` から PR を作成してマージする（直接 push 禁止）
+- `production`: 本番環境（直接 push 禁止。`staging` からの --no-ff マージのみ）
 
-**新ブランチの作成:**
+**日常の開発フロー:**
 ```bash
-# staging から切り出す
-git checkout staging
-git pull origin staging
-git checkout -b feature/xxx
-# または
-git checkout -b bug/xxx
+# main で作業
+git checkout main
+git pull origin main
+# 作業・コミット
+git add ...
+git commit -m "fix(xxx): ..."
+git push origin main
+
+# ステージングへ反映する場合
+# main → staging への PR を作成
+gh pr create --base staging --title "..."
 ```
 
 ### 2. コミットメッセージフォーマット
@@ -70,7 +72,7 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 
 ### 3. PR (Pull Request) ルール
 
-PR のベースブランチは必ず **`staging`**。
+PR のベースブランチは **`staging`**（`main` → `staging`）。
 
 ```markdown
 ## Summary
@@ -101,16 +103,13 @@ docker compose exec backend go test ./... -v
 docker compose exec frontend npm run test:run
 ```
 
-### 5. マージコミット規約
+### 5. マージ規約
 
 ```bash
-# feature/bug → staging
-git checkout staging
-git pull origin staging
-git merge --no-ff feature/xxx -m "Merge feature/xxx"
-git push origin staging
+# main → staging（PR マージ）
+# GitHub 上で PR をマージ（Squash or Merge commit）
 
-# staging → production (リリース時)
+# staging → production（リリース時）
 git checkout production
 git pull origin production
 git merge --no-ff staging -m "Release vX.Y.Z"
@@ -120,22 +119,20 @@ git push origin production --tags
 
 ## チェックリスト
 
-- [ ] ブランチ: `staging` から `feature/*` または `bug/*` を切り出し
-- [ ] PR ベース: `staging` に向ける（`production` や `main` に直接PR禁止）
+- [ ] 日常作業: `main` ブランチでコミット
+- [ ] PR: `main` → `staging` に向ける
 - [ ] コミット: `type(scope): subject` フォーマット
 - [ ] メッセージ本文: 変更理由・背景を記載
 - [ ] Co-Authored-By: Claude署名（AI生成時）
 - [ ] テスト: 全テストパス
 - [ ] Lint: golangci-lint, npm run lint パス
 - [ ] PR 説明: Summary + Test Plan
-- [ ] マージコミット: `--no-ff` で履歴保留
 
 ## 禁止事項
 
 - `production` へ直接 push ❌
-- `staging` へ直接 push（緊急 hotfix を除く）❌
+- `staging` へ直接 push ❌（必ず `main` から PR を経由する）
 - `git push --force` ❌（共有ブランチ）
 - コミット後に文脈なしで force push ❌
 - 大型ファイル（バイナリ・ログ）をコミット ❌
 - secrets（API key・password）をコミット ❌
-- `main` ブランチへの新規作業 ❌（廃止済み）
