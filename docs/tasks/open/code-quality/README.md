@@ -20,6 +20,10 @@
 | [BUG-221](BUG-221_mutation-not-wrapped-in-useTransition.md) | FE rerender-transitions | delete/update mutation が useTransition 未使用（7箇所/6ドメイン） | Medium | code-quality/ |
 | [BUG-222](BUG-222_useCallback-object-deps.md) | FE rerender-dependencies | useCallback deps にオブジェクト/配列（9箇所/4ドメイン） | Medium | code-quality/ |
 | [BUG-223](BUG-223_memo-default-nonprimitive-prop.md) | FE rerender-memo | DailyRecordSection の `plans = []` が memo を無効化 | Low | code-quality/ |
+| [BUG-224](BUG-224_derived-state-in-useEffect.md) | FE derived-state | useEffect で derived state を同期（owners/inventory 各1件） | Low | code-quality/ |
+| [BUG-225](BUG-225_StaffSelectionModal-not-lazy-loaded.md) | FE bundle | StaffSelectionModal が lazy() でロードされていない | Low | code-quality/ |
+| [BUG-226](BUG-226_filter-map-double-iteration.md) | FE js-perf | `.filter().map()` による二重イテレーション（4箇所） | Low | code-quality/ |
+| [BUG-227](BUG-227_static-selectitem-not-hoisted.md) | FE rendering-hoist | 静的 SelectItem JSX がモジュール定数に未巻き上げ（4箇所） | Low | code-quality/ |
 
 ## 誤報として撤回した指摘
 
@@ -51,3 +55,7 @@
 9. **BUG-221** (Medium): mutation を useTransition でラップ — 2時間（7箇所）
 10. **BUG-222** (Medium): useCallback deps を primitive に — 2時間（9箇所）
 11. **BUG-223** (Low): DailyRecordSection EMPTY_PLANS 定数化 — 5分
+12. **BUG-224** (Low): derived state を useEffect で同期 → レンダー中に直接導出 — 30分
+13. **BUG-225** (Low): StaffSelectionModal を lazy() に変更 — 10分
+14. **BUG-226** (Low): filter().map() → flatMap/reduce に統一 — 30分（4箇所）
+15. **BUG-227** (Low): 静的 SelectItem をモジュール定数に巻き上げ — 30分（4ファイル）
