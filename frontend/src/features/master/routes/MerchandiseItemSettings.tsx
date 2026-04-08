@@ -61,11 +61,13 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
 }: {
   item: FrontendMerchandiseItem | null;
   onClose: () => void;
   onSave: (d: MerchandiseFormData) => void;
   onDeleteRequest?: (i: FrontendMerchandiseItem) => void;
+  readOnly?: boolean;
 }) {
   const [f, setF] = useState<MerchandiseFormData>(() => ({
     name: item?.name ?? "",
@@ -130,13 +132,14 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
       title={f.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
-      action={handleAction}
+      action={readOnly ? undefined : handleAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<ShoppingBag className={LAYOUT.pageIcon.innerIcon} />}
       titlePlaceholder="品目名"
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カテゴリ">
@@ -280,8 +283,8 @@ export function MerchandiseItemSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       columns={[]}
       renderRow={() => null}
-      renderSidePanel={(props) => (
-        <MerchandiseSidePanel key={props.item?.id ?? "new"} {...props} />
+      renderSidePanel={({ readOnly, ...props }) => (
+        <MerchandiseSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />
       )}
     >
       <div className={STYLE.tableContainer}>
