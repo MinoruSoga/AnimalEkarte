@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { C } from "@/lib/design-tokens";
 
@@ -38,8 +37,6 @@ interface VaccinationFormProps {
   setNextDate: (v: string) => void;
   remarks: string;
   setRemarks: (v: string) => void;
-  onSave?: () => void;
-  isSaving?: boolean;
 }
 
 export const VaccinationForm = memo(function VaccinationForm({
@@ -64,8 +61,6 @@ export const VaccinationForm = memo(function VaccinationForm({
   setNextDate,
   remarks,
   setRemarks,
-  onSave,
-  isSaving = false,
 }: VaccinationFormProps) {
   return (
     <div className="col-span-6 flex flex-col gap-4">
@@ -237,16 +232,6 @@ export const VaccinationForm = memo(function VaccinationForm({
         />
       </div>
 
-      {/* Save Button */}
-      {onSave ? (
-        <Button
-          onClick={onSave}
-          disabled={isSaving}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          {isSaving ? "保存中..." : "保存"}
-        </Button>
-      ) : null}
     </div>
   );
 });

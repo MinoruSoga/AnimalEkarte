@@ -120,8 +120,6 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         setNextDate={setNextDate}
         remarks={remarks}
         setRemarks={setRemarks}
-        onSave={canCreate ? handleSave : undefined}
-        isSaving={createVaccinationMutation.isPending}
       />
 
       {/* Right Column: History */}
