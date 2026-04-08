@@ -17,13 +17,16 @@
 | [BUG-192](../infra/BUG-192_tsconfig-strict-false.md) | インフラ | tsconfig.json strict: false | High | infra/ |
 | [BUG-193](BUG-193_db-schema-confirmed-issues.md) | DB スキーマ | payments の deleted_at 欠落 + billing_items の updated_at 欠落 + リポジトリ clinicID 欠落 2件 | High | code-quality/ |
 | [BUG-194](BUG-194_vercel-react-best-practices-violations.md) | Vercel React BP | useDeferredValue 1件 + デザイントークン 19箇所/9ファイル | Medium | code-quality/ |
-| [BUG-221](BUG-221_mutation-not-wrapped-in-useTransition.md) | FE rerender-transitions | delete/update mutation が useTransition 未使用（7箇所/6ドメイン） | Medium | code-quality/ |
+| BUG-221 | FE rerender-transitions | ✅ **CLOSED** — 全 7箇所修正済み（2026-04-09） | — | closed/ |
 | [BUG-222](BUG-222_useCallback-object-deps.md) | FE rerender-dependencies | useCallback deps にオブジェクト/配列（9箇所/4ドメイン） | Medium | code-quality/ |
 | [BUG-223](BUG-223_memo-default-nonprimitive-prop.md) | FE rerender-memo | DailyRecordSection の `plans = []` が memo を無効化 | Low | code-quality/ |
 | [BUG-224](BUG-224_derived-state-in-useEffect.md) | FE derived-state | useEffect で derived state を同期（owners/inventory 各1件） | Low | code-quality/ |
 | [BUG-225](BUG-225_StaffSelectionModal-not-lazy-loaded.md) | FE bundle | StaffSelectionModal が lazy() でロードされていない | Low | code-quality/ |
 | [BUG-226](BUG-226_filter-map-double-iteration.md) | FE js-perf | `.filter().map()` による二重イテレーション（4箇所） | Low | code-quality/ |
 | [BUG-227](BUG-227_static-selectitem-not-hoisted.md) | FE rendering-hoist | 静的 SelectItem JSX がモジュール定数に未巻き上げ（4箇所） | Low | code-quality/ |
+| [BUG-228](BUG-228_trivial-useMemo.md) | FE rerender-memo | 軽量計算に useMemo を使用（OwnerSearchModal, MedicineSettings） | Low | code-quality/ |
+| [BUG-229](BUG-229_defer-reads-useAuth-in-callbacks.md) | FE rerender-defer | useAuth の user をコールバック内のみで使用（BillingReviewSection, billing-review.ts） | Low | code-quality/ |
+| [BUG-230](BUG-230_repeated-find-without-map.md) | FE js-index-maps | レンダーループ内で O(n) .find() を繰り返し（HospitalizationBoard, MedicineSettings） | Medium | code-quality/ |
 
 ## 誤報として撤回した指摘
 
@@ -52,10 +55,13 @@
 6. **BUG-193** (High): billing_items updated_at 追加 — 30分
 7. **BUG-190** (Medium): デザイントークン置換 — 要個別確認
 8. **BUG-191** (Medium): ShiftFormDialog useActionState 移行 — 1時間
-9. **BUG-221** (Medium): mutation を useTransition でラップ — 2時間（7箇所）
+9. ~~**BUG-221**~~ ✅ CLOSED（全 7箇所修正済み）
 10. **BUG-222** (Medium): useCallback deps を primitive に — 2時間（9箇所）
 11. **BUG-223** (Low): DailyRecordSection EMPTY_PLANS 定数化 — 5分
 12. **BUG-224** (Low): derived state を useEffect で同期 → レンダー中に直接導出 — 30分
 13. **BUG-225** (Low): StaffSelectionModal を lazy() に変更 — 10分
 14. **BUG-226** (Low): filter().map() → flatMap/reduce に統一 — 30分（4箇所）
 15. **BUG-227** (Low): 静的 SelectItem をモジュール定数に巻き上げ — 30分（4ファイル）
+16. **BUG-228** (Low): trivial useMemo 削除 — 10分（2箇所）
+17. **BUG-229** (Low): useAuth → ref パターンに変更 — 20分（2ファイル）
+18. **BUG-230** (Medium): .find() → Map に変更（HospitalizationBoard 優先） — 30分
