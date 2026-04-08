@@ -166,7 +166,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
       {!isNewRecord && medicalRecordId ? (
         <div className="shrink-0">
-          <ClinicalPlanSection medicalRecordId={medicalRecordId} onRegisterSave={onRegisterClinicalPlanSave} />
+          <ClinicalPlanSection medicalRecordId={medicalRecordId} onRegisterSave={onRegisterClinicalPlanSave} canEdit={canEdit} />
         </div>
       ) : null}
 
