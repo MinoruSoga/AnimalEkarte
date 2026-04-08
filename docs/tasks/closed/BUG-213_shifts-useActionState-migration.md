@@ -1,4 +1,4 @@
-# BUG-191: ShiftFormDialog が useActionState + SubmitButton 未使用
+# BUG-213: ShiftFormDialog が useActionState + SubmitButton 未使用
 
 | 項目 | 内容 |
 |------|------|

@@ -1,4 +1,4 @@
-# BUG-188: Handler 層で RespondError を使わず直接 c.JSON でエラー返却
+# BUG-208: Handler 層で RespondError を使わず直接 c.JSON でエラー返却
 
 | 項目 | 内容 |
 |------|------|

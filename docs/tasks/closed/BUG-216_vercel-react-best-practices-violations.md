@@ -1,4 +1,4 @@
-# BUG-194: Vercel React Best Practices 違反（grep 検証済み）
+# BUG-216: Vercel React Best Practices 違反（grep 検証済み）
 
 | 項目 | 内容 |
 |------|------|

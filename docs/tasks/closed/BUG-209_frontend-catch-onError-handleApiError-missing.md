@@ -1,4 +1,4 @@
-# BUG-188: catch / onError で handleApiError 未呼び出し（26箇所）
+# BUG-209: catch / onError で handleApiError 未呼び出し（26箇所）
 
 | 項目 | 内容 |
 |------|------|
