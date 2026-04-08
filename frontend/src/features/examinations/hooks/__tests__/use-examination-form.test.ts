@@ -369,7 +369,7 @@ describe('useExaminationForm — formAction（useActionState コールバック�
       await result.current.formAction(new FormData());
     });
 
-    expect(toast.error).toHaveBeenCalledWith('保存に失敗しました');
+    expect(toast.error).toHaveBeenCalledWith('保存中に予期しないエラーが発生しました。');
     expect(result.current.formState.success).toBe(false);
   });
 
