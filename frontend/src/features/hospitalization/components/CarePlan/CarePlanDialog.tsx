@@ -25,6 +25,25 @@ import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "@/featu
 import type { CarePlanTiming } from "@/types";
 import { C } from "@/lib/design-tokens";
 
+// rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ
+const CARE_PLAN_TYPE_ITEMS = (
+  <>
+    <SelectItem value="food">食事</SelectItem>
+    <SelectItem value="medicine">投薬</SelectItem>
+    <SelectItem value="treatment">処置・検査</SelectItem>
+    <SelectItem value="instruction">指示・その他</SelectItem>
+    <SelectItem value="item">持ち物</SelectItem>
+  </>
+);
+
+const CARE_PLAN_STATUS_ITEMS = (
+  <>
+    <SelectItem value="active">実施中</SelectItem>
+    <SelectItem value="completed">完了</SelectItem>
+    <SelectItem value="discontinued">中止</SelectItem>
+  </>
+);
+
 interface CarePlanDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -144,13 +163,7 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="food">食事</SelectItem>
-                                    <SelectItem value="medicine">投薬</SelectItem>
-                                    <SelectItem value="treatment">処置・検査</SelectItem>
-                                    <SelectItem value="instruction">指示・その他</SelectItem>
-                                    <SelectItem value="item">持ち物</SelectItem>
-                                </SelectContent>
+                                <SelectContent>{CARE_PLAN_TYPE_ITEMS}</SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
@@ -191,7 +204,7 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                                     className={`
                                         px-3 py-1.5 rounded-md ${H_STYLES.text.base} border cursor-pointer select-none transition-colors
                                         ${formData.timing?.includes(time)
-                                            ? `${C.bgMedicalBlue} text-white ${C.borderMedicalBlue}`
+                                            ? `${C.bgMedicalBlue} ${C.textWhite} ${C.borderMedicalBlue}`
                                             : `bg-white ${C.text} ${C.borderMedium} ${C.hoverBgPage}`}
                                     `}
                                 >
@@ -219,11 +232,7 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="active">実施中</SelectItem>
-                                <SelectItem value="completed">完了</SelectItem>
-                                <SelectItem value="discontinued">中止</SelectItem>
-                            </SelectContent>
+                            <SelectContent>{CARE_PLAN_STATUS_ITEMS}</SelectContent>
                         </Select>
                     </div>
                 </div>

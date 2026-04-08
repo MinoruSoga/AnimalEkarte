@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import React from "react";
+import { memo } from "react";
 
 // External
 import { Activity } from "lucide-react";
@@ -16,7 +16,7 @@ interface DiagnosisHeaderPhysicalExamProps {
   canEdit: boolean;
 }
 
-export const DiagnosisHeaderPhysicalExam = React.memo(function DiagnosisHeaderPhysicalExam({
+export const DiagnosisHeaderPhysicalExam = memo(function DiagnosisHeaderPhysicalExam({
   policy,
   setPolicy,
   canEdit,

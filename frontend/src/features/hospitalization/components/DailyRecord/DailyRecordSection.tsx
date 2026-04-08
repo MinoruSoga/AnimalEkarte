@@ -14,6 +14,8 @@ import { useDailyRecordLogic } from "@/features/hospitalization/hooks/use-daily-
 import { H_STYLES } from "@/features/hospitalization/styles";
 import type { DailyRecord, CarePlanItem, CreateVitalDTO, CreateCareLogDTO, Task } from "@/features/hospitalization/types";
 
+const EMPTY_PLANS: CarePlanItem[] = [];
+
 interface DailyRecordSectionProps {
     records: DailyRecord[];
     plans?: CarePlanItem[];
@@ -21,7 +23,7 @@ interface DailyRecordSectionProps {
     onAddLog: (date: string, data: CreateCareLogDTO) => void;
 }
 
-export const DailyRecordSection = memo(function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }: DailyRecordSectionProps) {
+export const DailyRecordSection = memo(function DailyRecordSection({ records, plans = EMPTY_PLANS, onAddVital, onAddLog }: DailyRecordSectionProps) {
     const [selectedDate, setSelectedDate] = useState(() => new Date());
     const currentDateStr = format(selectedDate, "yyyy-MM-dd");
     const { tasks, groupedTasks, timelineItems } = useDailyRecordLogic(records, plans, currentDateStr);

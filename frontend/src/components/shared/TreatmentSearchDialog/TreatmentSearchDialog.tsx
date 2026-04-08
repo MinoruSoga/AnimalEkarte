@@ -77,7 +77,7 @@ const CategoryFilter = memo(function CategoryFilter({
               className={cn(
                 "h-8 px-2.5 text-sm cursor-pointer hover:opacity-80 transition-all",
                 isSelected
-                  ? `${C.bgAccent} text-white ${C.bgAccentHover} border-transparent`
+                  ? `${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} border-transparent`
                   : `bg-white ${C.text} ${C.hoverBgLight} ${C.borderMedium}`
               )}
               onClick={() => onSelectCategory(isSelected ? null : category)}

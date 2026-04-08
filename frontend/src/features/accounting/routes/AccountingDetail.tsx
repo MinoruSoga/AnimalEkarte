@@ -405,6 +405,16 @@ interface InsuranceCardProps {
   insuranceAmount: number;
 }
 
+// rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ
+const INSURANCE_RATIO_ITEMS = (
+  <>
+    <SelectItem value="0.5">50%</SelectItem>
+    <SelectItem value="0.7">70%</SelectItem>
+    <SelectItem value="0.9">90%</SelectItem>
+    <SelectItem value="1.0">100%</SelectItem>
+  </>
+);
+
 const InsuranceCard = memo(function InsuranceCard({
   useInsurance,
   onUseInsuranceChange,
@@ -430,12 +440,7 @@ const InsuranceCard = memo(function InsuranceCard({
               <SelectTrigger className="h-10">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0.5">50%</SelectItem>
-                <SelectItem value="0.7">70%</SelectItem>
-                <SelectItem value="0.9">90%</SelectItem>
-                <SelectItem value="1.0">100%</SelectItem>
-              </SelectContent>
+              <SelectContent>{INSURANCE_RATIO_ITEMS}</SelectContent>
             </Select>
           </div>
           <div className={`flex justify-between items-center text-sm font-medium ${C.textStatusGreen} ${C.bgStatusGreen} p-2 rounded`}>

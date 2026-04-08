@@ -38,7 +38,7 @@ const StepIndicator = memo(function StepIndicator({ step, label, active }: { ste
     <div className={`flex items-center gap-1.5 text-xs ${active ? C.accent : C.text30}`}>
       <span
         className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
-          active ? `${C.bgAccent} text-white` : `${C.bgPrimary10} ${C.text30}`
+          active ? `${C.bgAccent} ${C.textWhite}` : `${C.bgPrimary10} ${C.text30}`
         }`}
       >
         {step}
@@ -316,7 +316,7 @@ export function ReservationFormModal({
             {canSave ? (
               <Button
                 onClick={handleSave}
-                className={`${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} h-10 text-sm min-w-[100px]`}
+                className={`${C.bgPrimary} ${C.textWhite} ${C.hoverBgPrimaryDark} h-10 text-sm min-w-[100px]`}
               >
                 {isEditMode ? "更新する" : "予約を確定"}
               </Button>

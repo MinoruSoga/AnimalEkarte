@@ -50,7 +50,7 @@ export function DischargeAlertDialog({ open, onOpenChange, onConfirm }: Discharg
                     <AlertDialogCancel className={H_STYLES.button.action}>キャンセル</AlertDialogCancel>
                     <AlertDialogAction
                         onClick={() => onConfirm(navigateToAccounting)}
-                        className={`${C.bgDanger} ${C.hoverBgDanger90} text-white ${H_STYLES.button.action}`}
+                        className={`${C.bgDanger} ${C.hoverBgDanger90} ${C.textWhite} ${H_STYLES.button.action}`}
                     >
                         退院処理を実行
                     </AlertDialogAction>

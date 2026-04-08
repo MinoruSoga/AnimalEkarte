@@ -153,7 +153,7 @@ export function LoginForm() {
       {/* Header */}
       <div className="text-center mb-8">
         <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrand}`}>
-          <Stethoscope className="size-[26px] text-white" />
+          <Stethoscope className={`size-[26px] ${C.textWhite}`} />
         </div>
         <h1 className={`text-[24px] font-bold leading-tight ${C.text} mb-1`}>
           ノア動物病院
@@ -218,7 +218,7 @@ export function LoginForm() {
 
         {/* Submit */}
         <SubmitButton
-          className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} ${C.hoverBgBrand} transition-colors text-white`}
+          className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} ${C.hoverBgBrand} transition-colors ${C.textWhite}`}
           loadingText="ログイン中..."
         >
           ログイン

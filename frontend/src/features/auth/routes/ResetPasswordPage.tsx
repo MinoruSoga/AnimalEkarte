@@ -69,7 +69,7 @@ export function ResetPasswordPage() {
       <div className={`min-h-screen flex items-center justify-center ${C.bgPage} p-4`}>
         <div className="w-full max-w-[380px] mx-auto text-center space-y-4">
           <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrand}`}>
-            <Stethoscope className="size-[26px] text-white" />
+            <Stethoscope className={`size-[26px] ${C.textWhite}`} />
           </div>
           <h1 className={`text-[24px] font-bold ${C.text}`}>無効なリンクです</h1>
           <p className={`text-sm ${C.text50}`}>
@@ -92,7 +92,7 @@ export function ResetPasswordPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrand}`}>
-            <Stethoscope className="size-[26px] text-white" />
+            <Stethoscope className={`size-[26px] ${C.textWhite}`} />
           </div>
           <h1 className={`text-[24px] font-bold leading-tight ${C.text} mb-1`}>
             新しいパスワードの設定
@@ -158,7 +158,7 @@ export function ResetPasswordPage() {
           <FormFieldError id="reset-error" message={state.error} />
 
           <SubmitButton
-            className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} hover:opacity-90 transition-opacity text-white`}
+            className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} hover:opacity-90 transition-opacity ${C.textWhite}`}
             loadingText="設定中..."
           >
             パスワードを設定する

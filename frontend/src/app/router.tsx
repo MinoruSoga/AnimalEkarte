@@ -59,6 +59,7 @@ export const router = createBrowserRouter([
             <Outlet />
           </RequirePermission>
         ),
+        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,

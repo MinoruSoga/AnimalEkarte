@@ -32,7 +32,7 @@ export const PermissionBadges = memo(function PermissionBadges({
     return (
       <div className="flex items-center gap-1">
         <span
-          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${C.text50} bg-neutral-100 border border-neutral-200`}
+          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${C.text50} ${C.bgPage} border ${C.borderLight}`}
         >
           閲覧のみ
         </span>
@@ -57,7 +57,7 @@ export const PermissionBadges = memo(function PermissionBadges({
       {activeBadges.map((badge) => (
         <span
           key={badge.key}
-          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${C.text50} bg-neutral-100 border border-neutral-200`}
+          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${C.text50} ${C.bgPage} border ${C.borderLight}`}
         >
           {badge.label}
         </span>

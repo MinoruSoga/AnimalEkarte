@@ -17,7 +17,7 @@ export const buttonVariants = cva(
           "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         primary: `${C.bgMedicalBlue} text-white ${C.hoverBgMedicalBlue90}`,
-        "ghost-danger": "text-red-600 hover:bg-red-50 hover:text-red-700",
+        "ghost-danger": "text-[#C0392B] hover:bg-[#C0392B]/5 transition-colors",
       },
       size: {
         default: "h-11 px-4 py-2 has-[>svg]:px-3",

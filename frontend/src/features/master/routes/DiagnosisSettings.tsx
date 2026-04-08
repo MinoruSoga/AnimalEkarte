@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
+import { useState, useRef, useMemo, useCallback, memo, useDeferredValue, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
@@ -117,6 +117,10 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
+  // rerender-dependencies: useRef でオブジェクト deps を回避
+  const formDataRef = useRef(formData);
+  useEffect(() => { formDataRef.current = formData; }, [formData]);
+
   const handleTitleChange = useCallback((v: string) => {
     setFormData((prev) => ({ ...prev, name: v }));
     setIsDirty(true);
@@ -134,14 +138,15 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
   }, []);
 
   const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
+    const current = formDataRef.current;
+    if (!current.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
+    onSave(current);
     setIsDirty(false);
-  }, [formData, onSave]);
+  }, [onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -211,6 +216,10 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
+  // rerender-dependencies: useRef でオブジェクト deps を回避
+  const formDataRef = useRef(formData);
+  useEffect(() => { formDataRef.current = formData; }, [formData]);
+
   const handleTitleChange = useCallback((v: string) => {
     setFormData((prev) => ({ ...prev, name: v }));
     setIsDirty(true);
@@ -233,14 +242,15 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   }, []);
 
   const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
+    const current = formDataRef.current;
+    if (!current.name.trim()) {
       setNameError("診断病名を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
+    onSave(current);
     setIsDirty(false);
-  }, [formData, onSave]);
+  }, [onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);

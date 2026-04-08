@@ -121,7 +121,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
           <Button
             size="sm"
             onClick={handleSearch}
-            className={`h-9 text-sm ${C.bgPrimary} text-white ${C.hoverBgPrimaryDark}`}
+            className={`h-9 text-sm ${C.bgPrimary} ${C.textWhite} ${C.hoverBgPrimaryDark}`}
           >
             <Search className={`mr-1.5 ${ICON.xs}`} />
             検索
@@ -200,7 +200,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
                             isDeceased
                               ? `${C.bgPage} ${C.textStatusGray} border-transparent cursor-not-allowed`
                               : isSelected(pet)
-                              ? `${C.bgPrimary} text-white ${C.hoverBgPrimaryDark}`
+                              ? `${C.bgPrimary} ${C.textWhite} ${C.hoverBgPrimaryDark}`
                               : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`
                           }`}
                           onClick={(e) => {

@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import React from "react";
+import { memo } from "react";
 
 // External
 import { CheckCircle } from "lucide-react";
@@ -27,7 +27,7 @@ interface ExaminationGroupProps {
   };
 }
 
-export const ExaminationGroup = React.memo(function ExaminationGroup({
+export const ExaminationGroup = memo(function ExaminationGroup({
   group,
 }: ExaminationGroupProps) {
   return (

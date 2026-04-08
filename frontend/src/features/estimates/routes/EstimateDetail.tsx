@@ -2,7 +2,7 @@ import { ICON, C } from "@/lib/design-tokens";
 import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 import { useNavigate, useParams } from 'react-router';
 import { FileText, Pencil, Trash2, ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useCallback, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog/ConfirmDialog';
@@ -21,13 +21,16 @@ export function EstimateDetail() {
   const { data: estimate, isLoading, isError } = useGetEstimate(id);
   const { mutate: deleteEstimate, isPending: isDeleting } = useDeleteEstimate();
   const { canEdit, canDelete } = usePermission("estimates");
+  const [isDeletePending, startDeleteTransition] = useTransition();
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     if (!id) return;
-    deleteEstimate(id, {
-      onSuccess: () => navigate('/estimates'),
+    startDeleteTransition(() => {
+      deleteEstimate(id, {
+        onSuccess: () => navigate('/estimates'),
+      });
     });
-  };
+  }, [id, deleteEstimate, navigate]);
 
   if (isLoading) {
     return <LoadingFallback />;
@@ -68,7 +71,7 @@ export function EstimateDetail() {
               variant="ghost-danger"
               size="sm"
               onClick={() => setShowDeleteDialog(true)}
-              disabled={isDeleting}
+              disabled={isDeleting || isDeletePending}
               className={`h-9 gap-1.5 text-sm border ${C.borderDanger20}`}
             >
               <Trash2 className={ICON.action} />
@@ -152,6 +155,7 @@ export function EstimateDetail() {
         description="この操作は取り消せません。"
         confirmLabel="削除"
         variant="destructive"
+        isPending={isDeletePending}
       />
     </PageLayout>
   );

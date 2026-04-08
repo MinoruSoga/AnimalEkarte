@@ -27,19 +27,22 @@ export function HospitalizationDetail() {
 
     const [showDischargeDialog, setShowDischargeDialog] = useState(false);
 
+    // rerender-dependencies: hospitalization オブジェクトを deps に入れず、petId の primitive を抽出
+    const hospitalizationPetId = hospitalization?.petId ? String(hospitalization.petId) : undefined;
+
     const handleDischargeConfirm = useCallback(async (navigateToAccounting: boolean) => {
         const result = await dischargeHospitalization(navigateToAccounting);
         if (result.success) {
             setShowDischargeDialog(false);
             if (navigateToAccounting && result.accountingId) {
                 navigate(paths.accounting.detail.getHref(String(result.accountingId)));
-            } else if (navigateToAccounting && hospitalization?.petId) {
-                navigate(`${paths.accounting.new.getHref()}?petId=${hospitalization.petId}`);
+            } else if (navigateToAccounting && hospitalizationPetId) {
+                navigate(`${paths.accounting.new.getHref()}?petId=${hospitalizationPetId}`);
             } else {
                 navigate(paths.hospitalization.getHref());
             }
         }
-    }, [dischargeHospitalization, navigate, hospitalization]);
+    }, [dischargeHospitalization, navigate, hospitalizationPetId]);
 
     if (isLoading || !hospitalization) {
         return <LoadingFallback />;

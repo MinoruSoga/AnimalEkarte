@@ -1,7 +1,7 @@
 // React/Framework
 import { memo } from "react";
 import type { ReactNode } from "react";
-import { useCallback, useDeferredValue, useMemo, useState, useActionState, useEffect } from "react";
+import { useCallback, useDeferredValue, useMemo, useState, useActionState, useEffect, useTransition } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -267,18 +267,21 @@ export function ClinicMasterSettings() {
   }, []);
 
   const pendingDeleteId = pendingDelete?.id ?? null;
+  const [isDeletePending, startDeleteTransition] = useTransition();
 
   const handleDeleteConfirm = useCallback(() => {
     if (pendingDeleteId === null) return;
-    deleteMutation.mutate(pendingDeleteId, {
-      onSuccess: () => {
-        setPendingDelete(null);
-        setIsEditing(false);
-        toast.success("削除しました");
-      },
-      onError: (error) => {
-        handleApiError(error, "削除");
-      },
+    startDeleteTransition(() => {
+      deleteMutation.mutate(pendingDeleteId, {
+        onSuccess: () => {
+          setPendingDelete(null);
+          setIsEditing(false);
+          toast.success("削除しました");
+        },
+        onError: (error) => {
+          handleApiError(error, "削除");
+        },
+      });
     });
   }, [pendingDeleteId, deleteMutation]);
 
@@ -634,6 +637,7 @@ export function ClinicMasterSettings() {
         confirmLabel="削除"
         variant="destructive"
         onConfirm={handleDeleteConfirm}
+        isPending={isDeletePending}
       />
     </>
   );

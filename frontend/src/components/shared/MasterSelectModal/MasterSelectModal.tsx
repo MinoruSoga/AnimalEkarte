@@ -117,7 +117,7 @@ export function MasterSelectModal({
                   <div className="flex items-center gap-2 shrink-0 ml-3">
                     {isSelected ? (
                       <div className={`size-5 rounded-full ${C.bgPrimary} flex items-center justify-center`}>
-                        <Check className={`${ICON.xs} text-white`} />
+                        <Check className={`${ICON.xs} ${C.textWhite}`} />
                       </div>
                     ) : (
                       <div className={`size-5 rounded-full border ${C.borderLight} group-hover:${C.borderPrimary} transition-colors`} />

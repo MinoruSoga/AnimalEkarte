@@ -172,7 +172,7 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
 function MerchandiseRowOverlay({ item }: { item: FrontendMerchandiseItem }) {
   return (
     <div
-      className={`flex items-center h-12 bg-white border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`}
+      className={`flex items-center h-12 ${C.bgWhite} border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`}
       style={{ width: "100%" }}
     >
       <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}>

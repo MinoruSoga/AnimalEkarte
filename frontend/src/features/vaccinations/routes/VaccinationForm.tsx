@@ -31,6 +31,23 @@ import { useVaccinationForm } from "../hooks/use-vaccination-form";
 import { usePermission } from "@/features/auth";
 import { ResourceVaccinations } from "@/types/generated/models";
 
+// rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ
+const VACCINE_TYPE_ITEMS = (
+  <>
+    <SelectItem value="1">混合ワクチン</SelectItem>
+    <SelectItem value="2">狂犬病ワクチン</SelectItem>
+  </>
+);
+
+const NEXT_SCHEDULE_ITEMS = (
+  <>
+    <SelectItem value="3weeks">3週後</SelectItem>
+    <SelectItem value="4weeks">4週後</SelectItem>
+    <SelectItem value="1year">1年後</SelectItem>
+    <SelectItem value="custom">以外（手動）</SelectItem>
+  </>
+);
+
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -171,7 +188,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
             ) : null}
             {canSubmit ? (
               <SubmitButton
-                className={`${C.bgAccent} ${C.bgAccentHover} text-white shadow-sm px-6 h-10 text-sm`}
+                className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} shadow-sm px-6 h-10 text-sm`}
               >
                 保存
               </SubmitButton>
@@ -194,7 +211,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* ===== 左カラム: 入力フォーム ===== */}
           <div className="lg:col-span-3">
-            <div className={`bg-white p-6 rounded-lg border ${C.borderLight} space-y-6`}>
+            <div className={`${C.bgWhite} p-6 rounded-lg border ${C.borderLight} space-y-6`}>
               {/* 接種日 / ワクチン */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -217,10 +234,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                     <SelectTrigger id="vaccine-select">
                       <SelectValue placeholder="選択してください" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">混合ワクチン</SelectItem>
-                      <SelectItem value="2">狂犬病ワクチン</SelectItem>
-                    </SelectContent>
+                    <SelectContent>{VACCINE_TYPE_ITEMS}</SelectContent>
                   </Select>
                   <FormFieldError message={fieldErrors.vaccineId} />
                 </div>
@@ -290,12 +304,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                     <SelectTrigger className="w-[130px]">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="3weeks">3週後</SelectItem>
-                      <SelectItem value="4weeks">4週後</SelectItem>
-                      <SelectItem value="1year">1年後</SelectItem>
-                      <SelectItem value="custom">以外（手動）</SelectItem>
-                    </SelectContent>
+                    <SelectContent>{NEXT_SCHEDULE_ITEMS}</SelectContent>
                   </Select>
                   <NotionDatePicker
                     value={nextDate}

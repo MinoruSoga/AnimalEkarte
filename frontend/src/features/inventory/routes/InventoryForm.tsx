@@ -57,7 +57,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
   onMarkDirty,
 }: BasicInfoSectionProps) {
   return (
-    <div className={`bg-white rounded-lg border ${C.borderMedium} p-6`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>基本情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
@@ -138,7 +138,7 @@ const StockInfoSection = memo(function StockInfoSection({
   minStockLevelError,
 }: StockInfoSectionProps) {
   return (
-    <div className={`bg-white rounded-lg border ${C.borderMedium} p-6`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>在庫情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -223,7 +223,7 @@ const SupplierInfoSection = memo(function SupplierInfoSection({
   onMarkDirty,
 }: SupplierInfoSectionProps) {
   return (
-    <div className={`bg-white rounded-lg border ${C.borderMedium} p-6`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>仕入先情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>

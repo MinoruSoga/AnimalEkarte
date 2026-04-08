@@ -75,7 +75,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
 }: FormFieldsSectionProps) {
   const canSubmit = isEdit ? canEdit : canCreate;
   return (
-    <div className={`bg-white p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
+    <div className={`${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
       {isConfirmed ? (
         <p className={`text-sm font-medium ${C.text60}`}>確定済みのため編集できません。</p>
       ) : null}
@@ -90,7 +90,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
               onSetFormData({ testTypeId: v, testType: item?.name ?? v });
             }}
           >
-            <SelectTrigger id="testTypeId" className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
+            <SelectTrigger id="testTypeId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent>
@@ -112,7 +112,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
               onSetFormData({ doctorId: v, doctor: staff?.name ?? v });
             }}
           >
-            <SelectTrigger id="doctorId" className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
+            <SelectTrigger id="doctorId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent>
@@ -142,7 +142,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
           disabled={isConfirmed}
           onValueChange={(v: "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定") => onSetFormData({ status: v })}
         >
-          <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
+          <SelectTrigger className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
             <SelectValue placeholder="選択してください" />
           </SelectTrigger>
           <SelectContent>
@@ -154,7 +154,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
       <div className="space-y-1.5">
         <Label className={`text-sm ${C.text60}`}>備考・所見</Label>
         <Textarea
-          className={`h-24 text-sm ${C.text} bg-white ${C.borderMedium} resize-none`}
+          className={`h-24 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium} resize-none`}
           placeholder="検査結果や備考を入力"
           value={formData.resultSummary || ""}
           disabled={isConfirmed}
@@ -179,7 +179,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
           <Button variant="outline" type="button" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
           {canSubmit ? (
             <SubmitButton
-              className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`}
+              className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} h-10 text-sm`}
             >
               保存
             </SubmitButton>

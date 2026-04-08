@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import React from "react";
+import { memo } from "react";
 
 // External
 import { FileText } from "lucide-react";
@@ -21,7 +21,7 @@ interface ExaminationFilterProps {
   onDateEndChange: (value: string) => void;
 }
 
-export const ExaminationFilter = React.memo(function ExaminationFilter({
+export const ExaminationFilter = memo(function ExaminationFilter({
   searchTerm,
   onSearchChange,
   dateStart,
@@ -36,7 +36,7 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
         {canCreate ? (
           <Button
             size="sm"
-            className={`${C.bgAccent} ${C.bgAccentHover} text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
+            className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
           >
             <FileText className={ICON.action} />
             検査取り込み

@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useTransition } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -65,6 +65,7 @@ export function CompanySettings() {
 
   const { data: company, isLoading } = useGetCompany();
   const updateMutation = useUpdateCompany();
+  const [isUpdatePending, startUpdateTransition] = useTransition();
 
   useEffect(() => {
     if (company) {
@@ -125,14 +126,16 @@ export function CompanySettings() {
       invoice_registration_number: formData.invoice_registration_number || undefined,
     };
 
-    updateMutation.mutate(req, {
-      onSuccess: () => {
-        toast.success("法人情報を更新しました");
-        setIsEditing(false);
-      },
-      onError: (error) => {
-        handleApiError(error, "更新");
-      },
+    startUpdateTransition(() => {
+      updateMutation.mutate(req, {
+        onSuccess: () => {
+          toast.success("法人情報を更新しました");
+          setIsEditing(false);
+        },
+        onError: (error) => {
+          handleApiError(error, "更新");
+        },
+      });
     });
   }, [formData, updateMutation]);
 
@@ -402,6 +405,7 @@ export function CompanySettings() {
             <button
               type="button"
               onClick={handleSave}
+              disabled={isUpdatePending}
               className={STYLE.sidePeekSaveBtn}
             >
               保存

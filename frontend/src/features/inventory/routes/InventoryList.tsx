@@ -7,7 +7,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
-import { Plus, Package, FileSpreadsheet, AlertTriangle, CircleDot, FolderOpen } from "lucide-react";
+import { Plus, Package, AlertTriangle, CircleDot, FolderOpen } from "lucide-react";
 
 // Types
 import type {
@@ -19,7 +19,6 @@ import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
 
 // Internal
 import { paths } from "@/config/paths";
-import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -247,16 +246,6 @@ export function InventoryList() {
       icon={<Package className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">
-          {canCreate ? (
-            <Button
-              variant="outline"
-              className="h-10 text-base gap-2 bg-white"
-              onClick={() => {}}
-            >
-              <FileSpreadsheet className={ICON.action} />
-              データ取込
-            </Button>
-          ) : null}
           {canCreate ? (
             <PrimaryButton onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />

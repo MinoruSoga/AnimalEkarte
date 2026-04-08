@@ -129,7 +129,7 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
               className={[
                 "flex items-center gap-1.5 px-3 h-7 rounded-full text-xs font-medium border transition-colors",
                 active
-                  ? "text-white border-transparent"
+                  ? `${C.textWhite} border-transparent`
                   : `${C.text60} ${C.borderLight} bg-white ${C.hoverBgLight}`,
               ].join(" ")}
               style={active ? { backgroundColor: m.color, borderColor: m.color } : {}}
@@ -189,20 +189,22 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
                 return def ? `${def.label}${def.unit ? ` (${def.unit})` : ""}` : value;
               }}
             />
-            {METRICS.filter((m) => activeMetrics.has(m.key)).map((m) => (
-              <Line
-                key={m.key}
-                yAxisId={m.yAxisId}
-                type="monotone"
-                dataKey={m.key}
-                name={m.key}
-                stroke={m.color}
-                strokeWidth={2}
-                dot={{ r: 4, fill: m.color, strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: m.color }}
-                connectNulls
-              />
-            ))}
+            {METRICS.flatMap((m) =>
+              activeMetrics.has(m.key) ? [
+                <Line
+                  key={m.key}
+                  yAxisId={m.yAxisId}
+                  type="monotone"
+                  dataKey={m.key}
+                  name={m.key}
+                  stroke={m.color}
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: m.color, strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: m.color }}
+                  connectNulls
+                />
+              ] : []
+            )}
           </LineChart>
         </ResponsiveContainer>
       )}

@@ -220,7 +220,7 @@ function ActionButtons({
           </>
         ) : null}
         {isTrimming ? (
-          <Button onClick={onCreateTrimming} className={`h-10 text-sm ${C.bgDiscount} ${C.bgDiscountHover} text-white rounded-[4px] transition-colors shadow-none border-transparent`}>
+          <Button onClick={onCreateTrimming} className={`h-10 text-sm ${C.bgDiscount} ${C.bgDiscountHover} ${C.textWhite} rounded-[4px] transition-colors shadow-none border-transparent`}>
             <Scissors className={ICON.action} />
             施術記録
           </Button>

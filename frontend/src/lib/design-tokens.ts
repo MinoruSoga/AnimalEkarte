@@ -441,6 +441,7 @@ export const C = {
   /** Group-hover bg primary (settings row icon) */
   groupHoverBgPrimary: "group-hover:bg-[#37352F]",
   groupHoverTextWhite: "group-hover:text-white",
+  textWhite: "text-white",
 
   /* ── Focus utilities ── */
   focusBgPage:   "focus:bg-[#F7F6F3]",
@@ -745,13 +746,13 @@ export const STYLE = {
 
   /* ── Primary Button ── */
   btnPrimary:
-    `${C.bgAccent} ${C.bgAccentHover} text-white h-11 px-4 text-base shadow-none border-transparent rounded-[4px] transition-colors`,
+    `${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} h-11 px-4 text-base shadow-none border-transparent rounded-[4px] transition-colors`,
   btnGhost:
     `${C.text60} ${C.hoverText} hover:bg-transparent`,
   btnAccent:
-    `text-white ${C.bgAccent} ${C.bgAccentHover} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.textWhite} ${C.bgAccent} ${C.bgAccentHover} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
   btnDanger:
-    `${C.bgDanger} text-white ${C.hoverBgDanger90} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
   btnOutline:
     `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-base rounded-[4px] shadow-[var(--notion-shadow-btn)] transition-colors`,
 

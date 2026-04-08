@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useState } from "react";
+import { useDeferredValue, useState, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,7 @@ interface VaccinationHistoryProps {
   isLoading?: boolean;
 }
 
-export const VaccinationHistory = React.memo(function VaccinationHistory({
+export const VaccinationHistory = memo(function VaccinationHistory({
   historyItems,
   isLoading = false,
 }: VaccinationHistoryProps) {
@@ -135,7 +135,7 @@ export const VaccinationHistory = React.memo(function VaccinationHistory({
                 <Button
                   variant="outline"
                   size="sm"
-                  className={`h-10 w-[50px] text-sm ${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} hover:text-white border-transparent px-0`}
+                  className={`h-10 w-[50px] text-sm ${C.bgPrimary} ${C.textWhite} ${C.hoverBgPrimaryDark} hover:text-white border-transparent px-0`}
                 >
                   複製
                 </Button>

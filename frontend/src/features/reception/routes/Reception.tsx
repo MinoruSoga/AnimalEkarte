@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useCallback, useMemo, lazy, Suspense } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -61,26 +61,36 @@ export function Reception() {
     // スタッフAPIから医師フィルター選択肢を動的生成
     const doctors = useMemo(() => [
       { id: "all", name: "全て" },
-      ...staffs.filter((s) => s.is_active).map((s) => ({ id: s.name, name: s.name })),
+      ...staffs.flatMap((s) => s.is_active ? [{ id: s.name, name: s.name }] : []),
       { id: "医師指名なし", name: "医師指名なし" },
     ], [staffs]);
 
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+    // rerender-dependencies: primitive id で deps 安定化
+    const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
 
     // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingAppointment, setEditingAppointment] = useState<Partial<ReservationAppointment> | null>(null);
+    // rerender-dependencies: primitive id で deps 安定化
+    const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
 
     // Cancel Confirm Dialog State
     const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
     const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
+    // rerender-dependencies: primitive id で deps 安定化
+    const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
 
     const [isFilterOpen, setIsFilterOpen] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
     );
+
+    // rerender-dependencies: columns オブジェクト配列を useRef で参照し deps から除外
+    const columnsRef = useRef(columns);
+    useEffect(() => { columnsRef.current = columns; }, [columns]);
 
     const handleDragOver = useCallback((event: DragOverEvent) => {
         const { active, over } = event;
@@ -91,10 +101,12 @@ export function Reception() {
         // Use over.data.columnTitle for reliable column detection
         const targetTitle = ((over.data?.current as Record<string, unknown>)?.columnTitle as string) || (over.id as string).replace("column-", "");
 
-        const sourceColumn = columns.find(col => col.appointments.some(a => a.id === activeId));
+        // rerender-dependencies: columns は ref 経由で参照
+        const cols = columnsRef.current;
+        const sourceColumn = cols.find(col => col.appointments.some(a => a.id === activeId));
         if (!sourceColumn) return;
 
-        const targetCol = columns.find(c => c.title === targetTitle);
+        const targetCol = cols.find(c => c.title === targetTitle);
         if (!targetCol) return;
 
         const sourceTitle = sourceColumn.title;
@@ -118,7 +130,7 @@ export function Reception() {
         if (sourceTitle === targetTitle && dragIndex === hoverIndex) return;
 
         moveCard(dragIndex, hoverIndex, sourceTitle, targetTitle, activeId);
-    }, [columns, moveCard]);
+    }, [moveCard]);
 
     const handleDragEnd = useCallback((event: DragEndEvent) => {
         const { active, over } = event;
@@ -130,10 +142,12 @@ export function Reception() {
         // This avoids collision detection ambiguity with closestCorners
         const targetTitle = ((over.data?.current as Record<string, unknown>)?.columnTitle as string) || (over.id as string).replace("column-", "");
 
-        const sourceColumn = columns.find(col => col.appointments.some(a => a.id === activeId));
+        // rerender-dependencies: columns は ref 経由で参照
+        const cols = columnsRef.current;
+        const sourceColumn = cols.find(col => col.appointments.some(a => a.id === activeId));
         if (!sourceColumn) return;
 
-        const targetCol = columns.find(c => c.title === targetTitle);
+        const targetCol = cols.find(c => c.title === targetTitle);
         if (!targetCol) return;
 
         // Find the card ID in the target column to determine insert position
@@ -160,7 +174,7 @@ export function Reception() {
 
         // Call moveCard with draggedCardId for reliable card identification
         moveCard(dragIndex, hoverIndex, sourceColumn.title, targetTitle, activeId);
-    }, [columns, moveCard]);
+    }, [moveCard]);
 
     const todayLabel = format(new Date(), "yyyy年M月d日 (E)", { locale: ja });
 
@@ -191,15 +205,23 @@ export function Reception() {
 
     const handleCardClick = useCallback((appointment: Appointment) => {
         setSelectedAppointment(appointment);
+        setSelectedAppointmentId(appointment.id);
         setModalOpen(true);
     }, []);
 
+    // rerender-dependencies: selectedAppointment オブジェクトを ref 経由で参照し primitive id を deps に使用
+    const selectedAppointmentRef = useRef(selectedAppointment);
+    useEffect(() => { selectedAppointmentRef.current = selectedAppointment; }, [selectedAppointment]);
+
     const handleAdvanceStatus = useCallback(() => {
-        if (!selectedAppointment) return;
-        advanceStatus(selectedAppointment);
+        if (!selectedAppointmentId) return;
+        const appt = selectedAppointmentRef.current;
+        if (!appt) return;
+        advanceStatus(appt);
         setModalOpen(false);
         setSelectedAppointment(null);
-    }, [selectedAppointment, advanceStatus]);
+        setSelectedAppointmentId(null);
+    }, [selectedAppointmentId, advanceStatus]);
 
     const handleEditAppointment = useCallback((appointment: Appointment) => {
         // Appointment を ReservationAppointment のフォームデータに変換
@@ -222,17 +244,22 @@ export function Reception() {
         };
 
         setEditingAppointment(reservationFormData);
+        setEditingAppointmentId(appointment.id);
         setIsEditModalOpen(true);
         setModalOpen(false);
     }, []);
 
+    // rerender-dependencies: editingAppointment オブジェクトを ref 経由で参照し primitive id を deps に使用
+    const editingAppointmentRef = useRef(editingAppointment);
+    useEffect(() => { editingAppointmentRef.current = editingAppointment; }, [editingAppointment]);
+
     const handleEditSave = useCallback((data: Partial<ReservationAppointment>, selectedPets: Pet[]) => {
-        if (!editingAppointment?.id || !data.start) return;
+        if (!editingAppointmentId || !data.start) return;
 
         const updatedTime = format(data.start, "HH:mm");
 
         const updatedAppointment: Appointment = {
-            id: editingAppointment.id,
+            id: editingAppointmentId,
             time: updatedTime,
             ownerName: selectedPets[0]?.ownerName || data.ownerName || "",
             petName: selectedPets[0]?.name || data.petName || "",
@@ -248,21 +275,24 @@ export function Reception() {
         updateAppointment(updatedAppointment);
         setIsEditModalOpen(false);
         setEditingAppointment(null);
-    }, [editingAppointment, updateAppointment]);
+        setEditingAppointmentId(null);
+    }, [editingAppointmentId, updateAppointment]);
 
     const handleCancelAppointment = useCallback((appointment: Appointment) => {
         setCancelTarget(appointment);
+        setCancelTargetId(appointment.id);
         setCancelConfirmOpen(true);
     }, []);
 
     const executeCancel = useCallback(() => {
-        if (!cancelTarget) return;
-        cancelAppointment(cancelTarget.id);
+        if (!cancelTargetId) return;
+        cancelAppointment(cancelTargetId);
         toast.success("予約を取り消しました");
         setModalOpen(false);
         setCancelConfirmOpen(false);
         setCancelTarget(null);
-    }, [cancelTarget, cancelAppointment]);
+        setCancelTargetId(null);
+    }, [cancelTargetId, cancelAppointment]);
 
     const columnElements = useMemo(() =>
         filteredColumns.map((column) => (

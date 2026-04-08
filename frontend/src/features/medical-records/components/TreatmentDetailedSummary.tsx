@@ -1,5 +1,5 @@
 // React/Framework
-import React from "react";
+import { memo } from "react";
 
 // Internal
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
@@ -18,7 +18,7 @@ interface TreatmentDetailedSummaryProps {
   disabled?: boolean;
 }
 
-export const TreatmentDetailedSummary = React.memo(function TreatmentDetailedSummary({
+export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
   subtotal,
   tax,
   total,

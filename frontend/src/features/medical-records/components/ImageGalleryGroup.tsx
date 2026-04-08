@@ -1,5 +1,5 @@
 // React/Framework
-import React, { useCallback } from "react";
+import { useCallback, memo } from "react";
 
 // External
 import { Trash2, FileText } from "lucide-react";
@@ -25,7 +25,7 @@ interface ImageGalleryGroupProps {
   isDeletingId?: number | null;
 }
 
-export const ImageGalleryGroup = React.memo(function ImageGalleryGroup({
+export const ImageGalleryGroup = memo(function ImageGalleryGroup({
   group,
   onDeleteImage,
   isDeletingId,

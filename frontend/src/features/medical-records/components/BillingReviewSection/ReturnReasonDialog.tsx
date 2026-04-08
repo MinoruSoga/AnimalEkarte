@@ -40,7 +40,7 @@ export function ReturnReasonDialog({
       description="差し戻しの理由を入力してください。"
       onSave={handleSubmit}
       saveLabel="差し戻す"
-      saveClassName={`${C.bgDanger} ${C.hoverBgDanger90} text-white`}
+      saveClassName={`${C.bgDanger} ${C.hoverBgDanger90} ${C.textWhite}`}
       isPending={isPending}
       isSaveDisabled={!reason.trim()}
     >

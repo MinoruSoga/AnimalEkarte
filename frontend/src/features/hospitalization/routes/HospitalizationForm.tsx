@@ -1,5 +1,5 @@
 // React/Framework
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useTransition } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -43,6 +43,7 @@ export function HospitalizationForm() {
   const canSubmit = hospitalizationId ? canEdit : canCreate;
   const deleteMutation = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isDeletePending, startDeleteTransition] = useTransition();
 
   const {
       isEdit,
@@ -102,11 +103,13 @@ export function HospitalizationForm() {
 
   const handleDelete = useCallback(() => {
     if (!hospitalizationId) return;
-    deleteMutation.mutate(hospitalizationId, {
-      onSuccess: () => {
-        navigate(paths.hospitalization.getHref());
-      },
-      onError: (error) => handleApiError(error, "削除"),
+    startDeleteTransition(() => {
+      deleteMutation.mutate(hospitalizationId, {
+        onSuccess: () => {
+          navigate(paths.hospitalization.getHref());
+        },
+        onError: (error) => handleApiError(error, "削除"),
+      });
     });
   }, [hospitalizationId, deleteMutation, navigate]);
 
@@ -171,7 +174,7 @@ export function HospitalizationForm() {
             ) : null}
             {canSubmit ? (
               <SubmitButton
-              className={`${C.bgAccent} ${C.bgAccentHover} text-white rounded-[6px] h-10 text-sm px-4`}
+              className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} rounded-[6px] h-10 text-sm px-4`}
               >
               {hospitalizationId ? "更新" : "登録"}
               </SubmitButton>
@@ -255,6 +258,7 @@ export function HospitalizationForm() {
         confirmLabel="削除"
         variant="destructive"
         onConfirm={handleDelete}
+        isPending={isDeletePending}
       />
     </>
   );

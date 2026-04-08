@@ -1,17 +1,16 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useDeferredValue, useCallback, useEffect, useMemo } from "react";
+import { useState, useDeferredValue, useCallback, useEffect, useMemo, useTransition } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
-import { Plus, Syringe, FileSpreadsheet, Calendar, User, Pencil, Trash2 } from "lucide-react";
+import { Plus, Syringe, Calendar, User, Pencil, Trash2 } from "lucide-react";
 
 // Internal
 import { paths } from "@/config/paths";
-import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -67,6 +66,7 @@ export function VaccinationList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const deleteMutation = useDeleteVaccination();
+  const [isDeletePending, startDeleteTransition] = useTransition();
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearchTerm;
@@ -141,8 +141,10 @@ export function VaccinationList() {
 
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDeleteId) return;
-    deleteMutation.mutate(pendingDeleteId, {
-      onSuccess: () => setPendingDeleteId(null),
+    startDeleteTransition(() => {
+      deleteMutation.mutate(pendingDeleteId, {
+        onSuccess: () => setPendingDeleteId(null),
+      });
     });
   }, [pendingDeleteId, deleteMutation]);
 
@@ -230,12 +232,6 @@ export function VaccinationList() {
       headerAction={
         <div className="flex items-center gap-2">
           {canCreate ? (
-            <Button variant="outline" className="h-10 text-base gap-2 bg-white" onClick={() => {}}>
-              <FileSpreadsheet className={ICON.action} />
-              データ取込
-            </Button>
-          ) : null}
-          {canCreate ? (
             <PrimaryButton onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
               新規登録
@@ -292,6 +288,7 @@ export function VaccinationList() {
       confirmLabel="削除"
       variant="destructive"
       onConfirm={handleDeleteConfirm}
+      isPending={isDeletePending}
     />
     </>
   );

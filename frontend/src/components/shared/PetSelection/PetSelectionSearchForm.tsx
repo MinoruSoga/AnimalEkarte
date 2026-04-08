@@ -68,7 +68,7 @@ export function PetSelectionSearchForm({ searchParams, setSearchParams, onSearch
         <Button
           size="sm"
           onClick={onSearch}
-          className={cn("gap-2 text-white h-11 text-sm", C.bgAccent, C.bgAccentHover)}
+          className={cn("gap-2 h-11 text-sm", C.textWhite, C.bgAccent, C.bgAccentHover)}
         >
           <Search className={ICON.action} />
           検索

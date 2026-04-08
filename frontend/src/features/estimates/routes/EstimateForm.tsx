@@ -298,7 +298,7 @@ function EstimateFormContent({ id }: { id?: string }) {
             <SubmitButton
               size="sm"
               disabled={!form.title.trim()}
-              className={`h-9 ${C.bgPrimary} ${C.hoverBgPrimaryDark} text-white text-sm`}
+              className={`h-9 ${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} text-sm`}
             >
               {isEdit ? '更新' : '作成'}
             </SubmitButton>

@@ -89,7 +89,7 @@ export function PatientInfoCard({
               {petName}
             </span>
             {isDeceased ? (
-              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${C.bgDanger} text-white uppercase tracking-wider ml-1`}>
+              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase tracking-wider ml-1`}>
                 【死亡】
               </span>
             ) : null}

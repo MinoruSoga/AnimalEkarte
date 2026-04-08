@@ -1,6 +1,6 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
-import { useState, useMemo, useDeferredValue, useCallback } from "react";
+import { useState, useMemo, useDeferredValue, useCallback, useTransition } from "react";
 import { useNavigate } from "react-router";
 import { usePermission } from "@/features/auth";
 import { useModalState } from "@/hooks/use-modal-state";
@@ -85,6 +85,7 @@ export function EstimateList() {
 
   const { data: result, isLoading, isError } = useGetEstimates();
   const { mutate: deleteEstimate } = useDeleteEstimate();
+  const [isDeletePending, startDeleteTransition] = useTransition();
 
   // フィルタ + 検索 + ソートを適用
   const filtered = useMemo(() => {
@@ -172,9 +173,12 @@ export function EstimateList() {
   });
 
   const handleDeleteConfirm = useCallback(() => {
-    if (deleteModal.item == null) return;
-    deleteEstimate(deleteModal.item);
-    deleteModal.close();
+    const itemId = deleteModal.item;
+    if (itemId == null) return;
+    startDeleteTransition(() => {
+      deleteEstimate(itemId);
+      deleteModal.close();
+    });
   }, [deleteModal, deleteEstimate]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
@@ -288,6 +292,7 @@ export function EstimateList() {
         description="この操作は取り消せません。"
         confirmLabel="削除"
         variant="destructive"
+        isPending={isDeletePending}
       />
     </PageLayout>
   );
