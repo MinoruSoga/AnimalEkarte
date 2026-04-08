@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { getHospitalizationStatusColor, getHospitalizationTypeColor } from "@/utils/status-helpers";
 import { C, STYLE } from "@/lib/design-tokens";
+import { formatDate } from "@/utils/format/date";
 
 // Types
 import type { Hospitalization } from "@/types";
@@ -52,8 +53,8 @@ export function HospitalizationListView({ hospitalizations, onNavigate, canEdit 
               {h.hospitalizationType}
             </StatusBadge>
           </TableCell>
-          <TableCell className={`${STYLE.tableCellMono}`}>{h.startDate}</TableCell>
-          <TableCell className={`${STYLE.tableCellMono} hidden lg:table-cell`}>{h.endDate}</TableCell>
+          <TableCell className={`${STYLE.tableCellMono}`}>{formatDate(h.startDate)}</TableCell>
+          <TableCell className={`${STYLE.tableCellMono} hidden lg:table-cell`}>{formatDate(h.endDate)}</TableCell>
           <TableCell className="py-2">
             <StatusBadge colorClass={getHospitalizationStatusColor(h.status)}>
               {h.status}
