@@ -93,6 +93,11 @@ func allModels() []any {
 		&model.Payment{},
 		&model.BillingRefund{},
 		&model.MerchandiseItem{},
+		// LINE予約システム
+		&model.ReservationSetting{},
+		&model.ReservationCustomer{},
+		&model.StaffExcludedServiceType{},
+		&model.ShiftEntryBreak{},
 	}
 }
 
@@ -255,12 +260,14 @@ func TestSchemaDrift(t *testing.T) {
 			}
 
 			// 構造体型のリレーションフィールドをスキップ（Time, DeletedAt は除外）
-			// スライス型はリレーションの場合が多いが、pq.StringArray 等の配列カラムは除外しない
+			// スライス型はリレーションの場合が多いが、pq.StringArray や []byte(JSONB) は除外しない
 			fieldType := field.Type
 			if fieldType.Kind() == reflect.Ptr {
 				fieldType = fieldType.Elem()
 			}
-			if fieldType.Kind() == reflect.Slice && fieldType.Name() != "StringArray" {
+			isStringArray := fieldType.Name() == "StringArray"
+			isByteSlice := fieldType.Kind() == reflect.Slice && fieldType.Elem().Kind() == reflect.Uint8
+			if fieldType.Kind() == reflect.Slice && !isStringArray && !isByteSlice {
 				continue
 			}
 			if fieldType.Kind() == reflect.Struct && fieldType.Name() != "Time" && fieldType.Name() != "DeletedAt" {
