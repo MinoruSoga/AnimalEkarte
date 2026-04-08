@@ -1,6 +1,6 @@
 # Frontend + Backend コード規約準拠監査結果
 
-**実施日**: 2026-04-08
+**実施日**: 2026-04-09（第4回監査まで反映）
 **検証方法**: 監査エージェント → grep/Read による実コード検証
 **注意**: 全指摘は実コードで検証済み。スポットチェック未実施の箇所は明記している。
 
@@ -27,6 +27,10 @@
 | [BUG-228](BUG-228_trivial-useMemo.md) | FE rerender-memo | 軽量計算に useMemo を使用（OwnerSearchModal, MedicineSettings） | Low | code-quality/ |
 | [BUG-229](BUG-229_defer-reads-useAuth-in-callbacks.md) | FE rerender-defer | useAuth の user をコールバック内のみで使用（BillingReviewSection, billing-review.ts） | Low | code-quality/ |
 | [BUG-230](BUG-230_repeated-find-without-map.md) | FE js-index-maps | レンダーループ内で O(n) .find() を繰り返し（HospitalizationBoard, MedicineSettings） | Medium | code-quality/ |
+| [BUG-231](BUG-231_functional-setstate-hospitalization-form.md) | FE rerender-functional-setstate | use-hospitalization-form.ts の addTreatmentPlan 等 3箇所が prev=> 未使用 | Medium | code-quality/ |
+| [BUG-232](BUG-232_useEffect-object-deps.md) | FE rerender-dependencies | useEffect deps にオブジェクト（hospitalization + estimate 各1件） | Medium | code-quality/ |
+| [BUG-233](BUG-233_content-visibility-unpaginated-lists.md) | FE rendering-perf | MedicineSettings/TreatmentPlanMaster の全件レンダーに content-visibility 未適用 | Medium | code-quality/ |
+| [BUG-234](BUG-234_set-map-lookups.md) | FE js-set-map | O(n) .some()/.includes() を Set で O(1) に（PetSelection 等3箇所） | Low | code-quality/ |
 
 ## 誤報として撤回した指摘
 
@@ -65,3 +69,7 @@
 16. **BUG-228** (Low): trivial useMemo 削除 — 10分（2箇所）
 17. **BUG-229** (Low): useAuth → ref パターンに変更 — 20分（2ファイル）
 18. **BUG-230** (Medium): .find() → Map に変更（HospitalizationBoard 優先） — 30分
+19. **BUG-231** (Medium): functional setState — use-hospitalization-form.ts 3箇所 — 20分
+20. **BUG-232** (Medium): useEffect deps オブジェクト → id (primitive) に変更 — 20分
+21. **BUG-233** (Medium): content-visibility: auto 適用（MedicineSettings, TreatmentPlanMaster） — 30分
+22. **BUG-234** (Low): .some()/.includes() → Set.has() に変更（3箇所） — 20分
