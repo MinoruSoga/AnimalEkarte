@@ -1,8 +1,8 @@
-# BUG-235: `C.textWhite` トークン未定義 — コンポーネント内で `text-white` を 37 箇所直接使用
+# BUG-235: `C.textWhite` トークン定義済みだが 37 箇所で直接 `text-white` を使用（トークン未参照）
 
 ## 概要
 
-`src/lib/design-tokens.ts` に `C.textWhite` トークンが定義されていないため、白色テキストが必要な箇所（accent ボタン・danger バッジ・カレンダー選択日等）でコンポーネントファイルが `text-white` を直接記述している。`STYLE.confirmPrimary` など design-tokens.ts 内の STYLE 定数自身も `text-white` を直接埋め込んでいる状態であり、設計トークンシステムの一貫性に欠ける。
+`C.textWhite = "text-white"` は `src/lib/design-tokens.ts:444` に定義済みだが、白色テキストが必要な箇所（accent ボタン・danger バッジ・カレンダー選択日等）でコンポーネントファイルが `text-white` を直接記述している。`STYLE.confirmPrimary` など design-tokens.ts 内の STYLE 定数自身も `text-white` を直接埋め込んでいる状態であり、設計トークンシステムの一貫性に欠ける。
 
 ## 再現手順
 
