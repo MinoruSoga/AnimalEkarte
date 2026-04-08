@@ -97,7 +97,8 @@ interface DiagnosisCategorySidePanelProps {
   item: DiagnosisCategory | null;
   onClose: () => void;
   onSave: (data: DiagnosisCategoryFormData) => void;
-  onDeleteRequest: (item: DiagnosisCategory) => void;
+  onDeleteRequest?: (item: DiagnosisCategory) => void;
+  readOnly?: boolean;
 }
 
 const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
@@ -105,6 +106,7 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
 }: DiagnosisCategorySidePanelProps) {
   const [formData, setFormData] = useState<DiagnosisCategoryFormData>(() => ({
     name: item?.name ?? "",
@@ -152,11 +154,12 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<FolderTree className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton
         isActive={formData.isActive}
@@ -182,7 +185,8 @@ interface DiagnosisNameSidePanelProps {
   categories: DiagnosisCategory[];
   onClose: () => void;
   onSave: (data: DiagnosisNameFormData) => void;
-  onDeleteRequest: (item: DiagnosisName) => void;
+  onDeleteRequest?: (item: DiagnosisName) => void;
+  readOnly?: boolean;
 }
 
 const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
@@ -191,6 +195,7 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
 }: DiagnosisNameSidePanelProps) {
   const [formData, setFormData] = useState<DiagnosisNameFormData>(() => ({
     name: item?.name ?? "",
@@ -256,11 +261,12 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<ClipboardList className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton
         isActive={formData.isActive}
@@ -352,7 +358,7 @@ function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange, can
               <SortableDataTableRow
                 key={item.id}
                 id={item.id}
-                onClick={() => onEditTargetChange(item)}
+                onClick={canEdit ? () => onEditTargetChange(item) : undefined}
               >
                 <TableCell className={`font-medium text-base ${C.text}`}>
                   {item.name}
@@ -444,7 +450,7 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange, canEdit
               <SortableDataTableRow
                 key={item.id}
                 id={item.id}
-                onClick={() => onEditTargetChange(item)}
+                onClick={canEdit ? () => onEditTargetChange(item) : undefined}
               >
                 <TableCell className={`text-base ${C.text70}`}>
                   {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
@@ -473,7 +479,7 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange, canEdit
 
 export function DiagnosisSettings() {
   const navigate = useNavigate();
-  const { canCreate, canEdit } = usePermission(ResourceMasterMedical);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "diagnosis_category";
 
@@ -657,7 +663,8 @@ export function DiagnosisSettings() {
             item={catCrud.panelItem}
             onClose={catCrud.handleClose}
             onSave={handleCategorySave}
-            onDeleteRequest={catCrud.setPendingDelete}
+            onDeleteRequest={canDelete ? catCrud.setPendingDelete : undefined}
+            readOnly={!canEdit}
           />
         ) : null}
         {activeTab === "diagnosis_name" && nameCrud.isEditing ? (
@@ -667,7 +674,8 @@ export function DiagnosisSettings() {
             categories={rawCategories ?? []}
             onClose={nameCrud.handleClose}
             onSave={handleNameSave}
-            onDeleteRequest={nameCrud.setPendingDelete}
+            onDeleteRequest={canDelete ? nameCrud.setPendingDelete : undefined}
+            readOnly={!canEdit}
           />
         ) : null}
       </div>

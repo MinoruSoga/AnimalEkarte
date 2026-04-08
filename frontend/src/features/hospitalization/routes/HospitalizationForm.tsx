@@ -38,7 +38,8 @@ export function HospitalizationForm() {
   const { data: cageItems } = useMasterItems("cage");
 
   const { user } = useAuth();
-  const { canEdit, canDelete } = usePermission("hospitalization");
+  const { canEdit, canCreate, canDelete } = usePermission("hospitalization");
+  const canSubmit = hospitalizationId ? canEdit : canCreate;
   const deleteMutation = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -167,7 +168,7 @@ export function HospitalizationForm() {
                   ) : null}
                 </>
             ) : null}
-            {canEdit ? (
+            {canSubmit ? (
               <SubmitButton
               className={`${C.bgAccent} ${C.bgAccentHover} text-white rounded-[6px] h-10 text-sm px-4`}
               >
@@ -178,6 +179,7 @@ export function HospitalizationForm() {
       }
     >
         <NavigationBlocker when={isDirty} />
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         {/* Patient Info Card */}
         {selectedPet ? (
             <PatientInfoCard
@@ -226,21 +228,22 @@ export function HospitalizationForm() {
         </div>
 
         {/* 治療プラン */}
-        <HospitalizationTreatmentTable 
+        <HospitalizationTreatmentTable
             treatmentPlans={treatmentPlans}
             onAdd={addTreatmentPlan}
             onUpdate={updateTreatmentPlan}
-            onRemove={removeTreatmentPlan}
+            onRemove={canDelete ? removeTreatmentPlan : undefined}
         />
 
         {/* 診療費計算 */}
-        <HospitalizationCostSummary 
+        <HospitalizationCostSummary
             totals={totals}
             globalDiscount={globalDiscount}
             setGlobalDiscount={handleGlobalDiscountChange}
             globalDiscountAmount={globalDiscountAmount}
             setGlobalDiscountAmount={handleGlobalDiscountAmountChange}
         />
+        </fieldset>
     </PageLayout>
     </form>
     <ConfirmDialog

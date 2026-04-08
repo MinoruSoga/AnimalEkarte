@@ -69,7 +69,8 @@ interface StaffSidePanelProps {
   item: Staff | null;
   onClose: () => void;
   onSave: (d: StaffFormData) => void;
-  onDeleteRequest: (i: Staff) => void;
+  onDeleteRequest?: (i: Staff) => void;
+  readOnly?: boolean;
   /** All occupations (職種) available in this clinic */
   allOccupations: Occupation[];
   /** All permission groups available in this clinic */
@@ -87,6 +88,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
   allOccupations,
   allGroups,
   onSaveGroups,
@@ -216,11 +218,12 @@ const StaffSidePanel = memo(function StaffSidePanel({
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleSave}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton
         isActive={f.isActive}
@@ -504,7 +507,7 @@ export function StaffSettings() {
         const visibleGroups = groups.slice(0, 2);
         const extraCount = groups.length - visibleGroups.length;
         return (
-          <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+          <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
             <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
             <TableCell className={`text-base ${C.text}`}>{item.occupationName ?? "—"}</TableCell>
             <TableCell>
@@ -545,13 +548,14 @@ export function StaffSettings() {
           </DataTableRow>
         );
       }}
-      renderSidePanel={({ item, onClose, onSave, onDeleteRequest }) => (
+      renderSidePanel={({ item, onClose, onSave, onDeleteRequest, readOnly }) => (
         <StaffSidePanel
           key={item?.id ?? "new"}
           item={item}
           onClose={onClose}
           onSave={onSave}
           onDeleteRequest={onDeleteRequest}
+          readOnly={readOnly}
           allOccupations={allOccupations}
           allGroups={allGroups}
           onSaveGroups={handleSaveGroups}

@@ -30,8 +30,8 @@ const COLUMNS = [
 interface FormData { name: string; isActive: boolean; }
 
 const SidePanel = memo(function SidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: AnimalSpecies | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest: (i: AnimalSpecies) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: AnimalSpecies | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: AnimalSpecies) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<FormData>(() => ({ name: item?.name ?? "", isActive: item?.isActive ?? true }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
@@ -65,11 +65,12 @@ const SidePanel = memo(function SidePanel({
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
-      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onClose={handleClose} action={readOnly ? undefined : handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<PawPrint className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
-      titleMaxLength={100}>
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
     </MasterSidePanel>
   );
@@ -104,7 +105,7 @@ export function AnimalSpeciesSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       deleteDescription={`「${crud.pendingDelete?.name}」を削除します。ペットで使用中の場合は削除できません。この操作は取り消せません。`}
       renderRow={() => null}
-      renderSidePanel={(props) => <SidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={({ readOnly, ...props }) => <SidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />}
     >
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>

@@ -68,7 +68,8 @@ interface PermissionGroupSidePanelProps {
   item: PermissionGroup | null;
   onClose: () => void;
   onSave: (d: PermissionGroupFormData) => void;
-  onDeleteRequest: (i: PermissionGroup) => void;
+  onDeleteRequest?: (i: PermissionGroup) => void;
+  readOnly?: boolean;
 }
 
 const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
@@ -76,6 +77,7 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  readOnly,
 }: PermissionGroupSidePanelProps) {
   const isNew = item === null;
 
@@ -167,12 +169,13 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
       title={f.name}
       onTitleChange={handleNameChange}
       onClose={handleClose}
-      action={handleSave}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      action={readOnly ? undefined : handleSave}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Lock className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton
         isActive={f.isActive}
@@ -205,6 +208,7 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
         group={item}
         rules={f.rules}
         onRuleChange={handleRuleChange}
+        disabled={readOnly}
       />
     </MasterSidePanel>
   );
@@ -305,13 +309,14 @@ export function PermissionGroupSettings() {
       columns={COLUMNS}
       filterProperties={PERMISSION_GROUP_FILTER_PROPERTIES}
       renderRow={() => null}
-      renderSidePanel={({ item, onClose, onSave, onDeleteRequest }) => (
+      renderSidePanel={({ item, onClose, onSave, onDeleteRequest, readOnly }) => (
         <PermissionGroupSidePanel
           key={item?.id ?? "new"}
           item={item}
           onClose={onClose}
           onSave={onSave}
           onDeleteRequest={onDeleteRequest}
+          readOnly={readOnly}
         />
       )}
     >

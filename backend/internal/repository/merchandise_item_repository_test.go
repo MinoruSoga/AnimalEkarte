@@ -8,8 +8,7 @@ import (
 
 // TestCountUsageByMerchandiseItemID - マーチャンダイズアイテムの使用数をカウント
 func TestCountUsageByMerchandiseItemID(t *testing.T) {
-	// Note: このテストは統合テスト環境での実行を想定
-	// ローカル単体テストの場合はモック実装が必要
+	// 統合テスト環境での実行を想定。ローカル単体テストの場合はモック実装が必要。
 
 	t.Run("請求アイテムで使用されているマーチャンダイズアイテムをカウント", func(t *testing.T) {
 		// 実装の検証ロジック

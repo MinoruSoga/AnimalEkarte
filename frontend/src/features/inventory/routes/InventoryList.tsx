@@ -206,7 +206,7 @@ export function InventoryList() {
 
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((item: InventoryItem) => (
-    <DataTableRow key={item.id} onClick={() => handleEdit(item.id)}>
+    <DataTableRow key={item.id} onClick={canEdit ? () => handleEdit(item.id) : undefined}>
       <TableCell className={`text-base font-medium ${C.text} py-2`}>
         {item.name}
       </TableCell>

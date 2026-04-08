@@ -1,6 +1,7 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
 import { memo } from "react";
+import { formatDate } from "@/utils/format/date";
 
 // External
 import { Calendar, FileText } from "lucide-react";
@@ -40,7 +41,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
                 <div className={`w-full min-w-0 bg-white rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} shadow-sm overflow-hidden`}>
                     <div className={`flex items-center gap-1.5 mb-2 ${C.text60} text-sm px-0.5`}>
                         <Calendar className={`${ICON.action} shrink-0`} />
-                        <span className="font-medium truncate">入院期間: {hospitalization.startDate} 〜 {dischargeDate}</span>
+                        <span className="font-medium truncate">入院期間: {formatDate(hospitalization.startDate)} 〜 {formatDate(dischargeDate)}</span>
                     </div>
                     <Separator className="mb-1.5 opacity-50" />
                     <CarePlanTab

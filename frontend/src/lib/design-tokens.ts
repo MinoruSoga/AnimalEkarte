@@ -857,7 +857,7 @@ export const STYLE = {
     `bg-white p-6 rounded-lg shadow-sm border ${C.borderMedium}`,
 
   /** Standard multi-line text area */
-  textarea:     `w-full rounded-[3px] border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none focus:border-[#2383E2] transition-colors resize-none leading-relaxed font-mono`,
+  textarea:     `w-full rounded-[3px] border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed font-mono`,
 } as const;
 
 /* ================================================================== */

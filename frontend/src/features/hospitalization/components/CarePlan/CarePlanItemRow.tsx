@@ -16,7 +16,7 @@ import type { CarePlanItem } from "@/features/hospitalization/types";
 interface CarePlanItemProps {
     plan: CarePlanItem;
     onEdit: (plan: CarePlanItem) => void;
-    onDelete: (id: string) => void;
+    onDelete?: (id: string) => void;
 }
 
 export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onDelete }: CarePlanItemProps) {
@@ -82,7 +82,9 @@ export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onD
                     <Button variant="ghost" size="sm" onClick={() => onEdit(plan)} className="h-9 w-9 p-0 bg-gray-50 hover:bg-gray-100">
                         <Edit2 className={`${ICON.action} ${C.text60} ${C.hoverText}`} />
                     </Button>
-                    <DeleteIconButton onClick={() => onDelete(plan.id)} />
+                    {onDelete !== undefined ? (
+                        <DeleteIconButton onClick={() => onDelete(plan.id)} />
+                    ) : null}
                 </div>
             </div>
         </div>

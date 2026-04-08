@@ -1,6 +1,8 @@
 package repository
 
 import (
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+
 	"gorm.io/gorm"
 )
 
@@ -125,8 +127,11 @@ func (r *Repositories) Transaction(fn func(repos *Repositories) error) error {
 	if r.TransactionFn != nil {
 		return r.TransactionFn(fn)
 	}
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	if err := r.db.Transaction(func(tx *gorm.DB) error {
 		txRepos := NewRepositories(tx)
 		return fn(txRepos)
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "transaction failed")
+	}
+	return nil
 }

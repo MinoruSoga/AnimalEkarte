@@ -34,12 +34,13 @@ interface OccupationFormData {
 
 // ─── SidePanel ───
 const OccupationSidePanel = memo(function OccupationSidePanel({
-  item, onClose, onSave, onDeleteRequest,
+  item, onClose, onSave, onDeleteRequest, readOnly,
 }: {
   item: Occupation | null;
   onClose: () => void;
   onSave: (d: OccupationFormData) => void;
-  onDeleteRequest: (i: Occupation) => void;
+  onDeleteRequest?: (i: Occupation) => void;
+  readOnly?: boolean;
 }) {
   const [f, setF] = useState<OccupationFormData>(() => ({
     name: item?.name ?? "",
@@ -87,11 +88,12 @@ const OccupationSidePanel = memo(function OccupationSidePanel({
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Briefcase className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
+      readOnly={readOnly}
     >
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="説明">
@@ -132,7 +134,7 @@ export function OccupationSettings() {
       columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base ${C.text}`}>{item.description || "-"}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>

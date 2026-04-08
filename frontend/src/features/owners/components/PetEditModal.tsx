@@ -14,6 +14,7 @@ import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { PET_GENDER_VALUES, ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES, PetFormData } from "../types";
 import { useGetAnimalSpecies } from "../api/get-animal-species";
 import { useGetInsurances } from "../api/get-insurances";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 import { isOneOf } from "@/lib/type-utils";
 
@@ -77,6 +78,7 @@ export function PetEditModal({
   onSave,
   onChangeOwner,
 }: PetEditModalProps) {
+  const { canEdit } = usePermission("owners");
   const { data: animalSpeciesList = [], isLoading: isLoadingSpecies } = useGetAnimalSpecies();
   const { data: insuranceList = [], isLoading: isLoadingInsurances } = useGetInsurances();
 
@@ -271,6 +273,7 @@ export function PetEditModal({
           </div>
         </DialogHeader>
 
+        <fieldset disabled={!canEdit} className="border-0 p-0 m-0 min-w-0">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Column 1 */}
           <div className="space-y-2">
@@ -601,13 +604,16 @@ export function PetEditModal({
           >
             キャンセル
           </Button>
-          <Button
-            onClick={handleSave}
-            className={`${STYLE.confirmPrimary} text-sm px-4`}
-          >
-            {isEdit ? "更新" : "登録"}
-          </Button>
+          {canEdit ? (
+            <Button
+              onClick={handleSave}
+              className={`${STYLE.confirmPrimary} text-sm px-4`}
+            >
+              {isEdit ? "更新" : "登録"}
+            </Button>
+          ) : null}
         </div>
+        </fieldset>
       </DialogContent>
 
       {/* Owner Search Modal (edit mode only) */}

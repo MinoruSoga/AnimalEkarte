@@ -1,6 +1,9 @@
 // React/Framework
 import React from "react";
 
+// Internal
+import { usePermission } from "@/features/auth/hooks/use-permission";
+
 // Relative
 import { DiagnosisHeaderChiefComplaint } from "./DiagnosisHeaderChiefComplaint";
 import { DiagnosisHeaderPhysicalExam } from "./DiagnosisHeaderPhysicalExam";
@@ -37,10 +40,11 @@ export const DiagnosisHeader = React.memo(function DiagnosisHeader({
   diagnosis2NameId,
   setDiagnosis2NameId,
 }: DiagnosisHeaderProps) {
+  const { canEdit } = usePermission("medical-records");
   return (
     <div className="grid grid-cols-12 gap-3 shrink-0 h-[240px]">
       <DiagnosisHeaderChiefComplaint content={chiefComplaint} />
-      <DiagnosisHeaderPhysicalExam policy={policy} setPolicy={setPolicy} />
+      <DiagnosisHeaderPhysicalExam policy={policy} setPolicy={setPolicy} canEdit={canEdit} />
       <DiagnosisHeaderDiagnosis
         diagnosisDetails={diagnosisDetails}
         setDiagnosisDetails={setDiagnosisDetails}
@@ -52,6 +56,7 @@ export const DiagnosisHeader = React.memo(function DiagnosisHeader({
         setDiagnosis2CategoryId={setDiagnosis2CategoryId}
         diagnosis2NameId={diagnosis2NameId}
         setDiagnosis2NameId={setDiagnosis2NameId}
+        canEdit={canEdit}
       />
     </div>
   );

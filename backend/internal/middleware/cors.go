@@ -17,14 +17,14 @@ func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
 		// 設定されたオリジンのみ許可
-		for _, allowed := range strings.Split(allowedOrigin, ",") {
+		for allowed := range strings.SplitSeq(allowedOrigin, ",") {
 			if strings.TrimSpace(allowed) == origin {
 				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 				break
 			}
 		}
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID, X-Clinic-ID")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Max-Age", "86400")
 

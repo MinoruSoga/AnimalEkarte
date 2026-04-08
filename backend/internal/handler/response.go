@@ -200,7 +200,7 @@ func extractClinicID(c *gin.Context) (uint64, bool) {
 // extractIsSystemAdmin はJWT認証済みコンテキストから is_system_admin を取得する。
 // 取得失敗時は即座にHTTPエラーレスポンスを書いて (false, false) を返す。
 // 戻り値: (isSystemAdmin bool, ok bool)
-func extractIsSystemAdmin(c *gin.Context) (bool, bool) {
+func extractIsSystemAdmin(c *gin.Context) (isSystemAdmin, ok bool) {
 	val, exists := c.Get("is_system_admin")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})

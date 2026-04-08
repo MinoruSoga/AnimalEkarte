@@ -19,6 +19,7 @@ interface DailyVitalsSectionProps {
     vitals: ApiVitalRecord[];
     onAddVital: (payload: CreateVitalRecordRequest) => void;
     isPending: boolean;
+    canCreate?: boolean;
 }
 
 interface VitalFormState {
@@ -44,7 +45,7 @@ function getCurrentTime(): string {
     return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVitalsSectionProps) {
+export function DailyVitalsSection({ vitals, onAddVital, isPending, canCreate = false }: DailyVitalsSectionProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [form, setForm] = useState<VitalFormState>(INITIAL_FORM);
 
@@ -87,15 +88,17 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                     <Activity className={`${ICON.action} text-blue-500`} />
                     バイタル
                 </h4>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpen}
-                    className="h-7 gap-1 text-xs"
-                >
-                    <Plus className={ICON.action} />
-                    追加
-                </Button>
+                {canCreate ? (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpen}
+                        className="h-7 gap-1 text-xs"
+                    >
+                        <Plus className={ICON.action} />
+                        追加
+                    </Button>
+                ) : null}
             </div>
 
             {sorted.length === 0 ? (

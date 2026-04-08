@@ -205,7 +205,7 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 
 	// Create upload directory
 	uploadDir := fmt.Sprintf("%s/%d", uploadsBaseDir, medicalRecordID)
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
 		RespondError(c, apperrors.Wrap(err, "failed to create upload directory"))
 		return
 	}

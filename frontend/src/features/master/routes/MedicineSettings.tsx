@@ -224,6 +224,8 @@ interface MedicineSidePanelProps {
   handleCloseEdit: () => void;
   handleSave: () => void;
   handleDeleteRequest: () => void;
+  readOnly?: boolean;
+  canDelete?: boolean;
 }
 
 const MedicineSidePanel = memo(function MedicineSidePanel({
@@ -237,6 +239,8 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
   handleCloseEdit,
   handleSave,
   handleDeleteRequest,
+  readOnly,
+  canDelete,
 }: MedicineSidePanelProps) {
   const [nameError, setNameError] = useState("");
   const handleAction = () => {
@@ -264,11 +268,12 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
             onTitleChange={(v) => { updateForm({ name: v }); if (v.trim()) setNameError(""); }}
             onClose={handleCloseEdit}
             action={handleAction}
-            onDelete={selectedMedicine ? handleDeleteRequest : undefined}
+            onDelete={selectedMedicine && canDelete ? handleDeleteRequest : undefined}
             icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
             titlePlaceholder="薬品名"
             titleError={nameError}
             titleMaxLength={100}
+            readOnly={readOnly}
           >
             {/* Properties */}
             {/* Parent category select */}
@@ -407,7 +412,7 @@ function isCategoryMedicine(m: Medicine | null): boolean {
 
 export function MedicineSettings() {
   const navigate = useNavigate();
-  const { canCreate, canEdit } = usePermission(ResourceMasterMedical);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const reduced = useReducedMotion();
   const panelDuration = reduced ? 0 : 0.2;
 
@@ -935,6 +940,8 @@ export function MedicineSettings() {
           handleCloseEdit={handleCloseEdit}
           handleSave={handleSave}
           handleDeleteRequest={handleDeleteRequest}
+          readOnly={!canEdit}
+          canDelete={canDelete}
         />
       </div>
 

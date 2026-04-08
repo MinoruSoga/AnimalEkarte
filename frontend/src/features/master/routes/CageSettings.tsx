@@ -42,8 +42,8 @@ interface CageFormData { name: string; cageType: CageType; cageSize: CageSize; p
 
 // ─── SidePanel ───
 const CageSidePanel = memo(function CageSidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: Cage | null; onClose: () => void; onSave: (d: CageFormData) => void; onDeleteRequest: (i: Cage) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: Cage | null; onClose: () => void; onSave: (d: CageFormData) => void; onDeleteRequest?: (i: Cage) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<CageFormData>(() => ({
     name: item?.name ?? "", cageType: item?.cageType ?? "general", cageSize: item?.cageSize ?? "medium",
     price: item?.price ?? 0, description: item?.description ?? "", isActive: item?.isActive ?? true,
@@ -100,11 +100,12 @@ const CageSidePanel = memo(function CageSidePanel({
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
-      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onClose={handleClose} action={readOnly ? undefined : handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
-      titleMaxLength={100}>
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="エリア">
         <Select value={f.cageType} onValueChange={handleCageTypeChange}>
@@ -189,7 +190,7 @@ export function CageSettings() {
       crud={crud} handleSave={handleSave}
       filterProperties={[MASTER_STATUS_FILTER]}
       columns={[]} renderRow={() => null}
-      renderSidePanel={(props) => <CageSidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={({ readOnly, ...props }) => <CageSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />}
     >
       <div className={STYLE.tableContainer}>
         <div className="flex-1 overflow-auto relative">

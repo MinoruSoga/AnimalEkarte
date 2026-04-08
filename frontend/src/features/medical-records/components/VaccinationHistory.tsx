@@ -74,7 +74,7 @@ export const VaccinationHistory = React.memo(function VaccinationHistory({
             />
             <Button
               variant="outline"
-              className={`h-10 ${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} hover:text-white border-transparent text-sm shadow-sm px-3`}
+              className={`h-10 bg-white ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm shadow-sm px-3`}
               onClick={() => setSearchTerm("")}
             >
               クリア

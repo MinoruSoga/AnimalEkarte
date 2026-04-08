@@ -1,5 +1,6 @@
 // Internal
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { formatDate } from "@/utils/format/date";
 
 // Types
 import type { Hospitalization } from "@/types";
@@ -21,7 +22,7 @@ export function HospitalizationPatientHeader({ hospitalization, currentWeight }:
             petDetails={hospitalization.species}
             insuranceName="-"
             insuranceDetails="-"
-            nextVisitDate={hospitalization.endDate}
+            nextVisitDate={formatDate(hospitalization.endDate)}
             nextVisitContent="退院予定"
         />
     );

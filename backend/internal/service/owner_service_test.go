@@ -475,54 +475,54 @@ func TestOwnerService_Update(t *testing.T) {
 
 func TestOwnerService_Delete(t *testing.T) {
 	tests := []struct {
-		name              string
-		clinicID          uint64
-		id                uint64
-		petCount          int64
-		repoErr           error
-		wantErr           bool
-		wantNF            bool
-		wantConflict      bool
+		name         string
+		clinicID     uint64
+		id           uint64
+		petCount     int64
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
-			name:              "deletes owner successfully",
-			clinicID:          1,
-			id:                10,
-			petCount:          0,
-			repoErr:           nil,
-			wantErr:           false,
-			wantNF:            false,
-			wantConflict:      false,
+			name:         "deletes owner successfully",
+			clinicID:     1,
+			id:           10,
+			petCount:     0,
+			repoErr:      nil,
+			wantErr:      false,
+			wantNF:       false,
+			wantConflict: false,
 		},
 		{
-			name:              "returns not found error when owner does not exist",
-			clinicID:          1,
-			id:                999,
-			petCount:          0,
-			repoErr:           apperrors.WrapNotFound("owner", "999"),
-			wantErr:           true,
-			wantNF:            true,
-			wantConflict:      false,
+			name:         "returns not found error when owner does not exist",
+			clinicID:     1,
+			id:           999,
+			petCount:     0,
+			repoErr:      apperrors.WrapNotFound("owner", "999"),
+			wantErr:      true,
+			wantNF:       true,
+			wantConflict: false,
 		},
 		{
-			name:              "returns error on repository failure",
-			clinicID:          1,
-			id:                10,
-			petCount:          0,
-			repoErr:           errors.New("db error"),
-			wantErr:           true,
-			wantNF:            false,
-			wantConflict:      false,
+			name:         "returns error on repository failure",
+			clinicID:     1,
+			id:           10,
+			petCount:     0,
+			repoErr:      errors.New("db error"),
+			wantErr:      true,
+			wantNF:       false,
+			wantConflict: false,
 		},
 		{
-			name:              "returns conflict error when owner has pets",
-			clinicID:          1,
-			id:                10,
-			petCount:          2,
-			repoErr:           nil,
-			wantErr:           true,
-			wantNF:            false,
-			wantConflict:      true,
+			name:         "returns conflict error when owner has pets",
+			clinicID:     1,
+			id:           10,
+			petCount:     2,
+			repoErr:      nil,
+			wantErr:      true,
+			wantNF:       false,
+			wantConflict: true,
 		},
 	}
 

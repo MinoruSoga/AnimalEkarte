@@ -79,6 +79,7 @@ interface PetTableRowProps {
   pet: PetFormData;
   ownerId: string | undefined;
   canEdit: boolean;
+  canCreate: boolean;
   canDelete: boolean;
   onEdit: (pet: PetFormData) => void;
   onDeleteRequest: (id: string, name: string) => void;
@@ -88,6 +89,7 @@ const PetTableRow = memo(function PetTableRow({
   pet,
   ownerId,
   canEdit,
+  canCreate,
   canDelete,
   onEdit,
   onDeleteRequest,
@@ -133,34 +135,38 @@ const PetTableRow = memo(function PetTableRow({
                   詳細・編集
                 </DropdownMenuItem>
               ) : null}
-              <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
-                <Calendar className={`mr-2 ${ICON.action}`} />
-                予約作成
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <FileText className={`mr-2 ${ICON.action}`} />
-                カルテ作成
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <Scissors className={`mr-2 ${ICON.action}`} />
-                トリミング
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <Bed className={`mr-2 ${ICON.action}`} />
-                入院登録
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: backFrom } })}
-              >
-                <CreditCard className={`mr-2 ${ICON.action}`} />
-                会計登録
-              </DropdownMenuItem>
+              {canCreate ? (
+                <>
+                  <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
+                    <Calendar className={`mr-2 ${ICON.action}`} />
+                    予約作成
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <FileText className={`mr-2 ${ICON.action}`} />
+                    カルテ作成
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <Scissors className={`mr-2 ${ICON.action}`} />
+                    トリミング
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <Bed className={`mr-2 ${ICON.action}`} />
+                    入院登録
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                  >
+                    <CreditCard className={`mr-2 ${ICON.action}`} />
+                    会計登録
+                  </DropdownMenuItem>
+                </>
+              ) : null}
               {canDelete ? (
                 <>
                   <DropdownMenuSeparator />
@@ -436,7 +442,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
 export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
-  const { canEdit, canDelete } = usePermission("owners");
+  const { canEdit, canCreate, canDelete } = usePermission("owners");
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const [deletePetTarget, setDeletePetTarget] = useState<{
     id: string;
@@ -464,6 +470,8 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     fieldErrors,
     clearFieldError,
   } = useOwnerForm(ownerId, initialOwner, petMutations);
+
+  const canSubmit = isEdit ? canEdit : canCreate;
 
   useTitle(isEdit ? `飼主編集 (${ownerData.ownerName})` : "飼主登録");
 
@@ -570,7 +578,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         resource={ResourceOwners}
         maxWidth="max-w-[1400px]"
         headerAction={
-          canEdit ? (
+          canSubmit ? (
             <SubmitButton size="sm">
               {isEdit ? "更新" : "登録"}
             </SubmitButton>
@@ -578,6 +586,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         }
       >
         <NavigationBlocker when={isDirty && !isLoading} />
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
 
       {/* Owner Information Form */}
       {/* rerender-memo: OwnerInfoSection はペット操作・モーダル開閉では再レンダーしない */}
@@ -637,6 +646,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
                     pet={pet}
                     ownerId={ownerId}
                     canEdit={canEdit}
+                    canCreate={canCreate}
                     canDelete={canDelete}
                     onEdit={handleEditPet}
                     onDeleteRequest={handleDeletePetRequest}
@@ -648,6 +658,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         </div>
       </div>
 
+        </fieldset>
       <Suspense fallback={null}>
         <PetEditModal
           key={editingPet?.id ?? "new"}

@@ -30,8 +30,8 @@ const COLUMNS = [
 interface FormData { name: string; description: string; isActive: boolean; }
 
 const SidePanel = memo(function SidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: ChiefComplaintCategory | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest: (i: ChiefComplaintCategory) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: ChiefComplaintCategory | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: ChiefComplaintCategory) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<FormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "", isActive: item?.isActive ?? true,
   }));
@@ -73,11 +73,12 @@ const SidePanel = memo(function SidePanel({
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose} action={handleAction}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<MessageSquareText className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
-      titleMaxLength={100}>
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="説明">
         <textarea className={`${MASTER_INPUT_CLASS} min-h-[80px] resize-none`}
@@ -106,7 +107,7 @@ export function ChiefComplaintSettings() {
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base ${C.text}`}>{item.description}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>

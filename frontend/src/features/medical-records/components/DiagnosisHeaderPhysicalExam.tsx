@@ -13,11 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 interface DiagnosisHeaderPhysicalExamProps {
   policy: string;
   setPolicy: (v: string) => void;
+  canEdit: boolean;
 }
 
 export const DiagnosisHeaderPhysicalExam = React.memo(function DiagnosisHeaderPhysicalExam({
   policy,
   setPolicy,
+  canEdit,
 }: DiagnosisHeaderPhysicalExamProps) {
   return (
     <div className="col-span-4 flex flex-col min-h-0">
@@ -34,6 +36,7 @@ export const DiagnosisHeaderPhysicalExam = React.memo(function DiagnosisHeaderPh
             value={policy}
             onChange={(e) => setPolicy(e.target.value)}
             className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 font-mono ${C.focusRingMedicalBlue}`}
+            disabled={!canEdit}
           />
         </CardContent>
       </Card>

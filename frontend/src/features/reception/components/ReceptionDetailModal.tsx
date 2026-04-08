@@ -44,6 +44,9 @@ interface RelatedPagesProps {
   onCreateTrimming: () => void;
   onCreateAccounting: () => void;
   onCreateHospitalization: () => void;
+  canCreateMedicalRecord?: boolean;
+  canCreateAccounting?: boolean;
+  canCreateHospitalization?: boolean;
 }
 
 function RelatedPages({
@@ -52,46 +55,55 @@ function RelatedPages({
   onCreateTrimming,
   onCreateAccounting,
   onCreateHospitalization,
+  canCreateMedicalRecord = false,
+  canCreateAccounting = false,
+  canCreateHospitalization = false,
 }: RelatedPagesProps) {
   return (
     <div className="space-y-2">
       <h3 className={SECTION_LABEL}>関連ページ</h3>
       <div className="flex flex-wrap gap-2">
         {/* カルテ / 施術 */}
-        <button
-          type="button"
-          className={RELATED_BTN_KARTE}
-          onClick={() => {
-            if (isTrimming) onCreateTrimming();
-            else onCreateMedicalRecord();
-          }}
-        >
-          {isTrimming ? <Scissors className={`${ICON.xs}`} /> : <FileText className={`${ICON.xs}`} />}
-          <span>{isTrimming ? "施術" : "カルテ"}</span>
-          <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
-        </button>
+        {canCreateMedicalRecord ? (
+          <button
+            type="button"
+            className={RELATED_BTN_KARTE}
+            onClick={() => {
+              if (isTrimming) onCreateTrimming();
+              else onCreateMedicalRecord();
+            }}
+          >
+            {isTrimming ? <Scissors className={`${ICON.xs}`} /> : <FileText className={`${ICON.xs}`} />}
+            <span>{isTrimming ? "施術" : "カルテ"}</span>
+            <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
+          </button>
+        ) : null}
 
         {/* 会計 */}
-        <button
-          type="button"
-          className={RELATED_BTN_ACCOUNTING}
-          onClick={onCreateAccounting}
-        >
-          <CreditCard className={`${ICON.xs}`} />
-          <span>会計</span>
-          <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
-        </button>
+        {canCreateAccounting ? (
+          <button
+            type="button"
+            className={RELATED_BTN_ACCOUNTING}
+            onClick={onCreateAccounting}
+          >
+            <CreditCard className={`${ICON.xs}`} />
+            <span>会計</span>
+            <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
+          </button>
+        ) : null}
 
         {/* 入院 */}
-        <button
-          type="button"
-          className={RELATED_BTN_HOSPITAL}
-          onClick={onCreateHospitalization}
-        >
-          <BedDouble className={`${ICON.xs}`} />
-          <span>入院</span>
-          <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
-        </button>
+        {canCreateHospitalization ? (
+          <button
+            type="button"
+            className={RELATED_BTN_HOSPITAL}
+            onClick={onCreateHospitalization}
+          >
+            <BedDouble className={`${ICON.xs}`} />
+            <span>入院</span>
+            <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -284,6 +296,9 @@ interface ReceptionDetailModalProps {
   onEdit?: (appointment: Appointment) => void;
   onCancel?: (appointment: Appointment) => void;
   currentStatus?: string;
+  canCreateMedicalRecord?: boolean;
+  canCreateAccounting?: boolean;
+  canCreateHospitalization?: boolean;
 }
 
 export const ReceptionDetailModal = memo(function ReceptionDetailModal({
@@ -294,6 +309,9 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
   onEdit,
   onCancel,
   currentStatus,
+  canCreateMedicalRecord,
+  canCreateAccounting,
+  canCreateHospitalization,
 }: ReceptionDetailModalProps) {
   const navigate = useNavigate();
 
@@ -432,6 +450,9 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
             onCreateTrimming={handleCreateTrimming}
             onCreateAccounting={handleCreateAccounting}
             onCreateHospitalization={handleCreateHospitalization}
+            canCreateMedicalRecord={canCreateMedicalRecord}
+            canCreateAccounting={canCreateAccounting}
+            canCreateHospitalization={canCreateHospitalization}
           />
         </div>
 

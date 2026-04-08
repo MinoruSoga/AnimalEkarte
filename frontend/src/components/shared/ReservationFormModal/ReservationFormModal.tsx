@@ -28,6 +28,8 @@ interface ReservationFormModalProps {
   onClose: () => void;
   onSave: (data: Partial<ReservationAppointment>, selectedPets: Pet[]) => void;
   initialData: Partial<ReservationAppointment> | null;
+  canCreate?: boolean;
+  canEdit?: boolean;
 }
 
 
@@ -72,6 +74,8 @@ export function ReservationFormModal({
   onClose,
   onSave,
   initialData,
+  canCreate = false,
+  canEdit = false,
 }: ReservationFormModalProps) {
   const [formData, setFormData] = useState<Partial<ReservationAppointment>>({});
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
@@ -127,6 +131,7 @@ export function ReservationFormModal({
   }, [isOpen, initialData, setSelectedPets]);
 
   const isEditMode = initialData && initialData.id;
+  const canSave = isEditMode ? canEdit : canCreate;
 
   const handleSave = useCallback(() => {
     const errors: Record<string, string> = {};
@@ -308,12 +313,14 @@ export function ReservationFormModal({
             <Button variant="outline" onClick={onClose} className="h-10 text-sm">
               キャンセル
             </Button>
-            <Button
-              onClick={handleSave}
-              className={`${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} h-10 text-sm min-w-[100px]`}
-            >
-              {isEditMode ? "更新する" : "予約を確定"}
-            </Button>
+            {canSave ? (
+              <Button
+                onClick={handleSave}
+                className={`${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} h-10 text-sm min-w-[100px]`}
+              >
+                {isEditMode ? "更新する" : "予約を確定"}
+              </Button>
+            ) : null}
           </div>
         </DialogFooter>
       </DialogContent>

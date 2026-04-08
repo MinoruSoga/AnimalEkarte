@@ -18,7 +18,7 @@ import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor
 interface ReservationDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEdit: (appointment: ReservationAppointment) => void;
+  onEdit?: (appointment: ReservationAppointment) => void;
   onDelete?: (appointment: ReservationAppointment) => void;
   onCreateRecord?: (appointment: ReservationAppointment) => void;
   onStatusChange?: (appointment: ReservationAppointment, status: ReservationStatus) => void;
@@ -209,15 +209,17 @@ export function ReservationDetailModal({
             ) : null}
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onEdit(appointment)}
-              className={`h-9 text-sm gap-1.5 ${C.borderMedium} bg-white ${C.text} ${C.hoverBgPage}`}
-            >
-              <Pencil className={`${ICON.xs}`} />
-              編集
-            </Button>
+            {onEdit ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(appointment)}
+                className={`h-9 text-sm gap-1.5 ${C.borderMedium} bg-white ${C.text} ${C.hoverBgPage}`}
+              >
+                <Pencil className={`${ICON.xs}`} />
+                編集
+              </Button>
+            ) : null}
             {onCreateRecord ? (
               <Button
                 size="sm"

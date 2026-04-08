@@ -49,7 +49,7 @@ const VIEW_NAV_NEXT: Record<CalendarView, (d: Date) => Date> = {
 
 export function ReservationManagement() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
-  const { canCreate } = usePermission("reservations");
+  const { canCreate, canEdit, canDelete } = usePermission("reservations");
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
 
@@ -262,7 +262,7 @@ export function ReservationManagement() {
                 currentDate={currentDate}
                 appointments={filteredAppointments}
                 onAppointmentClick={handleOpenDetail}
-                onTimeSlotClick={handleTimeSlotClick}
+                onTimeSlotClick={canCreate ? handleTimeSlotClick : undefined}
                 onAppointmentUpdate={handleAppointmentUpdate}
                 dynamicColorMap={dynamicColorMap}
               />
@@ -278,6 +278,8 @@ export function ReservationManagement() {
           onClose={handleCloseForm}
           onSave={handleSave}
           initialData={editingAppointment}
+          canCreate={canCreate}
+          canEdit={canEdit}
         />
 
         {/* Detail Modal */}
@@ -285,10 +287,10 @@ export function ReservationManagement() {
           isOpen={isDetailOpen}
           onClose={handleCloseDetail}
           appointment={detailAppointment}
-          onEdit={handleOpenFormFromAppointment}
-          onDelete={handleDelete}
+          onEdit={canEdit ? handleOpenFormFromAppointment : undefined}
+          onDelete={canDelete ? handleDelete : undefined}
           onCreateRecord={handleCreateRecord}
-          onStatusChange={handleStatusChange}
+          onStatusChange={canEdit ? handleStatusChange : undefined}
         />
       </Suspense>
 

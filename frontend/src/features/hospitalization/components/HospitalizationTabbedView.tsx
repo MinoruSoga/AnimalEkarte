@@ -1,6 +1,7 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
 import { memo } from "react";
+import { formatDate } from "@/utils/format/date";
 
 // External
 import { Calendar, FileText, Settings } from "lucide-react";
@@ -64,7 +65,7 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
                     <div className={`bg-white rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} shadow-sm mb-20`}>
                         <div className={`flex items-center gap-2 mb-4 ${C.text60} text-sm`}>
                             <Calendar className={ICON.action} />
-                            <span>入院期間: {hospitalization.startDate} 〜 {dischargeDate}</span>
+                            <span>入院期間: {formatDate(hospitalization.startDate)} 〜 {formatDate(dischargeDate)}</span>
                         </div>
                         <Separator className="mb-4" />
                         <CarePlanTab

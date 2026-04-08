@@ -16,6 +16,7 @@ const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2
 
 // Relative
 import { VitalsGraph } from "./VitalsGraph";
+import { usePermission } from "@/features/auth";
 import { useGetVitals } from "@/features/medical-records/api/vitals";
 import { useCreateVital } from "@/features/medical-records/api/vitals";
 import { useUpdateVital } from "@/features/medical-records/api/vitals";
@@ -278,6 +279,7 @@ interface VitalsTabProps {
 // ── Component ─────────────────────────────────────────────────────────
 
 export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
+  const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: vitals, isLoading } = useGetVitals(medicalRecordId);
   const createMutation = useCreateVital(medicalRecordId);
   const updateMutation = useUpdateVital(medicalRecordId);
@@ -307,6 +309,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
   );
 
   const handleAddSubmit = useCallback(() => {
+    if (!canCreate) return;
     if (!addForm.recorded_at) {
       toast.error("記録日時は必須です");
       return;
@@ -348,7 +351,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
         toast.success("バイタルを追加しました");
       },
     });
-  }, [addForm, createMutation]);
+  }, [canCreate, addForm, createMutation]);
 
   const handleAddCancel = useCallback(() => {
     setAddForm(EMPTY_ADD_FORM);
@@ -357,6 +360,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
 
   const handleEditSave = useCallback(
     (vitalId: string, input: UpdateVitalInput) => {
+      if (!canEdit) return;
       updateMutation.mutate(
         { vitalId, input },
         {
@@ -367,7 +371,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
         }
       );
     },
-    [updateMutation]
+    [canEdit, updateMutation]
   );
 
   const handleEditCancel = useCallback(() => {
@@ -375,14 +379,14 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
   }, []);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!deletingId) return;
+    if (!canDelete || !deletingId) return;
     deleteMutation.mutate(deletingId, {
       onSuccess: () => {
         setDeletingId(null);
         toast.success("バイタルを削除しました");
       },
     });
-  }, [deletingId, deleteMutation]);
+  }, [canDelete, deletingId, deleteMutation]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeletingId(null);
@@ -485,17 +489,21 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
                     </td>
                     <td className="px-2">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => setEditingId(vital.id)}
-                          className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
-                          title="編集"
-                        >
-                          <Pencil className={`${ICON.xs}`} />
-                        </button>
-                        <DeleteIconButton
-                          onClick={() => setDeletingId(vital.id)}
-                          disabled={deleteMutation.isPending}
-                        />
+                        {canEdit ? (
+                          <button
+                            onClick={() => setEditingId(vital.id)}
+                            className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
+                            title="編集"
+                          >
+                            <Pencil className={`${ICON.xs}`} />
+                          </button>
+                        ) : null}
+                        {canDelete ? (
+                          <DeleteIconButton
+                            onClick={() => setDeletingId(vital.id)}
+                            disabled={deleteMutation.isPending}
+                          />
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -583,10 +591,12 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
             </Button>
           </div>
         ) : (
-          <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
-            <Plus className={`${ICON.xs}`} />
-            <span>記録を追加</span>
-          </button>
+          canCreate ? (
+            <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
+              <Plus className={`${ICON.xs}`} />
+              <span>記録を追加</span>
+            </button>
+          ) : null
         )}
       </div>
 

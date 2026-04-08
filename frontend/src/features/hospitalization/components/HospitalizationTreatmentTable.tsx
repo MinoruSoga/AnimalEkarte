@@ -10,7 +10,7 @@ import { H_STYLES } from "../styles";
 interface HospitalizationTreatmentTableProps {
   treatmentPlans: TreatmentPlan[];
   onAdd: () => void;
-  onRemove: (id: string) => void;
+  onRemove?: (id: string) => void;
   onUpdate: (id: string, field: keyof TreatmentPlan, value: string | number | boolean) => void;
 }
 
@@ -96,7 +96,9 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                   {plan.subtotal.toLocaleString()}
                 </td>
                 <td className="px-3 py-1 text-center">
-                  <DeleteIconButton onClick={() => onRemove(plan.id)} />
+                  {onRemove !== undefined ? (
+                    <DeleteIconButton onClick={() => onRemove(plan.id)} />
+                  ) : null}
                 </td>
               </tr>
             ))}

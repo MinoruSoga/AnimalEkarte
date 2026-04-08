@@ -305,13 +305,13 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 
 func TestChiefComplaintCategoryService_Delete(t *testing.T) {
 	tests := []struct {
-		name          string
-		id            uint64
-		inquiryCount  int64
-		inquiryErr    error
-		repoErr       error
-		wantErr       bool
-		wantConflict  bool
+		name         string
+		id           uint64
+		inquiryCount int64
+		inquiryErr   error
+		repoErr      error
+		wantErr      bool
+		wantConflict bool
 	}{
 		{
 			name:         "deletes category successfully",

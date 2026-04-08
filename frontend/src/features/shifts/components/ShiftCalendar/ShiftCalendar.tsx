@@ -45,6 +45,7 @@ interface ShiftCalendarProps {
   selectedStaffId: string;
   canCreate: boolean;
   canEdit: boolean;
+  canDelete: boolean;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onStaffChange: (staffId: string) => void;
@@ -57,6 +58,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
   selectedStaffId,
   canCreate,
   canEdit,
+  canDelete,
   onPrevMonth,
   onNextMonth,
   onStaffChange,
@@ -249,6 +251,8 @@ export const ShiftCalendar = memo(function ShiftCalendar({
           staffName={dialog.staffName}
           date={dialog.date}
           editShift={dialog.editShift}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
       </Suspense>
     </div>

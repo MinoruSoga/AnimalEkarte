@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
-import { ResourceReception, ResourceReservations } from "@/types/generated/models";
+import { ResourceReception, ResourceReservations, ResourceMedicalRecords, ResourceAccounting, ResourceHospitalization } from "@/types/generated/models";
 import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Shared
@@ -42,7 +42,10 @@ const NO_ADD_BUTTON_COLUMNS = new Set(["診療中", "会計待ち", "会計済"]
 
 export function Reception() {
     const navigate = useNavigate();
-    const { canCreate: canCreateReservation } = usePermission(ResourceReservations);
+    const { canCreate: canCreateReservation, canEdit: canEditReservation, canDelete: canDeleteReservation } = usePermission(ResourceReservations);
+    const { canCreate: canCreateMedicalRecord } = usePermission(ResourceMedicalRecords);
+    const { canCreate: canCreateAccounting } = usePermission(ResourceAccounting);
+    const { canCreate: canCreateHospitalization } = usePermission(ResourceHospitalization);
     const {
         columns,
         filteredColumns,
@@ -370,11 +373,14 @@ export function Reception() {
                 <ReceptionDetailModal
                     isOpen={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    onConfirm={handleAdvanceStatus}
-                    onEdit={handleEditAppointment}
-                    onCancel={handleCancelAppointment}
+                    onConfirm={canEditReservation ? handleAdvanceStatus : undefined}
+                    onEdit={canEditReservation ? handleEditAppointment : undefined}
+                    onCancel={canDeleteReservation ? handleCancelAppointment : undefined}
                     appointment={selectedAppointment}
                     currentStatus={selectedAppointment ? filteredColumns.find(c => c.appointments.some(a => a.id === selectedAppointment.id))?.title : undefined}
+                    canCreateMedicalRecord={canCreateMedicalRecord}
+                    canCreateAccounting={canCreateAccounting}
+                    canCreateHospitalization={canCreateHospitalization}
                 />
               </Suspense>
             ) : null}
@@ -389,6 +395,8 @@ export function Reception() {
                     }}
                     onSave={handleEditSave}
                     initialData={editingAppointment}
+                    canCreate={canCreateReservation}
+                    canEdit={canEditReservation}
                 />
               </Suspense>
             ) : null}

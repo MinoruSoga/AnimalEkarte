@@ -98,11 +98,11 @@ func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) e
 	const layout = "15:04:05"
 	st, err := time.Parse(layout, *startTime)
 	if err != nil {
-		return nil
+		return apperrors.Wrap(apperrors.ErrInvalidInput, "invalid start_time format: expected HH:MM:SS")
 	}
 	et, err := time.Parse(layout, *endTime)
 	if err != nil {
-		return nil
+		return apperrors.Wrap(apperrors.ErrInvalidInput, "invalid end_time format: expected HH:MM:SS")
 	}
 	if !et.After(st) {
 		return apperrors.Wrap(apperrors.ErrInvalidInput, "end_time must be after start_time")

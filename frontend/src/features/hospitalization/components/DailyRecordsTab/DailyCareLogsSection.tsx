@@ -22,6 +22,7 @@ interface DailyCareLogsSectionProps {
     careLogs: ApiCareLogRecord[];
     onAddCareLog: (payload: CreateCareLogRecordRequest) => void;
     isPending: boolean;
+    canCreate?: boolean;
 }
 
 interface CareLogFormState {
@@ -85,6 +86,7 @@ export function DailyCareLogsSection({
     careLogs,
     onAddCareLog,
     isPending,
+    canCreate = false,
 }: DailyCareLogsSectionProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [form, setForm] = useState<CareLogFormState>(INITIAL_FORM);
@@ -126,15 +128,17 @@ export function DailyCareLogsSection({
                     <UtensilsCrossed className={`${ICON.action} text-orange-500`} />
                     ケアログ
                 </h4>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpen}
-                    className="h-7 gap-1 text-xs"
-                >
-                    <Plus className={ICON.action} />
-                    追加
-                </Button>
+                {canCreate ? (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpen}
+                        className="h-7 gap-1 text-xs"
+                    >
+                        <Plus className={ICON.action} />
+                        追加
+                    </Button>
+                ) : null}
             </div>
 
             {sorted.length === 0 ? (

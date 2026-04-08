@@ -7,6 +7,7 @@ import { ChevronRight } from "lucide-react";
 // Internal
 import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 interface InterviewTreatmentPolicyProps {
   className?: string;
@@ -19,6 +20,7 @@ export const InterviewTreatmentPolicy = memo(function InterviewTreatmentPolicy({
   treatmentPolicy,
   setTreatmentPolicy,
 }: InterviewTreatmentPolicyProps) {
+  const { canEdit } = usePermission("medical-records");
   return (
     <div className={`flex flex-col ${className ?? ""} h-full`}>
       <div className="pb-1.5 shrink-0">
@@ -35,6 +37,7 @@ export const InterviewTreatmentPolicy = memo(function InterviewTreatmentPolicy({
         onChange={setTreatmentPolicy}
         className="flex-1 min-h-0"
         textareaClassName={`${STYLE.textarea} min-h-0`}
+        disabled={!canEdit}
       />
     </div>
   );

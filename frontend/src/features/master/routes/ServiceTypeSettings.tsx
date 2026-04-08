@@ -34,8 +34,8 @@ const COLUMNS = [
 interface ServiceTypeFormData { name: string; description: string; color: string; isActive: boolean; }
 
 const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: ServiceType | null; onClose: () => void; onSave: (d: ServiceTypeFormData) => void; onDeleteRequest: (i: ServiceType) => void; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly,
+}: { item: ServiceType | null; onClose: () => void; onSave: (d: ServiceTypeFormData) => void; onDeleteRequest?: (i: ServiceType) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<ServiceTypeFormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "", color: item?.color ?? PALETTE.defaultBlue, isActive: item?.isActive ?? true,
   }));
@@ -86,11 +86,12 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
       onTitleChange={handleTitleChange}
-      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onClose={handleClose} action={readOnly ? undefined : handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Activity className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
       titleError={nameError}
-      titleMaxLength={100}>
+      titleMaxLength={100}
+      readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カラー">
         <div className="flex items-center gap-2">
@@ -140,7 +141,7 @@ export function ServiceTypeSettings() {
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={() => null}
-      renderSidePanel={(props) => <ServiceTypeSidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={({ readOnly, ...props }) => <ServiceTypeSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />}
     >
       <DndContext sensors={sensors} collisionDetection={closestCenter}
         onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>

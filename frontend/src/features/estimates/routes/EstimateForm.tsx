@@ -21,6 +21,7 @@ import { NumberInput } from '@/components/shared/NumberInput/NumberInput';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useGetEstimate } from '../api/get-estimate';
 import { useEstimateForm } from '../hooks/use-estimate-form';
+import { usePermission } from '@/features/auth';
 import type { EstimateStatus } from '../types';
 import { ResourceEstimates } from "@/types/generated/models";
 
@@ -249,6 +250,8 @@ function EstimateFormContent({ id }: { id?: string }) {
   );
 
   const isEdit = !!id;
+  const { canEdit, canCreate } = usePermission("estimates");
+  const canSubmit = isEdit ? canEdit : canCreate;
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -294,13 +297,15 @@ function EstimateFormContent({ id }: { id?: string }) {
           <Button variant="outline" type="button" size="sm" onClick={handleCancel} className="h-9 text-sm">
             キャンセル
           </Button>
-          <SubmitButton
-            size="sm"
-            disabled={!form.title.trim()}
-            className={`h-9 ${C.bgPrimary} ${C.hoverBgPrimaryDark} text-white text-sm`}
-          >
-            {isEdit ? '更新' : '作成'}
-          </SubmitButton>
+          {canSubmit ? (
+            <SubmitButton
+              size="sm"
+              disabled={!form.title.trim()}
+              className={`h-9 ${C.bgPrimary} ${C.hoverBgPrimaryDark} text-white text-sm`}
+            >
+              {isEdit ? '更新' : '作成'}
+            </SubmitButton>
+          ) : null}
         </div>
       }
       maxWidth="max-w-2xl"

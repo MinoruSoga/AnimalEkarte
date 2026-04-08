@@ -413,9 +413,12 @@ export function TrimmingForm() {
     isSaving,
     isDeleting,
     fieldErrors,
+    isLoading,
+    notFound,
   } = useTrimmingForm(id);
 
-  const { canEdit, canDelete } = usePermission("trimming");
+  const { canEdit, canCreate, canDelete } = usePermission("trimming");
+  const canSubmit = mode === "edit" ? canEdit : canCreate;
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   // --- Focus Management (Accessibility) ---
@@ -533,6 +536,22 @@ export function TrimmingForm() {
   if (!selectedPet && mode === "new" && petId) return null;
   if (!selectedPet && mode === "new") return null;
 
+  if (isLoading) {
+    return (
+      <PageLayout title="トリミング" onBack={handleBack} icon={<Scissors className={`${ICON.page} ${C.text}`} />}>
+        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>読み込み中...</div>
+      </PageLayout>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <PageLayout title="トリミング" onBack={handleBack} icon={<Scissors className={`${ICON.page} ${C.text}`} />}>
+        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>トリミング記録が見つかりません</div>
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout
       title={mode === "new" ? "トリミング登録" : "トリミング編集"}
@@ -555,7 +574,7 @@ export function TrimmingForm() {
               削除
             </Button>
           ) : null}
-          {canEdit ? (
+          {canSubmit ? (
             <SubmitButton className="h-10" disabled={isSaving}>
               保存
             </SubmitButton>
@@ -566,6 +585,7 @@ export function TrimmingForm() {
       {/* NavigationBlocker: isSaving 中はブロック無効化 */}
       <NavigationBlocker when={isDirty && !isSaving} />
       <form action={formAction}>
+      <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
       {/* rendering-conditional-render: && → ? ... : null */}
       {selectedPet ? (
         <div className="space-y-6">
@@ -623,6 +643,7 @@ export function TrimmingForm() {
           </div>
         </div>
       ) : null}
+      </fieldset>
 
       <Suspense fallback={null}>
         {/* Course Modal */}

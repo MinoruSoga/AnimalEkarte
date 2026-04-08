@@ -203,7 +203,8 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 
 		// 4. ケアプラン → 会計明細に変換
 		var totalAmount int64
-		for i, item := range carePlanItems {
+		for i := range carePlanItems {
+			item := &carePlanItems[i]
 			billingItem := &model.BillingItem{
 				BillingID: billing.ID,
 				Category:  model.ItemCategoryOther,

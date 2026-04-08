@@ -54,6 +54,7 @@ interface PermissionRuleTableProps {
   group: PermissionGroup | null;
   rules: PermissionRule[];
   onRuleChange: (resource: string, field: keyof Omit<PermissionRule, "resource">, value: boolean) => void;
+  disabled?: boolean;
 }
 
 // ─────────────────────────────────────────────────
@@ -61,9 +62,10 @@ interface PermissionRuleTableProps {
 // ─────────────────────────────────────────────────
 
 export const PermissionRuleTable = memo(function PermissionRuleTable({
-  group,
+  group: _group,
   rules,
   onRuleChange,
+  disabled,
 }: PermissionRuleTableProps) {
   // Show permission table regardless of group state (both edit and new modes)
   // For new groups (group === null), display empty rules with all permissions unchecked
@@ -112,6 +114,7 @@ export const PermissionRuleTable = memo(function PermissionRuleTable({
                   <TableCell className="text-center">
                     <Checkbox
                       checked={rule.canView}
+                      disabled={disabled}
                       onCheckedChange={(checked) =>
                         onRuleChange(resource, "canView", checked === true)
                       }
@@ -120,6 +123,7 @@ export const PermissionRuleTable = memo(function PermissionRuleTable({
                   <TableCell className="text-center">
                     <Checkbox
                       checked={rule.canCreate}
+                      disabled={disabled}
                       onCheckedChange={(checked) =>
                         onRuleChange(resource, "canCreate", checked === true)
                       }
@@ -128,6 +132,7 @@ export const PermissionRuleTable = memo(function PermissionRuleTable({
                   <TableCell className="text-center">
                     <Checkbox
                       checked={rule.canEdit}
+                      disabled={disabled}
                       onCheckedChange={(checked) =>
                         onRuleChange(resource, "canEdit", checked === true)
                       }
@@ -136,6 +141,7 @@ export const PermissionRuleTable = memo(function PermissionRuleTable({
                   <TableCell className="text-center">
                     <Checkbox
                       checked={rule.canDelete}
+                      disabled={disabled}
                       onCheckedChange={(checked) =>
                         onRuleChange(resource, "canDelete", checked === true)
                       }

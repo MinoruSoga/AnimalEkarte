@@ -15,7 +15,7 @@ function getInitialYearMonth(): string {
 
 export function ShiftCalendarPage() {
   const [yearMonth, setYearMonth] = useState<string>(getInitialYearMonth);
-  const { canCreate, canEdit } = usePermission("shifts");
+  const { canCreate, canEdit, canDelete } = usePermission("shifts");
   const [selectedStaffId, setSelectedStaffId] = useState<string>("all");
 
   const shiftsQuery = useGetShifts({
@@ -62,6 +62,7 @@ export function ShiftCalendarPage() {
           selectedStaffId={selectedStaffId}
           canCreate={canCreate}
           canEdit={canEdit}
+          canDelete={canDelete}
           onPrevMonth={handlePrevMonth}
           onNextMonth={handleNextMonth}
           onStaffChange={handleStaffChange}
