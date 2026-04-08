@@ -12,6 +12,7 @@ import type { MasterSettingsCategory } from "@/features/master/constants/categor
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { usePermission, useAuth } from "@/features/auth";
+import type { ResourceAction } from "@/features/auth";
 import type { Resource } from "@/types/generated/models";
 import { ResourceHospitalSettings, ResourceMasterMedical, ResourceMasterTrimming } from "@/types/generated/models";
 
@@ -193,7 +194,7 @@ function PermissionFilteredSection({
 }: {
   section: SectionDef;
   navigate: (path: string) => void;
-  hasPermission: (resource: Resource, action: string) => boolean;
+  hasPermission: (resource: Resource, action: ResourceAction) => boolean;
 }) {
   const hasVisibleCards = section.keys.some((key) =>
     hasPermission(getResourceForKey(key), "view"),
