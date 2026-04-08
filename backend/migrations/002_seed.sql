@@ -1652,7 +1652,7 @@ ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
 
-INSERT INTO exam_items (id, exam_id, exam_type_item_id, value, status) VALUES
+INSERT INTO exam_items (id, exam_id, exam_type_item_id, inspection_value, status) VALUES
     -- Exam 1 (CBC for MR2)
     (34, 1, 1, '9.8',  'normal'),
     (35, 1, 2, '7.2',  'normal'),
