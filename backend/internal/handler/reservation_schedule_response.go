@@ -19,8 +19,8 @@ type scheduleEntryResponse struct {
 	StaffID   uint64                    `json:"staff_id"`
 	Date      string                    `json:"date"`
 	ShiftType string                    `json:"shift_type"`
-	StartTime *string                   `json:"start_time,omitempty"`
-	EndTime   *string                   `json:"end_time,omitempty"`
+	WorkStart *string                   `json:"work_start,omitempty"` // リクエストと統一（work_start/work_end）
+	WorkEnd   *string                   `json:"work_end,omitempty"`
 	Note      string                    `json:"note"`
 	Breaks    []shiftEntryBreakResponse `json:"breaks"`
 	CreatedAt time.Time                 `json:"created_at"`
@@ -38,8 +38,8 @@ func toScheduleEntryResponse(e service.ScheduleEntry) scheduleEntryResponse {
 		StaffID:   e.Entry.StaffID,
 		Date:      e.Entry.Date.Format("2006-01-02"),
 		ShiftType: string(e.Entry.ShiftType),
-		StartTime: e.Entry.StartTime,
-		EndTime:   e.Entry.EndTime,
+		WorkStart: e.Entry.StartTime,
+		WorkEnd:   e.Entry.EndTime,
 		Note:      e.Entry.Note,
 		Breaks:    breaks,
 		CreatedAt: e.Entry.CreatedAt,
