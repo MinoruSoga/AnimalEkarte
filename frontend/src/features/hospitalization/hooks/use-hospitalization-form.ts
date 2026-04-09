@@ -17,6 +17,32 @@ import { calculateBillingTotals } from "@/lib/calculations";
 const MS_PER_DAY = 86_400_000;
 const DEFAULT_HOSPITALIZATION_DAYS = 7;
 
+// rerender-lazy-state-init: モジュールスコープ定数にすることでレンダーごとのオブジェクト生成を排除
+const DEFAULT_TREATMENT_PLANS: TreatmentPlan[] = [
+  {
+    id: "1",
+    treatmentContent: "adm rate",
+    memo: "入院料1日分",
+    insurance: true,
+    unitPrice: 990,
+    quantity: 1,
+    discount: 0,
+    discountAmount: 0,
+    subtotal: 990,
+  },
+  {
+    id: "2",
+    treatmentContent: "PCG/SC ~15kg",
+    memo: "",
+    insurance: false,
+    unitPrice: 990,
+    quantity: 1,
+    discount: 0,
+    discountAmount: 0,
+    subtotal: 990,
+  },
+];
+
 export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -51,30 +77,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
 
-  const [treatmentPlans, setTreatmentPlans] = useState<TreatmentPlan[]>([
-    {
-      id: "1",
-      treatmentContent: "adm rate",
-      memo: "入院料1日分",
-      insurance: true,
-      unitPrice: 990,
-      quantity: 1,
-      discount: 0,
-      discountAmount: 0,
-      subtotal: 990,
-    },
-    {
-      id: "2",
-      treatmentContent: "PCG/SC ~15kg",
-      memo: "",
-      insurance: false,
-      unitPrice: 990,
-      quantity: 1,
-      discount: 0,
-      discountAmount: 0,
-      subtotal: 990,
-    },
-  ]);
+  const [treatmentPlans, setTreatmentPlans] = useState<TreatmentPlan[]>(DEFAULT_TREATMENT_PLANS);
 
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);

@@ -92,8 +92,9 @@ interface EditRowProps {
   isPending: boolean;
 }
 
-const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: EditRowProps) {
-  const [form, setForm] = useState({
+// rerender-lazy-state-init: computed object の初期化をモジュールレベル関数に抽出
+function buildEditRowForm(vital: Vital) {
+  return {
     recorded_at: vital.recorded_at
       ? new Date(vital.recorded_at).toISOString().slice(0, 16)
       : "",
@@ -103,7 +104,12 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
     body_weight: vital.body_weight != null ? String(vital.body_weight) : "",
     weight_unit: vital.weight_unit ?? "Kg",
     note: vital.note ?? "",
-  });
+  };
+}
+
+const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: EditRowProps) {
+  // lazy initializer — 初回マウント時のみ buildEditRowForm() が実行される
+  const [form, setForm] = useState(() => buildEditRowForm(vital));
 
   const handleChange = useCallback(
     (field: string, value: string | BodyWeightUnit) => {

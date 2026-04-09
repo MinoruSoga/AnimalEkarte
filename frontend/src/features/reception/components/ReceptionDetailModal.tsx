@@ -49,7 +49,9 @@ interface RelatedPagesProps {
   canCreateHospitalization?: boolean;
 }
 
-function RelatedPages({
+// rerender-memo: 親(ReceptionDetailModal)が currentStatus 変化で再レンダーされても
+// RelatedPages は currentStatus を参照しないため memo() で不要再レンダーを防ぐ
+const RelatedPages = memo(function RelatedPages({
   isTrimming,
   onCreateMedicalRecord,
   onCreateTrimming,
@@ -107,7 +109,7 @@ function RelatedPages({
       </div>
     </div>
   );
-}
+});
 
 interface ActionButtonsProps {
   currentStatus?: string;
@@ -125,7 +127,8 @@ interface ActionButtonsProps {
   onCreateHospitalization: () => void;
 }
 
-function ActionButtons({
+// rerender-memo: コールバックは親で useCallback 済み。memo() で不要再レンダーを防ぐ
+const ActionButtons = memo(function ActionButtons({
   currentStatus,
   appointment,
   isTrimming,
@@ -286,7 +289,7 @@ function ActionButtons({
       ) : null}
     </>
   );
-}
+});
 
 interface ReceptionDetailModalProps {
   isOpen: boolean;

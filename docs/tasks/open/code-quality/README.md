@@ -33,10 +33,10 @@
 | [BUG-234](BUG-234_set-map-lookups.md) | FE js-set-map | O(n) .some()/.includes() を Set で O(1) に（PetSelection 等3箇所） | Low | code-quality/ |
 | [BUG-235](BUG-235_TreatmentSearchDialog-not-lazy-in-CarePlanDialog.md) | FE bundle | CarePlanDialog 内の TreatmentSearchDialog が static import かつ常時マウント | Low | code-quality/ |
 | [BUG-236](BUG-236_trivial-useMemo-daily-records-tab.md) | FE rerender-memo | DailyRecordsTab の getTodayStr() を useMemo で不要メモ化 | Low | code-quality/ |
-| [BUG-237](BUG-237_lazy-state-init-treatment-plans.md) | FE rerender-lazy-state-init | use-hospitalization-form.ts の treatmentPlans 初期値オブジェクトが毎レンダー生成 | Medium | code-quality/ |
-| [BUG-238](BUG-238_lazy-state-init-vitals-edit-row.md) | FE rerender-lazy-state-init | VitalsTab EditRow の computed useState（Date 生成 + String 変換 x5） | Low | code-quality/ |
-| [BUG-239](BUG-239_getCurrentTime-inside-component-lazy-state.md) | FE rerender-lazy-state-init | DailyCareLogDialog の getCurrentTime() がコンポーネント内定義 + lazy init 未使用 | Medium | code-quality/ |
-| [BUG-240](BUG-240_RelatedPages-ActionButtons-missing-memo.md) | FE rerender-memo | ReceptionDetailModal の RelatedPages / ActionButtons が memo() 未適用 | Medium | code-quality/ |
+| ~~BUG-237~~ | FE rerender-lazy-state-init | ✅ **CLOSED** — use-hospitalization-form.ts treatmentPlans をモジュール定数化 | — | closed/ |
+| ~~BUG-238~~ | FE rerender-lazy-state-init | ✅ **CLOSED** — VitalsTab EditRow の buildEditRowForm() + lazy init | — | closed/ |
+| ~~BUG-239~~ | FE rerender-lazy-state-init | ✅ **CLOSED** — DailyCareLogDialog getCurrentTime をモジュールスコープに + lazy init | — | closed/ |
+| ~~BUG-240~~ | FE rerender-memo | ✅ **CLOSED** — ReceptionDetailModal の RelatedPages / ActionButtons に memo() 適用 | — | closed/ |
 
 ## 誤報として撤回した指摘
 
@@ -81,7 +81,7 @@
 22. **BUG-234** (Low): .some()/.includes() → Set.has() に変更（3箇所） — 20分
 23. **BUG-235** (Low): TreatmentSearchDialog を lazy + 条件レンダーに変更 — 15分
 24. **BUG-236** (Low): DailyRecordsTab の trivial useMemo 削除 — 1分
-25. **BUG-237** (Medium): use-hospitalization-form.ts treatmentPlans → モジュール定数化 — 5分
-26. **BUG-238** (Low): VitalsTab EditRow の useState lazy init — 10分
-27. **BUG-239** (Medium): DailyCareLogDialog getCurrentTime をモジュールスコープに + lazy init — 5分
-28. **BUG-240** (Medium): ReceptionDetailModal の RelatedPages / ActionButtons に memo() 追加 — 10分
+25. ~~**BUG-237**~~ ✅ CLOSED（treatmentPlans モジュール定数化）
+26. ~~**BUG-238**~~ ✅ CLOSED（buildEditRowForm lazy init）
+27. ~~**BUG-239**~~ ✅ CLOSED（getCurrentTime モジュールスコープ + lazy init）
+28. ~~**BUG-240**~~ ✅ CLOSED（RelatedPages / ActionButtons に memo()）
