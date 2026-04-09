@@ -21,10 +21,10 @@ type CheckupFilters struct {
 type CheckupRepository interface {
 	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error)
 	ListByClinic(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error)
-	FindByID(ctx context.Context, id uint64) (*model.Checkup, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error)
 	Create(ctx context.Context, checkup *model.Checkup) error
-	Update(ctx context.Context, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, id uint64) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type checkupRepository struct {
@@ -75,12 +75,13 @@ func (r *checkupRepository) ListByMedicalRecordID(ctx context.Context, medicalRe
 	return checkups, nil
 }
 
-func (r *checkupRepository) FindByID(ctx context.Context, id uint64) (*model.Checkup, error) {
+func (r *checkupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error) {
 	var checkup model.Checkup
 	err := r.db.WithContext(ctx).
 		Preload("CheckupType").
 		Preload("Doctor").
-		First(&checkup, id).Error
+		Where("clinic_id = ? AND id = ?", clinicID, id).
+		First(&checkup).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup", fmt.Sprintf("%d", id))
 	}
@@ -95,10 +96,10 @@ func (r *checkupRepository) Create(ctx context.Context, checkup *model.Checkup) 
 	return nil
 }
 
-func (r *checkupRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *checkupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Checkup{}).
-		Where("id = ?", id).
+		Where("clinic_id = ? AND id = ?", clinicID, id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "checkup", fmt.Sprintf("%d", id))
@@ -109,8 +110,10 @@ func (r *checkupRepository) Update(ctx context.Context, id uint64, fields map[st
 	return nil
 }
 
-func (r *checkupRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Checkup{}, id)
+func (r *checkupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND id = ?", clinicID, id).
+		Delete(&model.Checkup{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "checkup", fmt.Sprintf("%d", id))
 	}

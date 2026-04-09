@@ -30,13 +30,25 @@ func NewProcedureService(repo repository.ProcedureRepository) ProcedureService {
 }
 
 func (s *procedureService) List(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	items, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list procedures")
+	}
+	return items, nil
 }
 func (s *procedureService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get procedure")
+	}
+	return result, nil
 }
 func (s *procedureService) Create(ctx context.Context, procedure *model.Procedure) error {
-	return s.repo.Create(ctx, procedure)
+	if err := s.repo.Create(ctx, procedure); err != nil {
+		return apperrors.Wrap(err, "failed to create procedure")
+	}
+	slog.InfoContext(ctx, "procedure created", slog.Uint64("procedure_id", procedure.ID))
+	return nil
 }
 func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, input *UpdateProcedureInput) (*model.Procedure, error) {
 	if input == nil {
@@ -61,14 +73,22 @@ func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) erro
 	if count > 0 {
 		return apperrors.WrapConflict("この診療項目は診療記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete procedure")
+	}
+	slog.InfoContext(ctx, "procedure deleted", slog.Uint64("procedure_id", id), slog.Uint64("clinic_id", clinicID))
+	return nil
 }
 
 func (s *procedureService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder procedures")
+	}
+	slog.InfoContext(ctx, "procedures reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
+	return nil
 }
 
 // UpdateProcedureInput は処置更新のサービス入力 DTO

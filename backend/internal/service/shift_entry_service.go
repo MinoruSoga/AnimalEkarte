@@ -80,7 +80,11 @@ func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth
 		YearMonth: yearMonth,
 		StaffID:   staffID,
 	}
-	return s.repo.List(ctx, clinicID, filter)
+	items, err := s.repo.List(ctx, clinicID, filter)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list shift entries")
+	}
+	return items, nil
 }
 
 // requiresTimeSlot は時刻（start_time/end_time）が必要なシフト種別かどうかを返す。
@@ -152,7 +156,11 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 	slog.InfoContext(ctx, "shift entry created",
 		slog.Uint64("shift_entry_id", entry.ID),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, clinicID, entry.ID)
+	result, err := s.repo.FindByID(ctx, clinicID, entry.ID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get shift entry after create")
+	}
+	return result, nil
 }
 
 func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateShiftEntryInput) (*model.ShiftEntry, error) {
@@ -198,7 +206,11 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 		}
 	}
 	slog.InfoContext(ctx, "shift entry updated", slog.Uint64("shift_entry_id", id))
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get shift entry after update")
+	}
+	return result, nil
 }
 
 func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) error {

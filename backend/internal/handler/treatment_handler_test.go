@@ -21,27 +21,27 @@ import (
 // ---- mock TreatmentService ----
 
 type mockTreatmentService struct {
-	listFn                func(ctx context.Context, medicalRecordID uint64) ([]model.Treatment, error)
-	createFn              func(ctx context.Context, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error)
-	updateFn              func(ctx context.Context, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error)
-	deleteFn              func(ctx context.Context, medicalRecordID, treatmentID uint64) error
+	listFn                func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
+	createFn              func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error)
+	updateFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error)
+	deleteFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error
 	bulkUpdateSortOrderFn func(ctx context.Context, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error
 }
 
-func (m *mockTreatmentService) List(ctx context.Context, medicalRecordID uint64) ([]model.Treatment, error) {
-	return m.listFn(ctx, medicalRecordID)
+func (m *mockTreatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
+	return m.listFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockTreatmentService) Create(ctx context.Context, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error) {
-	return m.createFn(ctx, medicalRecordID, input)
+func (m *mockTreatmentService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error) {
+	return m.createFn(ctx, clinicID, medicalRecordID, input)
 }
 
-func (m *mockTreatmentService) Update(ctx context.Context, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error) {
-	return m.updateFn(ctx, medicalRecordID, treatmentID, input)
+func (m *mockTreatmentService) Update(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error) {
+	return m.updateFn(ctx, clinicID, medicalRecordID, treatmentID, input)
 }
 
-func (m *mockTreatmentService) Delete(ctx context.Context, medicalRecordID, treatmentID uint64) error {
-	return m.deleteFn(ctx, medicalRecordID, treatmentID)
+func (m *mockTreatmentService) Delete(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error {
+	return m.deleteFn(ctx, clinicID, medicalRecordID, treatmentID)
 }
 
 func (m *mockTreatmentService) BulkUpdateSortOrder(ctx context.Context, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error {
@@ -72,7 +72,8 @@ func TestListTreatments(t *testing.T) {
 			paramID:  "10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				listFn: func(_ context.Context, medicalRecordID uint64) ([]model.Treatment, error) {
+				listFn: func(_ context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
+					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), medicalRecordID)
 					return []model.Treatment{{ID: 1, Content: "血液検査"}}, nil
 				},
@@ -99,7 +100,7 @@ func TestListTreatments(t *testing.T) {
 			paramID:  "1",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				listFn: func(_ context.Context, _ uint64) ([]model.Treatment, error) {
+				listFn: func(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			},
@@ -110,7 +111,7 @@ func TestListTreatments(t *testing.T) {
 			paramID:  "1",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				listFn: func(_ context.Context, _ uint64) ([]model.Treatment, error) {
+				listFn: func(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
 					return []model.Treatment{}, nil
 				},
 			},
@@ -165,7 +166,8 @@ func TestCreateTreatment(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				createFn: func(_ context.Context, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error) {
+				createFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error) {
+					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), medicalRecordID)
 					assert.Equal(t, model.TreatmentItemType("procedure"), input.ItemType)
 					assert.Equal(t, "狂犬病ワクチン接種", input.Content)
@@ -205,7 +207,7 @@ func TestCreateTreatment(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				createFn: func(_ context.Context, _ uint64, _ *service.CreateTreatmentInput) (*model.Treatment, error) {
+				createFn: func(_ context.Context, _, _ uint64, _ *service.CreateTreatmentInput) (*model.Treatment, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			},
@@ -254,7 +256,8 @@ func TestUpdateTreatment(t *testing.T) {
 			body:        map[string]any{"unit_price": 8000, "quantity": 2.0},
 			setupCtx:    func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				updateFn: func(_ context.Context, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error) {
+				updateFn: func(_ context.Context, clinicID, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error) {
+					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), medicalRecordID)
 					assert.Equal(t, uint64(5), treatmentID)
 					require.NotNil(t, input.UnitPrice)
@@ -298,7 +301,7 @@ func TestUpdateTreatment(t *testing.T) {
 			body:        map[string]any{"content": "更新"},
 			setupCtx:    func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateTreatmentInput) (*model.Treatment, error) {
+				updateFn: func(_ context.Context, _, _, _ uint64, _ *service.UpdateTreatmentInput) (*model.Treatment, error) {
 					return nil, apperrors.WrapNotFound("treatment", "999")
 				},
 			},
@@ -352,7 +355,8 @@ func TestDeleteTreatment(t *testing.T) {
 			paramID:     "10",
 			treatmentID: "5",
 			svc: &mockTreatmentService{
-				deleteFn: func(_ context.Context, medicalRecordID, treatmentID uint64) error {
+				deleteFn: func(_ context.Context, clinicID, medicalRecordID, treatmentID uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), medicalRecordID)
 					assert.Equal(t, uint64(5), treatmentID)
 					return nil
@@ -379,7 +383,7 @@ func TestDeleteTreatment(t *testing.T) {
 			paramID:     "1",
 			treatmentID: "999",
 			svc: &mockTreatmentService{
-				deleteFn: func(_ context.Context, _, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _, _ uint64) error {
 					return apperrors.WrapNotFound("treatment", "999")
 				},
 			},

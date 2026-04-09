@@ -139,11 +139,19 @@ func NewServiceTypeService(repo repository.ServiceTypeRepository, reservationRep
 }
 
 func (s *serviceTypeService) List(ctx context.Context, clinicID uint64) ([]model.ServiceType, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	items, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list service types")
+	}
+	return items, nil
 }
 
 func (s *serviceTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ServiceType, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get service type")
+	}
+	return result, nil
 }
 
 func (s *serviceTypeService) Create(ctx context.Context, clinicID uint64, input *CreateServiceTypeInput) (*model.ServiceType, error) {
@@ -179,13 +187,21 @@ func (s *serviceTypeService) Create(ctx context.Context, clinicID uint64, input 
 func (s *serviceTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateServiceTypeInput) (*model.ServiceType, error) {
 	fields := buildServiceTypeUpdateFields(input)
 	if len(fields) == 0 {
-		return s.repo.FindByID(ctx, clinicID, id)
+		result, err := s.repo.FindByID(ctx, clinicID, id)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to get service type")
+		}
+		return result, nil
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update service type")
 	}
 	slog.InfoContext(ctx, "service type updated", slog.Uint64("service_type_id", id))
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get service type after update")
+	}
+	return result, nil
 }
 
 func (s *serviceTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -207,5 +223,8 @@ func (s *serviceTypeService) Reorder(ctx context.Context, clinicID uint64, ids [
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder service types")
+	}
+	return nil
 }

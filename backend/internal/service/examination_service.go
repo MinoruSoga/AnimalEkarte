@@ -27,11 +27,19 @@ func NewExaminationService(repo repository.ExaminationRepository) ExaminationSer
 }
 
 func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list examinations")
+	}
+	return items, total, nil
 }
 
 func (s *examinationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get examination")
+	}
+	return result, nil
 }
 
 func (s *examinationService) Create(ctx context.Context, exam *model.Examination) error {

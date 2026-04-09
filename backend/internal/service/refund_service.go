@@ -71,5 +71,9 @@ func (s *refundService) ListByBillingID(ctx context.Context, clinicID, billingID
 	if _, err := s.accountRepo.FindByID(ctx, clinicID, billingID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to get billing")
 	}
-	return s.repo.FindByBillingID(ctx, clinicID, billingID)
+	items, err := s.repo.FindByBillingID(ctx, clinicID, billingID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list refunds")
+	}
+	return items, nil
 }

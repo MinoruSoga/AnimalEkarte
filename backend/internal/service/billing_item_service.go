@@ -24,6 +24,7 @@ const (
 
 // CreateBillingItemInput は billing_item 作成の入力DTO
 type CreateBillingItemInput struct {
+	ClinicID              uint64
 	BillingID             uint64
 	Category              model.ItemCategory
 	Name                  string
@@ -120,7 +121,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		return nil, apperrors.Wrap(err, "failed to create billing item")
 	}
 
-	if err := s.recalculateTotals(ctx, input.BillingID); err != nil {
+	if err := s.recalculateTotals(ctx, input.ClinicID, input.BillingID); err != nil {
 		slog.WarnContext(ctx, "failed to recalculate billing totals after create",
 			slog.Uint64("billing_id", input.BillingID),
 			slog.String("error", err.Error()),
@@ -152,7 +153,7 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID uint64, id
 		return nil, apperrors.Wrap(err, "failed to update billing item")
 	}
 
-	if err := s.recalculateTotals(ctx, item.BillingID); err != nil {
+	if err := s.recalculateTotals(ctx, clinicID, item.BillingID); err != nil {
 		slog.WarnContext(ctx, "failed to recalculate billing totals after update",
 			slog.Uint64("billing_id", item.BillingID),
 			slog.String("error", err.Error()),
@@ -177,7 +178,7 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID uint64, id
 		return apperrors.Wrap(err, "failed to delete billing item")
 	}
 
-	if err := s.recalculateTotals(ctx, billingID); err != nil {
+	if err := s.recalculateTotals(ctx, clinicID, billingID); err != nil {
 		slog.WarnContext(ctx, "failed to recalculate billing totals after delete",
 			slog.Uint64("billing_id", billingID),
 			slog.String("error", err.Error()),
@@ -192,11 +193,11 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID uint64, id
 }
 
 // recalculateTotals は billing の全明細から subtotal/tax_total/total_amount を再計算して保存する
-func (s *billingItemService) recalculateTotals(ctx context.Context, billingID uint64) error {
-	items, err := s.repo.FindByBillingID(ctx, billingID)
+func (s *billingItemService) recalculateTotals(ctx context.Context, clinicID, billingID uint64) error {
+	items, err := s.repo.FindByBillingID(ctx, clinicID, billingID)
 	if err != nil {
 		return apperrors.Wrap(err, "find billing items")
 	}
 	subtotal, taxTotal, totalAmount := CalculateBillingTotals(items)
-	return s.repo.UpdateBillingTotals(ctx, billingID, subtotal, taxTotal, totalAmount)
+	return s.repo.UpdateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount)
 }

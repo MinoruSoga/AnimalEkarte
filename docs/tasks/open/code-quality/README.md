@@ -72,6 +72,19 @@
 | [BUG-251](BUG-251_gorm-error-comparison-without-errors-is.md) | BE reservation | `gorm.ErrRecordNotFound` を `==` で比較（`errors.Is` 未使用） | High | code-quality/ |
 | [BUG-252](BUG-252_misc-high-medium-violations.md) | BE 複数 | examination enum未検証 / slog handler層使用 / liff エラー無視 / N+1 等 | High/Medium | code-quality/ |
 
+## バックエンド Go 規約準拠監査（2026-04-09 第9回監査）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| [BUG-253](BUG-253_backend-go-convention-audit-2.md) | BE 全ドメイン | バックエンド Go コード規約準拠監査 第2回（親チケット） | — | code-quality/ |
+| [BUG-254](BUG-254_multitenancy-clinic-id-missing.md) | BE 8ドメイン | マルチテナント clinic_id 欠落（クロスクリニック参照可能） | Critical | code-quality/ |
+| [BUG-255](BUG-255_repository-fromgorm-in-reorder.md) | BE 11リポジトリ | Repository Reorder/トランザクション内で `apperrors.Wrap` → `FromGORM` に統一 | High | code-quality/ |
+| [BUG-256](BUG-256_service-naked-return-errors-2.md) | BE 20+サービス | Service 層 `apperrors.Wrap` なし naked return（第2波） | High | code-quality/ |
+| [BUG-257](BUG-257_slog-audit-log-violations.md) | BE 8サービス | slog 監査ログ欠落・順序不正・レイヤー違反 | High | code-quality/ |
+| [BUG-258](BUG-258_handler-direct-cjson.md) | BE 4ファイル | Handler `c.JSON` 直接使用（`RespondError` 迂回） | High | code-quality/ |
+| [BUG-259](BUG-259_delete-fk-dependency-check-missing.md) | BE 2サービス | マスタ削除時の FK 依存チェック欠如 | High | code-quality/ |
+| [BUG-260](BUG-260_error-ignoring-and-misc.md) | BE 複数 | Count エラー無視・liff エラー無視・税率ハードコード・重複チェック等 | Medium | code-quality/ |
+
 ## 修正優先順位（BUG-221〜223 追加後）
 
 1. **BUG-186** (Critical): LoginResponse から Token フィールド削除 — 5分

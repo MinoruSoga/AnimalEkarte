@@ -85,9 +85,11 @@ func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uin
 	}
 	if result.RowsAffected == 0 {
 		var count int64
-		r.db.WithContext(ctx).Model(&model.MerchandiseItem{}).
+		if err := r.db.WithContext(ctx).Model(&model.MerchandiseItem{}).
 			Where("id = ? AND clinic_id = ?", id, clinicID).
-			Count(&count)
+			Count(&count).Error; err != nil {
+			return apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
+		}
 		if count == 0 {
 			return apperrors.WrapNotFound("merchandise_item", fmt.Sprintf("%d", id))
 		}
@@ -102,7 +104,7 @@ func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64
 				Where("id = ? AND clinic_id = ?", id, clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder merchandise item")
+				return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("merchandise_item id %d not found in this clinic", id))
@@ -110,7 +112,7 @@ func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "reorder merchandise item")
+		return err
 	}
 	return nil
 }

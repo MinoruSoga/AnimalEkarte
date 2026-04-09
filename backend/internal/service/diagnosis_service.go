@@ -86,11 +86,19 @@ func NewDiagnosisCategoryService(
 }
 
 func (s *diagnosisCategoryService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, page, limit)
+	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis categories")
+	}
+	return items, total, nil
 }
 
 func (s *diagnosisCategoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis category")
+	}
+	return result, nil
 }
 
 func (s *diagnosisCategoryService) Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisCategoryInput) (*model.DiagnosisCategory, error) {
@@ -121,7 +129,11 @@ func (s *diagnosisCategoryService) Update(ctx context.Context, clinicID, id uint
 	slog.InfoContext(ctx, "diagnosis category updated",
 		slog.Uint64("category_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis category after update")
+	}
+	return result, nil
 }
 
 func (s *diagnosisCategoryService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -142,7 +154,10 @@ func (s *diagnosisCategoryService) Reorder(ctx context.Context, clinicID uint64,
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder diagnosis categories")
+	}
+	return nil
 }
 
 // buildDiagnosisCategoryUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#021: 定数使用)
@@ -189,15 +204,27 @@ func NewDiagnosisNameService(
 }
 
 func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, page, limit)
+	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names")
+	}
+	return items, total, nil
 }
 
 func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
-	return s.repo.FindByCategoryID(ctx, clinicID, categoryID, page, limit)
+	items, total, err := s.repo.FindByCategoryID(ctx, clinicID, categoryID, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names by category")
+	}
+	return items, total, nil
 }
 
 func (s *diagnosisNameService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis name")
+	}
+	return result, nil
 }
 
 func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisNameInput) (*model.DiagnosisName, error) {
@@ -239,7 +266,11 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 	slog.InfoContext(ctx, "diagnosis name updated",
 		slog.Uint64("name_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis name after update")
+	}
+	return result, nil
 }
 
 func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -260,7 +291,10 @@ func (s *diagnosisNameService) Reorder(ctx context.Context, clinicID uint64, ids
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder diagnosis names")
+	}
+	return nil
 }
 
 // buildDiagnosisNameUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#021: 定数使用)

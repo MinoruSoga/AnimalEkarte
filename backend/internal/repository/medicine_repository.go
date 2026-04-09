@@ -108,9 +108,11 @@ func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fi
 	}
 	if result.RowsAffected == 0 {
 		var count int64
-		r.db.WithContext(ctx).Model(&model.Medicine{}).
+		if err := r.db.WithContext(ctx).Model(&model.Medicine{}).
 			Where("id = ? AND clinic_id = ?", id, clinicID).
-			Count(&count)
+			Count(&count).Error; err != nil {
+			return apperrors.FromGORM(err, "medicine", fmt.Sprintf("%d", id))
+		}
 		if count == 0 {
 			return apperrors.WrapNotFound("medicine", fmt.Sprintf("%d", id))
 		}

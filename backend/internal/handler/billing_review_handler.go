@@ -14,13 +14,18 @@ import (
 // GetBillingReview は指定カルテIDの会計医師確認を取得または初期化して返す
 // GET /medical-records/:id/billing-review
 func (h *Handler) GetBillingReview(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
 		return
 	}
 
-	review, err := h.svc.BillingReview.GetOrCreate(c.Request.Context(), medicalRecordID)
+	review, err := h.svc.BillingReview.GetOrCreate(c.Request.Context(), clinicID, medicalRecordID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -31,6 +36,11 @@ func (h *Handler) GetBillingReview(c *gin.Context) {
 // ConfirmBillingReview は会計を医師確認済みにする
 // POST /medical-records/:id/billing-review/confirm
 func (h *Handler) ConfirmBillingReview(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
@@ -48,7 +58,7 @@ func (h *Handler) ConfirmBillingReview(c *gin.Context) {
 		Memo:        req.Memo,
 	}
 
-	review, err := h.svc.BillingReview.Confirm(c.Request.Context(), medicalRecordID, input)
+	review, err := h.svc.BillingReview.Confirm(c.Request.Context(), clinicID, medicalRecordID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -59,6 +69,11 @@ func (h *Handler) ConfirmBillingReview(c *gin.Context) {
 // ReturnBillingReview は会計を差し戻す
 // POST /medical-records/:id/billing-review/return
 func (h *Handler) ReturnBillingReview(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
@@ -77,7 +92,7 @@ func (h *Handler) ReturnBillingReview(c *gin.Context) {
 		Memo:         req.Memo,
 	}
 
-	review, err := h.svc.BillingReview.Return(c.Request.Context(), medicalRecordID, input)
+	review, err := h.svc.BillingReview.Return(c.Request.Context(), clinicID, medicalRecordID, input)
 	if err != nil {
 		RespondError(c, err)
 		return

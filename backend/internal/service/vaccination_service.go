@@ -27,18 +27,32 @@ func NewVaccinationService(repo repository.VaccinationRepository) VaccinationSer
 }
 
 func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list vaccinations")
+	}
+	return items, total, nil
 }
 
 func (s *vaccinationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get vaccination")
+	}
+	return result, nil
 }
 
 func (s *vaccinationService) Create(ctx context.Context, vaccination *model.Vaccination) error {
 	if vaccination.VaccineID == 0 {
 		return apperrors.WrapInvalidInput("vaccine_id is required")
 	}
-	return s.repo.Create(ctx, vaccination)
+	if err := s.repo.Create(ctx, vaccination); err != nil {
+		return apperrors.Wrap(err, "failed to create vaccination")
+	}
+	slog.InfoContext(ctx, "vaccination created",
+		slog.Uint64("vaccination_id", vaccination.ID),
+		slog.Uint64("clinic_id", vaccination.ClinicID))
+	return nil
 }
 
 func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateVaccinationInput) (*model.Vaccination, error) {
@@ -121,5 +135,11 @@ func buildVaccinationUpdateFields(input *UpdateVaccinationInput) map[string]any 
 }
 
 func (s *vaccinationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete vaccination")
+	}
+	slog.InfoContext(ctx, "vaccination deleted",
+		slog.Uint64("vaccination_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return nil
 }

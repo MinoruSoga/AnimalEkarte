@@ -30,11 +30,19 @@ func NewReservationService(repo repository.ReservationRepository, db *gorm.DB) R
 }
 
 func (s *reservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, page, limit, date, status, source, petID, ownerID)
+	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit, date, status, source, petID, ownerID)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list reservations")
+	}
+	return items, total, nil
 }
 
 func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation")
+	}
+	return result, nil
 }
 
 func (s *reservationService) Create(ctx context.Context, reservation *model.ReservationAppointment) error {
@@ -77,7 +85,7 @@ func (s *reservationService) Create(ctx context.Context, reservation *model.Rese
 		return nil
 	})
 	if err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to create reservation")
 	}
 
 	slog.InfoContext(ctx, "reservation created",

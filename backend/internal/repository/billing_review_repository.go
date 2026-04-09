@@ -12,7 +12,7 @@ import (
 
 // BillingReviewRepository は会計医師確認のデータアクセスインターフェース
 type BillingReviewRepository interface {
-	FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (*model.BillingReview, error)
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error)
 	Create(ctx context.Context, review *model.BillingReview) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 }
@@ -26,10 +26,11 @@ func NewBillingReviewRepository(db *gorm.DB) BillingReviewRepository {
 	return &billingReviewRepository{db: db}
 }
 
-func (r *billingReviewRepository) FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (*model.BillingReview, error) {
+func (r *billingReviewRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error) {
 	var review model.BillingReview
 	err := r.db.WithContext(ctx).
-		Where("medical_record_id = ?", medicalRecordID).
+		Joins("JOIN medical_records ON medical_records.id = billing_reviews.medical_record_id").
+		Where("medical_records.clinic_id = ? AND billing_reviews.medical_record_id = ?", clinicID, medicalRecordID).
 		First(&review).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing_review", fmt.Sprintf("medical_record_id=%d", medicalRecordID))

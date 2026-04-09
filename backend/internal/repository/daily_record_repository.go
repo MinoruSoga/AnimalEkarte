@@ -13,9 +13,9 @@ import (
 
 // DailyRecordRepository は日次記録のデータアクセスインターフェース
 type DailyRecordRepository interface {
-	ListByHospitalizationID(ctx context.Context, hospitalizationID uint64) ([]model.DailyRecord, error)
-	FindByHospitalizationIDAndDate(ctx context.Context, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
-	GetOrCreateByDate(ctx context.Context, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
+	ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error)
+	FindByHospitalizationIDAndDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
+	GetOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
 	CreateVitalRecord(ctx context.Context, vr *model.VitalRecord) error
 	CreateCareLogRecord(ctx context.Context, cr *model.CareLogRecord) error
 	CreateStaffNoteRecord(ctx context.Context, sn *model.StaffNoteRecord) error
@@ -30,10 +30,10 @@ func NewDailyRecordRepository(db *gorm.DB) DailyRecordRepository {
 	return &dailyRecordRepository{db: db}
 }
 
-func (r *dailyRecordRepository) ListByHospitalizationID(ctx context.Context, hospitalizationID uint64) ([]model.DailyRecord, error) {
+func (r *dailyRecordRepository) ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
 	records := make([]model.DailyRecord, 0)
 	err := r.db.WithContext(ctx).
-		Where("hospitalization_id = ?", hospitalizationID).
+		Where("clinic_id = ? AND hospitalization_id = ?", clinicID, hospitalizationID).
 		Order("date DESC").
 		Preload("VitalRecords").
 		Preload("CareLogRecords").
@@ -45,10 +45,10 @@ func (r *dailyRecordRepository) ListByHospitalizationID(ctx context.Context, hos
 	return records, nil
 }
 
-func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Context, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
 	var record model.DailyRecord
 	err := r.db.WithContext(ctx).
-		Where("hospitalization_id = ? AND date = ?", hospitalizationID, date).
+		Where("clinic_id = ? AND hospitalization_id = ? AND date = ?", clinicID, hospitalizationID, date).
 		Preload("VitalRecords").
 		Preload("CareLogRecords").
 		Preload("StaffNoteRecords").
@@ -59,13 +59,14 @@ func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Conte
 	return &record, nil
 }
 
-func (r *dailyRecordRepository) GetOrCreateByDate(ctx context.Context, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+func (r *dailyRecordRepository) GetOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
 	record := model.DailyRecord{
+		ClinicID:          clinicID,
 		HospitalizationID: hospitalizationID,
 		Date:              date,
 	}
 	result := r.db.WithContext(ctx).
-		Where(model.DailyRecord{HospitalizationID: hospitalizationID, Date: date}).
+		Where(model.DailyRecord{ClinicID: clinicID, HospitalizationID: hospitalizationID, Date: date}).
 		FirstOrCreate(&record)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "daily_record", "")

@@ -183,7 +183,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		}
 
 		// 2. ケアプラン取得
-		carePlanItems, err := txRepos.CarePlanItem.ListByHospitalizationID(ctx, id)
+		carePlanItems, err := txRepos.CarePlanItem.ListByHospitalizationID(ctx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get care plan items")
 		}
@@ -225,7 +225,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		// 5. 合計金額更新
 		if len(carePlanItems) > 0 {
 			taxTotal := int64(float64(totalAmount) * 0.10)
-			if err := txRepos.BillingItem.UpdateBillingTotals(ctx, billing.ID, totalAmount, taxTotal, totalAmount+taxTotal); err != nil {
+			if err := txRepos.BillingItem.UpdateBillingTotals(ctx, clinicID, billing.ID, totalAmount, taxTotal, totalAmount+taxTotal); err != nil {
 				return apperrors.Wrap(err, "failed to update billing totals")
 			}
 		}

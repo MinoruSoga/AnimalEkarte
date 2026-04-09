@@ -166,17 +166,17 @@ func parseDateQuery(c *gin.Context, key string) (*string, error) {
 func extractStaffID(c *gin.Context) (uint64, bool) {
 	val, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		RespondError(c, apperrors.WrapUnauthorized("missing user context"))
 		return 0, false
 	}
 	userIDStr, ok := val.(string)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid user context"))
 		return 0, false
 	}
 	staffID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid user context"))
 		return 0, false
 	}
 	return staffID, true
@@ -188,17 +188,17 @@ func extractStaffID(c *gin.Context) (uint64, bool) {
 func extractClinicID(c *gin.Context) (uint64, bool) {
 	val, exists := c.Get("clinic_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing clinic context"})
+		RespondError(c, apperrors.WrapUnauthorized("missing clinic context"))
 		return 0, false
 	}
 	clinicIDStr, ok := val.(string)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid clinic context"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid clinic context"))
 		return 0, false
 	}
 	clinicID, err := strconv.ParseUint(clinicIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid clinic context"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid clinic context"))
 		return 0, false
 	}
 	return clinicID, true
@@ -210,12 +210,12 @@ func extractClinicID(c *gin.Context) (uint64, bool) {
 func extractIsSystemAdmin(c *gin.Context) (isSystemAdmin, ok bool) {
 	val, exists := c.Get("is_system_admin")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		RespondError(c, apperrors.WrapUnauthorized("missing user context"))
 		return false, false
 	}
 	isAdmin, ok := val.(bool)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid user context"))
 		return false, false
 	}
 	return isAdmin, true
@@ -263,12 +263,12 @@ func parsePagination(c *gin.Context) (page, limit int, err error) {
 func extractClinicIDFromParam(c *gin.Context) (uint64, bool) {
 	s := c.Param("clinicId")
 	if s == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing clinicId"})
+		RespondError(c, apperrors.WrapInvalidInput("missing clinicId"))
 		return 0, false
 	}
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid clinicId"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid clinicId"))
 		return 0, false
 	}
 	return id, true

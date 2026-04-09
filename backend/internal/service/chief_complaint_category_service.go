@@ -39,11 +39,19 @@ func NewChiefComplaintCategoryService(repo repository.ChiefComplaintCategoryRepo
 }
 
 func (s *chiefComplaintCategoryService) List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	items, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list chief complaint categories")
+	}
+	return items, nil
 }
 
 func (s *chiefComplaintCategoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintCategory, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get chief complaint category")
+	}
+	return result, nil
 }
 
 func (s *chiefComplaintCategoryService) Create(ctx context.Context, category *model.ChiefComplaintCategory) error {
@@ -67,7 +75,11 @@ func (s *chiefComplaintCategoryService) Update(ctx context.Context, clinicID, id
 	slog.InfoContext(ctx, "chief complaint category updated",
 		slog.Uint64("category_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get chief complaint category after update")
+	}
+	return result, nil
 }
 
 func (s *chiefComplaintCategoryService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -78,8 +90,13 @@ func (s *chiefComplaintCategoryService) Delete(ctx context.Context, clinicID, id
 	if count > 0 {
 		return apperrors.WrapConflict("この主訴カテゴリは問診記録で使用中のため削除できません")
 	}
-	slog.InfoContext(ctx, "chief complaint category deleted", slog.Uint64("category_id", id))
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete chief complaint category")
+	}
+	slog.InfoContext(ctx, "chief complaint category deleted",
+		slog.Uint64("category_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return nil
 }
 
 func buildChiefComplaintCategoryUpdateFields(input *UpdateChiefComplaintCategoryInput) map[string]any {

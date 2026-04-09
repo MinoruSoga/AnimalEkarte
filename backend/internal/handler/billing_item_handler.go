@@ -57,6 +57,7 @@ func (h *Handler) CreateBillingItem(c *gin.Context) {
 	}
 
 	input := &service.CreateBillingItemInput{
+		ClinicID:              clinicID,
 		BillingID:             req.BillingID,
 		Category:              model.ItemCategory(req.Category),
 		Name:                  req.Name,

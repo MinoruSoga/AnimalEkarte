@@ -89,15 +89,27 @@ func NewMedicalRecordService(
 }
 
 func (s *medicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list medical records")
+	}
+	return items, total, nil
 }
 
 func (s *medicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get medical record")
+	}
+	return result, nil
 }
 
 func (s *medicalRecordService) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
-	return s.repo.CountByPetID(ctx, clinicID, petID)
+	count, err := s.repo.CountByPetID(ctx, clinicID, petID)
+	if err != nil {
+		return 0, apperrors.Wrap(err, "failed to count medical records by pet")
+	}
+	return count, nil
 }
 
 func (s *medicalRecordService) Create(ctx context.Context, record *model.MedicalRecord) error {

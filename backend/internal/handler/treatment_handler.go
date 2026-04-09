@@ -14,7 +14,7 @@ import (
 // ListTreatments godoc
 // GET /medical-records/:id/treatments
 func (h *Handler) ListTreatments(c *gin.Context) {
-	_, ok := extractClinicID(c)
+	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
@@ -24,7 +24,7 @@ func (h *Handler) ListTreatments(c *gin.Context) {
 		return
 	}
 
-	treatments, err := h.svc.Treatment.List(c.Request.Context(), medicalRecordID)
+	treatments, err := h.svc.Treatment.List(c.Request.Context(), clinicID, medicalRecordID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -40,7 +40,7 @@ func (h *Handler) ListTreatments(c *gin.Context) {
 // CreateTreatment godoc
 // POST /medical-records/:id/treatments
 func (h *Handler) CreateTreatment(c *gin.Context) {
-	_, ok := extractClinicID(c)
+	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
@@ -80,7 +80,7 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 		SortOrder:      req.SortOrder,
 	}
 
-	treatment, err := h.svc.Treatment.Create(c.Request.Context(), medicalRecordID, input)
+	treatment, err := h.svc.Treatment.Create(c.Request.Context(), clinicID, medicalRecordID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -91,7 +91,7 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 // UpdateTreatment godoc
 // PATCH /medical-records/:id/treatments/:treatmentId
 func (h *Handler) UpdateTreatment(c *gin.Context) {
-	_, ok := extractClinicID(c)
+	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
@@ -134,7 +134,7 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 		input.ItemType = &itemType
 	}
 
-	treatment, err := h.svc.Treatment.Update(c.Request.Context(), medicalRecordID, treatmentID, input)
+	treatment, err := h.svc.Treatment.Update(c.Request.Context(), clinicID, medicalRecordID, treatmentID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -145,7 +145,7 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 // DeleteTreatment godoc
 // DELETE /medical-records/:id/treatments/:treatmentId
 func (h *Handler) DeleteTreatment(c *gin.Context) {
-	_, ok := extractClinicID(c)
+	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
@@ -160,7 +160,7 @@ func (h *Handler) DeleteTreatment(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Treatment.Delete(c.Request.Context(), medicalRecordID, treatmentID); err != nil {
+	if err := h.svc.Treatment.Delete(c.Request.Context(), clinicID, medicalRecordID, treatmentID); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -170,7 +170,7 @@ func (h *Handler) DeleteTreatment(c *gin.Context) {
 // BulkUpdateTreatments godoc
 // PUT /medical-records/:id/treatments
 func (h *Handler) BulkUpdateTreatments(c *gin.Context) {
-	_, ok := extractClinicID(c)
+	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
@@ -179,6 +179,7 @@ func (h *Handler) BulkUpdateTreatments(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
+	_ = clinicID // BulkUpdateSortOrder does not need clinic-scoped queries per item
 
 	var req bulkUpdateTreatmentsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

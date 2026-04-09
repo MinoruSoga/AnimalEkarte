@@ -14,13 +14,13 @@ import (
 // ---- BillingReview モック ----
 
 type mockBillingReviewRepository struct {
-	findByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) (*model.BillingReview, error)
+	findByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error)
 	createFn                func(ctx context.Context, review *model.BillingReview) error
 	updateFn                func(ctx context.Context, reviewID uint64, fields map[string]any) error
 }
 
-func (m *mockBillingReviewRepository) FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (*model.BillingReview, error) {
-	return m.findByMedicalRecordIDFn(ctx, medicalRecordID)
+func (m *mockBillingReviewRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error) {
+	return m.findByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
 func (m *mockBillingReviewRepository) Create(ctx context.Context, review *model.BillingReview) error {
@@ -85,7 +85,7 @@ func TestBillingReviewService_GetOrCreate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockBillingReviewRepository{
-				findByMedicalRecordIDFn: func(_ context.Context, _ uint64) (*model.BillingReview, error) {
+				findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingReview, error) {
 					if tt.findByRecordIDErr != nil {
 						return nil, tt.findByRecordIDErr
 					}
@@ -97,7 +97,7 @@ func TestBillingReviewService_GetOrCreate(t *testing.T) {
 			}
 			svc := NewBillingReviewService(repo)
 
-			review, err := svc.GetOrCreate(context.Background(), tt.medicalRecordID)
+			review, err := svc.GetOrCreate(context.Background(), 1, tt.medicalRecordID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -180,7 +180,7 @@ func TestBillingReviewService_Confirm(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockBillingReviewRepository{
-				findByMedicalRecordIDFn: func(_ context.Context, _ uint64) (*model.BillingReview, error) {
+				findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingReview, error) {
 					if tt.repoFindErr != nil {
 						return nil, tt.repoFindErr
 					}
@@ -195,7 +195,7 @@ func TestBillingReviewService_Confirm(t *testing.T) {
 			}
 			svc := NewBillingReviewService(repo)
 
-			review, err := svc.Confirm(context.Background(), tt.medicalRecordID, tt.input)
+			review, err := svc.Confirm(context.Background(), 1, tt.medicalRecordID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -265,7 +265,7 @@ func TestBillingReviewService_Return(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockBillingReviewRepository{
-				findByMedicalRecordIDFn: func(_ context.Context, _ uint64) (*model.BillingReview, error) {
+				findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingReview, error) {
 					if tt.repoFindErr != nil {
 						return nil, tt.repoFindErr
 					}
@@ -280,7 +280,7 @@ func TestBillingReviewService_Return(t *testing.T) {
 			}
 			svc := NewBillingReviewService(repo)
 
-			review, err := svc.Return(context.Background(), tt.medicalRecordID, tt.input)
+			review, err := svc.Return(context.Background(), 1, tt.medicalRecordID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)

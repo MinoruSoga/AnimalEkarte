@@ -172,5 +172,6 @@ func (h *Handler) PatchReservationStaffSortOrder(c *gin.Context) {
 
 // UploadReservationStaffImage godoc — v2 スコープ：未実装
 func (h *Handler) UploadReservationStaffImage(c *gin.Context) {
+	// NOTE: Intentional direct response — no apperrors.WrapNotImplemented available
 	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
 }

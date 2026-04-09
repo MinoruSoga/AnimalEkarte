@@ -100,5 +100,9 @@ func (s *reservationSettingService) Upsert(ctx context.Context, clinicID uint64,
 	if err := s.repo.Upsert(ctx, setting); err != nil {
 		return nil, apperrors.Wrap(err, "failed to upsert reservation setting")
 	}
-	return s.repo.FindByClinicID(ctx, clinicID)
+	result, err := s.repo.FindByClinicID(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation setting after upsert")
+	}
+	return result, nil
 }

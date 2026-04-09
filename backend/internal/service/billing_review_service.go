@@ -25,9 +25,9 @@ type ReturnBillingReviewInput struct {
 
 // BillingReviewService は会計医師確認のビジネスロジックインターフェース
 type BillingReviewService interface {
-	GetOrCreate(ctx context.Context, medicalRecordID uint64) (*model.BillingReview, error)
-	Confirm(ctx context.Context, medicalRecordID uint64, input *ConfirmBillingReviewInput) (*model.BillingReview, error)
-	Return(ctx context.Context, medicalRecordID uint64, input *ReturnBillingReviewInput) (*model.BillingReview, error)
+	GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error)
+	Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingReviewInput) (*model.BillingReview, error)
+	Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingReviewInput) (*model.BillingReview, error)
 }
 
 type billingReviewService struct {
@@ -39,8 +39,8 @@ func NewBillingReviewService(repo repository.BillingReviewRepository) BillingRev
 	return &billingReviewService{repo: repo}
 }
 
-func (s *billingReviewService) GetOrCreate(ctx context.Context, medicalRecordID uint64) (*model.BillingReview, error) {
-	review, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+func (s *billingReviewService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error) {
+	review, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
 			return nil, apperrors.Wrap(err, "failed to get billing review")
@@ -54,14 +54,15 @@ func (s *billingReviewService) GetOrCreate(ctx context.Context, medicalRecordID 
 			return nil, apperrors.Wrap(err, "failed to create billing review")
 		}
 		slog.InfoContext(ctx, "billing_review created",
+			slog.Uint64("clinic_id", clinicID),
 			slog.Uint64("billing_review_id", review.ID),
 			slog.Uint64("medical_record_id", medicalRecordID))
 	}
 	return review, nil
 }
 
-func (s *billingReviewService) Confirm(ctx context.Context, medicalRecordID uint64, input *ConfirmBillingReviewInput) (*model.BillingReview, error) {
-	review, err := s.GetOrCreate(ctx, medicalRecordID)
+func (s *billingReviewService) Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingReviewInput) (*model.BillingReview, error) {
+	review, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create billing review")
 	}
@@ -80,18 +81,19 @@ func (s *billingReviewService) Confirm(ctx context.Context, medicalRecordID uint
 		return nil, apperrors.Wrap(err, "failed to update billing review")
 	}
 	slog.InfoContext(ctx, "billing_review confirmed",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("billing_review_id", review.ID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Uint64("confirmed_by", input.ConfirmedBy))
-	confirmed, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	confirmed, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get confirmed billing review")
 	}
 	return confirmed, nil
 }
 
-func (s *billingReviewService) Return(ctx context.Context, medicalRecordID uint64, input *ReturnBillingReviewInput) (*model.BillingReview, error) {
-	review, err := s.GetOrCreate(ctx, medicalRecordID)
+func (s *billingReviewService) Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingReviewInput) (*model.BillingReview, error) {
+	review, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create billing review")
 	}
@@ -108,10 +110,11 @@ func (s *billingReviewService) Return(ctx context.Context, medicalRecordID uint6
 		return nil, apperrors.Wrap(err, "failed to update billing review")
 	}
 	slog.InfoContext(ctx, "billing_review returned",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("billing_review_id", review.ID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Uint64("returned_by", input.ReturnedBy))
-	returned, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	returned, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get returned billing review")
 	}

@@ -41,11 +41,19 @@ func NewPermissionGroupService(repo repository.PermissionGroupRepository) Permis
 }
 
 func (s *permissionGroupService) List(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	items, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list permission groups")
+	}
+	return items, nil
 }
 
 func (s *permissionGroupService) GetByID(ctx context.Context, id uint64) (*model.PermissionGroup, error) {
-	return s.repo.FindByID(ctx, id)
+	result, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get permission group")
+	}
+	return result, nil
 }
 
 func (s *permissionGroupService) Create(ctx context.Context, group *model.PermissionGroup) error {
@@ -70,7 +78,11 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 	slog.InfoContext(ctx, "permission group updated",
 		slog.Uint64("group_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, id)
+	result, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get permission group after update")
+	}
+	return result, nil
 }
 
 func (s *permissionGroupService) Delete(ctx context.Context, id uint64) error {

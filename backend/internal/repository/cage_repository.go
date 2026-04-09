@@ -89,7 +89,7 @@ func (r *cageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uin
 				Where("id = ? AND clinic_id = ?", id, clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder cage")
+				return apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("cage id %d not found in this clinic", id))
@@ -97,7 +97,7 @@ func (r *cageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uin
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "reorder cage")
+		return err
 	}
 	return nil
 }

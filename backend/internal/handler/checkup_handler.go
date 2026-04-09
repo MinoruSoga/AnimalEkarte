@@ -14,6 +14,11 @@ import (
 
 // ListCheckups は指定カルテに紐づく健診記録の一覧を返す
 func (h *Handler) ListCheckups(c *gin.Context) {
+	_, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical_record id"))
@@ -80,6 +85,11 @@ func (h *Handler) CreateCheckup(c *gin.Context) {
 
 // UpdateCheckup は健診記録を部分更新する
 func (h *Handler) UpdateCheckup(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical_record id"))
@@ -117,7 +127,7 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 		updateNextDate = &nd
 	}
 
-	checkup, err := h.svc.Checkup.Update(c.Request.Context(), medicalRecordID, checkupID, &service.UpdateCheckupInput{
+	checkup, err := h.svc.Checkup.Update(c.Request.Context(), clinicID, medicalRecordID, checkupID, &service.UpdateCheckupInput{
 		CheckupTypeID: req.CheckupTypeID,
 		PetID:         req.PetID,
 		Date:          updateDate,
@@ -134,6 +144,11 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 
 // DeleteCheckup は健診記録を soft delete する
 func (h *Handler) DeleteCheckup(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical_record id"))
@@ -146,7 +161,7 @@ func (h *Handler) DeleteCheckup(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Checkup.Delete(c.Request.Context(), medicalRecordID, checkupID); err != nil {
+	if err := h.svc.Checkup.Delete(c.Request.Context(), clinicID, medicalRecordID, checkupID); err != nil {
 		RespondError(c, err)
 		return
 	}

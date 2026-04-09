@@ -13,31 +13,31 @@ import (
 // ---- CarePlanItem モック ----
 
 type mockCarePlanItemRepository struct {
-	listByHospitalizationIDFn func(ctx context.Context, hospitalizationID uint64) ([]model.CarePlanItem, error)
-	findByIDFn                func(ctx context.Context, itemID uint64) (*model.CarePlanItem, error)
+	listByHospitalizationIDFn func(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error)
+	findByIDFn                func(ctx context.Context, clinicID, itemID uint64) (*model.CarePlanItem, error)
 	createFn                  func(ctx context.Context, item *model.CarePlanItem) error
-	updateFn                  func(ctx context.Context, itemID uint64, fields map[string]any) error
-	deleteFn                  func(ctx context.Context, itemID uint64) error
+	updateFn                  func(ctx context.Context, clinicID, itemID uint64, fields map[string]any) error
+	deleteFn                  func(ctx context.Context, clinicID, itemID uint64) error
 }
 
-func (m *mockCarePlanItemRepository) ListByHospitalizationID(ctx context.Context, hospitalizationID uint64) ([]model.CarePlanItem, error) {
-	return m.listByHospitalizationIDFn(ctx, hospitalizationID)
+func (m *mockCarePlanItemRepository) ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
+	return m.listByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
 }
 
-func (m *mockCarePlanItemRepository) FindByID(ctx context.Context, itemID uint64) (*model.CarePlanItem, error) {
-	return m.findByIDFn(ctx, itemID)
+func (m *mockCarePlanItemRepository) FindByID(ctx context.Context, clinicID, itemID uint64) (*model.CarePlanItem, error) {
+	return m.findByIDFn(ctx, clinicID, itemID)
 }
 
 func (m *mockCarePlanItemRepository) Create(ctx context.Context, item *model.CarePlanItem) error {
 	return m.createFn(ctx, item)
 }
 
-func (m *mockCarePlanItemRepository) Update(ctx context.Context, itemID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, itemID, fields)
+func (m *mockCarePlanItemRepository) Update(ctx context.Context, clinicID, itemID uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, itemID, fields)
 }
 
-func (m *mockCarePlanItemRepository) Delete(ctx context.Context, itemID uint64) error {
-	return m.deleteFn(ctx, itemID)
+func (m *mockCarePlanItemRepository) Delete(ctx context.Context, clinicID, itemID uint64) error {
+	return m.deleteFn(ctx, clinicID, itemID)
 }
 
 // ---- Tests ----
@@ -82,13 +82,13 @@ func TestCarePlanItemService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCarePlanItemRepository{
-				listByHospitalizationIDFn: func(_ context.Context, _ uint64) ([]model.CarePlanItem, error) {
+				listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
 					return tt.repoItems, tt.repoErr
 				},
 			}
 			svc := NewCarePlanItemService(repo)
 
-			items, err := svc.List(context.Background(), tt.hospitalizationID)
+			items, err := svc.List(context.Background(), 1, tt.hospitalizationID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -176,13 +176,13 @@ func TestCarePlanItemService_Create(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.CarePlanItem) error {
 					return tt.repoErr
 				},
-				findByIDFn: func(_ context.Context, _ uint64) (*model.CarePlanItem, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.CarePlanItem, error) {
 					return &model.CarePlanItem{ID: 1, HospitalizationID: tt.hospitalizationID}, nil
 				},
 			}
 			svc := NewCarePlanItemService(repo)
 
-			item, err := svc.Create(context.Background(), tt.hospitalizationID, tt.input)
+			item, err := svc.Create(context.Background(), 1, tt.hospitalizationID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -244,7 +244,7 @@ func TestCarePlanItemService_Update(t *testing.T) {
 			input: &UpdateCarePlanItemInput{
 				Name: &newName,
 			},
-			repoItemHospitalizationID: 2, // Different hospitalization
+			repoItemHospitalizationID: 2,
 			repoUpdateErr:             nil,
 			repoReturnItem: &model.CarePlanItem{
 				ID:                1,
@@ -269,25 +269,19 @@ func TestCarePlanItemService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCarePlanItemRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.CarePlanItem, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.CarePlanItem, error) {
 					return &model.CarePlanItem{
-						ID:                1,
+						ID:                tt.itemID,
 						HospitalizationID: tt.repoItemHospitalizationID,
 					}, nil
 				},
-				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoUpdateErr
 				},
 			}
-			repo.findByIDFn = func(_ context.Context, _ uint64) (*model.CarePlanItem, error) {
-				return &model.CarePlanItem{
-					ID:                tt.itemID,
-					HospitalizationID: tt.repoItemHospitalizationID,
-				}, nil
-			}
 			svc := NewCarePlanItemService(repo)
 
-			item, err := svc.Update(context.Background(), tt.hospitalizationID, tt.itemID, tt.input)
+			item, err := svc.Update(context.Background(), 1, tt.hospitalizationID, tt.itemID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -320,7 +314,7 @@ func TestCarePlanItemService_Delete(t *testing.T) {
 			name:                      "returns error when item doesn't belong to hospitalization",
 			hospitalizationID:         1,
 			itemID:                    1,
-			repoItemHospitalizationID: 2, // Different hospitalization
+			repoItemHospitalizationID: 2,
 			repoDeleteErr:             nil,
 			wantErr:                   true,
 		},
@@ -337,19 +331,19 @@ func TestCarePlanItemService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCarePlanItemRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.CarePlanItem, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.CarePlanItem, error) {
 					return &model.CarePlanItem{
 						ID:                tt.itemID,
 						HospitalizationID: tt.repoItemHospitalizationID,
 					}, nil
 				},
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoDeleteErr
 				},
 			}
 			svc := NewCarePlanItemService(repo)
 
-			err := svc.Delete(context.Background(), tt.hospitalizationID, tt.itemID)
+			err := svc.Delete(context.Background(), 1, tt.hospitalizationID, tt.itemID)
 
 			if tt.wantErr {
 				assert.Error(t, err)

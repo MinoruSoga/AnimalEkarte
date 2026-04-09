@@ -14,13 +14,17 @@ import (
 // ListCarePlanItems godoc
 // GET /hospitalizations/:id/care-plan-items
 func (h *Handler) ListCarePlanItems(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 
-	items, err := h.svc.CarePlanItem.List(c.Request.Context(), hospitalizationID)
+	items, err := h.svc.CarePlanItem.List(c.Request.Context(), clinicID, hospitalizationID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -36,6 +40,10 @@ func (h *Handler) ListCarePlanItems(c *gin.Context) {
 // CreateCarePlanItem godoc
 // POST /hospitalizations/:id/care-plan-items
 func (h *Handler) CreateCarePlanItem(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -63,7 +71,7 @@ func (h *Handler) CreateCarePlanItem(c *gin.Context) {
 		SortOrder:             req.SortOrder,
 	}
 
-	item, err := h.svc.CarePlanItem.Create(c.Request.Context(), hospitalizationID, input)
+	item, err := h.svc.CarePlanItem.Create(c.Request.Context(), clinicID, hospitalizationID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -74,6 +82,10 @@ func (h *Handler) CreateCarePlanItem(c *gin.Context) {
 // UpdateCarePlanItem godoc
 // PATCH /hospitalizations/:id/care-plan-items/:itemId
 func (h *Handler) UpdateCarePlanItem(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -110,7 +122,7 @@ func (h *Handler) UpdateCarePlanItem(c *gin.Context) {
 		SortOrder:             req.SortOrder,
 	}
 
-	item, err := h.svc.CarePlanItem.Update(c.Request.Context(), hospitalizationID, itemID, input)
+	item, err := h.svc.CarePlanItem.Update(c.Request.Context(), clinicID, hospitalizationID, itemID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -121,6 +133,10 @@ func (h *Handler) UpdateCarePlanItem(c *gin.Context) {
 // DeleteCarePlanItem godoc
 // DELETE /hospitalizations/:id/care-plan-items/:itemId
 func (h *Handler) DeleteCarePlanItem(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -133,7 +149,7 @@ func (h *Handler) DeleteCarePlanItem(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.CarePlanItem.Delete(c.Request.Context(), hospitalizationID, itemID); err != nil {
+	if err := h.svc.CarePlanItem.Delete(c.Request.Context(), clinicID, hospitalizationID, itemID); err != nil {
 		RespondError(c, err)
 		return
 	}

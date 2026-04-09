@@ -68,7 +68,11 @@ func (r *serviceTypeRepository) Update(ctx context.Context, clinicID, id uint64,
 	}
 	if result.RowsAffected == 0 {
 		var count int64
-		r.db.WithContext(ctx).Model(&model.ServiceType{}).Where("id = ? AND clinic_id = ?", id, clinicID).Count(&count)
+		if err := r.db.WithContext(ctx).Model(&model.ServiceType{}).
+			Where("id = ? AND clinic_id = ?", id, clinicID).
+			Count(&count).Error; err != nil {
+			return apperrors.FromGORM(err, "service_type", fmt.Sprintf("%d", id))
+		}
 		if count == 0 {
 			return apperrors.WrapNotFound("service_type", fmt.Sprintf("%d", id))
 		}
@@ -99,7 +103,7 @@ func (r *serviceTypeRepository) Reorder(ctx context.Context, clinicID uint64, id
 				Where("id = ? AND clinic_id = ?", id, clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder service type")
+				return apperrors.FromGORM(result.Error, "service_type", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("service_type id %d not found in this clinic", id))
@@ -107,7 +111,7 @@ func (r *serviceTypeRepository) Reorder(ctx context.Context, clinicID uint64, id
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "reorder service type")
+		return err
 	}
 	return nil
 }

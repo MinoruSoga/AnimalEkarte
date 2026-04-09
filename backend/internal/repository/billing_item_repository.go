@@ -14,11 +14,11 @@ import (
 // BillingItemRepository は billing_items テーブルの CRUD を担うインターフェース
 type BillingItemRepository interface {
 	FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error)
-	FindByBillingID(ctx context.Context, billingID uint64) ([]model.BillingItem, error)
+	FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
 	Create(ctx context.Context, item *model.BillingItem) error
 	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
-	UpdateBillingTotals(ctx context.Context, billingID uint64, subtotal, taxTotal, totalAmount int64) error
+	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 }
 
 type billingItemRepository struct{ db *gorm.DB }
@@ -40,10 +40,11 @@ func (r *billingItemRepository) FindByID(ctx context.Context, clinicID uint64, i
 	return &item, nil
 }
 
-func (r *billingItemRepository) FindByBillingID(ctx context.Context, billingID uint64) ([]model.BillingItem, error) {
+func (r *billingItemRepository) FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error) {
 	items := make([]model.BillingItem, 0)
 	if err := r.db.WithContext(ctx).
-		Where("billing_id = ?", billingID).
+		Joins("JOIN billings ON billings.id = billing_items.billing_id").
+		Where("billings.clinic_id = ? AND billing_items.billing_id = ?", clinicID, billingID).
 		Order("sort_order ASC, id ASC").
 		Find(&items).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing_item", "")
@@ -83,10 +84,10 @@ func (r *billingItemRepository) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
+func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
-		Where("id = ?", billingID).
+		Where("clinic_id = ? AND id = ?", clinicID, billingID).
 		Updates(map[string]any{
 			"subtotal":     subtotal,
 			"tax_total":    taxTotal,

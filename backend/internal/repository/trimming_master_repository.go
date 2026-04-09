@@ -100,7 +100,7 @@ func (r *trimmingCourseRepository) Reorder(ctx context.Context, clinicID uint64,
 				Where("id = ? AND clinic_id = ?", id, clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder trimming course")
+				return apperrors.FromGORM(result.Error, "trimming_course", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("trimming_course id %d not found in this clinic", id))
@@ -108,7 +108,7 @@ func (r *trimmingCourseRepository) Reorder(ctx context.Context, clinicID uint64,
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "reorder trimming course")
+		return err
 	}
 	return nil
 }
@@ -190,7 +190,7 @@ func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64,
 				Where("id = ? AND clinic_id = ?", id, clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder trimming option")
+				return apperrors.FromGORM(result.Error, "trimming_option", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("trimming_option id %d not found in this clinic", id))
@@ -198,7 +198,7 @@ func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64,
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "reorder trimming options")
+		return err
 	}
 	return nil
 }

@@ -55,7 +55,7 @@ func (r *reservationStaffRepository) FindByID(ctx context.Context, id uint64) (*
 func (r *reservationStaffRepository) Create(ctx context.Context, staff *model.Staff, clinicID uint64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(staff).Error; err != nil {
-			return apperrors.Wrap(err, "create reservation staff")
+			return apperrors.FromGORM(err, "reservation_staff", "")
 		}
 		assignment := &model.StaffClinicAssignment{
 			StaffID:  staff.ID,
@@ -63,7 +63,7 @@ func (r *reservationStaffRepository) Create(ctx context.Context, staff *model.St
 			IsMain:   true,
 		}
 		if err := tx.Create(assignment).Error; err != nil {
-			return apperrors.Wrap(err, "create staff clinic assignment")
+			return apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff=%d", staff.ID))
 		}
 		return nil
 	})
@@ -123,10 +123,10 @@ func (r *reservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID
 		neighborOrder := neighbor.SortOrder
 
 		if err := tx.Model(&model.Staff{}).Where("id = ?", target.ID).Update("sort_order", neighborOrder).Error; err != nil {
-			return apperrors.Wrap(err, "swap sort_order target")
+			return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", target.ID))
 		}
 		if err := tx.Model(&model.Staff{}).Where("id = ?", neighbor.ID).Update("sort_order", targetOrder).Error; err != nil {
-			return apperrors.Wrap(err, "swap sort_order neighbor")
+			return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", neighbor.ID))
 		}
 		return nil
 	})
@@ -149,7 +149,7 @@ func (r *reservationStaffRepository) ReplaceExcludedServiceTypes(ctx context.Con
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存を全削除
 		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffExcludedServiceType{}).Error; err != nil {
-			return apperrors.Wrap(err, "delete excluded service types")
+			return apperrors.FromGORM(err, "staff_excluded_service_type", fmt.Sprintf("%d", staffID))
 		}
 		// 新規挿入
 		if len(courseIDs) == 0 {
@@ -163,7 +163,7 @@ func (r *reservationStaffRepository) ReplaceExcludedServiceTypes(ctx context.Con
 			})
 		}
 		if err := tx.Create(&items).Error; err != nil {
-			return apperrors.Wrap(err, "insert excluded service types")
+			return apperrors.FromGORM(err, "staff_excluded_service_type", "")
 		}
 		return nil
 	})

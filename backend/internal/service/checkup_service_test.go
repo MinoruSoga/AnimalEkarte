@@ -17,10 +17,10 @@ import (
 type mockCheckupRepository struct {
 	listByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error)
 	listByClinicFn          func(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error)
-	findByIDFn              func(ctx context.Context, checkupID uint64) (*model.Checkup, error)
+	findByIDFn              func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
 	createFn                func(ctx context.Context, checkup *model.Checkup) error
-	updateFn                func(ctx context.Context, checkupID uint64, fields map[string]any) error
-	deleteFn                func(ctx context.Context, checkupID uint64) error
+	updateFn                func(ctx context.Context, clinicID, checkupID uint64, fields map[string]any) error
+	deleteFn                func(ctx context.Context, clinicID, checkupID uint64) error
 }
 
 func (m *mockCheckupRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error) {
@@ -34,20 +34,20 @@ func (m *mockCheckupRepository) ListByClinic(ctx context.Context, clinicID uint6
 	return nil, nil
 }
 
-func (m *mockCheckupRepository) FindByID(ctx context.Context, checkupID uint64) (*model.Checkup, error) {
-	return m.findByIDFn(ctx, checkupID)
+func (m *mockCheckupRepository) FindByID(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error) {
+	return m.findByIDFn(ctx, clinicID, checkupID)
 }
 
 func (m *mockCheckupRepository) Create(ctx context.Context, checkup *model.Checkup) error {
 	return m.createFn(ctx, checkup)
 }
 
-func (m *mockCheckupRepository) Update(ctx context.Context, checkupID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, checkupID, fields)
+func (m *mockCheckupRepository) Update(ctx context.Context, clinicID, checkupID uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, checkupID, fields)
 }
 
-func (m *mockCheckupRepository) Delete(ctx context.Context, checkupID uint64) error {
-	return m.deleteFn(ctx, checkupID)
+func (m *mockCheckupRepository) Delete(ctx context.Context, clinicID, checkupID uint64) error {
+	return m.deleteFn(ctx, clinicID, checkupID)
 }
 
 // ---- Tests ----
@@ -163,7 +163,7 @@ func TestCheckupService_Create(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.Checkup) error {
 					return tt.repoErr
 				},
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Checkup, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
 					return &model.Checkup{ID: 1, MedicalRecordID: tt.medicalRecordID}, nil
 				},
 			}
@@ -255,19 +255,19 @@ func TestCheckupService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCheckupRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Checkup, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
 					return &model.Checkup{
 						ID:              tt.checkupID,
 						MedicalRecordID: tt.repoCheckupMedicalRecordID,
 					}, nil
 				},
-				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoUpdateErr
 				},
 			}
 			svc := NewCheckupService(repo)
 
-			checkup, err := svc.Update(context.Background(), tt.medicalRecordID, tt.checkupID, tt.input)
+			checkup, err := svc.Update(context.Background(), 1, tt.medicalRecordID, tt.checkupID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -317,19 +317,19 @@ func TestCheckupService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCheckupRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Checkup, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
 					return &model.Checkup{
 						ID:              tt.checkupID,
 						MedicalRecordID: tt.repoCheckupMedicalRecordID,
 					}, nil
 				},
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoDeleteErr
 				},
 			}
 			svc := NewCheckupService(repo)
 
-			err := svc.Delete(context.Background(), tt.medicalRecordID, tt.checkupID)
+			err := svc.Delete(context.Background(), 1, tt.medicalRecordID, tt.checkupID)
 
 			if tt.wantErr {
 				assert.Error(t, err)

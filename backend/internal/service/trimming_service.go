@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -66,11 +67,19 @@ func NewTrimmingService(repo repository.TrimmingRepository) TrimmingService {
 }
 
 func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list trimming records")
+	}
+	return items, total, nil
 }
 
 func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming record")
+	}
+	return result, nil
 }
 
 func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.TrimmingRecord, error) {
@@ -107,7 +116,14 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 			return nil, apperrors.Wrap(err, "failed to set trimming options")
 		}
 	}
-	return s.repo.FindByID(ctx, clinicID, trimming.ID)
+	slog.InfoContext(ctx, "trimming record created",
+		slog.Uint64("trimming_id", trimming.ID),
+		slog.Uint64("clinic_id", clinicID))
+	result, err := s.repo.FindByID(ctx, clinicID, trimming.ID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming record after create")
+	}
+	return result, nil
 }
 
 func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.TrimmingRecord, error) {
@@ -165,9 +181,22 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 			return nil, apperrors.Wrap(err, "failed to set trimming options")
 		}
 	}
-	return s.repo.FindByID(ctx, clinicID, id)
+	slog.InfoContext(ctx, "trimming record updated",
+		slog.Uint64("trimming_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming record after update")
+	}
+	return result, nil
 }
 
 func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete trimming record")
+	}
+	slog.InfoContext(ctx, "trimming record deleted",
+		slog.Uint64("trimming_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return nil
 }

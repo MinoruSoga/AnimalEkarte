@@ -94,13 +94,13 @@ func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model
 			First(&existing).Error
 
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			return apperrors.Wrap(err, "find existing shift entry")
+			return apperrors.FromGORM(err, "shift_entry", fmt.Sprintf("staff=%d", entry.StaffID))
 		}
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// 新規作成
 			if err2 := tx.Create(entry).Error; err2 != nil {
-				return apperrors.Wrap(err2, "create shift entry")
+				return apperrors.FromGORM(err2, "shift_entry", "")
 			}
 		} else {
 			// 更新
@@ -113,20 +113,20 @@ func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model
 				"updated_at": entry.UpdatedAt,
 			}
 			if err2 := tx.Model(&model.ShiftEntry{}).Where("id = ?", existing.ID).Updates(fields).Error; err2 != nil {
-				return apperrors.Wrap(err2, "update shift entry")
+				return apperrors.FromGORM(err2, "shift_entry", fmt.Sprintf("%d", existing.ID))
 			}
 		}
 
 		// 既存のbreaksを削除してから再作成
 		if err2 := tx.Where("shift_entry_id = ?", entry.ID).Delete(&model.ShiftEntryBreak{}).Error; err2 != nil {
-			return apperrors.Wrap(err2, "delete shift entry breaks")
+			return apperrors.FromGORM(err2, "shift_entry_break", fmt.Sprintf("%d", entry.ID))
 		}
 		if len(breaks) > 0 {
 			for i := range breaks {
 				breaks[i].ShiftEntryID = entry.ID
 			}
 			if err2 := tx.Create(&breaks).Error; err2 != nil {
-				return apperrors.Wrap(err2, "create shift entry breaks")
+				return apperrors.FromGORM(err2, "shift_entry_break", "")
 			}
 		}
 		return nil

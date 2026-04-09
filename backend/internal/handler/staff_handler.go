@@ -114,7 +114,7 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 		return
 	}
 
-	// Account を Preload して email を返すため再取得する
+	// NOTE: Best-effort reload for Preload data. Create already succeeded.
 	if reloaded, reloadErr := h.repos.Staff.FindByID(ctx, staff.ID); reloadErr == nil {
 		staff = reloaded
 	}

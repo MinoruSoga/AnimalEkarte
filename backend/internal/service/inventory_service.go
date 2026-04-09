@@ -27,15 +27,27 @@ func NewInventoryService(repo repository.InventoryRepository) InventoryService {
 }
 
 func (s *inventoryService) List(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, category, status, page, limit)
+	items, total, err := s.repo.FindAll(ctx, clinicID, category, status, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list inventory items")
+	}
+	return items, total, nil
 }
 
 func (s *inventoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get inventory item")
+	}
+	return result, nil
 }
 
 func (s *inventoryService) Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
-	return s.repo.Create(ctx, clinicID, item)
+	if err := s.repo.Create(ctx, clinicID, item); err != nil {
+		return apperrors.Wrap(err, "failed to create inventory item")
+	}
+	slog.InfoContext(ctx, "inventory item created", slog.Uint64("inventory_id", item.ID), slog.Uint64("clinic_id", clinicID))
+	return nil
 }
 
 func (s *inventoryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateInventoryInput) (*model.InventoryItem, error) {
@@ -65,6 +77,7 @@ func (s *inventoryService) Delete(ctx context.Context, clinicID, id uint64) erro
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete inventory item")
 	}
+	slog.InfoContext(ctx, "inventory item deleted", slog.Uint64("inventory_id", id), slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 

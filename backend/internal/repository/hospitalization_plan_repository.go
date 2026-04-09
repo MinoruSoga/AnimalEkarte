@@ -96,7 +96,7 @@ func (r *hospitalizationPlanRepository) CountCarePlanItemsByPlanID(ctx context.C
 }
 
 func (r *hospitalizationPlanRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.HospitalizationPlan{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -110,8 +110,4 @@ func (r *hospitalizationPlanRepository) Reorder(ctx context.Context, clinicID ui
 		}
 		return nil
 	})
-	if err != nil {
-		return apperrors.Wrap(err, "reorder hospitalization plan")
-	}
-	return nil
 }

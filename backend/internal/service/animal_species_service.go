@@ -54,11 +54,19 @@ func NewAnimalSpeciesService(repo repository.AnimalSpeciesRepository, petRepo re
 }
 
 func (s *animalSpeciesService) List(ctx context.Context) ([]model.AnimalSpecies, error) {
-	return s.repo.FindAll(ctx)
+	items, err := s.repo.FindAll(ctx)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list animal species")
+	}
+	return items, nil
 }
 
 func (s *animalSpeciesService) GetByID(ctx context.Context, id uint64) (*model.AnimalSpecies, error) {
-	return s.repo.FindByID(ctx, id)
+	result, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get animal species")
+	}
+	return result, nil
 }
 
 func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
@@ -86,7 +94,11 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 	}
 	slog.InfoContext(ctx, "animal species updated",
 		slog.Uint64("species_id", id))
-	return s.repo.FindByID(ctx, id)
+	result, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get animal species after update")
+	}
+	return result, nil
 }
 
 func (s *animalSpeciesService) Delete(ctx context.Context, id uint64) error {
@@ -97,14 +109,21 @@ func (s *animalSpeciesService) Delete(ctx context.Context, id uint64) error {
 	if count > 0 {
 		return apperrors.WrapConflict("この動物種はペット情報で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete animal species")
+	}
+	slog.InfoContext(ctx, "animal species deleted", slog.Uint64("species_id", id))
+	return nil
 }
 
 func (s *animalSpeciesService) Reorder(ctx context.Context, ids []uint64) error {
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, ids)
+	if err := s.repo.Reorder(ctx, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder animal species")
+	}
+	return nil
 }
 
 // buildAnimalSpeciesUpdateFields はポインタが非 nil のフィールドのみ map に追加する

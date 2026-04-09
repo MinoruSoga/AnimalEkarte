@@ -129,7 +129,7 @@ func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []ui
 				Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?)", clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder staff")
+				return apperrors.FromGORM(result.Error, "staff", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("staff id %d not found in this clinic", id))
@@ -137,7 +137,7 @@ func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []ui
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "reorder staff")
+		return err
 	}
 	return nil
 }

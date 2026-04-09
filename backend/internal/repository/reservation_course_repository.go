@@ -110,10 +110,10 @@ func (r *reservationCourseRepository) SwapSortOrder(ctx context.Context, clinicI
 		neighborOrder := neighbor.SortOrder
 
 		if err := tx.Model(&model.ServiceType{}).Where("id = ?", target.ID).Update("sort_order", neighborOrder).Error; err != nil {
-			return apperrors.Wrap(err, "swap sort_order target")
+			return apperrors.FromGORM(err, "reservation_course", fmt.Sprintf("%d", target.ID))
 		}
 		if err := tx.Model(&model.ServiceType{}).Where("id = ?", neighbor.ID).Update("sort_order", targetOrder).Error; err != nil {
-			return apperrors.Wrap(err, "swap sort_order neighbor")
+			return apperrors.FromGORM(err, "reservation_course", fmt.Sprintf("%d", neighbor.ID))
 		}
 		return nil
 	})

@@ -90,7 +90,7 @@ func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []
 				Where("id = ? AND clinic_id = ?", id, clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder vaccine")
+				return apperrors.FromGORM(result.Error, "vaccine", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("vaccine id %d not found in this clinic", id))
@@ -98,7 +98,7 @@ func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "reorder vaccines")
+		return err
 	}
 	return nil
 }
