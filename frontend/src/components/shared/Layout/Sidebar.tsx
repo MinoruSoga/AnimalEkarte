@@ -329,6 +329,7 @@ export function Sidebar() {
                 { label: "スタッフ個人設定", path: paths.lineReservation.schedule.getHref(), resource: ResourceReservations },
                 { label: "基本設定", path: paths.lineReservation.settings.getHref(), resource: ResourceReservations },
                 { label: "ページ編集", path: paths.lineReservation.pageEditor.getHref(), resource: ResourceReservations },
+                { label: "LINE顧客管理", path: paths.lineReservation.customers.getHref(), resource: ResourceReservations },
               ],
             } as MenuItem}
             collapsed={collapsed}

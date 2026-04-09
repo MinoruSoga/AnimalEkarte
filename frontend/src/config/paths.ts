@@ -187,6 +187,7 @@ export const paths = {
     schedule: { path: "/line-reservation/schedule", getHref: () => "/line-reservation/schedule" },
     calendar: { path: "/line-reservation/calendar", getHref: () => "/line-reservation/calendar" },
     pageEditor: { path: "/line-reservation/page-editor", getHref: () => "/line-reservation/page-editor" },
+    customers: { path: "/line-reservation/customers", getHref: () => "/line-reservation/customers" },
   },
 
   settings: {

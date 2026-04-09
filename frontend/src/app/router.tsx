@@ -903,6 +903,13 @@ export const router = createBrowserRouter([
               return { Component: LineReservationPageEditor };
             },
           },
+          {
+            path: "customers",
+            lazy: async () => {
+              const { LineReservationCustomersPage } = await import("@/app/pages/LineReservationCustomersPage");
+              return { Component: LineReservationCustomersPage };
+            },
+          },
         ],
       },
 
