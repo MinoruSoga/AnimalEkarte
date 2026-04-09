@@ -56,7 +56,7 @@ export function App() {
     liffApi.getSettings(clinicId)
       .then(s => {
         setSettings(s);
-        if (s.status === 'stopped') {
+        if (s.status !== 'running') {
           setPage('maintenance');
           return;
         }
