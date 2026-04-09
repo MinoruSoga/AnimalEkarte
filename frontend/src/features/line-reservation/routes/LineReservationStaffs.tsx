@@ -39,6 +39,13 @@ const STAFF_TYPE_LABELS: Record<string, string> = {
   resource: "リソース",
 };
 
+// rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+const STAFF_TYPE_SELECT_ITEMS = Object.entries(STAFF_TYPE_LABELS).map(([value, label]) => (
+  <SelectItem key={value} value={value}>
+    {label}
+  </SelectItem>
+));
+
 // ── Status Badge ──
 
 function StatusBadge({ isActive }: { isActive: boolean }) {
@@ -128,13 +135,7 @@ function StaffFormDialog({ open, onClose, initial, clinicId, onSaved }: StaffFor
               <SelectTrigger id="staff-type">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                {Object.entries(STAFF_TYPE_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              <SelectContent>{STAFF_TYPE_SELECT_ITEMS}</SelectContent>
             </Select>
           </div>
 

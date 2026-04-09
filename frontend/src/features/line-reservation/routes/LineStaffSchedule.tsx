@@ -43,6 +43,13 @@ const SHIFT_COLORS: Record<StaffScheduleShiftType, { bg: string; text: string; l
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
+// rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+const SHIFT_TYPE_SELECT_ITEMS = Object.entries(SHIFT_COLORS).map(([value, config]) => (
+  <SelectItem key={value} value={value}>
+    {config.label}
+  </SelectItem>
+));
+
 // ── Schedule Edit Dialog ──
 
 interface ScheduleEditDialogProps {
@@ -120,13 +127,7 @@ function ScheduleEditDialog({
               <SelectTrigger id="shift-type">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                {Object.entries(SHIFT_COLORS).map(([value, config]) => (
-                  <SelectItem key={value} value={value}>
-                    {config.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              <SelectContent>{SHIFT_TYPE_SELECT_ITEMS}</SelectContent>
             </Select>
           </div>
 

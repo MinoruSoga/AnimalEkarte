@@ -37,7 +37,7 @@
 | ~~BUG-238~~ | FE rerender-lazy-state-init | ✅ **CLOSED** — VitalsTab EditRow の buildEditRowForm() + lazy init | — | closed/ |
 | ~~BUG-239~~ | FE rerender-lazy-state-init | ✅ **CLOSED** — DailyCareLogDialog getCurrentTime をモジュールスコープに + lazy init | — | closed/ |
 | ~~BUG-240~~ | FE rerender-memo | ✅ **CLOSED** — ReceptionDetailModal の RelatedPages / ActionButtons に memo() 適用 | — | closed/ |
-| [BUG-241](BUG-241_line-reservation-static-jsx-not-hoisted.md) | FE rendering-hoist | line-reservation feature の static SelectItem JSX 未巻き上げ（4ファイル・5箇所・16アイテム） | Low | code-quality/ |
+| ~~BUG-241~~ | FE rendering-hoist | ✅ **CLOSED** — line-reservation 4ファイルの static SelectItem JSX をモジュール定数化（2026-04-09） | — | closed/ |
 
 ## 誤報として撤回した指摘
 

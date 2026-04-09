@@ -40,6 +40,13 @@ const DAY_OPTION_LABELS: Record<string, string> = {
   anyday: "毎日",
 };
 
+// rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+const DAY_OPTION_SELECT_ITEMS = Object.entries(DAY_OPTION_LABELS).map(([value, label]) => (
+  <SelectItem key={value} value={value}>
+    {label}
+  </SelectItem>
+));
+
 // ── Status Badge ──
 
 function StatusBadge({ isActive }: { isActive: boolean }) {
@@ -173,13 +180,7 @@ function CourseFormDialog({
               <SelectTrigger id="day-option">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                {Object.entries(DAY_OPTION_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              <SelectContent>{DAY_OPTION_SELECT_ITEMS}</SelectContent>
             </Select>
           </div>
 

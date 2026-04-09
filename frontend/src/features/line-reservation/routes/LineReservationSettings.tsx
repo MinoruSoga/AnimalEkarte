@@ -19,6 +19,21 @@ import { useGetReservationSetting } from "../api/get-reservation-setting";
 import { updateReservationSetting } from "../api/update-reservation-setting";
 import type { ReservationSetting } from "../api/types";
 
+// rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+const TIME_SLOT_MODE_ITEMS = (
+  <>
+    <SelectItem value="minimize_gaps">空き時間を最小化</SelectItem>
+    <SelectItem value="allow_gaps">空き時間を許容</SelectItem>
+  </>
+);
+
+const NO_STAFF_MODE_ITEMS = (
+  <>
+    <SelectItem value="first_available">最初の空き</SelectItem>
+    <SelectItem value="top_priority">優先度最上位</SelectItem>
+  </>
+);
+
 // ── Property Row ──
 
 interface SectionProps {
@@ -167,10 +182,7 @@ function SettingsForm({ setting, clinicId }: SettingsFormProps) {
             <SelectTrigger className="max-w-[240px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="minimize_gaps">空き時間を最小化</SelectItem>
-              <SelectItem value="allow_gaps">空き時間を許容</SelectItem>
-            </SelectContent>
+            <SelectContent>{TIME_SLOT_MODE_ITEMS}</SelectContent>
           </Select>
         </FieldRow>
         <FieldRow label="スロット間隔（分）">
@@ -188,10 +200,7 @@ function SettingsForm({ setting, clinicId }: SettingsFormProps) {
             <SelectTrigger className="max-w-[240px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="first_available">最初の空き</SelectItem>
-              <SelectItem value="top_priority">優先度最上位</SelectItem>
-            </SelectContent>
+            <SelectContent>{NO_STAFF_MODE_ITEMS}</SelectContent>
           </Select>
         </FieldRow>
       </Section>
