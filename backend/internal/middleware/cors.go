@@ -7,11 +7,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CORS はCORSヘッダーを設定するミドルウェア
+// CORS はCORSヘッダーを設定するミドルウェア。
+// 許可オリジンは環境変数 CORS_ALLOWED_ORIGIN にカンマ区切りで指定する。
+// 例: http://localhost:3000,http://localhost:3001,https://reserve.noah-karte.com,https://liff.line.me
 func CORS() gin.HandlerFunc {
 	allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
 	if allowedOrigin == "" {
-		allowedOrigin = "http://localhost:3000"
+		// 開発環境デフォルト: 管理画面 + LIFF App (localhost:3001) + LINE内ブラウザ
+		allowedOrigin = "http://localhost:3000,http://localhost:3001,https://liff.line.me"
 	}
 
 	return func(c *gin.Context) {

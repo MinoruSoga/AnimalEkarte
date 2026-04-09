@@ -33,6 +33,10 @@ services:
     environment:
       # Local Docker network overrides
       DB_HOST: db
+      # CORS: 管理画面 + LIFF App + LINE内ブラウザ
+      CORS_ALLOWED_ORIGIN: "http://localhost:3000,http://localhost:3001,https://liff.line.me"
+      # LINE Messaging API（.env.local に設定: LINE_CHANNEL_TOKEN=xxx）
+      # SMTP通知（.env.local に設定: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, NOTIFY_TO_EMAIL）
     ports:
       - "8080:8080"
     volumes:
