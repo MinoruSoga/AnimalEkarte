@@ -27,15 +27,15 @@ CRITICAL 3件・HIGH 11件・MEDIUM 多数の違反を検出した。
 ## 修正優先順位
 
 1. **BUG-245** (Critical) — price データ破壊。即修正（6箇所、各1行）— 10分
-2. **BUG-246** (Critical) — staff_handler リファクタ。Service層へ移動 — 2時間
-3. **BUG-247** (Critical) — clinic_id 追加。マルチテナント境界修正 — 1時間
-4. **BUG-248** (High) — FromGORM 一括置換。機械的修正 — 1時間
-5. **BUG-249** (High) — naked return 修正。機械的修正 — 1時間
-6. **BUG-250** (High) — AuthService 設計・実装 — 2時間
-7. **BUG-251** (High) — errors.Is 置換。2箇所 — 5分
-8. **BUG-252** (High/Medium) — その他修正 — 2時間
+2. ~~**BUG-246**~~ ✅ FIXED — staff_handler リファクタ (`136078c6`)
+3. ~~**BUG-247**~~ ✅ FIXED — clinic_id 追加 (`e680bdaa`)
+4. ~~**BUG-248**~~ ✅ FIXED — FromGORM 一括置換 27ファイル ~120箇所 (`136078c6`)
+5. ~~**BUG-249**~~ ✅ FIXED — naked return 修正 15ファイル (`136078c6`)
+6. ~~**BUG-250**~~ ✅ FIXED — auth_handler → service 経由 (`136078c6`)
+7. ~~**BUG-251**~~ ✅ FIXED — errors.Is 置換 (`5b06d2c3`)
+8. ~~**BUG-252**~~ ✅ FIXED — examination enum / liff エラー / pet Count (`136078c6`)
 
-**合計見積り**: 約 9.5時間
+**全チケット修正完了** (2026-04-09)
 
 ## 関連規約
 
