@@ -85,6 +85,8 @@ const LeftColumn = memo(function LeftColumn({
   courseError,
 }: LeftColumnProps) {
   const selectedCourse = courses.find((c) => c.id === formData.courseId);
+  // js-set-map-lookups: optionIds.includes() O(n) → Set.has() O(1)
+  const optionIdSet = useMemo(() => new Set(formData.optionIds), [formData.optionIds]);
 
   return (
     <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
@@ -136,7 +138,7 @@ const LeftColumn = memo(function LeftColumn({
               <div key={option.id} className="flex items-center gap-2">
                 <Checkbox
                   id={`option-${option.id}`}
-                  checked={formData.optionIds.includes(option.id)}
+                  checked={optionIdSet.has(option.id)}
                   onCheckedChange={(checked) => {
                     if (checked) {
                       onFormChange({ optionIds: [...formData.optionIds, option.id] });

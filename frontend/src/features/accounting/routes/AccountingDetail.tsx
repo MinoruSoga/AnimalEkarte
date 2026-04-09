@@ -977,7 +977,8 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
       ...baseClinic,
       invoiceRegistrationNumber,
     };
-  }, [user?.clinic, invoiceRegistrationNumber]);
+  // rerender-dependencies: user?.clinic（オブジェクト）の代わりに user（安定参照）を deps に使用
+  }, [user, invoiceRegistrationNumber]);
 
   const handleAddItem = useCallback((name: string, price: string, category: string, taxRate?: number) => {
     const unitPrice = parseInt(price, 10);
