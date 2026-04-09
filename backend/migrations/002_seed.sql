@@ -1759,6 +1759,7 @@ ON CONFLICT (clinic_id) DO NOTHING;
 -- clinic_id=3: テスト-八王子（@642hdxoh）
 -- clinic_id=4: テスト-城東（@151lnsqa）
 UPDATE reservation_settings SET
+    status              = 'active',
     line_channel_id     = '2009755544',
     line_channel_secret = '5344ef84eb7072b5894f7e087db28827',
     liff_id             = '2009755581-w5NOA3EW',
@@ -1766,6 +1767,7 @@ UPDATE reservation_settings SET
 WHERE clinic_id = 3;
 
 UPDATE reservation_settings SET
+    status              = 'active',
     line_channel_id     = '2009755545',
     line_channel_secret = '25e4661a8de553953a4b34c6ac7a91cb',
     liff_id             = '2009755586-nvKfG3Cp',
