@@ -1,20 +1,14 @@
 -- =============================================================================
--- Animal Ekarte - 統合シード v20.0
+-- Animal Ekarte - デモデータ v1.0
 -- PostgreSQL 18
--- 冪等性保証: ON CONFLICT DO NOTHING
--- 内容: マスタデータ + デモアカウント
--- 依存: 001_init.sql
+-- 冪等性保証: ON CONFLICT DO NOTHING / DO UPDATE
+-- 内容: クリニック設定・スタッフ・飼主・ペット・診療記録・会計等（デモ/テスト用）
+-- 依存: 001_init.sql → 002_seed_master.sql
+-- 実行順: 001_init.sql → 002_seed_master.sql → 003_seed_demo.sql
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 1. company（本部情報: 1件）
--- -----------------------------------------------------------------------------
-INSERT INTO company (name) VALUES
-    ('ノア動物病院')
-ON CONFLICT DO NOTHING;
-
--- -----------------------------------------------------------------------------
--- 2. clinics（クリニック: 3件）
+-- 1. clinics（クリニック: 3件）
 -- -----------------------------------------------------------------------------
 INSERT INTO clinics (id, company_id, name) VALUES
     (3, 1, '八王子院'),
@@ -23,20 +17,6 @@ INSERT INTO clinics (id, company_id, name) VALUES
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('clinics', 'id'), (SELECT MAX(id) FROM clinics));
-
--- -----------------------------------------------------------------------------
--- 3. animal_species（ペット種類: 6件、システム共通・clinic_idなし）
--- -----------------------------------------------------------------------------
-INSERT INTO animal_species (id, name, is_active, sort_order) VALUES
-    (1, '犬',         true, 1),
-    (2, '猫',         true, 2),
-    (3, '鳥',         true, 3),
-    (4, 'うさぎ',     true, 4),
-    (5, 'ハムスター', true, 5),
-    (6, 'その他',     true, 6)
-ON CONFLICT DO NOTHING;
-
-SELECT setval(pg_get_serial_sequence('animal_species', 'id'), (SELECT MAX(id) FROM animal_species));
 
 -- -----------------------------------------------------------------------------
 -- 4. occupations（職種: 各医院4件 × 3医院 = 12件）
@@ -62,132 +42,158 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('occupations', 'id'), (SELECT MAX(id) FROM occupations));
 
 -- -----------------------------------------------------------------------------
--- 5. staffs（スタッフ: 12件）
+-- 5. staffs（スタッフ: 32件）
+-- 八王子院: ID 1-15（人間11名 + リソース4件）
+-- 城東医院: ID 16-25（人間7名 + リソース3件）
+-- 敷島医院: ID 26-32（人間5名 + リソース2件）
 -- account_id は accounts INSERT 後に UPDATE で設定される
 -- clinic_id は staff_clinic_assignments で管理される
 -- -----------------------------------------------------------------------------
-INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order) VALUES
-    -- アカウント未紐付けスタッフ（八王子院）
-    (1,  NULL, '獣医 一郎',   true, 'V-10001', 1, 1),
-    (2,  NULL, '獣医 二郎',   true, 'V-10002', 1, 2),
-    (3,  NULL, 'システム管理 太郎', true, 'V-00001', 1, 3),
-    (4,  NULL, '看護 花子',   true, '',        2, 4),
-    (5,  NULL, '看護 さくら', true, '',        2, 5),
-    (6,  NULL, 'トリマー 健太', true, '',      3, 6),
-    (7,  NULL, '受付 美咲',   true, '',        4, 7),
-    -- デモアカウント用スタッフ（八王子院）
-    (8,  NULL, '執行 太郎',   true, 'V-20001', 1, 1),
-    (9,  NULL, '一般 花子',   true, 'V-20002', 1, 2),
-    (10, NULL, '一般 美咲',   true, '',        2, 3),
-    (11, NULL, '一般 一郎',   true, '',        4, 4),
-    (12, NULL, '一般 さくら', true, '',        3, 5),
-    -- 執行グループ デモアカウント用スタッフ
-    (13, NULL, '執行 院長',   true, 'V-30001', 1, 6),
-    (14, NULL, '執行 部長',   true, 'V-30002', 1, 7)
+INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order, staff_type, reservation_visible) VALUES
+    -- 八王子院 人間スタッフ (clinic_id=3)
+    (1,  NULL, '林 文明',              true, 'V-10001', 1, 1,  'doctor',   true),
+    (2,  NULL, '山﨑 晶子',           true, 'V-10002', 1, 2,  'doctor',   true),
+    (3,  NULL, '三井 隆之',           true, 'V-10003', 1, 3,  'doctor',   true),
+    (4,  NULL, '菊島 弘貴',           true, 'V-10004', 1, 4,  'doctor',   true),
+    (5,  NULL, '加藤 茉里',           true, '',        2, 5,  'nurse',    false),
+    (6,  NULL, '金谷 亜美',           true, '',        2, 6,  'nurse',    false),
+    (7,  NULL, '稲村 一真',           true, '',        2, 7,  'nurse',    false),
+    (8,  NULL, '安田 希恵',           true, '',        2, 8,  'nurse',    false),
+    (9,  NULL, '倉田 春香',           true, '',        2, 9,  'nurse',    false),
+    (10, NULL, '梶原 梨夢',           true, '',        2, 10, 'nurse',    false),
+    (11, NULL, '髙木 賀央里',         true, '',        2, 11, 'nurse',    false),
+    -- 八王子院 リソース（予約枠管理用）
+    (12, NULL, 'お手入れ・オゾン療法', true, '',        3, 12, 'resource', true),
+    (13, NULL, '健診・ワクチン・狂犬病', true, '',     3, 13, 'resource', true),
+    (14, NULL, 'ドッグラン(アジリティ解放)', true, '', 4, 14, 'resource', true),
+    (15, NULL, 'クイックシャンプー',   true, '',        3, 15, 'resource', true)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
 
 -- -----------------------------------------------------------------------------
--- 6. accounts（認証用アカウント: 11件）
+-- 6. accounts（認証用アカウント: 13件）
 -- password_hash: bcrypt("password", cost=10)
--- staff_id mapping from old user_accounts:
---   1→3, 2→NULL, 3→1, 4→8, 5→9, 6→10, 7→11, 8→12, 9→NULL, 10→13, 11→14
--- account id will be auto-incremented; we'll use UPDATE to set staff.account_id
+-- account→staff mapping:
+--   1(admin@noavet.jp)→staff 4(三井 隆之 / 院長代理), 2(hayashi)→staff 1(林 文明)
+--   3(yamazaki)→staff 2(山﨑 晶子), 4(mitsui)→staff 3(三井 隆之)
+--   5(admin@example.com)→staff 8(安田), 6(vet)→staff 9(倉田)
+--   7(nurse)→staff 10(梶原), 8(reception)→staff 11(髙木)
+--   9(system)→NULL, 10(kimura)→staff 16(木村 健太)
+--   11(sasaki)→staff 17(佐々木), 12(fujiwara)→staff 26(藤原)
+--   13(matsumoto)→staff 27(松本)
 -- -----------------------------------------------------------------------------
 INSERT INTO accounts (id, email, password_hash, is_active, is_system_admin) VALUES
-    -- 既存スタッフ
-    (1, 'admin@noavet.jp',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, true),
-    (2, 'clinic1@noavet.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    (3, 'yamada@noavet.jp',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    -- システム管理者（全院アクセス）
+    (1, 'admin@noavet.jp',           '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, true),
+    -- 八王子院スタッフ（実名メール）
+    (2, 'hayashi@noah-vet.co.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (3, 'yamazaki@noah-vet.co.jp',   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (4, 'mitsui@noah-vet.co.jp',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     -- デモアカウント（八王子院・frontend mock-data.ts 対応）
-    (4, 'admin@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    (5, 'vet@example.com',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    (6, 'nurse@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    (7, 'reception@example.com','$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    (8, 'trimmer@example.com',  '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    (9, 'system@example.com',   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    -- 執行グループ デモアカウント
-    (10, 'manager@example.com', '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    (11, 'exec@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    -- 城東医院 デモアカウント
-    (12, 'joto-vet@example.com',  '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    -- 敷島医院 デモアカウント
-    (13, 'shiki-vet@example.com', '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false)
+    (5, 'admin@example.com',         '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (6, 'vet@example.com',           '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (7, 'nurse@example.com',         '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (8, 'reception@example.com',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (9, 'system@example.com',        '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    -- 城東医院スタッフ
+    (10, 'kimura@noah-vet.co.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (11, 'sasaki@noah-vet.co.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    -- 敷島医院スタッフ
+    (12, 'fujiwara@noah-vet.co.jp',  '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (13, 'matsumoto@noah-vet.co.jp', '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('accounts', 'id'), (SELECT MAX(id) FROM accounts));
 
--- 八王子院: account 2 (clinic1@noavet.jp) のスタッフ
-INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order) VALUES
-    (15, 2, '執行 補佐',      true, 'V-30003', 1, 8)
+-- 城東医院 (clinic_id=4) スタッフ
+INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order, staff_type, reservation_visible) VALUES
+    (16, NULL, '木村 健太',       true, 'V-40001', 5, 1,  'doctor',   true),
+    (17, NULL, '佐々木 美香',     true, 'V-40002', 5, 2,  'doctor',   true),
+    (18, NULL, '高橋 翔太',       true, 'V-40003', 5, 3,  'doctor',   true),
+    (19, NULL, '田村 由紀',       true, '',        6, 4,  'nurse',    false),
+    (20, NULL, '中村 大輔',       true, '',        6, 5,  'nurse',    false),
+    (21, NULL, '小林 麻衣',       true, '',        6, 6,  'nurse',    false),
+    (22, NULL, '井上 拓也',       true, '',        6, 7,  'nurse',    false),
+    -- 城東医院 リソース
+    (23, NULL, '健診・ワクチン・狂犬病', true, '', 7, 8,  'resource', true),
+    (24, NULL, 'トリミング',       true, '',        7, 9,  'resource', true),
+    (25, NULL, 'クイックシャンプー', true, '',      7, 10, 'resource', true)
 ON CONFLICT DO NOTHING;
 
--- 城東医院 (clinic_id=4) デモスタッフ
-INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order) VALUES
-    (16, NULL, '城東 獣医',   true, 'V-40001', 5, 1),
-    (17, NULL, '城東 看護',   true, '',        6, 2),
-    (18, NULL, '城東 受付',   true, '',        8, 3)
-ON CONFLICT DO NOTHING;
-
--- 敷島医院 (clinic_id=5) デモスタッフ
-INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order) VALUES
-    (19, NULL, '敷島 獣医',   true, 'V-50001', 9, 1),
-    (20, NULL, '敷島 看護',   true, '',        10, 2),
-    (21, NULL, '敷島 受付',   true, '',        12, 3)
+-- 敷島医院 (clinic_id=5) スタッフ
+INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_id, sort_order, staff_type, reservation_visible) VALUES
+    (26, NULL, '藤原 誠一',       true, 'V-50001', 9, 1,  'doctor',   true),
+    (27, NULL, '松本 さやか',     true, 'V-50002', 9, 2,  'doctor',   true),
+    (28, NULL, '石田 和也',       true, 'V-50003', 9, 3,  'doctor',   true),
+    (29, NULL, '岡本 菜々子',     true, '',        10, 4, 'nurse',    false),
+    (30, NULL, '西村 健二',       true, '',        10, 5, 'nurse',    false),
+    -- 敷島医院 リソース
+    (31, NULL, '健診・ワクチン・狂犬病', true, '', 11, 6, 'resource', true),
+    (32, NULL, 'トリミング',       true, '',        11, 7, 'resource', true)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
 
--- Update staffs.account_id with corresponding accounts
--- Old mapping (account_id → staff_id): 1→3, 2→15 (new), 3→1, 4→8, 5→9, 6→10, 7→11, 8→12, 9→NULL, 10→13, 11→14
-UPDATE staffs SET account_id = 1 WHERE id = 3;  -- account 1 → staff 3
-UPDATE staffs SET account_id = 3 WHERE id = 1;  -- account 3 → staff 1
-UPDATE staffs SET account_id = 4 WHERE id = 8;  -- account 4 → staff 8
-UPDATE staffs SET account_id = 5 WHERE id = 9;  -- account 5 → staff 9
-UPDATE staffs SET account_id = 6 WHERE id = 10; -- account 6 → staff 10
-UPDATE staffs SET account_id = 7 WHERE id = 11; -- account 7 → staff 11
-UPDATE staffs SET account_id = 8 WHERE id = 12; -- account 8 → staff 12
-UPDATE staffs SET account_id = 10 WHERE id = 13;-- account 10 → staff 13
-UPDATE staffs SET account_id = 11 WHERE id = 14;-- account 11 → staff 14
-UPDATE staffs SET account_id = 12 WHERE id = 16;-- account 12 → staff 16 (城東 獣医)
-UPDATE staffs SET account_id = 13 WHERE id = 19;-- account 13 → staff 19 (敷島 獣医)
-
--- NOTE: account 2 has new staff 15 which will be assigned in staff_clinic_assignments below
+-- account_id → staff_id マッピング
+UPDATE staffs SET account_id = 1  WHERE id = 4;  -- admin@noavet.jp → 三井 隆之 (院長代理)
+UPDATE staffs SET account_id = 2  WHERE id = 1;  -- hayashi@noah-vet.co.jp → 林 文明
+UPDATE staffs SET account_id = 3  WHERE id = 2;  -- yamazaki@noah-vet.co.jp → 山﨑 晶子
+UPDATE staffs SET account_id = 4  WHERE id = 3;  -- mitsui@noah-vet.co.jp → 三井 隆之
+UPDATE staffs SET account_id = 5  WHERE id = 8;  -- admin@example.com → 安田 希恵 (デモ用)
+UPDATE staffs SET account_id = 6  WHERE id = 9;  -- vet@example.com → 倉田 春香 (デモ用)
+UPDATE staffs SET account_id = 7  WHERE id = 10; -- nurse@example.com → 梶原 梨夢 (デモ用)
+UPDATE staffs SET account_id = 8  WHERE id = 11; -- reception@example.com → 髙木 賀央里 (デモ用)
+UPDATE staffs SET account_id = 10 WHERE id = 16; -- kimura@noah-vet.co.jp → 木村 健太
+UPDATE staffs SET account_id = 11 WHERE id = 17; -- sasaki@noah-vet.co.jp → 佐々木 美香
+UPDATE staffs SET account_id = 12 WHERE id = 26; -- fujiwara@noah-vet.co.jp → 藤原 誠一
+UPDATE staffs SET account_id = 13 WHERE id = 27; -- matsumoto@noah-vet.co.jp → 松本 さやか
 
 -- -----------------------------------------------------------------------------
--- 7. staff_clinic_assignments（スタッフ・クリニック割当: 10件）
--- Mapping from old user_clinic_memberships (user_id → staff_id)
--- user_id 4→staff 8, 5→9, 6→10, 7→11, 8→12, 9→NULL, 10→13, 11→14
--- New: account 1→staff 3, account 2→staff 15, account 3→staff 1 (all to clinic 3)
--- Note: account 9 (system@example.com) has no staff, so skipped
+-- 7. staff_clinic_assignments（スタッフ・クリニック割当: 37件）
+-- 八王子院: staff 1-15、三井 隆之(4)は城東・敷島にもサブ割当
+-- 城東医院: staff 16-25
+-- 敷島医院: staff 26-32
 -- -----------------------------------------------------------------------------
 INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
-    (1,  3, true),   -- 獣医 一郎 (yamada@noavet.jp)
-    (2,  3, true),   -- 獣医 二郎（アカウント未紐付け）
-    (3,  3, true),   -- システム管理 太郎 (admin@noavet.jp) — 八王子院（メイン）
-    (3,  4, false),  -- システム管理 太郎 — 城東医院
-    (3,  5, false),  -- システム管理 太郎 — 敷島医院
-    (4,  3, true),   -- 看護 花子（アカウント未紐付け）
-    (5,  3, true),   -- 看護 さくら（アカウント未紐付け）
-    (6,  3, true),   -- トリマー 健太（アカウント未紐付け）
-    (7,  3, true),   -- 受付 美咲（アカウント未紐付け）
-    (8,  3, true),   -- 執行 太郎 (admin@example.com)
-    (9,  3, true),   -- 一般 花子 (vet@example.com)
-    (10, 3, true),   -- 一般 美咲 (nurse@example.com)
-    (11, 3, true),   -- 一般 一郎 (reception@example.com)
-    (12, 3, true),   -- 一般 さくら (trimmer@example.com)
-    (13, 3, true),   -- 執行 院長 (manager@example.com)
-    (14, 3, true),   -- 執行 部長 (exec@example.com)
-    (15, 3, true),   -- 執行 補佐 (clinic1@noavet.jp)
+    -- 八王子院 (clinic_id=3)
+    (1,  3, true),   -- 林 文明 (hayashi@noah-vet.co.jp)
+    (2,  3, true),   -- 山﨑 晶子 (yamazaki@noah-vet.co.jp)
+    (3,  3, true),   -- 三井 隆之 (mitsui@noah-vet.co.jp)
+    (4,  3, true),   -- 菊島 弘貴
+    (5,  3, true),   -- 加藤 茉里
+    (6,  3, true),   -- 金谷 亜美
+    (7,  3, true),   -- 稲村 一真
+    (8,  3, true),   -- 安田 希恵 (admin@example.com デモ)
+    (9,  3, true),   -- 倉田 春香 (vet@example.com デモ)
+    (10, 3, true),   -- 梶原 梨夢 (nurse@example.com デモ)
+    (11, 3, true),   -- 髙木 賀央里 (reception@example.com デモ)
+    (12, 3, true),   -- お手入れ・オゾン療法 (resource)
+    (13, 3, true),   -- 健診・ワクチン・狂犬病 (resource)
+    (14, 3, true),   -- ドッグラン(アジリティ解放) (resource)
+    (15, 3, true),   -- クイックシャンプー (resource)
+    -- システム管理者 admin@noavet.jp は全院アクセス (staff_id=4 = 三井 隆之)
+    (4,  4, false),  -- 三井 隆之 — 城東医院（管理目的）
+    (4,  5, false),  -- 三井 隆之 — 敷島医院（管理目的）
     -- 城東医院 (clinic_id=4)
-    (16, 4, true),   -- 城東 獣医 (joto-vet@example.com)
-    (17, 4, true),   -- 城東 看護
-    (18, 4, true),   -- 城東 受付
+    (16, 4, true),   -- 木村 健太 (kimura@noah-vet.co.jp)
+    (17, 4, true),   -- 佐々木 美香 (sasaki@noah-vet.co.jp)
+    (18, 4, true),   -- 高橋 翔太
+    (19, 4, true),   -- 田村 由紀
+    (20, 4, true),   -- 中村 大輔
+    (21, 4, true),   -- 小林 麻衣
+    (22, 4, true),   -- 井上 拓也
+    (23, 4, true),   -- 健診・ワクチン・狂犬病 (resource)
+    (24, 4, true),   -- トリミング (resource)
+    (25, 4, true),   -- クイックシャンプー (resource)
     -- 敷島医院 (clinic_id=5)
-    (19, 5, true),   -- 敷島 獣医 (shiki-vet@example.com)
-    (20, 5, true),   -- 敷島 看護
-    (21, 5, true)    -- 敷島 受付
+    (26, 5, true),   -- 藤原 誠一 (fujiwara@noah-vet.co.jp)
+    (27, 5, true),   -- 松本 さやか (matsumoto@noah-vet.co.jp)
+    (28, 5, true),   -- 石田 和也
+    (29, 5, true),   -- 岡本 菜々子
+    (30, 5, true),   -- 西村 健二
+    (31, 5, true),   -- 健診・ワクチン・狂犬病 (resource)
+    (32, 5, true)    -- トリミング (resource)
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
@@ -364,45 +370,84 @@ ON CONFLICT DO NOTHING;
 -- 一般(2): 一般業務スタッフ
 -- -----------------------------------------------------------------------------
 INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
-    -- 執行グループ
-    (3,  1),  -- 渡辺 博     (admin@noavet.jp / is_system_admin)
-    (8,  1),  -- 田中 太郎   (admin@example.com)
-    (13, 1),  -- 渡辺 院長   (manager@example.com)
-    (14, 1),  -- 小林 部長   (exec@example.com)
-    (15, 1),  -- 院長補佐    (clinic1@noavet.jp)
-    -- 一般グループ
-    (1,  2),  -- 山田 太郎   (yamada@noavet.jp)
-    (2,  2),  -- 高橋 健一
-    (4,  2),  -- 佐藤 花子
-    (5,  2),  -- 伊藤 さくら
-    (6,  2),  -- 木村 健太
-    (7,  2),  -- 田中 美咲
-    (9,  2),  -- 山田 花子   (vet@example.com)
-    (10, 2),  -- 佐藤 美咲   (nurse@example.com)
-    (11, 2),  -- 鈴木 一郎   (reception@example.com)
-    (12, 2),  -- 高橋 さくら (trimmer@example.com)
-    -- 城東医院 (group_id=3: 執行, group_id=4: 一般)
-    (16, 3),  -- 城東 獣医 (joto-vet@example.com) → 執行
-    (17, 4),  -- 城東 看護 → 一般
-    (18, 4),  -- 城東 受付 → 一般
-    -- 敷島医院 (group_id=5: 執行, group_id=6: 一般)
-    (19, 5),  -- 敷島 獣医 (shiki-vet@example.com) → 執行
-    (20, 6),  -- 敷島 看護 → 一般
-    (21, 6)   -- 敷島 受付 → 一般
+    -- 八王子院 執行グループ (group_id=1)
+    (3,  1),  -- 三井 隆之   (mitsui@noah-vet.co.jp / admin@noavet.jp マッピング)
+    (4,  1),  -- 菊島 弘貴   (執行権限保持)
+    -- 八王子院 一般グループ (group_id=2)
+    (1,  2),  -- 林 文明     (hayashi@noah-vet.co.jp)
+    (2,  2),  -- 山﨑 晶子   (yamazaki@noah-vet.co.jp)
+    (5,  2),  -- 加藤 茉里
+    (6,  2),  -- 金谷 亜美
+    (7,  2),  -- 稲村 一真
+    (8,  2),  -- 安田 希恵   (admin@example.com デモ)
+    (9,  2),  -- 倉田 春香   (vet@example.com デモ)
+    (10, 2),  -- 梶原 梨夢   (nurse@example.com デモ)
+    (11, 2),  -- 髙木 賀央里 (reception@example.com デモ)
+    (12, 2),  -- お手入れ・オゾン療法 (resource)
+    (13, 2),  -- 健診・ワクチン・狂犬病 (resource)
+    (14, 2),  -- ドッグラン (resource)
+    (15, 2),  -- クイックシャンプー (resource)
+    -- 城東医院 執行グループ (group_id=3)
+    (16, 3),  -- 木村 健太   (kimura@noah-vet.co.jp)
+    (17, 3),  -- 佐々木 美香 (sasaki@noah-vet.co.jp)
+    -- 城東医院 一般グループ (group_id=4)
+    (18, 4),  -- 高橋 翔太
+    (19, 4),  -- 田村 由紀
+    (20, 4),  -- 中村 大輔
+    (21, 4),  -- 小林 麻衣
+    (22, 4),  -- 井上 拓也
+    (23, 4),  -- 健診・ワクチン・狂犬病 (resource)
+    (24, 4),  -- トリミング (resource)
+    (25, 4),  -- クイックシャンプー (resource)
+    -- 敷島医院 執行グループ (group_id=5)
+    (26, 5),  -- 藤原 誠一   (fujiwara@noah-vet.co.jp)
+    (27, 5),  -- 松本 さやか (matsumoto@noah-vet.co.jp)
+    -- 敷島医院 一般グループ (group_id=6)
+    (28, 6),  -- 石田 和也
+    (29, 6),  -- 岡本 菜々子
+    (30, 6),  -- 西村 健二
+    (31, 6),  -- 健診・ワクチン・狂犬病 (resource)
+    (32, 6)   -- トリミング (resource)
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 8. service_types（サービス種別: 7件）
--- 「再診」は visit_type（予約区分: 初診/再診）で管理するため service_types には含めない
+-- 8. service_types（サービス種別）
+-- 八王子院 (clinic_id=3): 25件 (ID 1-25)
+-- 城東医院 (clinic_id=4): 19件 (ID 26-44)
+-- 敷島医院 (clinic_id=5): 14件 (ID 45-58)
 -- -----------------------------------------------------------------------------
-INSERT INTO service_types (id, clinic_id, name, is_active, description, color, sort_order) VALUES
-    (1, 3, '一般診療',     true, '内科・外科・皮膚科などの一般的な診療', '#3B82F6', 1),
-    (2, 3, 'ワクチン接種', true, '各種ワクチン接種（予防接種）',         '#10B981', 2),
-    (3, 3, '健康診断',     true, '定期健康診断・フィラリア検査など',     '#8B5CF6', 3),
-    (4, 3, '手術・処置',   true, '去勢・避妊・その他外科手術',           '#EF4444', 4),
-    (5, 3, 'トリミング',   true, 'グルーミング・爪切り・耳掃除など',     '#F59E0B', 5),
-    (6, 3, '入院',         true, '入院・ホテル管理',                     '#6B7280', 6),
-    (7, 3, '検査',         true, '血液検査・尿検査・画像診断など',       '#EC4899', 7)
+
+-- 八王子院 (clinic_id=3) 公開コース (is_internal=false, reservation_visible=true)
+INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+    (1,  3, '一般診察',               '診察',     true, '内科・外科・皮膚科などの一般的な診察',         '#3B82F6', 1,  15, true,  '', false),
+    (2,  3, '一般診察(再診)',          '再診',     true, '継続通院の一般診察',                           '#3B82F6', 2,  15, true,  '', false),
+    (3,  3, 'ワクチン接種',            'ワクチン', true, '各種ワクチン接種（予防接種）',                 '#10B981', 3,  15, true,  '', false),
+    (4,  3, 'お手入れ',               'お手入れ', true, '爪切り・耳掃除・肛門腺絞りなど',               '#F59E0B', 4,  15, true,  '', false),
+    (5,  3, '狂犬病',                 '狂犬病',   true, '狂犬病予防法に基づくワクチン接種',             '#10B981', 5,  15, true,  '', false),
+    (6,  3, 'フィラリア予防',          'フィラリア', true, 'フィラリア予防薬投与・処方',                '#10B981', 6,  15, true,  '', false),
+    (7,  3, '健康診断',               '健診',     true, '定期健康診断・フィラリア検査など',             '#8B5CF6', 7,  15, true,  '', false),
+    (8,  3, '健康診断結果報告',        '結果報告', true, '健康診断結果の説明・報告',                     '#8B5CF6', 8,  15, true,  '', false),
+    (9,  3, 'トリミングコース',        'トリミング', true, 'カット・シャンプー・ブロー・爪切り・耳掃除', '#F59E0B', 9,  15, true,  '', false),
+    (10, 3, 'トリミング部分カットコース', '部分カット', true, '部分的なカット・トリミング',              '#F59E0B', 10, 15, true,  '', false),
+    (11, 3, 'トリミングシャンプーコース', 'シャンプー', true, 'シャンプー・ブロー・ブラッシング',        '#F59E0B', 11, 15, true,  '', false),
+    (12, 3, 'クイックシャンプー',      'Qシャンプー', true, '短時間シャンプー',                        '#F59E0B', 12, 15, true,  '', false),
+    (13, 3, '室内ドッグラン',          'ドッグラン', true, '室内ドッグラン利用（60分）',                '#6B7280', 13, 60, true,  '', false)
+ON CONFLICT DO NOTHING;
+
+-- 八王子院 (clinic_id=3) スタッフ専用コース (is_internal=true, reservation_visible=false)
+INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+    (14, 3, '手術60',                 '手術60',   true, '手術枠（60分）',                               '#EF4444', 14, 60, false, '', true),
+    (15, 3, 'ホテルお迎え',           'お迎え',   true, 'ホテルお迎え対応',                             '#6B7280', 15, 15, false, '', true),
+    (16, 3, 'ホテル預かり',           '預かり',   true, 'ペットホテル預かり',                           '#6B7280', 16, 15, false, '', true),
+    (17, 3, '面会',                   '面会',     true, '入院動物の面会対応',                           '#6B7280', 17, 15, false, '', true),
+    (18, 3, '☎︎',                   '☎︎',      true, '電話対応枠',                                   '#6B7280', 18, 15, false, '', true),
+    (19, 3, '手術30',                 '手術30',   true, '手術枠（30分）',                               '#EF4444', 19, 30, false, '', true),
+    (20, 3, '休憩枠',                 '休憩',     true, '休憩・ブロック枠',                             '#6B7280', 20, 60, false, '', true),
+    (21, 3, '×',                     '×',       true, '予約不可（15分）',                             '#6B7280', 21, 15, false, '', true),
+    (22, 3, '電話予約60',             '電話予約', true, '電話予約枠（60分）',                           '#6B7280', 22, 60, false, '', true),
+    (23, 3, '予約不可60',             '不可60',   true, '予約不可ブロック（60分）',                     '#6B7280', 23, 60, false, '', true),
+    (24, 3, 'エコー枠',               'エコー',   true, '超音波検査専用枠',                             '#8B5CF6', 24, 30, false, '', true),
+    (25, 3, '予約不可30',             '不可30',   true, '予約不可ブロック（30分）',                     '#6B7280', 25, 30, false, '', true)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('service_types', 'id'), (SELECT MAX(id) FROM service_types));
@@ -849,16 +894,16 @@ SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 -- 3. reservation_appointments（予約: 10件）
 -- -----------------------------------------------------------------------------
 INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, service_type_id, doctor_id, is_designated, status, notes) VALUES
-    (1,  3, '2026-03-12 09:00:00+09', '2026-03-12 09:30:00+09', 1,  1,  'revisit', 1, 1, true,  'completed',       '皮膚の経過観察'),
-    (2,  3, '2026-03-12 09:30:00+09', '2026-03-12 10:00:00+09', 2,  3,  'revisit', 3, 2, false, 'accounting',      '猫の定期検診'),
-    (3,  3, '2026-03-12 10:00:00+09', '2026-03-12 10:30:00+09', 3,  4,  'revisit', 1, 1, true,  'in_consultation',  '足を引きずっている'),
-    (4,  3, '2026-03-12 10:30:00+09', '2026-03-12 11:00:00+09', 4,  6,  'first',   2, 2, false, 'checked_in',      'ワクチン接種希望'),
-    (5,  3, '2026-03-12 14:00:00+09', '2026-03-12 14:30:00+09', 6,  8,  'revisit', 1, 1, false, 'confirmed',       '食欲低下が続いている'),
-    (6,  3, '2026-03-13 09:00:00+09', '2026-03-13 09:30:00+09', 7,  9,  'revisit', 1, 2, true,  'confirmed',       '耳の治療経過確認'),
-    (7,  3, '2026-03-13 10:00:00+09', '2026-03-13 10:30:00+09', 8,  10, 'first',   1, 1, false, 'confirmed',       '嘔吐が続いている'),
-    (8,  3, '2026-03-14 09:30:00+09', '2026-03-14 10:00:00+09', 9,  11, 'revisit', 1, 2, false, 'confirmed',       'ルナの経過観察'),
-    (9,  3, '2026-03-15 11:00:00+09', '2026-03-15 11:30:00+09', 10, 12, 'first',   2, 1, false, 'confirmed',       '初回ワクチン接種'),
-    (10, 3, '2026-03-16 14:00:00+09', '2026-03-16 14:30:00+09', 11, 13, 'revisit', 1, 2, true,  'confirmed',       '腎臓値の経過観察')
+    (1,  3, '2026-03-12 09:00:00+09', '2026-03-12 09:15:00+09', 1,  1,  'revisit', 1, 1, true,  'completed',       '皮膚の経過観察'),
+    (2,  3, '2026-03-12 09:15:00+09', '2026-03-12 09:30:00+09', 2,  3,  'revisit', 7, 2, false, 'accounting',      '猫の定期健診'),
+    (3,  3, '2026-03-12 10:00:00+09', '2026-03-12 10:15:00+09', 3,  4,  'revisit', 1, 1, true,  'in_consultation', '足を引きずっている'),
+    (4,  3, '2026-03-12 10:15:00+09', '2026-03-12 10:30:00+09', 4,  6,  'first',   3, 2, false, 'checked_in',      'ワクチン接種希望'),
+    (5,  3, '2026-03-12 14:00:00+09', '2026-03-12 14:15:00+09', 6,  8,  'revisit', 1, 1, false, 'confirmed',       '食欲低下が続いている'),
+    (6,  3, '2026-03-13 09:00:00+09', '2026-03-13 09:15:00+09', 7,  9,  'revisit', 1, 2, true,  'confirmed',       '耳の治療経過確認'),
+    (7,  3, '2026-03-13 10:00:00+09', '2026-03-13 10:15:00+09', 8,  10, 'first',   1, 1, false, 'confirmed',       '嘔吐が続いている'),
+    (8,  3, '2026-03-14 09:30:00+09', '2026-03-14 09:45:00+09', 9,  11, 'revisit', 1, 2, false, 'confirmed',       'ルナの経過観察'),
+    (9,  3, '2026-03-15 11:00:00+09', '2026-03-15 11:15:00+09', 10, 12, 'first',   3, 1, false, 'confirmed',       '初回ワクチン接種'),
+    (10, 3, '2026-03-16 14:00:00+09', '2026-03-16 14:15:00+09', 11, 13, 'revisit', 1, 2, true,  'confirmed',       '腎臓値の経過観察')
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
@@ -1092,16 +1137,34 @@ SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) F
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 城東医院 service_types（サービス種別: 5件）
+-- 城東医院 service_types（サービス種別: 19件、ID 26-44）
 -- -----------------------------------------------------------------------------
-INSERT INTO service_types (id, clinic_id, name, is_active, description, color, sort_order) VALUES
-    (8,  4, '一般診療',     true, '内科・外科・皮膚科などの一般的な診療', '#3B82F6', 1),
-    (9,  4, 'ワクチン接種', true, '各種ワクチン接種（予防接種）',         '#10B981', 2),
-    (10, 4, '健康診断',     true, '定期健康診断・フィラリア検査など',     '#8B5CF6', 3),
-    (11, 4, '手術・処置',   true, '去勢・避妊・その他外科手術',           '#EF4444', 4),
-    (12, 4, '検査',         true, '血液検査・尿検査・画像診断など',       '#EC4899', 5),
-    (18, 4, 'トリミング',   true, 'グルーミング・爪切り・耳掃除など',     '#F59E0B', 6),
-    (19, 4, '入院',         true, '入院・ホテル管理',                     '#6B7280', 7)
+
+-- 城東医院 公開コース
+INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+    (26, 4, '一般診察',               '診察',     true, '内科・外科・皮膚科などの一般的な診察',         '#3B82F6', 1,  15, true,  '', false),
+    (27, 4, '一般診察(再診)',          '再診',     true, '継続通院の一般診察',                           '#3B82F6', 2,  15, true,  '', false),
+    (28, 4, 'ワクチン接種',            'ワクチン', true, '各種ワクチン接種（予防接種）',                 '#10B981', 3,  15, true,  '', false),
+    (29, 4, '狂犬病',                 '狂犬病',   true, '狂犬病予防法に基づくワクチン接種',             '#10B981', 4,  15, true,  '', false),
+    (30, 4, 'フィラリア予防',          'フィラリア', true, 'フィラリア予防薬投与・処方',                '#10B981', 5,  15, true,  '', false),
+    (31, 4, '健康診断',               '健診',     true, '定期健康診断・フィラリア検査など',             '#8B5CF6', 6,  15, true,  '', false),
+    (32, 4, '健康診断結果報告',        '結果報告', true, '健康診断結果の説明・報告',                     '#8B5CF6', 7,  15, true,  '', false),
+    (33, 4, 'トリミングコース',        'トリミング', true, 'カット・シャンプー・ブロー・爪切り・耳掃除', '#F59E0B', 8,  15, true,  '', false),
+    (34, 4, 'トリミングシャンプーコース', 'シャンプー', true, 'シャンプー・ブロー・ブラッシング',        '#F59E0B', 9,  15, true,  '', false),
+    (35, 4, 'クイックシャンプー',      'Qシャンプー', true, '短時間シャンプー',                        '#F59E0B', 10, 15, true,  '', false)
+ON CONFLICT DO NOTHING;
+
+-- 城東医院 スタッフ専用コース
+INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+    (36, 4, '手術60',                 '手術60',   true, '手術枠（60分）',                               '#EF4444', 11, 60, false, '', true),
+    (37, 4, '手術30',                 '手術30',   true, '手術枠（30分）',                               '#EF4444', 12, 30, false, '', true),
+    (38, 4, 'ホテルお迎え',           'お迎え',   true, 'ホテルお迎え対応',                             '#6B7280', 13, 15, false, '', true),
+    (39, 4, 'ホテル預かり',           '預かり',   true, 'ペットホテル預かり',                           '#6B7280', 14, 15, false, '', true),
+    (40, 4, '休憩枠',                 '休憩',     true, '休憩・ブロック枠',                             '#6B7280', 15, 60, false, '', true),
+    (41, 4, '×',                     '×',       true, '予約不可（15分）',                             '#6B7280', 16, 15, false, '', true),
+    (42, 4, '予約不可60',             '不可60',   true, '予約不可ブロック（60分）',                     '#6B7280', 17, 60, false, '', true),
+    (43, 4, '予約不可30',             '不可30',   true, '予約不可ブロック（30分）',                     '#6B7280', 18, 30, false, '', true),
+    (44, 4, 'エコー枠',               'エコー',   true, '超音波検査専用枠',                             '#8B5CF6', 19, 30, false, '', true)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('service_types', 'id'), (SELECT MAX(id) FROM service_types));
@@ -1363,16 +1426,29 @@ SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 敷島医院 service_types（サービス種別: 5件）
+-- 敷島医院 service_types（サービス種別: 14件、ID 45-58）
 -- -----------------------------------------------------------------------------
-INSERT INTO service_types (id, clinic_id, name, is_active, description, color, sort_order) VALUES
-    (13, 5, '一般診療',     true, '内科・外科・皮膚科などの一般的な診療', '#3B82F6', 1),
-    (14, 5, 'ワクチン接種', true, '各種ワクチン接種（予防接種）',         '#10B981', 2),
-    (15, 5, '健康診断',     true, '定期健康診断・フィラリア検査など',     '#8B5CF6', 3),
-    (16, 5, 'トリミング',   true, 'グルーミング・爪切り・耳掃除など',     '#F59E0B', 4),
-    (17, 5, '入院',         true, '入院・ホテル管理',                     '#6B7280', 5),
-    (20, 5, '手術・処置',   true, '去勢・避妊・その他外科手術',           '#EF4444', 6),
-    (21, 5, '検査',         true, '血液検査・尿検査・画像診断など',       '#EC4899', 7)
+
+-- 敷島医院 公開コース
+INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+    (45, 5, '一般診察',               '診察',     true, '内科・外科・皮膚科などの一般的な診察',         '#3B82F6', 1,  15, true,  '', false),
+    (46, 5, '一般診察(再診)',          '再診',     true, '継続通院の一般診察',                           '#3B82F6', 2,  15, true,  '', false),
+    (47, 5, 'ワクチン接種',            'ワクチン', true, '各種ワクチン接種（予防接種）',                 '#10B981', 3,  15, true,  '', false),
+    (48, 5, '狂犬病',                 '狂犬病',   true, '狂犬病予防法に基づくワクチン接種',             '#10B981', 4,  15, true,  '', false),
+    (49, 5, 'フィラリア予防',          'フィラリア', true, 'フィラリア予防薬投与・処方',                '#10B981', 5,  15, true,  '', false),
+    (50, 5, '健康診断',               '健診',     true, '定期健康診断・フィラリア検査など',             '#8B5CF6', 6,  15, true,  '', false),
+    (51, 5, '健康診断結果報告',        '結果報告', true, '健康診断結果の説明・報告',                     '#8B5CF6', 7,  15, true,  '', false),
+    (52, 5, 'トリミングコース',        'トリミング', true, 'カット・シャンプー・ブロー・爪切り・耳掃除', '#F59E0B', 8,  15, true,  '', false)
+ON CONFLICT DO NOTHING;
+
+-- 敷島医院 スタッフ専用コース
+INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+    (53, 5, '手術60',                 '手術60',   true, '手術枠（60分）',                               '#EF4444', 9,  60, false, '', true),
+    (54, 5, '手術30',                 '手術30',   true, '手術枠（30分）',                               '#EF4444', 10, 30, false, '', true),
+    (55, 5, '休憩枠',                 '休憩',     true, '休憩・ブロック枠',                             '#6B7280', 11, 60, false, '', true),
+    (56, 5, '×',                     '×',       true, '予約不可（15分）',                             '#6B7280', 12, 15, false, '', true),
+    (57, 5, '予約不可60',             '不可60',   true, '予約不可ブロック（60分）',                     '#6B7280', 13, 60, false, '', true),
+    (58, 5, '予約不可30',             '不可30',   true, '予約不可ブロック（30分）',                     '#6B7280', 14, 30, false, '', true)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('service_types', 'id'), (SELECT MAX(id) FROM service_types));
@@ -1714,24 +1790,8 @@ ON CONFLICT DO NOTHING;
 -- LINE予約システム シードデータ
 -- =============================================================================
 
--- A. service_types の予約用カラム更新（INSERT済みの名前に合わせる）
--- 顧客向けメニュー（reservation_visible = true）
-UPDATE service_types SET duration_minutes = 15,  short_name = '診療',     reservation_visible = true,  is_internal = false WHERE name = '一般診療';
-UPDATE service_types SET duration_minutes = 15,  short_name = 'ワクチン', reservation_visible = true,  is_internal = false WHERE name = 'ワクチン接種';
-UPDATE service_types SET duration_minutes = 15,  short_name = '健診',     reservation_visible = true,  is_internal = false WHERE name = '健康診断';
-UPDATE service_types SET duration_minutes = 60,  short_name = '手術',     reservation_visible = true,  is_internal = false WHERE name = '手術・処置';
-UPDATE service_types SET duration_minutes = 60,  short_name = 'トリミング', reservation_visible = true, is_internal = false WHERE name = 'トリミング';
-UPDATE service_types SET duration_minutes = 15,  short_name = '検査',     reservation_visible = true,  is_internal = false WHERE name = '検査';
--- 入院は予約対象外
-UPDATE service_types SET duration_minutes = 60,  short_name = '入院',     reservation_visible = false, is_internal = true  WHERE name = '入院';
-
--- B. staffs の予約用カラム更新（occupation_id=1 の獣医スタッフを対象）
-UPDATE staffs SET staff_type = 'doctor', reservation_visible = true
-WHERE occupation_id IN (SELECT id FROM occupations WHERE name = '獣医師');
-UPDATE staffs SET staff_type = 'nurse', reservation_visible = false
-WHERE occupation_id IN (SELECT id FROM occupations WHERE name = '看護師');
-UPDATE staffs SET staff_type = 'resource', reservation_visible = false
-WHERE occupation_id IN (SELECT id FROM occupations WHERE name IN ('トリマー', '受付'));
+-- A. service_types の予約用カラムはすべて INSERT 時に設定済み（更新不要）
+-- B. staffs の予約用カラムはすべて INSERT 時に設定済み（更新不要）
 
 -- C. reservation_settings 初期データ
 INSERT INTO reservation_settings (
@@ -1760,6 +1820,7 @@ ON CONFLICT (clinic_id) DO NOTHING;
 -- clinic_id=4: テスト-城東（@151lnsqa）
 UPDATE reservation_settings SET
     status              = 'running',
+    header_text         = 'ノア動物病院 八王子',
     line_channel_id     = '2009755544',
     line_channel_secret = '5344ef84eb7072b5894f7e087db28827',
     liff_id             = '2009755581-w5NOA3EW',
@@ -1768,6 +1829,7 @@ WHERE clinic_id = 3;
 
 UPDATE reservation_settings SET
     status              = 'running',
+    header_text         = 'ノア動物病院 城東',
     line_channel_id     = '2009755545',
     line_channel_secret = '25e4661a8de553953a4b34c6ac7a91cb',
     liff_id             = '2009755586-nvKfG3Cp',
@@ -1775,11 +1837,34 @@ UPDATE reservation_settings SET
 WHERE clinic_id = 4;
 
 -- D. staff_excluded_service_types 初期データ
--- 獣医スタッフはトリミングを非対応とする
+-- 獣医スタッフはトリミング系コースを非対応とする（同一クリニック内のみ）
 INSERT INTO staff_excluded_service_types (staff_id, service_type_id)
 SELECT s.id, st.id
 FROM staffs s
-CROSS JOIN service_types st
+JOIN staff_clinic_assignments sca ON sca.staff_id = s.id
+JOIN service_types st ON sca.clinic_id = st.clinic_id
 WHERE s.staff_type = 'doctor'
-  AND st.name IN ('トリミング')
+  AND st.name IN (
+      'トリミングコース', 'トリミング部分カットコース', 'トリミングシャンプーコース',
+      'クイックシャンプー', 'お手入れ', '室内ドッグラン'
+  )
 ON CONFLICT (staff_id, service_type_id) DO NOTHING;
+
+-- E. reservation_customers テスト用 LINE 顧客データ
+INSERT INTO reservation_customers (clinic_id, line_user_id, display_name, real_name, additional_fields, owner_id)
+VALUES
+    (3, 'U_test_hachioji_001', 'テスト 太郎', '執行 太郎', '{"phone":"090-1234-5678","owner_name":"執行 太郎","pet_name":"ポチ","pet_type":"柴犬"}', 1),
+    (3, 'U_test_hachioji_002', 'テスト 花子', '一般 花子', '{"phone":"080-9876-5432","owner_name":"一般 花子","pet_name":"ミケ","pet_type":"三毛猫"}', 2),
+    (4, 'U_test_joto_001', 'テスト 次郎', '城東テスト', '{"phone":"070-1111-2222","owner_name":"城東テスト","pet_name":"チョコ","pet_type":"トイプードル"}', NULL)
+ON CONFLICT DO NOTHING;
+
+-- F. 城東医院 (clinic_id=4) テスト予約 3件
+-- ※ owners/pets が先に挿入されている必要がある
+INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, service_type_id, doctor_id, is_designated, status, notes) VALUES
+    (11, 4, '2026-03-12 10:00:00+09', '2026-03-12 10:15:00+09', 23, 29, 'revisit', 26, 16, true,  'confirmed', 'クロの定期診察'),
+    (12, 4, '2026-03-13 14:00:00+09', '2026-03-13 14:15:00+09', 24, 31, 'first',   28, 16, false, 'confirmed', 'ポポのワクチン接種'),
+    (13, 4, '2026-03-14 11:00:00+09', '2026-03-14 11:15:00+09', 25, 32, 'revisit', 31, 16, false, 'confirmed', 'ダンの健康診断')
+ON CONFLICT (id) DO UPDATE SET
+    updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('reservation_appointments', 'id'), (SELECT MAX(id) FROM reservation_appointments));
