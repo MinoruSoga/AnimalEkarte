@@ -142,6 +142,28 @@ func (s *reservationNotificationService) NotifyCancelled(
 	}()
 }
 
+// ---- ヘルパー: LINE表示名フォールバック ----
+
+func serviceTypeDisplayName(st *model.ServiceType) string {
+	if st == nil {
+		return ""
+	}
+	if st.ReservationDisplayName != "" {
+		return st.ReservationDisplayName
+	}
+	return st.Name
+}
+
+func staffDisplayName(s *model.Staff) string {
+	if s == nil {
+		return ""
+	}
+	if s.ReservationDisplayName != "" {
+		return s.ReservationDisplayName
+	}
+	return s.Name
+}
+
 // ---- LINE メッセージテンプレート ----
 
 func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.ReservationAppointment) string {
@@ -149,11 +171,11 @@ func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.Res
 	sb.WriteString("ご予約を承りました。\n\n")
 	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
 	sb.WriteString(fmt.Sprintf("■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime)))
-	if appt.ServiceType != nil {
-		sb.WriteString(fmt.Sprintf("■ メニュー: %s\n", appt.ServiceType.Name))
+	if name := serviceTypeDisplayName(appt.ServiceType); name != "" {
+		sb.WriteString(fmt.Sprintf("■ メニュー: %s\n", name))
 	}
-	if appt.Doctor != nil {
-		sb.WriteString(fmt.Sprintf("■ 担当: %s\n", appt.Doctor.Name))
+	if name := staffDisplayName(appt.Doctor); name != "" {
+		sb.WriteString(fmt.Sprintf("■ 担当: %s\n", name))
 	}
 	if petNames := extractPetNamesFromCustomerFields(appt); petNames != "" {
 		sb.WriteString(fmt.Sprintf("■ ペット: %s\n", petNames))
@@ -167,8 +189,8 @@ func (s *reservationNotificationService) buildCancelledLineMessage(appt *model.R
 	sb.WriteString("以下のご予約をキャンセルしました。\n\n")
 	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
 	sb.WriteString(fmt.Sprintf("■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime)))
-	if appt.ServiceType != nil {
-		sb.WriteString(fmt.Sprintf("■ メニュー: %s\n", appt.ServiceType.Name))
+	if name := serviceTypeDisplayName(appt.ServiceType); name != "" {
+		sb.WriteString(fmt.Sprintf("■ メニュー: %s\n", name))
 	}
 	sb.WriteString("\n再度のご予約はLINEメニューの\n「予約する」から行えます。")
 	return sb.String()

@@ -132,10 +132,16 @@ func toLiffReservationResponse(r model.ReservationAppointment) liffReservationRe
 		CreatedAt: r.CreatedAt,
 	}
 	if r.ServiceType != nil {
-		res.CourseName = r.ServiceType.Name
+		res.CourseName = r.ServiceType.ReservationDisplayName
+		if res.CourseName == "" {
+			res.CourseName = r.ServiceType.Name
+		}
 	}
 	if r.Doctor != nil {
-		res.StaffName = r.Doctor.Name
+		res.StaffName = r.Doctor.ReservationDisplayName
+		if res.StaffName == "" {
+			res.StaffName = r.Doctor.Name
+		}
 	}
 	return res
 }
