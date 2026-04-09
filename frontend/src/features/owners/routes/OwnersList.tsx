@@ -215,18 +215,18 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   });
 
   // BUG-049: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  // rerender-dependencies: pagination（オブジェクト）を destructure し primitive を deps に使用
+  const { totalPages, currentPage, goToPage } = pagination;
   useEffect(() => {
-    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
-    if (clampedPage !== pagination.currentPage) {
-      pagination.goToPage(clampedPage);
+    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
+    if (clampedPage !== currentPage) {
+      goToPage(clampedPage);
     }
-  // pagination.goToPage は安定した参照、totalPages は依存として必要
+  // goToPage は安定した参照、totalPages は依存として必要
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlPage, pagination.totalPages]);
+  }, [urlPage, totalPages]);
 
   // BUG-049: ページ変更時にURLクエリパラメータを更新
-  // rerender-dependencies: pagination オブジェクトを destructure し stable な goToPage を deps に指定
-  const { goToPage } = pagination;
   const handlePageChange = useCallback((page: number) => {
     goToPage(page);
     setSearchParams((prev) => {

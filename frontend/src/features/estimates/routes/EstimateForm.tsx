@@ -257,18 +257,20 @@ function EstimateFormContent({ id }: { id?: string }) {
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   // React 19 Action の成功を検知して遷移
+  // rerender-dependencies: estimate（オブジェクト）の代わりに estimate?.id（primitive）を deps に使用
+  const estimateId = estimate?.id;
   useEffect(() => {
     if (formState.success) {
       markClean();
-      if (isEdit && estimate) {
-        navigate(`/estimates/${estimate.id}`);
+      if (isEdit && estimateId != null) {
+        navigate(`/estimates/${estimateId}`);
       } else {
         // Since we don't have the new ID easily here, we might need to handle it in hook
         // but for now redirect to list
         navigate('/estimates');
       }
     }
-  }, [formState.success, formState.timestamp, navigate, markClean, isEdit, estimate]);
+  }, [formState.success, formState.timestamp, navigate, markClean, isEdit, estimateId]);
 
   // rerender-memo: memo'd セクションに渡すハンドラを useCallback で安定化
   const handleChangeWithDirty = useCallback(

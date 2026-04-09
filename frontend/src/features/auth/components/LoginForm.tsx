@@ -22,7 +22,7 @@ interface DemoCredential {
   isSystemAdmin?: boolean;
 }
 
-const DEMO_ACCOUNTS: readonly DemoCredential[] = [
+const DEMO_ACCOUNTS: readonly DemoCredential[] = import.meta.env.DEV ? [
   // システム管理者（全医院）
   { email: "admin@noavet.jp",        displayName: "システム管理 太郎", occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "全医院", isSystemAdmin: true },
   // 八王子院
@@ -35,7 +35,7 @@ const DEMO_ACCOUNTS: readonly DemoCredential[] = [
   { email: "joto-vet@example.com",   displayName: "城東 獣医",       occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "城東医院" },
   // 敷島医院
   { email: "shiki-vet@example.com",  displayName: "敷島 獣医",       occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "敷島医院" },
-];
+] : [];
 
 const DemoAccount = memo(function DemoAccount({
   email,

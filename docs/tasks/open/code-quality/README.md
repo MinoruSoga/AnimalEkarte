@@ -115,6 +115,12 @@
 | [BUG-274](BUG-274_test-mock-source-param-missing.md) | BE Test | reservation mock の source パラメータ欠落（2ファイル） | High | code-quality/ |
 | [BUG-275](BUG-275_misc-medium-violations.md) | BE 複合 | swaggerignore残存 / liff URLエンコード / audit_log型 / FK チェック等 | Medium | code-quality/ |
 
+## バックエンド Go 規約準拠監査（2026-04-10 第12回・最終監査）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| [BUG-276](BUG-276_backend-go-convention-audit-5.md) | BE 全ドメイン | 第5回最終監査 — CRITICAL/HIGH ゼロ確認。MEDIUM 2件（slog 欠落）のみ残存 | Medium | code-quality/ |
+
 ## 修正優先順位（BUG-221〜223 追加後）
 
 1. **BUG-186** (Critical): LoginResponse から Token フィールド削除 — 5分
