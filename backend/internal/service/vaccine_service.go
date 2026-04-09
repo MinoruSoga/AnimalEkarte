@@ -68,7 +68,7 @@ func buildVaccineUpdateFields(input UpdateVaccineInput) map[string]any {
 		fields["name"] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = input.Price
+		fields["price"] = *input.Price
 	}
 	if input.IsActive != nil {
 		fields["is_active"] = *input.IsActive

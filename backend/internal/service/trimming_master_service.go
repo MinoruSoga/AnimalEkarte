@@ -82,7 +82,7 @@ func buildTrimmingCourseUpdateFields(input UpdateTrimmingCourseInput) map[string
 		fields["name"] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = input.Price
+		fields["price"] = *input.Price
 	}
 	if input.IsActive != nil {
 		fields["is_active"] = *input.IsActive
@@ -174,7 +174,7 @@ func buildTrimmingOptionUpdateFields(input UpdateTrimmingOptionInput) map[string
 		fields["name"] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = input.Price
+		fields["price"] = *input.Price
 	}
 	if input.IsActive != nil {
 		fields["is_active"] = *input.IsActive

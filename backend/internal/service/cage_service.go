@@ -92,7 +92,7 @@ func buildCageUpdateFields(input UpdateCageInput) map[string]any {
 		fields["cage_size"] = *input.CageSize
 	}
 	if input.Price != nil {
-		fields["price"] = input.Price
+		fields["price"] = *input.Price
 	}
 	if input.IsActive != nil {
 		fields["is_active"] = *input.IsActive

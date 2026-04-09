@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -54,7 +55,7 @@ func (r *reservationCustomerRepository) FindOrCreateByLineUserID(ctx context.Con
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ? AND line_user_id = ?", clinicID, lineUserID).
 		First(&c).Error
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c = model.ReservationCustomer{
 			ClinicID:    clinicID,
 			LineUserID:  lineUserID,

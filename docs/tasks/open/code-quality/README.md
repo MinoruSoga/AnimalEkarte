@@ -58,6 +58,20 @@
 |------|------|
 | /uploads 認証なし | `TASK-S3-IMAGE-UPLOAD` で S3 移行対応中 |
 
+## バックエンド Go 規約準拠監査（2026-04-09 第8回監査）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| [BUG-244](BUG-244_backend-go-convention-audit.md) | BE 全ドメイン | バックエンド Go コード規約準拠監査（親チケット） | — | code-quality/ |
+| [BUG-245](BUG-245_price-pointer-dereference.md) | BE マスタ系 | `buildXxxUpdateFields` の price ポインタ未デリファレンス（6ファイル） | Critical | code-quality/ |
+| [BUG-246](BUG-246_staff-handler-business-logic-leak.md) | BE staff | staff_handler に bcrypt/Account操作漏出 + エラー無視 + 非トランザクション | Critical | code-quality/ |
+| [BUG-247](BUG-247_clinical-plan-missing-clinic-id.md) | BE clinical_plan | clinic_id マルチテナント境界なし（横断参照可能） | Critical | code-quality/ |
+| [BUG-248](BUG-248_repository-fromgorm-violations.md) | BE 全域 | Repository 層で `apperrors.FromGORM` 未使用（15+リポジトリ） | High | code-quality/ |
+| [BUG-249](BUG-249_service-naked-return-errors.md) | BE 全域 | Service 層で `apperrors.Wrap` なし naked return（12+サービス） | High | code-quality/ |
+| [BUG-250](BUG-250_auth-handler-direct-repo-access.md) | BE auth | auth_handler の直接 repository アクセス（5箇所） | High | code-quality/ |
+| [BUG-251](BUG-251_gorm-error-comparison-without-errors-is.md) | BE reservation | `gorm.ErrRecordNotFound` を `==` で比較（`errors.Is` 未使用） | High | code-quality/ |
+| [BUG-252](BUG-252_misc-high-medium-violations.md) | BE 複数 | examination enum未検証 / slog handler層使用 / liff エラー無視 / N+1 等 | High/Medium | code-quality/ |
+
 ## 修正優先順位（BUG-221〜223 追加後）
 
 1. **BUG-186** (Critical): LoginResponse から Token フィールド削除 — 5分

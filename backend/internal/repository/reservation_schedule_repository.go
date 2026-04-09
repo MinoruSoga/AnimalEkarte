@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -92,11 +93,11 @@ func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model
 			entry.ClinicID, entry.StaffID, entry.Date.Format("2006-01-02")).
 			First(&existing).Error
 
-		if err != nil && err != gorm.ErrRecordNotFound {
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperrors.Wrap(err, "find existing shift entry")
 		}
 
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// 新規作成
 			if err2 := tx.Create(entry).Error; err2 != nil {
 				return apperrors.Wrap(err2, "create shift entry")
