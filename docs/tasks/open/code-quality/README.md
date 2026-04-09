@@ -38,8 +38,8 @@
 | ~~BUG-239~~ | FE rerender-lazy-state-init | ✅ **CLOSED** — DailyCareLogDialog getCurrentTime をモジュールスコープに + lazy init | — | closed/ |
 | ~~BUG-240~~ | FE rerender-memo | ✅ **CLOSED** — ReceptionDetailModal の RelatedPages / ActionButtons に memo() 適用 | — | closed/ |
 | ~~BUG-241~~ | FE rendering-hoist | ✅ **CLOSED** — line-reservation 4ファイルの static SelectItem JSX をモジュール定数化（2026-04-09） | — | closed/ |
-| [BUG-242](BUG-242_trimming-includes-inside-map-on-memo.md) | FE js-set-map | TrimmingForm LeftColumn(memo済) で optionIds.includes() を options.map() 内で O(n²) 呼び出し | Low | code-quality/ |
-| [BUG-243](BUG-243_accounting-detail-usememo-object-dep.md) | FE rerender-dependencies | AccountingDetail の clinicForDocument useMemo deps に user?.clinic オブジェクト | Low | code-quality/ |
+| ~~BUG-242~~ | FE js-set-map | ✅ **CLOSED** — TrimmingForm optionIds.includes() → optionIdSet.has()（2026-04-09） | — | closed/ |
+| ~~BUG-243~~ | FE rerender-dependencies | ✅ **CLOSED** — AccountingDetail deps の user?.clinic → user（2026-04-09） | — | closed/ |
 
 ## 誤報として撤回した指摘
 
@@ -63,7 +63,7 @@
 1. **BUG-186** (Critical): LoginResponse から Token フィールド削除 — 5分
 2. **BUG-187** (High): デモアカウントを `import.meta.env.DEV` でゲート — 5分
 3. **BUG-188** (High): handleApiError 一括適用 26箇所 — 1時間
-4. **BUG-189** (High): RefreshToken の RespondError 統一 + slog 移動 — 2時間
+4. ~~**BUG-189**~~ ✅ CLOSED（slog をハンドラ層からサービス層へ移動、2026-04-09）
 5. **BUG-192** (High): tsconfig strict 段階的有効化 — 半日
 6. **BUG-193** (High): billing_items updated_at 追加 — 30分
 7. **BUG-190** (Medium): デザイントークン置換 — 要個別確認
@@ -89,5 +89,5 @@
 27. ~~**BUG-239**~~ ✅ CLOSED（getCurrentTime モジュールスコープ + lazy init）
 28. ~~**BUG-240**~~ ✅ CLOSED（RelatedPages / ActionButtons に memo()）
 29. ~~**BUG-241**~~ ✅ CLOSED（line-reservation static SelectItem 巻き上げ）
-30. **BUG-242** (Low): TrimmingForm optionIds.includes() → Set.has() — 5分
-31. **BUG-243** (Low): AccountingDetail clinicForDocument deps の user?.clinic → user — 5分
+30. ~~**BUG-242**~~ ✅ CLOSED（TrimmingForm optionIdSet.has() に変更）
+31. ~~**BUG-243**~~ ✅ CLOSED（AccountingDetail deps の user?.clinic → user）
