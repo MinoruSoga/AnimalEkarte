@@ -26,9 +26,12 @@ export interface LiffProfile {
 export interface Course {
   id: number;
   name: string;
-  description: string;
+  short_name: string;
+  show_short_name: boolean;
   duration_minutes: number;
-  price: number;
+  reservation_comment: string;
+  reservation_image_url: string;
+  sort_order: number;
 }
 
 export interface Staff {

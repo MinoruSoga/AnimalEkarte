@@ -32,15 +32,12 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
       });
   }, [clinicId, idToken]);
 
-  const formatDuration = (minutes: number): string => {
+  const formatDuration = (minutes: number | undefined): string => {
+    if (!minutes) return '';
     if (minutes < 60) return `${minutes}分`;
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
     return m > 0 ? `${h}時間${m}分` : `${h}時間`;
-  };
-
-  const formatPrice = (price: number): string => {
-    return `¥${price.toLocaleString()}`;
   };
 
   return (
@@ -66,7 +63,7 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
                 <ListItem
                   key={course.id}
                   onClick={() => onSelect(course.id, course.name)}
-                  subtitle={`${formatDuration(course.duration_minutes)} / ${formatPrice(course.price)}`}
+                  subtitle={formatDuration(course.duration_minutes)}
                 >
                   {course.name}
                 </ListItem>
