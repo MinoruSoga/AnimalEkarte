@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, LAYOUT, ICON, STYLE } from "@/lib/design-tokens";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Relative
 import { useGetChiefComplaintCategories } from "../api/get-chief-complaint-categories";

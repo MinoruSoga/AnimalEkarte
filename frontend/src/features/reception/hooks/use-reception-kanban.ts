@@ -86,13 +86,19 @@ export function useReceptionKanban() {
 
   const lastAlertRef = useRef(0);
 
+  // js-set-map-lookups: O(1) ルックアップのため Set を事前構築
+  const selectedVisitTypeSet = useMemo(
+    () => new Set(selectedVisitTypes),
+    [selectedVisitTypes]
+  );
+
   // Filter Logic
   const filteredColumns = useMemo(() => {
     return columns.map(col => ({
       ...col,
       appointments: col.appointments.filter(app => {
         // 1. Visit Type Filter
-        if (!selectedVisitTypes.includes(app.visitType)) return false;
+        if (!selectedVisitTypeSet.has(app.visitType)) return false;
 
         // 2. Doctor/Designation Filter
         if (selectedDoctor !== "all") {
@@ -111,7 +117,7 @@ export function useReceptionKanban() {
         return true;
       })
     }));
-  }, [columns, selectedVisitTypes, selectedDoctor, isTrimmingOnly]);
+  }, [columns, selectedVisitTypeSet, selectedDoctor, isTrimmingOnly]);
 
   // rerender-dependencies: filteredColumns（オブジェクト配列）をuseRefで保持し、
   // moveCard/advanceStatus の deps から除外する

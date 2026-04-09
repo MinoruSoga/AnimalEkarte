@@ -20,6 +20,7 @@ type ReservationRepository interface {
 	ExistsByServiceTypeID(ctx context.Context, serviceTypeID uint64) (bool, error)
 	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
 	FindByStaffAndTimeSlot(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error)
+	CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error)
 }
 
 type reservationRepository struct {
@@ -50,11 +51,11 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 		q = q.Where("owner_id = ?", *ownerID)
 	}
 	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count reservations")
+		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	if err := q.Preload("Pet").Preload("Pet.Owner").Preload("Pet.AnimalSpecies").Preload("ServiceType").Preload("Doctor").
 		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find reservations")
+		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	return reservations, total, nil
 }
@@ -79,7 +80,7 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.R
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("reservation", reservation.StartTime.String())
 		}
-		return apperrors.Wrap(err, "create reservation")
+		return apperrors.FromGORM(err, "reservation", "")
 	}
 	return nil
 }
@@ -90,7 +91,7 @@ func (r *reservationRepository) UpdateFields(ctx context.Context, clinicID, id u
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "update reservation")
+		return nil, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
@@ -101,7 +102,7 @@ func (r *reservationRepository) UpdateFields(ctx context.Context, clinicID, id u
 func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.ReservationAppointment{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete reservation")
+		return apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
@@ -115,7 +116,7 @@ func (r *reservationRepository) ExistsByServiceTypeID(ctx context.Context, servi
 		Where("service_type_id = ?", serviceTypeID).
 		Count(&count).Error
 	if err != nil {
-		return false, apperrors.Wrap(err, "check reservation by service_type_id")
+		return false, apperrors.FromGORM(err, "reservation", "")
 	}
 	return count > 0, nil
 }
@@ -126,7 +127,7 @@ func (r *reservationRepository) ExistsByStaffID(ctx context.Context, staffID uin
 		Where("doctor_id = ?", staffID).
 		Count(&count).Error
 	if err != nil {
-		return false, apperrors.Wrap(err, "check reservation by staff_id")
+		return false, apperrors.FromGORM(err, "reservation", "")
 	}
 	return count > 0, nil
 }
@@ -142,7 +143,19 @@ func (r *reservationRepository) FindByStaffAndTimeSlot(ctx context.Context, clin
 		q = q.Where("id != ?", *excludeID)
 	}
 	if err := q.Count(&count).Error; err != nil {
-		return false, apperrors.Wrap(err, "check reservation conflict by staff and time slot")
+		return false, apperrors.FromGORM(err, "reservation", "")
 	}
 	return count > 0, nil
+}
+
+// CountMedicalRecordsByReservationID は予約を参照しているカルテの件数を返す（BUG-201）
+func (r *reservationRepository) CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.MedicalRecord{}).
+		Where("reservation_appointment_id = ? AND deleted_at IS NULL", reservationID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "medical_record", "")
+	}
+	return count, nil
 }

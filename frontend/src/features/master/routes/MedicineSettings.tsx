@@ -45,7 +45,7 @@ import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSele
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import type { TaxType } from "@/types/generated/models";
 import { ResourceMasterMedical } from "@/types/generated/models";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type { Medicine } from "@/types";
@@ -186,7 +186,7 @@ function MedicineRowOverlay({
 }) {
   return (
     <div
-      className={`flex items-center h-12 bg-white border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`}
+      className={`flex items-center h-12 ${C.bgWhite} border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`}
       style={{ width: "100%" }}
     >
       <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}>
@@ -432,7 +432,7 @@ export function MedicineSettings() {
   const isEditing = editTarget !== null;
 
   // ── 現在選択中アイテムがカテゴリかどうか ──
-  const isCategory = useMemo(() => isCategoryMedicine(selectedMedicine), [selectedMedicine]);
+  const isCategory = isCategoryMedicine(selectedMedicine);
 
   // ── API ──
   const { data: medicines = [] } = useGetAllMedicines();
@@ -474,6 +474,12 @@ export function MedicineSettings() {
   const medicinesById = useMemo(
     () => new Map(medicines.map((m) => [m.id, m])),
     [medicines],
+  );
+
+  // ── Derived: orderedMedicines ID → Medicine マップ（DnD handleDragEnd 用 O(1) 検索） ──
+  const orderedMedicinesById = useMemo(
+    () => new Map(orderedMedicines.map((m) => [m.id, m])),
+    [orderedMedicines],
   );
 
   // ── Derived: カテゴリ medicine（parentId なし、price === 0）(js-cache-function-results) ──
@@ -552,8 +558,9 @@ export function MedicineSettings() {
       const activeItemId = String(active.id);
       const overItemId = String(over.id);
 
-      const activeMedicine = orderedMedicines.find((m) => m.id === activeItemId);
-      const overMedicine = orderedMedicines.find((m) => m.id === overItemId);
+      // js-index-maps: orderedMedicinesById Map で O(1) 検索（orderedMedicines.find は O(n)）
+      const activeMedicine = orderedMedicinesById.get(activeItemId);
+      const overMedicine = orderedMedicinesById.get(overItemId);
       if (!activeMedicine || !overMedicine) return;
 
       const activeCat = activeMedicine.parentId ?? null;
@@ -582,8 +589,8 @@ export function MedicineSettings() {
           { id: activeItemId, req },
           {
             onSuccess: clearOptimistic,
-            onError: () => {
-              toast.error("カテゴリの変更に失敗しました");
+            onError: (error: unknown) => {
+              handleApiError(error, "カテゴリの変更");
               clearOptimistic();
             },
           },
@@ -593,7 +600,7 @@ export function MedicineSettings() {
         handleFlatSortDragEnd(event);
       }
     },
-    [orderedMedicines, updateMutation, handleFlatSortDragEnd],
+    [orderedMedicinesById, updateMutation, handleFlatSortDragEnd],
   );
 
   const handleCloseEdit = useCallback(() => {
@@ -665,7 +672,7 @@ export function MedicineSettings() {
               toast.success("更新しました");
               handleCloseEdit();
             },
-            onError: () => toast.error("更新に失敗しました"),
+            onError: (error) => handleApiError(error, "更新"),
           },
         );
       } else {
@@ -685,7 +692,7 @@ export function MedicineSettings() {
             toast.success("登録しました");
             handleCloseEdit();
           },
-          onError: () => toast.error("登録に失敗しました"),
+          onError: (error) => handleApiError(error, "登録"),
         });
       }
     });
@@ -873,7 +880,7 @@ export function MedicineSettings() {
         </Table>
           <DragOverlay dropAnimation={null}>
             {activeId ? (() => {
-              const m = orderedMedicines.find((x) => x.id === activeId);
+              const m = orderedMedicinesById.get(String(activeId));
               if (!m) return null;
               const isGrouped = Boolean(m.parentId);
               return <MedicineRowOverlay medicine={m} grouped={isGrouped} />;

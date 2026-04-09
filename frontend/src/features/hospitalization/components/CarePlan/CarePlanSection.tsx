@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Relative
 import { CarePlanItemRow } from "@/features/hospitalization/components/CarePlan/CarePlanItemRow";

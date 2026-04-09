@@ -14,11 +14,11 @@ import (
 // ---- ExaminationType ----
 
 type ExamTypeRepository interface {
-	FindAll(ctx context.Context) ([]model.ExaminationType, error)
-	FindByID(ctx context.Context, id uint64) (*model.ExaminationType, error)
+	FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
 	Create(ctx context.Context, exType *model.ExaminationType) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByExamTypeID(ctx context.Context, examTypeID uint64) (int64, error)
 }
@@ -29,18 +29,18 @@ func NewExamTypeRepository(db *gorm.DB) ExamTypeRepository {
 	return &examTypeRepository{db: db}
 }
 
-func (r *examTypeRepository) FindAll(ctx context.Context) ([]model.ExaminationType, error) {
+func (r *examTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
 	exTypes := make([]model.ExaminationType, 0)
-	err := r.db.WithContext(ctx).Preload("Items").Order("sort_order ASC, name ASC").Find(&exTypes).Error
+	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Preload("Items").Order("sort_order ASC, name ASC").Find(&exTypes).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "examination_type", "")
 	}
 	return exTypes, nil
 }
 
-func (r *examTypeRepository) FindByID(ctx context.Context, id uint64) (*model.ExaminationType, error) {
+func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
 	var exType model.ExaminationType
-	err := r.db.WithContext(ctx).Preload("Items").First(&exType, "id = ?", id).Error
+	err := r.db.WithContext(ctx).Preload("Items").First(&exType, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "examination_type", fmt.Sprintf("%d", id))
 	}
@@ -69,11 +69,11 @@ func (r *examTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("examination_type", fmt.Sprintf("%d", id))
 	}
-	return r.FindByID(ctx, id)
+	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *examTypeRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.ExaminationType{}, "id = ?", id)
+func (r *examTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.ExaminationType{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "examination_type", fmt.Sprintf("%d", id))
 	}

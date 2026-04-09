@@ -15,10 +15,10 @@ import (
 
 type ConsultationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
-	FindByID(ctx context.Context, id uint64) (*model.Consultation, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
 	Create(ctx context.Context, consultation *model.Consultation) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByConsultationID(ctx context.Context, consultationID uint64) (int64, error)
 }
@@ -38,9 +38,9 @@ func (r *consultationRepository) FindAll(ctx context.Context, clinicID uint64) (
 	return consultations, nil
 }
 
-func (r *consultationRepository) FindByID(ctx context.Context, id uint64) (*model.Consultation, error) {
+func (r *consultationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
 	var consultation model.Consultation
-	err := r.db.WithContext(ctx).First(&consultation, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&consultation, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "consultation", fmt.Sprintf("%d", id))
 	}
@@ -69,11 +69,11 @@ func (r *consultationRepository) UpdateFields(ctx context.Context, clinicID, id 
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("consultation", fmt.Sprintf("%d", id))
 	}
-	return r.FindByID(ctx, id)
+	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *consultationRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Consultation{}, "id = ?", id)
+func (r *consultationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.Consultation{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "consultation", fmt.Sprintf("%d", id))
 	}

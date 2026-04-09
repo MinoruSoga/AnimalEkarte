@@ -21,6 +21,7 @@ import { MasterLink } from "@/components/shared/MasterLink";
 import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
 import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import type { SortOrder } from "@/types";
 import { useMasterItems } from "@/hooks/use-master-items";
@@ -84,6 +85,8 @@ const LeftColumn = memo(function LeftColumn({
   courseError,
 }: LeftColumnProps) {
   const selectedCourse = courses.find((c) => c.id === formData.courseId);
+  // js-set-map-lookups: optionIds.includes() O(n) → Set.has() O(1)
+  const optionIdSet = useMemo(() => new Set(formData.optionIds), [formData.optionIds]);
 
   return (
     <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
@@ -135,7 +138,7 @@ const LeftColumn = memo(function LeftColumn({
               <div key={option.id} className="flex items-center gap-2">
                 <Checkbox
                   id={`option-${option.id}`}
-                  checked={formData.optionIds.includes(option.id)}
+                  checked={optionIdSet.has(option.id)}
                   onCheckedChange={(checked) => {
                     if (checked) {
                       onFormChange({ optionIds: [...formData.optionIds, option.id] });
@@ -170,7 +173,7 @@ const LeftColumn = memo(function LeftColumn({
             />
             <button
               onClick={onRemoveStyleImage}
-              className="absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm hover:bg-gray-100"
+              className={`absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm ${C.hoverBgPage}`}
             >
               <X className={`${ICON.action} ${C.text}`} />
             </button>
@@ -283,7 +286,7 @@ const MiddleColumn = memo(function MiddleColumn({
             />
             <button
               onClick={onRemoveCompletedImage}
-              className="absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm hover:bg-gray-100"
+              className={`absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm ${C.hoverBgPage}`}
             >
               <X className={`${ICON.action} ${C.text}`} />
             </button>
@@ -311,6 +314,7 @@ interface HistoryItem {
 
 interface RightColumnProps {
   sortedHistory: HistoryItem[];
+  isHistoryLoading: boolean;
   historySearchTerm: string;
   historySortOrder: SortOrder;
   historyDateRange: { from: string; to: string };
@@ -324,6 +328,7 @@ interface RightColumnProps {
 
 const RightColumn = memo(function RightColumn({
   sortedHistory,
+  isHistoryLoading,
   historySearchTerm,
   historySortOrder,
   historyDateRange,
@@ -355,7 +360,9 @@ const RightColumn = memo(function RightColumn({
 
       {/* History Cards */}
       <div className="space-y-2 max-h-[600px] overflow-y-auto">
-        {sortedHistory.length === 0 ? (
+        {isHistoryLoading ? (
+          <LoadingFallback />
+        ) : sortedHistory.length === 0 ? (
           <div className={`text-center py-8 text-sm ${C.text40}`}>
             施術履歴がありません
           </div>
@@ -461,7 +468,7 @@ export function TrimmingForm() {
   const [historyDateRangeTo, setHistoryDateRangeTo] = useState("");
   const deferredHistorySearch = useDeferredValue(historySearchTerm);
 
-  const { data: petTrimmings = [] } = useGetTrimmingsByPetId(selectedPet?.id ?? "");
+  const { data: petTrimmings = [], isLoading: isHistoryLoading } = useGetTrimmingsByPetId(selectedPet?.id ?? "");
 
   const sortedHistory = useMemo(() => {
     const filtered = petTrimmings.filter((t) => {
@@ -533,13 +540,25 @@ export function TrimmingForm() {
     [historyDateRangeFrom, historyDateRangeTo]
   );
 
-  if (!selectedPet && mode === "new" && petId) return null;
-  if (!selectedPet && mode === "new") return null;
+  if (!selectedPet && mode === "new" && petId) {
+    return (
+      <div className={`flex items-center justify-center p-8 text-base ${C.text50}`}>
+        <p>読み込み中...</p>
+      </div>
+    );
+  }
+  if (!selectedPet && mode === "new") {
+    return (
+      <div className={`flex items-center justify-center p-8 text-base ${C.text50}`}>
+        <p>ペットを選択してください</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
       <PageLayout title="トリミング" onBack={handleBack} icon={<Scissors className={`${ICON.page} ${C.text}`} />}>
-        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>読み込み中...</div>
+        <LoadingFallback />
       </PageLayout>
     );
   }
@@ -630,6 +649,7 @@ export function TrimmingForm() {
             />
             <RightColumn
               sortedHistory={sortedHistory}
+              isHistoryLoading={isHistoryLoading}
               historySearchTerm={historySearchTerm}
               historySortOrder={historySortOrder}
               historyDateRange={historyDateRange}

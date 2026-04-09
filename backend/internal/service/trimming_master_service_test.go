@@ -15,10 +15,10 @@ import (
 
 type mockTrimmingCourseRepository struct {
 	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
-	findByIDFn     func(ctx context.Context, id uint64) (*model.TrimmingCourse, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
 	createFn       func(ctx context.Context, course *model.TrimmingCourse) error
 	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
-	deleteFn       func(ctx context.Context, id uint64) error
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 	reorderErr     error
 }
 
@@ -26,8 +26,8 @@ func (m *mockTrimmingCourseRepository) FindAll(ctx context.Context, clinicID uin
 	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockTrimmingCourseRepository) FindByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockTrimmingCourseRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockTrimmingCourseRepository) Create(ctx context.Context, course *model.TrimmingCourse) error {
@@ -38,8 +38,8 @@ func (m *mockTrimmingCourseRepository) UpdateFields(ctx context.Context, clinicI
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockTrimmingCourseRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockTrimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 func (m *mockTrimmingCourseRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
@@ -53,20 +53,21 @@ func (m *mockTrimmingCourseRepository) CountRecordsByCourseID(_ context.Context,
 // ---- TrimmingOption モック ----
 
 type mockTrimmingOptionRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
-	findByIDFn     func(ctx context.Context, id uint64) (*model.TrimmingOption, error)
-	createFn       func(ctx context.Context, option *model.TrimmingOption) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
-	deleteFn       func(ctx context.Context, id uint64) error
-	reorderErr     error
+	findAllFn           func(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
+	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error)
+	createFn            func(ctx context.Context, option *model.TrimmingOption) error
+	updateFieldsFn      func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
+	deleteFn            func(ctx context.Context, clinicID, id uint64) error
+	reorderErr          error
+	countRecordsByOptFn func(ctx context.Context, optionID uint64) (int64, error)
 }
 
 func (m *mockTrimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
 	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockTrimmingOptionRepository) FindByID(ctx context.Context, id uint64) (*model.TrimmingOption, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockTrimmingOptionRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockTrimmingOptionRepository) Create(ctx context.Context, option *model.TrimmingOption) error {
@@ -77,12 +78,19 @@ func (m *mockTrimmingOptionRepository) UpdateFields(ctx context.Context, clinicI
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockTrimmingOptionRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockTrimmingOptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 func (m *mockTrimmingOptionRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
 	return m.reorderErr
+}
+
+func (m *mockTrimmingOptionRepository) CountRecordsByOptionID(ctx context.Context, optionID uint64) (int64, error) {
+	if m.countRecordsByOptFn != nil {
+		return m.countRecordsByOptFn(ctx, optionID)
+	}
+	return 0, nil
 }
 
 // ---- TrimmingCourseService テスト ----
@@ -180,13 +188,13 @@ func TestTrimmingCourseService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.TrimmingCourse, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TrimmingCourse, error) {
 					return tt.repoCourse, tt.repoErr
 				},
 			}
 			svc := NewTrimmingCourseService(repo)
 
-			course, err := svc.GetByID(context.Background(), tt.id)
+			course, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -342,13 +350,13 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseRepository{
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewTrimmingCourseService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -494,13 +502,13 @@ func TestTrimmingOptionService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingOptionRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.TrimmingOption, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TrimmingOption, error) {
 					return tt.repoOption, tt.repoErr
 				},
 			}
 			svc := NewTrimmingOptionService(repo)
 
-			option, err := svc.GetByID(context.Background(), tt.id)
+			option, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -661,50 +669,75 @@ func TestTrimmingOptionService_Reorder(t *testing.T) {
 
 func TestTrimmingOptionService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name         string
+		id           uint64
+		usageCount   int64
+		usageErr     error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
-			name:    "deletes option successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
-			wantNF:  false,
+			name:       "deletes option successfully",
+			id:         1,
+			usageCount: 0,
+			repoErr:    nil,
+			wantErr:    false,
+			wantNF:     false,
 		},
 		{
-			name:    "returns not found error when option does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("trimming_option", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:         "returns conflict error when option is used in trimming records",
+			id:           1,
+			usageCount:   2,
+			wantErr:      true,
+			wantConflict: true,
 		},
 		{
-			name:    "returns error on repository failure",
-			id:      1,
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			name:     "returns error when usage count check fails",
+			id:       1,
+			usageErr: errors.New("db error"),
+			wantErr:  true,
+		},
+		{
+			name:       "returns not found error when option does not exist",
+			id:         999,
+			usageCount: 0,
+			repoErr:    apperrors.WrapNotFound("trimming_option", "999"),
+			wantErr:    true,
+			wantNF:     true,
+		},
+		{
+			name:       "returns error on repository failure",
+			id:         1,
+			usageCount: 0,
+			repoErr:    errors.New("db error"),
+			wantErr:    true,
+			wantNF:     false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingOptionRepository{
-				deleteFn: func(_ context.Context, _ uint64) error {
+				countRecordsByOptFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.usageCount, tt.usageErr
+				},
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewTrimmingOptionService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

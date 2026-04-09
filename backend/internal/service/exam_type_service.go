@@ -13,11 +13,11 @@ import (
 // ---- ExamTypeService ----
 
 type ExamTypeService interface {
-	List(ctx context.Context) ([]model.ExaminationType, error)
-	GetByID(ctx context.Context, id uint64) (*model.ExaminationType, error)
+	List(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
 	Create(ctx context.Context, exType *model.ExaminationType) error
 	Update(ctx context.Context, clinicID, id uint64, input UpdateExamTypeInput) (*model.ExaminationType, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -27,11 +27,11 @@ func NewExamTypeService(repo repository.ExamTypeRepository) ExamTypeService {
 	return &examTypeService{repo: repo}
 }
 
-func (s *examTypeService) List(ctx context.Context) ([]model.ExaminationType, error) {
-	return s.repo.FindAll(ctx)
+func (s *examTypeService) List(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
+	return s.repo.FindAll(ctx, clinicID)
 }
-func (s *examTypeService) GetByID(ctx context.Context, id uint64) (*model.ExaminationType, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *examTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 func (s *examTypeService) Create(ctx context.Context, exType *model.ExaminationType) error {
 	return s.repo.Create(ctx, exType)
@@ -48,7 +48,7 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	slog.InfoContext(ctx, "exam type updated", slog.Uint64("exam_type_id", id))
 	return exType, nil
 }
-func (s *examTypeService) Delete(ctx context.Context, id uint64) error {
+func (s *examTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountUsageByExamTypeID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check exam type dependencies")
@@ -56,7 +56,7 @@ func (s *examTypeService) Delete(ctx context.Context, id uint64) error {
 	if count > 0 {
 		return apperrors.WrapConflict("この検査種別は検査記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func (s *examTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -83,7 +83,7 @@ func buildExamTypeUpdateFields(input UpdateExamTypeInput) map[string]any {
 		fields["name"] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = input.Price
+		fields["price"] = *input.Price
 	}
 	if input.IsActive != nil {
 		fields["is_active"] = *input.IsActive

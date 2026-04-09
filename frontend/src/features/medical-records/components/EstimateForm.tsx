@@ -1,5 +1,5 @@
 // React/Framework
-import React from "react";
+import { memo } from "react";
 
 // Internal
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ interface EstimateFormProps {
   canEdit: boolean;
 }
 
-export const EstimateForm = React.memo(function EstimateForm({
+export const EstimateForm = memo(function EstimateForm({
   subject,
   onSubjectChange,
   canEdit,

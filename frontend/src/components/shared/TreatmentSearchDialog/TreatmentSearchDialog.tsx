@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { C, ICON } from "@/lib/design-tokens";
-import { useGetAllConsultations } from "@/features/master/api/consultations";
-import { useGetAllProcedures } from "@/features/master/api/procedures";
-import { useGetAllVaccinesMaster } from "@/features/master/api/vaccines-master";
-import { useGetAllCheckupTypes } from "@/features/master/api/checkup-types";
+import {
+  useGetAllConsultations,
+  useGetAllProcedures,
+  useGetAllVaccinesMaster,
+  useGetAllCheckupTypes,
+} from "@/features/master";
 
 // --- Types ---
 export type TreatmentMasterItem = {
@@ -75,7 +77,7 @@ const CategoryFilter = memo(function CategoryFilter({
               className={cn(
                 "h-8 px-2.5 text-sm cursor-pointer hover:opacity-80 transition-all",
                 isSelected
-                  ? `${C.bgAccent} text-white ${C.bgAccentHover} border-transparent`
+                  ? `${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} border-transparent`
                   : `bg-white ${C.text} ${C.hoverBgLight} ${C.borderMedium}`
               )}
               onClick={() => onSelectCategory(isSelected ? null : category)}

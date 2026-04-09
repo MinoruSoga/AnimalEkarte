@@ -16,12 +16,16 @@ import (
 
 // GetExaminationType godoc
 func (h *Handler) GetExaminationType(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	et, err := h.svc.ExaminationType.GetByID(c.Request.Context(), id)
+	et, err := h.svc.ExaminationType.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -31,7 +35,11 @@ func (h *Handler) GetExaminationType(c *gin.Context) {
 
 // ListExaminationTypes godoc
 func (h *Handler) ListExaminationTypes(c *gin.Context) {
-	exTypes, err := h.svc.ExaminationType.List(c.Request.Context())
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	exTypes, err := h.svc.ExaminationType.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -124,12 +132,16 @@ func (h *Handler) ReorderExaminationTypes(c *gin.Context) {
 
 // DeleteExaminationType godoc
 func (h *Handler) DeleteExaminationType(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.ExaminationType.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.ExaminationType.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

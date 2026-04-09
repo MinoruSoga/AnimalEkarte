@@ -16,7 +16,7 @@ import (
 
 type mockVitalRepository struct {
 	listByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error)
-	findByIDFn              func(ctx context.Context, vitalID uint64) (*model.VitalRecord, error)
+	findByIDFn              func(ctx context.Context, clinicID uint64, vitalID uint64) (*model.VitalRecord, error)
 	createFn                func(ctx context.Context, vital *model.VitalRecord) error
 	updateFn                func(ctx context.Context, vitalID uint64, fields map[string]any) error
 	deleteFn                func(ctx context.Context, vitalID uint64) error
@@ -26,8 +26,8 @@ func (m *mockVitalRepository) ListByMedicalRecordID(ctx context.Context, medical
 	return m.listByMedicalRecordIDFn(ctx, medicalRecordID)
 }
 
-func (m *mockVitalRepository) FindByID(ctx context.Context, vitalID uint64) (*model.VitalRecord, error) {
-	return m.findByIDFn(ctx, vitalID)
+func (m *mockVitalRepository) FindByID(ctx context.Context, clinicID uint64, vitalID uint64) (*model.VitalRecord, error) {
+	return m.findByIDFn(ctx, clinicID, vitalID)
 }
 
 func (m *mockVitalRepository) Create(ctx context.Context, vital *model.VitalRecord) error {
@@ -219,6 +219,7 @@ func TestVitalService_Update(t *testing.T) {
 
 	tests := []struct {
 		name            string
+		clinicID        uint64
 		medicalRecordID uint64
 		vitalID         uint64
 		input           *UpdateVitalInput
@@ -229,6 +230,7 @@ func TestVitalService_Update(t *testing.T) {
 	}{
 		{
 			name:            "updates vital successfully",
+			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         1,
 			input: &UpdateVitalInput{
@@ -247,6 +249,7 @@ func TestVitalService_Update(t *testing.T) {
 		},
 		{
 			name:            "returns error when no fields provided",
+			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         1,
 			input:           &UpdateVitalInput{},
@@ -260,6 +263,7 @@ func TestVitalService_Update(t *testing.T) {
 		},
 		{
 			name:            "returns not found error when vital does not belong to medical record",
+			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         999,
 			input: &UpdateVitalInput{
@@ -275,6 +279,7 @@ func TestVitalService_Update(t *testing.T) {
 		},
 		{
 			name:            "returns error when vital not found",
+			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         999,
 			input: &UpdateVitalInput{
@@ -287,6 +292,7 @@ func TestVitalService_Update(t *testing.T) {
 		},
 		{
 			name:            "returns error when update fails",
+			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         1,
 			input: &UpdateVitalInput{
@@ -302,6 +308,7 @@ func TestVitalService_Update(t *testing.T) {
 		},
 		{
 			name:            "updates only notes field",
+			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         1,
 			input: &UpdateVitalInput{
@@ -321,7 +328,7 @@ func TestVitalService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVitalRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.VitalRecord, error) {
+				findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.VitalRecord, error) {
 					return tt.repoVital, tt.findByIDErr
 				},
 				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
@@ -330,7 +337,7 @@ func TestVitalService_Update(t *testing.T) {
 			}
 			svc := NewVitalService(repo)
 
-			vital, err := svc.Update(context.Background(), tt.medicalRecordID, tt.vitalID, tt.input)
+			vital, err := svc.Update(context.Background(), tt.clinicID, tt.medicalRecordID, tt.vitalID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -345,6 +352,7 @@ func TestVitalService_Update(t *testing.T) {
 func TestVitalService_Delete(t *testing.T) {
 	tests := []struct {
 		name            string
+		clinicID        uint64
 		medicalRecordID uint64
 		vitalID         uint64
 		repoVital       *model.VitalRecord
@@ -354,6 +362,7 @@ func TestVitalService_Delete(t *testing.T) {
 	}{
 		{
 			name:            "deletes vital successfully",
+			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         1,
 			repoVital: &model.VitalRecord{
@@ -366,6 +375,7 @@ func TestVitalService_Delete(t *testing.T) {
 		},
 		{
 			name:            "returns not found error when vital does not belong to medical record",
+			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         999,
 			repoVital: &model.VitalRecord{
@@ -378,6 +388,7 @@ func TestVitalService_Delete(t *testing.T) {
 		},
 		{
 			name:            "returns error when vital not found",
+			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         999,
 			repoVital:       nil,
@@ -387,6 +398,7 @@ func TestVitalService_Delete(t *testing.T) {
 		},
 		{
 			name:            "returns error when delete fails",
+			clinicID:        1,
 			medicalRecordID: 1,
 			vitalID:         1,
 			repoVital: &model.VitalRecord{
@@ -402,7 +414,7 @@ func TestVitalService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVitalRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.VitalRecord, error) {
+				findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.VitalRecord, error) {
 					return tt.repoVital, tt.findByIDErr
 				},
 				deleteFn: func(_ context.Context, _ uint64) error {
@@ -411,7 +423,7 @@ func TestVitalService_Delete(t *testing.T) {
 			}
 			svc := NewVitalService(repo)
 
-			err := svc.Delete(context.Background(), tt.medicalRecordID, tt.vitalID)
+			err := svc.Delete(context.Background(), tt.clinicID, tt.medicalRecordID, tt.vitalID)
 
 			if tt.wantErr {
 				assert.Error(t, err)

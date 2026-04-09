@@ -16,6 +16,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+// rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ
+const TREATMENT_STATUS_ITEMS = (
+  <>
+    <SelectItem value="pending">未完了</SelectItem>
+    <SelectItem value="completed">完了</SelectItem>
+    <SelectItem value="not_applicable">-</SelectItem>
+  </>
+);
+
 export interface TreatmentItem {
   id: number;
   status?: string;
@@ -97,11 +106,7 @@ export const TreatmentTable = memo(function TreatmentTable({
                     <SelectTrigger className="h-full w-full border-none bg-transparent p-0 text-sm justify-center text-center font-medium focus:ring-0">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">未完了</SelectItem>
-                      <SelectItem value="completed">完了</SelectItem>
-                      <SelectItem value="not_applicable">-</SelectItem>
-                    </SelectContent>
+                    <SelectContent>{TREATMENT_STATUS_ITEMS}</SelectContent>
                   </Select>
                 </Cell>
               ) : null}
@@ -124,12 +129,12 @@ export const TreatmentTable = memo(function TreatmentTable({
               <Cell
                 align="center"
                 onClick={disabled ? undefined : () => onUpdate(item.id, "insurance", !item.insurance)}
-                className={disabled ? undefined : "cursor-pointer hover:bg-gray-50"}
+                className={disabled ? undefined : `cursor-pointer ${C.hoverBgPage}`}
               >
                 {item.insurance ? (
                   <Circle className={`${ICON.action} ${C.textRedIcon}`} />
                 ) : (
-                  <X className={`${ICON.action} text-gray-300`} />
+                  <X className={`${ICON.action} ${C.text25}`} />
                 )}
               </Cell>
               <Cell>

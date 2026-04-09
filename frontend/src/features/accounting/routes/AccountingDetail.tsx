@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth, usePermission } from "@/features/auth";
 
 // Relative
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
@@ -144,7 +145,7 @@ const ItemListCard = memo(function ItemListCard({
           <TableCell className="font-medium">
             {item.name}
             {item.source === "medical_record" ? (
-              <span className="ml-2 text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+              <span className={`ml-2 text-[10px] ${C.accent} ${C.bgAccent5} px-1.5 py-0.5 rounded`}>
                 カルテ連携
               </span>
             ) : null}
@@ -184,9 +185,9 @@ const ItemListCard = memo(function ItemListCard({
           </TableCell>
           <TableCell className="text-center">
             {item.isInsuranceApplicable ? (
-              <span className="text-green-600 font-bold text-xs">●</span>
+              <span className={`${C.textStatusGreen} font-bold text-xs`}>●</span>
             ) : (
-              <span className="text-gray-300 text-xs">-</span>
+              <span className={`${C.text20} text-xs`}>-</span>
             )}
           </TableCell>
           <TableCell className="text-right font-medium">
@@ -226,7 +227,7 @@ const ItemListCard = memo(function ItemListCard({
                 onClick={() => setAddMode("master")}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   addMode === "master"
-                    ? "border-blue-600 text-blue-600"
+                    ? `${C.borderBrand} ${C.textBrand}`
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -237,7 +238,7 @@ const ItemListCard = memo(function ItemListCard({
                 onClick={() => setAddMode("manual")}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   addMode === "manual"
-                    ? "border-blue-600 text-blue-600"
+                    ? `${C.borderBrand} ${C.textBrand}`
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -309,7 +310,7 @@ const ItemListCard = memo(function ItemListCard({
               /* 手動入力フォーム */
               <div className="flex flex-col gap-4 py-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="manual-name" className="text-sm">品目名 <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="manual-name" className="text-sm">品目名 <span className={C.textRequired}>*</span></Label>
                   <Input
                     id="manual-name"
                     autoFocus
@@ -320,7 +321,7 @@ const ItemListCard = memo(function ItemListCard({
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="manual-price" className="text-sm">単価（円）<span className="text-red-500">*</span></Label>
+                  <Label htmlFor="manual-price" className="text-sm">単価（円）<span className={C.textRequired}>*</span></Label>
                   <Input
                     id="manual-price"
                     type="number"
@@ -383,7 +384,7 @@ const ItemListCard = memo(function ItemListCard({
           </TableBody>
         </Table>
       </CardContent>
-      <div className="p-4 bg-gray-50 border-t flex justify-end gap-6 text-sm">
+      <div className={`p-4 ${C.bgPage} border-t flex justify-end gap-6 text-sm`}>
         <span>税抜小計: ¥{subtotal.toLocaleString()}</span>
         <span>消費税: ¥{taxTotal.toLocaleString()}</span>
         <span className="font-bold text-lg">
@@ -404,6 +405,16 @@ interface InsuranceCardProps {
   insuranceAmount: number;
 }
 
+// rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ
+const INSURANCE_RATIO_ITEMS = (
+  <>
+    <SelectItem value="0.5">50%</SelectItem>
+    <SelectItem value="0.7">70%</SelectItem>
+    <SelectItem value="0.9">90%</SelectItem>
+    <SelectItem value="1.0">100%</SelectItem>
+  </>
+);
+
 const InsuranceCard = memo(function InsuranceCard({
   useInsurance,
   onUseInsuranceChange,
@@ -413,7 +424,7 @@ const InsuranceCard = memo(function InsuranceCard({
 }: InsuranceCardProps) {
   return (
     <Card>
-      <CardHeader className="py-3 px-4 bg-gray-50 border-b">
+      <CardHeader className={`py-3 px-4 ${C.bgPage} border-b`}>
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <CreditCard className={ICON.action} /> ペット保険（窓口精算）
@@ -429,15 +440,10 @@ const InsuranceCard = memo(function InsuranceCard({
               <SelectTrigger className="h-10">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0.5">50%</SelectItem>
-                <SelectItem value="0.7">70%</SelectItem>
-                <SelectItem value="0.9">90%</SelectItem>
-                <SelectItem value="1.0">100%</SelectItem>
-              </SelectContent>
+              <SelectContent>{INSURANCE_RATIO_ITEMS}</SelectContent>
             </Select>
           </div>
-          <div className="flex justify-between items-center text-sm font-medium text-green-700 bg-green-50 p-2 rounded">
+          <div className={`flex justify-between items-center text-sm font-medium ${C.textStatusGreen} ${C.bgStatusGreen} p-2 rounded`}>
             <span>保険負担額（マイナス）</span>
             <span>{insuranceAmount.toLocaleString()} 円</span>
           </div>
@@ -484,7 +490,7 @@ const PaymentCard = memo(function PaymentCard({
       </CardHeader>
       <CardContent className="p-6 space-y-6">
         <div className="text-center space-y-1">
-          <p className="text-sm text-gray-500">今回の請求金額</p>
+          <p className={`text-sm ${C.text50}`}>今回の請求金額</p>
           <p className={`text-4xl font-bold ${C.text}`}>
             ¥{billingAmount.toLocaleString()}
           </p>
@@ -576,10 +582,10 @@ const PaymentCard = memo(function PaymentCard({
           </div>
         )}
 
-        <div className="bg-gray-100 p-4 rounded-lg flex justify-between items-center">
-          <span className="font-bold text-gray-600">お釣り</span>
+        <div className={`${C.bgPrimary5} p-4 rounded-lg flex justify-between items-center`}>
+          <span className={`font-bold ${C.text60}`}>お釣り</span>
           <span
-            className={`text-2xl font-bold ${changeAmount < 0 ? "text-red-500" : "text-gray-900"}`}
+            className={`text-2xl font-bold ${changeAmount < 0 ? C.danger : C.text}`}
           >
             ¥{changeAmount.toLocaleString()}
           </span>
@@ -641,16 +647,16 @@ const RefundSection = memo(function RefundSection({
 
   return (
     <Card>
-      <CardHeader className="py-3 px-4 bg-gray-50 border-b">
+      <CardHeader className={`py-3 px-4 ${C.bgSubtle} border-b`}>
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <RotateCcw className={`${ICON.action} text-orange-500`} />
+            <RotateCcw className={`${ICON.action} ${C.textDiscount}`} />
             返金管理
             <span className="text-xs font-normal text-muted-foreground">
               残額 ¥{refundableAmount.toLocaleString()}
             </span>
             {totalRefunded > 0 ? (
-              <span className="text-xs font-normal text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
+              <span className={`text-xs font-normal ${C.textDiscount} ${C.bgDiscountLight} px-2 py-0.5 rounded`}>
                 合計 ¥{totalRefunded.toLocaleString()} 返金済
               </span>
             ) : null}
@@ -728,7 +734,7 @@ const RefundSection = memo(function RefundSection({
                   <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                     {new Date(r.refundedAt).toLocaleDateString("ja-JP")}
                   </td>
-                  <td className="px-3 py-2 text-right font-medium text-orange-600">
+                  <td className={`px-3 py-2 text-right font-medium ${C.textDiscount}`}>
                     ¥{r.amount.toLocaleString()}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground truncate max-w-[120px]">
@@ -754,7 +760,7 @@ interface AccountingDetailProps {
   invoiceRegistrationNumber?: string;
 }
 
-export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetailProps) {
+export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetailProps) {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -971,7 +977,8 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
       ...baseClinic,
       invoiceRegistrationNumber,
     };
-  }, [user?.clinic, invoiceRegistrationNumber]);
+  // rerender-dependencies: user?.clinic（オブジェクト）の代わりに user（安定参照）を deps に使用
+  }, [user, invoiceRegistrationNumber]);
 
   const handleAddItem = useCallback((name: string, price: string, category: string, taxRate?: number) => {
     const unitPrice = parseInt(price, 10);
@@ -1056,13 +1063,17 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
     [id, queryClient],
   );
 
+  const handlePaymentMethodChange = useCallback((v: string) => {
+    setPaymentMethod(v as PaymentMethod);
+  }, []);
+
   const handlePrint = useCallback((type: "receipt" | "statement") => {
     setPreviewType(type);
     setPreviewOpen(true);
   }, []);
 
-  if (id && isLoading) return <div>読み込み中...</div>;
-  if (!accounting || !calculation) return <div>データが見つかりません</div>;
+  if (id && isLoading) return <LoadingFallback />;
+  if (!accounting || !calculation) return <ErrorFallback message="データが見つかりません" />;
 
   return (
     <>
@@ -1123,7 +1134,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
               billingAmount={calculation.billingAmount}
               changeAmount={calculation.changeAmount}
               paymentMethod={paymentMethod}
-              onPaymentMethodChange={(v) => setPaymentMethod(v as PaymentMethod)}
+              onPaymentMethodChange={handlePaymentMethodChange}
               receivedAmount={receivedAmount}
               onReceivedAmountChange={setReceivedAmount}
               isCompleted={accounting.status === "completed"}
@@ -1154,7 +1165,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
               </DialogTitle>
               <DialogDescription>印刷イメージを確認できます。</DialogDescription>
             </DialogHeader>
-            <div className="flex-1 bg-gray-100 overflow-auto p-8 flex items-center justify-center">
+            <div className={`flex-1 ${C.bgActive} overflow-auto p-8 flex items-center justify-center`}>
               <div className="shadow-lg transform scale-100 origin-top">
                 {accounting.payment ? (
                   <AccountingDocument
@@ -1201,4 +1212,4 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
       ) : null}
     </>
   );
-}
+});

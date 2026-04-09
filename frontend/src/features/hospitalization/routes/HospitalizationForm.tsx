@@ -1,10 +1,10 @@
 // React/Framework
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useTransition } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
 import { FileText, Trash2, MessageSquare, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
@@ -42,6 +43,7 @@ export function HospitalizationForm() {
   const canSubmit = hospitalizationId ? canEdit : canCreate;
   const deleteMutation = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isDeletePending, startDeleteTransition] = useTransition();
 
   const {
       isEdit,
@@ -63,17 +65,20 @@ export function HospitalizationForm() {
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
+  // rerender-dependencies: location.state（オブジェクト）から primitive を抽出して deps に使用
+  const locationFrom = location.state?.from as string | undefined;
+
   // React 19 Action の成功を検知して遷移
   useEffect(() => {
     if (formState.success) {
       markClean();
-      if (location.state?.from) {
-        navigate(location.state.from as string);
+      if (locationFrom) {
+        navigate(locationFrom);
       } else {
         navigate(paths.hospitalization.getHref());
       }
     }
-  }, [formState.success, formState.timestamp, navigate, markClean, location.state]);
+  }, [formState.success, formState.timestamp, navigate, markClean, locationFrom]);
 
   // エラー発生時に最初のエラーフィールドにフォーカス
   useEffect(() => {
@@ -92,20 +97,22 @@ export function HospitalizationForm() {
   const totals = calculateTotals();
 
   const handleBack = useCallback(() => {
-    if (location.state?.from) {
-        navigate(location.state.from as string);
+    if (locationFrom) {
+        navigate(locationFrom);
     } else {
         navigate(paths.hospitalization.getHref());
     }
-  }, [location.state, navigate]);
+  }, [locationFrom, navigate]);
 
   const handleDelete = useCallback(() => {
     if (!hospitalizationId) return;
-    deleteMutation.mutate(hospitalizationId, {
-      onSuccess: () => {
-        navigate(paths.hospitalization.getHref());
-      },
-      onError: () => toast.error("削除に失敗しました"),
+    startDeleteTransition(() => {
+      deleteMutation.mutate(hospitalizationId, {
+        onSuccess: () => {
+          navigate(paths.hospitalization.getHref());
+        },
+        onError: (error) => handleApiError(error, "削除"),
+      });
     });
   }, [hospitalizationId, deleteMutation, navigate]);
 
@@ -130,7 +137,7 @@ export function HospitalizationForm() {
     }
   }, [selectedPet, isEdit, navigate, petId]);
 
-  if (!selectedPet && !isEdit && petId) return null;
+  if (!selectedPet && !isEdit && petId) return <LoadingFallback />;
   if (!selectedPet && !isEdit) return null;
 
   return (
@@ -170,7 +177,7 @@ export function HospitalizationForm() {
             ) : null}
             {canSubmit ? (
               <SubmitButton
-              className={`${C.bgAccent} ${C.bgAccentHover} text-white rounded-[6px] h-10 text-sm px-4`}
+              className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} rounded-[6px] h-10 text-sm px-4`}
               >
               {hospitalizationId ? "更新" : "登録"}
               </SubmitButton>
@@ -254,6 +261,7 @@ export function HospitalizationForm() {
         confirmLabel="削除"
         variant="destructive"
         onConfirm={handleDelete}
+        isPending={isDeletePending}
       />
     </>
   );

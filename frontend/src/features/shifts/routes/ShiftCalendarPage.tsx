@@ -5,6 +5,7 @@ import { useGetShifts } from "../api/get-shifts";
 import { useStaffsForShift } from "../api/get-staffs";
 import { ShiftCalendar as ShiftCalendarGrid } from "../components/ShiftCalendar/ShiftCalendar";
 import { usePermission } from "@/features/auth";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
 
 function getInitialYearMonth(): string {
   const now = new Date();
@@ -48,26 +49,36 @@ export function ShiftCalendarPage() {
   const shifts = shiftsQuery.data ?? [];
   const staffs = staffsQuery.data ?? [];
 
+  if (shiftsQuery.isLoading || staffsQuery.isLoading) {
+    return (
+      <PageLayout title="シフト管理" resource={ResourceShifts} maxWidth="max-w-full">
+        <LoadingFallback />
+      </PageLayout>
+    );
+  }
+
+  if (shiftsQuery.isError || staffsQuery.isError) {
+    return (
+      <PageLayout title="シフト管理" resource={ResourceShifts} maxWidth="max-w-full">
+        <ErrorFallback message="シフトデータの取得に失敗しました" />
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout title="シフト管理" resource={ResourceShifts} maxWidth="max-w-full">
-      {shiftsQuery.isError ? (
-        <div className="flex items-center justify-center h-64 text-sm text-red-500">
-          シフトデータの取得に失敗しました
-        </div>
-      ) : (
-        <ShiftCalendarGrid
-          yearMonth={yearMonth}
-          shifts={shifts}
-          staffs={staffs}
-          selectedStaffId={selectedStaffId}
-          canCreate={canCreate}
-          canEdit={canEdit}
-          canDelete={canDelete}
-          onPrevMonth={handlePrevMonth}
-          onNextMonth={handleNextMonth}
-          onStaffChange={handleStaffChange}
-        />
-      )}
+      <ShiftCalendarGrid
+        yearMonth={yearMonth}
+        shifts={shifts}
+        staffs={staffs}
+        selectedStaffId={selectedStaffId}
+        canCreate={canCreate}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        onPrevMonth={handlePrevMonth}
+        onNextMonth={handleNextMonth}
+        onStaffChange={handleStaffChange}
+      />
     </PageLayout>
   );
 }

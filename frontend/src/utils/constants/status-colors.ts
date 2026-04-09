@@ -10,13 +10,13 @@ import type { ReservationStatus } from "@/types";
 // ──────────────────────────────────────────────
 
 export const RESERVATION_STATUS_COLORS = {
-  confirmed:       { label: "予約確定",    dot: "bg-emerald-500", bg: "bg-emerald-50",  text: "text-emerald-700" },
-  pending:         { label: "仮予約",      dot: "bg-sky-500",     bg: "bg-sky-50",      text: "text-sky-700" },
-  checked_in:      { label: "受付済",      dot: "bg-blue-500",    bg: "bg-blue-50",     text: "text-blue-700" },
-  in_consultation: { label: "診療中",      dot: "bg-violet-500",  bg: "bg-violet-50",   text: "text-violet-700" },
-  accounting:      { label: "会計待ち",    dot: "bg-amber-500",   bg: "bg-amber-50",    text: "text-amber-700" },
-  completed:       { label: "完了",        dot: "bg-gray-400",    bg: "bg-gray-50",     text: "text-gray-600" },
-  cancelled:       { label: "キャンセル",  dot: "bg-red-500",     bg: "bg-red-50",      text: "text-red-700" },
+  confirmed:       { label: "予約確定",    dot: C.bgStatusEmeraldDot, bg: C.bgStatusEmerald,  text: C.textStatusEmerald },
+  pending:         { label: "仮予約",      dot: C.bgStatusSkyDot,     bg: C.bgStatusSky,      text: C.textStatusSky },
+  checked_in:      { label: "受付済",      dot: C.bgStatusBlueDot,    bg: C.bgStatusBlueLight, text: C.textStatusBlue },
+  in_consultation: { label: "診療中",      dot: C.bgStatusPurpleDot, bg: C.bgStatusPurple, text: C.textStatusPurple },
+  accounting:      { label: "会計待ち",    dot: C.bgStatusAmberDot,   bg: C.bgStatusAmber,    text: C.textStatusAmber },
+  completed:       { label: "完了",        dot: C.bgStatusGrayMedium, bg: C.bgStatusGray, text: C.textStatusGray },
+  cancelled:       { label: "キャンセル",  dot: C.bgStatusRedDot,     bg: C.bgRedLight,     text: C.textNotionRed },
 } as const;
 
 /**
@@ -37,20 +37,20 @@ export function getReservationStatusColor(status: string) {
 /** アクセントカラー（ReservationDetailModal のヘッダー帯・バッジ） */
 export const VISIT_TYPE_COLORS = {
   初診: {
-    border: "border-red-200",
-    bg: "bg-red-50",
-    text: "text-red-700",
-    dot: "bg-red-500",
+    border: C.borderRedBadge,
+    bg: C.bgRedLight,
+    text: C.textNotionRed,
+    dot: C.bgStatusRedDot,
     // AppointmentCard バッジ用カラー
     badgeBg: C.bgAccentLight60,
     badgeText: C.textAccentDark90,
     badgeBorder: C.borderAccentBadge50,
   },
   再診: {
-    border: "border-blue-200",
-    bg: "bg-blue-50",
-    text: "text-blue-700",
-    dot: "bg-blue-500",
+    border: C.borderAccentBadge,
+    bg: C.bgAccentLight,
+    text: C.textAccentDark,
+    dot: C.bgStatusBlueDot,
     // AppointmentCard バッジ用カラー
     badgeBg: C.bgPage60,
     badgeText: C.text90,
@@ -83,4 +83,4 @@ export const RECEPTION_STATUS_COLORS: Record<string, string> = {
 };
 
 /** RECEPTION_STATUS_COLORS 未定義ステータスのフォールバッククラス */
-export const RECEPTION_STATUS_COLOR_FALLBACK = "bg-gray-100 text-gray-600 border-gray-200";
+export const RECEPTION_STATUS_COLOR_FALLBACK = `${C.bgStatusGray} ${C.textStatusGray} ${C.borderStatusGray}`;

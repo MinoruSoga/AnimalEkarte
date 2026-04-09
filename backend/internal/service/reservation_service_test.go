@@ -14,12 +14,13 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
-	findAllFn                func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
-	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
-	createFn                 func(ctx context.Context, reservation *model.ReservationAppointment) error
-	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
-	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
-	findByStaffAndTimeSlotFn func(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error)
+	findAllFn                          func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
+	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
+	createFn                           func(ctx context.Context, reservation *model.ReservationAppointment) error
+	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
+	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
+	findByStaffAndTimeSlotFn           func(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error)
+	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
@@ -55,6 +56,13 @@ func (m *mockReservationRepository) FindByStaffAndTimeSlot(ctx context.Context, 
 		return m.findByStaffAndTimeSlotFn(ctx, clinicID, staffID, startTime, endTime, excludeID)
 	}
 	return false, nil
+}
+
+func (m *mockReservationRepository) CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error) {
+	if m.countMedicalRecordsByReservationID != nil {
+		return m.countMedicalRecordsByReservationID(ctx, reservationID)
+	}
+	return 0, nil
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }
@@ -209,7 +217,7 @@ func TestReservationService_List(t *testing.T) {
 					return tt.repoReservations, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewReservationService(repo)
+			svc := NewReservationService(repo, nil)
 
 			reservations, total, err := svc.List(context.Background(), tt.clinicID, tt.page, tt.limit, tt.date, tt.status, tt.petID, tt.ownerID)
 
@@ -271,7 +279,7 @@ func TestReservationService_GetByID(t *testing.T) {
 					return tt.repoReservation, tt.repoErr
 				},
 			}
-			svc := NewReservationService(repo)
+			svc := NewReservationService(repo, nil)
 
 			reservation, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -294,7 +302,7 @@ func TestReservationService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("reservation", "999")
 		},
 	}
-	svc := NewReservationService(repo)
+	svc := NewReservationService(repo, nil)
 
 	reservation, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -305,47 +313,15 @@ func TestReservationService_GetByID_NotFound(t *testing.T) {
 
 func TestReservationService_Create(t *testing.T) {
 	now := time.Now()
-	doctorID := uint64(5)
+
+	// バリデーション（end_time チェック）はトランザクション前に実行されるためモックテスト可能。
+	// 競合チェック（SELECT FOR UPDATE + トランザクション）は統合テストで担保する。
 	tests := []struct {
 		name             string
 		reservation      *model.ReservationAppointment
-		repoErr          error
-		conflictExists   bool
-		conflictErr      error
 		wantErr          bool
 		wantInvalidInput bool
-		wantConflict     bool
 	}{
-		{
-			name: "creates reservation successfully",
-			reservation: &model.ReservationAppointment{
-				ClinicID:      1,
-				StartTime:     now,
-				EndTime:       now.Add(time.Hour),
-				ServiceTypeID: 1,
-				Status:        model.ReservationStatusPending,
-				VisitType:     model.VisitTypeRevisit,
-			},
-			repoErr:          nil,
-			conflictExists:   false,
-			wantErr:          false,
-			wantInvalidInput: false,
-			wantConflict:     false,
-		},
-		{
-			name: "returns error on repository failure",
-			reservation: &model.ReservationAppointment{
-				ClinicID:      1,
-				StartTime:     now,
-				EndTime:       now.Add(time.Hour),
-				ServiceTypeID: 1,
-			},
-			repoErr:          errors.New("db connection error"),
-			conflictExists:   false,
-			wantErr:          true,
-			wantInvalidInput: false,
-			wantConflict:     false,
-		},
 		{
 			// BUG-034: end_time == start_time は 400 Bad Request
 			name: "returns invalid input when end_time equals start_time",
@@ -355,11 +331,8 @@ func TestReservationService_Create(t *testing.T) {
 				EndTime:       now,
 				ServiceTypeID: 1,
 			},
-			repoErr:          nil,
-			conflictExists:   false,
 			wantErr:          true,
 			wantInvalidInput: true,
-			wantConflict:     false,
 		},
 		{
 			// BUG-034: end_time < start_time は 400 Bad Request
@@ -370,57 +343,15 @@ func TestReservationService_Create(t *testing.T) {
 				EndTime:       now.Add(-time.Minute),
 				ServiceTypeID: 1,
 			},
-			repoErr:          nil,
-			conflictExists:   false,
 			wantErr:          true,
 			wantInvalidInput: true,
-			wantConflict:     false,
-		},
-		{
-			// BUG-080: 同一 staff + 時間帯が重複する場合は 409 Conflict
-			name: "returns conflict when staff has overlapping reservation",
-			reservation: &model.ReservationAppointment{
-				ClinicID:      1,
-				StartTime:     now,
-				EndTime:       now.Add(time.Hour),
-				ServiceTypeID: 1,
-				DoctorID:      &doctorID,
-			},
-			repoErr:          nil,
-			conflictExists:   true,
-			wantErr:          true,
-			wantInvalidInput: false,
-			wantConflict:     true,
-		},
-		{
-			// BUG-080: DoctorID が nil の場合は重複チェックをスキップ
-			name: "skips conflict check when doctor_id is nil",
-			reservation: &model.ReservationAppointment{
-				ClinicID:      1,
-				StartTime:     now,
-				EndTime:       now.Add(time.Hour),
-				ServiceTypeID: 1,
-				DoctorID:      nil,
-			},
-			repoErr:          nil,
-			conflictExists:   false,
-			wantErr:          false,
-			wantInvalidInput: false,
-			wantConflict:     false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockReservationRepository{
-				createFn: func(_ context.Context, _ *model.ReservationAppointment) error {
-					return tt.repoErr
-				},
-				findByStaffAndTimeSlotFn: func(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
-					return tt.conflictExists, tt.conflictErr
-				},
-			}
-			svc := NewReservationService(repo)
+			repo := &mockReservationRepository{}
+			svc := NewReservationService(repo, nil)
 
 			err := svc.Create(context.Background(), tt.reservation)
 
@@ -428,9 +359,6 @@ func TestReservationService_Create(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantInvalidInput {
 					assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
-				}
-				if tt.wantConflict {
-					assert.True(t, apperrors.IsAlreadyExists(err), "expected ErrAlreadyExists but got: %v", err)
 				}
 			} else {
 				assert.NoError(t, err)
@@ -496,7 +424,7 @@ func TestReservationService_Update(t *testing.T) {
 					return &model.ReservationAppointment{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewReservationService(repo)
+			svc := NewReservationService(repo, nil)
 
 			reservation, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -516,47 +444,69 @@ func TestReservationService_Update(t *testing.T) {
 
 func TestReservationService_Delete(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name         string
+		clinicID     uint64
+		id           uint64
+		recordCount  int64
+		countErr     error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
-			name:     "deletes reservation successfully",
-			clinicID: 1,
-			id:       10,
-			repoErr:  nil,
-			wantErr:  false,
-			wantNF:   false,
+			name:        "deletes reservation successfully when no medical records linked",
+			clinicID:    1,
+			id:          10,
+			recordCount: 0,
+			repoErr:     nil,
+			wantErr:     false,
 		},
 		{
-			name:     "returns not found error when reservation does not exist",
-			clinicID: 1,
-			id:       999,
-			repoErr:  apperrors.WrapNotFound("reservation", "999"),
-			wantErr:  true,
-			wantNF:   true,
+			name:         "returns conflict error when medical records are linked",
+			clinicID:     1,
+			id:           10,
+			recordCount:  2,
+			wantErr:      true,
+			wantConflict: true,
 		},
 		{
-			name:     "returns error on repository failure",
+			name:     "returns error when count check fails",
 			clinicID: 1,
 			id:       10,
-			repoErr:  errors.New("db error"),
+			countErr: errors.New("db error"),
 			wantErr:  true,
-			wantNF:   false,
+		},
+		{
+			name:        "returns not found error when reservation does not exist",
+			clinicID:    1,
+			id:          999,
+			recordCount: 0,
+			repoErr:     apperrors.WrapNotFound("reservation", "999"),
+			wantErr:     true,
+			wantNF:      true,
+		},
+		{
+			name:        "returns error on repository delete failure",
+			clinicID:    1,
+			id:          10,
+			recordCount: 0,
+			repoErr:     errors.New("db error"),
+			wantErr:     true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationRepository{
+				countMedicalRecordsByReservationID: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.recordCount, tt.countErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
-			svc := NewReservationService(repo)
+			svc := NewReservationService(repo, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -564,6 +514,9 @@ func TestReservationService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

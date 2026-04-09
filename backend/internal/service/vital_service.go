@@ -39,8 +39,8 @@ type UpdateVitalInput struct {
 type VitalService interface {
 	List(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error)
 	Create(ctx context.Context, medicalRecordID uint64, input *CreateVitalInput) (*model.VitalRecord, error)
-	Update(ctx context.Context, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.VitalRecord, error)
-	Delete(ctx context.Context, medicalRecordID, vitalID uint64) error
+	Update(ctx context.Context, clinicID, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.VitalRecord, error)
+	Delete(ctx context.Context, clinicID, medicalRecordID, vitalID uint64) error
 }
 
 type vitalService struct {
@@ -85,9 +85,9 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 	return vital, nil
 }
 
-func (s *vitalService) Update(ctx context.Context, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.VitalRecord, error) {
-	// 所属確認: このvitalIDがmedicalRecordIDに属しているか検証
-	existing, err := s.repo.FindByID(ctx, vitalID)
+func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.VitalRecord, error) {
+	// 所属確認: このvitalIDがclinicID・medicalRecordIDに属しているか検証
+	existing, err := s.repo.FindByID(ctx, clinicID, vitalID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get vital record")
 	}
@@ -105,12 +105,16 @@ func (s *vitalService) Update(ctx context.Context, medicalRecordID, vitalID uint
 	slog.InfoContext(ctx, "vital updated",
 		slog.Uint64("vital_id", vitalID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-	return s.repo.FindByID(ctx, vitalID)
+	result, err := s.repo.FindByID(ctx, clinicID, vitalID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get vital record after update")
+	}
+	return result, nil
 }
 
-func (s *vitalService) Delete(ctx context.Context, medicalRecordID, vitalID uint64) error {
-	// 所属確認: このvitalIDがmedicalRecordIDに属しているか検証
-	existing, err := s.repo.FindByID(ctx, vitalID)
+func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vitalID uint64) error {
+	// 所属確認: このvitalIDがclinicID・medicalRecordIDに属しているか検証
+	existing, err := s.repo.FindByID(ctx, clinicID, vitalID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get vital record")
 	}

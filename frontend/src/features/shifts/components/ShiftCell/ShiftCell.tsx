@@ -1,4 +1,5 @@
 import { memo, useCallback } from "react";
+import { C } from "@/lib/design-tokens";
 import type { Shift } from "../../types";
 import { SHIFT_TYPE_LABELS, SHIFT_TYPE_COLORS } from "../../types";
 
@@ -36,7 +37,7 @@ export const ShiftCell = memo(function ShiftCell({
     return canCreate ? (
       <button
         onClick={handleAdd}
-        className="w-full h-full min-h-[36px] flex items-center justify-center text-gray-300 hover:text-gray-500 hover:bg-gray-50 rounded transition-colors text-xs"
+        className={`w-full h-full min-h-[36px] flex items-center justify-center ${C.text20} ${C.hoverText60} ${C.hoverBgPage} rounded transition-colors text-xs`}
         type="button"
         aria-label="シフトを追加"
       >

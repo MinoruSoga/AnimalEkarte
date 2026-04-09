@@ -13,20 +13,20 @@ import (
 
 // mockCageRepository は CageRepository のテスト用モック実装
 type mockCageRepository struct {
-	findAllFn      func(ctx context.Context, cageType *string) ([]model.Cage, error)
-	findByIDFn     func(ctx context.Context, id uint64) (*model.Cage, error)
+	findAllFn      func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
 	createFn       func(ctx context.Context, cage *model.Cage) error
 	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
-	deleteFn       func(ctx context.Context, id uint64) error
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-func (m *mockCageRepository) FindAll(ctx context.Context, cageType *string) ([]model.Cage, error) {
-	return m.findAllFn(ctx, cageType)
+func (m *mockCageRepository) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
+	return m.findAllFn(ctx, clinicID, cageType)
 }
 
-func (m *mockCageRepository) FindByID(ctx context.Context, id uint64) (*model.Cage, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockCageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockCageRepository) Create(ctx context.Context, cage *model.Cage) error {
@@ -37,8 +37,8 @@ func (m *mockCageRepository) UpdateFields(ctx context.Context, clinicID, id uint
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockCageRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockCageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 func (m *mockCageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -134,13 +134,13 @@ func TestCageService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCageRepository{
-				findAllFn: func(_ context.Context, _ *string) ([]model.Cage, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ *string) ([]model.Cage, error) {
 					return tt.repoCages, tt.repoErr
 				},
 			}
 			svc := newTestCageService(repo)
 
-			cages, err := svc.List(context.Background(), tt.cageType)
+			cages, err := svc.List(context.Background(), 1, tt.cageType)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -197,13 +197,13 @@ func TestCageService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCageRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Cage, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Cage, error) {
 					return tt.repoCage, tt.repoErr
 				},
 			}
 			svc := newTestCageService(repo)
 
-			cage, err := svc.GetByID(context.Background(), tt.id)
+			cage, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -394,13 +394,13 @@ func TestCageService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCageRepository{
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := newTestCageService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

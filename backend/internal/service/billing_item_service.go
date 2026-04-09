@@ -69,10 +69,10 @@ func buildBillingItemUpdateFields(input *UpdateBillingItemInput) map[string]any 
 
 // BillingItemService は billing_items の CRUD とトータル再計算を担うインターフェース
 type BillingItemService interface {
-	GetByID(ctx context.Context, id uint64) (*model.BillingItem, error)
+	GetByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error)
 	CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
-	UpdateItem(ctx context.Context, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
-	DeleteItem(ctx context.Context, id uint64) error
+	UpdateItem(ctx context.Context, clinicID uint64, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
+	DeleteItem(ctx context.Context, clinicID uint64, id uint64) error
 }
 
 type billingItemService struct {
@@ -84,8 +84,12 @@ func NewBillingItemService(repo repository.BillingItemRepository) BillingItemSer
 	return &billingItemService{repo: repo}
 }
 
-func (s *billingItemService) GetByID(ctx context.Context, id uint64) (*model.BillingItem, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *billingItemService) GetByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error) {
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get billing item")
+	}
+	return result, nil
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
@@ -130,8 +134,8 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	return item, nil
 }
 
-func (s *billingItemService) UpdateItem(ctx context.Context, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
-	item, err := s.repo.FindByID(ctx, id)
+func (s *billingItemService) UpdateItem(ctx context.Context, clinicID uint64, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
+	item, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get billing item")
 	}
@@ -159,11 +163,11 @@ func (s *billingItemService) UpdateItem(ctx context.Context, id uint64, input *U
 		slog.Uint64("item_id", id),
 		slog.Uint64("billing_id", item.BillingID),
 	)
-	return s.repo.FindByID(ctx, id)
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 
-func (s *billingItemService) DeleteItem(ctx context.Context, id uint64) error {
-	item, err := s.repo.FindByID(ctx, id)
+func (s *billingItemService) DeleteItem(ctx context.Context, clinicID uint64, id uint64) error {
+	item, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get billing item")
 	}

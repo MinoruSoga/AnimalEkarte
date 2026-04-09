@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useEffect, useState } from "react";
+import { lazy, memo, Suspense, useEffect, useState } from "react";
 
 // External
 import { Search } from "lucide-react";
@@ -14,7 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Shared
-import { TreatmentSearchDialog } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
+// bundle-dynamic-imports: TreatmentSearchDialog（266行）を lazy() で遅延ロード
+const TreatmentSearchDialog = lazy(() =>
+  import("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog").then((m) => ({
+    default: m.TreatmentSearchDialog,
+  }))
+);
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
 // Relative
@@ -24,6 +29,25 @@ import { H_STYLES } from "@/features/hospitalization/styles";
 import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "@/features/hospitalization/types";
 import type { CarePlanTiming } from "@/types";
 import { C } from "@/lib/design-tokens";
+
+// rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ
+const CARE_PLAN_TYPE_ITEMS = (
+  <>
+    <SelectItem value="food">食事</SelectItem>
+    <SelectItem value="medicine">投薬</SelectItem>
+    <SelectItem value="treatment">処置・検査</SelectItem>
+    <SelectItem value="instruction">指示・その他</SelectItem>
+    <SelectItem value="item">持ち物</SelectItem>
+  </>
+);
+
+const CARE_PLAN_STATUS_ITEMS = (
+  <>
+    <SelectItem value="active">実施中</SelectItem>
+    <SelectItem value="completed">完了</SelectItem>
+    <SelectItem value="discontinued">中止</SelectItem>
+  </>
+);
 
 interface CarePlanDialogProps {
     open: boolean;
@@ -144,13 +168,7 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="food">食事</SelectItem>
-                                    <SelectItem value="medicine">投薬</SelectItem>
-                                    <SelectItem value="treatment">処置・検査</SelectItem>
-                                    <SelectItem value="instruction">指示・その他</SelectItem>
-                                    <SelectItem value="item">持ち物</SelectItem>
-                                </SelectContent>
+                                <SelectContent>{CARE_PLAN_TYPE_ITEMS}</SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
@@ -165,7 +183,7 @@ export const CarePlanDialog = memo(function CarePlanDialog({
 
                     {formData.unitPrice !== undefined ? (
                         <div className={`flex items-center gap-2 ${H_STYLES.text.base} ${C.text60} px-1`}>
-                            <Badge variant="outline" className="font-mono bg-purple-50 text-purple-700 border-purple-200">
+                            <Badge variant="outline" className={`font-mono ${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderPurpleLight}`}>
                                 マスタ連動中
                             </Badge>
                             <span>単価: ¥{formData.unitPrice.toLocaleString()} / カテゴリ: {formData.category}</span>
@@ -191,8 +209,8 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                                     className={`
                                         px-3 py-1.5 rounded-md ${H_STYLES.text.base} border cursor-pointer select-none transition-colors
                                         ${formData.timing?.includes(time)
-                                            ? `${C.bgMedicalBlue} text-white ${C.borderMedicalBlue}`
-                                            : `bg-white ${C.text} ${C.borderMedium} hover:bg-gray-50`}
+                                            ? `${C.bgMedicalBlue} ${C.textWhite} ${C.borderMedicalBlue}`
+                                            : `bg-white ${C.text} ${C.borderMedium} ${C.hoverBgPage}`}
                                     `}
                                 >
                                     {time === 'morning' ? '朝' : time === 'noon' ? '昼' : '夜'}
@@ -219,21 +237,21 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="active">実施中</SelectItem>
-                                <SelectItem value="completed">完了</SelectItem>
-                                <SelectItem value="discontinued">中止</SelectItem>
-                            </SelectContent>
+                            <SelectContent>{CARE_PLAN_STATUS_ITEMS}</SelectContent>
                         </Select>
                     </div>
                 </div>
             </FormDialog>
 
-            <TreatmentSearchDialog
-                open={isSearchOpen}
-                onOpenChange={setIsSearchOpen}
-                onSelect={handleSelectMaster}
-            />
+            {isSearchOpen ? (
+              <Suspense fallback={null}>
+                <TreatmentSearchDialog
+                    open={isSearchOpen}
+                    onOpenChange={setIsSearchOpen}
+                    onSelect={handleSelectMaster}
+                />
+              </Suspense>
+            ) : null}
         </>
     );
 });

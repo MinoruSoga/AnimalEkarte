@@ -59,7 +59,7 @@ export function PatientInfoCard({
 
   return (
     <div
-      className={`${sticky ? "sticky top-0 z-10" : ""} ${isDeceased ? "bg-gray-50/80" : "bg-white"} px-4 py-2.5 border-b ${C.borderMedium} transition-colors`}
+      className={`${sticky ? "sticky top-0 z-10" : ""} ${isDeceased ? C.bgPage60 : "bg-white"} px-4 py-2.5 border-b ${C.borderMedium} transition-colors`}
     >
       <div className="flex flex-wrap items-center gap-3">
         {/* Avatar */}
@@ -89,7 +89,7 @@ export function PatientInfoCard({
               {petName}
             </span>
             {isDeceased ? (
-              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${C.bgDanger} text-white uppercase tracking-wider ml-1`}>
+              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase tracking-wider ml-1`}>
                 【死亡】
               </span>
             ) : null}

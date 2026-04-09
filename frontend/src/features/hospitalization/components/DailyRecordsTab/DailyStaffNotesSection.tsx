@@ -75,7 +75,7 @@ export function DailyStaffNotesSection({
         <div>
             <div className="flex items-center justify-between mb-2">
                 <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
-                    <MessageSquare className={`${ICON.action} text-green-500`} />
+                    <MessageSquare className={`${ICON.action} ${C.textStatusGreen}`} />
                     スタッフメモ
                 </h4>
                 {canCreate ? (
@@ -92,7 +92,7 @@ export function DailyStaffNotesSection({
             </div>
 
             {sorted.length === 0 ? (
-                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed ${C.borderMedium}`}>
+                <p className={`text-xs ${C.text40} py-3 text-center ${C.bgPage} rounded border border-dashed ${C.borderMedium}`}>
                     記録なし
                 </p>
             ) : (
@@ -100,9 +100,9 @@ export function DailyStaffNotesSection({
                     {sorted.map((note) => (
                         <div
                             key={note.id}
-                            className="text-xs bg-green-50 rounded px-2.5 py-2 border border-green-100"
+                            className={`text-xs ${C.bgStatusGreen} rounded px-2.5 py-2 border ${C.borderStatusGreen}`}
                         >
-                            <span className="font-semibold text-green-700 mr-2">{note.time}</span>
+                            <span className={`font-semibold ${C.textStatusGreen} mr-2`}>{note.time}</span>
                             <span className={`${C.text80}`}>{note.content}</span>
                         </div>
                     ))}
@@ -122,7 +122,7 @@ export function DailyStaffNotesSection({
                 <div className="space-y-3 py-2">
                     <div>
                         <Label htmlFor="note-time" className="text-xs">
-                            時刻 <span className="text-red-500">*</span>
+                            時刻 <span className={C.textRequired}>*</span>
                         </Label>
                         <Input
                             id="note-time"
@@ -135,7 +135,7 @@ export function DailyStaffNotesSection({
                     </div>
                     <div>
                         <Label htmlFor="note-content" className="text-xs">
-                            内容 <span className="text-red-500">*</span>
+                            内容 <span className={C.textRequired}>*</span>
                         </Label>
                         <Textarea
                             id="note-content"

@@ -92,8 +92,9 @@ interface EditRowProps {
   isPending: boolean;
 }
 
-const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: EditRowProps) {
-  const [form, setForm] = useState({
+// rerender-lazy-state-init: computed object の初期化をモジュールレベル関数に抽出
+function buildEditRowForm(vital: Vital) {
+  return {
     recorded_at: vital.recorded_at
       ? new Date(vital.recorded_at).toISOString().slice(0, 16)
       : "",
@@ -103,7 +104,12 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
     body_weight: vital.body_weight != null ? String(vital.body_weight) : "",
     weight_unit: vital.weight_unit ?? "Kg",
     note: vital.note ?? "",
-  });
+  };
+}
+
+const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: EditRowProps) {
+  // lazy initializer — 初回マウント時のみ buildEditRowForm() が実行される
+  const [form, setForm] = useState(() => buildEditRowForm(vital));
 
   const handleChange = useCallback(
     (field: string, value: string | BodyWeightUnit) => {
@@ -192,7 +198,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           <button
             type="button"
             onClick={() => handleChange("weight_unit", form.weight_unit === "Kg" ? "g" : "Kg")}
-            className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} bg-gray-50 hover:bg-gray-100 min-w-[24px]`}
+            className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
           >
             {form.weight_unit}
           </button>
@@ -482,7 +488,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
                     </td>
                     <td className={`px-3 text-sm text-right ${C.text}`}>
                       {displayNum(vital.body_weight)}
-                      <span className="ml-0.5 text-[10px] text-gray-400">{vital.weight_unit}</span>
+                      <span className={`ml-0.5 text-[10px] ${C.text40}`}>{vital.weight_unit}</span>
                     </td>
                     <td className={`px-3 text-sm ${C.text60}`}>
                       {vital.note ? vital.note : "-"}
@@ -557,7 +563,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
               <button
                 type="button"
                 onClick={() => handleAddFormChange("weight_unit", addForm.weight_unit === "Kg" ? "g" : "Kg")}
-                className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} bg-gray-50 hover:bg-gray-100 min-w-[24px]`}
+                className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
               >
                 {addForm.weight_unit}
               </button>

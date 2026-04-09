@@ -1709,3 +1709,75 @@ INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource, resou
     (3, 10, 'staff', 'inventory.decrease', 'inventory_items', 1, '{"quantity": 50}', '{"quantity": 43}', '192.168.1.10', 'Mozilla/5.0...'),
     (3, 10, 'staff', 'treatment.create', 'treatments', 2, NULL, '{"content": "アモキシシリン"}', '192.168.1.10', 'Mozilla/5.0...')
 ON CONFLICT DO NOTHING;
+
+-- =============================================================================
+-- LINE予約システム シードデータ
+-- =============================================================================
+
+-- A. service_types の予約用カラム更新（INSERT済みの名前に合わせる）
+-- 顧客向けメニュー（reservation_visible = true）
+UPDATE service_types SET duration_minutes = 15,  short_name = '診療',     reservation_visible = true,  is_internal = false WHERE name = '一般診療';
+UPDATE service_types SET duration_minutes = 15,  short_name = 'ワクチン', reservation_visible = true,  is_internal = false WHERE name = 'ワクチン接種';
+UPDATE service_types SET duration_minutes = 15,  short_name = '健診',     reservation_visible = true,  is_internal = false WHERE name = '健康診断';
+UPDATE service_types SET duration_minutes = 60,  short_name = '手術',     reservation_visible = true,  is_internal = false WHERE name = '手術・処置';
+UPDATE service_types SET duration_minutes = 60,  short_name = 'トリミング', reservation_visible = true, is_internal = false WHERE name = 'トリミング';
+UPDATE service_types SET duration_minutes = 15,  short_name = '検査',     reservation_visible = true,  is_internal = false WHERE name = '検査';
+-- 入院は予約対象外
+UPDATE service_types SET duration_minutes = 60,  short_name = '入院',     reservation_visible = false, is_internal = true  WHERE name = '入院';
+
+-- B. staffs の予約用カラム更新（occupation_id=1 の獣医スタッフを対象）
+UPDATE staffs SET staff_type = 'doctor', reservation_visible = true
+WHERE occupation_id IN (SELECT id FROM occupations WHERE name = '獣医師');
+UPDATE staffs SET staff_type = 'nurse', reservation_visible = false
+WHERE occupation_id IN (SELECT id FROM occupations WHERE name = '看護師');
+UPDATE staffs SET staff_type = 'resource', reservation_visible = false
+WHERE occupation_id IN (SELECT id FROM occupations WHERE name IN ('トリマー', '受付'));
+
+-- C. reservation_settings 初期データ
+INSERT INTO reservation_settings (
+    clinic_id, status, business_hours, break_hours, daily_limit,
+    booking_window_max_days, booking_window_min_days, calendar_months,
+    phone_number, time_slot_mode, time_slot_interval_minutes,
+    no_staff_mode, show_no_staff_option, national_holiday_closed, additional_fields
+)
+SELECT
+    c.id, 'stopped',
+    '{"start":"0900","end":"1900"}',
+    '[{"start":"1200","end":"1300"}]',
+    1, 30, 2, 2, '0552334126', 'minimize_gaps', 15,
+    'first_available', true, false,
+    '[
+        {"key":"phone","label":"電話番号","required":true,"placeholder":"例) 090-1234-5678"},
+        {"key":"owner_name","label":"飼い主名","required":true,"placeholder":""},
+        {"key":"pet_info","label":"ペットの名前と種類","required":true,"placeholder":"例) ポチ（柴犬）"},
+        {"key":"symptoms","label":"診察内容","required":false,"placeholder":""}
+    ]'
+FROM clinics c
+ON CONFLICT (clinic_id) DO NOTHING;
+
+-- C-2. テスト環境用 LINE クレデンシャル（docs/LINE-SETUP.md 参照）
+-- clinic_id=3: テスト-八王子（@642hdxoh）
+-- clinic_id=4: テスト-城東（@151lnsqa）
+UPDATE reservation_settings SET
+    line_channel_id     = '2009755544',
+    line_channel_secret = '5344ef84eb7072b5894f7e087db28827',
+    liff_id             = '2009755581-w5NOA3EW',
+    line_access_token   = 'pwMi3yP6jhRa0xbmnR0IPEcE5l+OIp21a7ia3hmoiuFSCvqkR5Tmmfm6fLoSTB1Bt7uQjAe9NN7fZ+LBDtNKLGnrqBrjDmhTnws9PVxQKLyinomNzUAb61KADX7NJmFBfEsLQQ9VmlU+tMJcWh+zswdB04t89/1O/w1cDnyilFU='
+WHERE clinic_id = 3;
+
+UPDATE reservation_settings SET
+    line_channel_id     = '2009755545',
+    line_channel_secret = '25e4661a8de553953a4b34c6ac7a91cb',
+    liff_id             = '2009755586-nvKfG3Cp',
+    line_access_token   = 'CUAtYMry8doD9ALCF/6Y0JocVqRrxC8IbOCMyRyxwDw5EJhyujJ4lQ8mVGrt7WawTi+voAxZ79mKAg+4qlsUPBVU6VMZdk7wEA42NZXQAl8gBr2tSYmZpbRzAiLfuGhxuba+koBHVk8yTuaCCjLBzAdB04t89/1O/w1cDnyilFU='
+WHERE clinic_id = 4;
+
+-- D. staff_excluded_service_types 初期データ
+-- 獣医スタッフはトリミングを非対応とする
+INSERT INTO staff_excluded_service_types (staff_id, service_type_id)
+SELECT s.id, st.id
+FROM staffs s
+CROSS JOIN service_types st
+WHERE s.staff_type = 'doctor'
+  AND st.name IN ('トリミング')
+ON CONFLICT (staff_id, service_type_id) DO NOTHING;

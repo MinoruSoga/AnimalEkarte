@@ -13,11 +13,11 @@ import (
 // ---- ProcedureService ----
 
 type ProcedureService interface {
-	List(ctx context.Context) ([]model.Procedure, error)
-	GetByID(ctx context.Context, id uint64) (*model.Procedure, error)
+	List(ctx context.Context, clinicID uint64) ([]model.Procedure, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error)
 	Create(ctx context.Context, procedure *model.Procedure) error
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateProcedureInput) (*model.Procedure, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -29,11 +29,11 @@ func NewProcedureService(repo repository.ProcedureRepository) ProcedureService {
 	return &procedureService{repo: repo}
 }
 
-func (s *procedureService) List(ctx context.Context) ([]model.Procedure, error) {
-	return s.repo.FindAll(ctx)
+func (s *procedureService) List(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
+	return s.repo.FindAll(ctx, clinicID)
 }
-func (s *procedureService) GetByID(ctx context.Context, id uint64) (*model.Procedure, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *procedureService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 func (s *procedureService) Create(ctx context.Context, procedure *model.Procedure) error {
 	return s.repo.Create(ctx, procedure)
@@ -53,7 +53,7 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	slog.InfoContext(ctx, "procedure updated", slog.Uint64("procedure_id", id))
 	return procedure, nil
 }
-func (s *procedureService) Delete(ctx context.Context, id uint64) error {
+func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountUsageByProcedureID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check procedure dependencies")
@@ -61,7 +61,7 @@ func (s *procedureService) Delete(ctx context.Context, id uint64) error {
 	if count > 0 {
 		return apperrors.WrapConflict("この診療項目は診療記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func (s *procedureService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -92,7 +92,7 @@ func buildProcedureUpdateFields(input *UpdateProcedureInput) map[string]any {
 		fields["name"] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = input.Price
+		fields["price"] = *input.Price
 	}
 	if input.IsActive != nil {
 		fields["is_active"] = *input.IsActive

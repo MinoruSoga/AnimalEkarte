@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { UseMutationResult } from "@tanstack/react-query";
 import type { UseMasterCRUDReturn } from "@/features/master/hooks/use-master-crud";
 
@@ -65,11 +66,11 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
                   }
                   toast.success("更新しました");
                   crudHandleClose();
-                } catch {
-                  toast.error("保存に失敗しました");
+                } catch (error) {
+                  handleApiError(error, "保存");
                 }
               },
-              onError: () => toast.error("更新に失敗しました"),
+              onError: (error) => handleApiError(error, "更新"),
             },
           );
         } else {
@@ -82,11 +83,11 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
                 }
                 toast.success("登録しました");
                 crudHandleClose();
-              } catch {
-                toast.error("保存に失敗しました");
+              } catch (error) {
+                handleApiError(error, "保存");
               }
             },
-            onError: () => toast.error("登録に失敗しました"),
+            onError: (error) => handleApiError(error, "登録"),
           });
         }
       });

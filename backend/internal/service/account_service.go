@@ -12,6 +12,8 @@ import (
 type AccountService interface {
 	FindByEmail(ctx context.Context, email string) (*model.Account, error)
 	GetByID(ctx context.Context, id uint64) (*model.Account, error)
+	// UpdatePasswordHash はアカウントのパスワードハッシュを更新する。
+	UpdatePasswordHash(ctx context.Context, accountID uint64, newHash string) error
 }
 
 type accountService struct {
@@ -36,4 +38,16 @@ func (s *accountService) GetByID(ctx context.Context, id uint64) (*model.Account
 		return nil, apperrors.Wrap(err, fmt.Sprintf("failed to get account: %d", id))
 	}
 	return account, nil
+}
+
+func (s *accountService) UpdatePasswordHash(ctx context.Context, accountID uint64, newHash string) error {
+	account, err := s.repo.GetByID(ctx, accountID)
+	if err != nil {
+		return apperrors.Wrap(err, fmt.Sprintf("failed to get account for password update: %d", accountID))
+	}
+	account.PasswordHash = newHash
+	if err := s.repo.Update(ctx, account); err != nil {
+		return apperrors.Wrap(err, fmt.Sprintf("failed to update password hash for account: %d", accountID))
+	}
+	return nil
 }

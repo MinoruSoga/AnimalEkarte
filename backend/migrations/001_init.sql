@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Animal Ekarte - 初期スキーマ定義 v19.0
 -- PostgreSQL 18
--- テーブル数: 56
+-- テーブル数: 59
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -57,6 +57,8 @@ CREATE TYPE reservation_status AS ENUM (
     'confirmed', 'pending', 'cancelled', 'checked_in',
     'in_consultation', 'accounting', 'completed'
 );
+CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'resource');
+CREATE TYPE reservation_source AS ENUM ('manual', 'line');
 CREATE TYPE billing_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending');
 CREATE TYPE hospitalization_type AS ENUM ('hospitalization', 'hotel');
 CREATE TYPE hospitalization_status AS ENUM ('admitted', 'discharged', 'reserved');
@@ -175,16 +177,20 @@ CREATE INDEX idx_accounts_system_admin ON accounts(is_system_admin) WHERE is_sys
 -- 5b. staffs（スタッフマスタ）
 -- ------------------------------------
 CREATE TABLE staffs (
-    id             BIGSERIAL   PRIMARY KEY,
-    account_id     bigint               REFERENCES accounts(id) ON DELETE SET NULL,
-    name           text        NOT NULL,
-    is_active      boolean     NOT NULL DEFAULT true,
-    license_number text        NOT NULL DEFAULT '',
-    occupation_id  bigint               REFERENCES occupations(id) ON DELETE SET NULL,
-    sort_order     integer              DEFAULT 0,
-    created_at     timestamptz NOT NULL DEFAULT now(),
-    updated_at     timestamptz NOT NULL DEFAULT now(),
-    deleted_at     timestamptz
+    id                    BIGSERIAL   PRIMARY KEY,
+    account_id            bigint               REFERENCES accounts(id) ON DELETE SET NULL,
+    name                  text        NOT NULL,
+    is_active             boolean     NOT NULL DEFAULT true,
+    license_number        text        NOT NULL DEFAULT '',
+    occupation_id         bigint               REFERENCES occupations(id) ON DELETE SET NULL,
+    sort_order            integer              DEFAULT 0,
+    staff_type            staff_type  NOT NULL DEFAULT 'doctor',
+    reservation_visible   boolean     NOT NULL DEFAULT true,
+    reservation_comment   text        NOT NULL DEFAULT '',
+    reservation_image_url text        NOT NULL DEFAULT '',
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now(),
+    deleted_at            timestamptz
 );
 
 CREATE INDEX idx_staffs_account ON staffs(account_id);
@@ -347,15 +353,23 @@ CREATE TABLE cages (
 -- 15. service_types（サービス種別マスタ）
 -- ------------------------------------
 CREATE TABLE service_types (
-    id          BIGSERIAL   PRIMARY KEY,
-    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    name        text        NOT NULL,
-    is_active   boolean     NOT NULL DEFAULT true,
-    description text        NOT NULL DEFAULT '',
-    color       text        NOT NULL DEFAULT '#3B82F6',
-    sort_order  integer              DEFAULT 0,
-    created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    id                       BIGSERIAL   PRIMARY KEY,
+    clinic_id                bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name                     text        NOT NULL,
+    is_active                boolean     NOT NULL DEFAULT true,
+    description              text        NOT NULL DEFAULT '',
+    color                    text        NOT NULL DEFAULT '#3B82F6',
+    sort_order               integer              DEFAULT 0,
+    duration_minutes         int         NOT NULL DEFAULT 15,
+    short_name               text        NOT NULL DEFAULT '',
+    show_short_name          boolean     NOT NULL DEFAULT false,
+    reservation_visible      boolean     NOT NULL DEFAULT true,
+    reservation_comment      text        NOT NULL DEFAULT '',
+    reservation_image_url    text        NOT NULL DEFAULT '',
+    reservation_day_option   text        NOT NULL DEFAULT 'none',
+    is_internal              boolean     NOT NULL DEFAULT false,
+    created_at               timestamptz NOT NULL DEFAULT now(),
+    updated_at               timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
@@ -640,21 +654,24 @@ CREATE INDEX idx_staff_permission_groups_group ON staff_permission_groups(group_
 -- 29. reservation_appointments（予約）
 -- ------------------------------------
 CREATE TABLE reservation_appointments (
-    id              BIGSERIAL          PRIMARY KEY,
-    clinic_id       bigint             NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    start_time      timestamptz        NOT NULL,
-    end_time        timestamptz        NOT NULL,
-    owner_id        bigint                      REFERENCES owners(id) ON DELETE SET NULL,
-    pet_id          bigint                      REFERENCES pets(id) ON DELETE SET NULL,
-    visit_type      visit_type         NOT NULL DEFAULT 'revisit',
-    service_type_id bigint             NOT NULL REFERENCES service_types(id) ON DELETE RESTRICT,
-    doctor_id       bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
-    is_designated   boolean                     DEFAULT false,
-    status          reservation_status          DEFAULT 'pending',
-    notes           text               NOT NULL DEFAULT '',
-    created_at      timestamptz        NOT NULL DEFAULT now(),
-    updated_at      timestamptz        NOT NULL DEFAULT now(),
-    deleted_at      timestamptz,
+    id                 BIGSERIAL            PRIMARY KEY,
+    clinic_id          bigint               NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    start_time         timestamptz          NOT NULL,
+    end_time           timestamptz          NOT NULL,
+    owner_id           bigint                        REFERENCES owners(id) ON DELETE SET NULL,
+    pet_id             bigint                        REFERENCES pets(id) ON DELETE SET NULL,
+    visit_type         visit_type           NOT NULL DEFAULT 'revisit',
+    service_type_id    bigint               NOT NULL REFERENCES service_types(id) ON DELETE RESTRICT,
+    doctor_id          bigint                        REFERENCES staffs(id) ON DELETE SET NULL,
+    is_designated      boolean                       DEFAULT false,
+    status             reservation_status            DEFAULT 'pending',
+    notes              text                 NOT NULL DEFAULT '',
+    source             reservation_source   NOT NULL DEFAULT 'manual',
+    is_staff_delegated boolean              NOT NULL DEFAULT false,
+    customer_fields    jsonb                NOT NULL DEFAULT '{}',
+    created_at         timestamptz          NOT NULL DEFAULT now(),
+    updated_at         timestamptz          NOT NULL DEFAULT now(),
+    deleted_at         timestamptz,
     CONSTRAINT chk_reservation_times CHECK (end_time >= start_time)
 );
 
@@ -1164,6 +1181,7 @@ CREATE TABLE billing_items (
     merchandise_item_id     bigint,
     sort_order              integer                DEFAULT 0,
     created_at              timestamptz   NOT NULL DEFAULT now(),
+    updated_at              timestamptz   NOT NULL DEFAULT now(),
     deleted_at              timestamptz,
     CONSTRAINT chk_billing_item_quantity CHECK (quantity > 0)
 );
@@ -1186,7 +1204,8 @@ CREATE TABLE payments (
     change_amount    bigint                  DEFAULT 0,
     method           payment_method          DEFAULT 'cash',
     created_at       timestamptz    NOT NULL DEFAULT now(),
-    updated_at       timestamptz    NOT NULL DEFAULT now()
+    updated_at       timestamptz    NOT NULL DEFAULT now(),
+    deleted_at       timestamptz
 );
 
 -- ------------------------------------
@@ -1215,7 +1234,8 @@ CREATE TABLE shift_entries (
     end_time   time,
     note       text        NOT NULL DEFAULT '',
     created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uk_shift_staff_date UNIQUE (clinic_id, staff_id, date)
 );
 
 -- ------------------------------------
@@ -1594,4 +1614,116 @@ CREATE INDEX idx_audit_logs_actor    ON audit_logs(actor_id, created_at DESC);
 CREATE INDEX idx_audit_logs_resource ON audit_logs(resource, resource_id, created_at DESC);
 
 COMMENT ON TABLE audit_logs IS '権限変更・認証操作の監査ログ（削除禁止）';
+
+-- ==========================================================================
+-- レイヤー8: LINE予約システム
+-- ==========================================================================
+
+-- ------------------------------------
+-- 63. reservation_settings（LINE予約基本設定 — クリニック単位 1:1）
+-- ------------------------------------
+CREATE TABLE reservation_settings (
+    id                         BIGSERIAL   PRIMARY KEY,
+    clinic_id                  bigint      NOT NULL UNIQUE REFERENCES clinics(id),
+    status                     text        NOT NULL DEFAULT 'stopped',
+
+    -- ページ編集（トップページ）
+    header_text                text        NOT NULL DEFAULT '',
+    reservation_notice         text        NOT NULL DEFAULT '',
+    cancel_notice              text        NOT NULL DEFAULT '',
+    privacy_policy             text        NOT NULL DEFAULT '',
+
+    -- 基本設定
+    closed_weekdays            jsonb       NOT NULL DEFAULT '[]',
+    closed_dates               jsonb       NOT NULL DEFAULT '[]',
+    national_holiday_closed    boolean     NOT NULL DEFAULT false,
+    business_hours             jsonb       NOT NULL DEFAULT '{"start":"0900","end":"1900"}',
+    business_hours_by_weekday  jsonb,
+    break_hours                jsonb       NOT NULL DEFAULT '[{"start":"1200","end":"1300"}]',
+    daily_limit                int                  DEFAULT 1,
+    monthly_limit              int,
+    booking_window_max_days    int         NOT NULL DEFAULT 30,
+    booking_window_min_days    int         NOT NULL DEFAULT 2,
+    calendar_months            int         NOT NULL DEFAULT 2,
+    phone_number               text        NOT NULL DEFAULT '',
+    notification_email         text        NOT NULL DEFAULT '',
+    request_example            text        NOT NULL DEFAULT '',
+    time_slot_mode             text        NOT NULL DEFAULT 'minimize_gaps',
+    time_slot_interval_minutes int         NOT NULL DEFAULT 15,
+    no_staff_mode              text        NOT NULL DEFAULT 'first_available',
+    show_no_staff_option       boolean     NOT NULL DEFAULT true,
+
+    -- 追加入力フィールド定義
+    additional_fields          jsonb       NOT NULL DEFAULT '[
+        {"key":"phone","label":"電話番号","required":true,"placeholder":"例) 090-1234-5678"},
+        {"key":"owner_name","label":"飼い主名","required":true,"placeholder":""},
+        {"key":"pet_info","label":"ペットの名前と種類","required":true,"placeholder":"例) ポチ（柴犬）"},
+        {"key":"symptoms","label":"診察内容","required":false,"placeholder":""}
+    ]',
+
+    -- LINE連携
+    line_channel_id            text        NOT NULL DEFAULT '',
+    line_channel_secret        text        NOT NULL DEFAULT '',
+    liff_id                    text        NOT NULL DEFAULT '',
+    line_access_token          text        NOT NULL DEFAULT '',
+
+    created_at                 timestamptz NOT NULL DEFAULT now(),
+    updated_at                 timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 64. reservation_customers（LINE予約顧客）
+-- ------------------------------------
+CREATE TABLE reservation_customers (
+    id                BIGSERIAL   PRIMARY KEY,
+    clinic_id         bigint      NOT NULL REFERENCES clinics(id),
+    line_user_id      text        NOT NULL,
+    display_name      text        NOT NULL DEFAULT '',
+    real_name         text        NOT NULL DEFAULT '',
+    additional_fields jsonb       NOT NULL DEFAULT '{}',
+    owner_id          bigint               REFERENCES owners(id) ON DELETE SET NULL,
+    created_at        timestamptz NOT NULL DEFAULT now(),
+    updated_at        timestamptz NOT NULL DEFAULT now(),
+    UNIQUE(clinic_id, line_user_id)
+);
+CREATE INDEX idx_res_customers_owner
+    ON reservation_customers(owner_id) WHERE owner_id IS NOT NULL;
+
+-- ------------------------------------
+-- 65. staff_excluded_service_types（スタッフ × 非対応コース M:N）
+-- ------------------------------------
+CREATE TABLE staff_excluded_service_types (
+    id              BIGSERIAL PRIMARY KEY,
+    staff_id        bigint    NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
+    service_type_id bigint    NOT NULL REFERENCES service_types(id) ON DELETE CASCADE,
+    UNIQUE(staff_id, service_type_id)
+);
+
+-- ------------------------------------
+-- 66. shift_entry_breaks（シフト中断時間 — shift_entries の子テーブル）
+-- ------------------------------------
+CREATE TABLE shift_entry_breaks (
+    id             BIGSERIAL PRIMARY KEY,
+    shift_entry_id bigint    NOT NULL REFERENCES shift_entries(id) ON DELETE CASCADE,
+    break_start    time      NOT NULL,
+    break_end      time      NOT NULL
+);
+CREATE INDEX idx_shift_entry_breaks_entry ON shift_entry_breaks(shift_entry_id);
+
+-- ------------------------------------
+-- reservation_appointments に line_customer_id FK を追加
+-- （reservation_customers テーブル作成後に実行）
+-- ------------------------------------
+ALTER TABLE reservation_appointments
+    ADD COLUMN line_customer_id bigint REFERENCES reservation_customers(id) ON DELETE SET NULL;
+
+CREATE INDEX idx_res_appt_line_customer ON reservation_appointments(line_customer_id)
+    WHERE line_customer_id IS NOT NULL AND deleted_at IS NULL;
+
+-- ------------------------------------
+-- 予約時間枠の重複防止（部分ユニークインデックス）
+-- ------------------------------------
+CREATE UNIQUE INDEX uk_appointment_staff_time
+    ON reservation_appointments (clinic_id, doctor_id, start_time)
+    WHERE deleted_at IS NULL AND status != 'cancelled';
 

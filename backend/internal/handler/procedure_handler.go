@@ -16,12 +16,16 @@ import (
 
 // GetProcedure godoc
 func (h *Handler) GetProcedure(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	procedure, err := h.svc.Procedure.GetByID(c.Request.Context(), id)
+	procedure, err := h.svc.Procedure.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -31,7 +35,11 @@ func (h *Handler) GetProcedure(c *gin.Context) {
 
 // ListProcedures godoc
 func (h *Handler) ListProcedures(c *gin.Context) {
-	procedures, err := h.svc.Procedure.List(c.Request.Context())
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	procedures, err := h.svc.Procedure.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -148,12 +156,16 @@ func (h *Handler) ReorderProcedures(c *gin.Context) {
 
 // DeleteProcedure godoc
 func (h *Handler) DeleteProcedure(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.Procedure.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.Procedure.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

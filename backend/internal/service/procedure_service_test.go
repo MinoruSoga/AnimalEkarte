@@ -14,21 +14,21 @@ import (
 // ---- Procedure モック ----
 
 type mockProcedureRepository struct {
-	findAllFn                 func(ctx context.Context) ([]model.Procedure, error)
-	findByIDFn                func(ctx context.Context, id uint64) (*model.Procedure, error)
+	findAllFn                 func(ctx context.Context, clinicID uint64) ([]model.Procedure, error)
+	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Procedure, error)
 	createFn                  func(ctx context.Context, procedure *model.Procedure) error
 	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
-	deleteFn                  func(ctx context.Context, id uint64) error
+	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
 	countUsageByProcedureIDFn func(ctx context.Context, procedureID uint64) (int64, error)
 	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-func (m *mockProcedureRepository) FindAll(ctx context.Context) ([]model.Procedure, error) {
-	return m.findAllFn(ctx)
+func (m *mockProcedureRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
+	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockProcedureRepository) FindByID(ctx context.Context, id uint64) (*model.Procedure, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockProcedureRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockProcedureRepository) Create(ctx context.Context, procedure *model.Procedure) error {
@@ -42,8 +42,8 @@ func (m *mockProcedureRepository) UpdateFields(ctx context.Context, clinicID, id
 	return &model.Procedure{ID: id}, nil
 }
 
-func (m *mockProcedureRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockProcedureRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 func (m *mockProcedureRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -96,13 +96,13 @@ func TestProcedureService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockProcedureRepository{
-				findAllFn: func(_ context.Context) ([]model.Procedure, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Procedure, error) {
 					return tt.repoProcedures, tt.repoErr
 				},
 			}
 			svc := NewProcedureService(repo)
 
-			procedures, err := svc.List(context.Background())
+			procedures, err := svc.List(context.Background(), 1)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -145,13 +145,13 @@ func TestProcedureService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockProcedureRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Procedure, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Procedure, error) {
 					return tt.repoProcedure, tt.repoErr
 				},
 			}
 			svc := NewProcedureService(repo)
 
-			procedure, err := svc.GetByID(context.Background(), tt.id)
+			procedure, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -344,13 +344,13 @@ func TestProcedureService_Delete(t *testing.T) {
 				countUsageByProcedureIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewProcedureService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

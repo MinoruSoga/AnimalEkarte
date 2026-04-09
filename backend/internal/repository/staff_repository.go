@@ -43,7 +43,7 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count staffs")
+		return nil, 0, apperrors.FromGORM(err, "staff", "")
 	}
 	if err := buildBase().
 		Preload("Account").
@@ -52,7 +52,7 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		Order("staffs.sort_order ASC, staffs.name ASC").
 		Distinct("staffs.*").
 		Find(&staffs).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find staffs")
+		return nil, 0, apperrors.FromGORM(err, "staff", "")
 	}
 	return staffs, total, nil
 }
@@ -94,7 +94,7 @@ func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, field
 		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?)", clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update staff")
+		return apperrors.FromGORM(result.Error, "staff", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
@@ -111,7 +111,7 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?)", clinicID).
 		Update("deleted_at", gorm.Expr("now()"))
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete staff")
+		return apperrors.FromGORM(result.Error, "staff", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))

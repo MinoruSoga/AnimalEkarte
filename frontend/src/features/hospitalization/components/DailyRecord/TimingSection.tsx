@@ -43,7 +43,7 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
                             <div className={`flex items-center ${H_STYLES.gap.default}`}>
                                 <div className={`
                                     w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0
-                                    ${task.completedLog ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-400"}
+                                    ${task.completedLog ? `${C.bgStatusGreen} ${C.textStatusGreen}` : `${C.bgStatusGray} ${C.textStatusGray}`}
                                 `}>
                                     {task.completedLog ? <Check className={ICON.page} /> : <Clock className={ICON.page} />}
                                 </div>
@@ -59,7 +59,7 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
                             
                             {task.completedLog ? (
                                 <div className="text-right flex-shrink-0">
-                                    <div className={`${H_STYLES.text.sm} font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded`}>
+                                    <div className={`${H_STYLES.text.sm} font-bold ${C.textStatusGreen} ${C.bgStatusGreen} px-2 py-0.5 rounded`}>
                                         {task.completedLog.time} 実施済
                                     </div>
                                     <div className={`${H_STYLES.text.xs} ${C.text40} mt-0.5`}>

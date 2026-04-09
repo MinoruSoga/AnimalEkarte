@@ -13,7 +13,7 @@ import (
 // VitalRepository はバイタル記録のデータアクセスインターフェース
 type VitalRepository interface {
 	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error)
-	FindByID(ctx context.Context, id uint64) (*model.VitalRecord, error)
+	FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.VitalRecord, error)
 	Create(ctx context.Context, vital *model.VitalRecord) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
@@ -34,14 +34,17 @@ func (r *vitalRepository) ListByMedicalRecordID(ctx context.Context, medicalReco
 		Where("medical_record_id = ?", medicalRecordID).
 		Order("recorded_at ASC").
 		Find(&vitals).Error; err != nil {
-		return nil, apperrors.Wrap(err, "list vitals by medical_record_id")
+		return nil, apperrors.FromGORM(err, "vital", "")
 	}
 	return vitals, nil
 }
 
-func (r *vitalRepository) FindByID(ctx context.Context, id uint64) (*model.VitalRecord, error) {
+func (r *vitalRepository) FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.VitalRecord, error) {
 	var vital model.VitalRecord
-	err := r.db.WithContext(ctx).First(&vital, "id = ?", id).Error
+	err := r.db.WithContext(ctx).
+		Joins("JOIN medical_records ON medical_records.id = vital_records.medical_record_id AND medical_records.clinic_id = ?", clinicID).
+		Where("vital_records.id = ?", id).
+		First(&vital).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "vital", fmt.Sprintf("%d", id))
 	}
@@ -50,7 +53,7 @@ func (r *vitalRepository) FindByID(ctx context.Context, id uint64) (*model.Vital
 
 func (r *vitalRepository) Create(ctx context.Context, vital *model.VitalRecord) error {
 	if err := r.db.WithContext(ctx).Create(vital).Error; err != nil {
-		return apperrors.Wrap(err, "create vital")
+		return apperrors.FromGORM(err, "vital", "")
 	}
 	return nil
 }
@@ -61,7 +64,7 @@ func (r *vitalRepository) Update(ctx context.Context, id uint64, fields map[stri
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update vital")
+		return apperrors.FromGORM(result.Error, "vital", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("vital", fmt.Sprintf("%d", id))
@@ -74,7 +77,7 @@ func (r *vitalRepository) Delete(ctx context.Context, id uint64) error {
 		Where("id = ?", id).
 		Delete(&model.VitalRecord{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete vital")
+		return apperrors.FromGORM(result.Error, "vital", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("vital", fmt.Sprintf("%d", id))

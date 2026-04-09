@@ -48,13 +48,13 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count owners")
+		return nil, 0, apperrors.FromGORM(err, "owner", "")
 	}
 	if err := buildBase().
 		Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").
 		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").
 		Find(&owners).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find owners")
+		return nil, 0, apperrors.FromGORM(err, "owner", "")
 	}
 	return owners, total, nil
 }
@@ -75,7 +75,7 @@ func (r *ownerRepository) FindByEmail(ctx context.Context, clinicID uint64, emai
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		return nil, apperrors.Wrap(err, "find owner by email")
+		return nil, apperrors.FromGORM(err, "owner", email)
 	}
 	return &owner, nil
 }
@@ -88,7 +88,7 @@ func (r *ownerRepository) FindByPhone(ctx context.Context, clinicID uint64, phon
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		return nil, apperrors.Wrap(err, "find owner by phone")
+		return nil, apperrors.FromGORM(err, "owner", phone)
 	}
 	return &owner, nil
 }
@@ -138,7 +138,7 @@ func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, field
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update owner")
+		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
@@ -149,7 +149,7 @@ func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, field
 func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Owner{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete owner")
+		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
@@ -165,7 +165,7 @@ func (r *ownerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, owne
 		Where("clinic_id = ? AND owner_id = ?", clinicID, ownerID).
 		Count(&count).Error
 	if err != nil {
-		return 0, apperrors.Wrap(err, "count pets by owner")
+		return 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return count, nil
 }

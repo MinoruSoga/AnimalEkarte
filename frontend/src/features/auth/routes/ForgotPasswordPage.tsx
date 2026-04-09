@@ -47,7 +47,7 @@ export function ForgotPasswordPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrand}`}>
-            <Stethoscope className="size-[26px] text-white" />
+            <Stethoscope className={`size-[26px] ${C.textWhite}`} />
           </div>
           <h1 className={`text-[24px] font-bold leading-tight ${C.text} mb-1`}>
             パスワードのリセット
@@ -92,7 +92,7 @@ export function ForgotPasswordPage() {
             <FormFieldError id="forgot-error" message={errorMessage} />
 
             <SubmitButton
-              className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} hover:opacity-90 transition-opacity text-white`}
+              className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} hover:opacity-90 transition-opacity ${C.textWhite}`}
               loadingText="送信中..."
             >
               リセットリンクを送信

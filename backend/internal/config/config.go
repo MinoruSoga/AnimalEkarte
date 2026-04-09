@@ -18,6 +18,13 @@ type Config struct {
 	JWTSecret        string
 	DevAdminEmail    string // dev-only; empty string means disabled
 	DevAdminPassword string // dev-only; empty string means disabled
+
+	// SMTP設定（空文字=無効）。LINE アクセストークン・通知先メールはクリニックごとに DB で管理する。
+	SMTPHost string
+	SMTPPort string
+	SMTPUser string
+	SMTPPass string
+	SMTPFrom string
 }
 
 func Load() *Config {
@@ -34,6 +41,12 @@ func Load() *Config {
 		JWTSecret:        getEnv("JWT_SECRET", "dev-secret-change-me"),
 		DevAdminEmail:    os.Getenv("DEV_ADMIN_EMAIL"),    //nolint:gocritic // leave empty to disable dev bypass
 		DevAdminPassword: os.Getenv("DEV_ADMIN_PASSWORD"), //nolint:gocritic // leave empty to disable dev bypass
+
+		SMTPHost: os.Getenv("SMTP_HOST"),
+		SMTPPort: getEnv("SMTP_PORT", "587"),
+		SMTPUser: os.Getenv("SMTP_USER"),
+		SMTPPass: os.Getenv("SMTP_PASS"),
+		SMTPFrom: os.Getenv("SMTP_FROM"),
 	}
 }
 

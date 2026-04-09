@@ -56,10 +56,20 @@ type Services struct {
 	MerchandiseItem        MerchandiseItemService
 	BillingItem            BillingItemService
 	Refund                 RefundService
+	// LINE予約
+	ReservationSetting  ReservationSettingService
+	ReservationCourse   ReservationCourseService
+	ReservationStaff    ReservationStaffService
+	ReservationSchedule ReservationScheduleService
+	ReservationAdmin    ReservationAdminService
+	ReservationCustomer ReservationCustomerService
+	Liff                LiffService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
-func NewServices(repos *repository.Repositories) *Services {
+func NewServices(repos *repository.Repositories, notifCfg ReservationNotificationConfig) *Services {
+	notifier := NewReservationNotificationService(notifCfg, repos.ReservationSetting)
+
 	return &Services{
 		Account:                NewAccountService(repos.Account),
 		StaffClinicAssignment:  NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
@@ -67,13 +77,13 @@ func NewServices(repos *repository.Repositories) *Services {
 		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
 		Owner:                  NewOwnerService(repos.Owner),
 		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
-		Reservation:            NewReservationService(repos.Reservation),
-		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet),
+		Reservation:            NewReservationService(repos.Reservation, repos.DB()),
+		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan),
 		Hospitalization:        NewHospitalizationService(repos),
 		Accounting:             NewAccountingService(repos.Accounting),
 		Trimming:               NewTrimmingService(repos.Trimming),
 		Inventory:              NewInventoryService(repos.Inventory),
-		Staff:                  NewStaffService(repos.Staff, repos.Reservation, repos.ShiftEntry),
+		Staff:                  NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry),
 		Cage:                   NewCageService(repos.Cage, repos.Hospitalization),
 		Medicine:               NewMedicineService(repos.Medicine),
 		Vaccine:                NewVaccineService(repos.Vaccine),
@@ -111,5 +121,21 @@ func NewServices(repos *repository.Repositories) *Services {
 		MerchandiseItem:        NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:            NewBillingItemService(repos.BillingItem),
 		Refund:                 NewRefundService(repos.Refund, repos.Accounting),
+		ReservationSetting:     NewReservationSettingService(repos.ReservationSetting),
+		ReservationCourse:      NewReservationCourseService(repos.ReservationCourse, repos.ReservationAdmin),
+		ReservationStaff:       NewReservationStaffService(repos.ReservationStaff),
+		ReservationSchedule:    NewReservationScheduleService(repos.ReservationSchedule),
+		ReservationAdmin:       NewReservationAdminService(repos.ReservationAdmin, repos.DB()),
+		ReservationCustomer:    NewReservationCustomerService(repos.ReservationCustomerMgr),
+		Liff: NewLiffService(
+			repos.ReservationSetting,
+			repos.ReservationCourse,
+			repos.ReservationStaff,
+			repos.ReservationSchedule,
+			repos.ReservationAdmin,
+			repos.ReservationCustomerMgr,
+			repos.DB(),
+			notifier,
+		),
 	}
 }

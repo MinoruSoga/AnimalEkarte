@@ -68,7 +68,7 @@ func defaultOwnerRepo() *mockOwnerRepository {
 // defaultInsuranceRepo は insurance を常に見つけるモック（cross-clinic validation パスさせる用）
 func defaultInsuranceRepo(clinicID uint64) *mockInsuranceRepository {
 	return &mockInsuranceRepository{
-		findByIDFn: func(_ context.Context, _ uint64) (*model.Insurance, error) {
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Insurance, error) {
 			return &model.Insurance{ID: 1, ClinicID: clinicID}, nil
 		},
 	}

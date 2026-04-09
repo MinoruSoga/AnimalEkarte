@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { addHours } from "date-fns";
 import { toast } from "sonner";
@@ -45,6 +45,10 @@ export function useReservationManagement() {
   const createMutation = useCreateReservation();
   const updateMutation = useUpdateReservation();
   const deleteMutation = useDeleteReservation();
+
+  // useTransition for update and delete mutations
+  const [, startUpdateTransition] = useTransition();
+  const [, startDeleteTransition] = useTransition();
 
   // Edit/Create Modal State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -174,14 +178,16 @@ export function useReservationManagement() {
             notes: data.notes,
           },
         };
-        updateMutation.mutate(updatePayload, {
-          onSuccess: () => {
-            toast.success("予約を更新しました", { description: `担当医: ${targetDoctor}` });
-            handleCloseForm();
-            if (locationFrom) {
-              navigate(locationFrom);
-            }
-          },
+        startUpdateTransition(() => {
+          updateMutation.mutate(updatePayload, {
+            onSuccess: () => {
+              toast.success("予約を更新しました", { description: `担当医: ${targetDoctor}` });
+              handleCloseForm();
+              if (locationFrom) {
+                navigate(locationFrom);
+              }
+            },
+          });
         });
       } else {
         // Create mode
@@ -232,12 +238,14 @@ export function useReservationManagement() {
         },
       };
 
-      updateMutation.mutate(updatePayload, {
-        onSuccess: () => {
-          toast.success("予約時間を変更しました", {
-            description: `${appointment.petName} / ${appointment.doctor}`,
-          });
-        },
+      startUpdateTransition(() => {
+        updateMutation.mutate(updatePayload, {
+          onSuccess: () => {
+            toast.success("予約時間を変更しました", {
+              description: `${appointment.petName} / ${appointment.doctor}`,
+            });
+          },
+        });
       });
     },
     [checkOverlap, updateMutation]
@@ -259,14 +267,16 @@ export function useReservationManagement() {
         },
       };
 
-      updateMutation.mutate(updatePayload, {
-        onSuccess: () => {
-          setDetailAppointment((prev) => (prev ? { ...prev, status } : null));
-          const statusLabel = getReservationStatusLabel(status);
-          toast.success("ステータスを更新しました", {
-            description: `${appointment.petName} → ${statusLabel}`,
-          });
-        },
+      startUpdateTransition(() => {
+        updateMutation.mutate(updatePayload, {
+          onSuccess: () => {
+            setDetailAppointment((prev) => (prev ? { ...prev, status } : null));
+            const statusLabel = getReservationStatusLabel(status);
+            toast.success("ステータスを更新しました", {
+              description: `${appointment.petName} → ${statusLabel}`,
+            });
+          },
+        });
       });
     },
     [updateMutation]
@@ -280,18 +290,20 @@ export function useReservationManagement() {
 
   const executeDelete = useCallback(() => {
     if (!deleteTarget) return;
-    deleteMutation.mutate(deleteTarget.id, {
-      onSuccess: () => {
-        setDeleteConfirmOpen(false);
-        setDeleteTarget(null);
-        handleCloseDetail();
-        toast.success("予約を削除しました", {
-          description: `${deleteTarget.petName} (${deleteTarget.ownerName}様)`,
-        });
-      },
-      onError: (error: unknown) => {
-        handleApiError(error, "削除");
-      },
+    startDeleteTransition(() => {
+      deleteMutation.mutate(deleteTarget.id, {
+        onSuccess: () => {
+          setDeleteConfirmOpen(false);
+          setDeleteTarget(null);
+          handleCloseDetail();
+          toast.success("予約を削除しました", {
+            description: `${deleteTarget.petName} (${deleteTarget.ownerName}様)`,
+          });
+        },
+        onError: (error: unknown) => {
+          handleApiError(error, "削除");
+        },
+      });
     });
   }, [deleteTarget, deleteMutation, handleCloseDetail]);
 

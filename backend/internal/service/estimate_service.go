@@ -60,16 +60,39 @@ func NewEstimateService(repo repository.EstimateRepository) EstimateService {
 }
 
 func (s *estimateService) List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, ownerID, medicalRecordID, status, page, limit)
+	result, total, err := s.repo.FindAll(ctx, clinicID, ownerID, medicalRecordID, status, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list estimate")
+	}
+	return result, total, nil
 }
 
 func (s *estimateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get estimate")
+	}
+	return result, nil
 }
 
 func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error) {
 	if input.Title == "" {
 		return nil, apperrors.WrapInvalidInput("title is required")
+	}
+	if input.Subtotal < 0 {
+		return nil, apperrors.WrapInvalidInput("subtotal must be 0 or greater")
+	}
+	if input.TaxTotal < 0 {
+		return nil, apperrors.WrapInvalidInput("tax_total must be 0 or greater")
+	}
+	if input.TotalAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("total_amount must be 0 or greater")
+	}
+	if input.InsuranceAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("insurance_amount must be 0 or greater")
+	}
+	if input.DiscountAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
 	}
 
 	estimate := &model.Estimate{
@@ -103,6 +126,21 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 }
 
 func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
+	if input.Subtotal != nil && *input.Subtotal < 0 {
+		return nil, apperrors.WrapInvalidInput("subtotal must be 0 or greater")
+	}
+	if input.TaxTotal != nil && *input.TaxTotal < 0 {
+		return nil, apperrors.WrapInvalidInput("tax_total must be 0 or greater")
+	}
+	if input.TotalAmount != nil && *input.TotalAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("total_amount must be 0 or greater")
+	}
+	if input.InsuranceAmount != nil && *input.InsuranceAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("insurance_amount must be 0 or greater")
+	}
+	if input.DiscountAmount != nil && *input.DiscountAmount < 0 {
+		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
+	}
 	fields := buildEstimateUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -117,6 +155,13 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 }
 
 func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error {
+	count, err := s.repo.CountItemsByEstimateID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check estimate item dependencies")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この見積書には明細が登録されているため削除できません")
+	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete estimate")
 	}

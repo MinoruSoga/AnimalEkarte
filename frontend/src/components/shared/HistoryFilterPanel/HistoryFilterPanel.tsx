@@ -1,4 +1,4 @@
-import React from "react";
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +28,7 @@ interface HistoryFilterPanelProps {
   onClear: () => void;
 }
 
-export const HistoryFilterPanel = React.memo(function HistoryFilterPanel({
+export const HistoryFilterPanel = memo(function HistoryFilterPanel({
   showDateRange = true,
   filterStartDate = "",
   onFilterStartDateChange,

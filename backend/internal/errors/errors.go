@@ -13,6 +13,7 @@ import (
 var (
 	ErrNotFound      = errors.New("resource not found")
 	ErrAlreadyExists = errors.New("resource already exists")
+	ErrConflict      = errors.New("resource conflict") // FK依存・削除不可など 409 Conflict 専用
 	ErrInvalidInput  = errors.New("invalid input")
 	ErrUnauthorized  = errors.New("unauthorized")
 	ErrForbidden     = errors.New("forbidden")
@@ -89,13 +90,13 @@ func WrapConflict(message string) error {
 	return &AppError{
 		Code:    "CONFLICT",
 		Message: message,
-		Err:     ErrAlreadyExists, // ErrAlreadyExists → 409 Conflict にマッピング済み
+		Err:     ErrConflict,
 	}
 }
 
 // IsConflict は 409 Conflict 系エラーかどうかを判定する
 func IsConflict(err error) bool {
-	return errors.Is(err, ErrAlreadyExists)
+	return errors.Is(err, ErrConflict)
 }
 
 // WrapForbidden はアクセス拒否エラーを生成する

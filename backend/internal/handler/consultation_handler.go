@@ -16,12 +16,16 @@ import (
 
 // GetConsultation godoc
 func (h *Handler) GetConsultation(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	consultation, err := h.svc.Consultation.GetByID(c.Request.Context(), id)
+	consultation, err := h.svc.Consultation.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -150,12 +154,16 @@ func (h *Handler) ReorderConsultations(c *gin.Context) {
 
 // DeleteConsultation godoc
 func (h *Handler) DeleteConsultation(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.Consultation.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.Consultation.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

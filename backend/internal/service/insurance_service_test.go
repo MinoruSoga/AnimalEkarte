@@ -14,10 +14,10 @@ import (
 // mockInsuranceRepository は InsuranceRepository のテスト用モック実装
 type mockInsuranceRepository struct {
 	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
-	findByIDFn     func(ctx context.Context, id uint64) (*model.Insurance, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
 	createFn       func(ctx context.Context, insurance *model.Insurance) error
 	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
-	deleteFn       func(ctx context.Context, id uint64) error
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 	reorderErr     error
 }
 
@@ -25,8 +25,8 @@ func (m *mockInsuranceRepository) FindAll(ctx context.Context, clinicID uint64) 
 	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockInsuranceRepository) FindByID(ctx context.Context, id uint64) (*model.Insurance, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockInsuranceRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockInsuranceRepository) Create(ctx context.Context, insurance *model.Insurance) error {
@@ -37,8 +37,8 @@ func (m *mockInsuranceRepository) UpdateFields(ctx context.Context, clinicID, id
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockInsuranceRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockInsuranceRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 func (m *mockInsuranceRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
@@ -146,13 +146,13 @@ func TestInsuranceService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInsuranceRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Insurance, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Insurance, error) {
 					return tt.repoInsurance, tt.repoErr
 				},
 			}
 			svc := NewInsuranceService(repo)
 
-			insurance, err := svc.GetByID(context.Background(), tt.id)
+			insurance, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -356,13 +356,13 @@ func TestInsuranceService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInsuranceRepository{
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewInsuranceService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

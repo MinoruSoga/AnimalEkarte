@@ -1,8 +1,8 @@
 // React/Framework
-import React from "react";
+import { memo } from "react";
 
 // Internal
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Relative
 import { DiagnosisHeaderChiefComplaint } from "./DiagnosisHeaderChiefComplaint";
@@ -25,7 +25,7 @@ interface DiagnosisHeaderProps {
   setDiagnosis2NameId?: (id: number | null) => void;
 }
 
-export const DiagnosisHeader = React.memo(function DiagnosisHeader({
+export const DiagnosisHeader = memo(function DiagnosisHeader({
   chiefComplaint,
   policy,
   setPolicy,

@@ -105,11 +105,19 @@ func NewAccountingService(repo repository.AccountingRepository) AccountingServic
 }
 
 func (s *accountingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	result, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list accounting")
+	}
+	return result, total, nil
 }
 
 func (s *accountingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get accounting")
+	}
+	return result, nil
 }
 
 func (s *accountingService) Create(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error) {

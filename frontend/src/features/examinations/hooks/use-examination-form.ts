@@ -1,5 +1,6 @@
 import { useState, useEffect, useTransition, useCallback, useActionState, useRef } from "react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import { useNavigate, useSearchParams } from "react-router";
 import type { ExaminationRecord } from "@/types";
 import { paths } from "@/config/paths";
@@ -125,8 +126,8 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
           await createMutation.mutateAsync(req);
         }
         return { success: true, timestamp: Date.now() };
-      } catch {
-        toast.error("保存に失敗しました");
+      } catch (error) {
+        handleApiError(error, "保存");
         return { success: false, timestamp: Date.now() };
       }
     },

@@ -36,7 +36,7 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, inquiry
 	if err := r.db.WithContext(ctx).
 		Where(model.Inquiry{MedicalRecordID: inquiry.MedicalRecordID}).
 		FirstOrCreate(&existing).Error; err != nil {
-		return nil, apperrors.Wrap(err, "upsert inquiry: first or create")
+		return nil, apperrors.FromGORM(err, "inquiry", "")
 	}
 
 	// Step 2: 更新フィールドを map[string]any で明示的に Updates（GORM ゼロ値問題を回避）
@@ -58,7 +58,7 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, inquiry
 	if err := r.db.WithContext(ctx).
 		Model(&existing).
 		Updates(updates).Error; err != nil {
-		return nil, apperrors.Wrap(err, "upsert inquiry: update fields")
+		return nil, apperrors.FromGORM(err, "inquiry", "")
 	}
 
 	// 最新状態を返す（フィールドをローカル変数に反映）
@@ -88,7 +88,7 @@ func (r *inquiryRepository) CountByChiefComplaintCategoryID(ctx context.Context,
 		Where("chief_complaint_category_id = ?", categoryID).
 		Count(&count).Error
 	if err != nil {
-		return 0, apperrors.Wrap(err, "count inquiries by chief_complaint_category_id")
+		return 0, apperrors.FromGORM(err, "inquiry", "")
 	}
 	return count, nil
 }

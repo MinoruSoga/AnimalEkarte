@@ -14,26 +14,26 @@ import (
 // ---- ClinicalPlan モック ----
 
 type mockClinicalPlanRepository struct {
-	findByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) (*model.ClinicalPlan, error)
+	findByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
 	createFn                func(ctx context.Context, plan *model.ClinicalPlan) error
-	updateFn                func(ctx context.Context, planID uint64, fields map[string]any) error
-	deleteFn                func(ctx context.Context, planID uint64) error
+	updateFn                func(ctx context.Context, clinicID, planID uint64, fields map[string]any) error
+	deleteFn                func(ctx context.Context, clinicID, planID uint64) error
 }
 
-func (m *mockClinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (*model.ClinicalPlan, error) {
-	return m.findByMedicalRecordIDFn(ctx, medicalRecordID)
+func (m *mockClinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
+	return m.findByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
 func (m *mockClinicalPlanRepository) Create(ctx context.Context, plan *model.ClinicalPlan) error {
 	return m.createFn(ctx, plan)
 }
 
-func (m *mockClinicalPlanRepository) Update(ctx context.Context, planID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, planID, fields)
+func (m *mockClinicalPlanRepository) Update(ctx context.Context, clinicID, planID uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, planID, fields)
 }
 
-func (m *mockClinicalPlanRepository) Delete(ctx context.Context, planID uint64) error {
-	return m.deleteFn(ctx, planID)
+func (m *mockClinicalPlanRepository) Delete(ctx context.Context, clinicID, planID uint64) error {
+	return m.deleteFn(ctx, clinicID, planID)
 }
 
 // ---- Tests ----
@@ -96,7 +96,7 @@ func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockClinicalPlanRepository{
-				findByMedicalRecordIDFn: func(_ context.Context, _ uint64) (*model.ClinicalPlan, error) {
+				findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 					if tt.findByRecordIDErr != nil {
 						return nil, tt.findByRecordIDErr
 					}
@@ -108,7 +108,7 @@ func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 			}
 			svc := NewClinicalPlanService(repo)
 
-			plan, err := svc.GetOrCreate(context.Background(), tt.medicalRecordID)
+			plan, err := svc.GetOrCreate(context.Background(), 1, tt.medicalRecordID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -221,7 +221,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockClinicalPlanRepository{
-				findByMedicalRecordIDFn: func(_ context.Context, _ uint64) (*model.ClinicalPlan, error) {
+				findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 					if tt.repoFindErr != nil {
 						return nil, tt.repoFindErr
 					}
@@ -230,13 +230,13 @@ func TestClinicalPlanService_Update(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.ClinicalPlan) error {
 					return nil
 				},
-				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoUpdateErr
 				},
 			}
 			svc := NewClinicalPlanService(repo)
 
-			plan, err := svc.Update(context.Background(), tt.medicalRecordID, tt.input)
+			plan, err := svc.Update(context.Background(), 1, tt.medicalRecordID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -292,16 +292,16 @@ func TestClinicalPlanService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockClinicalPlanRepository{
-				findByMedicalRecordIDFn: func(_ context.Context, _ uint64) (*model.ClinicalPlan, error) {
+				findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 					return tt.repoPlan, tt.findByRecordIDErr
 				},
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.deleteErr
 				},
 			}
 			svc := NewClinicalPlanService(repo)
 
-			err := svc.Delete(context.Background(), tt.medicalRecordID)
+			err := svc.Delete(context.Background(), 1, tt.medicalRecordID)
 
 			if tt.wantErr {
 				assert.Error(t, err)

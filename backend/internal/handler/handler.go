@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -45,8 +46,9 @@ func (h *Handler) Health(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-// RegisterRoutes はすべてのルートを登録する
-func (h *Handler) RegisterRoutes(r *gin.Engine) {
+// RegisterRoutes はすべてのルートを登録する。
+// ctx はバックグラウンドゴルーチン（rate limiter cleanup 等）のライフタイム管理に使用する。
+func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	// Health check エンドポイント（ルートレベル）
 	r.GET("/health", h.Health)
 
@@ -56,7 +58,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	api := r.Group("/api/v1")
 
 	// 認証関連（保護なし）— ログインにはレートリミット適用（BUG-130: ブルートフォース対策）
-	loginRateStore := middleware.NewRateLimitStore()
+	loginRateStore := middleware.NewRateLimitStore(ctx)
 	api.POST("/login", middleware.RateLimit(loginRateStore, 5.0/60, 5), h.Login) // 5回/分
 	api.POST("/logout", h.Logout)
 	api.POST("/auth/refresh", h.RefreshToken) // BUG-136: refresh token エンドポイント
@@ -86,6 +88,10 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	h.RegisterCompanyRoutes(protected)
 	h.RegisterGlobalCheckupRoutes(protected)
 	h.RegisterBillingItemRoutes(protected)
+	h.RegisterLineReservationRoutes(protected)
+
+	// LIFF公開API（JWT認証なし・LINE IDトークン認証）
+	h.RegisterLiffRoutes(r)
 }
 
 // registerOwnerRoutesWithAuth は飼主ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）

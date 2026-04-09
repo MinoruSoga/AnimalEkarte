@@ -143,7 +143,7 @@ export function useOwnerForm(
         errors.homePostalCode = "郵便番号の形式が正しくありません（例: 123-4567）";
       }
       // BUG-066: 値引率は 0〜100 の範囲
-      if (ownerData.discountRate < 0 || ownerData.discountRate > 100) {
+      if (ownerData.discountRate != null && (ownerData.discountRate < 0 || ownerData.discountRate > 100)) {
         errors.discountRate = "値引率は0〜100の範囲で入力してください";
       }
 

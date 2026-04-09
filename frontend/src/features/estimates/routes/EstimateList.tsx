@@ -1,5 +1,6 @@
 import { ICON, C } from "@/lib/design-tokens";
-import { useState, useMemo, useDeferredValue, useCallback } from "react";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
+import { useState, useMemo, useDeferredValue, useCallback, useTransition } from "react";
 import { useNavigate } from "react-router";
 import { usePermission } from "@/features/auth";
 import { useModalState } from "@/hooks/use-modal-state";
@@ -84,6 +85,7 @@ export function EstimateList() {
 
   const { data: result, isLoading, isError } = useGetEstimates();
   const { mutate: deleteEstimate } = useDeleteEstimate();
+  const [isDeletePending, startDeleteTransition] = useTransition();
 
   // フィルタ + 検索 + ソートを適用
   const filtered = useMemo(() => {
@@ -171,9 +173,12 @@ export function EstimateList() {
   });
 
   const handleDeleteConfirm = useCallback(() => {
-    if (deleteModal.item == null) return;
-    deleteEstimate(deleteModal.item);
-    deleteModal.close();
+    const itemId = deleteModal.item;
+    if (itemId == null) return;
+    startDeleteTransition(() => {
+      deleteEstimate(itemId);
+      deleteModal.close();
+    });
   }, [deleteModal, deleteEstimate]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
@@ -223,14 +228,10 @@ export function EstimateList() {
   ), [navigate, canEdit, canDelete, deleteModal]);
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
-      </div>
-    );
+    return <LoadingFallback />;
   }
   if (isError) {
-    return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
+    return <div className={`p-4 ${C.danger}`}>データの取得に失敗しました</div>;
   }
 
   return (
@@ -291,6 +292,7 @@ export function EstimateList() {
         description="この操作は取り消せません。"
         confirmLabel="削除"
         variant="destructive"
+        isPending={isDeletePending}
       />
     </PageLayout>
   );

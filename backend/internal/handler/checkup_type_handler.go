@@ -16,12 +16,16 @@ import (
 
 // GetCheckupType godoc
 func (h *Handler) GetCheckupType(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	checkupType, err := h.svc.CheckupType.GetByID(c.Request.Context(), id)
+	checkupType, err := h.svc.CheckupType.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -31,7 +35,11 @@ func (h *Handler) GetCheckupType(c *gin.Context) {
 
 // ListCheckupTypes godoc
 func (h *Handler) ListCheckupTypes(c *gin.Context) {
-	checkupTypes, err := h.svc.CheckupType.List(c.Request.Context())
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	checkupTypes, err := h.svc.CheckupType.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -128,12 +136,16 @@ func (h *Handler) ReorderCheckupTypes(c *gin.Context) {
 
 // DeleteCheckupType godoc
 func (h *Handler) DeleteCheckupType(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.CheckupType.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.CheckupType.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

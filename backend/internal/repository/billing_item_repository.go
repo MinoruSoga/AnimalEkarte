@@ -13,7 +13,7 @@ import (
 
 // BillingItemRepository は billing_items テーブルの CRUD を担うインターフェース
 type BillingItemRepository interface {
-	FindByID(ctx context.Context, id uint64) (*model.BillingItem, error)
+	FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error)
 	FindByBillingID(ctx context.Context, billingID uint64) ([]model.BillingItem, error)
 	Create(ctx context.Context, item *model.BillingItem) error
 	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
@@ -28,9 +28,12 @@ func NewBillingItemRepository(db *gorm.DB) BillingItemRepository {
 	return &billingItemRepository{db: db}
 }
 
-func (r *billingItemRepository) FindByID(ctx context.Context, id uint64) (*model.BillingItem, error) {
+func (r *billingItemRepository) FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error) {
 	var item model.BillingItem
-	err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error
+	err := r.db.WithContext(ctx).
+		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ?", clinicID).
+		Where("billing_items.id = ?", id).
+		First(&item).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("%d", id))
 	}
@@ -43,14 +46,14 @@ func (r *billingItemRepository) FindByBillingID(ctx context.Context, billingID u
 		Where("billing_id = ?", billingID).
 		Order("sort_order ASC, id ASC").
 		Find(&items).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find billing items by billing id")
+		return nil, apperrors.FromGORM(err, "billing_item", "")
 	}
 	return items, nil
 }
 
 func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {
 	if err := r.db.WithContext(ctx).Create(item).Error; err != nil {
-		return apperrors.Wrap(err, "create billing item")
+		return apperrors.FromGORM(err, "billing_item", "")
 	}
 	return nil
 }
@@ -61,7 +64,7 @@ func (r *billingItemRepository) UpdateFields(ctx context.Context, id uint64, fie
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update billing item")
+		return apperrors.FromGORM(result.Error, "billing_item", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("billing_item", fmt.Sprintf("%d", id))
@@ -72,7 +75,7 @@ func (r *billingItemRepository) UpdateFields(ctx context.Context, id uint64, fie
 func (r *billingItemRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.BillingItem{}, "id = ?", id)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete billing item")
+		return apperrors.FromGORM(result.Error, "billing_item", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("billing_item", fmt.Sprintf("%d", id))
@@ -90,7 +93,7 @@ func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, billing
 			"total_amount": totalAmount,
 		})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update billing totals")
+		return apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
 	}
 	return nil
 }

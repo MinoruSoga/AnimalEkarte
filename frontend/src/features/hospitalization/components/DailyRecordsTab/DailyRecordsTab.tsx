@@ -15,7 +15,7 @@ import { DailyVitalsSection } from "@/features/hospitalization/components/DailyR
 import { DailyCareLogsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyCareLogsSection";
 import { DailyStaffNotesSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyStaffNotesSection";
 import { useDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "@/features/hospitalization/api/daily-records";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // Types
 import type { CreateVitalRecordRequest, CreateCareLogRecordRequest, CreateStaffNoteRecordRequest } from "@/features/hospitalization/api/daily-records-types";
@@ -42,7 +42,8 @@ export function DailyRecordsTab({
     dischargeDate,
 }: DailyRecordsTabProps) {
     const { canCreate } = usePermission("hospitalization");
-    const today = useMemo(() => getTodayStr(), []);
+    // rerender-simple-expression-in-memo: string primitive は値比較のため useMemo 不要
+    const today = getTodayStr();
     const effectiveMax = useMemo(
         () => (dischargeDate && dischargeDate < today ? dischargeDate : today),
         [dischargeDate, today]

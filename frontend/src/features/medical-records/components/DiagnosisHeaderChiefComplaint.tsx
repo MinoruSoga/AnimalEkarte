@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import React from "react";
+import { memo } from "react";
 
 // External
 import { FileText } from "lucide-react";
@@ -13,7 +13,7 @@ interface DiagnosisHeaderChiefComplaintProps {
   content?: string;
 }
 
-export const DiagnosisHeaderChiefComplaint = React.memo(function DiagnosisHeaderChiefComplaint({ 
+export const DiagnosisHeaderChiefComplaint = memo(function DiagnosisHeaderChiefComplaint({ 
   content 
 }: DiagnosisHeaderChiefComplaintProps) {
   return (

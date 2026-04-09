@@ -83,7 +83,7 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
       <TableCell className={`text-base ${C.text} py-2`}>
         <div className="flex items-center gap-1.5">
           {!isValidStaff(record.staff) ? (
-            <AlertTriangle className={`${ICON.action} text-amber-500`} />
+            <AlertTriangle className={`${ICON.action} ${C.textWarningIcon}`} />
           ) : null}
           {record.staff}
         </div>

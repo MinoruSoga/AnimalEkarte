@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
+import { useState, useRef, useMemo, useCallback, memo, useDeferredValue, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
@@ -16,6 +16,7 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
 import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -45,7 +46,7 @@ import type {
   UpdateDiagnosisNameRequest,
 } from "@/types/diagnosis";
 import { ResourceMasterMedical } from "@/types/generated/models";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // ─────────────────────────────────────────────────
 // Columns
@@ -116,6 +117,10 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
+  // rerender-dependencies: useRef でオブジェクト deps を回避
+  const formDataRef = useRef(formData);
+  useEffect(() => { formDataRef.current = formData; }, [formData]);
+
   const handleTitleChange = useCallback((v: string) => {
     setFormData((prev) => ({ ...prev, name: v }));
     setIsDirty(true);
@@ -133,14 +138,15 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
   }, []);
 
   const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
+    const current = formDataRef.current;
+    if (!current.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
+    onSave(current);
     setIsDirty(false);
-  }, [formData, onSave]);
+  }, [onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -210,6 +216,10 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
+  // rerender-dependencies: useRef でオブジェクト deps を回避
+  const formDataRef = useRef(formData);
+  useEffect(() => { formDataRef.current = formData; }, [formData]);
+
   const handleTitleChange = useCallback((v: string) => {
     setFormData((prev) => ({ ...prev, name: v }));
     setIsDirty(true);
@@ -232,14 +242,15 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   }, []);
 
   const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
+    const current = formDataRef.current;
+    if (!current.name.trim()) {
       setNameError("診断病名を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
+    onSave(current);
     setIsDirty(false);
-  }, [formData, onSave]);
+  }, [onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -537,7 +548,7 @@ export function DiagnosisSettings() {
             { id: catEditTarget.id, req },
             {
               onSuccess: () => { toast.success("更新しました"); catHandleClose(); },
-              onError: () => toast.error("更新に失敗しました"),
+              onError: (error) => handleApiError(error, "更新"),
             },
           );
         } else {
@@ -548,7 +559,7 @@ export function DiagnosisSettings() {
           };
           createCategoryMutation.mutate(req, {
             onSuccess: () => { toast.success("登録しました"); catHandleClose(); },
-            onError: () => toast.error("登録に失敗しました"),
+            onError: (error) => handleApiError(error, "登録"),
           });
         }
       });
@@ -578,7 +589,7 @@ export function DiagnosisSettings() {
             { id: nameEditTarget.id, req },
             {
               onSuccess: () => { toast.success("更新しました"); nameHandleClose(); },
-              onError: () => toast.error("更新に失敗しました"),
+              onError: (error) => handleApiError(error, "更新"),
             },
           );
         } else {
@@ -590,7 +601,7 @@ export function DiagnosisSettings() {
           };
           createNameMutation.mutate(req, {
             onSuccess: () => { toast.success("登録しました"); nameHandleClose(); },
-            onError: () => toast.error("登録に失敗しました"),
+            onError: (error) => handleApiError(error, "登録"),
           });
         }
       });

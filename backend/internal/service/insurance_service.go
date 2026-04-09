@@ -14,10 +14,10 @@ import (
 
 type InsuranceService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
-	GetByID(ctx context.Context, id uint64) (*model.Insurance, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
 	Create(ctx context.Context, insurance *model.Insurance) error
 	Update(ctx context.Context, clinicID, id uint64, input UpdateInsuranceInput) (*model.Insurance, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -30,13 +30,24 @@ func NewInsuranceService(repo repository.InsuranceRepository) InsuranceService {
 }
 
 func (s *insuranceService) List(ctx context.Context, clinicID uint64) ([]model.Insurance, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	result, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list insurance")
+	}
+	return result, nil
 }
-func (s *insuranceService) GetByID(ctx context.Context, id uint64) (*model.Insurance, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *insuranceService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error) {
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get insurance")
+	}
+	return result, nil
 }
 func (s *insuranceService) Create(ctx context.Context, insurance *model.Insurance) error {
-	return s.repo.Create(ctx, insurance)
+	if err := s.repo.Create(ctx, insurance); err != nil {
+		return apperrors.Wrap(err, "failed to create insurance")
+	}
+	return nil
 }
 func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, input UpdateInsuranceInput) (*model.Insurance, error) {
 	fields := buildInsuranceUpdateFields(input)
@@ -50,7 +61,7 @@ func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, inpu
 	slog.InfoContext(ctx, "insurance updated", slog.Uint64("insurance_id", id))
 	return insurance, nil
 }
-func (s *insuranceService) Delete(ctx context.Context, id uint64) error {
+func (s *insuranceService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountPetsByInsuranceID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check insurance dependencies")
@@ -59,7 +70,10 @@ func (s *insuranceService) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapConflict("この保険はペット情報で使用中のため削除できません")
 	}
 	slog.InfoContext(ctx, "insurance deleted", slog.Uint64("insurance_id", id))
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete insurance")
+	}
+	return nil
 }
 
 func (s *insuranceService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

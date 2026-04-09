@@ -28,6 +28,7 @@ npm-debug.log*
 
 # Go
 backend/tmp/
+backend/uploads/
 
 # Terraform
 *.tfplan

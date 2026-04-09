@@ -1,5 +1,5 @@
 // React/Framework
-import { lazy, Suspense, useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 // External
 import { CheckCircle, AlertCircle, Clock } from "lucide-react";
@@ -11,6 +11,7 @@ import { BADGE, C, ICON } from "@/lib/design-tokens";
 
 // Relative
 import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } from "@/features/medical-records/api/billing-review";
+import { useAuth } from "@/features/auth";
 import type { BillingReviewStatus } from "@/features/medical-records/types";
 
 const ReturnReasonDialog = lazy(() =>
@@ -45,17 +46,26 @@ export function BillingReviewSection({
   medicalRecordId,
 }: BillingReviewSectionProps) {
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
+  const { user } = useAuth();
+  const userId = Number(user?.id ?? 0);
+  // rerender-defer-reads: userIdRef でコールバック用の最新 userId を保持（JSX では未使用）
+  const userIdRef = useRef<number>(userId);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- userIdRef の更新（副作用なし、ref への書き込みのみ）
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
 
   const { data: review, isLoading } = useGetBillingReview(medicalRecordId);
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
-  const returnMutation = useReturnBillingReview(medicalRecordId);
+  const returnMutation = useReturnBillingReview(medicalRecordId, userId);
 
   const handleConfirm = useCallback(() => {
-    confirmMutation.mutate(undefined, {
-      onSuccess: () => {
-        toast.success("会計を確認しました");
-      },
-    });
+    confirmMutation.mutate(
+      { confirmed_by: userIdRef.current },
+      {
+        onSuccess: () => {
+          toast.success("会計を確認しました");
+        },
+      }
+    );
   }, [confirmMutation]);
 
   const handleReturnSubmit = useCallback((reason: string) => {
@@ -76,7 +86,11 @@ export function BillingReviewSection({
   }
 
   if (!review) {
-    return null;
+    return (
+      <div className={`flex items-center gap-2 px-3 py-1.5 text-sm ${C.text60}`}>
+        会計確認データがありません
+      </div>
+    );
   }
 
   const status = review.status as BillingReviewStatus;

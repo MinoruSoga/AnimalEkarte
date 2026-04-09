@@ -21,7 +21,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
     onUpdate
 }: HospitalizationTreatmentTableProps) {
   return (
-    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} ${H_STYLES.padding.box} mb-3`}>
+    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} ${H_STYLES.padding.box} mb-3`}>
       <div className="flex items-center justify-between mb-3">
         <h2 className={`${H_STYLES.text.base} font-bold flex items-center gap-2 ${C.text}`}>
           <FileText className={`${ICON.action} ${C.text60}`} />

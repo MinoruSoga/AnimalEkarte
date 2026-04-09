@@ -7,10 +7,9 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
-import { Plus, TestTube, FileSpreadsheet, Calendar, CircleDot, FlaskConical, User } from "lucide-react";
+import { Plus, TestTube, Calendar, CircleDot, FlaskConical, User } from "lucide-react";
 
 // Internal
-import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -246,12 +245,6 @@ export function ExaminationsList() {
       icon={<TestTube className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">
-          {canCreate ? (
-            <Button variant="outline" className="h-10 text-sm gap-2 bg-white" onClick={() => {}}>
-              <FileSpreadsheet className={ICON.action} />
-              検査データ取込
-            </Button>
-          ) : null}
           {canCreate ? (
             <PrimaryButton onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />

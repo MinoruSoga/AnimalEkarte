@@ -22,9 +22,9 @@ type UpdateClinicalPlanInput struct {
 
 // ClinicalPlanService は診察所見・診断・治療方針のビジネスロジックインターフェース
 type ClinicalPlanService interface {
-	GetOrCreate(ctx context.Context, medicalRecordID uint64) (*model.ClinicalPlan, error)
-	Update(ctx context.Context, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error)
-	Delete(ctx context.Context, medicalRecordID uint64) error
+	GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
+	Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error)
+	Delete(ctx context.Context, clinicID, medicalRecordID uint64) error
 }
 
 type clinicalPlanService struct {
@@ -36,8 +36,8 @@ func NewClinicalPlanService(repo repository.ClinicalPlanRepository) ClinicalPlan
 	return &clinicalPlanService{repo: repo}
 }
 
-func (s *clinicalPlanService) GetOrCreate(ctx context.Context, medicalRecordID uint64) (*model.ClinicalPlan, error) {
-	plan, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
+	plan, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
 			return nil, apperrors.Wrap(err, "failed to get clinical plan")
@@ -57,8 +57,8 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, medicalRecordID u
 	return plan, nil
 }
 
-func (s *clinicalPlanService) Update(ctx context.Context, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
-	plan, err := s.GetOrCreate(ctx, medicalRecordID)
+func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+	plan, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create clinical plan")
 	}
@@ -67,25 +67,25 @@ func (s *clinicalPlanService) Update(ctx context.Context, medicalRecordID uint64
 		// 全フィールドが未指定の場合は no-op として現在のレコードをそのまま返す
 		return plan, nil
 	}
-	if err := s.repo.Update(ctx, plan.ID, fields); err != nil {
+	if err := s.repo.Update(ctx, clinicID, plan.ID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update clinical plan")
 	}
 	slog.InfoContext(ctx, "clinical_plan updated",
 		slog.Uint64("clinical_plan_id", plan.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-	updated, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	updated, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get updated clinical plan")
 	}
 	return updated, nil
 }
 
-func (s *clinicalPlanService) Delete(ctx context.Context, medicalRecordID uint64) error {
-	plan, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecordID uint64) error {
+	plan, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get clinical plan")
 	}
-	if err := s.repo.Delete(ctx, plan.ID); err != nil {
+	if err := s.repo.Delete(ctx, clinicID, plan.ID); err != nil {
 		return apperrors.Wrap(err, "failed to delete clinical plan")
 	}
 	slog.InfoContext(ctx, "clinical_plan deleted",

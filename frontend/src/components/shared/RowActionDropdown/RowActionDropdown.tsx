@@ -44,7 +44,7 @@ export function RowActionDropdown({ actions }: RowActionDropdownProps) {
                 }}
                 className={
                   action.variant === "destructive"
-                    ? "text-red-600 focus:text-red-600 focus:bg-red-50"
+                    ? `${C.danger} ${C.hoverBgDanger5}`
                     : ""
                 }
               >

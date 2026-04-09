@@ -12,6 +12,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
@@ -23,7 +24,9 @@ import { MedicalRecordEstimate } from "../components/MedicalRecordEstimate";
 import { MedicalRecordBillCheck } from "../components/MedicalRecordBillCheck";
 import { MedicalRecordExamination } from "../components/MedicalRecordExamination";
 import { CheckupsTab } from "../components/CheckupsTab/CheckupsTab";
-import { StaffSelectionModal } from "../components/StaffSelectionModal";
+const StaffSelectionModal = lazy(() =>
+  import("../components/StaffSelectionModal").then((m) => ({ default: m.StaffSelectionModal }))
+);
 const VitalsModal = lazy(() =>
   import("../components/VitalsModal").then((m) => ({ default: m.VitalsModal }))
 );
@@ -70,7 +73,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     formState,
     isCreating,
     treatmentPlanItems: _treatmentPlanItems,
-    setTreatmentPlanItems,
+    setTreatmentPlanItems: _setTreatmentPlanItems,
     chiefComplaint,
     setChiefComplaint,
     chiefComplaintCategoryId,
@@ -238,11 +241,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setDiagnosis2NameId(id);
   }, [markDirty, setDiagnosis2NameId]);
 
-  const _handleSetTreatmentPlanItems = useCallback<typeof setTreatmentPlanItems>((items) => {
-    markDirty();
-    setTreatmentPlanItems(items);
-  }, [markDirty, setTreatmentPlanItems]);
-
   const handleSelectStaff = useCallback((newStaffId: string, newStaffName: string) => {
     setStaffName(newStaffName);
     if (recordId) {
@@ -255,7 +253,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }, []);
 
   if (isPetLoading) {
-    return null;
+    return <LoadingFallback />;
   }
 
   if (!selectedPet) {
@@ -503,12 +501,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       </Suspense>
 
       {/* Staff Selection Modal */}
-      <StaffSelectionModal
-        open={isStaffModalOpen}
-        selectedStaffName={staffName}
-        onSelect={handleSelectStaff}
-        onOpenChange={handleStaffModalOpenChange}
-      />
+      <Suspense fallback={null}>
+        <StaffSelectionModal
+          open={isStaffModalOpen}
+          selectedStaffName={staffName}
+          onSelect={handleSelectStaff}
+          onOpenChange={handleStaffModalOpenChange}
+        />
+      </Suspense>
 
       {/* Owner Search Modal (edit mode only) */}
       {!isNewRecord && recordId ? (

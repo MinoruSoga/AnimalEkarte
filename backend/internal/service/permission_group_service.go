@@ -82,7 +82,7 @@ func (s *permissionGroupService) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapConflict("この権限グループはスタッフに割り当てられているため削除できません")
 	}
 	if err := s.repo.Delete(ctx, id); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to delete permission group")
 	}
 	slog.InfoContext(ctx, "permission group deleted",
 		slog.Uint64("group_id", id))
@@ -101,7 +101,7 @@ func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, r
 
 func (s *permissionGroupService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to reorder permission groups")
 	}
 	slog.InfoContext(ctx, "permission groups reordered",
 		slog.Uint64("clinic_id", clinicID),

@@ -17,6 +17,7 @@ type EstimateRepository interface {
 	Create(ctx context.Context, estimate *model.Estimate) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
+	CountItemsByEstimateID(ctx context.Context, estimateID uint64) (int64, error)
 }
 
 type estimateRepository struct {
@@ -97,4 +98,16 @@ func (r *estimateRepository) Delete(ctx context.Context, clinicID, id uint64) er
 		return apperrors.WrapNotFound("estimate", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountItemsByEstimateID は見積書に紐付く明細行の件数を返す（BUG-201）
+func (r *estimateRepository) CountItemsByEstimateID(ctx context.Context, estimateID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.EstimateItem{}).
+		Where("estimate_id = ?", estimateID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "estimate_item", "")
+	}
+	return count, nil
 }

@@ -24,10 +24,10 @@ type UpdateInquiryTemplateInput struct {
 
 type InquiryTemplateService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error)
-	GetByID(ctx context.Context, id uint64) (*model.InquiryTemplate, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
 	Create(ctx context.Context, template *model.InquiryTemplate) error
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateInquiryTemplateInput) (*model.InquiryTemplate, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type inquiryTemplateService struct {
@@ -42,8 +42,8 @@ func (s *inquiryTemplateService) List(ctx context.Context, clinicID uint64) ([]m
 	return s.repo.FindAll(ctx, clinicID)
 }
 
-func (s *inquiryTemplateService) GetByID(ctx context.Context, id uint64) (*model.InquiryTemplate, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *inquiryTemplateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 
 func (s *inquiryTemplateService) Create(ctx context.Context, template *model.InquiryTemplate) error {
@@ -67,11 +67,11 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 	slog.InfoContext(ctx, "inquiry template updated",
 		slog.Uint64("template_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, id)
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 
-func (s *inquiryTemplateService) Delete(ctx context.Context, id uint64) error {
-	return s.repo.Delete(ctx, id)
+func (s *inquiryTemplateService) Delete(ctx context.Context, clinicID, id uint64) error {
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func buildInquiryTemplateUpdateFields(input *UpdateInquiryTemplateInput) map[string]any {

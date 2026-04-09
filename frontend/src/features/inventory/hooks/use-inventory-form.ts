@@ -1,4 +1,4 @@
-import { useState, useActionState, useEffect } from "react";
+import { useState, useActionState } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import {
@@ -25,17 +25,20 @@ export function useInventoryForm(id?: string) {
   const createMutation = useCreateInventoryItem();
   const updateMutation = useUpdateInventoryItem();
 
-  const [category, setCategory] = useState<InventoryItem["category"]>("medicine");
+  const [prevExistingItem, setPrevExistingItem] = useState(existingItem);
+  const [category, setCategory] = useState<InventoryItem["category"]>(
+    (existingItem?.category as InventoryItem["category"]) ?? "medicine"
+  );
   const [expiryDate, setExpiryDate] = useState("");
   const [lastRestocked, setLastRestocked] = useState("");
 
-  // Sync category with existing data
-  useEffect(() => {
+  // previous value パターン: レンダー中に同期（useEffect を排除）
+  if (prevExistingItem !== existingItem) {
+    setPrevExistingItem(existingItem);
     if (existingItem?.category) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 既存データのカテゴリを同期するパターン
       setCategory(existingItem.category as InventoryItem["category"]);
     }
-  }, [existingItem]);
+  }
 
   const resolvedExpiry =
     expiryDate ||

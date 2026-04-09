@@ -39,7 +39,7 @@ func (r *billingReviewRepository) FindByMedicalRecordID(ctx context.Context, med
 
 func (r *billingReviewRepository) Create(ctx context.Context, review *model.BillingReview) error {
 	if err := r.db.WithContext(ctx).Create(review).Error; err != nil {
-		return apperrors.Wrap(err, "create billing_review")
+		return apperrors.FromGORM(err, "billing_review", "")
 	}
 	return nil
 }
@@ -50,7 +50,7 @@ func (r *billingReviewRepository) Update(ctx context.Context, id uint64, fields 
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update billing_review")
+		return apperrors.FromGORM(result.Error, "billing_review", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("billing_review", fmt.Sprintf("%d", id))

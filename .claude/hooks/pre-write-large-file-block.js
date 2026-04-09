@@ -23,8 +23,8 @@ process.stdin.on('end', () => {
     const content = String(input.tool_input?.content || '');
     const filePath = String(input.tool_input?.file_path || '');
 
-    // Skip generated files and migrations
-    if (/generated|migrations|vendor|node_modules/.test(filePath)) {
+    // Skip generated files, migrations, and test files
+    if (/generated|migrations|vendor|node_modules|_test\.go$|\.test\.(ts|tsx)$/.test(filePath)) {
       process.stdout.write(data);
       process.exit(0);
     }

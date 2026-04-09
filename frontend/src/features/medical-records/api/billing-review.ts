@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Internal
 import { axios } from "@/lib/axios";
-import { useAuth } from "@/features/auth";
 
 // Relative
 import type { BillingReview, ReturnBillingReviewInput } from "../types";
@@ -51,16 +50,16 @@ export function useConfirmBillingReview(medicalRecordId: string) {
 }
 
 // POST /v1/medical-records/:id/billing-review/return
-export function useReturnBillingReview(medicalRecordId: string) {
+// rerender-defer-reads: userId は呼び出し側で useAuth から取得して渡す（hook 内の useAuth 依存を排除）
+export function useReturnBillingReview(medicalRecordId: string, userId: number) {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
   return useMutation({
     mutationFn: (input: ReturnBillingReviewInput) =>
       axios.post<BillingReview>(
         `/v1/medical-records/${medicalRecordId}/billing-review/return`,
         {
-          returned_by: Number(user?.id ?? 0),
+          returned_by: userId,
           return_reason: input.return_reason,
         }
       ),

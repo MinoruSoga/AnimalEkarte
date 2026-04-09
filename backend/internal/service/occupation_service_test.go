@@ -15,10 +15,10 @@ import (
 
 type mockOccupationRepository struct {
 	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.Occupation, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
 	createFn   func(ctx context.Context, occupation *model.Occupation) error
 	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, id uint64) error
+	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 	reorderErr error
 }
 
@@ -26,8 +26,8 @@ func (m *mockOccupationRepository) FindAll(ctx context.Context, clinicID uint64)
 	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockOccupationRepository) FindByID(ctx context.Context, id uint64) (*model.Occupation, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockOccupationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockOccupationRepository) Create(ctx context.Context, occupation *model.Occupation) error {
@@ -38,8 +38,8 @@ func (m *mockOccupationRepository) Update(ctx context.Context, clinicID, id uint
 	return m.updateFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockOccupationRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockOccupationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 func (m *mockOccupationRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
@@ -153,13 +153,13 @@ func TestOccupationService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockOccupationRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Occupation, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Occupation, error) {
 					return tt.repoOccupation, tt.repoErr
 				},
 			}
 			svc := NewOccupationService(repo)
 
-			occupation, err := svc.GetByID(context.Background(), tt.id)
+			occupation, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -303,7 +303,7 @@ func TestOccupationService_Update(t *testing.T) {
 				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoErr
 				},
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Occupation, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Occupation, error) {
 					if tt.repoErr != nil && apperrors.IsNotFound(tt.repoErr) {
 						return nil, tt.repoErr
 					}
@@ -357,13 +357,13 @@ func TestOccupationService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockOccupationRepository{
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewOccupationService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

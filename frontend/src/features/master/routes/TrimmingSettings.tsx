@@ -4,11 +4,12 @@ import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { ResourceMasterTrimming } from "@/types/generated/models";
-import { usePermission } from "@/features/auth/hooks/use-permission";
+import { usePermission } from "@/features/auth";
 
 // External
 import { Plus, Scissors } from "lucide-react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Shared
 import { TableCell } from "@/components/ui/table";
@@ -570,7 +571,7 @@ export function TrimmingSettings() {
             { id: courseEditTarget.id, req },
             {
               onSuccess: () => { toast.success("更新しました"); courseHandleClose(); },
-              onError: () => toast.error("更新に失敗しました"),
+              onError: (error) => handleApiError(error, "更新"),
             },
           );
         } else {
@@ -584,7 +585,7 @@ export function TrimmingSettings() {
           };
           createCourseMutation.mutate(req, {
             onSuccess: () => { toast.success("登録しました"); courseHandleClose(); },
-            onError: () => toast.error("登録に失敗しました"),
+            onError: (error) => handleApiError(error, "登録"),
           });
         }
       });
@@ -613,7 +614,7 @@ export function TrimmingSettings() {
             { id: optionEditTarget.id, req },
             {
               onSuccess: () => { toast.success("更新しました"); optionHandleClose(); },
-              onError: () => toast.error("更新に失敗しました"),
+              onError: (error) => handleApiError(error, "更新"),
             },
           );
         } else {
@@ -627,7 +628,7 @@ export function TrimmingSettings() {
           };
           createOptionMutation.mutate(req, {
             onSuccess: () => { toast.success("登録しました"); optionHandleClose(); },
-            onError: () => toast.error("登録に失敗しました"),
+            onError: (error) => handleApiError(error, "登録"),
           });
         }
       });

@@ -314,7 +314,7 @@ export function AccountingList() {
                 {statusLabel}
               </StatusBadge>
               {r.totalRefundedAmount > 0 ? (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded bg-orange-50 text-orange-600 border border-orange-200">
+                <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded ${C.bgDiscountLight} ${C.textDiscount} ${C.borderOrangeBadge}`}>
                   <RotateCcw className={ICON.action} />
                   返金あり
                 </span>
@@ -326,7 +326,7 @@ export function AccountingList() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                className={`h-8 w-8 ${C.accent} ${C.hoverTextAccent} ${C.hoverBgAccent5}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(paths.medicalRecords.detail.getHref(r.medicalRecordId!));

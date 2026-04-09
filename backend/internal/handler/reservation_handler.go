@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"context"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -252,68 +250,10 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 
 	// 受付済みに変更された場合はカルテを best-effort で自動作成する（BE-reception-auto-create-medical-record）
 	if svcInput.Status != nil && *svcInput.Status == model.ReservationStatusCheckedIn {
-		h.autoCreateMedicalRecord(ctx, clinicID, reservation)
+		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
 	}
 
 	c.JSON(http.StatusOK, reservation)
-}
-
-// autoCreateMedicalRecord は受付済みステータス変更時にカルテを best-effort で自動作成する。
-// 失敗してもメイン処理（予約更新）には影響しない。
-// 同日同ペットのカルテが既に存在する場合はスキップする（重複防止）。
-func (h *Handler) autoCreateMedicalRecord(ctx context.Context, clinicID uint64, reservation *model.ReservationAppointment) {
-	if reservation.PetID == nil || reservation.OwnerID == nil {
-		slog.WarnContext(ctx, "autoCreateMedicalRecord: skipped — reservation has no pet_id or owner_id",
-			slog.Uint64("reservation_id", reservation.ID))
-		return
-	}
-
-	// 同日同ペットのカルテ存在チェック（重複防止）
-	dateStr := reservation.StartTime.Format("2006-01-02")
-	_, total, err := h.svc.MedicalRecord.List(ctx, clinicID, reservation.PetID, nil, &dateStr, &dateStr, 1, 1)
-	if err != nil {
-		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to check existing records",
-			slog.Uint64("reservation_id", reservation.ID),
-			slog.String("error", err.Error()))
-		return
-	}
-	if total > 0 {
-		slog.InfoContext(ctx, "autoCreateMedicalRecord: skipped — same-day record already exists",
-			slog.Uint64("pet_id", *reservation.PetID),
-			slog.String("date", dateStr))
-		return
-	}
-
-	record := &model.MedicalRecord{
-		ClinicID:                 clinicID,
-		Date:                     reservation.StartTime,
-		OwnerID:                  reservation.OwnerID,
-		PetID:                    reservation.PetID,
-		ReservationAppointmentID: &reservation.ID,
-		Status:                   model.MedicalRecordStatusDraft,
-	}
-	if reservation.DoctorID != nil {
-		record.DoctorID = reservation.DoctorID
-	}
-
-	if err := h.svc.MedicalRecord.Create(ctx, record); err != nil {
-		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to create medical record",
-			slog.Uint64("reservation_id", reservation.ID),
-			slog.String("error", err.Error()))
-		return
-	}
-
-	// サブテーブル（inquiry, clinical_plan）を空レコードで作成（best-effort）
-	if _, err := h.svc.Inquiry.Upsert(ctx, service.UpsertInquiryInput{MedicalRecordID: record.ID}); err != nil {
-		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to upsert inquiry",
-			slog.Uint64("medical_record_id", record.ID),
-			slog.String("error", err.Error()))
-	}
-	if _, err := h.svc.ClinicalPlan.GetOrCreate(ctx, record.ID); err != nil {
-		slog.WarnContext(ctx, "autoCreateMedicalRecord: failed to get or create clinical plan",
-			slog.Uint64("medical_record_id", record.ID),
-			slog.String("error", err.Error()))
-	}
 }
 
 // DeleteReservation godoc

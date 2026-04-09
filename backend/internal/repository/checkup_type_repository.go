@@ -14,11 +14,11 @@ import (
 // ---- CheckupType ----
 
 type CheckupTypeRepository interface {
-	FindAll(ctx context.Context) ([]model.CheckupType, error)
-	FindByID(ctx context.Context, id uint64) (*model.CheckupType, error)
+	FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error)
 	Create(ctx context.Context, checkupType *model.CheckupType) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByCheckupTypeID(ctx context.Context, checkupTypeID uint64) (int64, error)
 }
@@ -29,18 +29,18 @@ func NewCheckupTypeRepository(db *gorm.DB) CheckupTypeRepository {
 	return &checkupTypeRepository{db: db}
 }
 
-func (r *checkupTypeRepository) FindAll(ctx context.Context) ([]model.CheckupType, error) {
+func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
 	checkupTypes := make([]model.CheckupType, 0)
-	err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&checkupTypes).Error
+	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&checkupTypes).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup_type", "")
 	}
 	return checkupTypes, nil
 }
 
-func (r *checkupTypeRepository) FindByID(ctx context.Context, id uint64) (*model.CheckupType, error) {
+func (r *checkupTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
 	var checkupType model.CheckupType
-	err := r.db.WithContext(ctx).First(&checkupType, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&checkupType, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup_type", fmt.Sprintf("%d", id))
 	}
@@ -69,11 +69,11 @@ func (r *checkupTypeRepository) UpdateFields(ctx context.Context, clinicID, id u
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("checkup_type", fmt.Sprintf("%d", id))
 	}
-	return r.FindByID(ctx, id)
+	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *checkupTypeRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.CheckupType{}, "id = ?", id)
+func (r *checkupTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.CheckupType{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
 	}

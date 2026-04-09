@@ -58,11 +58,19 @@ func NewDailyRecordService(repo repository.DailyRecordRepository) DailyRecordSer
 }
 
 func (s *dailyRecordService) List(ctx context.Context, hospitalizationID uint64) ([]model.DailyRecord, error) {
-	return s.repo.ListByHospitalizationID(ctx, hospitalizationID)
+	result, err := s.repo.ListByHospitalizationID(ctx, hospitalizationID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list daily record")
+	}
+	return result, nil
 }
 
 func (s *dailyRecordService) GetOrCreateByDate(ctx context.Context, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
-	return s.repo.GetOrCreateByDate(ctx, hospitalizationID, date)
+	result, err := s.repo.GetOrCreateByDate(ctx, hospitalizationID, date)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get or create daily record")
+	}
+	return result, nil
 }
 
 func (s *dailyRecordService) AddVitalRecord(ctx context.Context, hospitalizationID uint64, date time.Time, input *CreateVitalRecordInput) (*model.DailyRecord, error) {
@@ -91,7 +99,11 @@ func (s *dailyRecordService) AddVitalRecord(ctx context.Context, hospitalization
 		slog.Uint64("daily_record_id", daily.ID),
 		slog.Uint64("vital_record_id", vr.ID))
 
-	return s.repo.FindByHospitalizationIDAndDate(ctx, hospitalizationID, date)
+	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, hospitalizationID, date)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get daily record after adding vital")
+	}
+	return result, nil
 }
 
 func (s *dailyRecordService) AddCareLogRecord(ctx context.Context, hospitalizationID uint64, date time.Time, input *CreateCareLogRecordInput) (*model.DailyRecord, error) {
@@ -138,7 +150,11 @@ func (s *dailyRecordService) AddCareLogRecord(ctx context.Context, hospitalizati
 		slog.Uint64("daily_record_id", daily.ID),
 		slog.Uint64("care_log_record_id", cr.ID))
 
-	return s.repo.FindByHospitalizationIDAndDate(ctx, hospitalizationID, date)
+	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, hospitalizationID, date)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get daily record after adding care log")
+	}
+	return result, nil
 }
 
 func (s *dailyRecordService) AddStaffNoteRecord(ctx context.Context, hospitalizationID uint64, date time.Time, input *CreateStaffNoteRecordInput) (*model.DailyRecord, error) {
@@ -162,5 +178,9 @@ func (s *dailyRecordService) AddStaffNoteRecord(ctx context.Context, hospitaliza
 		slog.Uint64("daily_record_id", daily.ID),
 		slog.Uint64("staff_note_record_id", sn.ID))
 
-	return s.repo.FindByHospitalizationIDAndDate(ctx, hospitalizationID, date)
+	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, hospitalizationID, date)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get daily record after adding staff note")
+	}
+	return result, nil
 }

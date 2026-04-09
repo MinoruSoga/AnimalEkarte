@@ -73,7 +73,7 @@ export function mapMeToAuthUser(raw: unknown): AuthUser {
     email: me.email,
     displayName: me.display_name,
     isSystemAdmin: me.is_system_admin,
-    avatarUrl: me.avatar_url,
+    avatarUrl: me.avatar_url ?? null,
     mainClinicId: me.main_clinic_id,
     clinic: me.clinic ? mapMeClinicInfo(me.clinic) : null,
     clinics: me.clinics.map((c) => ({

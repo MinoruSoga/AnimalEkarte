@@ -34,7 +34,7 @@ func (r *serviceTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([
 		Where("clinic_id = ?", clinicID).
 		Order("sort_order ASC, name ASC").
 		Find(&serviceTypes).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find service types")
+		return nil, apperrors.FromGORM(err, "service_type", "")
 	}
 	return serviceTypes, nil
 }
@@ -53,7 +53,7 @@ func (r *serviceTypeRepository) Create(ctx context.Context, serviceType *model.S
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.Wrap(err, "create service type")
+		return apperrors.FromGORM(err, "service_type", "")
 	}
 	return nil
 }
@@ -64,7 +64,7 @@ func (r *serviceTypeRepository) Update(ctx context.Context, clinicID, id uint64,
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update service type")
+		return apperrors.FromGORM(result.Error, "service_type", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		var count int64
@@ -83,7 +83,7 @@ func (r *serviceTypeRepository) Delete(ctx context.Context, clinicID, id uint64)
 		if isFKConstraintErr(result.Error) {
 			return apperrors.WrapConflict("このサービス種別は予約に使用されているため削除できません")
 		}
-		return apperrors.Wrap(result.Error, "delete service type")
+		return apperrors.FromGORM(result.Error, "service_type", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("service_type", fmt.Sprintf("%d", id))

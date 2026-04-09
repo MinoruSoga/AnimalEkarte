@@ -13,11 +13,11 @@ import (
 // ---- VaccineService ----
 
 type VaccineService interface {
-	List(ctx context.Context, species *string) ([]model.Vaccine, error)
-	GetByID(ctx context.Context, id uint64) (*model.Vaccine, error)
+	List(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
 	Create(ctx context.Context, vaccine *model.Vaccine) error
 	Update(ctx context.Context, clinicID, id uint64, input UpdateVaccineInput) (*model.Vaccine, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -27,11 +27,11 @@ func NewVaccineService(repo repository.VaccineRepository) VaccineService {
 	return &vaccineService{repo: repo}
 }
 
-func (s *vaccineService) List(ctx context.Context, species *string) ([]model.Vaccine, error) {
-	return s.repo.FindAll(ctx, species)
+func (s *vaccineService) List(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
+	return s.repo.FindAll(ctx, clinicID, species)
 }
-func (s *vaccineService) GetByID(ctx context.Context, id uint64) (*model.Vaccine, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *vaccineService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 func (s *vaccineService) Create(ctx context.Context, vaccine *model.Vaccine) error {
 	return s.repo.Create(ctx, vaccine)
@@ -68,7 +68,7 @@ func buildVaccineUpdateFields(input UpdateVaccineInput) map[string]any {
 		fields["name"] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = input.Price
+		fields["price"] = *input.Price
 	}
 	if input.IsActive != nil {
 		fields["is_active"] = *input.IsActive
@@ -92,7 +92,7 @@ func buildVaccineUpdateFields(input UpdateVaccineInput) map[string]any {
 	}
 	return fields
 }
-func (s *vaccineService) Delete(ctx context.Context, id uint64) error {
+func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountUsageByVaccineID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check vaccine dependencies")
@@ -100,7 +100,7 @@ func (s *vaccineService) Delete(ctx context.Context, id uint64) error {
 	if count > 0 {
 		return apperrors.WrapConflict("このワクチンはワクチン接種記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func (s *vaccineService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

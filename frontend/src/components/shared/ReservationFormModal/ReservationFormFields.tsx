@@ -222,7 +222,7 @@ export function ReservationFormFields({
                 className={cn(
                   `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
                   formData.visitType === "first"
-                    ? "border-red-600 bg-red-50"
+                    ? `${C.borderDanger} ${C.bgDanger8}`
                     : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`
                 )}
               >
@@ -236,7 +236,7 @@ export function ReservationFormFields({
                 className={cn(
                   `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
                   formData.visitType === "revisit"
-                    ? "border-blue-600 bg-blue-50"
+                    ? `${C.borderAccent} ${C.bgAccent8}`
                     : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`
                 )}
               >

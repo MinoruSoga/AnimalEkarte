@@ -1,12 +1,13 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useDeferredValue } from "react";
 import { useSearchParams } from "react-router";
 
 // External
 import { Plus, LayoutGrid, List, Building2, Calendar, PawPrint } from "lucide-react";
 
 // Internal
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -90,6 +91,9 @@ export function HospitalizationList() {
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
+  // rerender-transitions: 検索ワードを useDeferredValue で遅延させ、入力中のリスト再計算コストを抑制
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+
   // rerender-dependencies: activeFilters から日付フィルタを抽出してサーバーサイドフィルタに渡す
   const dateFilters = useMemo<HospitalizationFilters>(() => {
     const dateFilter = activeFilters.find((f) => f.key === "startDate")?.value as
@@ -102,7 +106,7 @@ export function HospitalizationList() {
   }, [activeFilters]);
 
   // サーバーサイド日付フィルタ適用済みデータを取得
-  const { data: allHospitalizations = [] } = useGetHospitalizations(dateFilters);
+  const { data: allHospitalizations = [], isLoading: hospitalizationsLoading, isError: hospitalizationsError } = useGetHospitalizations(dateFilters);
 
   // js-cache-function-results: ロード済みデータから種の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
@@ -134,9 +138,9 @@ export function HospitalizationList() {
       });
     }
 
-    // テキスト検索
-    if (searchTerm) {
-      const lowerTerm = searchTerm.toLowerCase();
+    // テキスト検索（deferredSearchTerm で遅延評価）
+    if (deferredSearchTerm) {
+      const lowerTerm = deferredSearchTerm.toLowerCase();
       result = result.filter(
         (h) =>
           h.ownerName.toLowerCase().includes(lowerTerm) ||
@@ -172,7 +176,7 @@ export function HospitalizationList() {
     }
 
     return result;
-  }, [allHospitalizations, statusFilter, searchTerm, activeFilters]);
+  }, [allHospitalizations, statusFilter, deferredSearchTerm, activeFilters]);
 
   // Sort data for list view
   const sortedHospitalizations = useMemo(() => {
@@ -193,7 +197,7 @@ export function HospitalizationList() {
 
   const pagination = usePagination(sortedHospitalizations, {
     pageSize: 20,
-    resetKey: `${searchTerm}:${statusFilter}`,
+    resetKey: `${deferredSearchTerm}:${statusFilter}`,
   });
 
   // FE-144: URLクエリパラメータからページ番号を読み取る
@@ -221,6 +225,9 @@ export function HospitalizationList() {
       return next;
     }, { replace: true });
   }, [pagination, setSearchParams]);
+
+  if (hospitalizationsLoading) return <LoadingFallback />;
+  if (hospitalizationsError) return <ErrorFallback />;
 
   return (
     <PageLayout

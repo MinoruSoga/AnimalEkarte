@@ -85,7 +85,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending, canCreate = 
         <div>
             <div className="flex items-center justify-between mb-2">
                 <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
-                    <Activity className={`${ICON.action} text-blue-500`} />
+                    <Activity className={`${ICON.action} ${C.textMedicalBlue}`} />
                     バイタル
                 </h4>
                 {canCreate ? (
@@ -102,7 +102,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending, canCreate = 
             </div>
 
             {sorted.length === 0 ? (
-                <p className={`text-xs ${C.text40} py-3 text-center bg-gray-50 rounded border border-dashed ${C.borderMedium}`}>
+                <p className={`text-xs ${C.text40} py-3 text-center ${C.bgPage} rounded border border-dashed ${C.borderMedium}`}>
                     記録なし
                 </p>
             ) : (
@@ -110,10 +110,10 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending, canCreate = 
                     {sorted.map((v) => (
                         <div
                             key={v.id}
-                            className="text-xs bg-blue-50 rounded px-2.5 py-2 border border-blue-100"
+                            className={`text-xs ${C.bgAccentLight} rounded px-2.5 py-2 border ${C.borderAccentBadge}`}
                         >
                             <div className="flex items-center gap-2 mb-1">
-                                <span className="font-semibold text-blue-700">{v.time}</span>
+                                <span className={`font-semibold ${C.textAccentDark}`}>{v.time}</span>
                             </div>
                             <div className={`flex flex-wrap gap-x-3 gap-y-0.5 ${C.text70}`}>
                                 {v.temperature !== undefined && v.temperature !== null ? (
@@ -157,7 +157,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending, canCreate = 
                     <div className="space-y-3 py-2">
                         <div>
                             <Label htmlFor="vital-time" className="text-xs">
-                                時刻 <span className="text-red-500">*</span>
+                                時刻 <span className={C.textRequired}>*</span>
                             </Label>
                             <Input
                                 id="vital-time"

@@ -99,6 +99,7 @@ type BillingItem struct {
 	MerchandiseItemID     *uint64        `                                                      json:"merchandise_item_id,omitempty"`
 	SortOrder             int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt             time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt             time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 	DeletedAt             gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 }
 
@@ -117,9 +118,10 @@ type Payment struct {
 	BillingAmount   int64         `gorm:"not null;default:0"                             json:"billing_amount"`
 	ReceivedAmount  int64         `gorm:"default:0"                                      json:"received_amount"`
 	ChangeAmount    int64         `gorm:"default:0"                                      json:"change_amount"`
-	Method          PaymentMethod `gorm:"type:payment_method;default:'cash'"             json:"method"`
-	CreatedAt       time.Time     `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt       time.Time     `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	Method          PaymentMethod  `gorm:"type:payment_method;default:'cash'"             json:"method"`
+	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 }
 
 func (Payment) TableName() string { return "payments" }

@@ -1,17 +1,16 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useDeferredValue, useCallback, useEffect, useMemo } from "react";
+import { useState, useDeferredValue, useCallback, useEffect, useMemo, useTransition } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
-import { Plus, Syringe, FileSpreadsheet, Calendar, User, Pencil, Trash2 } from "lucide-react";
+import { Plus, Syringe, Calendar, User, Pencil, Trash2 } from "lucide-react";
 
 // Internal
 import { paths } from "@/config/paths";
-import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -24,6 +23,7 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
 
 // Relative
 import { useFilterVaccinations } from "../hooks/use-vaccinations";
@@ -66,6 +66,7 @@ export function VaccinationList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const deleteMutation = useDeleteVaccination();
+  const [isDeletePending, startDeleteTransition] = useTransition();
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearchTerm;
@@ -81,7 +82,7 @@ export function VaccinationList() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords, allVaccinations } = useFilterVaccinations(deferredSearchTerm, filters, activeFilters);
+  const { data: filteredRecords, allVaccinations, isLoading, error } = useFilterVaccinations(deferredSearchTerm, filters, activeFilters);
 
   // js-cache-function-results: ロード済みデータから担当医の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
@@ -140,8 +141,10 @@ export function VaccinationList() {
 
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDeleteId) return;
-    deleteMutation.mutate(pendingDeleteId, {
-      onSuccess: () => setPendingDeleteId(null),
+    startDeleteTransition(() => {
+      deleteMutation.mutate(pendingDeleteId, {
+        onSuccess: () => setPendingDeleteId(null),
+      });
     });
   }, [pendingDeleteId, deleteMutation]);
 
@@ -217,6 +220,9 @@ export function VaccinationList() {
     );
   }, [handleEdit, canEdit, canDelete]);
 
+  if (isLoading) return <LoadingFallback />;
+  if (error) return <ErrorFallback />;
+
   return (
     <>
     <PageLayout
@@ -225,12 +231,6 @@ export function VaccinationList() {
       icon={<Syringe className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">
-          {canCreate ? (
-            <Button variant="outline" className="h-10 text-base gap-2 bg-white" onClick={() => {}}>
-              <FileSpreadsheet className={ICON.action} />
-              データ取込
-            </Button>
-          ) : null}
           {canCreate ? (
             <PrimaryButton onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
@@ -288,6 +288,7 @@ export function VaccinationList() {
       confirmLabel="削除"
       variant="destructive"
       onConfirm={handleDeleteConfirm}
+      isPending={isDeletePending}
     />
     </>
   );

@@ -14,10 +14,10 @@ import (
 
 type HospitalizationPlanService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
-	GetByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
 	Update(ctx context.Context, clinicID, id uint64, input UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -30,13 +30,24 @@ func NewHospitalizationPlanService(repo repository.HospitalizationPlanRepository
 }
 
 func (s *hospitalizationPlanService) List(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	result, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list hospitalization plan")
+	}
+	return result, nil
 }
-func (s *hospitalizationPlanService) GetByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *hospitalizationPlanService) GetByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error) {
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get hospitalization plan")
+	}
+	return result, nil
 }
 func (s *hospitalizationPlanService) Create(ctx context.Context, plan *model.HospitalizationPlan) error {
-	return s.repo.Create(ctx, plan)
+	if err := s.repo.Create(ctx, plan); err != nil {
+		return apperrors.Wrap(err, "failed to create hospitalization plan")
+	}
+	return nil
 }
 func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id uint64, input UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
 	fields := buildHospitalizationPlanUpdateFields(input)
@@ -50,7 +61,7 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	slog.InfoContext(ctx, "hospitalization plan updated", slog.Uint64("hospitalization_plan_id", id))
 	return plan, nil
 }
-func (s *hospitalizationPlanService) Delete(ctx context.Context, id uint64) error {
+func (s *hospitalizationPlanService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountCarePlanItemsByPlanID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check hospitalization plan dependencies")
@@ -58,11 +69,17 @@ func (s *hospitalizationPlanService) Delete(ctx context.Context, id uint64) erro
 	if count > 0 {
 		return apperrors.WrapConflict("この入院プランはケアプランで使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete hospitalization plan")
+	}
+	return nil
 }
 
 func (s *hospitalizationPlanService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder hospitalization plan")
+	}
+	return nil
 }
 
 // UpdateHospitalizationPlanInput は入院プラン更新のサービス入力 DTO
@@ -84,7 +101,7 @@ func buildHospitalizationPlanUpdateFields(input UpdateHospitalizationPlanInput) 
 		fields["name"] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = input.Price
+		fields["price"] = *input.Price
 	}
 	if input.IsActive != nil {
 		fields["is_active"] = *input.IsActive

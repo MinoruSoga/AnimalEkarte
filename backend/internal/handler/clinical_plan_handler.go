@@ -14,12 +14,16 @@ import (
 // GetClinicalPlan godoc
 // GET /medical-records/:id/clinical-plan
 func (h *Handler) GetClinicalPlan(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	plan, err := h.svc.ClinicalPlan.GetOrCreate(c.Request.Context(), medicalRecordID)
+	plan, err := h.svc.ClinicalPlan.GetOrCreate(c.Request.Context(), clinicID, medicalRecordID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -30,6 +34,10 @@ func (h *Handler) GetClinicalPlan(c *gin.Context) {
 // UpdateClinicalPlan godoc
 // PATCH /medical-records/:id/clinical-plan
 func (h *Handler) UpdateClinicalPlan(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -49,7 +57,7 @@ func (h *Handler) UpdateClinicalPlan(c *gin.Context) {
 		Diagnosis2CategoryID: req.Diagnosis2CategoryID,
 		Diagnosis2NameID:     req.Diagnosis2NameID,
 	}
-	plan, err := h.svc.ClinicalPlan.Update(c.Request.Context(), medicalRecordID, input)
+	plan, err := h.svc.ClinicalPlan.Update(c.Request.Context(), clinicID, medicalRecordID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -60,12 +68,16 @@ func (h *Handler) UpdateClinicalPlan(c *gin.Context) {
 // DeleteClinicalPlan godoc
 // DELETE /medical-records/:id/clinical-plan
 func (h *Handler) DeleteClinicalPlan(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.ClinicalPlan.Delete(c.Request.Context(), medicalRecordID); err != nil {
+	if err := h.svc.ClinicalPlan.Delete(c.Request.Context(), clinicID, medicalRecordID); err != nil {
 		RespondError(c, err)
 		return
 	}

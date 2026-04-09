@@ -7,7 +7,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
-import { Plus, Package, FileSpreadsheet, AlertTriangle, CircleDot, FolderOpen } from "lucide-react";
+import { Plus, Package, AlertTriangle, CircleDot, FolderOpen } from "lucide-react";
 
 // Types
 import type {
@@ -19,7 +19,6 @@ import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
 
 // Internal
 import { paths } from "@/config/paths";
-import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -33,6 +32,7 @@ import { getInventoryStatusColor, getInventoryStatusLabel } from "@/utils/status
 import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
 
 // Relative
 import { useInventory } from "../hooks/use-inventory";
@@ -108,7 +108,7 @@ export function InventoryList() {
     ? (statusFilterEntry.value as StatusFilter)
     : "all";
 
-  const { data: filteredItems, summary } = useInventory({
+  const { data: filteredItems, summary, isLoading, isError } = useInventory({
     searchTerm: deferredSearch,
     category,
     statusFilter,
@@ -236,6 +236,9 @@ export function InventoryList() {
     </DataTableRow>
   ), [handleEdit, canEdit]);
 
+  if (isLoading) return <LoadingFallback />;
+  if (isError) return <ErrorFallback />;
+
   return (
     <PageLayout
       title="在庫管理"
@@ -243,16 +246,6 @@ export function InventoryList() {
       icon={<Package className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex items-center gap-2">
-          {canCreate ? (
-            <Button
-              variant="outline"
-              className="h-10 text-base gap-2 bg-white"
-              onClick={() => {}}
-            >
-              <FileSpreadsheet className={ICON.action} />
-              データ取込
-            </Button>
-          ) : null}
           {canCreate ? (
             <PrimaryButton onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
@@ -266,16 +259,16 @@ export function InventoryList() {
       <div className="flex flex-col gap-4">
         {/* Alert summary */}
         {(summary.lowStock > 0 || summary.outOfStock > 0) ? (
-          <div className="flex items-center gap-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <AlertTriangle className={`${ICON.page} text-amber-600`} />
+          <div className={`flex items-center gap-4 p-3 ${C.bgWarning50} ${C.borderWarning20} border rounded-lg`}>
+            <AlertTriangle className={`${ICON.page} ${C.textWarningIcon}`} />
             <div className="flex gap-4 text-base">
               {summary.outOfStock > 0 ? (
-                <span className="text-red-600 font-medium">
+                <span className={`${C.danger} font-medium`}>
                   在庫切れ: {summary.outOfStock}件
                 </span>
               ) : null}
               {summary.lowStock > 0 ? (
-                <span className="text-amber-600 font-medium">
+                <span className={`${C.textWarning} font-medium`}>
                   残少: {summary.lowStock}件
                 </span>
               ) : null}

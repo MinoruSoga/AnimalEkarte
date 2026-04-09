@@ -130,7 +130,7 @@ const TimeSidebar = memo(function TimeSidebar() {
           style={{ height: `${HOUR_HEIGHT}px` }}
         >
           {hour}:00
-          <div className="absolute top-0 right-0 w-1.5 h-[1px]" style={{ backgroundColor: PALETTE.borderMedium }} />
+          <div className={`absolute top-0 right-0 w-1.5 h-[1px] ${C.bgLight}`} />
         </div>
       ))}
     </div>
@@ -212,7 +212,7 @@ const AppointmentCard = memo(function AppointmentCard({
         ${isCompact ? "py-px px-1" : isNarrow ? "px-1 py-0.5" : "p-1"}
         ${isClassNameColor ? colorStyle : ""}
         ${isDimmed ? "opacity-60" : "opacity-100"}
-        ${isCancelled ? "line-through decoration-red-500/50" : ""}
+        ${isCancelled ? `line-through ${C.decorationDanger50}` : ""}
       `}
       role="button"
       aria-label={`${format(appointment.start, "H:mm")}〜${format(appointment.end, "H:mm")} ${appointment.petName} ${appointment.ownerName} ${getReservationTypeName(appointment.type)}`}
@@ -441,8 +441,8 @@ const DayColumn = memo(function DayColumn({
       {/* Current Time Indicator */}
       {isToday ? (
         <div
-          className={`absolute w-full border-t-2 border-red-400 z-20 pointer-events-none`}
-          style={{ top: `${currentTimeTop}px` }}
+          className="absolute w-full border-t-2 z-20 pointer-events-none"
+          style={{ borderColor: PALETTE.danger, top: `${currentTimeTop}px` }}
         >
           <div className={`absolute -left-1 -top-1.5 w-3 h-3 rounded-full ${C.bgNotionRed}`} />
         </div>

@@ -57,12 +57,12 @@ const BasicInfoSection = memo(function BasicInfoSection({
   onMarkDirty,
 }: BasicInfoSectionProps) {
   return (
-    <div className={`bg-white rounded-lg border ${C.borderMedium} p-6`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>基本情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
           <Label htmlFor="name" className={`text-sm ${C.text}`}>
-            品名 <span className="text-red-500">*</span>
+            品名 <span className={C.textRequired}>*</span>
           </Label>
           <Input
             id="name"
@@ -75,7 +75,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
         </div>
         <div>
           <Label htmlFor="category" className={`text-sm ${C.text}`}>
-            カテゴリ <span className="text-red-500">*</span>
+            カテゴリ <span className={C.textRequired}>*</span>
           </Label>
           <Select
             value={category || (existingCategory ?? "medicine")}
@@ -98,7 +98,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
         </div>
         <div>
           <Label htmlFor="unit" className={`text-sm ${C.text}`}>
-            単位 <span className="text-red-500">*</span>
+            単位 <span className={C.textRequired}>*</span>
           </Label>
           <Input
             id="unit"
@@ -138,12 +138,12 @@ const StockInfoSection = memo(function StockInfoSection({
   minStockLevelError,
 }: StockInfoSectionProps) {
   return (
-    <div className={`bg-white rounded-lg border ${C.borderMedium} p-6`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>在庫情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="quantity" className={`text-sm ${C.text}`}>
-            現在庫数 <span className="text-red-500">*</span>
+            現在庫数 <span className={C.textRequired}>*</span>
           </Label>
           <Input
             id="quantity"
@@ -158,7 +158,7 @@ const StockInfoSection = memo(function StockInfoSection({
         </div>
         <div>
           <Label htmlFor="minStockLevel" className={`text-sm ${C.text}`}>
-            最低在庫数 <span className="text-red-500">*</span>
+            最低在庫数 <span className={C.textRequired}>*</span>
           </Label>
           <Input
             id="minStockLevel"
@@ -223,7 +223,7 @@ const SupplierInfoSection = memo(function SupplierInfoSection({
   onMarkDirty,
 }: SupplierInfoSectionProps) {
   return (
-    <div className={`bg-white rounded-lg border ${C.borderMedium} p-6`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>仕入先情報</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>

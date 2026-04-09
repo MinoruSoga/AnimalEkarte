@@ -3,6 +3,9 @@ import { useMemo } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 
+// Internal
+import { C } from "@/lib/design-tokens";
+
 // Types
 import type { Accounting, PaymentInfo } from "../types";
 
@@ -53,18 +56,18 @@ export function AccountingDocument({ type, accounting, paymentInfo, clinic }: Ac
       <div className="w-[80mm] bg-white p-4 text-sm font-sans flex flex-col gap-4 border mx-auto print:mx-0 print:border-none">
         <div className="text-center border-b pb-4">
           <h1 className="text-xl font-bold mb-2">領 収 書</h1>
-          <p className="text-xs text-gray-500">{currentDate}</p>
+          <p className={`text-xs ${C.text50}`}>{currentDate}</p>
         </div>
 
         <div className="space-y-1">
           <p className="text-lg font-medium border-b border-black inline-block min-w-[200px]">
             {accounting.ownerName} 様
           </p>
-          <p className="text-xs text-gray-500">ペット名: {accounting.petName}</p>
+          <p className={`text-xs ${C.text50}`}>ペット名: {accounting.petName}</p>
         </div>
 
-        <div className="py-6 text-center bg-gray-50 my-2">
-          <p className="text-xs text-gray-500 mb-1">領収金額</p>
+        <div className={`py-6 text-center ${C.bgPage} my-2`}>
+          <p className={`text-xs ${C.text50} mb-1`}>領収金額</p>
           <p className="text-2xl font-bold">¥{paymentInfo.billingAmount.toLocaleString()}-</p>
         </div>
 
@@ -74,7 +77,7 @@ export function AccountingDocument({ type, accounting, paymentInfo, clinic }: Ac
             <span>¥{paymentInfo.totalAmount.toLocaleString()}</span>
           </div>
           {paymentInfo.insuranceAmount < 0 ? (
-            <div className="flex justify-between border-b border-dotted pb-1 text-green-700">
+            <div className={`flex justify-between border-b border-dotted pb-1 ${C.textStatusGreen}`}>
               <span>保険負担額</span>
               <span>{paymentInfo.insuranceAmount.toLocaleString()}</span>
             </div>
@@ -93,8 +96,8 @@ export function AccountingDocument({ type, accounting, paymentInfo, clinic }: Ac
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t text-xs text-center leading-relaxed text-gray-600">
-          <p className="font-bold text-sm text-black mb-1">{clinic?.name}</p>
+        <div className={`mt-4 pt-4 border-t text-xs text-center leading-relaxed ${C.text60}`}>
+          <p className={`font-bold text-sm ${C.text} mb-1`}>{clinic?.name}</p>
           <p>〒{clinic?.postalCode} {clinic?.address}</p>
           <p>TEL: {clinic?.phoneNumber}</p>
           {clinic?.invoiceRegistrationNumber ? <p>登録番号: {clinic.invoiceRegistrationNumber}</p> : null}
@@ -109,11 +112,11 @@ export function AccountingDocument({ type, accounting, paymentInfo, clinic }: Ac
       <div className="flex justify-between items-end border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold mb-2">診療明細書</h1>
-          <p className="text-gray-600">No. {accounting.id}</p>
-          <p className="text-gray-600">発行日: {currentDate}</p>
+          <p className={C.text60}>No. {accounting.id}</p>
+          <p className={C.text60}>発行日: {currentDate}</p>
         </div>
-        <div className="text-right text-xs text-gray-600">
-          <p className="font-bold text-base text-black mb-1">{clinic?.name}</p>
+        <div className={`text-right text-xs ${C.text60}`}>
+          <p className={`font-bold text-base ${C.text} mb-1`}>{clinic?.name}</p>
           <p>〒{clinic?.postalCode} {clinic?.address}</p>
           <p>TEL: {clinic?.phoneNumber}</p>
           {clinic?.invoiceRegistrationNumber ? <p>登録番号: {clinic.invoiceRegistrationNumber}</p> : null}
@@ -143,7 +146,7 @@ export function AccountingDocument({ type, accounting, paymentInfo, clinic }: Ac
             <tr key={item.id}>
               <td className="py-2">
                 <div className="font-medium">{item.name}</div>
-                {item.category ? <span className="text-xs text-gray-500">{item.category}</span> : null}
+                {item.category ? <span className={`text-xs ${C.text50}`}>{item.category}</span> : null}
               </td>
               <td className="py-2 text-right">¥{item.unitPrice.toLocaleString()}</td>
               <td className="py-2 text-center">{item.quantity}</td>
@@ -160,7 +163,7 @@ export function AccountingDocument({ type, accounting, paymentInfo, clinic }: Ac
             <span>¥{paymentInfo.totalAmount.toLocaleString()}</span>
           </div>
 
-          <div className="text-xs text-gray-500 space-y-1 pt-2">
+          <div className={`text-xs ${C.text50} space-y-1 pt-2`}>
             <div className="flex justify-between">
               <span>10%対象額</span>
               <span>¥{taxBreakdown.tax10Base.toLocaleString()} (税 ¥{taxBreakdown.tax10Amount.toLocaleString()})</span>
@@ -174,7 +177,7 @@ export function AccountingDocument({ type, accounting, paymentInfo, clinic }: Ac
           </div>
 
           {paymentInfo.insuranceAmount < 0 ? (
-            <div className="flex justify-between text-green-700 border-b pb-1 pt-2">
+            <div className={`flex justify-between ${C.textStatusGreen} border-b pb-1 pt-2`}>
               <span>保険適用</span>
               <span>{paymentInfo.insuranceAmount.toLocaleString()}</span>
             </div>

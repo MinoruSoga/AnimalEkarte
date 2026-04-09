@@ -18,6 +18,11 @@ import type { CreateCareLogDTO } from "@/features/hospitalization/types";
 
 type LogType = "food" | "excretion" | "medicine" | "other";
 
+// rerender-lazy-state-init: コンポーネント外に巻き上げることでレンダーごとの再生成を防ぐ
+function getCurrentTime(): string {
+    return format(new Date(), "HH:mm");
+}
+
 interface DailyCareLogDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -26,13 +31,12 @@ interface DailyCareLogDialogProps {
 }
 
 export function DailyCareLogDialog({ open, onOpenChange, type, onSave }: DailyCareLogDialogProps) {
-    const getCurrentTime = () => format(new Date(), "HH:mm");
-
-    const [form, setForm] = useState({
+    // lazy initializer — 初回マウント時のみ getCurrentTime() が実行される
+    const [form, setForm] = useState(() => ({
         value: "",
         notes: "",
         time: getCurrentTime()
-    });
+    }));
     const [prevOpen, setPrevOpen] = useState(false);
 
     if (open !== prevOpen) {
@@ -90,20 +94,20 @@ export function DailyCareLogDialog({ open, onOpenChange, type, onSave }: DailyCa
             <div className="space-y-4 py-4">
                 <div className="space-y-2">
                     <Label>記録時刻</Label>
-                    <Input type="time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} className={H_STYLES.text.base} />
+                    <Input type="time" value={form.time} onChange={e => setForm(prev => ({...prev, time: e.target.value}))} className={H_STYLES.text.base} />
                 </div>
                 <div className="space-y-2">
                     <Label>内容・量</Label>
                     <Input
                         placeholder={getPlaceholder()}
                         value={form.value}
-                        onChange={e => setForm({...form, value: e.target.value})}
+                        onChange={e => setForm(prev => ({...prev, value: e.target.value}))}
                         className={H_STYLES.text.base}
                     />
                 </div>
                 <div className="space-y-2">
                     <Label>詳細メモ</Label>
-                    <Textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className={H_STYLES.text.base} />
+                    <Textarea value={form.notes} onChange={e => setForm(prev => ({...prev, notes: e.target.value}))} className={H_STYLES.text.base} />
                 </div>
             </div>
         </FormDialog>

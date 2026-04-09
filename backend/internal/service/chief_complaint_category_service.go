@@ -23,10 +23,10 @@ type UpdateChiefComplaintCategoryInput struct {
 
 type ChiefComplaintCategoryService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error)
-	GetByID(ctx context.Context, id uint64) (*model.ChiefComplaintCategory, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintCategory, error)
 	Create(ctx context.Context, category *model.ChiefComplaintCategory) error
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintCategoryInput) (*model.ChiefComplaintCategory, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type chiefComplaintCategoryService struct {
@@ -42,8 +42,8 @@ func (s *chiefComplaintCategoryService) List(ctx context.Context, clinicID uint6
 	return s.repo.FindAll(ctx, clinicID)
 }
 
-func (s *chiefComplaintCategoryService) GetByID(ctx context.Context, id uint64) (*model.ChiefComplaintCategory, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *chiefComplaintCategoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintCategory, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 
 func (s *chiefComplaintCategoryService) Create(ctx context.Context, category *model.ChiefComplaintCategory) error {
@@ -67,10 +67,10 @@ func (s *chiefComplaintCategoryService) Update(ctx context.Context, clinicID, id
 	slog.InfoContext(ctx, "chief complaint category updated",
 		slog.Uint64("category_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, id)
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 
-func (s *chiefComplaintCategoryService) Delete(ctx context.Context, id uint64) error {
+func (s *chiefComplaintCategoryService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.inquiryRepo.CountByChiefComplaintCategoryID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check inquiry dependency")
@@ -79,7 +79,7 @@ func (s *chiefComplaintCategoryService) Delete(ctx context.Context, id uint64) e
 		return apperrors.WrapConflict("この主訴カテゴリは問診記録で使用中のため削除できません")
 	}
 	slog.InfoContext(ctx, "chief complaint category deleted", slog.Uint64("category_id", id))
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, clinicID, id)
 }
 
 func buildChiefComplaintCategoryUpdateFields(input *UpdateChiefComplaintCategoryInput) map[string]any {

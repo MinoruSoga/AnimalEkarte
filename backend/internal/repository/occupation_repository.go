@@ -15,10 +15,10 @@ import (
 
 type OccupationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
-	FindByID(ctx context.Context, id uint64) (*model.Occupation, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
 	Create(ctx context.Context, occupation *model.Occupation) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountStaffsByOccupationID(ctx context.Context, occupationID uint64) (int64, error)
 }
@@ -41,9 +41,9 @@ func (r *occupationRepository) FindAll(ctx context.Context, clinicID uint64) ([]
 	return occupations, nil
 }
 
-func (r *occupationRepository) FindByID(ctx context.Context, id uint64) (*model.Occupation, error) {
+func (r *occupationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
 	var occupation model.Occupation
-	err := r.db.WithContext(ctx).First(&occupation, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&occupation, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "occupation", fmt.Sprintf("%d", id))
 	}
@@ -75,8 +75,8 @@ func (r *occupationRepository) Update(ctx context.Context, clinicID, id uint64, 
 	return nil
 }
 
-func (r *occupationRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Occupation{}, "id = ?", id)
+func (r *occupationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.Occupation{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "occupation", fmt.Sprintf("%d", id))
 	}

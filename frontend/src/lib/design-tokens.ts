@@ -254,10 +254,12 @@ export const C = {
   textBrand:     "text-[#038B94]",
   bgBrand:       "bg-[#038B94]",
   bgBrand10:     "bg-[#038B94]/10",
+  bgBrand8:      "bg-[#038B94]/8",
   bgBrandDot:    "bg-[#038B94]",
   hoverBgBrand:  "hover:bg-[#027A82]",
   focusRingBrand:"focus:ring-[#038B94]",
   borderBrand:   "border-[#038B94]",
+  borderLBrand:  "border-l-[#038B94]",
 
   /* ── Border ── */
   borderLight:   "border-[rgba(55,53,47,0.09)]",
@@ -317,6 +319,7 @@ export const C = {
   borderDanger15:"border-[#C0392B]/15",
   bgDanger20:    "bg-[#C0392B]/20",
   hoverBgDanger90: "hover:bg-[#C0392B]/90",
+  decorationDanger50: "decoration-[#C0392B]/50",
 
   /* ── Notion Red (required markers) ── */
   textRequired:  "text-[#E03E3E]",
@@ -396,6 +399,26 @@ export const C = {
   /** Slightly darker purple hover — use on bg-statusPurple buttons */
   hoverBgStatusPurpleDark: "hover:bg-[#E4D0F2]",
 
+  /* ── Reservation status dot/bg/text (semantic status colors) ── */
+  /** 予約確定 (confirmed) — Emerald green */
+  bgStatusEmeraldDot: "bg-emerald-500",
+  bgStatusEmerald:    "bg-emerald-50",
+  textStatusEmerald:  "text-emerald-700",
+  /** 仮予約 (pending) — Sky blue */
+  bgStatusSkyDot:     "bg-sky-500",
+  bgStatusSky:        "bg-sky-50",
+  textStatusSky:      "text-sky-700",
+  /** 受付済 (checked_in) — Blue */
+  bgStatusBlueDot:    "bg-blue-500",
+  bgStatusBlueLight:  "bg-blue-50",
+  textStatusBlue:     "text-blue-700",
+  /** 会計待ち (accounting) — Amber */
+  bgStatusAmberDot:   "bg-amber-500",
+  bgStatusAmber:      "bg-amber-50",
+  textStatusAmber:    "text-amber-700",
+  /** キャンセル / 初診 dot — Red */
+  bgStatusRedDot:     "bg-red-500",
+
   /* ── Hover utilities ── */
   hoverBgPage:   "hover:bg-[#F7F6F3]",
   hoverBgPageHalf: "hover:bg-[#F7F6F3]/50",
@@ -418,6 +441,7 @@ export const C = {
   /** Group-hover bg primary (settings row icon) */
   groupHoverBgPrimary: "group-hover:bg-[#37352F]",
   groupHoverTextWhite: "group-hover:text-white",
+  textWhite: "text-white",
 
   /* ── Focus utilities ── */
   focusBgPage:   "focus:bg-[#F7F6F3]",
@@ -722,13 +746,13 @@ export const STYLE = {
 
   /* ── Primary Button ── */
   btnPrimary:
-    `${C.bgAccent} ${C.bgAccentHover} text-white h-11 px-4 text-base shadow-none border-transparent rounded-[4px] transition-colors`,
+    `${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} h-11 px-4 text-base shadow-none border-transparent rounded-[4px] transition-colors`,
   btnGhost:
     `${C.text60} ${C.hoverText} hover:bg-transparent`,
   btnAccent:
-    `text-white ${C.bgAccent} ${C.bgAccentHover} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.textWhite} ${C.bgAccent} ${C.bgAccentHover} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
   btnDanger:
-    `${C.bgDanger} text-white ${C.hoverBgDanger90} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
   btnOutline:
     `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-base rounded-[4px] shadow-[var(--notion-shadow-btn)] transition-colors`,
 
@@ -774,7 +798,7 @@ export const STYLE = {
   sidebarHeader:
     `h-[53px] flex items-center px-2.5 border-b ${C.borderDivider}`,
   sidebarItemActive:
-    `bg-[#038B94]/8 ${C.text} border-l-2 border-l-[#038B94]`,
+    `${C.bgBrand8} ${C.text} border-l-2 ${C.borderLBrand}`,
   sidebarItemIdle:
     `${C.text65} ${C.hoverBgPrimary4} ${C.hoverText}`,
   sidebarToggle:
@@ -852,7 +876,7 @@ export const STYLE = {
     `h-11 text-base bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`,
   /** Error ring for form inputs — use with conditional classnames */
   formInputError:
-    "ring-2 ring-red-300 border-red-400",
+    `ring-2 ring-[#C0392B]/30 ${C.borderDanger}`,
   formCard:
     `bg-white p-6 rounded-lg shadow-sm border ${C.borderMedium}`,
 

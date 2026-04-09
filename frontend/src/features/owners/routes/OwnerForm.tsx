@@ -25,6 +25,7 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/features/auth";
 
@@ -526,7 +527,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
             toast.success(`飼主を ${newOwner.name} に変更しました`);
             setPetModalOpen(false);
           },
-          onError: () => toast.error("飼主変更に失敗しました"),
+          onError: (error) => handleApiError(error, "飼主変更"),
         },
       );
     },

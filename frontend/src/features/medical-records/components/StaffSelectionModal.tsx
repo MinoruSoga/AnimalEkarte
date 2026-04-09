@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from "react";
+import { useMemo, useCallback, memo } from "react";
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Check } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
@@ -11,7 +11,7 @@ interface StaffSelectionModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export const StaffSelectionModal = React.memo(function StaffSelectionModal({
+export const StaffSelectionModal = memo(function StaffSelectionModal({
   open,
   selectedStaffName,
   onSelect,

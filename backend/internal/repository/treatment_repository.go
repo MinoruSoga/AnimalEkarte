@@ -44,7 +44,7 @@ func (r *treatmentRepository) ListByMedicalRecordID(ctx context.Context, medical
 		Where("medical_record_id = ? AND deleted_at IS NULL", medicalRecordID).
 		Order("sort_order ASC").
 		Find(&treatments).Error; err != nil {
-		return nil, apperrors.Wrap(err, "list treatments by medical_record_id")
+		return nil, apperrors.FromGORM(err, "treatment", "")
 	}
 	return treatments, nil
 }
@@ -62,7 +62,7 @@ func (r *treatmentRepository) FindByID(ctx context.Context, id uint64) (*model.T
 
 func (r *treatmentRepository) Create(ctx context.Context, treatment *model.Treatment) error {
 	if err := r.db.WithContext(ctx).Create(treatment).Error; err != nil {
-		return apperrors.Wrap(err, "create treatment")
+		return apperrors.FromGORM(err, "treatment", "")
 	}
 	return nil
 }
@@ -73,7 +73,7 @@ func (r *treatmentRepository) Update(ctx context.Context, id uint64, fields map[
 		Where("id = ? AND deleted_at IS NULL", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update treatment")
+		return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("treatment", fmt.Sprintf("%d", id))
@@ -84,7 +84,7 @@ func (r *treatmentRepository) Update(ctx context.Context, id uint64, fields map[
 func (r *treatmentRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Treatment{}, id)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete treatment")
+		return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("treatment", fmt.Sprintf("%d", id))

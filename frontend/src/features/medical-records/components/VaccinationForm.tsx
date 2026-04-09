@@ -161,7 +161,7 @@ export const VaccinationForm = memo(function VaccinationForm({
             <RadioGroupItem
               value="3weeks"
               id="r1"
-              className={`border-gray-400 ${C.text}`}
+              className={`${C.borderMedium} ${C.text}`}
             />
             <Label
               htmlFor="r1"
@@ -174,7 +174,7 @@ export const VaccinationForm = memo(function VaccinationForm({
             <RadioGroupItem
               value="4weeks"
               id="r2"
-              className={`border-gray-400 ${C.text}`}
+              className={`${C.borderMedium} ${C.text}`}
             />
             <Label
               htmlFor="r2"
@@ -187,7 +187,7 @@ export const VaccinationForm = memo(function VaccinationForm({
             <RadioGroupItem
               value="1year"
               id="r3"
-              className={`border-gray-400 ${C.text}`}
+              className={`${C.borderMedium} ${C.text}`}
             />
             <Label
               htmlFor="r3"
@@ -200,7 +200,7 @@ export const VaccinationForm = memo(function VaccinationForm({
             <RadioGroupItem
               value="other"
               id="r4"
-              className={`border-gray-400 ${C.text}`}
+              className={`${C.borderMedium} ${C.text}`}
             />
             <Label
               htmlFor="r4"

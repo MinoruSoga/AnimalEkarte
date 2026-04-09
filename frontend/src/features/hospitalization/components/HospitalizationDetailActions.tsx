@@ -10,6 +10,7 @@ import { usePermission } from "@/features/auth";
 
 // Relative
 import { H_STYLES } from "../styles";
+import { C } from "@/lib/design-tokens";
 
 // Types
 import type { Hospitalization } from "@/types";
@@ -28,7 +29,7 @@ export function HospitalizationDetailActions({ hospitalization, onDischargeClick
             {canDelete && hospitalization.status !== "退院済" ? (
                 <Button
                     variant="ghost-danger"
-                    className={`gap-2 border border-red-200 ${H_STYLES.button.action}`}
+                    className={`gap-2 border ${C.borderDanger20} ${H_STYLES.button.action}`}
                     onClick={onDischargeClick}
                 >
                     <LogOut className={H_STYLES.button.icon} />

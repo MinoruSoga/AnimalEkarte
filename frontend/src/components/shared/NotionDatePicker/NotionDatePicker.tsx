@@ -135,7 +135,7 @@ const MONTH_LABELS = [
 /** Hide built-in nav + caption; our custom header replaces them */
 const SINGLE_CALENDAR_CLASSES = {
   selected:
-    `${C.bgPrimary} text-white hover:${C.bgPrimary} hover:text-white focus:${C.bgPrimary} focus:text-white`,
+    `${C.bgPrimary} ${C.textWhite} hover:${C.bgPrimary} hover:text-white focus:${C.bgPrimary} focus:text-white`,
   today: `${C.bgPage} ${C.text}`,
   nav: "hidden",
   month_caption: "hidden",
@@ -144,7 +144,7 @@ const SINGLE_CALENDAR_CLASSES = {
 /** Hide built-in nav but keep per-month caption for 2-month range view */
 const RANGE_CALENDAR_CLASSES = {
   selected:
-    `${C.bgPrimary} text-white hover:${C.bgPrimary} hover:text-white focus:${C.bgPrimary} focus:text-white`,
+    `${C.bgPrimary} ${C.textWhite} hover:${C.bgPrimary} hover:text-white focus:${C.bgPrimary} focus:text-white`,
   today: `${C.bgPage} ${C.text}`,
   nav: "hidden",
 };
@@ -584,7 +584,7 @@ function MonthGrid({
           className={cn(
             "rounded px-2 py-2 text-sm transition-colors",
             i === currentMonth
-              ? `${C.bgPrimary} text-white font-medium`
+              ? `${C.bgPrimary} ${C.textWhite} font-medium`
               : `${C.text} ${C.hoverBgPage}`,
           )}
         >

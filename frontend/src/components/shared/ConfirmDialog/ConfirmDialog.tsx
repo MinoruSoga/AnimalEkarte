@@ -66,8 +66,8 @@ export function ConfirmDialog({
             disabled={isPending}
             className={
               variant === "destructive"
-                ? `${C.bgDanger} text-white ${C.hoverBgDanger90}`
-                : `${C.bgPrimary} text-white ${C.hoverBgPrimaryDark}`
+                ? `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90}`
+                : `${C.bgPrimary} ${C.textWhite} ${C.hoverBgPrimaryDark}`
             }
           >
             {confirmLabel}

@@ -14,12 +14,13 @@ import (
 
 // mockMedicalRecordRepository は MedicalRecordRepository のテスト用モック実装
 type mockMedicalRecordRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-	createFn       func(ctx context.Context, record *model.MedicalRecord) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
-	countByPetIDFn func(ctx context.Context, clinicID, petID uint64) (int64, error)
+	findAllFn                         func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	findByIDFn                        func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	createFn                          func(ctx context.Context, record *model.MedicalRecord) error
+	updateFieldsFn                    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
+	deleteFn                          func(ctx context.Context, clinicID, id uint64) error
+	countByPetIDFn                    func(ctx context.Context, clinicID, petID uint64) (int64, error)
+	countEstimatesByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) (int64, error)
 }
 
 func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -48,6 +49,13 @@ func (m *mockMedicalRecordRepository) Delete(ctx context.Context, clinicID, id u
 func (m *mockMedicalRecordRepository) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
 	if m.countByPetIDFn != nil {
 		return m.countByPetIDFn(ctx, clinicID, petID)
+	}
+	return 0, nil
+}
+
+func (m *mockMedicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error) {
+	if m.countEstimatesByMedicalRecordIDFn != nil {
+		return m.countEstimatesByMedicalRecordIDFn(ctx, medicalRecordID)
 	}
 	return 0, nil
 }
@@ -207,7 +215,7 @@ func TestMedicalRecordService_List(t *testing.T) {
 					return tt.repoRecords, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 			records, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
 
@@ -271,7 +279,7 @@ func TestMedicalRecordService_GetByID(t *testing.T) {
 					return tt.repoRecord, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 			record, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -294,7 +302,7 @@ func TestMedicalRecordService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("medical_record", "999")
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 	record, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -351,7 +359,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 			err := svc.Create(context.Background(), tt.record)
 
@@ -433,7 +441,7 @@ func TestMedicalRecordService_Update(t *testing.T) {
 					return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 			record, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -466,7 +474,7 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 				return nil, apperrors.WrapNotFound("owner", "100")
 			},
 		}
-		svc := NewMedicalRecordService(repo, ownerRepo, nil)
+		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
@@ -490,7 +498,7 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 				return &model.Owner{ID: ownerID, ClinicID: 1}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, ownerRepo, nil)
+		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil)
 
 		record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
@@ -517,7 +525,7 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 				return nil, apperrors.WrapNotFound("pet", "200")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, petRepo)
+		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
@@ -541,7 +549,7 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 				return &model.Pet{ID: petID, ClinicID: 1}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, petRepo)
+		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
@@ -553,47 +561,71 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 
 func TestMedicalRecordService_Delete(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name          string
+		clinicID      uint64
+		id            uint64
+		estimateCount int64
+		estimateErr   error
+		repoErr       error
+		wantErr       bool
+		wantNF        bool
+		wantConflict  bool
 	}{
 		{
-			name:     "deletes record successfully",
-			clinicID: 1,
-			id:       10,
-			repoErr:  nil,
-			wantErr:  false,
-			wantNF:   false,
+			name:          "deletes record successfully",
+			clinicID:      1,
+			id:            10,
+			estimateCount: 0,
+			repoErr:       nil,
+			wantErr:       false,
+			wantNF:        false,
 		},
 		{
-			name:     "returns not found error when record does not exist",
-			clinicID: 1,
-			id:       999,
-			repoErr:  apperrors.WrapNotFound("medical_record", "999"),
-			wantErr:  true,
-			wantNF:   true,
+			name:          "returns conflict error when estimates reference the record",
+			clinicID:      1,
+			id:            10,
+			estimateCount: 2,
+			wantErr:       true,
+			wantConflict:  true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			id:       10,
-			repoErr:  errors.New("db error"),
-			wantErr:  true,
-			wantNF:   false,
+			name:        "returns error when estimate count check fails",
+			clinicID:    1,
+			id:          10,
+			estimateErr: errors.New("db error"),
+			wantErr:     true,
+		},
+		{
+			name:          "returns not found error when record does not exist",
+			clinicID:      1,
+			id:            999,
+			estimateCount: 0,
+			repoErr:       apperrors.WrapNotFound("medical_record", "999"),
+			wantErr:       true,
+			wantNF:        true,
+		},
+		{
+			name:          "returns error on repository failure",
+			clinicID:      1,
+			id:            10,
+			estimateCount: 0,
+			repoErr:       errors.New("db error"),
+			wantErr:       true,
+			wantNF:        false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicalRecordRepository{
+				countEstimatesByMedicalRecordIDFn: func(_ context.Context, _ uint64) (int64, error) {
+					return tt.estimateCount, tt.estimateErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -601,6 +633,9 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

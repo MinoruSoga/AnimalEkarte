@@ -47,7 +47,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 
 	var total int64
 	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count vaccinations")
+		return nil, 0, apperrors.FromGORM(err, "vaccination", "")
 	}
 
 	vaccinations := make([]model.Vaccination, 0)
@@ -58,7 +58,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		Preload("Doctor").
 		Offset((page - 1) * limit).Limit(limit).Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find vaccinations")
+		return nil, 0, apperrors.FromGORM(err, "vaccination", "")
 	}
 	return vaccinations, total, nil
 }
@@ -88,7 +88,7 @@ func (r *vaccinationRepository) UpdateFields(ctx context.Context, clinicID, id u
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "update vaccination")
+		return nil, apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
@@ -101,7 +101,7 @@ func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64)
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Delete(&model.Vaccination{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete vaccination")
+		return apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))

@@ -15,18 +15,18 @@ import (
 
 type mockInquiryTemplateRepository struct {
 	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.InquiryTemplate, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
 	createFn   func(ctx context.Context, template *model.InquiryTemplate) error
 	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, id uint64) error
+	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockInquiryTemplateRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error) {
 	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockInquiryTemplateRepository) FindByID(ctx context.Context, id uint64) (*model.InquiryTemplate, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockInquiryTemplateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockInquiryTemplateRepository) Create(ctx context.Context, template *model.InquiryTemplate) error {
@@ -37,8 +37,8 @@ func (m *mockInquiryTemplateRepository) Update(ctx context.Context, clinicID, id
 	return m.updateFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockInquiryTemplateRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockInquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 // ---- Tests ----
@@ -143,13 +143,13 @@ func TestInquiryTemplateService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInquiryTemplateRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.InquiryTemplate, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.InquiryTemplate, error) {
 					return tt.repoTemplate, tt.repoErr
 				},
 			}
 			svc := NewInquiryTemplateService(repo)
 
-			template, err := svc.GetByID(context.Background(), tt.id)
+			template, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -309,7 +309,7 @@ func TestInquiryTemplateService_Update(t *testing.T) {
 				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoErr
 				},
-				findByIDFn: func(_ context.Context, _ uint64) (*model.InquiryTemplate, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.InquiryTemplate, error) {
 					if tt.repoErr != nil && apperrors.IsNotFound(tt.repoErr) {
 						return nil, tt.repoErr
 					}
@@ -363,13 +363,13 @@ func TestInquiryTemplateService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInquiryTemplateRepository{
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewInquiryTemplateService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

@@ -53,7 +53,13 @@ func main() {
 	repos := repository.NewRepositories(db)
 
 	// サービス初期化
-	svcs := service.NewServices(repos)
+	svcs := service.NewServices(repos, service.ReservationNotificationConfig{
+		SMTPHost: cfg.SMTPHost,
+		SMTPPort: cfg.SMTPPort,
+		SMTPUser: cfg.SMTPUser,
+		SMTPPass: cfg.SMTPPass,
+		SMTPFrom: cfg.SMTPFrom,
+	})
 
 	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var uploader infra.FileUploader
@@ -79,6 +85,10 @@ func main() {
 	// ハンドラー初期化
 	h := handler.New(cfg, svcs, repos, uploader)
 
+	// アプリケーションライフタイムコンテキスト（バックグラウンドゴルーチン管理用）
+	appCtx, appCancel := context.WithCancel(context.Background())
+	defer appCancel()
+
 	// ルーター設定
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -88,7 +98,7 @@ func main() {
 	r.Use(middleware.RequestLoggingMiddleware())
 	// BUG-067: POST/PATCH/PUT ボディから NULL バイトを除去（PostgreSQL エラー防止）
 	r.Use(middleware.SanitizeNullBytes())
-	h.RegisterRoutes(r)
+	h.RegisterRoutes(appCtx, r)
 
 	// HTTPサーバー設定
 	server := &http.Server{

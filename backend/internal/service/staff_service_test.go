@@ -89,6 +89,10 @@ func (m *mockReservationForStaff) FindByStaffAndTimeSlot(_ context.Context, _, _
 	return false, nil
 }
 
+func (m *mockReservationForStaff) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // mockShiftEntryForStaff は Staff テストで使用する ShiftEntryRepository のスタブ
 type mockShiftEntryForStaff struct {
 	existsByStaffIDFn func(ctx context.Context, staffID uint64) (bool, error)
@@ -116,8 +120,72 @@ func (m *mockShiftEntryForStaff) ExistsByStaffID(ctx context.Context, staffID ui
 	return false, nil
 }
 
+// mockAccountForStaff は Staff テストで使用する AccountRepository のスタブ
+type mockAccountForStaff struct {
+	findByEmailFn func(ctx context.Context, email string) (*model.Account, error)
+	getByIDFn     func(ctx context.Context, id uint64) (*model.Account, error)
+	createFn      func(ctx context.Context, account *model.Account) error
+	updateFn      func(ctx context.Context, account *model.Account) error
+}
+
+func (m *mockAccountForStaff) GetByID(ctx context.Context, id uint64) (*model.Account, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, id)
+	}
+	return &model.Account{ID: id}, nil
+}
+func (m *mockAccountForStaff) FindByEmail(ctx context.Context, email string) (*model.Account, error) {
+	if m.findByEmailFn != nil {
+		return m.findByEmailFn(ctx, email)
+	}
+	return nil, apperrors.WrapNotFound("account", email)
+}
+func (m *mockAccountForStaff) Create(ctx context.Context, account *model.Account) error {
+	if m.createFn != nil {
+		return m.createFn(ctx, account)
+	}
+	account.ID = 1
+	return nil
+}
+func (m *mockAccountForStaff) Update(ctx context.Context, account *model.Account) error {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, account)
+	}
+	return nil
+}
+func (m *mockAccountForStaff) Delete(_ context.Context, _ uint64) error { return nil }
+
+// mockAssignmentForStaff は Staff テストで使用する StaffClinicAssignmentRepository のスタブ
+type mockAssignmentForStaff struct {
+	deleteByStaffIDFn func(ctx context.Context, staffID uint64) error
+	createFn          func(ctx context.Context, a *model.StaffClinicAssignment) error
+}
+
+func (m *mockAssignmentForStaff) FindByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
+	return nil, nil
+}
+func (m *mockAssignmentForStaff) FindByClinicID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
+	return nil, nil
+}
+func (m *mockAssignmentForStaff) Create(ctx context.Context, a *model.StaffClinicAssignment) error {
+	if m.createFn != nil {
+		return m.createFn(ctx, a)
+	}
+	return nil
+}
+func (m *mockAssignmentForStaff) Update(_ context.Context, _ *model.StaffClinicAssignment) error {
+	return nil
+}
+func (m *mockAssignmentForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *mockAssignmentForStaff) DeleteByStaffID(ctx context.Context, staffID uint64) error {
+	if m.deleteByStaffIDFn != nil {
+		return m.deleteByStaffIDFn(ctx, staffID)
+	}
+	return nil
+}
+
 func newTestStaffService(repo *mockStaffRepository) StaffService {
-	return NewStaffService(repo, &mockReservationForStaff{}, &mockShiftEntryForStaff{})
+	return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{})
 }
 
 func TestStaffService_List(t *testing.T) {
@@ -564,7 +632,7 @@ func TestStaffService_Delete(t *testing.T) {
 					return tt.shiftExists, tt.checkShiftErr
 				},
 			}
-			svc := NewStaffService(repo, reservationRepo, shiftRepo)
+			svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, reservationRepo, shiftRepo)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 

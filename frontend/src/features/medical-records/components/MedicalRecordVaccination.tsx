@@ -31,7 +31,9 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   const { data: vaccinesMaster = [] } = useGetAllVaccinesMaster();
 
   const vaccineOptions = useMemo(
-    () => vaccinesMaster.filter((v) => v.isActive).map((v) => ({ value: v.id, label: v.name })),
+    () => vaccinesMaster.flatMap((v) =>
+      v.isActive ? [{ value: v.id, label: v.name }] : []
+    ),
     [vaccinesMaster]
   );
 

@@ -17,6 +17,7 @@ type MedicalRecordRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
+	CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error)
 }
 
 type medicalRecordRepository struct {
@@ -114,7 +115,21 @@ func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, pe
 		Where("clinic_id = ? AND pet_id = ?", clinicID, petID).
 		Count(&count).Error
 	if err != nil {
-		return 0, apperrors.Wrap(err, "count medical records by pet")
+		return 0, apperrors.FromGORM(err, "medical_record", "")
+	}
+	return count, nil
+}
+
+// CountEstimatesByMedicalRecordID はカルテに紐付く見積書の件数を返す（BUG-201）
+// estimates.medical_record_id は ON DELETE RESTRICT のため削除前チェックが必要。
+func (r *medicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Estimate{}).
+		Where("medical_record_id = ?", medicalRecordID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "estimate", "")
 	}
 	return count, nil
 }

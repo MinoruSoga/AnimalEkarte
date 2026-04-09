@@ -1,5 +1,5 @@
 // React/Framework
-import React, { useRef } from "react";
+import { useRef, memo } from "react";
 
 // External
 import { Upload } from "lucide-react";
@@ -26,7 +26,7 @@ interface ImageGalleryFilterProps {
   canUpload?: boolean;
 }
 
-export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
+export const ImageGalleryFilter = memo(function ImageGalleryFilter({
   searchTerm,
   onSearchChange,
   dateStart,
@@ -69,7 +69,7 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
           <Button
             type="button"
             size="sm"
-            className={`${C.bgAccent} ${C.bgAccentHover} text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
+            className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
             onClick={handleUploadClick}
             disabled={isUploading}
           >
@@ -124,7 +124,7 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
           <Button
             type="button"
             variant="outline"
-            className={`h-10 ${C.bgAccent} text-white ${C.bgAccentHover} hover:text-white border-transparent text-sm shadow-sm px-3`}
+            className={`h-10 ${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} hover:text-white border-transparent text-sm shadow-sm px-3`}
           >
             検索
           </Button>

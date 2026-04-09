@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import React from "react";
+import { memo } from "react";
 
 // External
 import { ChevronRight } from "lucide-react";
@@ -28,7 +28,7 @@ interface DiagnosisHeaderDiagnosisProps {
   canEdit: boolean;
 }
 
-export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagnosis({
+export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
   diagnosisDetails,
   setDiagnosisDetails,
   diagnosis1CategoryId,

@@ -15,10 +15,10 @@ import (
 
 type InquiryTemplateRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error)
-	FindByID(ctx context.Context, id uint64) (*model.InquiryTemplate, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
 	Create(ctx context.Context, template *model.InquiryTemplate) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type inquiryTemplateRepository struct{ db *gorm.DB }
@@ -39,9 +39,9 @@ func (r *inquiryTemplateRepository) FindAll(ctx context.Context, clinicID uint64
 	return templates, nil
 }
 
-func (r *inquiryTemplateRepository) FindByID(ctx context.Context, id uint64) (*model.InquiryTemplate, error) {
+func (r *inquiryTemplateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
 	var template model.InquiryTemplate
-	err := r.db.WithContext(ctx).First(&template, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&template, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "inquiry_template", fmt.Sprintf("%d", id))
 	}
@@ -73,8 +73,8 @@ func (r *inquiryTemplateRepository) Update(ctx context.Context, clinicID, id uin
 	return nil
 }
 
-func (r *inquiryTemplateRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.InquiryTemplate{}, "id = ?", id)
+func (r *inquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.InquiryTemplate{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "inquiry_template", fmt.Sprintf("%d", id))
 	}

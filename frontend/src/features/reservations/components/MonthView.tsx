@@ -36,7 +36,7 @@ const HEADER_ROW = (
       <div
         key={d}
         className={`py-3 text-sm font-bold text-center ${
-          i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : C.text60
+          i === 0 ? C.danger : i === 6 ? C.accent : C.text60
         }`}
       >
         {d}
@@ -70,13 +70,13 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
             key={day.toString()}
             className={`h-full min-h-[140px] bg-white border-b border-r ${C.borderLight} p-2 transition-colors ${C.hoverBgPage} cursor-pointer flex flex-col
               ${!isSameMonth(day, monthStart) ? `${C.bgPage30} ${C.text30}` : C.text}
-              ${isSameDay(day, new Date()) ? "bg-blue-50/30" : ""}
+              ${isSameDay(day, new Date()) ? C.bgAccent8 : ""}
             `}
           >
             <div className="flex justify-between items-start mb-2">
                 <button
                   type="button"
-                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, new Date()) ? "bg-blue-600 text-white shadow-sm" : "hover:bg-blue-100 hover:text-blue-700"}`}
+                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, new Date()) ? `${C.bgAccent} ${C.textWhite} shadow-sm` : `${C.hoverBgAccentLight} ${C.hoverTextAccent}`}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDateClick?.(cloneDay);
@@ -102,8 +102,8 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
                     >
                         <div className="flex items-center gap-1 min-w-0">
                             {app.visitType === "first"
-                                ? <span className="bg-red-100 text-red-600 text-[10px] px-1 rounded flex-shrink-0">初</span>
-                                : <span className="bg-blue-100 text-blue-600 text-[10px] px-1 rounded flex-shrink-0">再</span>
+                                ? <span className={`${C.bgRedLight} ${C.danger} text-[10px] px-1 rounded flex-shrink-0`}>初</span>
+                                : <span className={`${C.bgAccentLight} ${C.textAccentDark} text-[10px] px-1 rounded flex-shrink-0`}>再</span>
                             }
                             <span className="truncate text-xs font-medium">{app.petName}</span>
                         </div>

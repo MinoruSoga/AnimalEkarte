@@ -2,8 +2,6 @@ package handler
 
 // LoginResponse はログインレスポンスの構造
 type LoginResponse struct {
-	Token         string      `json:"token"`
-	ExpiresAt     int64       `json:"expires_at"`
 	IsSystemAdmin bool        `json:"is_system_admin"`
 	User          *MeResponse `json:"user"`
 }

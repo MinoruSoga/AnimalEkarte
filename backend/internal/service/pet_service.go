@@ -160,8 +160,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 
 	// insurance_id の clinic 所属確認（指定された場合のみ）
 	if input.InsuranceID != nil {
-		insurance, err := s.insuranceRepo.FindByID(ctx, *input.InsuranceID)
-		if err != nil || insurance.ClinicID != clinicID {
+		if _, err := s.insuranceRepo.FindByID(ctx, clinicID, *input.InsuranceID); err != nil {
 			return nil, apperrors.WrapInvalidInput("insurance not found in this clinic")
 		}
 	}
@@ -262,8 +261,7 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 
 	// insurance_id 変更時の clinic 所属確認（非 nil かつ値が指定された場合のみ）
 	if input.InsuranceID != nil && *input.InsuranceID != nil {
-		insurance, err := s.insuranceRepo.FindByID(ctx, **input.InsuranceID)
-		if err != nil || insurance.ClinicID != clinicID {
+		if _, err := s.insuranceRepo.FindByID(ctx, clinicID, **input.InsuranceID); err != nil {
 			return nil, apperrors.WrapInvalidInput("insurance not found in this clinic")
 		}
 	}

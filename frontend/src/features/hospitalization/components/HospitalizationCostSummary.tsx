@@ -24,7 +24,7 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
     setGlobalDiscountAmount
 }: HospitalizationCostSummaryProps) {
   return (
-    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} ${H_STYLES.padding.box}`}>
+    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 ${C.text}`}>診療費計算</h2>
       
       <div className="space-y-2">

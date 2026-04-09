@@ -30,12 +30,16 @@ func (h *Handler) ListInquiryTemplates(c *gin.Context) {
 
 // GetInquiryTemplate godoc
 func (h *Handler) GetInquiryTemplate(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	tmpl, err := h.svc.InquiryTemplate.GetByID(c.Request.Context(), id)
+	tmpl, err := h.svc.InquiryTemplate.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -108,12 +112,16 @@ func (h *Handler) UpdateInquiryTemplate(c *gin.Context) {
 
 // DeleteInquiryTemplate godoc
 func (h *Handler) DeleteInquiryTemplate(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.InquiryTemplate.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.InquiryTemplate.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

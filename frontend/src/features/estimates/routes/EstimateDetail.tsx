@@ -1,7 +1,8 @@
 import { ICON, C } from "@/lib/design-tokens";
+import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
 import { useNavigate, useParams } from 'react-router';
 import { FileText, Pencil, Trash2, ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useCallback, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog/ConfirmDialog';
@@ -20,23 +21,22 @@ export function EstimateDetail() {
   const { data: estimate, isLoading, isError } = useGetEstimate(id);
   const { mutate: deleteEstimate, isPending: isDeleting } = useDeleteEstimate();
   const { canEdit, canDelete } = usePermission("estimates");
+  const [isDeletePending, startDeleteTransition] = useTransition();
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     if (!id) return;
-    deleteEstimate(id, {
-      onSuccess: () => navigate('/estimates'),
+    startDeleteTransition(() => {
+      deleteEstimate(id, {
+        onSuccess: () => navigate('/estimates'),
+      });
     });
-  };
+  }, [id, deleteEstimate, navigate]);
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
-      </div>
-    );
+    return <LoadingFallback />;
   }
   if (isError || !estimate) {
-    return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
+    return <div className={`p-4 ${C.danger}`}>データの取得に失敗しました</div>;
   }
 
   return (
@@ -71,8 +71,8 @@ export function EstimateDetail() {
               variant="ghost-danger"
               size="sm"
               onClick={() => setShowDeleteDialog(true)}
-              disabled={isDeleting}
-              className="h-9 gap-1.5 text-sm border border-red-200"
+              disabled={isDeleting || isDeletePending}
+              className={`h-9 gap-1.5 text-sm border ${C.borderDanger20}`}
             >
               <Trash2 className={ICON.action} />
               削除
@@ -155,6 +155,7 @@ export function EstimateDetail() {
         description="この操作は取り消せません。"
         confirmLabel="削除"
         variant="destructive"
+        isPending={isDeletePending}
       />
     </PageLayout>
   );

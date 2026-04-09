@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -50,14 +49,12 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// BUG-145: email が指定されている場合は重複チェックを行い、Account を作成してスタッフに紐づける。
+	// Account 作成・bcrypt ハッシュ化はすべて StaffService.CreateWithAccount に委譲する。
 	email := strings.TrimSpace(req.Email)
-	var accountID *uint64
+	var staff *model.Staff
+	var err error
+
 	if email != "" {
-		existing, _ := h.repos.Account.FindByEmail(ctx, email)
-		if existing != nil {
-			RespondError(c, apperrors.WrapAlreadyExists("account", email))
-			return
-		}
 		if req.Password == "" {
 			RespondError(c, apperrors.WrapInvalidInput("password is required when email is provided"))
 			return
@@ -66,31 +63,24 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 			RespondError(c, err)
 			return
 		}
-		hashed, hashErr := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-		if hashErr != nil {
-			RespondError(c, apperrors.Wrap(hashErr, "failed to hash password"))
-			return
-		}
-		account := &model.Account{
-			Email:        email,
-			PasswordHash: string(hashed),
-			IsActive:     true,
-		}
-		if createErr := h.repos.Account.Create(ctx, account); createErr != nil {
-			RespondError(c, createErr)
-			return
-		}
-		accountID = &account.ID
+		staff, err = h.svc.Staff.CreateWithAccount(ctx, &service.CreateStaffWithAccountInput{
+			ClinicID:      clinicID,
+			Name:          req.Name,
+			LicenseNumber: req.LicenseNumber,
+			OccupationID:  req.OccupationID,
+			SortOrder:     req.SortOrder,
+			Email:         email,
+			Password:      req.Password,
+		})
+	} else {
+		staff, err = h.svc.Staff.Create(ctx, &service.CreateStaffInput{
+			ClinicID:      clinicID,
+			Name:          req.Name,
+			LicenseNumber: req.LicenseNumber,
+			OccupationID:  req.OccupationID,
+			SortOrder:     req.SortOrder,
+		})
 	}
-
-	staff, err := h.svc.Staff.Create(ctx, &service.CreateStaffInput{
-		ClinicID:      clinicID,
-		Name:          req.Name,
-		LicenseNumber: req.LicenseNumber,
-		OccupationID:  req.OccupationID,
-		SortOrder:     req.SortOrder,
-		AccountID:     accountID,
-	})
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -156,7 +146,7 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	} else {
 		// パスワードのみ更新の場合、既存スタッフを取得
 		var findErr error
-		staff, findErr = h.repos.Staff.FindByID(c.Request.Context(), id)
+		staff, findErr = h.svc.Staff.GetByID(c.Request.Context(), id)
 		if findErr != nil {
 			RespondError(c, findErr)
 			return
@@ -164,24 +154,14 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	}
 
 	// パスワード変更（任意）: password フィールドが送信された場合のみ
+	// bcrypt ハッシュ化・Account 更新は StaffService.UpdatePassword に委譲する。
 	if hasPasswordUpdate {
 		if err := validatePassword(*req.Password); err != nil {
 			RespondError(c, err)
 			return
 		}
 		if staff.AccountID != nil {
-			account, accErr := h.repos.Account.GetByID(c.Request.Context(), *staff.AccountID)
-			if accErr != nil {
-				RespondError(c, accErr)
-				return
-			}
-			hashed, hashErr := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
-			if hashErr != nil {
-				RespondError(c, apperrors.Wrap(hashErr, "failed to hash password"))
-				return
-			}
-			account.PasswordHash = string(hashed)
-			if updErr := h.repos.Account.Update(c.Request.Context(), account); updErr != nil {
+			if updErr := h.svc.Staff.UpdatePassword(c.Request.Context(), *staff.AccountID, *req.Password); updErr != nil {
 				RespondError(c, updErr)
 				return
 			}
@@ -304,23 +284,10 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 		req.ClinicIDs = []uint64{}
 	}
 
-	ctx := c.Request.Context()
-	// 既存の割当を全削除
-	if err := h.repos.StaffClinicAssignment.DeleteByStaffID(ctx, id); err != nil {
+	// 削除→作成をサービス層のトランザクションで実行する
+	if err := h.svc.Staff.SetClinicAssignments(c.Request.Context(), id, req.ClinicIDs); err != nil {
 		RespondError(c, err)
 		return
-	}
-	// 新しい割当を作成（最初の1件を is_main=true とする）
-	for i, clinicID := range req.ClinicIDs {
-		assignment := &model.StaffClinicAssignment{
-			StaffID:  id,
-			ClinicID: clinicID,
-			IsMain:   i == 0,
-		}
-		if err := h.repos.StaffClinicAssignment.Create(ctx, assignment); err != nil {
-			RespondError(c, err)
-			return
-		}
 	}
 	c.JSON(http.StatusOK, gin.H{"clinic_ids": req.ClinicIDs})
 }

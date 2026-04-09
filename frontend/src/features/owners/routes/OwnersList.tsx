@@ -27,7 +27,7 @@ import { getPetStatusColor } from "@/utils/status-helpers";
 import { formatDate } from "@/utils/format/date";
 import { formatWeight } from "@/utils/format/number";
 import { usePagination } from "@/hooks/use-pagination";
-import { STYLE, ICON } from "@/lib/design-tokens";
+import { STYLE, ICON, C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { transformUpdatePetRequest } from "@/lib/transforms/pet";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -310,8 +310,8 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         toast.success("飼主を削除しました");
         closeDeleteModal();
         revalidator.revalidate();
-      } catch {
-        toast.error("削除に失敗しました");
+      } catch (error) {
+        handleApiError(error, "削除");
       }
     });
   }, [pendingDeleteOwnerId, closeDeleteModal, revalidator]);
@@ -330,7 +330,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           {pet.ownerName}
           {/* BUG-043: 危険度「高」ペットを持つ飼主を視覚的に強調 */}
           {pet.dangerLevel === "高" ? (
-            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold bg-red-100 text-red-700 border border-red-300">
+            <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20}`}>
               ⚠ 危険
             </span>
           ) : null}

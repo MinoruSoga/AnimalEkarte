@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { toast } from "sonner";
 import type { MasterItem } from "@/types";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useGetMasterItemsByCategory } from "../api/get-master-items";
@@ -44,8 +43,8 @@ export function useMasterItems(category?: string, searchTerm?: string) {
     };
     createMutation.mutate(req, {
       onSuccess: callbacks?.onSuccess,
-      onError: () => {
-        toast.error("登録に失敗しました");
+      onError: (error) => {
+        handleApiError(error, "登録");
         callbacks?.onError?.();
       },
     });
@@ -69,8 +68,8 @@ export function useMasterItems(category?: string, searchTerm?: string) {
       { id, req },
       {
         onSuccess: callbacks?.onSuccess,
-        onError: () => {
-          toast.error("更新に失敗しました");
+        onError: (error) => {
+          handleApiError(error, "更新");
           callbacks?.onError?.();
         },
       }

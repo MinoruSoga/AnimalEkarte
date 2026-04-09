@@ -1,6 +1,9 @@
 // React/Framework
 import { memo } from "react";
 
+// Internal
+import { C } from "@/lib/design-tokens";
+
 // Relative
 import type { Treatment } from "../types";
 
@@ -66,30 +69,30 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
 
       {/* ── 患者情報 ── */}
       <div className="mb-6 grid grid-cols-2 gap-4">
-        <div className="border border-gray-400 rounded p-3">
+        <div className={`border ${C.borderMedium} rounded p-3`}>
           <h3 className="text-[11pt] font-semibold mb-2">患者情報</h3>
           <table className="w-full text-[10pt]">
             <tbody>
               <tr>
-                <td className="w-24 text-gray-600">ペット名</td>
+                <td className={`w-24 ${C.text60}`}>ペット名</td>
                 <td className="font-medium">{pet.name}</td>
               </tr>
               {pet.species ? (
                 <tr>
-                  <td className="text-gray-600">種別</td>
+                  <td className={C.text60}>種別</td>
                   <td>{pet.species}</td>
                 </tr>
               ) : null}
               {pet.ownerName ? (
                 <tr>
-                  <td className="text-gray-600">飼主名</td>
+                  <td className={C.text60}>飼主名</td>
                   <td>{pet.ownerName}</td>
                 </tr>
               ) : null}
             </tbody>
           </table>
         </div>
-        <div className="border border-gray-400 rounded p-3">
+        <div className={`border ${C.borderMedium} rounded p-3`}>
           <h3 className="text-[11pt] font-semibold mb-2">担当医</h3>
           <p className="text-[10pt] font-medium">{doctorName ?? "—"}</p>
         </div>
@@ -98,7 +101,7 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
       {/* ── 主訴 ── */}
       {chiefComplaint ? (
         <section className="mb-5">
-          <h3 className="text-[11pt] font-semibold border-b border-gray-300 pb-1 mb-2">主訴</h3>
+          <h3 className={`text-[11pt] font-semibold border-b ${C.borderLight} pb-1 mb-2`}>主訴</h3>
           <p className="text-[10pt] whitespace-pre-wrap">{chiefComplaint}</p>
         </section>
       ) : null}
@@ -106,7 +109,7 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
       {/* ── 身体検査所見 ── */}
       {physicalExam ? (
         <section className="mb-5">
-          <h3 className="text-[11pt] font-semibold border-b border-gray-300 pb-1 mb-2">身体検査所見</h3>
+          <h3 className={`text-[11pt] font-semibold border-b ${C.borderLight} pb-1 mb-2`}>身体検査所見</h3>
           <p className="text-[10pt] whitespace-pre-wrap">{physicalExam}</p>
         </section>
       ) : null}
@@ -114,7 +117,7 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
       {/* ── 診断 ── */}
       {diagnosisDetails ? (
         <section className="mb-5">
-          <h3 className="text-[11pt] font-semibold border-b border-gray-300 pb-1 mb-2">診断</h3>
+          <h3 className={`text-[11pt] font-semibold border-b ${C.borderLight} pb-1 mb-2`}>診断</h3>
           <p className="text-[10pt] whitespace-pre-wrap">{diagnosisDetails}</p>
         </section>
       ) : null}
@@ -122,7 +125,7 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
       {/* ── 治療方針 ── */}
       {treatmentPolicy ? (
         <section className="mb-5">
-          <h3 className="text-[11pt] font-semibold border-b border-gray-300 pb-1 mb-2">治療方針</h3>
+          <h3 className={`text-[11pt] font-semibold border-b ${C.borderLight} pb-1 mb-2`}>治療方針</h3>
           <p className="text-[10pt] whitespace-pre-wrap">{treatmentPolicy}</p>
         </section>
       ) : null}
@@ -130,10 +133,10 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
       {/* ── 処方箋 ── */}
       {medicineTreatments.length > 0 ? (
         <section className="mb-5">
-          <h3 className="text-[11pt] font-semibold border-b border-gray-300 pb-1 mb-2">処方薬</h3>
+          <h3 className={`text-[11pt] font-semibold border-b ${C.borderLight} pb-1 mb-2`}>処方薬</h3>
           <table className="w-full text-[10pt] border-collapse">
             <thead>
-              <tr className="border-b border-gray-400">
+              <tr className={`border-b ${C.borderMedium}`}>
                 <th className="text-left py-1 pr-4 font-semibold">薬品名</th>
                 <th className="text-right py-1 pr-4 font-semibold w-20">数量</th>
                 <th className="text-left py-1 font-semibold">備考 (投与方法等)</th>
@@ -141,7 +144,7 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
             </thead>
             <tbody>
               {medicineTreatments.map((t) => (
-                <tr key={t.id} className="border-b border-gray-200">
+                <tr key={t.id} className={`border-b ${C.borderLight}`}>
                   <td className="py-1 pr-4">{t.content}</td>
                   <td className="py-1 pr-4 text-right">{t.quantity}</td>
                   <td className="py-1">{t.memo ?? ""}</td>
@@ -153,7 +156,7 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
       ) : null}
 
       {/* ── フッター ── */}
-      <div className="mt-12 pt-4 border-t border-gray-300 text-[9pt] text-gray-500 flex justify-between">
+      <div className={`mt-12 pt-4 border-t ${C.borderLight} text-[9pt] ${C.text50} flex justify-between`}>
         <span>{clinic.name}</span>
         <span>獣医師: {doctorName ?? "—"}</span>
       </div>

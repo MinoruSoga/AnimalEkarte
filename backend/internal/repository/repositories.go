@@ -62,6 +62,13 @@ type Repositories struct {
 	BillingItem            BillingItemRepository
 	Refund                 RefundRepository
 	Audit                  AuditRepository
+	// LINE予約
+	ReservationSetting     ReservationSettingRepository
+	ReservationCourse      ReservationCourseRepository
+	ReservationStaff       ReservationStaffRepository
+	ReservationSchedule    ReservationScheduleRepository
+	ReservationAdmin       ReservationAdminRepository
+	ReservationCustomerMgr ReservationCustomerRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -118,8 +125,17 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		BillingItem:            NewBillingItemRepository(db),
 		Refund:                 NewRefundRepository(db),
 		Audit:                  NewAuditRepository(db),
+		ReservationSetting:     NewReservationSettingRepository(db),
+		ReservationCourse:      NewReservationCourseRepository(db),
+		ReservationStaff:       NewReservationStaffRepository(db),
+		ReservationSchedule:    NewReservationScheduleRepository(db),
+		ReservationAdmin:       NewReservationAdminRepository(db),
+		ReservationCustomerMgr: NewReservationCustomerRepository(db),
 	}
 }
+
+// DB はGORMのDBインスタンスを返す（バリデーター等の直接DB操作に使用）。
+func (r *Repositories) DB() *gorm.DB { return r.db }
 
 // Transaction はリポジトリ層のトランザクションを実行する。
 // テスト時は TransactionFn に mock を設定することで DB 依存を排除できる。
