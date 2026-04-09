@@ -155,6 +155,9 @@ func verifyLiffIDToken(ctx context.Context, idToken, clientID string) (*lineVeri
 	return &result, nil
 }
 
+// LiffCustomerIDKey はコンテキストキー名を返す（ハンドラーテストでのセットアップ用）。
+func LiffCustomerIDKey() string { return liffCustomerIDKey }
+
 // ExtractLiffCustomerID はコンテキストから liff_customer_id を取得する。
 func ExtractLiffCustomerID(c *gin.Context) (uint64, bool) {
 	v, exists := c.Get(liffCustomerIDKey)
