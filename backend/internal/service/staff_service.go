@@ -23,6 +23,11 @@ type CreateStaffInput struct {
 	OccupationID  *uint64
 	SortOrder     int
 	AccountID     *uint64
+
+	// LINE予約用フィールド
+	StaffType          string
+	ReservationVisible bool
+	ReservationComment string
 }
 
 // CreateStaffWithAccountInput はアカウント（email/password）を同時に作成するスタッフ登録用入力DTO。
@@ -34,6 +39,11 @@ type CreateStaffWithAccountInput struct {
 	SortOrder     int
 	Email         string
 	Password      string
+
+	// LINE予約用フィールド
+	StaffType          string
+	ReservationVisible bool
+	ReservationComment string
 }
 
 // UpdateStaffInput はスタッフ部分更新の入力DTO。nil = 未送信フィールド。
@@ -43,6 +53,11 @@ type UpdateStaffInput struct {
 	OccupationID  *uint64
 	SortOrder     *int
 	IsActive      *bool
+
+	// LINE予約用フィールド
+	StaffType          *string
+	ReservationVisible *bool
+	ReservationComment *string
 }
 
 type StaffService interface {
@@ -119,13 +134,21 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 	}
 	input.Name = strings.TrimSpace(input.Name)
 
+	staffType := model.StaffType(input.StaffType)
+	if staffType == "" {
+		staffType = model.StaffTypeDoctor
+	}
+
 	staff := &model.Staff{
-		Name:          input.Name,
-		LicenseNumber: input.LicenseNumber,
-		OccupationID:  input.OccupationID,
-		SortOrder:     input.SortOrder,
-		IsActive:      true,
-		AccountID:     input.AccountID,
+		Name:               input.Name,
+		LicenseNumber:      input.LicenseNumber,
+		OccupationID:       input.OccupationID,
+		SortOrder:          input.SortOrder,
+		IsActive:           true,
+		AccountID:          input.AccountID,
+		StaffType:          staffType,
+		ReservationVisible: input.ReservationVisible,
+		ReservationComment: input.ReservationComment,
 	}
 
 	if err := s.repo.Create(ctx, staff); err != nil {
@@ -169,13 +192,21 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 
 	slog.InfoContext(ctx, "account created for staff", slog.String("email", input.Email))
 
+	staffType := model.StaffType(input.StaffType)
+	if staffType == "" {
+		staffType = model.StaffTypeDoctor
+	}
+
 	staff := &model.Staff{
-		Name:          name,
-		LicenseNumber: input.LicenseNumber,
-		OccupationID:  input.OccupationID,
-		SortOrder:     input.SortOrder,
-		IsActive:      true,
-		AccountID:     &account.ID,
+		Name:               name,
+		LicenseNumber:      input.LicenseNumber,
+		OccupationID:       input.OccupationID,
+		SortOrder:          input.SortOrder,
+		IsActive:           true,
+		AccountID:          &account.ID,
+		StaffType:          staffType,
+		ReservationVisible: input.ReservationVisible,
+		ReservationComment: input.ReservationComment,
 	}
 	if err := s.repo.Create(ctx, staff); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create staff")
@@ -263,6 +294,15 @@ func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
 	}
 	if input.IsActive != nil {
 		fields["is_active"] = *input.IsActive
+	}
+	if input.StaffType != nil {
+		fields["staff_type"] = *input.StaffType
+	}
+	if input.ReservationVisible != nil {
+		fields["reservation_visible"] = *input.ReservationVisible
+	}
+	if input.ReservationComment != nil {
+		fields["reservation_comment"] = *input.ReservationComment
 	}
 	return fields
 }

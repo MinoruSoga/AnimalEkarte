@@ -57,12 +57,27 @@ func (h *Handler) CreateServiceType(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
+	reservationVisible := true
+	if req.ReservationVisible != nil {
+		reservationVisible = *req.ReservationVisible
+	}
+	durationMinutes := 15
+	if req.DurationMinutes != nil {
+		durationMinutes = *req.DurationMinutes
+	}
 	st, err := h.svc.ServiceType.Create(c.Request.Context(), clinicID, &service.CreateServiceTypeInput{
-		Name:        req.Name,
-		Color:       req.Color,
-		IsActive:    req.IsActive,
-		Description: req.Description,
-		SortOrder:   req.SortOrder,
+		Name:                 req.Name,
+		Color:                req.Color,
+		IsActive:             true,
+		Description:          req.Description,
+		SortOrder:            req.SortOrder,
+		DurationMinutes:      durationMinutes,
+		ShortName:            req.ShortName,
+		ShowShortName:        req.ShowShortName,
+		ReservationVisible:   reservationVisible,
+		ReservationComment:   req.ReservationComment,
+		ReservationDayOption: req.ReservationDayOption,
+		IsInternal:           req.IsInternal,
 	})
 	if err != nil {
 		RespondError(c, err)
@@ -88,11 +103,18 @@ func (h *Handler) UpdateServiceType(c *gin.Context) {
 		return
 	}
 	st, err := h.svc.ServiceType.Update(c.Request.Context(), clinicID, id, &service.UpdateServiceTypeInput{
-		Name:        req.Name,
-		Color:       req.Color,
-		IsActive:    req.IsActive,
-		Description: req.Description,
-		SortOrder:   req.SortOrder,
+		Name:                 req.Name,
+		Color:                req.Color,
+		IsActive:             req.IsActive,
+		Description:          req.Description,
+		SortOrder:            req.SortOrder,
+		DurationMinutes:      req.DurationMinutes,
+		ShortName:            req.ShortName,
+		ShowShortName:        req.ShowShortName,
+		ReservationVisible:   req.ReservationVisible,
+		ReservationComment:   req.ReservationComment,
+		ReservationDayOption: req.ReservationDayOption,
+		IsInternal:           req.IsInternal,
 	})
 	if err != nil {
 		RespondError(c, err)

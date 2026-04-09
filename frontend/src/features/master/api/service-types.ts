@@ -23,6 +23,15 @@ function transformServiceType(data: ModelServiceType) {
     sortOrder: data.sort_order,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
+    // LINE予約用フィールド
+    durationMinutes: data.duration_minutes ?? 15,
+    shortName: data.short_name ?? "",
+    showShortName: data.show_short_name ?? false,
+    reservationVisible: data.reservation_visible ?? true,
+    reservationComment: data.reservation_comment ?? "",
+    reservationImageUrl: data.reservation_image_url ?? "",
+    reservationDayOption: data.reservation_day_option ?? "none",
+    isInternal: data.is_internal ?? false,
   };
 }
 

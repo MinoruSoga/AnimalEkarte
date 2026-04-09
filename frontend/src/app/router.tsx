@@ -857,29 +857,8 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { LineReservationCalendar } = await import("@/features/line-reservation");
-              return { Component: LineReservationCalendar };
-            },
-          },
-          {
-            path: "calendar",
-            lazy: async () => {
-              const { LineReservationCalendar } = await import("@/features/line-reservation");
-              return { Component: LineReservationCalendar };
-            },
-          },
-          {
-            path: "courses",
-            lazy: async () => {
-              const { LineReservationCourses } = await import("@/features/line-reservation");
-              return { Component: LineReservationCourses };
-            },
-          },
-          {
-            path: "staffs",
-            lazy: async () => {
-              const { LineReservationStaffs } = await import("@/features/line-reservation");
-              return { Component: LineReservationStaffs };
+              const { LineReservationSettings } = await import("@/features/line-reservation");
+              return { Component: LineReservationSettings };
             },
           },
           {
@@ -890,24 +869,10 @@ export const router = createBrowserRouter([
             },
           },
           {
-            path: "schedule",
-            lazy: async () => {
-              const { LineStaffSchedule } = await import("@/features/line-reservation");
-              return { Component: LineStaffSchedule };
-            },
-          },
-          {
             path: "page-editor",
             lazy: async () => {
               const { LineReservationPageEditor } = await import("@/features/line-reservation");
               return { Component: LineReservationPageEditor };
-            },
-          },
-          {
-            path: "customers",
-            lazy: async () => {
-              const { LineReservationCustomersPage } = await import("@/app/pages/LineReservationCustomersPage");
-              return { Component: LineReservationCustomersPage };
             },
           },
         ],

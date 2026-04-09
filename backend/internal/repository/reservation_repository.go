@@ -12,7 +12,7 @@ import (
 )
 
 type ReservationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
 	Create(ctx context.Context, reservation *model.ReservationAppointment) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
@@ -31,7 +31,7 @@ func NewReservationRepository(db *gorm.DB) ReservationRepository {
 	return &reservationRepository{db: db}
 }
 
-func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
+func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
 	reservations := make([]model.ReservationAppointment, 0)
 	var total int64
 
@@ -43,6 +43,9 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 	}
 	if status != nil {
 		q = q.Where("status = ?", *status)
+	}
+	if source != nil {
+		q = q.Where("source = ?", *source)
 	}
 	if petID != nil {
 		q = q.Where("pet_id = ?", *petID)

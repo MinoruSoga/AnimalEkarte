@@ -2,8 +2,10 @@ import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
-import { Activity } from "lucide-react";
+import { Activity, MessageCircle } from "lucide-react";
 import { handleApiError } from "@/lib/handle-api-error";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
@@ -31,13 +33,34 @@ const COLUMNS = [
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
-interface ServiceTypeFormData { name: string; description: string; color: string; isActive: boolean; }
+interface ServiceTypeFormData {
+  name: string;
+  description: string;
+  color: string;
+  isActive: boolean;
+  // LINE予約用
+  durationMinutes: number;
+  shortName: string;
+  reservationVisible: boolean;
+  reservationComment: string;
+  reservationDayOption: string;
+  isInternal: boolean;
+}
 
 const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
   item, onClose, onSave, onDeleteRequest, readOnly,
 }: { item: ServiceType | null; onClose: () => void; onSave: (d: ServiceTypeFormData) => void; onDeleteRequest?: (i: ServiceType) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<ServiceTypeFormData>(() => ({
-    name: item?.name ?? "", description: item?.description ?? "", color: item?.color ?? "#3B82F6", isActive: item?.isActive ?? true,
+    name: item?.name ?? "",
+    description: item?.description ?? "",
+    color: item?.color ?? "#3B82F6",
+    isActive: item?.isActive ?? true,
+    durationMinutes: item?.durationMinutes ?? 15,
+    shortName: item?.shortName ?? "",
+    reservationVisible: item?.reservationVisible ?? true,
+    reservationComment: item?.reservationComment ?? "",
+    reservationDayOption: item?.reservationDayOption ?? "none",
+    isInternal: item?.isInternal ?? false,
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
@@ -103,6 +126,72 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
       <PropertyRow label="備考">
         <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
       </PropertyRow>
+
+      {/* ── LINE予約設定 ──────────────────────────── */}
+      <div className="mt-4 border-t pt-4">
+        <div className="flex items-center gap-1.5 mb-3">
+          <MessageCircle className="size-3.5" style={{ color: "#06C755" }} />
+          <p className="text-xs font-medium text-muted-foreground">LINE予約設定</p>
+        </div>
+
+        <PropertyRow label="予約ページに表示">
+          <Switch
+            checked={f.reservationVisible}
+            onCheckedChange={(v) => { setF((p) => ({ ...p, reservationVisible: v })); setIsDirty(true); }}
+          />
+        </PropertyRow>
+
+        <PropertyRow label="内部サービス">
+          <Switch
+            checked={f.isInternal}
+            onCheckedChange={(v) => { setF((p) => ({ ...p, isInternal: v })); setIsDirty(true); }}
+          />
+        </PropertyRow>
+
+        <PropertyRow label="所要時間（分）">
+          <input
+            type="number"
+            min={5}
+            max={480}
+            className="w-20 rounded border px-2 py-1 text-sm"
+            value={f.durationMinutes}
+            onChange={(e) => { setF((p) => ({ ...p, durationMinutes: Number(e.target.value) || 15 })); setIsDirty(true); }}
+          />
+        </PropertyRow>
+
+        <PropertyRow label="略称">
+          <PropertyInput
+            value={f.shortName}
+            onChange={(v) => { setF((p) => ({ ...p, shortName: v })); setIsDirty(true); }}
+            placeholder="LINE表示用の略称"
+          />
+        </PropertyRow>
+
+        <PropertyRow label="予約可能曜日">
+          <Select
+            value={f.reservationDayOption}
+            onValueChange={(v) => { setF((p) => ({ ...p, reservationDayOption: v })); setIsDirty(true); }}
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">制限なし</SelectItem>
+              <SelectItem value="weekday">平日のみ</SelectItem>
+              <SelectItem value="saturday">土曜含む</SelectItem>
+              <SelectItem value="anyday">毎日</SelectItem>
+            </SelectContent>
+          </Select>
+        </PropertyRow>
+
+        <PropertyRow label="LINE説明文">
+          <PropertyInput
+            value={f.reservationComment}
+            onChange={(v) => { setF((p) => ({ ...p, reservationComment: v })); setIsDirty(true); }}
+            placeholder="LINE予約画面に表示する説明"
+          />
+        </PropertyRow>
+      </div>
     </MasterSidePanel>
   );
 });
@@ -131,8 +220,20 @@ export function ServiceTypeSettings() {
   const { handleSave } = useMasterSave<ServiceType, ServiceTypeFormData, CreateServiceTypeRequest, UpdateServiceTypeRequest>({
     crud, createMutation, updateMutation,
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
-    toCreateRequest: (d) => ({ name: d.name, description: d.description || undefined, color: d.color || undefined, is_active: true }),
-    toUpdateRequest: (d) => ({ name: d.name, description: d.description || undefined, color: d.color || undefined, is_active: d.isActive }),
+    toCreateRequest: (d) => ({
+      name: d.name, description: d.description || undefined, color: d.color || undefined, is_active: true,
+      duration_minutes: d.durationMinutes, short_name: d.shortName || undefined,
+      reservation_visible: d.reservationVisible, reservation_comment: d.reservationComment || undefined,
+      reservation_day_option: d.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
+      is_internal: d.isInternal,
+    }),
+    toUpdateRequest: (d) => ({
+      name: d.name, description: d.description || undefined, color: d.color || undefined, is_active: d.isActive,
+      duration_minutes: d.durationMinutes, short_name: d.shortName || undefined,
+      reservation_visible: d.reservationVisible, reservation_comment: d.reservationComment || undefined,
+      reservation_day_option: d.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
+      is_internal: d.isInternal,
+    }),
   });
 
   return (

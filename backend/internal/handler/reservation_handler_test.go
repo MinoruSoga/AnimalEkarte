@@ -29,7 +29,7 @@ type mockReservationService struct {
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockReservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
+func (m *mockReservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
 	return m.listFn(ctx, clinicID, page, limit, date, status, petID, ownerID)
 }
 

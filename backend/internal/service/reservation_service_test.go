@@ -23,7 +23,7 @@ type mockReservationRepository struct {
 	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
 }
 
-func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
+func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
 	return m.findAllFn(ctx, clinicID, page, limit, date, status, petID, ownerID)
 }
 
@@ -219,7 +219,7 @@ func TestReservationService_List(t *testing.T) {
 			}
 			svc := NewReservationService(repo, nil)
 
-			reservations, total, err := svc.List(context.Background(), tt.clinicID, tt.page, tt.limit, tt.date, tt.status, tt.petID, tt.ownerID)
+			reservations, total, err := svc.List(context.Background(), tt.clinicID, tt.page, tt.limit, tt.date, tt.status, nil, tt.petID, tt.ownerID)
 
 			if tt.wantErr {
 				assert.Error(t, err)

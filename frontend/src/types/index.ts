@@ -142,6 +142,7 @@ export interface ReservationAppointment {
   status: ReservationStatus;
   notes?: string;
   petId?: string;
+  source: "manual" | "line";
 }
 
 /**

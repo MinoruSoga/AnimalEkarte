@@ -58,7 +58,12 @@ func (h *Handler) ListReservations(c *gin.Context) {
 		ownerID = &id
 	}
 
-	reservations, total, err := h.svc.Reservation.List(c.Request.Context(), clinicID, page, limit, date, status, petID, ownerID)
+	var source *string
+	if s := c.Query("source"); s != "" {
+		source = &s
+	}
+
+	reservations, total, err := h.svc.Reservation.List(c.Request.Context(), clinicID, page, limit, date, status, source, petID, ownerID)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -60,7 +60,7 @@ type mockReservationForStaff struct {
 	existsByStaffIDFn func(ctx context.Context, staffID uint64) (bool, error)
 }
 
-func (m *mockReservationForStaff) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
+func (m *mockReservationForStaff) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockReservationForStaff) FindByID(_ context.Context, _, _ uint64) (*model.ReservationAppointment, error) {

@@ -1,5 +1,6 @@
 import { memo, useState, useMemo, useCallback } from "react";
-import { UserRound, Shield, Building2 } from "lucide-react";
+import { UserRound, Shield, Building2, MessageCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -59,6 +60,10 @@ interface StaffFormData {
   isActive: boolean;
   email: string;
   password: string;
+  // LINE予約用
+  staffType: string;
+  reservationVisible: boolean;
+  reservationComment: string;
 }
 
 // ─────────────────────────────────────────────────
@@ -105,6 +110,9 @@ const StaffSidePanel = memo(function StaffSidePanel({
     isActive: item?.isActive ?? true,
     email: item?.email ?? "",
     password: "",
+    staffType: item?.staffType ?? "doctor",
+    reservationVisible: item?.reservationVisible ?? true,
+    reservationComment: item?.reservationComment ?? "",
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
@@ -290,6 +298,47 @@ const StaffSidePanel = memo(function StaffSidePanel({
         </>
       )}
 
+      {/* ── LINE予約設定 ─────────────────────────── */}
+      <div className="mt-4 border-t pt-4">
+        <div className="flex items-center gap-1.5 mb-3">
+          <MessageCircle className="size-3.5" style={{ color: "#06C755" }} />
+          <p className="text-xs font-medium text-muted-foreground">LINE予約設定</p>
+        </div>
+
+        <PropertyRow label="予約ページに表示">
+          <Switch
+            checked={f.reservationVisible}
+            onCheckedChange={(v) => { setF((p) => ({ ...p, reservationVisible: v })); setIsDirty(true); }}
+          />
+        </PropertyRow>
+
+        <PropertyRow label="スタッフ種別">
+          <Select
+            value={f.staffType}
+            onValueChange={(v) => { setF((p) => ({ ...p, staffType: v })); setIsDirty(true); }}
+          >
+            <SelectTrigger className={STYLE.selectCompact}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="doctor">医師</SelectItem>
+              <SelectItem value="nurse">看護師</SelectItem>
+              <SelectItem value="resource">設備</SelectItem>
+            </SelectContent>
+          </Select>
+        </PropertyRow>
+
+        <PropertyRow label="LINE説明文">
+          <input
+            type="text"
+            className={MASTER_INPUT_CLASS}
+            value={f.reservationComment}
+            onChange={(e) => { setF((p) => ({ ...p, reservationComment: e.target.value })); setIsDirty(true); }}
+            placeholder="LINE予約画面に表示する説明"
+          />
+        </PropertyRow>
+      </div>
+
       {/* ── Clinic assignments ─────────────────────── */}
       <div className="mt-4 border-t pt-4">
         <div className="flex items-center gap-1.5 mb-2">
@@ -466,6 +515,9 @@ export function StaffSettings() {
       password: d.password,
       license_number: d.licenseNumber || undefined,
       occupation_id: d.jobTitleId ?? undefined,
+      staff_type: d.staffType,
+      reservation_visible: d.reservationVisible,
+      reservation_comment: d.reservationComment || undefined,
     }),
     toUpdateRequest: (d) => ({
       name: d.name,
@@ -473,6 +525,9 @@ export function StaffSettings() {
       is_active: d.isActive,
       occupation_id: d.jobTitleId ?? undefined,
       password: d.password || undefined,
+      staff_type: d.staffType,
+      reservation_visible: d.reservationVisible,
+      reservation_comment: d.reservationComment || undefined,
     }),
   });
 

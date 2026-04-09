@@ -52,6 +52,7 @@ export function ReservationManagement() {
   const { canCreate, canEdit, canDelete } = usePermission("reservations");
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
 
   const { activeEntries, colorMap: dynamicColorMap } = useServiceTypeColorMap();
 
@@ -111,11 +112,17 @@ export function ReservationManagement() {
   );
 
   const filteredAppointments = useMemo(
-    () =>
-      doctorFilter === "all"
-        ? appointments
-        : appointments.filter((a) => a.doctor === doctorFilter),
-    [appointments, doctorFilter],
+    () => {
+      let result = appointments;
+      if (doctorFilter !== "all") {
+        result = result.filter((a) => a.doctor === doctorFilter);
+      }
+      if (sourceFilter !== "all") {
+        result = result.filter((a) => a.source === sourceFilter);
+      }
+      return result;
+    },
+    [appointments, doctorFilter, sourceFilter],
   );
 
   const navigateToday = useCallback(() => setCurrentDate(new Date()), []);
@@ -189,6 +196,18 @@ export function ReservationManagement() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Source Filter */}
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className={`w-[140px] bg-white ${C.borderMedium} h-10 text-base`}>
+                <SelectValue placeholder="予約ソース" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">すべて</SelectItem>
+                <SelectItem value="manual">手動予約</SelectItem>
+                <SelectItem value="line">LINE予約</SelectItem>
+              </SelectContent>
+            </Select>
+
             {/* Doctor Filter */}
             <Select value={doctorFilter} onValueChange={setDoctorFilter}>
               <SelectTrigger className={`w-[160px] bg-white ${C.borderMedium} h-10 text-base`}>

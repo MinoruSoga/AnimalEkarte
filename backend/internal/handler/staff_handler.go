@@ -63,22 +63,36 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 			RespondError(c, err)
 			return
 		}
+		reservationVisible := true
+		if req.ReservationVisible != nil {
+			reservationVisible = *req.ReservationVisible
+		}
 		staff, err = h.svc.Staff.CreateWithAccount(ctx, &service.CreateStaffWithAccountInput{
-			ClinicID:      clinicID,
-			Name:          req.Name,
-			LicenseNumber: req.LicenseNumber,
-			OccupationID:  req.OccupationID,
-			SortOrder:     req.SortOrder,
-			Email:         email,
-			Password:      req.Password,
+			ClinicID:           clinicID,
+			Name:               req.Name,
+			LicenseNumber:      req.LicenseNumber,
+			OccupationID:       req.OccupationID,
+			SortOrder:          req.SortOrder,
+			Email:              email,
+			Password:           req.Password,
+			StaffType:          req.StaffType,
+			ReservationVisible: reservationVisible,
+			ReservationComment: req.ReservationComment,
 		})
 	} else {
+		reservationVisible := true
+		if req.ReservationVisible != nil {
+			reservationVisible = *req.ReservationVisible
+		}
 		staff, err = h.svc.Staff.Create(ctx, &service.CreateStaffInput{
-			ClinicID:      clinicID,
-			Name:          req.Name,
-			LicenseNumber: req.LicenseNumber,
-			OccupationID:  req.OccupationID,
-			SortOrder:     req.SortOrder,
+			ClinicID:           clinicID,
+			Name:               req.Name,
+			LicenseNumber:      req.LicenseNumber,
+			OccupationID:       req.OccupationID,
+			SortOrder:          req.SortOrder,
+			StaffType:          req.StaffType,
+			ReservationVisible: reservationVisible,
+			ReservationComment: req.ReservationComment,
 		})
 	}
 	if err != nil {
@@ -121,7 +135,8 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	}
 
 	// パスワードのみの更新かどうかを判定（BUG-131）
-	hasProfileUpdate := req.Name != nil || req.LicenseNumber != nil || req.OccupationID != nil || req.SortOrder != nil || req.IsActive != nil
+	hasProfileUpdate := req.Name != nil || req.LicenseNumber != nil || req.OccupationID != nil || req.SortOrder != nil || req.IsActive != nil ||
+		req.StaffType != nil || req.ReservationVisible != nil || req.ReservationComment != nil
 	hasPasswordUpdate := req.Password != nil && *req.Password != ""
 
 	if !hasProfileUpdate && !hasPasswordUpdate {
@@ -133,11 +148,14 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	if hasProfileUpdate {
 		var svcErr error
 		staff, svcErr = h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
-			Name:          req.Name,
-			LicenseNumber: req.LicenseNumber,
-			OccupationID:  req.OccupationID,
-			SortOrder:     req.SortOrder,
-			IsActive:      req.IsActive,
+			Name:               req.Name,
+			LicenseNumber:      req.LicenseNumber,
+			OccupationID:       req.OccupationID,
+			SortOrder:          req.SortOrder,
+			IsActive:           req.IsActive,
+			StaffType:          req.StaffType,
+			ReservationVisible: req.ReservationVisible,
+			ReservationComment: req.ReservationComment,
 		})
 		if svcErr != nil {
 			RespondError(c, svcErr)

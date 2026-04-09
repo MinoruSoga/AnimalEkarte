@@ -181,13 +181,8 @@ export const paths = {
   lineReservation: {
     path: "/line-reservation",
     getHref: () => "/line-reservation",
-    courses: { path: "/line-reservation/courses", getHref: () => "/line-reservation/courses" },
-    staffs: { path: "/line-reservation/staffs", getHref: () => "/line-reservation/staffs" },
     settings: { path: "/line-reservation/settings", getHref: () => "/line-reservation/settings" },
-    schedule: { path: "/line-reservation/schedule", getHref: () => "/line-reservation/schedule" },
-    calendar: { path: "/line-reservation/calendar", getHref: () => "/line-reservation/calendar" },
     pageEditor: { path: "/line-reservation/page-editor", getHref: () => "/line-reservation/page-editor" },
-    customers: { path: "/line-reservation/customers", getHref: () => "/line-reservation/customers" },
   },
 
   settings: {

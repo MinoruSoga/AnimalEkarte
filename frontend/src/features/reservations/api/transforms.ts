@@ -20,6 +20,7 @@ export const transformReservation = (
     status: (reservation.status as ReservationAppointment["status"]) ?? "pending",
     notes: reservation.notes || undefined,
     petId: reservation.pet_id ? String(reservation.pet_id) : undefined,
+    source: (reservation.source as "manual" | "line") ?? "manual",
   };
 };
 
