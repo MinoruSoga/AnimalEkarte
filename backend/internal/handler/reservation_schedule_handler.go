@@ -17,7 +17,7 @@ func (h *Handler) ListReservationSchedules(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staffID, err := strconv.ParseUint(c.Param("staffId"), 10, 64)
+	staffID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid staffId"))
 		return
@@ -44,7 +44,7 @@ func (h *Handler) UpsertReservationSchedule(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staffID, err := strconv.ParseUint(c.Param("staffId"), 10, 64)
+	staffID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid staffId"))
 		return
@@ -86,7 +86,7 @@ func (h *Handler) DeleteReservationSchedule(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staffID, err := strconv.ParseUint(c.Param("staffId"), 10, 64)
+	staffID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid staffId"))
 		return

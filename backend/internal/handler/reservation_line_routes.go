@@ -8,7 +8,7 @@ import (
 
 // RegisterLineReservationRoutes はLINE予約管理APIのルートを登録する
 func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
-	clinics := rg.Group("/clinics/:clinicId")
+	clinics := rg.Group("/clinics/:id")
 
 	// TASK-RES-010: 基本設定
 	clinics.GET("/reservation-settings", h.GetReservationSetting)
@@ -35,7 +35,7 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	staffs.POST("/:id/image", h.UploadReservationStaffImage)
 
 	// TASK-RES-013: スタッフ個人スケジュール
-	schedules := clinics.Group("/reservation-staffs/:staffId/schedules")
+	schedules := clinics.Group("/reservation-staffs/:id/schedules")
 	schedules.GET("", h.ListReservationSchedules)
 	schedules.PUT("/:date", h.UpsertReservationSchedule)
 	schedules.DELETE("/:date", h.DeleteReservationSchedule)
@@ -54,7 +54,7 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 
 // RegisterLiffRoutes はLIFF公開APIのルートを登録する（LINE IDトークン認証）。
 func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
-	liffAuth := middleware.LiffAuth(h.repos.ReservationCustomerMgr)
+	liffAuth := middleware.LiffAuth(h.repos.ReservationCustomerMgr, h.repos.ReservationSetting)
 
 	liff := r.Group("/api/liff/:clinicId")
 
