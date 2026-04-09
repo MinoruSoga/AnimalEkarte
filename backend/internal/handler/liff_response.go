@@ -71,9 +71,13 @@ type liffStaffResponse struct {
 }
 
 func toLiffStaffResponse(st model.Staff) liffStaffResponse {
+	name := st.ReservationDisplayName
+	if name == "" {
+		name = st.Name
+	}
 	return liffStaffResponse{
 		ID:                  st.ID,
-		Name:                st.Name,
+		Name:                name,
 		ReservationComment:  st.ReservationComment,
 		ReservationImageURL: st.ReservationImageURL,
 		SortOrder:           st.SortOrder,

@@ -16,6 +16,7 @@ export interface CreateStaffRequest {
   sort_order?: number;
   // LINE予約用
   staff_type?: string;
+  reservation_display_name?: string;
   reservation_visible?: boolean;
   reservation_comment?: string;
 }
@@ -29,6 +30,7 @@ export interface UpdateStaffRequest {
   password?: string;
   // LINE予約用
   staff_type?: string;
+  reservation_display_name?: string;
   reservation_visible?: boolean;
   reservation_comment?: string;
 }
@@ -59,6 +61,7 @@ function transformStaff(data: ModelStaff & { email?: string }) {
     updatedAt: data.updated_at,
     // LINE予約用フィールド
     staffType: data.staff_type ?? "doctor",
+    reservationDisplayName: data.reservation_display_name ?? "",
     reservationVisible: data.reservation_visible ?? true,
     reservationComment: data.reservation_comment ?? "",
   };

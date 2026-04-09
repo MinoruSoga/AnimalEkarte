@@ -25,9 +25,10 @@ type CreateStaffInput struct {
 	AccountID     *uint64
 
 	// LINE予約用フィールド
-	StaffType          string
-	ReservationVisible bool
-	ReservationComment string
+	StaffType              string
+	ReservationDisplayName string
+	ReservationVisible     bool
+	ReservationComment     string
 }
 
 // CreateStaffWithAccountInput はアカウント（email/password）を同時に作成するスタッフ登録用入力DTO。
@@ -41,9 +42,10 @@ type CreateStaffWithAccountInput struct {
 	Password      string
 
 	// LINE予約用フィールド
-	StaffType          string
-	ReservationVisible bool
-	ReservationComment string
+	StaffType              string
+	ReservationDisplayName string
+	ReservationVisible     bool
+	ReservationComment     string
 }
 
 // UpdateStaffInput はスタッフ部分更新の入力DTO。nil = 未送信フィールド。
@@ -55,9 +57,10 @@ type UpdateStaffInput struct {
 	IsActive      *bool
 
 	// LINE予約用フィールド
-	StaffType          *string
-	ReservationVisible *bool
-	ReservationComment *string
+	StaffType              *string
+	ReservationDisplayName *string
+	ReservationVisible     *bool
+	ReservationComment     *string
 }
 
 type StaffService interface {
@@ -140,15 +143,16 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 	}
 
 	staff := &model.Staff{
-		Name:               input.Name,
-		LicenseNumber:      input.LicenseNumber,
-		OccupationID:       input.OccupationID,
-		SortOrder:          input.SortOrder,
-		IsActive:           true,
-		AccountID:          input.AccountID,
-		StaffType:          staffType,
-		ReservationVisible: input.ReservationVisible,
-		ReservationComment: input.ReservationComment,
+		Name:                   input.Name,
+		LicenseNumber:          input.LicenseNumber,
+		OccupationID:           input.OccupationID,
+		SortOrder:              input.SortOrder,
+		IsActive:               true,
+		AccountID:              input.AccountID,
+		StaffType:              staffType,
+		ReservationDisplayName: input.ReservationDisplayName,
+		ReservationVisible:     input.ReservationVisible,
+		ReservationComment:     input.ReservationComment,
 	}
 
 	if err := s.repo.Create(ctx, staff); err != nil {
@@ -198,15 +202,16 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	}
 
 	staff := &model.Staff{
-		Name:               name,
-		LicenseNumber:      input.LicenseNumber,
-		OccupationID:       input.OccupationID,
-		SortOrder:          input.SortOrder,
-		IsActive:           true,
-		AccountID:          &account.ID,
-		StaffType:          staffType,
-		ReservationVisible: input.ReservationVisible,
-		ReservationComment: input.ReservationComment,
+		Name:                   name,
+		LicenseNumber:          input.LicenseNumber,
+		OccupationID:           input.OccupationID,
+		SortOrder:              input.SortOrder,
+		IsActive:               true,
+		AccountID:              &account.ID,
+		StaffType:              staffType,
+		ReservationDisplayName: input.ReservationDisplayName,
+		ReservationVisible:     input.ReservationVisible,
+		ReservationComment:     input.ReservationComment,
 	}
 	if err := s.repo.Create(ctx, staff); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create staff")
@@ -297,6 +302,9 @@ func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
 	}
 	if input.StaffType != nil {
 		fields["staff_type"] = *input.StaffType
+	}
+	if input.ReservationDisplayName != nil {
+		fields["reservation_display_name"] = *input.ReservationDisplayName
 	}
 	if input.ReservationVisible != nil {
 		fields["reservation_visible"] = *input.ReservationVisible

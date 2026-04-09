@@ -62,6 +62,7 @@ interface StaffFormData {
   password: string;
   // LINE予約用
   staffType: string;
+  reservationDisplayName: string;
   reservationVisible: boolean;
   reservationComment: string;
 }
@@ -111,6 +112,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
     email: item?.email ?? "",
     password: "",
     staffType: item?.staffType ?? "doctor",
+    reservationDisplayName: item?.reservationDisplayName ?? "",
     reservationVisible: item?.reservationVisible ?? true,
     reservationComment: item?.reservationComment ?? "",
   }));
@@ -304,6 +306,16 @@ const StaffSidePanel = memo(function StaffSidePanel({
           <MessageCircle className="size-3.5" style={{ color: "#06C755" }} />
           <p className="text-xs font-medium text-muted-foreground">LINE予約設定</p>
         </div>
+
+        <PropertyRow label="LINE表示名">
+          <input
+            type="text"
+            className={MASTER_INPUT_CLASS}
+            value={f.reservationDisplayName}
+            onChange={(e) => { setF((p) => ({ ...p, reservationDisplayName: e.target.value })); setIsDirty(true); }}
+            placeholder={f.name || "空欄なら氏名を使用"}
+          />
+        </PropertyRow>
 
         <PropertyRow label="予約ページに表示">
           <Switch
@@ -516,6 +528,7 @@ export function StaffSettings() {
       license_number: d.licenseNumber || undefined,
       occupation_id: d.jobTitleId ?? undefined,
       staff_type: d.staffType,
+      reservation_display_name: d.reservationDisplayName || undefined,
       reservation_visible: d.reservationVisible,
       reservation_comment: d.reservationComment || undefined,
     }),
@@ -526,6 +539,7 @@ export function StaffSettings() {
       occupation_id: d.jobTitleId ?? undefined,
       password: d.password || undefined,
       staff_type: d.staffType,
+      reservation_display_name: d.reservationDisplayName || undefined,
       reservation_visible: d.reservationVisible,
       reservation_comment: d.reservationComment || undefined,
     }),

@@ -1459,6 +1459,7 @@ export interface Staff {
    * LINE予約用フィールド
    */
   staff_type: StaffType;
+  reservation_display_name: string; // 空ならNameをフォールバック
   reservation_visible: boolean;
   reservation_comment: string;
   reservation_image_url: string;

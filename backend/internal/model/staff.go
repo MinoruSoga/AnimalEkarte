@@ -28,10 +28,11 @@ type Staff struct {
 	UpdatedAt     time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// LINE予約用フィールド
-	StaffType           StaffType `gorm:"type:staff_type;not null;default:'doctor'"      json:"staff_type"`
-	ReservationVisible  bool      `gorm:"not null;default:true"                          json:"reservation_visible"`
-	ReservationComment  string    `gorm:"not null;default:''"                            json:"reservation_comment"`
-	ReservationImageURL string    `gorm:"not null;default:''"                            json:"reservation_image_url"`
+	StaffType              StaffType `gorm:"type:staff_type;not null;default:'doctor'"      json:"staff_type"`
+	ReservationDisplayName string    `gorm:"not null;default:''"                            json:"reservation_display_name"` // 空ならNameをフォールバック
+	ReservationVisible     bool      `gorm:"not null;default:true"                          json:"reservation_visible"`
+	ReservationComment     string    `gorm:"not null;default:''"                            json:"reservation_comment"`
+	ReservationImageURL    string    `gorm:"not null;default:''"                            json:"reservation_image_url"`
 
 	// Relations
 	Account           *Account                `gorm:"foreignKey:AccountID" json:"account,omitempty"`

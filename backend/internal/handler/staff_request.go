@@ -10,9 +10,10 @@ type createStaffRequest struct {
 	SortOrder     int     `json:"sort_order"`
 
 	// LINE予約用フィールド
-	StaffType          string `json:"staff_type"`
-	ReservationVisible *bool  `json:"reservation_visible"`
-	ReservationComment string `json:"reservation_comment"`
+	StaffType              string `json:"staff_type"`
+	ReservationDisplayName string `json:"reservation_display_name"`
+	ReservationVisible     *bool  `json:"reservation_visible"`
+	ReservationComment     string `json:"reservation_comment"`
 }
 
 // updateStaffRequest はスタッフ更新リクエスト。nil = 未送信として扱う。
@@ -25,9 +26,10 @@ type updateStaffRequest struct {
 	Password      *string `json:"password"`
 
 	// LINE予約用フィールド
-	StaffType          *string `json:"staff_type"`
-	ReservationVisible *bool   `json:"reservation_visible"`
-	ReservationComment *string `json:"reservation_comment"`
+	StaffType              *string `json:"staff_type"`
+	ReservationDisplayName *string `json:"reservation_display_name"`
+	ReservationVisible     *bool   `json:"reservation_visible"`
+	ReservationComment     *string `json:"reservation_comment"`
 }
 
 // reorderStaffRequest はスタッフ並び替えリクエスト。
