@@ -26,14 +26,15 @@ type ServiceType struct {
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// LINE予約用フィールド
-	DurationMinutes      int                  `gorm:"not null;default:15"                        json:"duration_minutes"`
-	ShortName            string               `gorm:"not null;default:''"                        json:"short_name"`
-	ShowShortName        bool                 `gorm:"not null;default:false"                     json:"show_short_name"`
-	ReservationVisible   bool                 `gorm:"not null;default:true"                      json:"reservation_visible"`
-	ReservationComment   string               `gorm:"not null;default:''"                        json:"reservation_comment"`
-	ReservationImageURL  string               `gorm:"not null;default:''"                        json:"reservation_image_url"`
-	ReservationDayOption ReservationDayOption `gorm:"not null;default:'none'"                    json:"reservation_day_option"`
-	IsInternal           bool                 `gorm:"not null;default:false"                     json:"is_internal"`
+	ReservationDisplayName string               `gorm:"not null;default:''"                        json:"reservation_display_name"` // 空ならNameをフォールバック
+	DurationMinutes        int                  `gorm:"not null;default:15"                        json:"duration_minutes"`
+	ShortName              string               `gorm:"not null;default:''"                        json:"short_name"`
+	ShowShortName          bool                 `gorm:"not null;default:false"                     json:"show_short_name"`
+	ReservationVisible     bool                 `gorm:"not null;default:true"                      json:"reservation_visible"`
+	ReservationComment     string               `gorm:"not null;default:''"                        json:"reservation_comment"`
+	ReservationImageURL    string               `gorm:"not null;default:''"                        json:"reservation_image_url"`
+	ReservationDayOption   ReservationDayOption `gorm:"not null;default:'none'"                    json:"reservation_day_option"`
+	IsInternal             bool                 `gorm:"not null;default:false"                     json:"is_internal"`
 }
 
 func (ServiceType) TableName() string { return "service_types" }

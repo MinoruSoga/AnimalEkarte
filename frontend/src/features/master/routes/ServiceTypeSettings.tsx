@@ -39,6 +39,7 @@ interface ServiceTypeFormData {
   color: string;
   isActive: boolean;
   // LINE予約用
+  reservationDisplayName: string;
   durationMinutes: number;
   shortName: string;
   reservationVisible: boolean;
@@ -55,6 +56,7 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
     description: item?.description ?? "",
     color: item?.color ?? "#3B82F6",
     isActive: item?.isActive ?? true,
+    reservationDisplayName: item?.reservationDisplayName ?? "",
     durationMinutes: item?.durationMinutes ?? 15,
     shortName: item?.shortName ?? "",
     reservationVisible: item?.reservationVisible ?? true,
@@ -133,6 +135,14 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
           <MessageCircle className="size-3.5" style={{ color: "#06C755" }} />
           <p className="text-xs font-medium text-muted-foreground">LINE予約設定</p>
         </div>
+
+        <PropertyRow label="LINE表示名">
+          <PropertyInput
+            value={f.reservationDisplayName}
+            onChange={(v) => { setF((p) => ({ ...p, reservationDisplayName: v })); setIsDirty(true); }}
+            placeholder={f.name || "空欄なら名称を使用"}
+          />
+        </PropertyRow>
 
         <PropertyRow label="予約ページに表示">
           <Switch
@@ -222,6 +232,7 @@ export function ServiceTypeSettings() {
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: (d) => ({
       name: d.name, description: d.description || undefined, color: d.color || undefined, is_active: true,
+      reservation_display_name: d.reservationDisplayName || undefined,
       duration_minutes: d.durationMinutes, short_name: d.shortName || undefined,
       reservation_visible: d.reservationVisible, reservation_comment: d.reservationComment || undefined,
       reservation_day_option: d.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
@@ -229,6 +240,7 @@ export function ServiceTypeSettings() {
     }),
     toUpdateRequest: (d) => ({
       name: d.name, description: d.description || undefined, color: d.color || undefined, is_active: d.isActive,
+      reservation_display_name: d.reservationDisplayName || undefined,
       duration_minutes: d.durationMinutes, short_name: d.shortName || undefined,
       reservation_visible: d.reservationVisible, reservation_comment: d.reservationComment || undefined,
       reservation_day_option: d.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",

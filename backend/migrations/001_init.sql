@@ -361,6 +361,7 @@ CREATE TABLE service_types (
     description              text        NOT NULL DEFAULT '',
     color                    text        NOT NULL DEFAULT '#3B82F6',
     sort_order               integer              DEFAULT 0,
+    reservation_display_name text        NOT NULL DEFAULT '',
     duration_minutes         int         NOT NULL DEFAULT 15,
     short_name               text        NOT NULL DEFAULT '',
     show_short_name          boolean     NOT NULL DEFAULT false,

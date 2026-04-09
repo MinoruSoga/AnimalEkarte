@@ -1411,6 +1411,7 @@ export interface ServiceType {
   /**
    * LINE予約用フィールド
    */
+  reservation_display_name: string; // 空ならNameをフォールバック
   duration_minutes: number /* int */;
   short_name: string;
   show_short_name: boolean;

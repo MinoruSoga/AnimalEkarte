@@ -21,13 +21,14 @@ type CreateServiceTypeInput struct {
 	SortOrder   int
 
 	// LINE予約用フィールド
-	DurationMinutes      int
-	ShortName            string
-	ShowShortName        bool
-	ReservationVisible   bool
-	ReservationComment   string
-	ReservationDayOption string
-	IsInternal           bool
+	ReservationDisplayName string
+	DurationMinutes        int
+	ShortName              string
+	ShowShortName          bool
+	ReservationVisible     bool
+	ReservationComment     string
+	ReservationDayOption   string
+	IsInternal             bool
 }
 
 // UpdateServiceTypeInput はサービス種別更新のための入力データ（ポインタ型でゼロ値を区別する）
@@ -39,30 +40,32 @@ type UpdateServiceTypeInput struct {
 	SortOrder   *int
 
 	// LINE予約用フィールド
-	DurationMinutes      *int
-	ShortName            *string
-	ShowShortName        *bool
-	ReservationVisible   *bool
-	ReservationComment   *string
-	ReservationDayOption *string
-	IsInternal           *bool
+	ReservationDisplayName *string
+	DurationMinutes        *int
+	ShortName              *string
+	ShowShortName          *bool
+	ReservationVisible     *bool
+	ReservationComment     *string
+	ReservationDayOption   *string
+	IsInternal             *bool
 }
 
 // ---- DB column constants ----
 
 const (
-	colServiceTypeName               = "name"
-	colServiceTypeColor              = "color"
-	colServiceTypeIsActive           = "is_active"
-	colServiceTypeDescription        = "description"
-	colServiceTypeSortOrder          = "sort_order"
-	colServiceTypeDurationMinutes    = "duration_minutes"
-	colServiceTypeShortName          = "short_name"
-	colServiceTypeShowShortName      = "show_short_name"
-	colServiceTypeReservationVisible = "reservation_visible"
-	colServiceTypeReservationComment = "reservation_comment"
-	colServiceTypeReservationDayOpt  = "reservation_day_option"
-	colServiceTypeIsInternal         = "is_internal"
+	colServiceTypeName                = "name"
+	colServiceTypeColor               = "color"
+	colServiceTypeIsActive            = "is_active"
+	colServiceTypeDescription         = "description"
+	colServiceTypeSortOrder           = "sort_order"
+	colServiceTypeReservationDispName = "reservation_display_name"
+	colServiceTypeDurationMinutes     = "duration_minutes"
+	colServiceTypeShortName           = "short_name"
+	colServiceTypeShowShortName       = "show_short_name"
+	colServiceTypeReservationVisible  = "reservation_visible"
+	colServiceTypeReservationComment  = "reservation_comment"
+	colServiceTypeReservationDayOpt   = "reservation_day_option"
+	colServiceTypeIsInternal          = "is_internal"
 )
 
 // buildServiceTypeUpdateFields は UpdateServiceTypeInput から nil でないフィールドのみ map に変換する
@@ -82,6 +85,9 @@ func buildServiceTypeUpdateFields(input *UpdateServiceTypeInput) map[string]any 
 	}
 	if input.SortOrder != nil {
 		fields[colServiceTypeSortOrder] = *input.SortOrder
+	}
+	if input.ReservationDisplayName != nil {
+		fields[colServiceTypeReservationDispName] = *input.ReservationDisplayName
 	}
 	if input.DurationMinutes != nil {
 		fields[colServiceTypeDurationMinutes] = *input.DurationMinutes
@@ -142,19 +148,20 @@ func (s *serviceTypeService) Create(ctx context.Context, clinicID uint64, input 
 	}
 
 	st := &model.ServiceType{
-		ClinicID:             clinicID,
-		Name:                 input.Name,
-		Color:                input.Color,
-		IsActive:             input.IsActive,
-		Description:          input.Description,
-		SortOrder:            input.SortOrder,
-		DurationMinutes:      input.DurationMinutes,
-		ShortName:            input.ShortName,
-		ShowShortName:        input.ShowShortName,
-		ReservationVisible:   input.ReservationVisible,
-		ReservationComment:   input.ReservationComment,
-		ReservationDayOption: reservationDayOption,
-		IsInternal:           input.IsInternal,
+		ClinicID:               clinicID,
+		Name:                   input.Name,
+		Color:                  input.Color,
+		IsActive:               input.IsActive,
+		Description:            input.Description,
+		SortOrder:              input.SortOrder,
+		ReservationDisplayName: input.ReservationDisplayName,
+		DurationMinutes:        input.DurationMinutes,
+		ShortName:              input.ShortName,
+		ShowShortName:          input.ShowShortName,
+		ReservationVisible:     input.ReservationVisible,
+		ReservationComment:     input.ReservationComment,
+		ReservationDayOption:   reservationDayOption,
+		IsInternal:             input.IsInternal,
 	}
 	if err := s.repo.Create(ctx, st); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create service type")

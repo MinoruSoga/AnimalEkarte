@@ -24,6 +24,7 @@ function transformServiceType(data: ModelServiceType) {
     createdAt: data.created_at,
     updatedAt: data.updated_at,
     // LINE予約用フィールド
+    reservationDisplayName: data.reservation_display_name ?? "",
     durationMinutes: data.duration_minutes ?? 15,
     shortName: data.short_name ?? "",
     showShortName: data.show_short_name ?? false,

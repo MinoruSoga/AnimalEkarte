@@ -49,9 +49,13 @@ type liffCourseResponse struct {
 }
 
 func toLiffCourseResponse(st model.ServiceType) liffCourseResponse {
+	name := st.ReservationDisplayName
+	if name == "" {
+		name = st.Name
+	}
 	return liffCourseResponse{
 		ID:                  st.ID,
-		Name:                st.Name,
+		Name:                name,
 		ShortName:           st.ShortName,
 		ShowShortName:       st.ShowShortName,
 		DurationMinutes:     st.DurationMinutes,
