@@ -218,7 +218,7 @@ func (s *reservationNotificationService) buildCreatedEmail(
 		sb.WriteString(fmt.Sprintf("■ 担当: %s\n", appt.Doctor.Name))
 	}
 	sb.WriteString(fmt.Sprintf("■ 日時: %s〜%s\n",
-		appt.StartTime.Format("2006年01月02日(月) 15:04"),
+		formatDateJPWithTime(appt.StartTime),
 		appt.EndTime.Format("15:04"),
 	))
 	if appt.Notes != "" {
@@ -251,7 +251,7 @@ func (s *reservationNotificationService) buildCancelledEmail(
 	}
 	sb.WriteString(fmt.Sprintf("■ コース: %s\n", courseName))
 	sb.WriteString(fmt.Sprintf("■ 日時: %s〜%s\n",
-		appt.StartTime.Format("2006年01月02日(月) 15:04"),
+		formatDateJPWithTime(appt.StartTime),
 		appt.EndTime.Format("15:04"),
 	))
 	body = sb.String()
@@ -297,9 +297,19 @@ func customerDisplayName(c *model.ReservationCustomer) string {
 	return c.DisplayName
 }
 
+var weekdaysJP = [...]string{"日", "月", "火", "水", "木", "金", "土"}
+
+func formatDateJPWithTime(t time.Time) string {
+	w := weekdaysJP[t.Weekday()]
+	return fmt.Sprintf("%s(%s) %s", t.Format("2006年01月02日"), w, t.Format("15:04"))
+}
+
 func formatDateTimeJP(start, end time.Time) string {
-	return fmt.Sprintf("%s〜%s",
-		start.Format("2006年01月02日(月) 15:04"),
+	w := weekdaysJP[start.Weekday()]
+	return fmt.Sprintf("%s(%s) %s〜%s",
+		start.Format("2006年01月02日"),
+		w,
+		start.Format("15:04"),
 		end.Format("15:04"),
 	)
 }
