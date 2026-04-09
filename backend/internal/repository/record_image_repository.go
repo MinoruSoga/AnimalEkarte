@@ -34,14 +34,14 @@ func (r *recordImageRepository) ListByMedicalRecordID(ctx context.Context, medic
 		Preload("Staff").
 		Order("sort_order ASC, created_at ASC").
 		Find(&images).Error; err != nil {
-		return nil, apperrors.Wrap(err, "list record images")
+		return nil, apperrors.FromGORM(err, "record_image", "")
 	}
 	return images, nil
 }
 
 func (r *recordImageRepository) Create(ctx context.Context, image *model.RecordImage) error {
 	if err := r.db.WithContext(ctx).Create(image).Error; err != nil {
-		return apperrors.Wrap(err, "create record image")
+		return apperrors.FromGORM(err, "record_image", "")
 	}
 	return nil
 }
@@ -51,7 +51,7 @@ func (r *recordImageRepository) Delete(ctx context.Context, id uint64) error {
 		Where("id = ?", id).
 		Delete(&model.RecordImage{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete record image")
+		return apperrors.FromGORM(result.Error, "record_image", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("record_image", fmt.Sprintf("%d", id))

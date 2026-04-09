@@ -85,7 +85,11 @@ func NewBillingItemService(repo repository.BillingItemRepository) BillingItemSer
 }
 
 func (s *billingItemService) GetByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get billing item")
+	}
+	return result, nil
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {

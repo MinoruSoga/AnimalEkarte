@@ -35,7 +35,7 @@ func (r *reservationCourseRepository) FindAll(ctx context.Context, clinicID uint
 		Order("sort_order ASC, id ASC").
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.Wrap(err, "find reservation courses")
+		return nil, apperrors.FromGORM(err, "reservation_course", "")
 	}
 	return items, nil
 }
@@ -54,7 +54,7 @@ func (r *reservationCourseRepository) Create(ctx context.Context, st *model.Serv
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.Wrap(err, "create reservation course")
+		return apperrors.FromGORM(err, "reservation_course", "")
 	}
 	return nil
 }
@@ -65,7 +65,7 @@ func (r *reservationCourseRepository) Update(ctx context.Context, clinicID, id u
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update reservation course")
+		return apperrors.FromGORM(result.Error, "reservation_course", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("reservation_course", fmt.Sprintf("%d", id))
@@ -79,7 +79,7 @@ func (r *reservationCourseRepository) Delete(ctx context.Context, clinicID, id u
 		if isFKConstraintErr(result.Error) {
 			return apperrors.WrapConflict("このコースは予約に使用されているため削除できません")
 		}
-		return apperrors.Wrap(result.Error, "delete reservation course")
+		return apperrors.FromGORM(result.Error, "reservation_course", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("reservation_course", fmt.Sprintf("%d", id))

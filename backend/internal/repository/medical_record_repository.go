@@ -115,7 +115,7 @@ func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, pe
 		Where("clinic_id = ? AND pet_id = ?", clinicID, petID).
 		Count(&count).Error
 	if err != nil {
-		return 0, apperrors.Wrap(err, "count medical records by pet")
+		return 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	return count, nil
 }

@@ -33,7 +33,7 @@ func (r *cageRepository) FindAll(ctx context.Context, clinicID uint64, cageType 
 		q = q.Where("cage_type = ?", *cageType)
 	}
 	if err := q.Order("sort_order ASC, name ASC").Find(&cages).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find cages")
+		return nil, apperrors.FromGORM(err, "cage", "")
 	}
 	return cages, nil
 }
@@ -52,7 +52,7 @@ func (r *cageRepository) Create(ctx context.Context, cage *model.Cage) error {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.Wrap(err, "create cage")
+		return apperrors.FromGORM(err, "cage", "")
 	}
 	return nil
 }
@@ -63,7 +63,7 @@ func (r *cageRepository) UpdateFields(ctx context.Context, clinicID, id uint64, 
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "update cage")
+		return nil, apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
@@ -74,7 +74,7 @@ func (r *cageRepository) UpdateFields(ctx context.Context, clinicID, id uint64, 
 func (r *cageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Cage{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete cage")
+		return apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))

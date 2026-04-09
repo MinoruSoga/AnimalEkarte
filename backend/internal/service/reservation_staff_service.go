@@ -118,7 +118,10 @@ func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint6
 	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
 		return err
 	}
-	return s.repo.SoftDelete(ctx, id)
+	if err := s.repo.SoftDelete(ctx, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete reservation staff")
+	}
+	return nil
 }
 
 func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, error) {
@@ -135,7 +138,10 @@ func (s *reservationStaffService) PatchSortOrder(ctx context.Context, clinicID, 
 	if direction != "up" && direction != "down" {
 		return apperrors.WrapInvalidInput("direction must be 'up' or 'down'")
 	}
-	return s.repo.SwapSortOrder(ctx, clinicID, id, direction)
+	if err := s.repo.SwapSortOrder(ctx, clinicID, id, direction); err != nil {
+		return apperrors.Wrap(err, "failed to reorder reservation staff")
+	}
+	return nil
 }
 
 func buildReservationStaffUpdateFields(input *UpdateReservationStaffInput) map[string]any {

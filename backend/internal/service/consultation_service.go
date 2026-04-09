@@ -36,7 +36,10 @@ func (s *consultationService) GetByID(ctx context.Context, clinicID, id uint64) 
 	return s.repo.FindByID(ctx, clinicID, id)
 }
 func (s *consultationService) Create(ctx context.Context, consultation *model.Consultation) error {
-	return s.repo.Create(ctx, consultation)
+	if err := s.repo.Create(ctx, consultation); err != nil {
+		return apperrors.Wrap(err, "failed to create consultation")
+	}
+	return nil
 }
 func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
 	if input == nil {
@@ -61,7 +64,10 @@ func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) e
 	if count > 0 {
 		return apperrors.WrapConflict("この診察項目は診療記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete consultation")
+	}
+	return nil
 }
 
 func (s *consultationService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

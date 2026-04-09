@@ -50,11 +50,11 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count pets")
+		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	if err := buildBase().Preload("Owner").Preload("AnimalSpecies").Preload("Insurance").
 		Offset((page - 1) * limit).Limit(limit).Order("pets.created_at DESC").Find(&pets).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find pets")
+		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return pets, total, nil
 }
@@ -77,7 +77,7 @@ func (r *petRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
 		Where("clinic_id = ? AND owner_id = ?", clinicID, ownerID).
 		Count(&count).Error; err != nil {
-		return 0, apperrors.Wrap(err, "count pets by owner")
+		return 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return count, nil
 }
@@ -87,7 +87,7 @@ func (r *petRepository) CountByAnimalSpeciesID(ctx context.Context, speciesID ui
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
 		Where("animal_species_id = ? AND deleted_at IS NULL", speciesID).
 		Count(&count).Error; err != nil {
-		return 0, apperrors.Wrap(err, "count pets by animal species")
+		return 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return count, nil
 }
@@ -97,7 +97,7 @@ func (r *petRepository) Create(ctx context.Context, pet *model.Pet) error {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("pet", "pet number already registered")
 		}
-		return apperrors.Wrap(err, "create pet")
+		return apperrors.FromGORM(err, "pet", "")
 	}
 	loaded, err := r.FindByID(ctx, pet.ClinicID, pet.ID)
 	if err != nil {
@@ -113,13 +113,15 @@ func (r *petRepository) Update(ctx context.Context, clinicID, id uint64, fields 
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update pet")
+		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		var count int64
-		r.db.WithContext(ctx).Model(&model.Pet{}).
+		if err := r.db.WithContext(ctx).Model(&model.Pet{}).
 			Where("id = ? AND clinic_id = ?", id, clinicID).
-			Count(&count)
+			Count(&count).Error; err != nil {
+			return apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
+		}
 		if count == 0 {
 			return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
 		}
@@ -131,7 +133,7 @@ func (r *petRepository) Update(ctx context.Context, clinicID, id uint64, fields 
 func (r *petRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Pet{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete pet")
+		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))

@@ -59,11 +59,19 @@ func NewReservationCourseService(repo repository.ReservationCourseRepository, re
 }
 
 func (s *reservationCourseService) List(ctx context.Context, clinicID uint64) ([]model.ServiceType, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	result, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list reservation course")
+	}
+	return result, nil
 }
 
 func (s *reservationCourseService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ServiceType, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation course")
+	}
+	return result, nil
 }
 
 func (s *reservationCourseService) Create(ctx context.Context, clinicID uint64, input *CreateReservationCourseInput) (*model.ServiceType, error) {
@@ -104,7 +112,10 @@ func (s *reservationCourseService) Update(ctx context.Context, clinicID, id uint
 }
 
 func (s *reservationCourseService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete reservation course")
+	}
+	return nil
 }
 
 func (s *reservationCourseService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ServiceType, error) {
@@ -118,7 +129,10 @@ func (s *reservationCourseService) PatchSortOrder(ctx context.Context, clinicID,
 	if direction != "up" && direction != "down" {
 		return apperrors.WrapInvalidInput("direction must be 'up' or 'down'")
 	}
-	return s.repo.SwapSortOrder(ctx, clinicID, id, direction)
+	if err := s.repo.SwapSortOrder(ctx, clinicID, id, direction); err != nil {
+		return apperrors.Wrap(err, "failed to reorder reservation course")
+	}
+	return nil
 }
 
 func buildReservationCourseUpdateFields(input *UpdateReservationCourseInput) map[string]any {

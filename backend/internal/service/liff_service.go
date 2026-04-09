@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -228,7 +229,9 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 
 	// 顧客の追加フィールドを更新（プロフィール自動保存）
 	if len(input.CustomerFields) > 0 && string(input.CustomerFields) != "{}" {
-		_ = s.customerRepo.UpdateAdditionalFields(ctx, clinicID, customerID, input.CustomerFields)
+		if err := s.customerRepo.UpdateAdditionalFields(ctx, clinicID, customerID, input.CustomerFields); err != nil {
+			slog.WarnContext(ctx, "failed to update customer additional fields (best-effort)", "error", err)
+		}
 	}
 
 	// Phase 6: 予約確定通知（LINE + メール）fire-and-forget
@@ -254,7 +257,11 @@ func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerI
 	// Phase 6: キャンセル通知のために事前にアポを取得する
 	var apptForNotify *model.ReservationAppointment
 	if s.notifier != nil {
-		apptForNotify, _ = s.adminRepo.FindByIDForNotify(ctx, clinicID, reservationID)
+		var err error
+		apptForNotify, err = s.adminRepo.FindByIDForNotify(ctx, clinicID, reservationID)
+		if err != nil {
+			slog.WarnContext(ctx, "failed to find appointment for notification (best-effort)", "error", err)
+		}
 	}
 
 	if err := s.adminRepo.CancelByID(ctx, clinicID, customerID, reservationID); err != nil {

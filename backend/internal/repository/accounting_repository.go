@@ -48,11 +48,11 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 		q = q.Where("scheduled_date <= ?", *endDate)
 	}
 	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count billings")
+		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
 	if err := q.Preload("Owner").Preload("Pet").Preload("Payments").Preload("Items").
 		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find billings")
+		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
 
 	// 返金合計をサブクエリで一括取得
@@ -72,7 +72,7 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 			Where("billing_id IN ?", ids).
 			Group("billing_id").
 			Scan(&sums).Error; err != nil {
-			return nil, 0, apperrors.Wrap(err, "sum refunds")
+			return nil, 0, apperrors.FromGORM(err, "billing_refund", "")
 		}
 		sumMap := make(map[uint64]int64, len(sums))
 		for _, s := range sums {
@@ -112,7 +112,7 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("billing", accounting.ScheduledDate.String())
 		}
-		return apperrors.Wrap(err, "create billing")
+		return apperrors.FromGORM(err, "billing", "")
 	}
 	return nil
 }
@@ -125,7 +125,7 @@ func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billi
 		Where("clinic_id = ? AND id = ?", clinicID, billingID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, fmt.Sprintf("update billing id=%d", billingID))
+		return nil, apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
@@ -134,7 +134,7 @@ func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billi
 	if err := r.db.WithContext(ctx).
 		Preload("Items").Preload("Payments").Preload("Refunds").Preload("Owner").Preload("Pet").
 		First(&billing, "clinic_id = ? AND id = ?", clinicID, billingID).Error; err != nil {
-		return nil, apperrors.Wrap(err, fmt.Sprintf("find billing after update id=%d", billingID))
+		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
 	}
 	return &billing, nil
 }
@@ -142,7 +142,7 @@ func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billi
 func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Billing{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete billing")
+		return apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", id))

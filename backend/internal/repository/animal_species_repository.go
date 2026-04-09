@@ -34,7 +34,7 @@ func (r *animalSpeciesRepository) FindAll(ctx context.Context) ([]model.AnimalSp
 		Where("is_active = ?", true).
 		Order("sort_order ASC, name ASC").
 		Find(&items).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find animal species")
+		return nil, apperrors.FromGORM(err, "animal_species", "")
 	}
 	return items, nil
 }
@@ -54,7 +54,7 @@ func (r *animalSpeciesRepository) Create(ctx context.Context, species *model.Ani
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.Wrap(err, "create animal species")
+		return apperrors.FromGORM(err, "animal_species", "")
 	}
 	return nil
 }
@@ -65,7 +65,7 @@ func (r *animalSpeciesRepository) Update(ctx context.Context, id uint64, fields 
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update animal species")
+		return apperrors.FromGORM(result.Error, "animal_species", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("animal_species", fmt.Sprintf("%d", id))
@@ -80,7 +80,7 @@ func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
 		Model(&model.Pet{}).
 		Where("animal_species_id = ?", id).
 		Count(&count).Error; err != nil {
-		return apperrors.Wrap(err, "check animal species usage")
+		return apperrors.FromGORM(err, "animal_species", fmt.Sprintf("%d", id))
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この動物種はペットで使用中のため削除できません。先にペットを削除またはこの種を変更してください")
@@ -90,7 +90,7 @@ func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
 		Where("id = ?", id).
 		Delete(&model.AnimalSpecies{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete animal species")
+		return apperrors.FromGORM(result.Error, "animal_species", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("animal_species", fmt.Sprintf("%d", id))

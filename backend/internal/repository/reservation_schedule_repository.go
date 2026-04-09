@@ -43,7 +43,7 @@ func (r *reservationScheduleRepository) FindByMonth(ctx context.Context, clinicI
 		Order("date ASC").
 		Find(&entries).Error
 	if err != nil {
-		return nil, apperrors.Wrap(err, "find shift entries by month")
+		return nil, apperrors.FromGORM(err, "schedule_entry", "")
 	}
 
 	return entries, nil
@@ -55,7 +55,7 @@ func (r *reservationScheduleRepository) FindBreaksByEntryIDs(ctx context.Context
 	}
 	var breaks []model.ShiftEntryBreak
 	if err := r.db.WithContext(ctx).Where("shift_entry_id IN ?", entryIDs).Find(&breaks).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find shift entry breaks by entry ids")
+		return nil, apperrors.FromGORM(err, "schedule_entry", "")
 	}
 	result := make(map[uint64][]model.ShiftEntryBreak, len(entryIDs))
 	for _, b := range breaks {
@@ -67,7 +67,7 @@ func (r *reservationScheduleRepository) FindBreaksByEntryIDs(ctx context.Context
 func (r *reservationScheduleRepository) FindBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error) {
 	var breaks []model.ShiftEntryBreak
 	if err := r.db.WithContext(ctx).Where("shift_entry_id = ?", entryID).Find(&breaks).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find shift entry breaks")
+		return nil, apperrors.FromGORM(err, "schedule_entry", "")
 	}
 	return breaks, nil
 }
@@ -139,7 +139,7 @@ func (r *reservationScheduleRepository) DeleteByDate(ctx context.Context, clinic
 			clinicID, staffID, date.Format("2006-01-02")).
 		Delete(&model.ShiftEntry{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete shift entry by date")
+		return apperrors.FromGORM(result.Error, "schedule_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))

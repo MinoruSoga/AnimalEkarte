@@ -49,7 +49,7 @@ func (r *reservationAdminRepository) FindByMonth(ctx context.Context, clinicID u
 		Order("start_time ASC").
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.Wrap(err, "find reservations by month")
+		return nil, apperrors.FromGORM(err, "reservation_appointment", "")
 	}
 	return items, nil
 }
@@ -69,14 +69,14 @@ func (r *reservationAdminRepository) FindByDay(ctx context.Context, clinicID uin
 		Order("start_time ASC").
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.Wrap(err, "find reservations by day")
+		return nil, apperrors.FromGORM(err, "reservation_appointment", "")
 	}
 	return items, nil
 }
 
 func (r *reservationAdminRepository) Create(ctx context.Context, ra *model.ReservationAppointment) error {
 	if err := r.db.WithContext(ctx).Create(ra).Error; err != nil {
-		return apperrors.Wrap(err, "create reservation appointment")
+		return apperrors.FromGORM(err, "reservation_appointment", "")
 	}
 	return nil
 }
@@ -85,7 +85,7 @@ func (r *reservationAdminRepository) SoftDelete(ctx context.Context, clinicID, i
 	result := r.db.WithContext(ctx).
 		Delete(&model.ReservationAppointment{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete reservation appointment")
+		return apperrors.FromGORM(result.Error, "reservation_appointment", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("reservation_appointment", fmt.Sprintf("%d", id))
@@ -102,7 +102,7 @@ func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clini
 		Order("start_time DESC").
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.Wrap(err, "find reservations by customer")
+		return nil, apperrors.FromGORM(err, "reservation_appointment", "")
 	}
 	return items, nil
 }
@@ -128,7 +128,7 @@ func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, c
 			id, clinicID, customerID, model.ReservationStatusCancelled).
 		Update("status", model.ReservationStatusCancelled)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "cancel reservation")
+		return apperrors.FromGORM(result.Error, "reservation_appointment", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("reservation_appointment", fmt.Sprintf("%d", id))

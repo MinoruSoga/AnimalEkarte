@@ -46,7 +46,7 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 		q = q.Where("trimming_records.date <= ?", *endDate)
 	}
 	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count trimming records")
+		return nil, 0, apperrors.FromGORM(err, "trimming", "")
 	}
 	if err := q.
 		Preload("Pet").
@@ -57,7 +57,7 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 		Preload("Options").
 		Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").
 		Find(&trimmings).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find trimming records")
+		return nil, 0, apperrors.FromGORM(err, "trimming", "")
 	}
 	return trimmings, total, nil
 }
@@ -82,7 +82,7 @@ func (r *trimmingRepository) Create(ctx context.Context, clinicID uint64, trimmi
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("trimming_record", trimming.Date.String())
 		}
-		return apperrors.Wrap(err, "create trimming record")
+		return apperrors.FromGORM(err, "trimming", "")
 	}
 	return nil
 }
@@ -94,7 +94,7 @@ func (r *trimmingRepository) Update(ctx context.Context, clinicID uint64, trimmi
 		Where("id = ? AND clinic_id = ?", trimming.ID, clinicID).
 		Updates(trimming)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update trimming record")
+		return apperrors.FromGORM(result.Error, "trimming", fmt.Sprintf("%d", trimming.ID))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("trimming_record", fmt.Sprintf("%d", trimming.ID))
@@ -105,7 +105,7 @@ func (r *trimmingRepository) Update(ctx context.Context, clinicID uint64, trimmi
 func (r *trimmingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.TrimmingRecord{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete trimming record")
+		return apperrors.FromGORM(result.Error, "trimming", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("trimming_record", fmt.Sprintf("%d", id))

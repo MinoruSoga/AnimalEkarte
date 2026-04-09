@@ -34,7 +34,7 @@ func (r *vitalRepository) ListByMedicalRecordID(ctx context.Context, medicalReco
 		Where("medical_record_id = ?", medicalRecordID).
 		Order("recorded_at ASC").
 		Find(&vitals).Error; err != nil {
-		return nil, apperrors.Wrap(err, "list vitals by medical_record_id")
+		return nil, apperrors.FromGORM(err, "vital", "")
 	}
 	return vitals, nil
 }
@@ -53,7 +53,7 @@ func (r *vitalRepository) FindByID(ctx context.Context, clinicID uint64, id uint
 
 func (r *vitalRepository) Create(ctx context.Context, vital *model.VitalRecord) error {
 	if err := r.db.WithContext(ctx).Create(vital).Error; err != nil {
-		return apperrors.Wrap(err, "create vital")
+		return apperrors.FromGORM(err, "vital", "")
 	}
 	return nil
 }
@@ -64,7 +64,7 @@ func (r *vitalRepository) Update(ctx context.Context, id uint64, fields map[stri
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update vital")
+		return apperrors.FromGORM(result.Error, "vital", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("vital", fmt.Sprintf("%d", id))
@@ -77,7 +77,7 @@ func (r *vitalRepository) Delete(ctx context.Context, id uint64) error {
 		Where("id = ?", id).
 		Delete(&model.VitalRecord{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete vital")
+		return apperrors.FromGORM(result.Error, "vital", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("vital", fmt.Sprintf("%d", id))

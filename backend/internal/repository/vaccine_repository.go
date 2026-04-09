@@ -34,7 +34,7 @@ func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, specie
 		q = q.Where("species = ?", *species)
 	}
 	if err := q.Order("sort_order ASC, name ASC").Find(&vaccines).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find vaccines")
+		return nil, apperrors.FromGORM(err, "vaccine", "")
 	}
 	return vaccines, nil
 }
@@ -53,7 +53,7 @@ func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) 
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.Wrap(err, "create vaccine")
+		return apperrors.FromGORM(err, "vaccine", "")
 	}
 	return nil
 }
@@ -64,7 +64,7 @@ func (r *vaccineRepository) UpdateFields(ctx context.Context, clinicID, id uint6
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "update vaccine")
+		return nil, apperrors.FromGORM(result.Error, "vaccine", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("vaccine", fmt.Sprintf("%d", id))
@@ -75,7 +75,7 @@ func (r *vaccineRepository) UpdateFields(ctx context.Context, clinicID, id uint6
 func (r *vaccineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Vaccine{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete vaccine")
+		return apperrors.FromGORM(result.Error, "vaccine", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("vaccine", fmt.Sprintf("%d", id))

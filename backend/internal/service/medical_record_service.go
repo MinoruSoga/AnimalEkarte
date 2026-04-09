@@ -165,7 +165,10 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 	if estimateCount > 0 {
 		return apperrors.WrapConflict("この項目は使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete medical record")
+	}
+	return nil
 }
 
 // UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO

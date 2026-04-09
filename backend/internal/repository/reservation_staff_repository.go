@@ -37,7 +37,7 @@ func (r *reservationStaffRepository) FindAllByClinicID(ctx context.Context, clin
 		Order("staffs.sort_order ASC, staffs.id ASC").
 		Find(&staffs).Error
 	if err != nil {
-		return nil, apperrors.Wrap(err, "find reservation staffs by clinic")
+		return nil, apperrors.FromGORM(err, "reservation_staff", "")
 	}
 	return staffs, nil
 }
@@ -75,7 +75,7 @@ func (r *reservationStaffRepository) Update(ctx context.Context, id uint64, fiel
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update reservation staff")
+		return apperrors.FromGORM(result.Error, "reservation_staff", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("reservation_staff", fmt.Sprintf("%d", id))
@@ -86,7 +86,7 @@ func (r *reservationStaffRepository) Update(ctx context.Context, id uint64, fiel
 func (r *reservationStaffRepository) SoftDelete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Staff{}, "id = ?", id)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete reservation staff")
+		return apperrors.FromGORM(result.Error, "reservation_staff", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("reservation_staff", fmt.Sprintf("%d", id))
@@ -139,7 +139,7 @@ func (r *reservationStaffRepository) FindExcludedServiceTypes(ctx context.Contex
 		Where("staff_id = ?", staffID).
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.Wrap(err, "find excluded service types")
+		return nil, apperrors.FromGORM(err, "reservation_staff", "")
 	}
 	return items, nil
 }

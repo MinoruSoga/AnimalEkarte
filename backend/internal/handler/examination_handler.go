@@ -111,7 +111,18 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 		Machine:         input.Machine,
 	}
 	if input.Status != "" {
-		exam.Status = model.ExaminationStatus(input.Status)
+		status, err := validateEnum(input.Status,
+			model.ExaminationStatusPending,
+			model.ExaminationStatusInProgress,
+			model.ExaminationStatusResultEntered,
+			model.ExaminationStatusCompleted,
+			model.ExaminationStatusConfirmed,
+		)
+		if err != nil {
+			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
+			return
+		}
+		exam.Status = status
 	}
 
 	if err := h.svc.Examination.Create(c.Request.Context(), exam); err != nil {
@@ -140,7 +151,17 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 
 	var status *model.ExaminationStatus
 	if input.Status != nil {
-		s := model.ExaminationStatus(*input.Status)
+		s, err := validateEnum(*input.Status,
+			model.ExaminationStatusPending,
+			model.ExaminationStatusInProgress,
+			model.ExaminationStatusResultEntered,
+			model.ExaminationStatusCompleted,
+			model.ExaminationStatusConfirmed,
+		)
+		if err != nil {
+			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
+			return
+		}
 		status = &s
 	}
 	var examTypeID *uint64

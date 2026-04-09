@@ -30,7 +30,7 @@ func NewProcedureRepository(db *gorm.DB) ProcedureRepository { return &procedure
 func (r *procedureRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
 	procedures := make([]model.Procedure, 0)
 	if err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&procedures).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find procedures")
+		return nil, apperrors.FromGORM(err, "procedure", "")
 	}
 	return procedures, nil
 }
@@ -49,7 +49,7 @@ func (r *procedureRepository) Create(ctx context.Context, procedure *model.Proce
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.Wrap(err, "create procedure")
+		return apperrors.FromGORM(err, "procedure", "")
 	}
 	return nil
 }
@@ -60,7 +60,7 @@ func (r *procedureRepository) UpdateFields(ctx context.Context, clinicID, id uin
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "update procedure")
+		return nil, apperrors.FromGORM(result.Error, "procedure", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))
@@ -71,7 +71,7 @@ func (r *procedureRepository) UpdateFields(ctx context.Context, clinicID, id uin
 func (r *procedureRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Procedure{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete procedure")
+		return apperrors.FromGORM(result.Error, "procedure", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))

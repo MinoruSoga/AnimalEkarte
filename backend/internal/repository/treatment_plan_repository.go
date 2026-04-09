@@ -31,7 +31,7 @@ func (r *treatmentPlanRepository) ListByMedicalRecordID(ctx context.Context, med
 		Where("medical_record_id = ?", medicalRecordID).
 		Order("sort_order ASC").
 		Find(&plans).Error; err != nil {
-		return nil, apperrors.Wrap(err, "list treatment plans by medical record id")
+		return nil, apperrors.FromGORM(err, "treatment_plan", "")
 	}
 	return plans, nil
 }
@@ -42,7 +42,7 @@ func (r *treatmentPlanRepository) ListByHospitalizationID(ctx context.Context, h
 		Where("hospitalization_id = ?", hospitalizationID).
 		Order("sort_order ASC").
 		Find(&plans).Error; err != nil {
-		return nil, apperrors.Wrap(err, "list treatment plans by hospitalization id")
+		return nil, apperrors.FromGORM(err, "treatment_plan", "")
 	}
 	return plans, nil
 }
@@ -58,7 +58,7 @@ func (r *treatmentPlanRepository) FindByID(ctx context.Context, id uint64) (*mod
 
 func (r *treatmentPlanRepository) Create(ctx context.Context, plan *model.TreatmentPlan) error {
 	if err := r.db.WithContext(ctx).Create(plan).Error; err != nil {
-		return apperrors.Wrap(err, "create treatment plan")
+		return apperrors.FromGORM(err, "treatment_plan", "")
 	}
 	return nil
 }
@@ -69,7 +69,7 @@ func (r *treatmentPlanRepository) Update(ctx context.Context, id uint64, fields 
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update treatment plan")
+		return apperrors.FromGORM(result.Error, "treatment_plan", strconv.FormatUint(id, 10))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("treatment_plan", strconv.FormatUint(id, 10))
@@ -80,7 +80,7 @@ func (r *treatmentPlanRepository) Update(ctx context.Context, id uint64, fields 
 func (r *treatmentPlanRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.TreatmentPlan{}, id)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete treatment plan")
+		return apperrors.FromGORM(result.Error, "treatment_plan", strconv.FormatUint(id, 10))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("treatment_plan", strconv.FormatUint(id, 10))

@@ -128,7 +128,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// staff を取得
-	staff, err := h.repos.Staff.FindByAccountID(ctx, account.ID)
+	staff, err := h.svc.Staff.FindByAccountID(ctx, account.ID)
 	if err != nil {
 		RespondError(c, apperrors.Wrap(err, "スタッフ情報の取得に失敗しました"))
 		return
@@ -326,7 +326,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		RespondError(c, apperrors.WrapUnauthorized("invalid token"))
 		return
 	}
-	staff, findErr := h.repos.Staff.FindByID(ctx, staffID)
+	staff, findErr := h.svc.Staff.GetByID(ctx, staffID)
 	if findErr != nil {
 		RespondError(c, apperrors.WrapUnauthorized("user not found"))
 		return
@@ -436,7 +436,7 @@ func (h *Handler) ChangeMyPassword(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staff, err := h.repos.Staff.FindByID(ctx, staffID)
+	staff, err := h.svc.Staff.GetByID(ctx, staffID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -446,7 +446,7 @@ func (h *Handler) ChangeMyPassword(c *gin.Context) {
 		return
 	}
 
-	account, err := h.repos.Account.GetByID(ctx, *staff.AccountID)
+	account, err := h.svc.Account.GetByID(ctx, *staff.AccountID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -464,8 +464,7 @@ func (h *Handler) ChangeMyPassword(c *gin.Context) {
 		RespondError(c, apperrors.Wrap(err, "failed to hash password"))
 		return
 	}
-	account.PasswordHash = string(hashed)
-	if err := h.repos.Account.Update(ctx, account); err != nil {
+	if err := h.svc.Account.UpdatePasswordHash(ctx, *staff.AccountID, string(hashed)); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -497,7 +496,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 
 	// staff を取得
-	staff, err := h.repos.Staff.FindByID(ctx, userID)
+	staff, err := h.svc.Staff.GetByID(ctx, userID)
 	if err != nil {
 		RespondError(c, err)
 		return

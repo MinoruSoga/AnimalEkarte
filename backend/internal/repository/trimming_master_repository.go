@@ -32,7 +32,7 @@ func NewTrimmingCourseRepository(db *gorm.DB) TrimmingCourseRepository {
 func (r *trimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
 	courses := make([]model.TrimmingCourse, 0)
 	if err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&courses).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find trimming courses")
+		return nil, apperrors.FromGORM(err, "trimming_course", "")
 	}
 	return courses, nil
 }
@@ -51,7 +51,7 @@ func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.Tri
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.Wrap(err, "create trimming course")
+		return apperrors.FromGORM(err, "trimming_course", "")
 	}
 	return nil
 }
@@ -62,7 +62,7 @@ func (r *trimmingCourseRepository) UpdateFields(ctx context.Context, clinicID, i
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "update trimming course")
+		return nil, apperrors.FromGORM(result.Error, "trimming_course", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("trimming_course", fmt.Sprintf("%d", id))
@@ -73,7 +73,7 @@ func (r *trimmingCourseRepository) UpdateFields(ctx context.Context, clinicID, i
 func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.TrimmingCourse{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete trimming course")
+		return apperrors.FromGORM(result.Error, "trimming_course", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("trimming_course", fmt.Sprintf("%d", id))
@@ -134,7 +134,7 @@ func NewTrimmingOptionRepository(db *gorm.DB) TrimmingOptionRepository {
 func (r *trimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
 	options := make([]model.TrimmingOption, 0)
 	if err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&options).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find trimming options")
+		return nil, apperrors.FromGORM(err, "trimming_option", "")
 	}
 	return options, nil
 }
@@ -153,7 +153,7 @@ func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.Tri
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.Wrap(err, "create trimming option")
+		return apperrors.FromGORM(err, "trimming_option", "")
 	}
 	return nil
 }
@@ -164,7 +164,7 @@ func (r *trimmingOptionRepository) UpdateFields(ctx context.Context, clinicID, i
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "update trimming option")
+		return nil, apperrors.FromGORM(result.Error, "trimming_option", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("trimming_option", fmt.Sprintf("%d", id))
@@ -175,7 +175,7 @@ func (r *trimmingOptionRepository) UpdateFields(ctx context.Context, clinicID, i
 func (r *trimmingOptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.TrimmingOption{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete trimming option")
+		return apperrors.FromGORM(result.Error, "trimming_option", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("trimming_option", fmt.Sprintf("%d", id))

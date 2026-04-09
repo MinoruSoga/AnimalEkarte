@@ -39,7 +39,7 @@ func (r *reservationSettingRepository) Upsert(ctx context.Context, setting *mode
 		}).
 		Create(setting).Error
 	if err != nil {
-		return apperrors.Wrap(err, "upsert reservation setting")
+		return apperrors.FromGORM(err, "reservation_setting", "")
 	}
 	return nil
 }

@@ -31,13 +31,24 @@ func NewCageService(repo repository.CageRepository, hospitalizationRepo reposito
 }
 
 func (s *cageService) List(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
-	return s.repo.FindAll(ctx, clinicID, cageType)
+	result, err := s.repo.FindAll(ctx, clinicID, cageType)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list cage")
+	}
+	return result, nil
 }
 func (s *cageService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get cage")
+	}
+	return result, nil
 }
 func (s *cageService) Create(ctx context.Context, cage *model.Cage) error {
-	return s.repo.Create(ctx, cage)
+	if err := s.repo.Create(ctx, cage); err != nil {
+		return apperrors.Wrap(err, "failed to create cage")
+	}
+	return nil
 }
 func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input UpdateCageInput) (*model.Cage, error) {
 	fields := buildCageUpdateFields(input)
@@ -59,14 +70,20 @@ func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if exists {
 		return apperrors.WrapConflict("このケージは入院データで使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete cage")
+	}
+	return nil
 }
 
 func (s *cageService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder cage")
+	}
+	return nil
 }
 
 // UpdateCageInput はケージ更新のサービス入力 DTO

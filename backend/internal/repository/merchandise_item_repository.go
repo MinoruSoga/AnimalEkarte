@@ -44,13 +44,13 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count merchandise items")
+		return nil, 0, apperrors.FromGORM(err, "merchandise_item", "")
 	}
 	if err := buildBase().
 		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&items).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find merchandise items")
+		return nil, 0, apperrors.FromGORM(err, "merchandise_item", "")
 	}
 	return items, total, nil
 }
@@ -70,7 +70,7 @@ func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.Merc
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.Wrap(err, "create merchandise item")
+		return apperrors.FromGORM(err, "merchandise_item", "")
 	}
 	return nil
 }
@@ -81,7 +81,7 @@ func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uin
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update merchandise item")
+		return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		var count int64
@@ -123,7 +123,7 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 		Model(&model.BillingItem{}).
 		Where("merchandise_item_id = ? AND deleted_at IS NULL", merchandiseItemID).
 		Count(&billingCount).Error; err != nil {
-		return 0, apperrors.Wrap(err, "count billing items by merchandise_item_id")
+		return 0, apperrors.FromGORM(err, "billing_item", "")
 	}
 
 	var estimateCount int64
@@ -132,7 +132,7 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 		Model(&model.EstimateItem{}).
 		Where("merchandise_item_id = ?", merchandiseItemID).
 		Count(&estimateCount).Error; err != nil {
-		return 0, apperrors.Wrap(err, "count estimate items by merchandise_item_id")
+		return 0, apperrors.FromGORM(err, "estimate_item", "")
 	}
 
 	return billingCount + estimateCount, nil
@@ -141,7 +141,7 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 func (r *merchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.MerchandiseItem{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete merchandise item")
+		return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("merchandise_item", fmt.Sprintf("%d", id))

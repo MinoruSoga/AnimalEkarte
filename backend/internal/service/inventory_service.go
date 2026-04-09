@@ -62,7 +62,10 @@ func (s *inventoryService) Delete(ctx context.Context, clinicID, id uint64) erro
 	if count > 0 {
 		return apperrors.WrapConflict("この項目は使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete inventory item")
+	}
+	return nil
 }
 
 // UpdateInventoryInput は在庫アイテム更新のサービス入力 DTO

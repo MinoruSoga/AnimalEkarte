@@ -35,7 +35,10 @@ func (s *examinationService) GetByID(ctx context.Context, clinicID, id uint64) (
 }
 
 func (s *examinationService) Create(ctx context.Context, exam *model.Examination) error {
-	return s.repo.Create(ctx, exam)
+	if err := s.repo.Create(ctx, exam); err != nil {
+		return apperrors.Wrap(err, "failed to create examination")
+	}
+	return nil
 }
 
 func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error) {

@@ -132,7 +132,10 @@ func (s *diagnosisCategoryService) Delete(ctx context.Context, clinicID, id uint
 	if count > 0 {
 		return apperrors.WrapConflict("この診断カテゴリには診断名が登録されているため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete diagnosis category")
+	}
+	return nil
 }
 
 func (s *diagnosisCategoryService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -247,7 +250,10 @@ func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) 
 	if count > 0 {
 		return apperrors.WrapConflict("この診断名は診療記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete diagnosis name")
+	}
+	return nil
 }
 
 func (s *diagnosisNameService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

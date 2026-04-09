@@ -60,11 +60,19 @@ func NewEstimateService(repo repository.EstimateRepository) EstimateService {
 }
 
 func (s *estimateService) List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, ownerID, medicalRecordID, status, page, limit)
+	result, total, err := s.repo.FindAll(ctx, clinicID, ownerID, medicalRecordID, status, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list estimate")
+	}
+	return result, total, nil
 }
 
 func (s *estimateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get estimate")
+	}
+	return result, nil
 }
 
 func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error) {

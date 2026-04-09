@@ -57,7 +57,7 @@ func (r *shiftEntryRepository) List(ctx context.Context, clinicID uint64, filter
 
 	entries := make([]model.ShiftEntry, 0)
 	if err := q.Find(&entries).Error; err != nil {
-		return nil, apperrors.Wrap(err, "list shift entries")
+		return nil, apperrors.FromGORM(err, "shift_entry", "")
 	}
 	return entries, nil
 }
@@ -82,7 +82,7 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 			return apperrors.WrapAlreadyExists("shift_entry",
 				fmt.Sprintf("staff_id=%d date=%s", entry.StaffID, entry.Date.Format("2006-01-02")))
 		}
-		return apperrors.Wrap(err, "create shift entry")
+		return apperrors.FromGORM(err, "shift_entry", "")
 	}
 	return nil
 }
@@ -93,7 +93,7 @@ func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, 
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update shift entry")
+		return apperrors.FromGORM(result.Error, "shift_entry", strconv.FormatUint(id, 10))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("shift_entry", strconv.FormatUint(id, 10))
@@ -106,7 +106,7 @@ func (r *shiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) 
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Delete(&model.ShiftEntry{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete shift entry")
+		return apperrors.FromGORM(result.Error, "shift_entry", strconv.FormatUint(id, 10))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("shift_entry", strconv.FormatUint(id, 10))
@@ -120,7 +120,7 @@ func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, staffID uint
 		Where("staff_id = ?", staffID).
 		Count(&count).Error
 	if err != nil {
-		return false, apperrors.Wrap(err, "check shift entry by staff_id")
+		return false, apperrors.FromGORM(err, "shift_entry", "")
 	}
 	return count > 0, nil
 }

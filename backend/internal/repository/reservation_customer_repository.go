@@ -34,7 +34,7 @@ func (r *reservationCustomerRepository) FindAll(ctx context.Context, clinicID ui
 		Order("created_at DESC").
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.Wrap(err, "find reservation customers")
+		return nil, apperrors.FromGORM(err, "reservation_customer", "")
 	}
 	return items, nil
 }
@@ -62,12 +62,12 @@ func (r *reservationCustomerRepository) FindOrCreateByLineUserID(ctx context.Con
 			DisplayName: displayName,
 		}
 		if err2 := r.db.WithContext(ctx).Create(&c).Error; err2 != nil {
-			return nil, apperrors.Wrap(err2, "create reservation customer")
+			return nil, apperrors.FromGORM(err2, "reservation_customer", "")
 		}
 		return &c, nil
 	}
 	if err != nil {
-		return nil, apperrors.Wrap(err, "find reservation customer by line user id")
+		return nil, apperrors.FromGORM(err, "reservation_customer", lineUserID)
 	}
 	return &c, nil
 }
@@ -78,7 +78,7 @@ func (r *reservationCustomerRepository) UpdateAdditionalFields(ctx context.Conte
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Update("additional_fields", fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update reservation customer additional fields")
+		return apperrors.FromGORM(result.Error, "reservation_customer", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
@@ -89,7 +89,7 @@ func (r *reservationCustomerRepository) UpdateOwnerLink(ctx context.Context, cli
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Update("owner_id", ownerID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update reservation customer owner link")
+		return apperrors.FromGORM(result.Error, "reservation_customer", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("reservation_customer", fmt.Sprintf("%d", id))
