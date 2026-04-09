@@ -270,6 +270,7 @@ export function App() {
       <CompletePage
         reservationId={completedReservationId}
         notes={completedNotes}
+        flow={flow}
         onMyReservations={handleCompleteToMyReservations}
         onNewReservation={handleCompleteNewReservation}
       />
