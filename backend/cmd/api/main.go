@@ -53,7 +53,15 @@ func main() {
 	repos := repository.NewRepositories(db)
 
 	// サービス初期化
-	svcs := service.NewServices(repos)
+	svcs := service.NewServices(repos, service.ReservationNotificationConfig{
+		LineChannelToken: cfg.LineChannelToken,
+		SMTPHost:         cfg.SMTPHost,
+		SMTPPort:         cfg.SMTPPort,
+		SMTPUser:         cfg.SMTPUser,
+		SMTPPass:         cfg.SMTPPass,
+		SMTPFrom:         cfg.SMTPFrom,
+		NotifyToEmail:    cfg.NotifyToEmail,
+	})
 
 	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var uploader infra.FileUploader

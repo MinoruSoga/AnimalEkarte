@@ -26,6 +26,8 @@ type ReservationAdminRepository interface {
 	// LIFF用
 	FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.ReservationAppointment, error)
 	CancelByID(ctx context.Context, clinicID, customerID, id uint64) error
+	// 通知用（キャンセル前に関連エンティティを含めて取得）
+	FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
 }
 
 type reservationAdminRepository struct{ db *gorm.DB }
@@ -103,6 +105,20 @@ func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clini
 		return nil, apperrors.Wrap(err, "find reservations by customer")
 	}
 	return items, nil
+}
+
+func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error) {
+	var appt model.ReservationAppointment
+	err := r.db.WithContext(ctx).
+		Preload("ServiceType").
+		Preload("Doctor").
+		Preload("Owner").
+		Preload("Pet").
+		First(&appt, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation_appointment", fmt.Sprintf("%d", id))
+	}
+	return &appt, nil
 }
 
 func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) error {

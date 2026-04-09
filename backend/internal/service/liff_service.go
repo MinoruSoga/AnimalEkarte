@@ -32,6 +32,7 @@ type liffService struct {
 	adminRepo    repository.ReservationAdminRepository
 	customerRepo repository.ReservationCustomerRepository
 	validators   ReservationValidators
+	notifier     ReservationNotifier
 }
 
 // NewLiffService はLIFFサービスを初期化して返す。
@@ -43,6 +44,7 @@ func NewLiffService(
 	adminRepo repository.ReservationAdminRepository,
 	customerRepo repository.ReservationCustomerRepository,
 	db *gorm.DB,
+	notifier ReservationNotifier,
 ) LiffService {
 	return &liffService{
 		settingRepo:  settingRepo,
@@ -52,6 +54,7 @@ func NewLiffService(
 		adminRepo:    adminRepo,
 		customerRepo: customerRepo,
 		validators:   NewReservationValidators(db),
+		notifier:     notifier,
 	}
 }
 
@@ -228,6 +231,12 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 		_ = s.customerRepo.UpdateAdditionalFields(ctx, clinicID, customerID, input.CustomerFields)
 	}
 
+	// Phase 6: 予約確定通知（LINE + メール）fire-and-forget
+	if s.notifier != nil {
+		customer, _ := s.customerRepo.FindByID(ctx, clinicID, customerID)
+		s.notifier.NotifyCreated(ctx, appt, customer)
+	}
+
 	return appt, nil
 }
 
@@ -242,9 +251,22 @@ func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerI
 
 // CancelReservation は予約をキャンセルする。
 func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerID, reservationID uint64) error {
+	// Phase 6: キャンセル通知のために事前にアポを取得する
+	var apptForNotify *model.ReservationAppointment
+	if s.notifier != nil {
+		apptForNotify, _ = s.adminRepo.FindByIDForNotify(ctx, clinicID, reservationID)
+	}
+
 	if err := s.adminRepo.CancelByID(ctx, clinicID, customerID, reservationID); err != nil {
 		return apperrors.Wrap(err, "cancel reservation")
 	}
+
+	// Phase 6: キャンセル通知（LINE + メール）fire-and-forget
+	if s.notifier != nil && apptForNotify != nil {
+		customer, _ := s.customerRepo.FindByID(ctx, clinicID, customerID)
+		s.notifier.NotifyCancelled(ctx, apptForNotify, customer)
+	}
+
 	return nil
 }
 
