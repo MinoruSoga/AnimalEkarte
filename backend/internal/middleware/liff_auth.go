@@ -113,12 +113,14 @@ func LiffAuth(lookup ReservationCustomerLookup, settingLookup ReservationSetting
 	}
 }
 
+// lineVerifyURL は LINE ID Token 検証 API のエンドポイント。
+// テスト時のみ差し替えること（本番では変更しない）。
+var lineVerifyURL = "https://api.line.me/oauth2/v2.1/verify"
+
 // verifyLiffIDToken は LINE の ID Token 検証 API を呼び出してユーザー情報を返す。
 // clientID にはクリニックの LINEログインチャンネル ID を渡すこと。
 func verifyLiffIDToken(ctx context.Context, idToken, clientID string) (*lineVerifyResponse, error) {
-	const verifyURL = "https://api.line.me/oauth2/v2.1/verify"
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, verifyURL, strings.NewReader(
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, lineVerifyURL, strings.NewReader(
 		"id_token="+idToken+"&client_id="+clientID,
 	))
 	if err != nil {
