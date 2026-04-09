@@ -134,6 +134,9 @@ func NewRepositories(db *gorm.DB) *Repositories {
 	}
 }
 
+// DB はGORMのDBインスタンスを返す（バリデーター等の直接DB操作に使用）。
+func (r *Repositories) DB() *gorm.DB { return r.db }
+
 // Transaction はリポジトリ層のトランザクションを実行する。
 // テスト時は TransactionFn に mock を設定することで DB 依存を排除できる。
 func (r *Repositories) Transaction(fn func(repos *Repositories) error) error {

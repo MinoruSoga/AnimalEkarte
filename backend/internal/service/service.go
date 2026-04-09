@@ -63,6 +63,7 @@ type Services struct {
 	ReservationSchedule ReservationScheduleService
 	ReservationAdmin    ReservationAdminService
 	ReservationCustomer ReservationCustomerService
+	Liff                LiffService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -124,5 +125,14 @@ func NewServices(repos *repository.Repositories) *Services {
 		ReservationSchedule:    NewReservationScheduleService(repos.ReservationSchedule),
 		ReservationAdmin:       NewReservationAdminService(repos.ReservationAdmin),
 		ReservationCustomer:    NewReservationCustomerService(repos.ReservationCustomerMgr),
+		Liff: NewLiffService(
+			repos.ReservationSetting,
+			repos.ReservationCourse,
+			repos.ReservationStaff,
+			repos.ReservationSchedule,
+			repos.ReservationAdmin,
+			repos.ReservationCustomerMgr,
+			repos.DB(),
+		),
 	}
 }

@@ -23,6 +23,9 @@ type ReservationAdminRepository interface {
 	FindByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.ReservationAppointment, error)
 	Create(ctx context.Context, r *model.ReservationAppointment) error
 	SoftDelete(ctx context.Context, clinicID, id uint64) error
+	// LIFF用
+	FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.ReservationAppointment, error)
+	CancelByID(ctx context.Context, clinicID, customerID, id uint64) error
 }
 
 type reservationAdminRepository struct{ db *gorm.DB }
@@ -81,6 +84,35 @@ func (r *reservationAdminRepository) SoftDelete(ctx context.Context, clinicID, i
 		Delete(&model.ReservationAppointment{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete reservation appointment")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("reservation_appointment", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.ReservationAppointment, error) {
+	items := make([]model.ReservationAppointment, 0)
+	err := r.db.WithContext(ctx).
+		Preload("ServiceType").
+		Preload("Doctor").
+		Where("clinic_id = ? AND line_customer_id = ? AND deleted_at IS NULL", clinicID, customerID).
+		Order("start_time DESC").
+		Find(&items).Error
+	if err != nil {
+		return nil, apperrors.Wrap(err, "find reservations by customer")
+	}
+	return items, nil
+}
+
+func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.ReservationAppointment{}).
+		Where("id = ? AND clinic_id = ? AND line_customer_id = ? AND status != ?",
+			id, clinicID, customerID, model.ReservationStatusCancelled).
+		Update("status", model.ReservationStatusCancelled)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "cancel reservation")
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("reservation_appointment", fmt.Sprintf("%d", id))

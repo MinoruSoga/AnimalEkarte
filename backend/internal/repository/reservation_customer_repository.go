@@ -15,6 +15,8 @@ type ReservationCustomerRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationCustomer, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationCustomer, error)
 	UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error
+	FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.ReservationCustomer, error)
+	UpdateAdditionalFields(ctx context.Context, clinicID, id uint64, fields []byte) error
 }
 
 type reservationCustomerRepository struct{ db *gorm.DB }
@@ -45,6 +47,39 @@ func (r *reservationCustomerRepository) FindByID(ctx context.Context, clinicID, 
 		return nil, apperrors.FromGORM(err, "reservation_customer", fmt.Sprintf("%d", id))
 	}
 	return &c, nil
+}
+
+func (r *reservationCustomerRepository) FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.ReservationCustomer, error) {
+	var c model.ReservationCustomer
+	err := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND line_user_id = ?", clinicID, lineUserID).
+		First(&c).Error
+	if err == gorm.ErrRecordNotFound {
+		c = model.ReservationCustomer{
+			ClinicID:    clinicID,
+			LineUserID:  lineUserID,
+			DisplayName: displayName,
+		}
+		if err2 := r.db.WithContext(ctx).Create(&c).Error; err2 != nil {
+			return nil, apperrors.Wrap(err2, "create reservation customer")
+		}
+		return &c, nil
+	}
+	if err != nil {
+		return nil, apperrors.Wrap(err, "find reservation customer by line user id")
+	}
+	return &c, nil
+}
+
+func (r *reservationCustomerRepository) UpdateAdditionalFields(ctx context.Context, clinicID, id uint64, fields []byte) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.ReservationCustomer{}).
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Update("additional_fields", fields)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update reservation customer additional fields")
+	}
+	return nil
 }
 
 func (r *reservationCustomerRepository) UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error {

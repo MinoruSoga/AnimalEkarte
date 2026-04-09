@@ -1,6 +1,10 @@
 package handler
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+
+	"github.com/animal-ekarte/backend/internal/middleware"
+)
 
 // RegisterLineReservationRoutes はLINE予約管理APIのルートを登録する
 func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
@@ -46,4 +50,27 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	customers := clinics.Group("/reservation-customers")
 	customers.GET("", h.ListReservationCustomers)
 	customers.PATCH("/:id/link-owner", h.LinkOwnerToReservationCustomer)
+}
+
+// RegisterLiffRoutes はLIFF公開APIのルートを登録する（LINE IDトークン認証）。
+func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
+	liffAuth := middleware.LiffAuth(h.repos.ReservationCustomerMgr)
+
+	liff := r.Group("/api/liff/:clinicId")
+
+	// 設定は認証不要（トップページ表示用）
+	liff.GET("/settings", h.GetLiffSettings)
+
+	// 以下は LINE IDトークン認証が必要
+	authed := liff.Group("")
+	authed.Use(liffAuth)
+
+	authed.GET("/profile", h.GetLiffProfile)
+	authed.GET("/courses", h.GetLiffCourses)
+	authed.GET("/staffs", h.GetLiffStaffs)
+	authed.GET("/available-dates", h.GetLiffAvailableDates)
+	authed.GET("/available-times", h.GetLiffAvailableTimes)
+	authed.POST("/reservations", h.CreateLiffReservation)
+	authed.GET("/my-reservations", h.GetLiffMyReservations)
+	authed.DELETE("/my-reservations/:id", h.CancelLiffReservation)
 }

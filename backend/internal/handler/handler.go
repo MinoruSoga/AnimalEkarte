@@ -89,6 +89,9 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterGlobalCheckupRoutes(protected)
 	h.RegisterBillingItemRoutes(protected)
 	h.RegisterLineReservationRoutes(protected)
+
+	// LIFF公開API（JWT認証なし・LINE IDトークン認証）
+	h.RegisterLiffRoutes(r)
 }
 
 // registerOwnerRoutesWithAuth は飼主ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
