@@ -52,11 +52,6 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	customers.PATCH("/:id/link-owner", h.LinkOwnerToReservationCustomer)
 }
 
-// RegisterLineWebhookRoutes はLINE Webhookのルートを登録する（認証不要・署名検証はハンドラ内で行う）。
-func (h *Handler) RegisterLineWebhookRoutes(r *gin.Engine) {
-	r.POST("/api/line-webhook/:clinicId", h.HandleLineWebhook)
-}
-
 // RegisterLiffRoutes はLIFF公開APIのルートを登録する（LINE IDトークン認証）。
 func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
 	liffAuth := middleware.LiffAuth(h.repos.ReservationCustomerMgr, h.repos.ReservationSetting)
