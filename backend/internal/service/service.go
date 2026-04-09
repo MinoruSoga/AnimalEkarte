@@ -56,6 +56,14 @@ type Services struct {
 	MerchandiseItem        MerchandiseItemService
 	BillingItem            BillingItemService
 	Refund                 RefundService
+	// LINE予約
+	ReservationSetting  ReservationSettingService
+	ReservationCourse   ReservationCourseService
+	ReservationStaff    ReservationStaffService
+	ReservationSchedule ReservationScheduleService
+	ReservationAdmin    ReservationAdminService
+	ReservationCustomer ReservationCustomerService
+	Liff                LiffService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -111,5 +119,20 @@ func NewServices(repos *repository.Repositories) *Services {
 		MerchandiseItem:        NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:            NewBillingItemService(repos.BillingItem),
 		Refund:                 NewRefundService(repos.Refund, repos.Accounting),
+		ReservationSetting:     NewReservationSettingService(repos.ReservationSetting),
+		ReservationCourse:      NewReservationCourseService(repos.ReservationCourse, repos.ReservationAdmin),
+		ReservationStaff:       NewReservationStaffService(repos.ReservationStaff),
+		ReservationSchedule:    NewReservationScheduleService(repos.ReservationSchedule),
+		ReservationAdmin:       NewReservationAdminService(repos.ReservationAdmin),
+		ReservationCustomer:    NewReservationCustomerService(repos.ReservationCustomerMgr),
+		Liff: NewLiffService(
+			repos.ReservationSetting,
+			repos.ReservationCourse,
+			repos.ReservationStaff,
+			repos.ReservationSchedule,
+			repos.ReservationAdmin,
+			repos.ReservationCustomerMgr,
+			repos.DB(),
+		),
 	}
 }

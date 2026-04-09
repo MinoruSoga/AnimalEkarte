@@ -6,6 +6,15 @@ import (
 	"gorm.io/gorm"
 )
 
+// StaffType represents the role of a staff member in the reservation system.
+type StaffType string
+
+const (
+	StaffTypeDoctor   StaffType = "doctor"
+	StaffTypeNurse    StaffType = "nurse"
+	StaffTypeResource StaffType = "resource"
+)
+
 type Staff struct {
 	ID            uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	AccountID     *uint64        `                                                      json:"account_id,omitempty"`
@@ -17,6 +26,12 @@ type Staff struct {
 	DeletedAt     gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt     time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+
+	// LINE予約用フィールド
+	StaffType           StaffType `gorm:"type:staff_type;not null;default:'doctor'"      json:"staff_type"`
+	ReservationVisible  bool      `gorm:"not null;default:true"                          json:"reservation_visible"`
+	ReservationComment  string    `gorm:"not null;default:''"                            json:"reservation_comment"`
+	ReservationImageURL string    `gorm:"not null;default:''"                            json:"reservation_image_url"`
 
 	// Relations
 	Account           *Account                `gorm:"foreignKey:AccountID" json:"account,omitempty"`

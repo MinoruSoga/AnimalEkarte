@@ -105,6 +105,7 @@ export interface BillingItem {
   merchandise_item_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
+  updated_at: string;
 }
 export interface Payment {
   id: number /* uint64 */;
@@ -1291,6 +1292,12 @@ export const ReservationStatusCompleted: ReservationStatus = "completed";
 export type VisitType = string;
 export const VisitTypeFirst: VisitType = "first";
 export const VisitTypeRevisit: VisitType = "revisit";
+/**
+ * ReservationSource indicates whether a reservation was created via LINE or manually.
+ */
+export type ReservationSource = string;
+export const ReservationSourceManual: ReservationSource = "manual";
+export const ReservationSourceLine: ReservationSource = "line";
 export interface ReservationAppointment {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -1307,17 +1314,90 @@ export interface ReservationAppointment {
   created_at: string;
   updated_at: string;
   /**
+   * LINE予約用フィールド
+   */
+  source: ReservationSource;
+  line_customer_id?: number /* uint64 */;
+  is_staff_delegated: boolean;
+  customer_fields: string /* []byte */;
+  /**
    * Relations
    */
   owner?: Owner;
   pet?: Pet;
   service_type?: ServiceType;
   doctor?: Staff;
+  line_customer?: ReservationCustomer;
+}
+
+//////////
+// source: reservation_customer.go
+
+export interface ReservationCustomer {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  line_user_id: string;
+  display_name: string;
+  real_name: string;
+  additional_fields: string /* []byte */;
+  owner_id?: number /* uint64 */;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  owner?: Owner;
+}
+
+//////////
+// source: reservation_setting.go
+
+export interface ReservationSetting {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  status: string;
+  header_text: string;
+  reservation_notice: string;
+  cancel_notice: string;
+  privacy_policy: string;
+  closed_weekdays: string /* []byte */;
+  closed_dates: string /* []byte */;
+  national_holiday_closed: boolean;
+  business_hours: string /* []byte */;
+  business_hours_by_weekday?: string /* []byte */;
+  break_hours: string /* []byte */;
+  daily_limit?: number /* int */;
+  monthly_limit?: number /* int */;
+  booking_window_max_days: number /* int */;
+  booking_window_min_days: number /* int */;
+  calendar_months: number /* int */;
+  phone_number: string;
+  notification_email: string;
+  request_example: string;
+  time_slot_mode: string;
+  time_slot_interval_minutes: number /* int */;
+  no_staff_mode: string;
+  show_no_staff_option: boolean;
+  additional_fields: string /* []byte */;
+  line_channel_id: string;
+  line_channel_secret: string;
+  liff_id: string;
+  line_access_token: string;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
 // source: service_type.go
 
+/**
+ * ReservationDayOption defines which weekdays a service type is available for LINE reservation.
+ */
+export type ReservationDayOption = string;
+export const DayOptionNone: ReservationDayOption = "none";
+export const DayOptionSaturday: ReservationDayOption = "saturday";
+export const DayOptionWeekday: ReservationDayOption = "weekday";
+export const DayOptionAnyday: ReservationDayOption = "anyday";
 export interface ServiceType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -1328,11 +1408,43 @@ export interface ServiceType {
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
+  /**
+   * LINE予約用フィールド
+   */
+  duration_minutes: number /* int */;
+  short_name: string;
+  show_short_name: boolean;
+  reservation_visible: boolean;
+  reservation_comment: string;
+  reservation_image_url: string;
+  reservation_day_option: ReservationDayOption;
+  is_internal: boolean;
+}
+
+//////////
+// source: shift_entry_break.go
+
+export interface ShiftEntryBreak {
+  id: number /* uint64 */;
+  shift_entry_id: number /* uint64 */;
+  break_start: string;
+  break_end: string;
+  /**
+   * Relations
+   */
+  shift_entry?: ShiftEntry;
 }
 
 //////////
 // source: staff.go
 
+/**
+ * StaffType represents the role of a staff member in the reservation system.
+ */
+export type StaffType = string;
+export const StaffTypeDoctor: StaffType = "doctor";
+export const StaffTypeNurse: StaffType = "nurse";
+export const StaffTypeResource: StaffType = "resource";
 export interface Staff {
   id: number /* uint64 */;
   account_id?: number /* uint64 */;
@@ -1343,6 +1455,13 @@ export interface Staff {
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
+  /**
+   * LINE予約用フィールド
+   */
+  staff_type: StaffType;
+  reservation_visible: boolean;
+  reservation_comment: string;
+  reservation_image_url: string;
   /**
    * Relations
    */
@@ -1371,6 +1490,20 @@ export interface ShiftEntry {
    * Relations
    */
   staff?: Staff;
+}
+
+//////////
+// source: staff_excluded_service_type.go
+
+export interface StaffExcludedServiceType {
+  id: number /* uint64 */;
+  staff_id: number /* uint64 */;
+  service_type_id: number /* uint64 */;
+  /**
+   * Relations
+   */
+  staff?: Staff;
+  service_type?: ServiceType;
 }
 
 //////////

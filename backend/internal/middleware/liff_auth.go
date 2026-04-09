@@ -1,0 +1,157 @@
+package middleware
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+const (
+	liffCustomerIDKey = "liff_customer_id"
+	liffClinicIDKey   = "liff_clinic_id"
+	liffLineUserIDKey = "liff_line_user_id"
+	liffDisplayName   = "liff_display_name"
+)
+
+// lineVerifyResponse は LINE ID Token 検証 API のレスポンス。
+type lineVerifyResponse struct {
+	Sub       string `json:"sub"`  // line_user_id
+	Name      string `json:"name"` // 表示名
+	Picture   string `json:"picture"`
+	ClientID  string `json:"client_id"`
+	ExpiresIn int    `json:"expires_in"`
+	Error     string `json:"error"`
+	ErrorDesc string `json:"error_description"`
+}
+
+// ReservationCustomerLookup はLINE顧客を特定・作成するためのインターフェース。
+type ReservationCustomerLookup interface {
+	FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.ReservationCustomer, error)
+}
+
+// LiffAuth はLIFF ID Tokenを検証してcontext に顧客情報をセットするミドルウェア。
+func LiffAuth(lookup ReservationCustomerLookup) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Authorization: Bearer {ID Token}
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
+			c.Abort()
+			return
+		}
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header"})
+			c.Abort()
+			return
+		}
+		idToken := parts[1]
+
+		// clinicID を URL パスから取得（/api/liff/:clinicId/...）
+		clinicIDStr := c.Param("clinicId")
+		var clinicID uint64
+		if _, err := fmt.Sscanf(clinicIDStr, "%d", &clinicID); err != nil || clinicID == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid clinic id"})
+			c.Abort()
+			return
+		}
+
+		// LINE API でトークン検証
+		lineUser, err := verifyLiffIDToken(c.Request.Context(), idToken)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid ID token: " + err.Error()})
+			c.Abort()
+			return
+		}
+
+		// reservation_customers から顧客を特定（なければ新規作成）
+		customer, err := lookup.FindOrCreateByLineUserID(c.Request.Context(), clinicID, lineUser.Sub, lineUser.Name)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve customer"})
+			c.Abort()
+			return
+		}
+
+		// context にセット
+		c.Set(liffCustomerIDKey, customer.ID)
+		c.Set(liffClinicIDKey, clinicID)
+		c.Set(liffLineUserIDKey, lineUser.Sub)
+		c.Set(liffDisplayName, lineUser.Name)
+		c.Next()
+	}
+}
+
+// verifyLiffIDToken は LINE の ID Token 検証 API を呼び出してユーザー情報を返す。
+func verifyLiffIDToken(ctx context.Context, idToken string) (*lineVerifyResponse, error) {
+	const verifyURL = "https://api.line.me/oauth2/v2.1/verify"
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, verifyURL, strings.NewReader(
+		"id_token="+idToken+"&client_id=placeholder",
+	))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("line verify request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read line verify response: %w", err)
+	}
+
+	var result lineVerifyResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("parse line verify response: %w", err)
+	}
+
+	if result.Error != "" {
+		return nil, fmt.Errorf("line verify error: %s", result.ErrorDesc)
+	}
+	if result.Sub == "" {
+		return nil, apperrors.WrapInvalidInput("empty line user id from token")
+	}
+
+	return &result, nil
+}
+
+// ExtractLiffCustomerID はコンテキストから liff_customer_id を取得する。
+func ExtractLiffCustomerID(c *gin.Context) (uint64, bool) {
+	v, exists := c.Get(liffCustomerIDKey)
+	if !exists {
+		return 0, false
+	}
+	id, ok := v.(uint64)
+	return id, ok
+}
+
+// ExtractLiffClinicID はコンテキストから liff_clinic_id を取得する。
+func ExtractLiffClinicID(c *gin.Context) (uint64, bool) {
+	v, exists := c.Get(liffClinicIDKey)
+	if !exists {
+		return 0, false
+	}
+	id, ok := v.(uint64)
+	return id, ok
+}
+
+// ExtractLiffDisplayName はコンテキストから LINE 表示名を取得する。
+func ExtractLiffDisplayName(c *gin.Context) string {
+	v, _ := c.Get(liffDisplayName)
+	s, _ := v.(string)
+	return s
+}

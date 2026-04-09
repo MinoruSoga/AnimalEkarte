@@ -25,6 +25,14 @@ const (
 	VisitTypeRevisit VisitType = "revisit"
 )
 
+// ReservationSource indicates whether a reservation was created via LINE or manually.
+type ReservationSource string
+
+const (
+	ReservationSourceManual ReservationSource = "manual"
+	ReservationSourceLine   ReservationSource = "line"
+)
+
 type ReservationAppointment struct {
 	ID            uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID      uint64            `gorm:"not null"                                       json:"clinic_id"`
@@ -42,11 +50,18 @@ type ReservationAppointment struct {
 	CreatedAt     time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
+	// LINE予約用フィールド
+	Source            ReservationSource `gorm:"type:reservation_source;not null;default:'manual'" json:"source"`
+	LineCustomerID    *uint64           `                                                         json:"line_customer_id,omitempty"`
+	IsStaffDelegated  bool              `gorm:"not null;default:false"                            json:"is_staff_delegated"`
+	CustomerFields    []byte            `gorm:"type:jsonb;not null;default:'{}'"                  json:"customer_fields"`
+
 	// Relations
-	Owner       *Owner       `gorm:"foreignKey:OwnerID"       json:"owner,omitempty"`
-	Pet         *Pet         `gorm:"foreignKey:PetID"         json:"pet,omitempty"`
-	ServiceType *ServiceType `gorm:"foreignKey:ServiceTypeID" json:"service_type,omitempty"`
-	Doctor      *Staff       `gorm:"foreignKey:DoctorID"      json:"doctor,omitempty"`
+	Owner        *Owner               `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`
+	Pet          *Pet                 `gorm:"foreignKey:PetID"            json:"pet,omitempty"`
+	ServiceType  *ServiceType         `gorm:"foreignKey:ServiceTypeID"    json:"service_type,omitempty"`
+	Doctor       *Staff               `gorm:"foreignKey:DoctorID"         json:"doctor,omitempty"`
+	LineCustomer *ReservationCustomer `gorm:"foreignKey:LineCustomerID"   json:"line_customer,omitempty"`
 }
 
 func (ReservationAppointment) TableName() string { return "reservation_appointments" }
