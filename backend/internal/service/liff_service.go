@@ -197,7 +197,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, courseID,
 	return GenerateTimeSlots(input)
 }
 
-// CreateReservation は予約を確定する。
+// CreateReservation は予約を確定する。staffID=0 の場合は no_staff_mode に従って自動割当する。
 func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.ReservationAppointment, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
@@ -206,6 +206,17 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 	input.ClinicID = clinicID
 	input.CustomerID = customerID
 	input.Settings = setting
+
+	// TASK-RES-025: 指名なし委譲ロジック
+	if input.StaffID == 0 {
+		date, err := toDateTime(input.Date, input.StartTime)
+		if err == nil {
+			assignedID, err := s.delegateStaff(ctx, clinicID, input.ServiceTypeID, setting.NoStaffMode, date, input.StartTime, input.EndTime)
+			if err == nil && assignedID != 0 {
+				input.StaffID = assignedID
+			}
+		}
+	}
 
 	appt, err := s.validators.ValidateAndCreate(ctx, input)
 	if err != nil {
@@ -332,6 +343,61 @@ func (s *liffService) parseBusinessHours(setting *model.ReservationSetting) (Bus
 		breaks = nil
 	}
 	return bh, breaks
+}
+
+// delegateStaff は指名なし時に no_staff_mode に従ってスタッフを自動割当する。
+// 割当できない場合は 0 を返す（エラーではない）。
+func (s *liffService) delegateStaff(ctx context.Context, clinicID, courseID uint64, mode string, date time.Time, startTime, endTime string) (uint64, error) {
+	staffs, err := s.resolveTargetStaffs(ctx, clinicID, courseID, 0)
+	if err != nil || len(staffs) == 0 {
+		return 0, err
+	}
+
+	switch mode {
+	case "top_priority":
+		// 表示順1位（sort_order が最小）のスタッフに固定割当
+		return staffs[0].ID, nil
+
+	default: // "first_available"
+		// 空き枠があるスタッフを表示順に探す
+		dayResv, err := s.adminRepo.FindByDay(ctx, clinicID, date)
+		if err != nil {
+			return 0, nil // 失敗しても指名なしにフォールバック
+		}
+		startMin, err := minutesSinceMidnight(startTime)
+		if err != nil {
+			return 0, nil
+		}
+		endMin, err := minutesSinceMidnight(endTime)
+		if err != nil {
+			return 0, nil
+		}
+		for _, st := range staffs {
+			if isStaffAvailable(st.ID, startMin, endMin, dayResv) {
+				return st.ID, nil
+			}
+		}
+		return 0, nil
+	}
+}
+
+// isStaffAvailable はスタッフが指定時間枠で空いているか確認する。
+func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.ReservationAppointment) bool {
+	for _, r := range dayResv {
+		if r.Status == model.ReservationStatusCancelled {
+			continue
+		}
+		if r.DoctorID == nil || *r.DoctorID != staffID {
+			continue
+		}
+		rStart := r.StartTime.Hour()*60 + r.StartTime.Minute()
+		rEnd := r.EndTime.Hour()*60 + r.EndTime.Minute()
+		// 重複チェック: 新枠が既存予約と重なる場合は NG
+		if startMin < rEnd && endMin > rStart {
+			return false
+		}
+	}
+	return true
 }
 
 // isExcluded は指定コースIDがスタッフの除外リストに含まれるか確認する。
