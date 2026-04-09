@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
+import liff from '@line/liff';
 import type { ReservationFlow } from '../types/models';
 import { liffApi } from '../api/liff-api';
+import { LIFF_MOCK } from '../lib/liff-config';
 import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
@@ -32,6 +34,41 @@ function formatDate(dateStr: string): string {
   const d = new Date(Number(year), Number(month) - 1, Number(day));
   const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
   return `${year}年${Number(month)}月${Number(day)}日（${weekDays[d.getDay()]}）`;
+}
+
+function formatDatePadded(dateStr: string): string {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-');
+  const d = new Date(Number(year), Number(month) - 1, Number(day));
+  const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+  return `${year}年${month}月${day}日(${weekDays[d.getDay()]})`;
+}
+
+/** 予約完了後に LINE トーク画面へメッセージを送信する */
+async function sendLiffMessage(flow: ReservationFlow, notes: string): Promise<void> {
+  if (LIFF_MOCK) return; // ローカル開発時はスキップ
+  if (!liff.isInClient()) return; // LINE アプリ外では送信不可
+
+  const confirmNum = notes.match(/R-\d{8}-\d{4}/)?.[0] ?? '';
+  const time = `${formatTime(flow.startTime)}〜${formatTime(flow.endTime)}`;
+
+  const text = [
+    'ご予約を承りました。',
+    '',
+    `■ 予約番号: ${confirmNum}`,
+    `■ 日時: ${formatDatePadded(flow.date)} ${time}`,
+    `■ コース: ${flow.courseName}`,
+    flow.staffId > 0 ? `■ 担当: ${flow.staffName}` : '',
+    '',
+    'キャンセルはLINEメニューの',
+    '「予約確認・キャンセル」から行えます。',
+  ].filter(Boolean).join('\n');
+
+  try {
+    await liff.sendMessages([{ type: 'text', text }]);
+  } catch {
+    // メッセージ送信失敗は予約自体には影響しないので無視
+  }
 }
 
 export function ConfirmPage({
@@ -70,6 +107,7 @@ export function ConfirmPage({
         },
         idToken,
       );
+      await sendLiffMessage(flow, reservation.notes);
       onConfirm(reservation.id, reservation.notes);
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
