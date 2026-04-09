@@ -49,9 +49,17 @@ type liffCourseResponse struct {
 }
 
 func toLiffCourseResponse(st model.ServiceType) liffCourseResponse {
+	// 名前のフォールバックチェーン:
+	// 1. ReservationDisplayName（LINE表示名）
+	// 2. ShortName（ShowShortName が true の場合）
+	// 3. Name（元の名称）
 	name := st.ReservationDisplayName
 	if name == "" {
-		name = st.Name
+		if st.ShowShortName && st.ShortName != "" {
+			name = st.ShortName
+		} else {
+			name = st.Name
+		}
 	}
 	return liffCourseResponse{
 		ID:                  st.ID,
@@ -134,7 +142,11 @@ func toLiffReservationResponse(r model.ReservationAppointment) liffReservationRe
 	if r.ServiceType != nil {
 		res.CourseName = r.ServiceType.ReservationDisplayName
 		if res.CourseName == "" {
-			res.CourseName = r.ServiceType.Name
+			if r.ServiceType.ShowShortName && r.ServiceType.ShortName != "" {
+				res.CourseName = r.ServiceType.ShortName
+			} else {
+				res.CourseName = r.ServiceType.Name
+			}
 		}
 	}
 	if r.Doctor != nil {

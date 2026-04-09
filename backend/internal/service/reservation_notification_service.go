@@ -151,6 +151,9 @@ func serviceTypeDisplayName(st *model.ServiceType) string {
 	if st.ReservationDisplayName != "" {
 		return st.ReservationDisplayName
 	}
+	if st.ShowShortName && st.ShortName != "" {
+		return st.ShortName
+	}
 	return st.Name
 }
 
