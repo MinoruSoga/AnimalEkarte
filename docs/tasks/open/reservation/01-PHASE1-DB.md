@@ -7,7 +7,7 @@
 
 ## TASK-RES-001: マイグレーションSQL作成 ✅
 
-**実装済みファイル**: `backend/migrations/003_line_reservation.sql`
+**実装済みファイル**: `backend/migrations/001_init.sql`（統合済み）
 
 **完了条件**:
 - [x] ALTER TABLE が既存データを壊さない（全カラムにデフォルト値あり）
@@ -37,7 +37,7 @@
 
 ## TASK-RES-003: シードデータ作成 ✅
 
-**実装済みファイル**: `backend/migrations/003_line_reservation_seed.sql`
+**実装済みファイル**: `backend/migrations/002_seed.sql`（統合済み）
 
 **完了条件**:
 - [x] 既存データが正しく更新される

@@ -53,7 +53,7 @@
 ## TASK-RES-072: デプロイ 🔲
 
 **手順（未実施）**:
-1. [ ] DBマイグレーション実行（003_line_reservation.sql + 003_line_reservation_seed.sql）
+1. [ ] DBマイグレーション実行（001_init.sql + 002_seed.sql（LINE予約分は統合済み））
 2. [ ] バックエンドデプロイ
 3. [ ] フロントエンド（管理画面）デプロイ
 4. [ ] LIFF Appデプロイ（reserve.noah-karte.com）

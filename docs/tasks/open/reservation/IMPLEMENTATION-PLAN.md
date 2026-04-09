@@ -38,9 +38,9 @@ feature/line-reservation（メイン作業ブランチ）
 
 | 順序 | タスク | 作業内容 | 成果物 |
 |------|--------|---------|--------|
-| 1-1 | TASK-RES-001 | マイグレーションSQL作成 | `backend/migrations/003_line_reservation.sql` |
+| 1-1 | TASK-RES-001 | マイグレーションSQL作成 | `backend/migrations/001_init.sql`（統合済み） |
 | 1-2 | TASK-RES-002 | Goモデル拡張 + 新規定義 | 既存model/*.go 修正 + 新規4ファイル |
-| 1-3 | TASK-RES-003 | シードデータ作成 | `backend/migrations/003_line_reservation_seed.sql` |
+| 1-3 | TASK-RES-003 | シードデータ作成 | `backend/migrations/002_seed.sql`（統合済み） |
 | 1-4 | — | codegen 実行 | `make codegen` → models.ts 更新確認 |
 
 **完了確認**:
