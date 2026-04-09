@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -97,18 +98,33 @@ func (s *reservationCourseService) Create(ctx context.Context, clinicID uint64, 
 	if err := s.repo.Create(ctx, st); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create reservation course")
 	}
-	return st, nil
+	slog.InfoContext(ctx, "reservation course created",
+		slog.Uint64("service_type_id", st.ID),
+		slog.Uint64("clinic_id", clinicID))
+	created, err := s.repo.FindByID(ctx, clinicID, st.ID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation course after create")
+	}
+	return created, nil
 }
 
 func (s *reservationCourseService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCourseInput) (*model.ServiceType, error) {
 	fields := buildReservationCourseUpdateFields(input)
 	if len(fields) == 0 {
-		return s.repo.FindByID(ctx, clinicID, id)
+		result, err := s.repo.FindByID(ctx, clinicID, id)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to get reservation course")
+		}
+		return result, nil
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update reservation course")
 	}
-	return s.repo.FindByID(ctx, clinicID, id)
+	updated, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation course after update")
+	}
+	return updated, nil
 }
 
 func (s *reservationCourseService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -122,7 +138,11 @@ func (s *reservationCourseService) PatchStatus(ctx context.Context, clinicID, id
 	if err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to patch status")
 	}
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation course after patch status")
+	}
+	return result, nil
 }
 
 func (s *reservationCourseService) PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {

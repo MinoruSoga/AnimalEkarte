@@ -30,9 +30,9 @@ type ReservationSetting struct {
 	ShowNoStaffOption       bool      `gorm:"not null;default:true"                          json:"show_no_staff_option"`
 	AdditionalFields        []byte    `gorm:"type:jsonb;not null"                            json:"additional_fields"`
 	LineChannelID           string    `gorm:"not null;default:''"                            json:"line_channel_id"`
-	LineChannelSecret       string    `gorm:"not null;default:''"                            json:"line_channel_secret"`
+	LineChannelSecret       string    `gorm:"not null;default:''"                            json:"-"`
 	LiffID                  string    `gorm:"not null;default:''"                            json:"liff_id"`
-	LineAccessToken         string    `gorm:"not null;default:''"                            json:"line_access_token"`
+	LineAccessToken         string    `gorm:"not null;default:''"                            json:"-"`
 	CreatedAt               time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt               time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }

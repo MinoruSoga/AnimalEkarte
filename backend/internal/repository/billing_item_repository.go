@@ -16,8 +16,8 @@ type BillingItemRepository interface {
 	FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error)
 	FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
 	Create(ctx context.Context, item *model.BillingItem) error
-	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, id uint64) error
+	UpdateFields(ctx context.Context, clinicID uint64, id uint64, fields map[string]any) error
+	Delete(ctx context.Context, clinicID uint64, id uint64) error
 	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 }
 
@@ -59,7 +59,11 @@ func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingI
 	return nil
 }
 
-func (r *billingItemRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *billingItemRepository) UpdateFields(ctx context.Context, clinicID uint64, id uint64, fields map[string]any) error {
+	// Verify clinic ownership before mutating
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
 	result := r.db.WithContext(ctx).
 		Model(&model.BillingItem{}).
 		Where("id = ?", id).
@@ -73,7 +77,11 @@ func (r *billingItemRepository) UpdateFields(ctx context.Context, id uint64, fie
 	return nil
 }
 
-func (r *billingItemRepository) Delete(ctx context.Context, id uint64) error {
+func (r *billingItemRepository) Delete(ctx context.Context, clinicID uint64, id uint64) error {
+	// Verify clinic ownership before mutating
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
 	result := r.db.WithContext(ctx).Delete(&model.BillingItem{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing_item", fmt.Sprintf("%d", id))

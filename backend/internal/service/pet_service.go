@@ -366,5 +366,8 @@ func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete pet")
 	}
+	slog.InfoContext(ctx, "pet deleted",
+		slog.Uint64("pet_id", id),
+		slog.Uint64("clinic_id", clinicID))
 	return nil
 }

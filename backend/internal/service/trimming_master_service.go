@@ -30,13 +30,25 @@ func NewTrimmingCourseService(repo repository.TrimmingCourseRepository) Trimming
 }
 
 func (s *trimmingCourseService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	result, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list trimming courses")
+	}
+	return result, nil
 }
 func (s *trimmingCourseService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming course")
+	}
+	return result, nil
 }
 func (s *trimmingCourseService) Create(ctx context.Context, course *model.TrimmingCourse) error {
-	return s.repo.Create(ctx, course)
+	if err := s.repo.Create(ctx, course); err != nil {
+		return apperrors.Wrap(err, "failed to create trimming course")
+	}
+	slog.InfoContext(ctx, "trimming course created", slog.Uint64("trimming_course_id", course.ID))
+	return nil
 }
 func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
 	fields := buildTrimmingCourseUpdateFields(input)
@@ -58,11 +70,19 @@ func (s *trimmingCourseService) Delete(ctx context.Context, clinicID, id uint64)
 	if count > 0 {
 		return apperrors.WrapConflict("このトリミングコースはトリミング記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete trimming course")
+	}
+	slog.InfoContext(ctx, "trimming course deleted", slog.Uint64("trimming_course_id", id))
+	return nil
 }
 
 func (s *trimmingCourseService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder trimming courses")
+	}
+	slog.InfoContext(ctx, "trimming courses reordered", slog.Uint64("clinic_id", clinicID))
+	return nil
 }
 
 // UpdateTrimmingCourseInput はトリミングコース更新のサービス入力 DTO
@@ -122,13 +142,25 @@ func NewTrimmingOptionService(repo repository.TrimmingOptionRepository) Trimming
 }
 
 func (s *trimmingOptionService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	result, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list trimming options")
+	}
+	return result, nil
 }
 func (s *trimmingOptionService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming option")
+	}
+	return result, nil
 }
 func (s *trimmingOptionService) Create(ctx context.Context, option *model.TrimmingOption) error {
-	return s.repo.Create(ctx, option)
+	if err := s.repo.Create(ctx, option); err != nil {
+		return apperrors.Wrap(err, "failed to create trimming option")
+	}
+	slog.InfoContext(ctx, "trimming option created", slog.Uint64("trimming_option_id", option.ID))
+	return nil
 }
 func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingOptionInput) (*model.TrimmingOption, error) {
 	fields := buildTrimmingOptionUpdateFields(input)
@@ -150,11 +182,19 @@ func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64)
 	if count > 0 {
 		return apperrors.WrapConflict("このトリミングオプションはトリミング記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete trimming option")
+	}
+	slog.InfoContext(ctx, "trimming option deleted", slog.Uint64("trimming_option_id", id))
+	return nil
 }
 
 func (s *trimmingOptionService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder trimming options")
+	}
+	slog.InfoContext(ctx, "trimming options reordered", slog.Uint64("clinic_id", clinicID))
+	return nil
 }
 
 // UpdateTrimmingOptionInput はトリミングオプション更新のサービス入力 DTO

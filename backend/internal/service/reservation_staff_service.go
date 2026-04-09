@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -111,7 +112,14 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 			return nil, apperrors.Wrap(err, "failed to update excluded courses")
 		}
 	}
-	return s.repo.FindByID(ctx, id)
+	updated, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation staff after update")
+	}
+	slog.InfoContext(ctx, "reservation staff updated",
+		slog.Uint64("staff_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return updated, nil
 }
 
 func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -131,7 +139,11 @@ func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id 
 	if err := s.repo.Update(ctx, id, map[string]any{"is_active": isActive}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to patch staff status")
 	}
-	return s.repo.FindByID(ctx, id)
+	result, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation staff after patch status")
+	}
+	return result, nil
 }
 
 func (s *reservationStaffService) PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {

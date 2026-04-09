@@ -123,20 +123,20 @@ func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner
 			if isUniqueConstraintErr(err) {
 				return apperrors.WrapAlreadyExists("owner", "email already registered")
 			}
-			return apperrors.Wrap(err, "create owner")
+			return apperrors.FromGORM(err, "owner", "")
 		}
 		// 2. ペットを順次作成（owner_id, clinic_id をサーバー側でセット）
 		for i := range pets {
 			pets[i].OwnerID = owner.ID
 			pets[i].ClinicID = owner.ClinicID
 			if err := tx.Create(&pets[i]).Error; err != nil {
-				return apperrors.Wrap(err, "create pet")
+				return apperrors.FromGORM(err, "pet", "")
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		return apperrors.Wrap(err, "create owner with pets")
+		return err
 	}
 	// トランザクションコミット後に全リレーションをロードして呼び出し元に反映
 	loaded, err := r.FindByID(ctx, owner.ClinicID, owner.ID)

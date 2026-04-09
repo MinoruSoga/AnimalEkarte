@@ -1,6 +1,6 @@
 # Frontend + Backend コード規約準拠監査結果
 
-**実施日**: 2026-04-09（第7回監査まで反映）
+**実施日**: 2026-04-10（第10回監査まで反映）
 **検証方法**: 監査エージェント → grep/Read による実コード検証
 **注意**: 全指摘は実コードで検証済み。スポットチェック未実施の箇所は明記している。
 
@@ -85,6 +85,25 @@
 | [BUG-259](BUG-259_delete-fk-dependency-check-missing.md) | BE 2サービス | マスタ削除時の FK 依存チェック欠如 | High | code-quality/ |
 | [BUG-260](BUG-260_error-ignoring-and-misc.md) | BE 複数 | Count エラー無視・liff エラー無視・税率ハードコード・重複チェック等 | Medium | code-quality/ |
 
+## フロントエンド Vercel React BP 監査（2026-04-10 第10回監査）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| [BUG-267](BUG-267_shift-form-dialog-object-deps.md) | FE rerender-dependencies | ShiftFormDialog formAction deps に editShift + breaks（オブジェクト/配列） | Low | code-quality/ |
+| [BUG-268](BUG-268_handlePageChange-pagination-object-deps.md) | FE rerender-dependencies | 7リストページ handlePageChange deps に pagination オブジェクト | Medium | code-quality/ |
+| [BUG-269](BUG-269_reservation-management-static-selectitem.md) | FE rendering-hoist | ReservationManagement CALENDAR_VIEW_SELECT_ITEMS 未巻き上げ | Low | code-quality/ |
+
+## バックエンド Go 規約準拠監査（2026-04-10 第10回監査）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| [BUG-261](BUG-261_backend-go-convention-audit-3.md) | BE 全ドメイン | バックエンド Go コード規約準拠監査 第3回（親チケット） | — | code-quality/ |
+| [BUG-262](BUG-262_service-naked-return-errors-3.md) | BE 13サービス | Service 層 naked return 第3波（41箇所） | High | code-quality/ |
+| [BUG-263](BUG-263_slog-audit-log-missing-2.md) | BE 8サービス | slog 監査ログ欠落 第2波（~18箇所） | Medium | code-quality/ |
+| [BUG-264](BUG-264_repository-inner-wrap-to-fromgorm.md) | BE 3リポジトリ | トランザクション内 Wrap → FromGORM（5箇所） | Medium | code-quality/ |
+| [BUG-265](BUG-265_multitenancy-clinic-id-missing-2.md) | BE Repository/Handler | マルチテナント clinic_id 欠落 第2波（6リポジトリ+8ハンドラ） | Critical | code-quality/ |
+| [BUG-266](BUG-266_model-json-tag-and-secret-exposure.md) | BE Model | VitalRecord json タグ欠落 + LINE シークレット json:"-" 未設定 | High/Medium | code-quality/ |
+
 ## 修正優先順位（BUG-221〜223 追加後）
 
 1. **BUG-186** (Critical): LoginResponse から Token フィールド削除 — 5分
@@ -118,3 +137,6 @@
 29. ~~**BUG-241**~~ ✅ CLOSED（line-reservation static SelectItem 巻き上げ）
 30. ~~**BUG-242**~~ ✅ CLOSED（TrimmingForm optionIdSet.has() に変更）
 31. ~~**BUG-243**~~ ✅ CLOSED（AccountingDetail deps の user?.clinic → user）
+32. **BUG-268** (Medium): handlePageChange deps の pagination → pagination.goToPage に — 10分（7ファイル）
+33. **BUG-267** (Low): ShiftFormDialog formAction deps の editShift/breaks → primitive/ref に — 15分
+34. **BUG-269** (Low): ReservationManagement CALENDAR_VIEW_SELECT_ITEMS 定数化 — 5分

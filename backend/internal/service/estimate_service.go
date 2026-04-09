@@ -122,7 +122,11 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	slog.InfoContext(ctx, "estimate created",
 		slog.Uint64("estimate_id", estimate.ID),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, clinicID, estimate.ID)
+	created, err := s.repo.FindByID(ctx, clinicID, estimate.ID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get estimate after create")
+	}
+	return created, nil
 }
 
 func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
@@ -151,7 +155,11 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 	slog.InfoContext(ctx, "estimate updated",
 		slog.Uint64("estimate_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, clinicID, id)
+	updated, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get estimate after update")
+	}
+	return updated, nil
 }
 
 func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -44,12 +44,12 @@ func (m *mockChiefComplaintCategoryRepository) Delete(ctx context.Context, clini
 // ---- InquiryRepository モック ----
 
 type mockInquiryRepository struct {
-	upsertFn func(ctx context.Context, inquiry *model.Inquiry) (*model.Inquiry, error)
+	upsertFn func(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
 	countFn  func(ctx context.Context, categoryID uint64) (int64, error)
 }
 
-func (m *mockInquiryRepository) UpsertByMedicalRecordID(ctx context.Context, inquiry *model.Inquiry) (*model.Inquiry, error) {
-	return m.upsertFn(ctx, inquiry)
+func (m *mockInquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+	return m.upsertFn(ctx, clinicID, inquiry)
 }
 
 func (m *mockInquiryRepository) CountByChiefComplaintCategoryID(ctx context.Context, categoryID uint64) (int64, error) {

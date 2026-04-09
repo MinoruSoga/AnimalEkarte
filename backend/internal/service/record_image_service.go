@@ -42,7 +42,11 @@ func NewRecordImageService(repo repository.RecordImageRepository) RecordImageSer
 }
 
 func (s *recordImageService) List(ctx context.Context, medicalRecordID uint64) ([]model.RecordImage, error) {
-	return s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
+	result, err := s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list record images")
+	}
+	return result, nil
 }
 
 func (s *recordImageService) Create(ctx context.Context, medicalRecordID uint64, input *CreateRecordImageInput) (*model.RecordImage, error) {

@@ -47,6 +47,9 @@ func (s *hospitalizationPlanService) Create(ctx context.Context, plan *model.Hos
 	if err := s.repo.Create(ctx, plan); err != nil {
 		return apperrors.Wrap(err, "failed to create hospitalization plan")
 	}
+	slog.InfoContext(ctx, "hospitalization plan created",
+		slog.Uint64("hospitalization_plan_id", plan.ID),
+		slog.Uint64("clinic_id", plan.ClinicID))
 	return nil
 }
 func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id uint64, input UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
@@ -72,6 +75,9 @@ func (s *hospitalizationPlanService) Delete(ctx context.Context, clinicID, id ui
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete hospitalization plan")
 	}
+	slog.InfoContext(ctx, "hospitalization plan deleted",
+		slog.Uint64("hospitalization_plan_id", id),
+		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 

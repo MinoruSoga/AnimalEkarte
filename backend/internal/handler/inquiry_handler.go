@@ -14,6 +14,10 @@ import (
 // UpdateInquiry godoc
 // PATCH /medical-records/:id/inquiries
 func (h *Handler) UpdateInquiry(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -25,6 +29,7 @@ func (h *Handler) UpdateInquiry(c *gin.Context) {
 		return
 	}
 	inquiry, err := h.svc.Inquiry.Upsert(c.Request.Context(), service.UpsertInquiryInput{
+		ClinicID:                 clinicID,
 		MedicalRecordID:          medicalRecordID,
 		ChiefComplaintCategoryID: req.ChiefComplaintCategoryID,
 		ChiefComplaint:           req.ChiefComplaint,

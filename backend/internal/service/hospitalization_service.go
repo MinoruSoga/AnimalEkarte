@@ -41,11 +41,19 @@ func NewHospitalizationService(repos *repository.Repositories) HospitalizationSe
 }
 
 func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
-	return s.repos.Hospitalization.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	result, total, err := s.repos.Hospitalization.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list hospitalizations")
+	}
+	return result, total, nil
 }
 
 func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
-	return s.repos.Hospitalization.FindByID(ctx, clinicID, id)
+	result, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get hospitalization")
+	}
+	return result, nil
 }
 
 func (s *hospitalizationService) Create(ctx context.Context, hospitalization *model.Hospitalization) error {

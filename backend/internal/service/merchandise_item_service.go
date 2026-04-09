@@ -96,11 +96,19 @@ func NewMerchandiseItemService(repo repository.MerchandiseItemRepository) Mercha
 }
 
 func (s *merchandiseItemService) List(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, page, limit, category)
+	result, total, err := s.repo.FindAll(ctx, clinicID, page, limit, category)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list merchandise items")
+	}
+	return result, total, nil
 }
 
 func (s *merchandiseItemService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get merchandise item")
+	}
+	return result, nil
 }
 
 func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, input *CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
@@ -148,7 +156,11 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 	}
 	fields := buildMerchandiseItemUpdateFields(input)
 	if len(fields) == 0 {
-		return s.repo.FindByID(ctx, clinicID, id)
+		result, err := s.repo.FindByID(ctx, clinicID, id)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to get merchandise item")
+		}
+		return result, nil
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
@@ -159,14 +171,22 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("merchandise_item_id", id),
 	)
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get merchandise item after update")
+	}
+	return result, nil
 }
 
 func (s *merchandiseItemService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder merchandise items")
+	}
+	slog.InfoContext(ctx, "merchandise items reordered", slog.Uint64("clinic_id", clinicID))
+	return nil
 }
 
 func (s *merchandiseItemService) Delete(ctx context.Context, clinicID, id uint64) error {

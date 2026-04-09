@@ -177,5 +177,11 @@ func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) er
 	if count > 0 {
 		return apperrors.WrapConflict("この予約にはカルテが紐付いているため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete reservation")
+	}
+	slog.InfoContext(ctx, "reservation deleted",
+		slog.Uint64("reservation_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return nil
 }

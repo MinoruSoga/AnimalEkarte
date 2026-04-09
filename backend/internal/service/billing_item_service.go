@@ -149,7 +149,7 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID uint64, id
 		return item, nil
 	}
 
-	if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
+	if err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update billing item")
 	}
 
@@ -164,7 +164,11 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID uint64, id
 		slog.Uint64("item_id", id),
 		slog.Uint64("billing_id", item.BillingID),
 	)
-	return s.repo.FindByID(ctx, clinicID, id)
+	updated, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get billing item after update")
+	}
+	return updated, nil
 }
 
 func (s *billingItemService) DeleteItem(ctx context.Context, clinicID uint64, id uint64) error {
@@ -174,7 +178,7 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID uint64, id
 	}
 	billingID := item.BillingID
 
-	if err := s.repo.Delete(ctx, id); err != nil {
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete billing item")
 	}
 
@@ -199,5 +203,8 @@ func (s *billingItemService) recalculateTotals(ctx context.Context, clinicID, bi
 		return apperrors.Wrap(err, "find billing items")
 	}
 	subtotal, taxTotal, totalAmount := CalculateBillingTotals(items)
-	return s.repo.UpdateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount)
+	if err := s.repo.UpdateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount); err != nil {
+		return apperrors.Wrap(err, "failed to update billing totals")
+	}
+	return nil
 }

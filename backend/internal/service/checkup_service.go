@@ -60,17 +60,25 @@ func NewCheckupService(repo repository.CheckupRepository) CheckupService {
 }
 
 func (s *checkupService) List(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error) {
-	return s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
+	result, err := s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list checkups")
+	}
+	return result, nil
 }
 
 func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error) {
 	slog.InfoContext(ctx, "listing checkups by clinic", slog.Uint64("clinic_id", input.ClinicID))
-	return s.repo.ListByClinic(ctx, input.ClinicID, repository.CheckupFilters{
+	result, err := s.repo.ListByClinic(ctx, input.ClinicID, repository.CheckupFilters{
 		StartDate:     input.StartDate,
 		EndDate:       input.EndDate,
 		NextStartDate: input.NextStartDate,
 		NextEndDate:   input.NextEndDate,
 	})
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list checkups by clinic")
+	}
+	return result, nil
 }
 
 func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error) {
@@ -90,7 +98,11 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 	slog.InfoContext(ctx, "checkup created",
 		slog.Uint64("checkup_id", checkup.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-	return s.repo.FindByID(ctx, input.ClinicID, checkup.ID)
+	created, err := s.repo.FindByID(ctx, input.ClinicID, checkup.ID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get checkup after create")
+	}
+	return created, nil
 }
 
 func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error) {
@@ -113,7 +125,11 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("checkup_id", checkupID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-	return s.repo.FindByID(ctx, clinicID, checkupID)
+	updated, err := s.repo.FindByID(ctx, clinicID, checkupID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get checkup after update")
+	}
+	return updated, nil
 }
 
 func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) error {

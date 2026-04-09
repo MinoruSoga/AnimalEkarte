@@ -197,6 +197,12 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 
 // GetStaff godoc
 func (h *Handler) GetStaff(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to service/repo for tenant isolation (Staff is multi-clinic via assignments)
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -231,6 +237,12 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 // GetStaffPermissionGroups godoc
 // GET /v1/masters/staffs/:id/permission-groups
 func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to repo for tenant isolation
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -247,6 +259,12 @@ func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
 // SetStaffPermissionGroups godoc
 // PUT /v1/masters/staffs/:id/permission-groups
 func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to repo for tenant isolation
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -272,6 +290,12 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 // GetStaffClinicAssignments godoc
 // GET /v1/masters/staffs/:id/clinics
 func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to service/repo for tenant isolation
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -292,6 +316,12 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 // SetStaffClinicAssignments godoc
 // PUT /v1/masters/staffs/:id/clinics
 func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to service/repo for tenant isolation
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -319,6 +349,12 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 // GetStaffExcludedServiceTypes godoc
 // GET /v1/masters/staffs/:id/excluded-service-types
 func (h *Handler) GetStaffExcludedServiceTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to repo for tenant isolation
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -339,6 +375,12 @@ func (h *Handler) GetStaffExcludedServiceTypes(c *gin.Context) {
 // SetStaffExcludedServiceTypes godoc
 // PUT /v1/masters/staffs/:id/excluded-service-types
 func (h *Handler) SetStaffExcludedServiceTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to repo for tenant isolation
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))

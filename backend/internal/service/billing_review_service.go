@@ -77,7 +77,7 @@ func (s *billingReviewService) Confirm(ctx context.Context, clinicID, medicalRec
 		"confirmed_at": now,
 		"memo":         input.Memo,
 	}
-	if err := s.repo.Update(ctx, review.ID, fields); err != nil {
+	if err := s.repo.Update(ctx, clinicID, review.ID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update billing review")
 	}
 	slog.InfoContext(ctx, "billing_review confirmed",
@@ -106,7 +106,7 @@ func (s *billingReviewService) Return(ctx context.Context, clinicID, medicalReco
 		"return_reason": input.ReturnReason,
 		"memo":          input.Memo,
 	}
-	if err := s.repo.Update(ctx, review.ID, fields); err != nil {
+	if err := s.repo.Update(ctx, clinicID, review.ID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update billing review")
 	}
 	slog.InfoContext(ctx, "billing_review returned",

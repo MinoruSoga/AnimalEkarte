@@ -24,7 +24,7 @@ func (h *Handler) ListTreatmentPlansByMedicalRecord(c *gin.Context) {
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, id); !ok {
 		return
 	}
-	plans, err := h.svc.TreatmentPlan.ListByMedicalRecord(c.Request.Context(), id)
+	plans, err := h.svc.TreatmentPlan.ListByMedicalRecord(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -65,7 +65,7 @@ func (h *Handler) CreateTreatmentPlanForMedicalRecord(c *gin.Context) {
 		Subtotal:         req.Subtotal,
 		SortOrder:        req.SortOrder,
 	}
-	plan, err := h.svc.TreatmentPlan.Create(c.Request.Context(), &id, nil, input)
+	plan, err := h.svc.TreatmentPlan.Create(c.Request.Context(), clinicID, &id, nil, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -87,7 +87,7 @@ func (h *Handler) ListTreatmentPlansByHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	plans, err := h.svc.TreatmentPlan.ListByHospitalization(c.Request.Context(), id)
+	plans, err := h.svc.TreatmentPlan.ListByHospitalization(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -129,7 +129,7 @@ func (h *Handler) CreateTreatmentPlanForHospitalization(c *gin.Context) {
 		Subtotal:         req.Subtotal,
 		SortOrder:        req.SortOrder,
 	}
-	plan, err := h.svc.TreatmentPlan.Create(c.Request.Context(), nil, &id, input)
+	plan, err := h.svc.TreatmentPlan.Create(c.Request.Context(), clinicID, nil, &id, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -177,7 +177,7 @@ func (h *Handler) UpdateTreatmentPlanInMedicalRecord(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	plan, err := h.svc.TreatmentPlan.Update(c.Request.Context(), planID, buildUpdateTreatmentPlanInput(req))
+	plan, err := h.svc.TreatmentPlan.Update(c.Request.Context(), clinicID, planID, buildUpdateTreatmentPlanInput(req))
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -205,7 +205,7 @@ func (h *Handler) DeleteTreatmentPlanInMedicalRecord(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid planId"))
 		return
 	}
-	if err := h.svc.TreatmentPlan.Delete(c.Request.Context(), planID); err != nil {
+	if err := h.svc.TreatmentPlan.Delete(c.Request.Context(), clinicID, planID); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -238,7 +238,7 @@ func (h *Handler) UpdateTreatmentPlanInHospitalization(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	plan, err := h.svc.TreatmentPlan.Update(c.Request.Context(), planID, buildUpdateTreatmentPlanInput(req))
+	plan, err := h.svc.TreatmentPlan.Update(c.Request.Context(), clinicID, planID, buildUpdateTreatmentPlanInput(req))
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -267,7 +267,7 @@ func (h *Handler) DeleteTreatmentPlanInHospitalization(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid planId"))
 		return
 	}
-	if err := h.svc.TreatmentPlan.Delete(c.Request.Context(), planID); err != nil {
+	if err := h.svc.TreatmentPlan.Delete(c.Request.Context(), clinicID, planID); err != nil {
 		RespondError(c, err)
 		return
 	}

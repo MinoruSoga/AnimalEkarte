@@ -37,7 +37,7 @@ type UpdateVitalInput struct {
 
 // VitalService はバイタル記録のビジネスロジックインターフェース
 type VitalService interface {
-	List(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error)
+	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
 	Create(ctx context.Context, medicalRecordID uint64, input *CreateVitalInput) (*model.VitalRecord, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.VitalRecord, error)
 	Delete(ctx context.Context, clinicID, medicalRecordID, vitalID uint64) error
@@ -52,8 +52,8 @@ func NewVitalService(repo repository.VitalRepository) VitalService {
 	return &vitalService{repo: repo}
 }
 
-func (s *vitalService) List(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error) {
-	items, err := s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
+func (s *vitalService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
+	items, err := s.repo.ListByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list vital records")
 	}
@@ -103,7 +103,7 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	if err := s.repo.Update(ctx, vitalID, fields); err != nil {
+	if err := s.repo.Update(ctx, clinicID, vitalID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update vital record")
 	}
 	slog.InfoContext(ctx, "vital updated",
@@ -125,7 +125,7 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("vital", "not found in medical record")
 	}
-	if err := s.repo.Delete(ctx, vitalID); err != nil {
+	if err := s.repo.Delete(ctx, clinicID, vitalID); err != nil {
 		return apperrors.Wrap(err, "failed to delete vital record")
 	}
 	slog.InfoContext(ctx, "vital deleted",

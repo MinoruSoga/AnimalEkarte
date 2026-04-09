@@ -117,7 +117,7 @@ func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, op
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		record := &model.TrimmingRecord{ID: recordID}
 		if err := tx.Model(record).Association("Options").Unscoped().Clear(); err != nil {
-			return apperrors.Wrap(err, "failed to clear trimming options")
+			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("record_id=%d", recordID))
 		}
 		if len(optionIDs) == 0 {
 			return nil
@@ -127,11 +127,11 @@ func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, op
 			options = append(options, model.TrimmingOption{ID: id})
 		}
 		if err := tx.Model(record).Association("Options").Replace(options); err != nil {
-			return apperrors.Wrap(err, "failed to set trimming options")
+			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("record_id=%d", recordID))
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "set options trimming record")
+		return err
 	}
 	return nil
 }

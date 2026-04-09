@@ -34,5 +34,9 @@ func (s *reservationCustomerService) LinkOwner(ctx context.Context, clinicID, id
 	if err := s.repo.UpdateOwnerLink(ctx, clinicID, id, ownerID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to link owner to reservation customer")
 	}
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation customer")
+	}
+	return result, nil
 }

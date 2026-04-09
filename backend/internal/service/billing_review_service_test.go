@@ -16,7 +16,7 @@ import (
 type mockBillingReviewRepository struct {
 	findByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error)
 	createFn                func(ctx context.Context, review *model.BillingReview) error
-	updateFn                func(ctx context.Context, reviewID uint64, fields map[string]any) error
+	updateFn                func(ctx context.Context, clinicID, reviewID uint64, fields map[string]any) error
 }
 
 func (m *mockBillingReviewRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error) {
@@ -27,8 +27,8 @@ func (m *mockBillingReviewRepository) Create(ctx context.Context, review *model.
 	return m.createFn(ctx, review)
 }
 
-func (m *mockBillingReviewRepository) Update(ctx context.Context, reviewID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, reviewID, fields)
+func (m *mockBillingReviewRepository) Update(ctx context.Context, clinicID, reviewID uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, reviewID, fields)
 }
 
 // ---- Tests ----
@@ -189,7 +189,7 @@ func TestBillingReviewService_Confirm(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.BillingReview) error {
 					return nil
 				},
-				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoUpdateErr
 				},
 			}
@@ -274,7 +274,7 @@ func TestBillingReviewService_Return(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.BillingReview) error {
 					return nil
 				},
-				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoUpdateErr
 				},
 			}

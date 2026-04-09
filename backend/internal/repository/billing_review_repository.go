@@ -14,7 +14,7 @@ import (
 type BillingReviewRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error)
 	Create(ctx context.Context, review *model.BillingReview) error
-	Update(ctx context.Context, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 }
 
 type billingReviewRepository struct {
@@ -45,10 +45,11 @@ func (r *billingReviewRepository) Create(ctx context.Context, review *model.Bill
 	return nil
 }
 
-func (r *billingReviewRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *billingReviewRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	// Restrict update to rows belonging to this clinic via subquery on medical_records
 	result := r.db.WithContext(ctx).
 		Model(&model.BillingReview{}).
-		Where("id = ?", id).
+		Where("id = ? AND medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing_review", fmt.Sprintf("%d", id))

@@ -105,12 +105,12 @@ func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates [
 				Where("id = ? AND deleted_at IS NULL", u.ID).
 				Update("sort_order", u.SortOrder)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, fmt.Sprintf("bulk update sort_order for treatment %d", u.ID))
+				return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", u.ID))
 			}
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "bulk update treatment sort order")
+		return err
 	}
 	return nil
 }

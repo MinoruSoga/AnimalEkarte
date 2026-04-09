@@ -136,11 +136,19 @@ func NewMedicineService(repo repository.MedicineRepository) MedicineService {
 }
 
 func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, page, limit)
+	result, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list medicines")
+	}
+	return result, total, nil
 }
 
 func (s *medicineService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get medicine")
+	}
+	return result, nil
 }
 
 func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *CreateMedicineInput) (*model.Medicine, error) {
@@ -193,7 +201,11 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMedicineInput) (*model.Medicine, error) {
 	fields := buildMedicineUpdateFields(input)
 	if len(fields) == 0 {
-		return s.repo.FindByID(ctx, clinicID, id)
+		result, err := s.repo.FindByID(ctx, clinicID, id)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to get medicine")
+		}
+		return result, nil
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
@@ -204,14 +216,22 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", id),
 	)
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get medicine after update")
+	}
+	return result, nil
 }
 
 func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder medicines")
+	}
+	slog.InfoContext(ctx, "medicines reordered", slog.Uint64("clinic_id", clinicID))
+	return nil
 }
 
 func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error {

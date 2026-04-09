@@ -147,6 +147,9 @@ func (s *diagnosisCategoryService) Delete(ctx context.Context, clinicID, id uint
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete diagnosis category")
 	}
+	slog.InfoContext(ctx, "diagnosis category deleted",
+		slog.Uint64("category_id", id),
+		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 
@@ -284,6 +287,9 @@ func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete diagnosis name")
 	}
+	slog.InfoContext(ctx, "diagnosis name deleted",
+		slog.Uint64("name_id", id),
+		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 
