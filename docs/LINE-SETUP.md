@@ -151,9 +151,9 @@ LIFFアプリ登録用。
 
 ---
 
-## 7. 管理画面での設定入力 — 未実施（Phase 4 完成後）
+## 7. 管理画面での設定入力
 
-**場所**: AnimalEkarte 管理画面 > 「LINE予約 基本設定」
+**場所**: AnimalEkarte 管理画面 > サイドバー「LINE予約管理」 > 「基本設定」(`/line-reservation/settings`)
 
 セクション5のクレデンシャルを管理画面に登録する。
 
@@ -163,6 +163,26 @@ LIFFアプリ登録用。
 | LINE Channel Secret | Messaging API Channel Secret |
 | LIFF ID | LIFF ID |
 | LINE Access Token | Messaging API Access Token（長期） |
+
+---
+
+## 7b. あいさつメッセージ設定
+
+**場所**: LINE Official Account Manager > 「あいさつメッセージ」
+
+友だち追加時に予約ページURLを自動送信するためのメッセージを設定する。
+
+```
+友だち追加ありがとうございます🐾
+
+こちらからオンライン予約ができます👇
+https://liff.line.me/{LIFF ID}
+
+■ 予約の変更・キャンセルもこちらから行えます
+■ ご不明な点はお気軽にお問い合わせください
+```
+
+`{LIFF ID}` は手順3で取得した LIFF アプリ ID に置き換える。
 
 ---
 
@@ -185,5 +205,5 @@ LIFFアプリ登録用。
 |------|--------------|---------|
 | 手順1〜4 | **今（Phase 1 着手前）** | なし |
 | 手順6 | Phase 7（結合テスト時） | LIFF ID 確定済み |
-| 手順7 | Phase 4 完了後 | 管理画面の基本設定画面が実装済み |
+| 手順7 | Phase 4 完了後 | 管理画面の基本設定画面が実装済み（`/line-reservation/settings`） |
 | 手順8 | 全テスト完了後 | staging で全フロー検証済み |
