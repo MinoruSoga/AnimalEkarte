@@ -38,6 +38,8 @@
 | ~~BUG-239~~ | FE rerender-lazy-state-init | ✅ **CLOSED** — DailyCareLogDialog getCurrentTime をモジュールスコープに + lazy init | — | closed/ |
 | ~~BUG-240~~ | FE rerender-memo | ✅ **CLOSED** — ReceptionDetailModal の RelatedPages / ActionButtons に memo() 適用 | — | closed/ |
 | ~~BUG-241~~ | FE rendering-hoist | ✅ **CLOSED** — line-reservation 4ファイルの static SelectItem JSX をモジュール定数化（2026-04-09） | — | closed/ |
+| [BUG-242](BUG-242_trimming-includes-inside-map-on-memo.md) | FE js-set-map | TrimmingForm LeftColumn(memo済) で optionIds.includes() を options.map() 内で O(n²) 呼び出し | Low | code-quality/ |
+| [BUG-243](BUG-243_accounting-detail-usememo-object-dep.md) | FE rerender-dependencies | AccountingDetail の clinicForDocument useMemo deps に user?.clinic オブジェクト | Low | code-quality/ |
 
 ## 誤報として撤回した指摘
 
@@ -86,4 +88,6 @@
 26. ~~**BUG-238**~~ ✅ CLOSED（buildEditRowForm lazy init）
 27. ~~**BUG-239**~~ ✅ CLOSED（getCurrentTime モジュールスコープ + lazy init）
 28. ~~**BUG-240**~~ ✅ CLOSED（RelatedPages / ActionButtons に memo()）
-29. **BUG-241** (Low): line-reservation static SelectItem 巻き上げ — 15分（4ファイル）
+29. ~~**BUG-241**~~ ✅ CLOSED（line-reservation static SelectItem 巻き上げ）
+30. **BUG-242** (Low): TrimmingForm optionIds.includes() → Set.has() — 5分
+31. **BUG-243** (Low): AccountingDetail clinicForDocument deps の user?.clinic → user — 5分
