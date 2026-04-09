@@ -12,9 +12,10 @@
 Phase 1: DB・モデル基盤        ✅ 完了
 Phase 2: バックエンド管理者API  ✅ 完了
 Phase 3: バックエンド公開API    ✅ 完了
-Phase 4: 管理画面フロントエンド ✅ 完了
+Phase 4: 管理画面フロントエンド ✅ 完了 → Phase 8 で電カル統合
 Phase 5: LIFF App             ✅ 完了
 Phase 6: LINE連携             ✅ 完了
+Phase 8: 電カル統合            ✅ 完了（LINE管理ページ→マスタ設定統合）
 Phase 7: 結合・デプロイ        🔲 結合テスト・本番デプロイ残
 ```
 
@@ -34,11 +35,12 @@ Phase 7 は全Phase完了後
 | Phase 1: DB・モデル | 3 | S | `01-PHASE1-DB.md` | ✅ 完了 |
 | Phase 2: 管理者API | 7 | M | `02-PHASE2-ADMIN-API.md` | ✅ 完了 |
 | Phase 3: 公開API | 6 | L（時間枠エンジンが核心） | `03-PHASE3-LIFF-API.md` | ✅ 完了 |
-| Phase 4: 管理画面FE | 7 | L（予約カレンダーが核心） | `04-PHASE4-ADMIN-FE.md` | ✅ 完了 |
+| Phase 4: 管理画面FE | 7 | L（予約カレンダーが核心） | `04-PHASE4-ADMIN-FE.md` | ✅ 完了 → Phase 8 で統合 |
 | Phase 5: LIFF App | 10 | L | `05-PHASE5-LIFF-APP.md` | ✅ 完了 |
 | Phase 6: LINE連携 | 2 | S | `06-PHASE6-LINE.md` | ✅ 完了 |
+| Phase 8: 電カル統合 | - | L | (本ドキュメント参照) | ✅ 完了 |
 | Phase 7: 結合・デプロイ | 4 | M | `07-PHASE7-DEPLOY.md` | 🔲 TASK-RES-071/072 残 |
-| **合計** | **39タスク** | | | |
+| **合計** | **39タスク + Phase 8** | | | |
 
 ## 全体方針
 

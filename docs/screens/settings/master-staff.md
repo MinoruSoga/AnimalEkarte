@@ -34,6 +34,26 @@
 | メールアドレス| `email` | `Input(email)` | ✅ | ログインに使用 |
 | パスワード | `password` | `Input(password)`| ✅ | 8文字以上 |
 
+### LINE予約設定（サイドパネル内セクション）
+| フィールド | 項目ID | 入力部品 | 必須 | 備考 |
+|-----------|--------|---------|------|------|
+| LINE表示名 | `reservationDisplayName` | `Input` | - | 空欄なら氏名をLINEに表示 |
+| 予約ページに表示 | `reservationVisible` | `Switch` | - | デフォルト: ON |
+| スタッフ種別 | `staffType` | `Select` | - | 医師/看護師/設備 |
+| LINE説明文 | `reservationComment` | `Input` | - | LINE予約画面の説明 |
+| 画像URL | `reservationImageUrl` | `Input` | - | LINE予約画面のプロフィール画像 |
+
+### 対応不可コース（サイドパネル内セクション）
+| フィールド | 項目ID | 入力部品 | 必須 | 備考 |
+|-----------|--------|---------|------|------|
+| 除外コース | excluded service types | `Checkbox` リスト | - | アクティブな診療サービスを表示 |
+
+### 所属医院設定（サイドパネル内セクション）
+既存の Clinic Assignments チェックボックスリスト。
+
+### 権限グループ設定（サイドパネル内セクション）
+既存の Permission Groups チェックボックスリスト。
+
 ## バリデーション
 - 氏名、職種は必須。
 - 新規登録時はメールアドレス形式チェック、パスワード8文字以上必須。
@@ -44,5 +64,7 @@
 |---------|--------------|------|------|
 | GET | `/api/v1/masters/staffs` | スタッフ一覧取得 | 実装済 |
 | POST | `/api/v1/masters/staffs` | スタッフ作成（＋アカウント作成） | 実装済 |
-| PATCH | `/api/v1/masters/staffs/:id` | スタッフ情報更新 | 実装済 |
+| PATCH | `/api/v1/masters/staffs/:id` | スタッフ情報更新（LINE項目含む） | 実装済 |
 | DELETE | `/api/v1/masters/staffs/:id` | スタッフ削除 | 実装済 |
+| GET | `/api/v1/masters/staffs/:id/excluded-service-types` | 対応不可コース取得 | 実装済 |
+| PUT | `/api/v1/masters/staffs/:id/excluded-service-types` | 対応不可コース設定 | 実装済 |
