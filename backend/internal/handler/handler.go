@@ -92,6 +92,9 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 
 	// LIFF公開API（JWT認証なし・LINE IDトークン認証）
 	h.RegisterLiffRoutes(r)
+
+	// LINE Webhook（認証不要・署名検証はハンドラ内）
+	h.RegisterLineWebhookRoutes(r)
 }
 
 // registerOwnerRoutesWithAuth は飼主ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
