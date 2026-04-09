@@ -155,9 +155,8 @@ func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.Res
 	if appt.Doctor != nil {
 		sb.WriteString(fmt.Sprintf("■ 担当: %s\n", appt.Doctor.Name))
 	}
-	if appt.Pet != nil {
-		petInfo := appt.Pet.Name
-		sb.WriteString(fmt.Sprintf("■ ペット: %s\n", petInfo))
+	if petNames := extractPetNamesFromCustomerFields(appt); petNames != "" {
+		sb.WriteString(fmt.Sprintf("■ ペット: %s\n", petNames))
 	}
 	sb.WriteString("\nキャンセルはLINEメニューの\n「予約確認・キャンセル」から行えます。")
 	return sb.String()
@@ -210,8 +209,8 @@ func (s *reservationNotificationService) buildCreatedEmail(
 	if appt.Owner != nil {
 		sb.WriteString(fmt.Sprintf("■ 飼い主名: %s\n", appt.Owner.OwnerName))
 	}
-	if appt.Pet != nil {
-		sb.WriteString(fmt.Sprintf("■ ペット: %s\n", appt.Pet.Name))
+	if petNames := extractPetNamesFromCustomerFields(appt); petNames != "" {
+		sb.WriteString(fmt.Sprintf("■ ペット: %s\n", petNames))
 	}
 	sb.WriteString(fmt.Sprintf("■ コース: %s\n", courseName))
 	if appt.Doctor != nil {
@@ -312,4 +311,33 @@ func formatDateTimeJP(start, end time.Time) string {
 		start.Format("15:04"),
 		end.Format("15:04"),
 	)
+}
+
+// extractPetNamesFromCustomerFields は customer_fields JSONB からペット名一覧を抽出する。
+// appt.Pet (電カル予約) が nil の場合に customer_fields.pets (LINE予約) をフォールバックとして使用。
+func extractPetNamesFromCustomerFields(appt *model.ReservationAppointment) string {
+	if appt.Pet != nil {
+		return appt.Pet.Name
+	}
+	if len(appt.CustomerFields) == 0 {
+		return ""
+	}
+	var fields struct {
+		Pets []struct {
+			Name string `json:"name"`
+			Type string `json:"type"`
+		} `json:"pets"`
+	}
+	if err := json.Unmarshal(appt.CustomerFields, &fields); err != nil || len(fields.Pets) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(fields.Pets))
+	for _, p := range fields.Pets {
+		if p.Type != "" {
+			names = append(names, fmt.Sprintf("%s(%s)", p.Name, p.Type))
+		} else {
+			names = append(names, p.Name)
+		}
+	}
+	return strings.Join(names, "、")
 }

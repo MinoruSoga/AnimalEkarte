@@ -11,6 +11,12 @@ export interface LiffSettings {
   booking_window: number; // 予約可能な日数（今日から何日後まで）
 }
 
+export interface OwnerPet {
+  id: number;
+  name: string;
+  animal_species?: { name: string };
+}
+
 export interface LiffProfile {
   line_user_id: string;
   display_name: string;
@@ -18,8 +24,13 @@ export interface LiffProfile {
     name?: string;
     phone?: string;
     owner_name?: string;
-    pet_name?: string;
-    pet_type?: string;
+    pets?: Array<{ name: string; type: string; is_new?: boolean }>;
+  };
+  // 自動紐付けされたオーナー情報（紐付け済みの場合のみ存在）
+  owner?: {
+    owner_name: string;
+    phone: string;
+    pets?: OwnerPet[];
   };
 }
 
@@ -63,12 +74,17 @@ export interface Reservation {
   created_at: string;
 }
 
+export interface PetSelection {
+  name: string;
+  type: string;
+  isNew?: boolean;   // true = 自由入力で追加した新規ペット
+}
+
 export interface CustomerFields {
   customer_name?: string;
   phone?: string;
   owner_name?: string;
-  pet_name?: string;
-  pet_type?: string;
+  pets?: Array<{ name: string; type: string; is_new?: boolean }>;
 }
 
 export interface CreateReservationBody {
@@ -85,8 +101,7 @@ export interface CustomerInfo {
   name: string;
   phone: string;
   ownerName: string;
-  petName: string;
-  petType: string;
+  pets: PetSelection[];
 }
 
 export interface ReservationFlow {

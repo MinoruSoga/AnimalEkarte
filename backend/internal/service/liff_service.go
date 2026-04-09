@@ -32,6 +32,7 @@ type liffService struct {
 	scheduleRepo repository.ReservationScheduleRepository
 	adminRepo    repository.ReservationAdminRepository
 	customerRepo repository.ReservationCustomerRepository
+	ownerRepo    repository.OwnerRepository
 	validators   ReservationValidators
 	notifier     ReservationNotifier
 }
@@ -44,6 +45,7 @@ func NewLiffService(
 	scheduleRepo repository.ReservationScheduleRepository,
 	adminRepo repository.ReservationAdminRepository,
 	customerRepo repository.ReservationCustomerRepository,
+	ownerRepo repository.OwnerRepository,
 	db *gorm.DB,
 	notifier ReservationNotifier,
 ) LiffService {
@@ -54,6 +56,7 @@ func NewLiffService(
 		scheduleRepo: scheduleRepo,
 		adminRepo:    adminRepo,
 		customerRepo: customerRepo,
+		ownerRepo:    ownerRepo,
 		validators:   NewReservationValidators(db),
 		notifier:     notifier,
 	}
@@ -234,14 +237,18 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 		}
 	}
 
+	// 自動オーナー紐付け: customer_fields の氏名+電話番号で owners を検索し、1件一致で自動リンク
+	s.tryAutoLinkOwner(ctx, clinicID, customerID, input.CustomerFields)
+
 	// Phase 6: 予約確定通知（LINE + メール）fire-and-forget
 	if s.notifier != nil {
-		// 通知メッセージ用にリレーションをロード
-		if enriched, err := s.adminRepo.FindByIDForNotify(ctx, clinicID, appt.ID); err == nil {
-			appt = enriched
+		// 通知メッセージ用にリレーションをロード（enriched が nil の場合は元の appt を使う）
+		notifyAppt := appt
+		if enriched, err := s.adminRepo.FindByIDForNotify(ctx, clinicID, appt.ID); err == nil && enriched != nil {
+			notifyAppt = enriched
 		}
 		customer, _ := s.customerRepo.FindByID(ctx, clinicID, customerID)
-		s.notifier.NotifyCreated(ctx, appt, customer)
+		s.notifier.NotifyCreated(ctx, notifyAppt, customer)
 	}
 
 	return appt, nil
@@ -441,4 +448,60 @@ func isExcluded(excluded []model.StaffExcludedServiceType, courseID uint64) bool
 		}
 	}
 	return false
+}
+
+// tryAutoLinkOwner は予約顧客の氏名+電話番号で owners テーブルを検索し、
+// 1件だけ一致した場合に reservation_customers.owner_id を自動紐付けする。
+// best-effort: 失敗しても予約処理は中断しない。
+func (s *liffService) tryAutoLinkOwner(ctx context.Context, clinicID, customerID uint64, customerFields []byte) {
+	if s.ownerRepo == nil {
+		return
+	}
+
+	// 既に紐付け済みならスキップ
+	customer, err := s.customerRepo.FindByID(ctx, clinicID, customerID)
+	if err != nil || customer == nil || customer.OwnerID != nil {
+		return
+	}
+
+	// customer_fields から氏名と電話番号を抽出
+	var fields struct {
+		CustomerName string `json:"customer_name"`
+		Phone        string `json:"phone"`
+		OwnerName    string `json:"owner_name"`
+	}
+	if len(customerFields) == 0 {
+		return
+	}
+	if err := json.Unmarshal(customerFields, &fields); err != nil {
+		return
+	}
+
+	// owner_name を優先、なければ customer_name を使用
+	name := fields.OwnerName
+	if name == "" {
+		name = fields.CustomerName
+	}
+	phone := fields.Phone
+	if name == "" || phone == "" {
+		return
+	}
+
+	// owners テーブルで氏名+電話番号の完全一致検索（1件のみ返す）
+	owner, err := s.ownerRepo.FindByNameAndPhone(ctx, clinicID, name, phone)
+	if err != nil {
+		slog.WarnContext(ctx, "auto-link owner lookup failed (best-effort)", "error", err)
+		return
+	}
+	if owner == nil {
+		return // 0件 or 複数件 → 紐付けしない
+	}
+
+	// 自動紐付け実行
+	if err := s.customerRepo.UpdateOwnerLink(ctx, clinicID, customerID, &owner.ID); err != nil {
+		slog.WarnContext(ctx, "auto-link owner update failed (best-effort)", "error", err)
+		return
+	}
+	slog.InfoContext(ctx, "auto-linked LINE customer to owner",
+		"customer_id", customerID, "owner_id", owner.ID, "name", name)
 }

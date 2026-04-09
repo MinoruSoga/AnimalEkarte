@@ -45,6 +45,10 @@ func (m *mockOwnerRepository) FindByPhone(ctx context.Context, clinicID uint64, 
 	return nil, nil
 }
 
+func (m *mockOwnerRepository) FindByNameAndPhone(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
+	return nil, nil
+}
+
 func (m *mockOwnerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
 	if m.createWithPetsFn != nil {
 		return m.createWithPetsFn(ctx, owner, pets)

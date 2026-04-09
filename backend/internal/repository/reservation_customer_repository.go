@@ -43,6 +43,8 @@ func (r *reservationCustomerRepository) FindByID(ctx context.Context, clinicID, 
 	var c model.ReservationCustomer
 	err := r.db.WithContext(ctx).
 		Preload("Owner").
+		Preload("Owner.Pets").
+		Preload("Owner.Pets.AnimalSpecies").
 		First(&c, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_customer", fmt.Sprintf("%d", id))

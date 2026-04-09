@@ -52,6 +52,10 @@ async function sendLiffMessage(flow: ReservationFlow, notes: string): Promise<vo
   const confirmNum = notes.match(/R-\d{8}-\d{4}/)?.[0] ?? '';
   const time = `${formatTime(flow.startTime)}〜${formatTime(flow.endTime)}`;
 
+  const petList = flow.customerInfo.pets
+    .map(p => p.type ? `${p.name}(${p.type})` : p.name)
+    .join('、');
+
   const text = [
     'ご予約を承りました。',
     '',
@@ -59,6 +63,7 @@ async function sendLiffMessage(flow: ReservationFlow, notes: string): Promise<vo
     `■ 日時: ${formatDatePadded(flow.date)} ${time}`,
     `■ コース: ${flow.courseName}`,
     flow.staffId > 0 ? `■ 担当: ${flow.staffName}` : '',
+    petList ? `■ ペット: ${petList}` : '',
     '',
     'キャンセルはLINEメニューの',
     '「予約確認・キャンセル」から行えます。',
@@ -100,8 +105,11 @@ export function ConfirmPage({
             customer_name: flow.customerInfo.name,
             phone: flow.customerInfo.phone,
             owner_name: flow.customerInfo.ownerName,
-            pet_name: flow.customerInfo.petName,
-            pet_type: flow.customerInfo.petType,
+            pets: flow.customerInfo.pets.map(p => ({
+              name: p.name,
+              type: p.type,
+              is_new: p.isNew,
+            })),
           },
           request_text: flow.requestText,
         },
@@ -123,12 +131,15 @@ export function ConfirmPage({
     }
   }, [clinicId, idToken, flow, onConfirm, onSlotTaken]);
 
+  const petDisplay = flow.customerInfo.pets.length > 0
+    ? flow.customerInfo.pets.map(p => p.type ? `${p.name}（${p.type}）` : p.name).join('、')
+    : '—';
+
   const rows: Array<{ label: string; value: string }> = [
     { label: 'お名前', value: flow.customerInfo.name },
     { label: '電話番号', value: flow.customerInfo.phone },
     { label: '飼い主名', value: flow.customerInfo.ownerName || '—' },
-    { label: 'ペット名', value: flow.customerInfo.petName || '—' },
-    { label: 'ペット種類', value: flow.customerInfo.petType || '—' },
+    { label: 'ペット', value: petDisplay },
     { label: 'コース', value: flow.courseName },
     { label: 'スタッフ', value: flow.staffName || '指名なし' },
     { label: '日付', value: formatDate(flow.date) },

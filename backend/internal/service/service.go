@@ -134,6 +134,7 @@ func NewServices(repos *repository.Repositories, notifCfg ReservationNotificatio
 			repos.ReservationSchedule,
 			repos.ReservationAdmin,
 			repos.ReservationCustomerMgr,
+			repos.Owner,
 			repos.DB(),
 			notifier,
 		),

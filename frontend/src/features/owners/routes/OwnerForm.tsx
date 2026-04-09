@@ -440,7 +440,12 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
   );
 });
 
-export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}) {
+interface OwnerFormProps {
+  petMutations?: PetMutations;
+  lineSection?: React.ReactNode;
+}
+
+export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("owners");
@@ -660,6 +665,14 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
       </div>
 
         </fieldset>
+
+      {/* LINE連携セクション（編集モードのみ・app層から注入） */}
+      {isEdit && lineSection ? (
+        <div className={`mt-6 p-4 rounded-lg border ${C.borderLight}`}>
+          {lineSection}
+        </div>
+      ) : null}
+
       <Suspense fallback={null}>
         <PetEditModal
           key={editingPet?.id ?? "new"}

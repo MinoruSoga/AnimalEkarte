@@ -17,6 +17,7 @@ type OwnerRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 	FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
 	FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error)
+	FindByNameAndPhone(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error)
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -91,6 +92,28 @@ func (r *ownerRepository) FindByPhone(ctx context.Context, clinicID uint64, phon
 		return nil, apperrors.FromGORM(err, "owner", phone)
 	}
 	return &owner, nil
+}
+
+// FindByNameAndPhone は clinic_id + owner_name + phone に完全一致するオーナーを返す。
+// 0件 or 複数件の場合は nil を返す（1件の場合のみ返す）。
+func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error) {
+	name = strings.TrimSpace(name)
+	phone = strings.TrimSpace(phone)
+	if name == "" || phone == "" {
+		return nil, nil
+	}
+	var owners []model.Owner
+	err := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND owner_name = ? AND phone = ? AND deleted_at IS NULL", clinicID, name, phone).
+		Limit(2). // 2件以上あるかだけ判定すればよい
+		Find(&owners).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%s/%s", name, phone))
+	}
+	if len(owners) != 1 {
+		return nil, nil // 0件 or 複数件 → 自動紐付け不可
+	}
+	return &owners[0], nil
 }
 
 func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
