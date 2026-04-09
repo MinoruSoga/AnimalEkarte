@@ -1,5 +1,5 @@
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase, Smartphone } from "lucide-react";
 import { useState, useEffect, memo, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -311,6 +311,28 @@ export function Sidebar() {
           ].map(item => (
             <SidebarItemWithPermission key={item.label} item={item as MenuItem} collapsed={collapsed} />
           ))}
+        </div>
+
+        {/* LINE予約管理 Section */}
+        <div className="space-y-px">
+          {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>LINE予約管理</p> : null}
+          <SidebarItemWithPermission
+            item={{
+              icon: <Smartphone className={ICON.toolbar} />,
+              label: "LINE予約管理",
+              path: paths.lineReservation.getHref(),
+              resource: ResourceReservations,
+              subItems: [
+                { label: "予約状況", path: paths.lineReservation.calendar.getHref(), resource: ResourceReservations },
+                { label: "コース設定", path: paths.lineReservation.courses.getHref(), resource: ResourceReservations },
+                { label: "スタッフ設定", path: paths.lineReservation.staffs.getHref(), resource: ResourceReservations },
+                { label: "スタッフ個人設定", path: paths.lineReservation.schedule.getHref(), resource: ResourceReservations },
+                { label: "基本設定", path: paths.lineReservation.settings.getHref(), resource: ResourceReservations },
+                { label: "ページ編集", path: paths.lineReservation.pageEditor.getHref(), resource: ResourceReservations },
+              ],
+            } as MenuItem}
+            collapsed={collapsed}
+          />
         </div>
 
         {/* Settings Section */}
