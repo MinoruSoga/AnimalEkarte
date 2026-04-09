@@ -5,17 +5,17 @@ import tailwindcss from '@tailwindcss/vite';
 import fs from 'fs';
 import path, { resolve } from 'path';
 
-/** dev サーバーで /line-reserve/* を line-reserve/index.html にリライトする */
+/** dev サーバーで /line-reserve/* の HTML ナビゲーションを line-reserve/index.html にリライトする */
 function lineReserveDevPlugin(): Plugin {
   return {
     name: 'line-reserve-dev',
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
-        if (req.url?.startsWith('/line-reserve')) {
-          const htmlPath = resolve(__dirname, 'line-reserve/index.html');
-          if (fs.existsSync(htmlPath)) {
-            req.url = '/line-reserve/index.html';
-          }
+        if (
+          req.url?.startsWith('/line-reserve') &&
+          !req.url.includes('.') // .tsx, .ts, .css 等のアセットリクエストは除外
+        ) {
+          req.url = '/line-reserve/index.html';
         }
         next();
       });
