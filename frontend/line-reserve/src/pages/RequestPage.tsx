@@ -27,18 +27,18 @@ export function RequestPage({
   }, [onNext, text]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-noah-teal-light flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
         <ProgressDots current={6} total={8} />
 
         <div className="px-4">
           <BackButton onClick={onBack} />
-          <h2 className="text-lg font-bold text-gray-800 mb-2">ご要望・メモ</h2>
-          <p className="text-sm text-gray-500 mb-4">任意：ご要望があればご記入ください</p>
+          <h2 className="text-lg font-bold text-noah-teal-dark mb-2">ご要望・メモ</h2>
+          <p className="text-sm text-noah-text-sub mb-4">任意：ご要望があればご記入ください</p>
         </div>
 
         <div className="flex-1 px-4">
-          <label htmlFor="request-text" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="request-text" className="block text-sm font-medium text-noah-text-sub mb-1">
             ご要望
           </label>
           <textarea
@@ -47,7 +47,7 @@ export function RequestPage({
             onChange={handleChange}
             placeholder={requestExample || 'ご要望・メモをご入力ください'}
             rows={6}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-line-green focus:border-transparent resize-none"
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent resize-none"
           />
         </div>
 

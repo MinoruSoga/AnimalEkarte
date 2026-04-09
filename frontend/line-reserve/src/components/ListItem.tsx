@@ -9,7 +9,7 @@ export function ListItem({ onClick, children, subtitle }: ListItemProps) {
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-200 hover:bg-gray-50 active:bg-gray-100 text-left"
+      className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-200 hover:bg-noah-teal-light active:bg-noah-teal-light text-left"
     >
       <div>
         <div className="text-gray-800 font-medium">{children}</div>

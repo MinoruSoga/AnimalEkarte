@@ -5,7 +5,7 @@ export interface LiffSettings {
   clinic_name: string;
   header_text: string;
   phone_number: string;
-  status: 'active' | 'stopped';
+  status: 'running' | 'stopped';
   request_example: string;
   show_no_staff_option: boolean;
   booking_window: number; // 予約可能な日数（今日から何日後まで）
@@ -26,9 +26,12 @@ export interface LiffProfile {
 export interface Course {
   id: number;
   name: string;
-  description: string;
+  short_name: string;
+  show_short_name: boolean;
   duration_minutes: number;
-  price: number;
+  reservation_comment: string;
+  reservation_image_url: string;
+  sort_order: number;
 }
 
 export interface Staff {

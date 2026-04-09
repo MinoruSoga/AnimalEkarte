@@ -48,24 +48,24 @@ export function TimeSelectPage({
   }, [clinicId, courseId, staffId, date, idToken]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-noah-teal-light flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
         <ProgressDots current={5} total={8} />
 
         <div className="px-4">
           <BackButton onClick={onBack} />
-          <h2 className="text-lg font-bold text-gray-800 mb-4">時間を選択</h2>
+          <h2 className="text-lg font-bold text-noah-teal-dark mb-4">時間を選択</h2>
         </div>
 
         <div className="flex-1">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-gray-500">読み込み中...</div>
+              <div className="text-noah-text-sub">読み込み中...</div>
             </div>
           ) : error ? (
             <div className="px-4 py-8 text-center text-red-500">{error}</div>
           ) : times.length === 0 ? (
-            <div className="px-4 py-8 text-center text-gray-500">
+            <div className="px-4 py-8 text-center text-noah-text-sub">
               この日の空き時間はありません
             </div>
           ) : (
@@ -75,9 +75,9 @@ export function TimeSelectPage({
                   key={time.start_time}
                   type="button"
                   onClick={() => onSelect(time.start_time, time.end_time)}
-                  className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-200 hover:bg-gray-50 active:bg-gray-100 text-left"
+                  className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-200 hover:bg-noah-teal-light active:bg-noah-teal-light text-left"
                 >
-                  <span className="text-gray-800 font-medium">
+                  <span className="text-noah-text font-medium">
                     {time.display_time || formatTime(time.start_time)}
                     {' 〜 '}
                     {formatTime(time.end_time)}

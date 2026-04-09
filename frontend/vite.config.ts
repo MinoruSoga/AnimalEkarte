@@ -1,11 +1,29 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
 import path, { resolve } from 'path';
 
+/** dev サーバーで /line-reserve/* の HTML ナビゲーションを line-reserve/index.html にリライトする */
+function lineReserveDevPlugin(): Plugin {
+  return {
+    name: 'line-reserve-dev',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        if (
+          req.url?.startsWith('/line-reserve') &&
+          !req.url.includes('.') // .tsx, .ts, .css 等のアセットリクエストは除外
+        ) {
+          req.url = '/line-reserve/index.html';
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), lineReserveDevPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
