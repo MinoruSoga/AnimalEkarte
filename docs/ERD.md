@@ -482,6 +482,11 @@ erDiagram
         text license_number
         bigint occupation_id FK "FK → occupations(id) SET NULL"
         integer sort_order
+        staff_type staff_type "doctor/nurse/resource"
+        text reservation_display_name "LINE表示名（空→name）"
+        boolean reservation_visible "LINE予約ページ表示"
+        text reservation_comment "LINE説明文"
+        text reservation_image_url "LINEプロフィール画像"
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
@@ -631,6 +636,15 @@ erDiagram
         text color
         text description
         integer sort_order
+        text reservation_display_name "LINE表示名（空→name）"
+        integer duration_minutes "所要時間（デフォルト15分）"
+        text short_name "略称"
+        boolean show_short_name "略称をLINEで使用"
+        boolean reservation_visible "LINE予約ページ表示"
+        text reservation_comment "LINE説明文"
+        text reservation_image_url "LINE画像URL"
+        text reservation_day_option "none/weekday/saturday/anyday"
+        boolean is_internal "内部サービス（LINE非表示）"
         timestamptz created_at
         timestamptz updated_at
     }
