@@ -37,10 +37,10 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   const createTreatmentMutation = useCreateTreatment(medicalRecordId);
   const updateTreatmentMutation = useUpdateTreatment(medicalRecordId);
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
-  const returnMutation = useReturnBillingReview(medicalRecordId);
+  const userId = Number(user?.id ?? 0);
+  const returnMutation = useReturnBillingReview(medicalRecordId, userId);
 
   const [isConfirmPending, startConfirmTransition] = useTransition();
-  const userId = user?.id;
 
   const handleConfirm = useCallback(() => {
     if (!canEdit) return;

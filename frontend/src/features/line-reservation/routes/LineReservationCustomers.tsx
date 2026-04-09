@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Link2, Link2Off, Search } from "lucide-react";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { useAuth } from "@/features/auth";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
@@ -118,7 +118,7 @@ function LinkOwnerDialog({ customer, owners, clinicId, onClose }: LinkOwnerDialo
           </div>
         </div>
 
-        <DialogFooter className={`${STYLE.FLEX_BETWEEN} gap-2`}>
+        <DialogFooter className="flex items-center justify-between gap-2">
           {customer.owner_id ? (
             <Button
               type="button"
@@ -202,7 +202,7 @@ function CustomerRow({ customer, ownerName, onLink }: CustomerRowProps) {
 
 export function LineReservationCustomers({ owners }: LineReservationCustomersProps) {
   const { user } = useAuth();
-  const clinicId = user?.clinic_id ? String(user.clinic_id) : null;
+  const clinicId = user?.mainClinicId ?? null;
 
   const [filterText, setFilterText] = useState("");
   const [linkTarget, setLinkTarget] = useState<ReservationCustomer | null>(null);
