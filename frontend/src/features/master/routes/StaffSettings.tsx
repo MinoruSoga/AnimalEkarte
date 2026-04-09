@@ -142,6 +142,12 @@ const StaffSidePanel = memo(function StaffSidePanel({
     [allOccupations],
   );
 
+  // js-combine-iterations: filter().map() を一回の reduce に統合（active サービスタイプのみ）
+  const activeServiceTypes = useMemo(
+    () => allServiceTypes.filter((st) => st.isActive),
+    [allServiceTypes],
+  );
+
   // ── Permission groups state ──────────────────────
   const { data: serverGroupIds } = useGetStaffPermissionGroups(staffId);
   const [userEditedGroupIds, setUserEditedGroupIds] = useState<string[] | null>(null);
@@ -150,6 +156,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
     () => userEditedGroupIds ?? serverGroupIds ?? [],
     [userEditedGroupIds, serverGroupIds],
   );
+  // js-set-map-lookups: O(n) includes() → Set.has() O(1)
+  const groupIdSet = useMemo(() => new Set(groupIds), [groupIds]);
 
   // ── Clinic assignments state ───────────────────
   const { data: serverClinicIds } = useGetStaffClinics(staffId);
@@ -159,6 +167,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
     () => userEditedClinicIds ?? serverClinicIds ?? [],
     [userEditedClinicIds, serverClinicIds],
   );
+  // js-set-map-lookups: O(n) includes() → Set.has() O(1)
+  const clinicIdSet = useMemo(() => new Set(clinicIds), [clinicIds]);
 
   // ── Excluded service types state ─────────────────
   const { data: serverExcludedIds } = useGetStaffExcludedServiceTypes(staffId);
@@ -168,6 +178,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
     () => userEditedExcludedIds ?? serverExcludedIds ?? [],
     [userEditedExcludedIds, serverExcludedIds],
   );
+  // js-set-map-lookups: O(n) includes() → Set.has() O(1)
+  const excludedIdSet = useMemo(() => new Set(excludedIds), [excludedIds]);
 
   // ── Handlers ─────────────────────────────────────
   const handleExcludedToggle = useCallback(
@@ -411,13 +423,13 @@ const StaffSidePanel = memo(function StaffSidePanel({
           </p>
         ) : (
           <div className="space-y-0.5">
-            {allServiceTypes.filter((st) => st.isActive).map((st) => (
+            {activeServiceTypes.map((st) => (
               <label
                 key={st.id}
                 className="flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer hover:bg-muted/40 transition-colors"
               >
                 <Checkbox
-                  checked={excludedIds.includes(st.id)}
+                  checked={excludedIdSet.has(st.id)}
                   onCheckedChange={(checked) =>
                     handleExcludedToggle(st.id, checked === true)
                   }
@@ -456,7 +468,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
                 className="flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer hover:bg-muted/40 transition-colors"
               >
                 <Checkbox
-                  checked={clinicIds.includes(clinic.id)}
+                  checked={clinicIdSet.has(clinic.id)}
                   onCheckedChange={(checked) =>
                     handleClinicToggle(clinic.id, checked === true)
                   }
@@ -491,7 +503,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
                 className="flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer hover:bg-muted/40 transition-colors"
               >
                 <Checkbox
-                  checked={groupIds.includes(group.id)}
+                  checked={groupIdSet.has(group.id)}
                   onCheckedChange={(checked) =>
                     handleGroupToggle(group.id, checked === true)
                   }

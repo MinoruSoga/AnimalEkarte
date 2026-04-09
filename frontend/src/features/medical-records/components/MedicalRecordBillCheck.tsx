@@ -106,9 +106,14 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     deleteMutation.mutate(String(id));
   }, [canDelete, deleteMutation]);
 
+  // rerender-dependencies: treatments 配列を deps から除外するため nextOrder を useMemo で事前計算
+  const nextOrder = useMemo(
+    () => treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0,
+    [treatments],
+  );
+
   const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
     if (!canEdit) return;
-    const nextOrder = treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0;
     const input: CreateTreatmentInput = {
       item_type: (item.category === "薬品" ? "medicine" : item.category === "処置" ? "procedure" : "other") as TreatmentItemType,
       content: item.name,
@@ -122,7 +127,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     };
     createTreatmentMutation.mutate(input);
     setIsSearchOpen(false);
-  }, [canEdit, treatments, createTreatmentMutation]);
+  }, [canEdit, nextOrder, createTreatmentMutation]);
 
   const { subtotal, tax, total } = useMemo(() => {
     const result = calculateBillingTotals(items, ownerDiscountRate, globalDiscountAmount);

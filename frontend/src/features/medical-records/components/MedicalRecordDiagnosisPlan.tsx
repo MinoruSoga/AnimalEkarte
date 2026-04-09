@@ -82,6 +82,12 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
     }));
   }, [treatments]);
 
+  // rerender-dependencies: treatments 配列を deps から除外するため nextOrder を useMemo で事前計算
+  const nextOrder = useMemo(
+    () => treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0,
+    [treatments],
+  );
+
   const handleRemoveItem = useCallback((id: number) => {
     if (!canDelete) return;
     deleteMutation.mutate(String(id));
@@ -105,7 +111,6 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
   const handleAddRow = useCallback(() => {
     if (!canCreate) return;
-    const nextOrder = treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0;
     createMutation.mutate({
       item_type: "other" as TreatmentItemType,
       content: "",
@@ -116,11 +121,10 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       discount_amount: 0,
       sort_order: nextOrder,
     });
-  }, [canCreate, treatments, createMutation]);
+  }, [canCreate, nextOrder, createMutation]);
 
   const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
     if (!canCreate) return;
-    const nextOrder = treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0;
     createMutation.mutate({
       item_type: (item.category === "薬品" ? "medicine" : item.category === "処置" ? "procedure" : "other") as TreatmentItemType,
       content: item.name,
@@ -132,7 +136,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       discount_amount: 0,
       sort_order: nextOrder,
     });
-  }, [canCreate, treatments, createMutation]);
+  }, [canCreate, nextOrder, createMutation]);
 
   // Calculations
   const { subtotal, tax, total } = useMemo(() => {
