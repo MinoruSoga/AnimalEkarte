@@ -66,13 +66,13 @@ func buildClinicUpdateFields(input *UpdateClinicInput) map[string]any {
 	}
 	if input.StandardTaxRate != nil {
 		r := *input.StandardTaxRate
-		if r > 0 && r <= 1 {
+		if r >= 0 && r <= 1 {
 			fields["standard_tax_rate"] = r
 		}
 	}
 	if input.ReducedTaxRate != nil {
 		r := *input.ReducedTaxRate
-		if r > 0 && r <= 1 {
+		if r >= 0 && r <= 1 {
 			fields["reduced_tax_rate"] = r
 		}
 	}

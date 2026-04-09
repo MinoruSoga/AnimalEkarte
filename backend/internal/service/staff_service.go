@@ -132,6 +132,7 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 		return nil, apperrors.Wrap(err, "failed to create staff")
 	}
 
+	slog.InfoContext(ctx, "staff created", slog.Uint64("staff_id", staff.ID))
 	return staff, nil
 }
 
@@ -284,6 +285,7 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete staff")
 	}
+	slog.InfoContext(ctx, "staff deleted", slog.Uint64("staff_id", id), slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 

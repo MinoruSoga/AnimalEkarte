@@ -39,6 +39,7 @@ func (s *consultationService) Create(ctx context.Context, consultation *model.Co
 	if err := s.repo.Create(ctx, consultation); err != nil {
 		return apperrors.Wrap(err, "failed to create consultation")
 	}
+	slog.InfoContext(ctx, "consultation created", slog.Uint64("consultation_id", consultation.ID))
 	return nil
 }
 func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
@@ -67,6 +68,7 @@ func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) e
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete consultation")
 	}
+	slog.InfoContext(ctx, "consultation deleted", slog.Uint64("consultation_id", id), slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 

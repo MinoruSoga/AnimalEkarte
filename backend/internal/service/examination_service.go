@@ -38,6 +38,7 @@ func (s *examinationService) Create(ctx context.Context, exam *model.Examination
 	if err := s.repo.Create(ctx, exam); err != nil {
 		return apperrors.Wrap(err, "failed to create examination")
 	}
+	slog.InfoContext(ctx, "examination created", slog.Uint64("examination_id", exam.ID))
 	return nil
 }
 

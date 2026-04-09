@@ -83,13 +83,13 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 
 // UpdateInsurance godoc
 func (h *Handler) UpdateInsurance(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
-		return
-	}
-	clinicID, ok := extractClinicID(c)
-	if !ok {
 		return
 	}
 	var req updateInsuranceRequest

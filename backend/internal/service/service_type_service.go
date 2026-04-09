@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -100,6 +101,7 @@ func (s *serviceTypeService) Create(ctx context.Context, clinicID uint64, input 
 	if err := s.repo.Create(ctx, st); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create service type")
 	}
+	slog.InfoContext(ctx, "service type created", slog.Uint64("service_type_id", st.ID))
 	return st, nil
 }
 
@@ -111,6 +113,7 @@ func (s *serviceTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update service type")
 	}
+	slog.InfoContext(ctx, "service type updated", slog.Uint64("service_type_id", id))
 	return s.repo.FindByID(ctx, clinicID, id)
 }
 
@@ -122,7 +125,11 @@ func (s *serviceTypeService) Delete(ctx context.Context, clinicID, id uint64) er
 	if exists {
 		return apperrors.WrapConflict("この項目は予約データで使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete service type")
+	}
+	slog.InfoContext(ctx, "service type deleted", slog.Uint64("service_type_id", id), slog.Uint64("clinic_id", clinicID))
+	return nil
 }
 
 func (s *serviceTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

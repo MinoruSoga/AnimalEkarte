@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -77,8 +76,7 @@ func (r *shiftEntryRepository) FindByID(ctx context.Context, clinicID, id uint64
 func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEntry) error {
 	if err := r.db.WithContext(ctx).Create(entry).Error; err != nil {
 		// PostgreSQL UNIQUE違反 (23505)
-		errStr := err.Error()
-		if strings.Contains(errStr, "23505") || strings.Contains(errStr, "unique") || strings.Contains(errStr, "duplicate") {
+		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("shift_entry",
 				fmt.Sprintf("staff_id=%d date=%s", entry.StaffID, entry.Date.Format("2006-01-02")))
 		}
