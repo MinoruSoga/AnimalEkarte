@@ -46,7 +46,7 @@ type MedicalRecordService interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// CreateSubRecords はカルテ作成と同時に inquiry / clinical_plan を best-effort で作成する。
 	// 失敗しても呼び出し元のカルテ作成は完了済みのためエラーは握りつぶす（slog.Warn のみ）。
-	CreateSubRecords(ctx context.Context, recordID uint64, input CreateSubRecordsInput)
+	CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput)
 	// AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。
 	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.ReservationAppointment)
 }
@@ -204,7 +204,7 @@ func buildMedicalRecordUpdateFields(input UpdateMedicalRecordInput) map[string]a
 
 // CreateSubRecords はカルテ作成と同時に inquiry / clinical_plan を best-effort で作成する。
 // 失敗しても呼び出し元のカルテ作成は完了済みのためエラーは握りつぶし slog.Warn のみ出力する。
-func (s *medicalRecordService) CreateSubRecords(ctx context.Context, recordID uint64, input CreateSubRecordsInput) {
+func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput) {
 	// 1. inquiry: フィールドの有無に関わらず常に upsert（空でも OK）
 	inquiry := &model.Inquiry{
 		MedicalRecordID: recordID,
@@ -225,7 +225,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, recordID ui
 	}
 
 	// 2. clinical_plan: 常に GetOrCreate で空レコードを確保し、フィールドがあれば更新
-	plan, err := s.clinicalPlanRepo.FindByMedicalRecordID(ctx, recordID)
+	plan, err := s.clinicalPlanRepo.FindByMedicalRecordID(ctx, clinicID, recordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
 			slog.WarnContext(ctx, "createSubRecords: failed to find clinical plan",
@@ -261,7 +261,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, recordID ui
 		if input.Diagnosis2NameID != nil {
 			fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
 		}
-		if err := s.clinicalPlanRepo.Update(ctx, plan.ID, fields); err != nil {
+		if err := s.clinicalPlanRepo.Update(ctx, clinicID, plan.ID, fields); err != nil {
 			slog.WarnContext(ctx, "createSubRecords: failed to update clinical plan",
 				slog.Uint64("medical_record_id", recordID),
 				slog.String("error", err.Error()))
@@ -315,5 +315,5 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 	}
 
 	// サブテーブル（inquiry, clinical_plan）を空レコードで作成（best-effort）
-	s.CreateSubRecords(ctx, record.ID, CreateSubRecordsInput{})
+	s.CreateSubRecords(ctx, clinicID, record.ID, CreateSubRecordsInput{})
 }

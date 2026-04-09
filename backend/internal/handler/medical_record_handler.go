@@ -192,7 +192,7 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	h.svc.MedicalRecord.CreateSubRecords(ctx, record.ID, service.CreateSubRecordsInput{
+	h.svc.MedicalRecord.CreateSubRecords(ctx, clinicID, record.ID, service.CreateSubRecordsInput{
 		ChiefComplaintCategoryID: input.ChiefComplaintCategoryID,
 		ChiefComplaint:           input.ChiefComplaint,
 		Notes:                    input.Notes,

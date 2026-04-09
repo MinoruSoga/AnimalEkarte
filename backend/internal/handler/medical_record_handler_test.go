@@ -60,7 +60,7 @@ func (m *mockMedicalRecordService) Delete(ctx context.Context, clinicID, id uint
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockMedicalRecordService) CreateSubRecords(_ context.Context, _ uint64, _ service.CreateSubRecordsInput) {
+func (m *mockMedicalRecordService) CreateSubRecords(_ context.Context, _, _ uint64, _ service.CreateSubRecordsInput) {
 }
 
 func (m *mockMedicalRecordService) AutoCreateFromReservation(_ context.Context, _ uint64, _ *model.ReservationAppointment) {
@@ -69,28 +69,28 @@ func (m *mockMedicalRecordService) AutoCreateFromReservation(_ context.Context, 
 // ---- mock ClinicalPlanService ----
 
 type mockClinicalPlanService struct {
-	getOrCreateFn func(ctx context.Context, medicalRecordID uint64) (*model.ClinicalPlan, error)
-	updateFn      func(ctx context.Context, medicalRecordID uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error)
-	deleteFn      func(ctx context.Context, medicalRecordID uint64) error
+	getOrCreateFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
+	updateFn      func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error)
+	deleteFn      func(ctx context.Context, clinicID, medicalRecordID uint64) error
 }
 
-func (m *mockClinicalPlanService) GetOrCreate(ctx context.Context, medicalRecordID uint64) (*model.ClinicalPlan, error) {
+func (m *mockClinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
 	if m.getOrCreateFn != nil {
-		return m.getOrCreateFn(ctx, medicalRecordID)
+		return m.getOrCreateFn(ctx, clinicID, medicalRecordID)
 	}
 	return &model.ClinicalPlan{}, nil
 }
 
-func (m *mockClinicalPlanService) Update(ctx context.Context, medicalRecordID uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+func (m *mockClinicalPlanService) Update(ctx context.Context, clinicID, medicalRecordID uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
 	if m.updateFn != nil {
-		return m.updateFn(ctx, medicalRecordID, input)
+		return m.updateFn(ctx, clinicID, medicalRecordID, input)
 	}
 	return &model.ClinicalPlan{}, nil
 }
 
-func (m *mockClinicalPlanService) Delete(ctx context.Context, medicalRecordID uint64) error {
+func (m *mockClinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecordID uint64) error {
 	if m.deleteFn != nil {
-		return m.deleteFn(ctx, medicalRecordID)
+		return m.deleteFn(ctx, clinicID, medicalRecordID)
 	}
 	return nil
 }
@@ -355,7 +355,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.MedicalRecord) error { return nil },
 			},
 			cpSvc: &mockClinicalPlanService{
-				updateFn: func(_ context.Context, _ uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
 					require.NotNil(t, input.TreatmentPolicy)
 					assert.Equal(t, "経過観察", *input.TreatmentPolicy)
 					return &model.ClinicalPlan{}, nil

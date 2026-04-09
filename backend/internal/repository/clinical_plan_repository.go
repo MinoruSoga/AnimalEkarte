@@ -12,10 +12,10 @@ import (
 
 // ClinicalPlanRepository は診察所見・診断・治療方針のデータアクセスインターフェース
 type ClinicalPlanRepository interface {
-	FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (*model.ClinicalPlan, error)
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
 	Create(ctx context.Context, plan *model.ClinicalPlan) error
-	Update(ctx context.Context, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, id uint64) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type clinicalPlanRepository struct {
@@ -27,12 +27,13 @@ func NewClinicalPlanRepository(db *gorm.DB) ClinicalPlanRepository {
 	return &clinicalPlanRepository{db: db}
 }
 
-func (r *clinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (*model.ClinicalPlan, error) {
+func (r *clinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
 	var plan model.ClinicalPlan
 	err := r.db.WithContext(ctx).
 		Preload("DiagnosisCategory").
 		Preload("DiagnosisName").
-		Where("medical_record_id = ?", medicalRecordID).
+		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id").
+		Where("medical_records.clinic_id = ? AND clinical_plans.medical_record_id = ?", clinicID, medicalRecordID).
 		First(&plan).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "clinical_plan", fmt.Sprintf("%d", medicalRecordID))
@@ -48,10 +49,11 @@ func (r *clinicalPlanRepository) Create(ctx context.Context, plan *model.Clinica
 	return nil
 }
 
-func (r *clinicalPlanRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ClinicalPlan{}).
-		Where("id = ?", id).
+		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id").
+		Where("clinical_plans.id = ? AND medical_records.clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "clinical_plan", fmt.Sprintf("%d", id))
@@ -62,9 +64,10 @@ func (r *clinicalPlanRepository) Update(ctx context.Context, id uint64, fields m
 	return nil
 }
 
-func (r *clinicalPlanRepository) Delete(ctx context.Context, id uint64) error {
+func (r *clinicalPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ?", id).
+		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id").
+		Where("clinical_plans.id = ? AND medical_records.clinic_id = ?", id, clinicID).
 		Delete(&model.ClinicalPlan{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "clinical_plan", fmt.Sprintf("%d", id))

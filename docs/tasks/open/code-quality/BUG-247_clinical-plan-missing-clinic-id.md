@@ -1,13 +1,12 @@
 # BUG-247: clinical_plan に clinic_id マルチテナント境界なし
 
+> **STATUS: FIXED** (2026-04-09) — handler/service/repository 全層に clinicID を追加、テスト全パス
+
 ## 概要
 
-`clinical_plan_handler.go` の `GetClinicalPlan` / `UpdateClinicalPlan` / `DeleteClinicalPlan` は
-`extractClinicID(c)` を呼んでおらず、`medical_record_id` のみで操作を行う。
-`clinical_plan_repository.go` の `FindByMedicalRecordID` も `clinic_id` でのフィルタリングがない。
-
-あるクリニックの staff が他クリニックのカルテの `medical_record_id` を推測・取得した場合、
-clinical_plan を参照・変更・削除できるマルチテナント境界の欠如。
+`clinical_plan_handler.go` の全メソッドに `extractClinicID(c)` を追加し、
+service/repository の全インターフェースに `clinicID` パラメータを追加。
+repository では `JOIN medical_records` で `clinic_id` を検証するようになった。
 
 ## 現状コード
 
