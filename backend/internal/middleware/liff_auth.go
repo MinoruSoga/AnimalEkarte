@@ -38,8 +38,14 @@ type ReservationCustomerLookup interface {
 	FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.ReservationCustomer, error)
 }
 
+// ReservationSettingLookup はLIFF認証でクリニックの設定を取得するインターフェース。
+type ReservationSettingLookup interface {
+	FindByClinicID(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error)
+}
+
 // LiffAuth はLIFF ID Tokenを検証してcontext に顧客情報をセットするミドルウェア。
-func LiffAuth(lookup ReservationCustomerLookup) gin.HandlerFunc {
+// settingLookup でクリニックの LiffID を取得し、LINE API の client_id 照合に使用する。
+func LiffAuth(lookup ReservationCustomerLookup, settingLookup ReservationSettingLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Authorization: Bearer {ID Token}
 		authHeader := c.GetHeader("Authorization")
@@ -65,8 +71,25 @@ func LiffAuth(lookup ReservationCustomerLookup) gin.HandlerFunc {
 			return
 		}
 
-		// LINE API でトークン検証
-		lineUser, err := verifyLiffIDToken(c.Request.Context(), idToken)
+		// DB からクリニックの LiffID を取得して LINE チャンネル ID を特定する
+		setting, err := settingLookup.FindByClinicID(c.Request.Context(), clinicID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load clinic setting"})
+			c.Abort()
+			return
+		}
+		if setting.LiffID == "" {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "LINE reservation not configured for this clinic"})
+			c.Abort()
+			return
+		}
+
+		// LIFF ID から LINEログインチャンネル ID を抽出する
+		// LIFF ID 形式: "{channelID}-{appID}"（例: "2009755586-nvKfG3Cp"）
+		liffChannelID := strings.SplitN(setting.LiffID, "-", 2)[0]
+
+		// LINE API でトークン検証（client_id にクリニックのチャンネル ID を使用）
+		lineUser, err := verifyLiffIDToken(c.Request.Context(), idToken, liffChannelID)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid ID token: " + err.Error()})
 			c.Abort()
@@ -91,11 +114,12 @@ func LiffAuth(lookup ReservationCustomerLookup) gin.HandlerFunc {
 }
 
 // verifyLiffIDToken は LINE の ID Token 検証 API を呼び出してユーザー情報を返す。
-func verifyLiffIDToken(ctx context.Context, idToken string) (*lineVerifyResponse, error) {
+// clientID にはクリニックの LINEログインチャンネル ID を渡すこと。
+func verifyLiffIDToken(ctx context.Context, idToken, clientID string) (*lineVerifyResponse, error) {
 	const verifyURL = "https://api.line.me/oauth2/v2.1/verify"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, verifyURL, strings.NewReader(
-		"id_token="+idToken+"&client_id=placeholder",
+		"id_token="+idToken+"&client_id="+clientID,
 	))
 	if err != nil {
 		return nil, err

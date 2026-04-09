@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ReservationNotifier は予約確定・キャンセル時の通知インターフェース。
@@ -21,31 +22,29 @@ type ReservationNotifier interface {
 	NotifyCancelled(ctx context.Context, appt *model.ReservationAppointment, customer *model.ReservationCustomer)
 }
 
-// ReservationNotificationConfig はLINE・SMTP通知設定を保持する。
+// ReservationNotificationConfig はSMTP共有設定を保持する。
+// LINE アクセストークン・通知先メールアドレスはクリニックごとに DB から取得する。
 type ReservationNotificationConfig struct {
-	// LINE Messaging API チャネルアクセストークン（空文字=無効）
-	LineChannelToken string
-
 	// SMTP設定（SMTPHost が空文字=無効）
-	SMTPHost      string
-	SMTPPort      string
-	SMTPUser      string
-	SMTPPass      string
-	SMTPFrom      string
-	NotifyToEmail string // 病院側通知先メールアドレス
+	SMTPHost string
+	SMTPPort string
+	SMTPUser string
+	SMTPPass string
+	SMTPFrom string
 }
 
 type reservationNotificationService struct {
-	cfg     ReservationNotificationConfig
-	lineMsg *LineMessagingService
+	cfg         ReservationNotificationConfig
+	settingRepo repository.ReservationSettingRepository
 }
 
 // NewReservationNotificationService は通知サービスを初期化して返す。
-// LINE channelToken・SMTP設定が空の場合はそれぞれスキップされる。
-func NewReservationNotificationService(cfg ReservationNotificationConfig) ReservationNotifier {
+// SMTP設定が空の場合はメール送信をスキップする。
+// LINE アクセストークン・通知先メールは予約のクリニック設定（DB）から都度取得する。
+func NewReservationNotificationService(cfg ReservationNotificationConfig, settingRepo repository.ReservationSettingRepository) ReservationNotifier {
 	return &reservationNotificationService{
-		cfg:     cfg,
-		lineMsg: NewLineMessagingService(cfg.LineChannelToken),
+		cfg:         cfg,
+		settingRepo: settingRepo,
 	}
 }
 
@@ -56,15 +55,28 @@ func (s *reservationNotificationService) NotifyCreated(
 	appt *model.ReservationAppointment,
 	customer *model.ReservationCustomer,
 ) {
-	lineMsg := s.buildCreatedLineMessage(appt)
+	lineText := s.buildCreatedLineMessage(appt)
 	emailSubject, emailBody := s.buildCreatedEmail(appt, customer)
+	clinicID := appt.ClinicID
 
 	go func() {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		if customer != nil && customer.LineUserID != "" {
-			if err := s.lineMsg.PushText(bgCtx, customer.LineUserID, lineMsg); err != nil {
+		// クリニックごとの設定を DB から取得（LINE アクセストークン・通知先メール）
+		setting, err := s.settingRepo.FindByClinicID(bgCtx, clinicID)
+		if err != nil {
+			slog.ErrorContext(bgCtx, "notify created: failed to load clinic setting",
+				"clinic_id", clinicID,
+				"reservation_id", appt.ID,
+				"error", err.Error(),
+			)
+			return
+		}
+
+		if customer != nil && customer.LineUserID != "" && setting.LineAccessToken != "" {
+			lineSvc := NewLineMessagingService(setting.LineAccessToken)
+			if err := lineSvc.PushText(bgCtx, customer.LineUserID, lineText); err != nil {
 				slog.ErrorContext(bgCtx, "LINE notify created failed",
 					"reservation_id", appt.ID,
 					"error", err.Error(),
@@ -72,8 +84,8 @@ func (s *reservationNotificationService) NotifyCreated(
 			}
 		}
 
-		if s.cfg.NotifyToEmail != "" {
-			if err := s.sendEmail(bgCtx, s.cfg.NotifyToEmail, emailSubject, emailBody); err != nil {
+		if setting.NotificationEmail != "" {
+			if err := s.sendEmail(bgCtx, setting.NotificationEmail, emailSubject, emailBody); err != nil {
 				slog.ErrorContext(bgCtx, "email notify created failed",
 					"reservation_id", appt.ID,
 					"error", err.Error(),
@@ -92,13 +104,26 @@ func (s *reservationNotificationService) NotifyCancelled(
 ) {
 	lineMsg := s.buildCancelledLineMessage(appt)
 	emailSubject, emailBody := s.buildCancelledEmail(appt, customer)
+	clinicID := appt.ClinicID
 
 	go func() {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		if customer != nil && customer.LineUserID != "" {
-			if err := s.lineMsg.PushText(bgCtx, customer.LineUserID, lineMsg); err != nil {
+		// クリニックごとの設定を DB から取得（LINE アクセストークン・通知先メール）
+		setting, err := s.settingRepo.FindByClinicID(bgCtx, clinicID)
+		if err != nil {
+			slog.ErrorContext(bgCtx, "notify cancelled: failed to load clinic setting",
+				"clinic_id", clinicID,
+				"reservation_id", appt.ID,
+				"error", err.Error(),
+			)
+			return
+		}
+
+		if customer != nil && customer.LineUserID != "" && setting.LineAccessToken != "" {
+			lineSvc := NewLineMessagingService(setting.LineAccessToken)
+			if err := lineSvc.PushText(bgCtx, customer.LineUserID, lineMsg); err != nil {
 				slog.ErrorContext(bgCtx, "LINE notify cancelled failed",
 					"reservation_id", appt.ID,
 					"error", err.Error(),
@@ -106,8 +131,8 @@ func (s *reservationNotificationService) NotifyCancelled(
 			}
 		}
 
-		if s.cfg.NotifyToEmail != "" {
-			if err := s.sendEmail(bgCtx, s.cfg.NotifyToEmail, emailSubject, emailBody); err != nil {
+		if setting.NotificationEmail != "" {
+			if err := s.sendEmail(bgCtx, setting.NotificationEmail, emailSubject, emailBody); err != nil {
 				slog.ErrorContext(bgCtx, "email notify cancelled failed",
 					"reservation_id", appt.ID,
 					"error", err.Error(),

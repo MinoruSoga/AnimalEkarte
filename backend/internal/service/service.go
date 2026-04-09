@@ -68,7 +68,7 @@ type Services struct {
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
 func NewServices(repos *repository.Repositories, notifCfg ReservationNotificationConfig) *Services {
-	notifier := NewReservationNotificationService(notifCfg)
+	notifier := NewReservationNotificationService(notifCfg, repos.ReservationSetting)
 
 	return &Services{
 		Account:                NewAccountService(repos.Account),
