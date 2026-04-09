@@ -124,6 +124,9 @@ export const VaccinationForm = memo(function VaccinationForm() {
   // --- 履歴セクション ---
   const { data: allVaccinations = [] } = useGetVaccinations();
 
+  // rerender-dependencies: オブジェクト参照ではなく primitive を deps に渡す
+  const { historySearchTerm, filterStartDate, filterEndDate, sortOrder } = historyFilter;
+
   const petHistory = useMemo(() => {
     if (!selectedPet) return [];
 
@@ -132,7 +135,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
     );
 
     // キーワード検索
-    const term = historyFilter.historySearchTerm.toLowerCase();
+    const term = historySearchTerm.toLowerCase();
     if (term) {
       result = result.filter((v) =>
         v.vaccineName.toLowerCase().includes(term),
@@ -140,22 +143,22 @@ export const VaccinationForm = memo(function VaccinationForm() {
     }
 
     // 日付フィルタ
-    if (historyFilter.filterStartDate) {
-      result = result.filter((v) => v.date >= historyFilter.filterStartDate);
+    if (filterStartDate) {
+      result = result.filter((v) => v.date >= filterStartDate);
     }
-    if (historyFilter.filterEndDate) {
-      result = result.filter((v) => v.date <= historyFilter.filterEndDate);
+    if (filterEndDate) {
+      result = result.filter((v) => v.date <= filterEndDate);
     }
 
     // ソート
     result = [...result].sort((a, b) =>
-      historyFilter.sortOrder === "asc"
+      sortOrder === "asc"
         ? a.date.localeCompare(b.date)
         : b.date.localeCompare(a.date),
     );
 
     return result;
-  }, [allVaccinations, selectedPet, id, historyFilter]);
+  }, [allVaccinations, selectedPet, id, historySearchTerm, filterStartDate, filterEndDate, sortOrder]);
 
   if (!selectedPet && !isEdit) {
     return (
