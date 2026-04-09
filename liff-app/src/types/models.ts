@@ -60,17 +60,21 @@ export interface Reservation {
   created_at: string;
 }
 
+export interface CustomerFields {
+  customer_name?: string;
+  phone?: string;
+  owner_name?: string;
+  pet_name?: string;
+  pet_type?: string;
+}
+
 export interface CreateReservationBody {
-  customer_name: string;
-  phone: string;
-  owner_name: string;
-  pet_name: string;
-  pet_type: string;
   course_id: number;
   staff_id: number;
-  date: string;       // "YYYY-MM-DD"
-  start_time: string; // "HHMM"
-  end_time: string;   // "HHMM"
+  date: string;           // "YYYY-MM-DD"
+  start_time: string;     // "HHMM"
+  end_time: string;       // "HHMM"
+  customer_fields: CustomerFields;
   request_text: string;
 }
 

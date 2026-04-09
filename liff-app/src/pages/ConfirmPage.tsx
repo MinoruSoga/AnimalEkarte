@@ -45,16 +45,18 @@ export function ConfirmPage({
       const reservation = await liffApi.createReservation(
         clinicId,
         {
-          customer_name: flow.customerInfo.name,
-          phone: flow.customerInfo.phone,
-          owner_name: flow.customerInfo.ownerName,
-          pet_name: flow.customerInfo.petName,
-          pet_type: flow.customerInfo.petType,
           course_id: flow.courseId,
           staff_id: flow.staffId,
           date: flow.date,
           start_time: flow.startTime,
           end_time: flow.endTime,
+          customer_fields: {
+            customer_name: flow.customerInfo.name,
+            phone: flow.customerInfo.phone,
+            owner_name: flow.customerInfo.ownerName,
+            pet_name: flow.customerInfo.petName,
+            pet_type: flow.customerInfo.petType,
+          },
           request_text: flow.requestText,
         },
         idToken,

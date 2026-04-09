@@ -35,7 +35,15 @@ export function App() {
 
   // settings を取得して liffId を確定
   const [liffId, setLiffId] = useState<string>('');
-  const { idToken, isReady } = useLiff(liffId);
+  const { idToken, isReady, initError } = useLiff(liffId);
+
+  // LIFF 初期化失敗時はエラーページへ
+  useEffect(() => {
+    if (initError) {
+      setErrorMessage('LINEアプリの初期化に失敗しました。LINEアプリから再度お試しください。');
+      setPage('error');
+    }
+  }, [initError]);
 
   // Step 1: settings 取得（認証不要）
   useEffect(() => {

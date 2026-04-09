@@ -6,12 +6,14 @@ interface UseLiffReturn {
   idToken: string | null;
   displayName: string;
   isReady: boolean;
+  initError: boolean;
 }
 
 export function useLiff(liffId: string): UseLiffReturn {
   const [idToken, setIdToken] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string>('');
   const [isReady, setIsReady] = useState<boolean>(false);
+  const [initError, setInitError] = useState<boolean>(false);
 
   useEffect(() => {
     if (!liffId) return;
@@ -39,8 +41,11 @@ export function useLiff(liffId: string): UseLiffReturn {
       }
 
       setIsReady(true);
+    }).catch(() => {
+      setInitError(true);
+      setIsReady(true); // ローディングを解除して ErrorPage へ遷移させる
     });
   }, [liffId]);
 
-  return { idToken, displayName, isReady };
+  return { idToken, displayName, isReady, initError };
 }

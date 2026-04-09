@@ -53,11 +53,14 @@ export const liffApi = {
     staffId: number,
     idToken: string,
   ): Promise<AvailableDate[]> => {
-    const res = await httpClient.get<AvailableDate[]>(`/api/liff/${clinicId}/available-dates`, {
-      headers: authHeaders(idToken),
-      params: { courseId, staffId },
-    });
-    return res.data;
+    const res = await httpClient.get<{ dates: AvailableDate[]; window: unknown }>(
+      `/api/liff/${clinicId}/available-dates`,
+      {
+        headers: authHeaders(idToken),
+        params: { courseId, staffId },
+      },
+    );
+    return res.data.dates;
   },
 
   getAvailableTimes: async (

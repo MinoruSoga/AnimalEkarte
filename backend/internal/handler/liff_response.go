@@ -9,26 +9,30 @@ import (
 
 // liffSettingsResponse はLIFF向け公開設定レスポンス（機密フィールド除外）。
 type liffSettingsResponse struct {
-	Status            string `json:"status"`
-	HeaderText        string `json:"header_text"`
-	ReservationNotice string `json:"reservation_notice"`
-	CancelNotice      string `json:"cancel_notice"`
-	PrivacyPolicy     string `json:"privacy_policy"`
-	PhoneNumber       string `json:"phone_number"`
-	RequestExample    string `json:"request_example"`
-	LiffID            string `json:"liff_id"`
+	Status               string `json:"status"`
+	HeaderText           string `json:"header_text"`
+	ReservationNotice    string `json:"reservation_notice"`
+	CancelNotice         string `json:"cancel_notice"`
+	PrivacyPolicy        string `json:"privacy_policy"`
+	PhoneNumber          string `json:"phone_number"`
+	RequestExample       string `json:"request_example"`
+	LiffID               string `json:"liff_id"`
+	ShowNoStaffOption    bool   `json:"show_no_staff_option"`
+	BookingWindowMaxDays int    `json:"booking_window"`
 }
 
 func toLiffSettingsResponse(s *model.ReservationSetting) liffSettingsResponse {
 	return liffSettingsResponse{
-		Status:            s.Status,
-		HeaderText:        s.HeaderText,
-		ReservationNotice: s.ReservationNotice,
-		CancelNotice:      s.CancelNotice,
-		PrivacyPolicy:     s.PrivacyPolicy,
-		PhoneNumber:       s.PhoneNumber,
-		RequestExample:    s.RequestExample,
-		LiffID:            s.LiffID,
+		Status:               s.Status,
+		HeaderText:           s.HeaderText,
+		ReservationNotice:    s.ReservationNotice,
+		CancelNotice:         s.CancelNotice,
+		PrivacyPolicy:        s.PrivacyPolicy,
+		PhoneNumber:          s.PhoneNumber,
+		RequestExample:       s.RequestExample,
+		LiffID:               s.LiffID,
+		ShowNoStaffOption:    s.ShowNoStaffOption,
+		BookingWindowMaxDays: s.BookingWindowMaxDays,
 	}
 }
 
