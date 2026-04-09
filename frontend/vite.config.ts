@@ -2,7 +2,6 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
-import fs from 'fs';
 import path, { resolve } from 'path';
 
 /** dev サーバーで /line-reserve/* の HTML ナビゲーションを line-reserve/index.html にリライトする */
