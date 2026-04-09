@@ -1,6 +1,6 @@
 # Frontend + Backend コード規約準拠監査結果
 
-**実施日**: 2026-04-09（第5回監査まで反映）
+**実施日**: 2026-04-09（第6回監査まで反映）
 **検証方法**: 監査エージェント → grep/Read による実コード検証
 **注意**: 全指摘は実コードで検証済み。スポットチェック未実施の箇所は明記している。
 
@@ -33,6 +33,9 @@
 | [BUG-234](BUG-234_set-map-lookups.md) | FE js-set-map | O(n) .some()/.includes() を Set で O(1) に（PetSelection 等3箇所） | Low | code-quality/ |
 | [BUG-235](BUG-235_TreatmentSearchDialog-not-lazy-in-CarePlanDialog.md) | FE bundle | CarePlanDialog 内の TreatmentSearchDialog が static import かつ常時マウント | Low | code-quality/ |
 | [BUG-236](BUG-236_trivial-useMemo-daily-records-tab.md) | FE rerender-memo | DailyRecordsTab の getTodayStr() を useMemo で不要メモ化 | Low | code-quality/ |
+| [BUG-237](BUG-237_lazy-state-init-treatment-plans.md) | FE rerender-lazy-state-init | use-hospitalization-form.ts の treatmentPlans 初期値オブジェクトが毎レンダー生成 | Medium | code-quality/ |
+| [BUG-238](BUG-238_lazy-state-init-vitals-edit-row.md) | FE rerender-lazy-state-init | VitalsTab EditRow の computed useState（Date 生成 + String 変換 x5） | Low | code-quality/ |
+| [BUG-239](BUG-239_getCurrentTime-inside-component-lazy-state.md) | FE rerender-lazy-state-init | DailyCareLogDialog の getCurrentTime() がコンポーネント内定義 + lazy init 未使用 | Medium | code-quality/ |
 
 ## 誤報として撤回した指摘
 
@@ -77,3 +80,6 @@
 22. **BUG-234** (Low): .some()/.includes() → Set.has() に変更（3箇所） — 20分
 23. **BUG-235** (Low): TreatmentSearchDialog を lazy + 条件レンダーに変更 — 15分
 24. **BUG-236** (Low): DailyRecordsTab の trivial useMemo 削除 — 1分
+25. **BUG-237** (Medium): use-hospitalization-form.ts treatmentPlans → モジュール定数化 — 5分
+26. **BUG-238** (Low): VitalsTab EditRow の useState lazy init — 10分
+27. **BUG-239** (Medium): DailyCareLogDialog getCurrentTime をモジュールスコープに + lazy init — 5分
