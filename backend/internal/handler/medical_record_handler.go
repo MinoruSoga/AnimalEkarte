@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"context"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -173,46 +171,6 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 	return record, nil
 }
 
-// createSubRecords はカルテ作成時に inquiry / clinical_plan を空レコードで自動作成する（best-effort）。
-// フロントエンドはタブごとに PATCH で保存するため、サブテーブルが存在しない場合に 404 とならないよう
-// カルテ作成と同時に空レコードを用意する。失敗してもカルテ作成は完了済みのためエラーは握りつぶす。
-func (h *Handler) createSubRecords(ctx context.Context, recordID uint64, input *createMedicalRecordRequest) {
-	// 1. inquiry: フィールドの有無に関わらず常に upsert（空でも OK、best-effort）
-	inquiryInput := service.UpsertInquiryInput{
-		MedicalRecordID:          recordID,
-		ChiefComplaintCategoryID: input.ChiefComplaintCategoryID,
-		ChiefComplaint:           input.ChiefComplaint,
-		Notes:                    input.Notes,
-	}
-	if _, err := h.svc.Inquiry.Upsert(ctx, inquiryInput); err != nil {
-		slog.WarnContext(ctx, "createSubRecords: failed to upsert inquiry",
-			slog.Uint64("medical_record_id", recordID),
-			slog.String("error", err.Error()))
-	}
-
-	// 2. clinical_plan: 常に GetOrCreate で空レコードを確保し、フィールドがあれば更新（best-effort）
-	if _, err := h.svc.ClinicalPlan.GetOrCreate(ctx, recordID); err != nil {
-		slog.WarnContext(ctx, "createSubRecords: failed to get or create clinical plan",
-			slog.Uint64("medical_record_id", recordID),
-			slog.String("error", err.Error()))
-	}
-	if input.Plan != nil || input.Assessment != nil || input.Diagnosis1CategoryID != nil || input.Diagnosis1NameID != nil {
-		clinicalPlanInput := &service.UpdateClinicalPlanInput{
-			TreatmentPolicy:      input.Plan,
-			DiagnosisDetails:     input.Assessment,
-			DiagnosisCategoryID:  input.Diagnosis1CategoryID,
-			DiagnosisNameID:      input.Diagnosis1NameID,
-			Diagnosis2CategoryID: input.Diagnosis2CategoryID,
-			Diagnosis2NameID:     input.Diagnosis2NameID,
-		}
-		if _, err := h.svc.ClinicalPlan.Update(ctx, recordID, clinicalPlanInput); err != nil {
-			slog.WarnContext(ctx, "createSubRecords: failed to update clinical plan",
-				slog.Uint64("medical_record_id", recordID),
-				slog.String("error", err.Error()))
-		}
-	}
-}
-
 // CreateMedicalRecord godoc
 func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -234,7 +192,17 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	h.createSubRecords(ctx, record.ID, &input)
+	h.svc.MedicalRecord.CreateSubRecords(ctx, record.ID, service.CreateSubRecordsInput{
+		ChiefComplaintCategoryID: input.ChiefComplaintCategoryID,
+		ChiefComplaint:           input.ChiefComplaint,
+		Notes:                    input.Notes,
+		Plan:                     input.Plan,
+		Assessment:               input.Assessment,
+		Diagnosis1CategoryID:     input.Diagnosis1CategoryID,
+		Diagnosis1NameID:         input.Diagnosis1NameID,
+		Diagnosis2CategoryID:     input.Diagnosis2CategoryID,
+		Diagnosis2NameID:         input.Diagnosis2NameID,
+	})
 	c.JSON(http.StatusCreated, record)
 }
 

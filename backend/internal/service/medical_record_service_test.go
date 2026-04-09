@@ -215,7 +215,7 @@ func TestMedicalRecordService_List(t *testing.T) {
 					return tt.repoRecords, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 			records, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
 
@@ -279,7 +279,7 @@ func TestMedicalRecordService_GetByID(t *testing.T) {
 					return tt.repoRecord, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 			record, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -302,7 +302,7 @@ func TestMedicalRecordService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("medical_record", "999")
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 	record, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -359,7 +359,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 			err := svc.Create(context.Background(), tt.record)
 
@@ -441,7 +441,7 @@ func TestMedicalRecordService_Update(t *testing.T) {
 					return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 			record, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -474,7 +474,7 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 				return nil, apperrors.WrapNotFound("owner", "100")
 			},
 		}
-		svc := NewMedicalRecordService(repo, ownerRepo, nil)
+		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
@@ -498,7 +498,7 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 				return &model.Owner{ID: ownerID, ClinicID: 1}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, ownerRepo, nil)
+		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil)
 
 		record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
@@ -525,7 +525,7 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 				return nil, apperrors.WrapNotFound("pet", "200")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, petRepo)
+		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
@@ -549,7 +549,7 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 				return &model.Pet{ID: petID, ClinicID: 1}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, petRepo)
+		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
@@ -625,7 +625,7 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 

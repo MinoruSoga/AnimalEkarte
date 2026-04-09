@@ -60,6 +60,12 @@ func (m *mockMedicalRecordService) Delete(ctx context.Context, clinicID, id uint
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockMedicalRecordService) CreateSubRecords(_ context.Context, _ uint64, _ service.CreateSubRecordsInput) {
+}
+
+func (m *mockMedicalRecordService) AutoCreateFromReservation(_ context.Context, _ uint64, _ *model.ReservationAppointment) {
+}
+
 // ---- mock ClinicalPlanService ----
 
 type mockClinicalPlanService struct {
