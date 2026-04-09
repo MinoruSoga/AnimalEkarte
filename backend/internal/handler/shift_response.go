@@ -6,6 +6,13 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// shiftBreakResponse は休憩時間レスポンス
+type shiftBreakResponse struct {
+	ID         string `json:"id"`
+	BreakStart string `json:"break_start"`
+	BreakEnd   string `json:"break_end"`
+}
+
 // shiftResponse はシフトエントリのレスポンス
 type shiftResponse struct {
 	ID        string                `json:"id"`
@@ -17,6 +24,7 @@ type shiftResponse struct {
 	StartTime string                `json:"start_time"`
 	EndTime   string                `json:"end_time"`
 	Note      string                `json:"note"`
+	Breaks    []shiftBreakResponse  `json:"breaks"`
 	CreatedAt string                `json:"created_at"`
 	UpdatedAt string                `json:"updated_at"`
 	Staff     *staffSummaryResponse `json:"staff,omitempty"`
@@ -30,6 +38,14 @@ func toShiftResponse(s *model.ShiftEntry) shiftResponse {
 	if s.EndTime != nil {
 		endTime = *s.EndTime
 	}
+	breaks := make([]shiftBreakResponse, 0, len(s.Breaks))
+	for _, b := range s.Breaks {
+		breaks = append(breaks, shiftBreakResponse{
+			ID:         strconv.FormatUint(b.ID, 10),
+			BreakStart: b.BreakStart,
+			BreakEnd:   b.BreakEnd,
+		})
+	}
 	r := shiftResponse{
 		ID:        strconv.FormatUint(s.ID, 10),
 		ClinicID:  strconv.FormatUint(s.ClinicID, 10),
@@ -39,6 +55,7 @@ func toShiftResponse(s *model.ShiftEntry) shiftResponse {
 		StartTime: startTime,
 		EndTime:   endTime,
 		Note:      s.Note,
+		Breaks:    breaks,
 		CreatedAt: s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

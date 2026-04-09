@@ -293,6 +293,22 @@ export function ReservationFormFields({
           className={`min-h-[80px] text-sm resize-none bg-white ${C.borderMedium} ${C.text} ${C.textPlaceholder} ${C.focusRingMedium}`}
         />
       </div>
+
+      <div className="space-y-1.5">
+        <FieldLabel>予約ソース</FieldLabel>
+        <Select
+          value={formData.source || "manual"}
+          onValueChange={(v: string) => onChange({ ...formData, source: v as "manual" | "line" })}
+        >
+          <SelectTrigger className={TRIGGER_CLASS}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="manual">手動予約</SelectItem>
+            <SelectItem value="line">LINE予約</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }

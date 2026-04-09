@@ -39,5 +39,6 @@ export const transformToCreateRequest = (
     doctor_id: data.doctor ? Number(data.doctor) : undefined,
     is_designated: data.isDesignated ?? false,
     notes: data.notes,
+    source: data.source,
   };
 };

@@ -113,6 +113,9 @@ func (m *mockShiftEntryForStaff) Update(_ context.Context, _, _ uint64, _ map[st
 func (m *mockShiftEntryForStaff) Delete(_ context.Context, _, _ uint64) error {
 	return nil
 }
+func (m *mockShiftEntryForStaff) ReplaceBreaks(_ context.Context, _ uint64, _ []model.ShiftEntryBreak) error {
+	return nil
+}
 func (m *mockShiftEntryForStaff) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
 	if m.existsByStaffIDFn != nil {
 		return m.existsByStaffIDFn(ctx, staffID)

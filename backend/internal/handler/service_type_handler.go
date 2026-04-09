@@ -77,6 +77,7 @@ func (h *Handler) CreateServiceType(c *gin.Context) {
 		ShowShortName:          req.ShowShortName,
 		ReservationVisible:     reservationVisible,
 		ReservationComment:     req.ReservationComment,
+		ReservationImageURL:    req.ReservationImageURL,
 		ReservationDayOption:   req.ReservationDayOption,
 		IsInternal:             req.IsInternal,
 	})
@@ -115,6 +116,7 @@ func (h *Handler) UpdateServiceType(c *gin.Context) {
 		ShowShortName:          req.ShowShortName,
 		ReservationVisible:     req.ReservationVisible,
 		ReservationComment:     req.ReservationComment,
+		ReservationImageURL:    req.ReservationImageURL,
 		ReservationDayOption:   req.ReservationDayOption,
 		IsInternal:             req.IsInternal,
 	})

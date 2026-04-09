@@ -42,6 +42,10 @@ func (m *mockShiftEntryRepository) Delete(ctx context.Context, clinicID, id uint
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockShiftEntryRepository) ReplaceBreaks(_ context.Context, _ uint64, _ []model.ShiftEntryBreak) error {
+	return nil
+}
+
 func (m *mockShiftEntryRepository) ExistsByStaffID(_ context.Context, _ uint64) (bool, error) {
 	return false, nil
 }

@@ -1492,6 +1492,7 @@ export interface ShiftEntry {
    * Relations
    */
   staff?: Staff;
+  breaks?: ShiftEntryBreak[];
 }
 
 //////////

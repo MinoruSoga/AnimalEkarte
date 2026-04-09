@@ -102,6 +102,10 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		return
 	}
 
+	source := model.ReservationSourceManual
+	if input.Source == string(model.ReservationSourceLine) {
+		source = model.ReservationSourceLine
+	}
 	reservation := &model.ReservationAppointment{
 		ClinicID:      clinicID,
 		StartTime:     input.StartTime,
@@ -112,6 +116,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		DoctorID:      input.DoctorID,
 		IsDesignated:  input.IsDesignated,
 		Notes:         input.Notes,
+		Source:        source,
 	}
 	if input.VisitType != "" {
 		vt, err := validateEnum(input.VisitType,

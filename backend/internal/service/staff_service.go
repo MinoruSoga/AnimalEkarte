@@ -29,6 +29,7 @@ type CreateStaffInput struct {
 	ReservationDisplayName string
 	ReservationVisible     bool
 	ReservationComment     string
+	ReservationImageURL    string
 }
 
 // CreateStaffWithAccountInput はアカウント（email/password）を同時に作成するスタッフ登録用入力DTO。
@@ -46,6 +47,7 @@ type CreateStaffWithAccountInput struct {
 	ReservationDisplayName string
 	ReservationVisible     bool
 	ReservationComment     string
+	ReservationImageURL    string
 }
 
 // UpdateStaffInput はスタッフ部分更新の入力DTO。nil = 未送信フィールド。
@@ -61,6 +63,7 @@ type UpdateStaffInput struct {
 	ReservationDisplayName *string
 	ReservationVisible     *bool
 	ReservationComment     *string
+	ReservationImageURL    *string
 }
 
 type StaffService interface {
@@ -153,6 +156,7 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 		ReservationDisplayName: input.ReservationDisplayName,
 		ReservationVisible:     input.ReservationVisible,
 		ReservationComment:     input.ReservationComment,
+		ReservationImageURL:    input.ReservationImageURL,
 	}
 
 	if err := s.repo.Create(ctx, staff); err != nil {
@@ -212,6 +216,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 		ReservationDisplayName: input.ReservationDisplayName,
 		ReservationVisible:     input.ReservationVisible,
 		ReservationComment:     input.ReservationComment,
+		ReservationImageURL:    input.ReservationImageURL,
 	}
 	if err := s.repo.Create(ctx, staff); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create staff")
@@ -311,6 +316,9 @@ func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
 	}
 	if input.ReservationComment != nil {
 		fields["reservation_comment"] = *input.ReservationComment
+	}
+	if input.ReservationImageURL != nil {
+		fields["reservation_image_url"] = *input.ReservationImageURL
 	}
 	return fields
 }

@@ -14,6 +14,7 @@ type createStaffRequest struct {
 	ReservationDisplayName string `json:"reservation_display_name"`
 	ReservationVisible     *bool  `json:"reservation_visible"`
 	ReservationComment     string `json:"reservation_comment"`
+	ReservationImageURL    string `json:"reservation_image_url"`
 }
 
 // updateStaffRequest はスタッフ更新リクエスト。nil = 未送信として扱う。
@@ -30,6 +31,7 @@ type updateStaffRequest struct {
 	ReservationDisplayName *string `json:"reservation_display_name"`
 	ReservationVisible     *bool   `json:"reservation_visible"`
 	ReservationComment     *string `json:"reservation_comment"`
+	ReservationImageURL    *string `json:"reservation_image_url"`
 }
 
 // reorderStaffRequest はスタッフ並び替えリクエスト。

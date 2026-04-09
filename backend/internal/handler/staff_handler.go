@@ -79,6 +79,7 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 			ReservationDisplayName: req.ReservationDisplayName,
 			ReservationVisible:     reservationVisible,
 			ReservationComment:     req.ReservationComment,
+			ReservationImageURL:    req.ReservationImageURL,
 		})
 	} else {
 		reservationVisible := true
@@ -95,6 +96,7 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 			ReservationDisplayName: req.ReservationDisplayName,
 			ReservationVisible:     reservationVisible,
 			ReservationComment:     req.ReservationComment,
+			ReservationImageURL:    req.ReservationImageURL,
 		})
 	}
 	if err != nil {
@@ -138,7 +140,7 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 
 	// パスワードのみの更新かどうかを判定（BUG-131）
 	hasProfileUpdate := req.Name != nil || req.LicenseNumber != nil || req.OccupationID != nil || req.SortOrder != nil || req.IsActive != nil ||
-		req.StaffType != nil || req.ReservationDisplayName != nil || req.ReservationVisible != nil || req.ReservationComment != nil
+		req.StaffType != nil || req.ReservationDisplayName != nil || req.ReservationVisible != nil || req.ReservationComment != nil || req.ReservationImageURL != nil
 	hasPasswordUpdate := req.Password != nil && *req.Password != ""
 
 	if !hasProfileUpdate && !hasPasswordUpdate {
@@ -159,6 +161,7 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 			ReservationDisplayName: req.ReservationDisplayName,
 			ReservationVisible:     req.ReservationVisible,
 			ReservationComment:     req.ReservationComment,
+			ReservationImageURL:    req.ReservationImageURL,
 		})
 		if svcErr != nil {
 			RespondError(c, svcErr)
@@ -313,6 +316,51 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"clinic_ids": req.ClinicIDs})
 }
 
+// GetStaffExcludedServiceTypes godoc
+// GET /v1/masters/staffs/:id/excluded-service-types
+func (h *Handler) GetStaffExcludedServiceTypes(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	items, err := h.repos.ReservationStaff.FindExcludedServiceTypes(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	ids := make([]uint64, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ServiceTypeID)
+	}
+	c.JSON(http.StatusOK, gin.H{"service_type_ids": ids})
+}
+
+// SetStaffExcludedServiceTypes godoc
+// PUT /v1/masters/staffs/:id/excluded-service-types
+func (h *Handler) SetStaffExcludedServiceTypes(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	var req struct {
+		ServiceTypeIDs []uint64 `json:"service_type_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if req.ServiceTypeIDs == nil {
+		req.ServiceTypeIDs = []uint64{}
+	}
+	if err := h.repos.ReservationStaff.ReplaceExcludedServiceTypes(c.Request.Context(), id, req.ServiceTypeIDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"service_type_ids": req.ServiceTypeIDs})
+}
+
 // ReorderStaffs godoc
 func (h *Handler) ReorderStaffs(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -359,6 +407,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PUT("/staffs/:id/permission-groups", perm(model.ResourceMasterStaff, "edit"), h.SetStaffPermissionGroups)
 	masters.GET("/staffs/:id/clinics", h.GetStaffClinicAssignments)
 	masters.PUT("/staffs/:id/clinics", perm(model.ResourceMasterStaff, "edit"), h.SetStaffClinicAssignments)
+	masters.GET("/staffs/:id/excluded-service-types", h.GetStaffExcludedServiceTypes)
+	masters.PUT("/staffs/:id/excluded-service-types", perm(model.ResourceMasterStaff, "edit"), h.SetStaffExcludedServiceTypes)
 
 	// Cages
 	masters.GET("/cages", h.ListCages)

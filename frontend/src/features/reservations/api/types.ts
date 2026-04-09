@@ -21,6 +21,7 @@ export interface CreateReservationRequest {
   service_type_id: number;
   is_designated?: boolean;
   notes?: string;
+  source?: "manual" | "line";
 }
 
 /**

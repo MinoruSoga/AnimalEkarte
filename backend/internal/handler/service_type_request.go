@@ -14,6 +14,7 @@ type createServiceTypeRequest struct {
 	ShowShortName          bool   `json:"show_short_name"`
 	ReservationVisible     *bool  `json:"reservation_visible"`
 	ReservationComment     string `json:"reservation_comment"`
+	ReservationImageURL    string `json:"reservation_image_url"`
 	ReservationDayOption   string `json:"reservation_day_option"`
 	IsInternal             bool   `json:"is_internal"`
 }
@@ -32,6 +33,7 @@ type updateServiceTypeRequest struct {
 	ShowShortName          *bool   `json:"show_short_name"`
 	ReservationVisible     *bool   `json:"reservation_visible"`
 	ReservationComment     *string `json:"reservation_comment"`
+	ReservationImageURL    *string `json:"reservation_image_url"`
 	ReservationDayOption   *string `json:"reservation_day_option"`
 	IsInternal             *bool   `json:"is_internal"`
 }

@@ -19,6 +19,13 @@ export type ShiftType =
   | typeof ShiftTypeOff
   | typeof ShiftTypePaidLeave;
 
+/** 休憩時間 */
+export interface ShiftBreak {
+  id: string;
+  break_start: string;
+  break_end: string;
+}
+
 /** UI-facing shift (string IDs — post-transform) */
 export interface Shift {
   id: string;
@@ -30,11 +37,17 @@ export interface Shift {
   start_time: string;
   end_time: string;
   note: string;
+  breaks: ShiftBreak[];
   created_at: string;
   updated_at: string;
 }
 
 /** @see {@link import("@/types/generated/models").ShiftEntry} */
+export interface ShiftBreakInput {
+  break_start: string;
+  break_end: string;
+}
+
 export interface CreateShiftInput {
   staff_id: string;
   date: string; // YYYY-MM-DD
@@ -42,6 +55,7 @@ export interface CreateShiftInput {
   start_time?: string;
   end_time?: string;
   note?: string;
+  breaks?: ShiftBreakInput[];
 }
 
 /** @see {@link import("@/types/generated/models").ShiftEntry} */
@@ -50,6 +64,7 @@ export interface UpdateShiftInput {
   start_time?: string;
   end_time?: string;
   note?: string;
+  breaks?: ShiftBreakInput[];
 }
 
 export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {

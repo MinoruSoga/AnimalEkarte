@@ -35,6 +35,7 @@ export interface ReservationFormData {
   status?: ReservationStatus;
   notes?: string;
   petId?: string;
+  source?: "manual" | "line";
 }
 
 /** Default values for a new reservation form */

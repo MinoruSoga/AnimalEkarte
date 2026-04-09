@@ -19,6 +19,7 @@ export interface CreateStaffRequest {
   reservation_display_name?: string;
   reservation_visible?: boolean;
   reservation_comment?: string;
+  reservation_image_url?: string;
 }
 
 export interface UpdateStaffRequest {
@@ -33,6 +34,7 @@ export interface UpdateStaffRequest {
   reservation_display_name?: string;
   reservation_visible?: boolean;
   reservation_comment?: string;
+  reservation_image_url?: string;
 }
 
 // ─────────────────────────────────────────────────
@@ -64,6 +66,7 @@ function transformStaff(data: ModelStaff & { email?: string }) {
     reservationDisplayName: data.reservation_display_name ?? "",
     reservationVisible: data.reservation_visible ?? true,
     reservationComment: data.reservation_comment ?? "",
+    reservationImageUrl: data.reservation_image_url ?? "",
   };
 }
 
@@ -293,6 +296,50 @@ export function useSetStaffClinics() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: STAFF_CLINICS_KEY(variables.staffId),
+      });
+    },
+  });
+}
+
+// ─────────────────────────────────────────────────
+// Staff Excluded Service Types API
+// ─────────────────────────────────────────────────
+
+const STAFF_EXCLUDED_ST_KEY = (staffId: string) =>
+  [...STAFFS_QUERY_KEY, staffId, "excluded-service-types"] as const;
+
+export function useGetStaffExcludedServiceTypes(staffId: string | null) {
+  return useQuery({
+    queryKey: STAFF_EXCLUDED_ST_KEY(staffId ?? ""),
+    queryFn: async (): Promise<string[]> => {
+      const { data } = await axios.get<{ service_type_ids: number[] }>(
+        `/v1/masters/staffs/${staffId}/excluded-service-types`,
+      );
+      return (data.service_type_ids ?? []).map(String);
+    },
+    enabled: staffId !== null,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
+  });
+}
+
+export function useSetStaffExcludedServiceTypes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      staffId,
+      serviceTypeIds,
+    }: {
+      staffId: string;
+      serviceTypeIds: string[];
+    }) => {
+      await axios.put(`/v1/masters/staffs/${staffId}/excluded-service-types`, {
+        service_type_ids: serviceTypeIds.map((id) => parseInt(id, 10)),
+      });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: STAFF_EXCLUDED_ST_KEY(variables.staffId),
       });
     },
   });

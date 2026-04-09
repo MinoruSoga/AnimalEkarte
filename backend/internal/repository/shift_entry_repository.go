@@ -26,6 +26,7 @@ type ShiftEntryRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
+	ReplaceBreaks(ctx context.Context, shiftEntryID uint64, breaks []model.ShiftEntryBreak) error
 }
 
 type shiftEntryRepository struct{ db *gorm.DB }
@@ -38,6 +39,7 @@ func NewShiftEntryRepository(db *gorm.DB) ShiftEntryRepository {
 func (r *shiftEntryRepository) List(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error) {
 	q := r.db.WithContext(ctx).
 		Preload("Staff").
+		Preload("Breaks").
 		Where("clinic_id = ?", clinicID).
 		Order("date ASC, staff_id ASC")
 
@@ -65,6 +67,7 @@ func (r *shiftEntryRepository) FindByID(ctx context.Context, clinicID, id uint64
 	var entry model.ShiftEntry
 	err := r.db.WithContext(ctx).
 		Preload("Staff").
+		Preload("Breaks").
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		First(&entry).Error
 	if err != nil {
@@ -110,6 +113,24 @@ func (r *shiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) 
 		return apperrors.WrapNotFound("shift_entry", strconv.FormatUint(id, 10))
 	}
 	return nil
+}
+
+func (r *shiftEntryRepository) ReplaceBreaks(ctx context.Context, shiftEntryID uint64, breaks []model.ShiftEntryBreak) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("shift_entry_id = ?", shiftEntryID).Delete(&model.ShiftEntryBreak{}).Error; err != nil {
+			return apperrors.Wrap(err, "delete shift entry breaks")
+		}
+		if len(breaks) == 0 {
+			return nil
+		}
+		for i := range breaks {
+			breaks[i].ShiftEntryID = shiftEntryID
+		}
+		if err := tx.Create(&breaks).Error; err != nil {
+			return apperrors.Wrap(err, "create shift entry breaks")
+		}
+		return nil
+	})
 }
 
 func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {

@@ -1,5 +1,5 @@
 import { memo, useState, useMemo, useCallback } from "react";
-import { UserRound, Shield, Building2, MessageCircle } from "lucide-react";
+import { UserRound, Shield, Building2, MessageCircle, Ban } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,6 +27,8 @@ import {
   useSetStaffClinics,
   useGetClinicsList,
   useGetAllStaffPermissionGroupMap,
+  useGetStaffExcludedServiceTypes,
+  useSetStaffExcludedServiceTypes,
 } from "@/features/master/api/staffs";
 import type { Staff, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
@@ -34,6 +36,8 @@ import { useGetPermissionGroups } from "@/features/master/api/permission-groups"
 import type { PermissionGroup } from "@/features/master/api/permission-groups";
 import type { ClinicSummary } from "@/features/master/api/staffs";
 import { useGetAllOccupations } from "@/features/master/api/occupations";
+import { useGetServiceTypes } from "@/features/master/api/service-types";
+import type { ServiceType } from "@/features/master/api/service-types";
 import type { Occupation } from "@/features/master/api/occupations";
 import { ResourceMasterStaff } from "@/types/generated/models";
 
@@ -65,6 +69,7 @@ interface StaffFormData {
   reservationDisplayName: string;
   reservationVisible: boolean;
   reservationComment: string;
+  reservationImageUrl: string;
 }
 
 // ─────────────────────────────────────────────────
@@ -87,6 +92,10 @@ interface StaffSidePanelProps {
   allClinics: ClinicSummary[];
   /** Called when clinics should be saved for this staff */
   onSaveClinics: (staffId: string, clinicIds: string[]) => void;
+  /** All service types for excluded courses */
+  allServiceTypes: ServiceType[];
+  /** Called when excluded service types should be saved */
+  onSaveExcludedServiceTypes: (staffId: string, serviceTypeIds: string[]) => void;
 }
 
 const StaffSidePanel = memo(function StaffSidePanel({
@@ -100,6 +109,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
   onSaveGroups,
   allClinics,
   onSaveClinics,
+  allServiceTypes,
+  onSaveExcludedServiceTypes,
 }: StaffSidePanelProps) {
   const isNew = item === null;
   const staffId = item?.id ?? null;
@@ -115,6 +126,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
     reservationDisplayName: item?.reservationDisplayName ?? "",
     reservationVisible: item?.reservationVisible ?? true,
     reservationComment: item?.reservationComment ?? "",
+    reservationImageUrl: item?.reservationImageUrl ?? "",
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
@@ -148,7 +160,27 @@ const StaffSidePanel = memo(function StaffSidePanel({
     [userEditedClinicIds, serverClinicIds],
   );
 
+  // ── Excluded service types state ─────────────────
+  const { data: serverExcludedIds } = useGetStaffExcludedServiceTypes(staffId);
+  const [userEditedExcludedIds, setUserEditedExcludedIds] = useState<string[] | null>(null);
+
+  const excludedIds = useMemo(
+    () => userEditedExcludedIds ?? serverExcludedIds ?? [],
+    [userEditedExcludedIds, serverExcludedIds],
+  );
+
   // ── Handlers ─────────────────────────────────────
+  const handleExcludedToggle = useCallback(
+    (serviceTypeId: string, checked: boolean) => {
+      setUserEditedExcludedIds((prev) => {
+        const current = prev ?? serverExcludedIds ?? [];
+        return checked ? [...current, serviceTypeId] : current.filter((id) => id !== serviceTypeId);
+      });
+      setIsDirty(true);
+    },
+    [serverExcludedIds],
+  );
+
   const handleClinicToggle = useCallback(
     (clinicId: string, checked: boolean) => {
       setUserEditedClinicIds((prev) => {
@@ -181,9 +213,10 @@ const StaffSidePanel = memo(function StaffSidePanel({
     if (!isNew && staffId) {
       onSaveGroups(staffId, groupIds);
       onSaveClinics(staffId, clinicIds);
+      onSaveExcludedServiceTypes(staffId, excludedIds);
     }
     setIsDirty(false);
-  }, [f, isNew, staffId, groupIds, clinicIds, onSave, onSaveGroups, onSaveClinics]);
+  }, [f, isNew, staffId, groupIds, clinicIds, excludedIds, onSave, onSaveGroups, onSaveClinics, onSaveExcludedServiceTypes]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -349,6 +382,55 @@ const StaffSidePanel = memo(function StaffSidePanel({
             placeholder="LINE予約画面に表示する説明"
           />
         </PropertyRow>
+
+        <PropertyRow label="画像URL">
+          <input
+            type="text"
+            className={MASTER_INPUT_CLASS}
+            value={f.reservationImageUrl}
+            onChange={(e) => { setF((p) => ({ ...p, reservationImageUrl: e.target.value })); setIsDirty(true); }}
+            placeholder="https://..."
+          />
+        </PropertyRow>
+      </div>
+
+      {/* ── Excluded service types ───────────────── */}
+      <div className="mt-4 border-t pt-4">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Ban className={`${ICON.xs} text-muted-foreground`} />
+          <p className="text-xs font-medium text-muted-foreground">対応不可コース</p>
+        </div>
+
+        {isNew ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            スタッフ登録後に設定できます
+          </p>
+        ) : allServiceTypes.length === 0 ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            診療サービスが登録されていません
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            {allServiceTypes.filter((st) => st.isActive).map((st) => (
+              <label
+                key={st.id}
+                className="flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer hover:bg-muted/40 transition-colors"
+              >
+                <Checkbox
+                  checked={excludedIds.includes(st.id)}
+                  onCheckedChange={(checked) =>
+                    handleExcludedToggle(st.id, checked === true)
+                  }
+                />
+                <span
+                  className="size-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: st.color }}
+                />
+                <span className="text-sm">{st.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Clinic assignments ─────────────────────── */}
@@ -446,13 +528,18 @@ export function StaffSettings() {
   const { data: allGroupsData } = useGetPermissionGroups();
   const allGroups = useMemo(() => allGroupsData ?? [], [allGroupsData]);
 
+  // Service Types — shown as checkboxes in excluded courses panel
+  const { data: allServiceTypesData } = useGetServiceTypes();
+  const allServiceTypes = useMemo(() => allServiceTypesData ?? [], [allServiceTypesData]);
+
   // Clinics — shown as checkboxes in the panel
   const { data: allClinicsData } = useGetClinicsList("all");
   const allClinics = useMemo(() => allClinicsData ?? [], [allClinicsData]);
 
-  // Group assignment mutation
+  // Group / Clinic / Excluded mutation
   const setGroupsMutation = useSetStaffPermissionGroups();
   const setClinicsMutation = useSetStaffClinics();
+  const setExcludedMutation = useSetStaffExcludedServiceTypes();
 
   // スタッフ全員の権限グループIDマップ（テーブル表示用）
   const staffIds = useMemo(() => (data ?? []).map((s) => s.id), [data]);
@@ -531,6 +618,7 @@ export function StaffSettings() {
       reservation_display_name: d.reservationDisplayName || undefined,
       reservation_visible: d.reservationVisible,
       reservation_comment: d.reservationComment || undefined,
+      reservation_image_url: d.reservationImageUrl || undefined,
     }),
     toUpdateRequest: (d) => ({
       name: d.name,
@@ -542,6 +630,7 @@ export function StaffSettings() {
       reservation_display_name: d.reservationDisplayName || undefined,
       reservation_visible: d.reservationVisible,
       reservation_comment: d.reservationComment || undefined,
+      reservation_image_url: d.reservationImageUrl || undefined,
     }),
   });
 
@@ -557,6 +646,13 @@ export function StaffSettings() {
       setClinicsMutation.mutate({ staffId, clinicIds });
     },
     [setClinicsMutation],
+  );
+
+  const handleSaveExcludedServiceTypes = useCallback(
+    (staffId: string, serviceTypeIds: string[]) => {
+      setExcludedMutation.mutate({ staffId, serviceTypeIds });
+    },
+    [setExcludedMutation],
   );
 
   return (
@@ -630,6 +726,8 @@ export function StaffSettings() {
           onSaveGroups={handleSaveGroups}
           allClinics={allClinics}
           onSaveClinics={handleSaveClinics}
+          allServiceTypes={allServiceTypes}
+          onSaveExcludedServiceTypes={handleSaveExcludedServiceTypes}
         />
       )}
     />

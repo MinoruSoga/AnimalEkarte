@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useActionState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import type { Shift, ShiftType, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
+import type { Shift, ShiftType, ShiftBreakInput, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
 import { SHIFT_TYPE_LABELS } from "@/features/shifts/types";
 import { ShiftTypeOff } from "@/types/generated/models";
 import { createShift } from "@/features/shifts/api/create-shift";
@@ -68,6 +69,9 @@ export function ShiftFormDialog({
   const [shiftType, setShiftType] = useState<ShiftType>(() => editShift?.shift_type ?? "full");
   const [startTime, setStartTime] = useState(() => normalizeTimeToHHmm(editShift?.start_time ?? ""));
   const [endTime, setEndTime] = useState(() => normalizeTimeToHHmm(editShift?.end_time ?? ""));
+  const [breaks, setBreaks] = useState<ShiftBreakInput[]>(() =>
+    (editShift?.breaks ?? []).map((b) => ({ break_start: normalizeTimeToHHmm(b.break_start), break_end: normalizeTimeToHHmm(b.break_end) })),
+  );
 
   useEffect(() => {
     if (open) {
@@ -75,6 +79,7 @@ export function ShiftFormDialog({
       setShiftType(editShift?.shift_type ?? "full");
       setStartTime(normalizeTimeToHHmm(editShift?.start_time ?? ""));
       setEndTime(normalizeTimeToHHmm(editShift?.end_time ?? ""));
+      setBreaks((editShift?.breaks ?? []).map((b) => ({ break_start: normalizeTimeToHHmm(b.break_start), break_end: normalizeTimeToHHmm(b.break_end) })));
     }
   }, [open, editShift]);
 
@@ -90,14 +95,17 @@ export function ShiftFormDialog({
 
       try {
         if (isEdit && editShift) {
+          const validBreaks = breaks.filter((b) => b.break_start && b.break_end);
           const input: UpdateShiftInput = {
             shift_type: resolvedShiftType,
             start_time: resolvedStartTime || undefined,
             end_time: resolvedEndTime || undefined,
             note: (formData.get("note") as string) || undefined,
+            breaks: validBreaks,
           };
           await updateShift(editShift.id, input);
         } else {
+          const validBreaks = breaks.filter((b) => b.break_start && b.break_end);
           const input: CreateShiftInput = {
             staff_id: staffId,
             date,
@@ -105,6 +113,7 @@ export function ShiftFormDialog({
             start_time: resolvedStartTime || undefined,
             end_time: resolvedEndTime || undefined,
             note: (formData.get("note") as string) || undefined,
+            breaks: validBreaks.length > 0 ? validBreaks : undefined,
           };
           await createShift(input);
         }
@@ -116,7 +125,7 @@ export function ShiftFormDialog({
         return {};
       }
     },
-    [isEdit, editShift, staffId, date, shiftType, queryClient, onClose],
+    [isEdit, editShift, staffId, date, shiftType, breaks, queryClient, onClose],
   );
 
   const [state, dispatchFormAction, isPending] = useActionState<FormActionState, FormData>(formAction, {});
@@ -221,6 +230,51 @@ export function ShiftFormDialog({
               defaultValue={editShift?.note ?? ""}
             />
           </div>
+
+          {/* 休憩時間 */}
+          {!isTimeFieldDisabled ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">休憩時間</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setBreaks((prev) => [...prev, { break_start: "12:00", break_end: "13:00" }])}
+                >
+                  <Plus className="size-3 mr-1" />
+                  追加
+                </Button>
+              </div>
+              {breaks.map((b, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    type="time"
+                    value={b.break_start}
+                    onChange={(e) => setBreaks((prev) => prev.map((br, j) => j === i ? { ...br, break_start: e.target.value } : br))}
+                    className="flex-1"
+                  />
+                  <span className="text-xs text-muted-foreground">〜</span>
+                  <Input
+                    type="time"
+                    value={b.break_end}
+                    onChange={(e) => setBreaks((prev) => prev.map((br, j) => j === i ? { ...br, break_end: e.target.value } : br))}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setBreaks((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           <DialogFooter className="gap-2">
             {isEdit && canDelete ? (

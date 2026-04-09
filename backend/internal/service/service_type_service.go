@@ -27,6 +27,7 @@ type CreateServiceTypeInput struct {
 	ShowShortName          bool
 	ReservationVisible     bool
 	ReservationComment     string
+	ReservationImageURL    string
 	ReservationDayOption   string
 	IsInternal             bool
 }
@@ -46,6 +47,7 @@ type UpdateServiceTypeInput struct {
 	ShowShortName          *bool
 	ReservationVisible     *bool
 	ReservationComment     *string
+	ReservationImageURL    *string
 	ReservationDayOption   *string
 	IsInternal             *bool
 }
@@ -104,6 +106,9 @@ func buildServiceTypeUpdateFields(input *UpdateServiceTypeInput) map[string]any 
 	if input.ReservationComment != nil {
 		fields[colServiceTypeReservationComment] = *input.ReservationComment
 	}
+	if input.ReservationImageURL != nil {
+		fields["reservation_image_url"] = *input.ReservationImageURL
+	}
 	if input.ReservationDayOption != nil {
 		fields[colServiceTypeReservationDayOpt] = *input.ReservationDayOption
 	}
@@ -160,6 +165,7 @@ func (s *serviceTypeService) Create(ctx context.Context, clinicID uint64, input 
 		ShowShortName:          input.ShowShortName,
 		ReservationVisible:     input.ReservationVisible,
 		ReservationComment:     input.ReservationComment,
+		ReservationImageURL:    input.ReservationImageURL,
 		ReservationDayOption:   reservationDayOption,
 		IsInternal:             input.IsInternal,
 	}

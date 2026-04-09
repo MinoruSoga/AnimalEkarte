@@ -27,6 +27,12 @@ func normalizeTimeString(s *string) *string {
 	return nil
 }
 
+// ShiftBreakInput は休憩時間の入力DTO
+type ShiftBreakInput struct {
+	BreakStart string
+	BreakEnd   string
+}
+
 // CreateShiftEntryInput はシフト作成の入力DTO
 type CreateShiftEntryInput struct {
 	StaffID   uint64
@@ -35,6 +41,7 @@ type CreateShiftEntryInput struct {
 	StartTime *string
 	EndTime   *string
 	Note      string
+	Breaks    []ShiftBreakInput
 }
 
 // UpdateShiftEntryInput はシフト更新の入力DTO（nil = 未変更）
@@ -43,6 +50,7 @@ type UpdateShiftEntryInput struct {
 	StartTime *string
 	EndTime   *string
 	Note      *string
+	Breaks    *[]ShiftBreakInput
 }
 
 // ShiftEntryService はシフト管理のビジネスロジックインターフェース
@@ -131,6 +139,16 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 	if err := s.repo.Create(ctx, entry); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create shift entry")
 	}
+	// 休憩時間を保存
+	if len(input.Breaks) > 0 {
+		breaks := make([]model.ShiftEntryBreak, 0, len(input.Breaks))
+		for _, b := range input.Breaks {
+			breaks = append(breaks, model.ShiftEntryBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
+		}
+		if err := s.repo.ReplaceBreaks(ctx, entry.ID, breaks); err != nil {
+			return nil, apperrors.Wrap(err, "failed to save shift breaks")
+		}
+	}
 	slog.InfoContext(ctx, "shift entry created",
 		slog.Uint64("shift_entry_id", entry.ID),
 		slog.Uint64("clinic_id", clinicID))
@@ -168,6 +186,16 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update shift entry")
+	}
+	// 休憩時間の更新（送信された場合のみ）
+	if input.Breaks != nil {
+		breaks := make([]model.ShiftEntryBreak, 0, len(*input.Breaks))
+		for _, b := range *input.Breaks {
+			breaks = append(breaks, model.ShiftEntryBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
+		}
+		if err := s.repo.ReplaceBreaks(ctx, id, breaks); err != nil {
+			return nil, apperrors.Wrap(err, "failed to save shift breaks")
+		}
 	}
 	slog.InfoContext(ctx, "shift entry updated", slog.Uint64("shift_entry_id", id))
 	return s.repo.FindByID(ctx, clinicID, id)

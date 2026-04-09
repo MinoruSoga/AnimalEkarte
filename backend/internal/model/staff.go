@@ -65,7 +65,8 @@ type ShiftEntry struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
+	Staff  *Staff            `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
+	Breaks []ShiftEntryBreak `gorm:"foreignKey:ShiftEntryID" json:"breaks,omitempty"`
 }
 
 func (ShiftEntry) TableName() string { return "shift_entries" }

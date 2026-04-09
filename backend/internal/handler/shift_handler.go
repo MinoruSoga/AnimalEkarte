@@ -65,6 +65,10 @@ func (h *Handler) CreateShiftEntry(c *gin.Context) {
 	if req.EndTime != "" {
 		endTime = &req.EndTime
 	}
+	breaks := make([]service.ShiftBreakInput, 0, len(req.Breaks))
+	for _, b := range req.Breaks {
+		breaks = append(breaks, service.ShiftBreakInput{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
+	}
 	shift, err := h.svc.ShiftEntry.Create(c.Request.Context(), clinicID, &service.CreateShiftEntryInput{
 		StaffID:   req.StaffID,
 		Date:      date,
@@ -72,6 +76,7 @@ func (h *Handler) CreateShiftEntry(c *gin.Context) {
 		StartTime: startTime,
 		EndTime:   endTime,
 		Note:      req.Note,
+		Breaks:    breaks,
 	})
 	if err != nil {
 		RespondError(c, err)
@@ -107,6 +112,13 @@ func (h *Handler) UpdateShiftEntry(c *gin.Context) {
 	if req.ShiftType != nil {
 		st := model.ShiftType(*req.ShiftType)
 		input.ShiftType = &st
+	}
+	if req.Breaks != nil {
+		breaks := make([]service.ShiftBreakInput, 0, len(*req.Breaks))
+		for _, b := range *req.Breaks {
+			breaks = append(breaks, service.ShiftBreakInput{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
+		}
+		input.Breaks = &breaks
 	}
 
 	shift, err := h.svc.ShiftEntry.Update(c.Request.Context(), clinicID, id, input)

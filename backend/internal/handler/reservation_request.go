@@ -14,6 +14,7 @@ type createReservationRequest struct {
 	IsDesignated  bool      `json:"is_designated"`
 	Status        string    `json:"status"`
 	Notes         string    `json:"notes"`
+	Source        string    `json:"source"`
 }
 
 // updateReservationRequest は予約更新のバインド struct

@@ -44,6 +44,8 @@ interface ServiceTypeFormData {
   shortName: string;
   reservationVisible: boolean;
   reservationComment: string;
+  reservationImageUrl: string;
+  showShortName: boolean;
   reservationDayOption: string;
   isInternal: boolean;
 }
@@ -61,6 +63,8 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
     shortName: item?.shortName ?? "",
     reservationVisible: item?.reservationVisible ?? true,
     reservationComment: item?.reservationComment ?? "",
+    reservationImageUrl: item?.reservationImageUrl ?? "",
+    showShortName: item?.showShortName ?? false,
     reservationDayOption: item?.reservationDayOption ?? "none",
     isInternal: item?.isInternal ?? false,
   }));
@@ -177,6 +181,21 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
           />
         </PropertyRow>
 
+        <PropertyRow label="略称を使用">
+          <Switch
+            checked={f.showShortName}
+            onCheckedChange={(v) => { setF((p) => ({ ...p, showShortName: v })); setIsDirty(true); }}
+          />
+        </PropertyRow>
+
+        <PropertyRow label="画像URL">
+          <PropertyInput
+            value={f.reservationImageUrl}
+            onChange={(v) => { setF((p) => ({ ...p, reservationImageUrl: v })); setIsDirty(true); }}
+            placeholder="https://..."
+          />
+        </PropertyRow>
+
         <PropertyRow label="予約可能曜日">
           <Select
             value={f.reservationDayOption}
@@ -235,6 +254,7 @@ export function ServiceTypeSettings() {
       reservation_display_name: d.reservationDisplayName || undefined,
       duration_minutes: d.durationMinutes, short_name: d.shortName || undefined,
       reservation_visible: d.reservationVisible, reservation_comment: d.reservationComment || undefined,
+      reservation_image_url: d.reservationImageUrl || undefined, show_short_name: d.showShortName,
       reservation_day_option: d.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
       is_internal: d.isInternal,
     }),
@@ -243,6 +263,7 @@ export function ServiceTypeSettings() {
       reservation_display_name: d.reservationDisplayName || undefined,
       duration_minutes: d.durationMinutes, short_name: d.shortName || undefined,
       reservation_visible: d.reservationVisible, reservation_comment: d.reservationComment || undefined,
+      reservation_image_url: d.reservationImageUrl || undefined, show_short_name: d.showShortName,
       reservation_day_option: d.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
       is_internal: d.isInternal,
     }),
