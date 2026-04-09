@@ -25,11 +25,11 @@
 ## TASK-RES-070: Docker Compose更新 ✅
 
 **実装済みファイル**:
-- `docker-compose.yml`（liff-app コンテナ追加済み）
-- `liff-app/Dockerfile`（作成済み）
+- `docker-compose.yml`（line-reserve コンテナ追加済み）
+- `line-reserve/Dockerfile`（作成済み）
 
 **完了条件**:
-- [x] `docker compose up` で backend, frontend, liff-app, db 全起動
+- [x] `docker compose up` で backend, frontend, line-reserve, db 全起動
 
 ---
 

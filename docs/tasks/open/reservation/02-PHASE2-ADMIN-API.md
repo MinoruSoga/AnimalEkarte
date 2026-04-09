@@ -1,10 +1,16 @@
 # Phase 2: バックエンド管理者API
 
-> **状態**: ✅ 全タスク完了（2026-04-08〜09）
+> **状態**: ✅ 全タスク完了（2026-04-08〜09） → **Phase 8 でマスタAPIに統合済み（2026-04-10）**
 >
 > **設計方針**: 既存テーブル（staffs, service_types, reservation_appointments, shift_entries）を
 > 予約APIから直接操作する。既存のrepository/serviceを拡張 or 予約専用のhandler/serviceを新設。
 > 既存APIとの整合性を保つため、既存のエラーハンドリング（RespondError + apperrors）に準拠する。
+>
+> **⚠️ Phase 8 統合**: コース（service_types）・スタッフ（staffs）のLINEフィールドは
+> 既存マスタAPI（`/v1/masters/service-types`, `/v1/masters/staffs`）に統合。
+> 本Phaseで作成した `/v1/clinics/:id/reservation-courses` 等の専用APIは互換性のため残存するが、
+> 管理画面からは使用しない。シフト休憩時間は `/v1/shifts` APIに統合。
+> 予約の source フィルタは `/v1/reservations?source=` で対応。
 
 ## TASK-RES-010: 基本設定 API ✅
 

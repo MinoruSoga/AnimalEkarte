@@ -2,13 +2,19 @@
 
 > **状態**: ✅ 全タスク完了（2026-04-08〜09）
 >
-> **実装場所**: `liff-app/` ディレクトリ（既存 frontend とは独立した Vite プロジェクト）
+> **実装場所**: `frontend/line-reserve/` ディレクトリ（既存 frontend とは独立した Vite プロジェクト）
+> ※ 旧 `liff-app/` から移動済み（`4c46092a chore: liff-app/ 削除`）
+>
+> **Phase 8 追加機能**（2026-04-10）:
+> - マルチペット選択（チェックボックス + 新規追加）
+> - 紐付け済み飼主からの顧客情報自動入力
+> - pet_name/pet_type → pets[] 配列に変更
 
 ## TASK-RES-040: プロジェクトセットアップ ✅
 
 **実装済み構成**:
 ```
-liff-app/
+frontend/line-reserve/
 ├── src/
 │   ├── main.tsx
 │   ├── App.tsx
