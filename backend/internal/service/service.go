@@ -77,7 +77,7 @@ func NewServices(repos *repository.Repositories, notifCfg ReservationNotificatio
 		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
 		Owner:                  NewOwnerService(repos.Owner),
 		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
-		Reservation:            NewReservationService(repos.Reservation),
+		Reservation:            NewReservationService(repos.Reservation, repos.DB()),
 		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan),
 		Hospitalization:        NewHospitalizationService(repos),
 		Accounting:             NewAccountingService(repos.Accounting),
@@ -125,7 +125,7 @@ func NewServices(repos *repository.Repositories, notifCfg ReservationNotificatio
 		ReservationCourse:      NewReservationCourseService(repos.ReservationCourse, repos.ReservationAdmin),
 		ReservationStaff:       NewReservationStaffService(repos.ReservationStaff),
 		ReservationSchedule:    NewReservationScheduleService(repos.ReservationSchedule),
-		ReservationAdmin:       NewReservationAdminService(repos.ReservationAdmin),
+		ReservationAdmin:       NewReservationAdminService(repos.ReservationAdmin, repos.DB()),
 		ReservationCustomer:    NewReservationCustomerService(repos.ReservationCustomerMgr),
 		Liff: NewLiffService(
 			repos.ReservationSetting,

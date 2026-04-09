@@ -137,3 +137,12 @@ CREATE INDEX idx_res_appt_line_customer ON reservation_appointments(line_custome
 -- ============================================================
 ALTER TABLE shift_entries
     ADD CONSTRAINT uk_shift_staff_date UNIQUE (clinic_id, staff_id, date);
+
+-- ============================================================
+-- B6. 予約時間枠の重複防止（部分ユニークインデックス）
+-- アプリケーション層の SELECT FOR UPDATE に加えた第2防壁。
+-- 同一クリニック・同一スタッフ・同一開始時刻の予約を物理的に排除する。
+-- ============================================================
+CREATE UNIQUE INDEX uk_appointment_staff_time
+    ON reservation_appointments (clinic_id, doctor_id, start_time)
+    WHERE deleted_at IS NULL AND status != 'cancelled';

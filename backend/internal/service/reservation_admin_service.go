@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"time"
+
+	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -35,10 +38,11 @@ type CreateReservationAdminInput struct {
 
 type reservationAdminService struct {
 	repo repository.ReservationAdminRepository
+	db   *gorm.DB
 }
 
-func NewReservationAdminService(repo repository.ReservationAdminRepository) ReservationAdminService {
-	return &reservationAdminService{repo: repo}
+func NewReservationAdminService(repo repository.ReservationAdminRepository, db *gorm.DB) ReservationAdminService {
+	return &reservationAdminService{repo: repo, db: db}
 }
 
 func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ReservationAppointment, error) {
@@ -62,6 +66,10 @@ func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64
 }
 
 func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.ReservationAppointment, error) {
+	if !input.EndTime.After(input.StartTime) {
+		return nil, apperrors.WrapInvalidInput("end_time must be after start_time")
+	}
+
 	visitType := model.VisitType(input.VisitType)
 	if visitType == "" {
 		visitType = model.VisitTypeRevisit
@@ -70,26 +78,62 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 	if customerFields == nil {
 		customerFields = []byte("{}")
 	}
-	ra := &model.ReservationAppointment{
-		ClinicID:         clinicID,
-		StartTime:        input.StartTime,
-		EndTime:          input.EndTime,
-		OwnerID:          input.OwnerID,
-		PetID:            input.PetID,
-		VisitType:        visitType,
-		ServiceTypeID:    input.ServiceTypeID,
-		DoctorID:         input.DoctorID,
-		IsDesignated:     input.IsDesignated,
-		Notes:            input.Notes,
-		Source:           model.ReservationSourceManual,
-		LineCustomerID:   input.LineCustomerID,
-		IsStaffDelegated: input.IsStaffDelegated,
-		CustomerFields:   customerFields,
+
+	var result *model.ReservationAppointment
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// SELECT FOR UPDATE で該当時間枠の既存予約を行ロック
+		var existing []model.ReservationAppointment
+		lockQuery := tx.Raw(`
+			SELECT * FROM reservation_appointments
+			WHERE clinic_id = ?
+			  AND deleted_at IS NULL
+			  AND status NOT IN ('cancelled')
+			  AND start_time < ?
+			  AND end_time > ?
+			  AND (? = 0 OR doctor_id = ?)
+			FOR UPDATE`,
+			clinicID,
+			input.EndTime,
+			input.StartTime,
+			ptrToUint64(input.DoctorID), ptrToUint64(input.DoctorID),
+		)
+		if lockQuery.Scan(&existing); lockQuery.Error != nil {
+			return apperrors.Wrap(lockQuery.Error, "lock reservations for conflict check")
+		}
+		if len(existing) > 0 {
+			return apperrors.WrapConflict("この時間枠は既に予約が入っています")
+		}
+
+		ra := &model.ReservationAppointment{
+			ClinicID:         clinicID,
+			StartTime:        input.StartTime,
+			EndTime:          input.EndTime,
+			OwnerID:          input.OwnerID,
+			PetID:            input.PetID,
+			VisitType:        visitType,
+			ServiceTypeID:    input.ServiceTypeID,
+			DoctorID:         input.DoctorID,
+			IsDesignated:     input.IsDesignated,
+			Notes:            input.Notes,
+			Source:           model.ReservationSourceManual,
+			LineCustomerID:   input.LineCustomerID,
+			IsStaffDelegated: input.IsStaffDelegated,
+			CustomerFields:   customerFields,
+		}
+		if err := tx.Create(ra).Error; err != nil {
+			return apperrors.Wrap(err, "create reservation appointment")
+		}
+		result = ra
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	if err := s.repo.Create(ctx, ra); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create reservation appointment")
-	}
-	return ra, nil
+
+	slog.InfoContext(ctx, "admin reservation created",
+		slog.Uint64("reservation_id", result.ID),
+		slog.Uint64("clinic_id", clinicID))
+	return result, nil
 }
 
 func (s *reservationAdminService) Delete(ctx context.Context, clinicID, id uint64) error {

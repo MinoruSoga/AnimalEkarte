@@ -84,6 +84,26 @@ FROM clinics c
 ON CONFLICT (clinic_id) DO NOTHING;
 
 -- ============================================================
+-- C-2. テスト環境用 LINE クレデンシャルを設定（docs/LINE-SETUP.md 参照）
+-- clinic_id=3: テスト-八王子（@642hdxoh）
+-- clinic_id=4: テスト-城東（@151lnsqa）
+-- ※ 本番環境では管理画面「LINE予約 基本設定」から入力すること
+-- ============================================================
+UPDATE reservation_settings SET
+    line_channel_id     = '2009755544',
+    line_channel_secret = '5344ef84eb7072b5894f7e087db28827',
+    liff_id             = '2009755581-w5NOA3EW',
+    line_access_token   = 'pwMi3yP6jhRa0xbmnR0IPEcE5l+OIp21a7ia3hmoiuFSCvqkR5Tmmfm6fLoSTB1Bt7uQjAe9NN7fZ+LBDtNKLGnrqBrjDmhTnws9PVxQKLyinomNzUAb61KADX7NJmFBfEsLQQ9VmlU+tMJcWh+zswdB04t89/1O/w1cDnyilFU='
+WHERE clinic_id = 3;
+
+UPDATE reservation_settings SET
+    line_channel_id     = '2009755545',
+    line_channel_secret = '25e4661a8de553953a4b34c6ac7a91cb',
+    liff_id             = '2009755586-nvKfG3Cp',
+    line_access_token   = 'CUAtYMry8doD9ALCF/6Y0JocVqRrxC8IbOCMyRyxwDw5EJhyujJ4lQ8mVGrt7WawTi+voAxZ79mKAg+4qlsUPBVU6VMZdk7wEA42NZXQAl8gBr2tSYmZpbRzAiLfuGhxuba+koBHVk8yTuaCCjLBzAdB04t89/1O/w1cDnyilFU='
+WHERE clinic_id = 4;
+
+-- ============================================================
 -- D. staff_excluded_service_types の初期データ
 -- 獣医師が非対応のコース（お手入れ, 手術, ホテルお預け, ホテルお迎え, 面会, クイックシャンプー）
 -- ============================================================

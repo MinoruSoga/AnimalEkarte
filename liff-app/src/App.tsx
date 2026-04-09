@@ -98,6 +98,16 @@ export function App() {
     goTo('step8');
   }, [goTo]);
 
+  // 予約確定時に時間枠が既に埋まっていた場合のハンドラ
+  const handleSlotTaken = useCallback((message: string, redirectStep: number) => {
+    window.alert(message);
+    const stepMap: Record<number, PageType> = {
+      1: 'step1', 2: 'step2', 3: 'step3', 4: 'step4',
+      5: 'step5', 6: 'step6', 7: 'step7',
+    };
+    goTo(stepMap[redirectStep] ?? 'step4');
+  }, [goTo]);
+
   const handleCompleteToMyReservations = useCallback(() => {
     goTo('my-reservations');
   }, [goTo]);
@@ -249,6 +259,7 @@ export function App() {
         idToken={idToken}
         flow={flow}
         onConfirm={handleConfirm}
+        onSlotTaken={handleSlotTaken}
         onBack={() => goTo('step6')}
       />
     );

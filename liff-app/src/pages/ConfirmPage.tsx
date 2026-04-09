@@ -1,15 +1,23 @@
 import { useState, useCallback } from 'react';
+import axios from 'axios';
 import type { ReservationFlow } from '../types/models';
 import { liffApi } from '../api/liff-api';
 import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
 
+interface SlotTakenResponse {
+  error: string;
+  code: string;
+  redirect_step: number;
+}
+
 interface ConfirmPageProps {
   clinicId: string;
   idToken: string;
   flow: ReservationFlow;
   onConfirm: (reservationId: number, notes: string) => void;
+  onSlotTaken: (message: string, redirectStep: number) => void;
   onBack: () => void;
 }
 
@@ -31,6 +39,7 @@ export function ConfirmPage({
   idToken,
   flow,
   onConfirm,
+  onSlotTaken,
   onBack,
 }: ConfirmPageProps) {
   const [submitting, setSubmitting] = useState(false);
@@ -62,12 +71,19 @@ export function ConfirmPage({
         idToken,
       );
       onConfirm(reservation.id, reservation.notes);
-    } catch {
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const data = err.response.data as SlotTakenResponse;
+        const message = data.error || '選択された時間枠は既に予約が入っています。';
+        const redirectStep = data.redirect_step || 4;
+        onSlotTaken(message, redirectStep);
+        return;
+      }
       setError('予約の確定に失敗しました。もう一度お試しください。');
     } finally {
       setSubmitting(false);
     }
-  }, [clinicId, idToken, flow, onConfirm]);
+  }, [clinicId, idToken, flow, onConfirm, onSlotTaken]);
 
   const rows: Array<{ label: string; value: string }> = [
     { label: 'お名前', value: flow.customerInfo.name },
