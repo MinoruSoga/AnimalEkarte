@@ -102,18 +102,18 @@ export function ConfirmPage({
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-noah-teal-light flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
         <ProgressDots current={7} total={8} />
 
         <div className="px-4">
           <BackButton onClick={onBack} />
-          <h2 className="text-lg font-bold text-gray-800 mb-4">予約内容の確認</h2>
+          <h2 className="text-lg font-bold text-noah-teal-dark mb-4">予約内容の確認</h2>
         </div>
 
         <div className="flex-1 px-4 space-y-4">
           {/* 警告メッセージ */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
             <p className="text-sm text-yellow-800 font-medium">
               まだ予約は完了していません
             </p>
@@ -123,16 +123,16 @@ export function ConfirmPage({
           </div>
 
           {/* 予約内容テーブル */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             {rows.map(row => (
               <div
                 key={row.label}
                 className="flex border-b border-gray-100 last:border-b-0"
               >
-                <div className="w-28 flex-shrink-0 px-4 py-3 bg-gray-50 text-sm text-gray-600 font-medium">
+                <div className="w-28 flex-shrink-0 px-4 py-3 bg-noah-teal-light text-sm text-noah-text-sub font-medium">
                   {row.label}
                 </div>
-                <div className="flex-1 px-4 py-3 text-sm text-gray-800 break-words">
+                <div className="flex-1 px-4 py-3 text-sm text-noah-text break-words">
                   {row.value}
                 </div>
               </div>

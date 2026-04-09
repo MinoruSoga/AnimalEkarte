@@ -96,21 +96,21 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
           type="button"
           onClick={handlePrev}
           disabled={!canGoPrev}
-          className="p-1 rounded disabled:opacity-30 hover:bg-gray-100"
+          className="p-1 rounded disabled:opacity-30 hover:bg-noah-teal-light"
           aria-label="前月"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
           </svg>
         </button>
-        <span className="font-semibold text-gray-800">
+        <span className="font-semibold text-noah-teal-dark">
           {viewYear}年{viewMonth + 1}月
         </span>
         <button
           type="button"
           onClick={handleNext}
           disabled={!canGoNext}
-          className="p-1 rounded disabled:opacity-30 hover:bg-gray-100"
+          className="p-1 rounded disabled:opacity-30 hover:bg-noah-teal-light"
           aria-label="翌月"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -125,7 +125,7 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
           <div
             key={day}
             className={`text-center text-xs py-2 font-medium ${
-              idx === 0 ? 'text-red-500' : idx === 6 ? 'text-blue-500' : 'text-gray-500'
+              idx === 0 ? 'text-red-500' : idx === 6 ? 'text-noah-teal' : 'text-noah-text-sub'
             }`}
           >
             {day}
@@ -157,14 +157,14 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
               disabled={isDisabled}
               className={`aspect-square flex items-center justify-center text-sm transition-colors ${
                 isSelected
-                  ? 'bg-line-green text-white rounded-full mx-1 my-1'
+                  ? 'bg-noah-teal text-white rounded-full mx-1 my-1'
                   : isDisabled
                     ? 'text-gray-300 cursor-not-allowed'
                     : dayOfWeek === 0
                       ? 'text-red-500 hover:bg-red-50'
                       : dayOfWeek === 6
-                        ? 'text-blue-500 hover:bg-blue-50'
-                        : 'text-gray-800 hover:bg-gray-100'
+                        ? 'text-noah-teal hover:bg-noah-teal-light'
+                        : 'text-noah-text hover:bg-noah-teal-light'
               }`}
               aria-label={`${viewYear}年${viewMonth + 1}月${cell.day}日${isAvailable ? '' : '（予約不可）'}`}
             >

@@ -21,7 +21,7 @@ export function PrimaryButton({
       className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-colors ${
         disabled
           ? 'bg-gray-300 cursor-not-allowed'
-          : 'bg-line-green hover:bg-line-green-dark active:bg-line-green-dark'
+          : 'bg-noah-teal hover:bg-noah-teal-dark active:bg-noah-teal-dark'
       } ${className}`}
     >
       {children}

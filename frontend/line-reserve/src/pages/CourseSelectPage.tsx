@@ -41,19 +41,19 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-noah-teal-light flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
         <ProgressDots current={2} total={8} />
 
         <div className="px-4">
           <BackButton onClick={onBack} />
-          <h2 className="text-lg font-bold text-gray-800 mb-4">コースを選択</h2>
+          <h2 className="text-lg font-bold text-noah-teal-dark mb-4">コースを選択</h2>
         </div>
 
         <div className="flex-1">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-gray-500">読み込み中...</div>
+              <div className="text-noah-text-sub">読み込み中...</div>
             </div>
           ) : error ? (
             <div className="px-4 py-8 text-center text-red-500">{error}</div>

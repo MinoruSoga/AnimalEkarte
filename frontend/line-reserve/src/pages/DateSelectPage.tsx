@@ -57,19 +57,19 @@ export function DateSelectPage({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-noah-teal-light flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
         <ProgressDots current={4} total={8} />
 
         <div className="px-4">
           <BackButton onClick={onBack} />
-          <h2 className="text-lg font-bold text-gray-800 mb-4">日付を選択</h2>
+          <h2 className="text-lg font-bold text-noah-teal-dark mb-4">日付を選択</h2>
         </div>
 
         <div className="flex-1 px-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-gray-500">読み込み中...</div>
+              <div className="text-noah-text-sub">読み込み中...</div>
             </div>
           ) : error ? (
             <div className="py-8 text-center text-red-500">{error}</div>
@@ -83,7 +83,7 @@ export function DateSelectPage({
           )}
 
           {selectedDate ? (
-            <div className="mt-4 p-3 bg-line-green bg-opacity-10 rounded-lg text-center text-sm text-gray-800">
+            <div className="mt-4 p-3 bg-noah-teal bg-opacity-10 rounded-xl text-center text-sm text-noah-text">
               選択中: {formatSelectedDate(selectedDate)}
             </div>
           ) : null}

@@ -9,16 +9,19 @@ interface TopPageProps {
 
 export function TopPage({ settings, onNewReservation, onMyReservations }: TopPageProps) {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-noah-teal-light flex flex-col">
       {/* ヘッダー */}
-      <header className="bg-line-green text-white py-4 px-4 text-center">
-        <h1 className="text-lg font-bold">{settings.header_text}</h1>
+      <header className="bg-noah-teal text-white py-5 px-4 text-center">
+        <h1 className="text-lg font-bold tracking-tight" style={{ fontFamily: "'Montserrat', 'Noto Sans JP', sans-serif" }}>
+          {settings.header_text || 'ノア動物病院'}
+        </h1>
+        <p className="text-sm text-white/80 mt-1">オンライン予約</p>
       </header>
 
       {/* メインコンテンツ */}
       <main className="flex-1 max-w-md mx-auto w-full px-4 py-8 flex flex-col gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
-          <p className="text-gray-600 mb-6 text-sm">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
+          <p className="text-noah-text-sub mb-6 text-sm">
             ご予約はこちらから手続きください
           </p>
           <PrimaryButton onClick={onNewReservation}>
@@ -29,7 +32,7 @@ export function TopPage({ settings, onNewReservation, onMyReservations }: TopPag
         <button
           type="button"
           onClick={onMyReservations}
-          className="w-full bg-white border border-gray-300 text-gray-700 rounded-lg py-3 px-4 font-semibold hover:bg-gray-50 active:bg-gray-100 transition-colors"
+          className="w-full bg-white border border-gray-200 text-noah-text rounded-xl py-3 px-4 font-semibold shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-colors"
         >
           予約確認・キャンセル
         </button>
@@ -37,8 +40,8 @@ export function TopPage({ settings, onNewReservation, onMyReservations }: TopPag
 
       {/* フッター */}
       {settings.phone_number ? (
-        <footer className="py-4 text-center text-sm text-gray-500 border-t border-gray-200 bg-white">
-          <a href={`tel:${settings.phone_number}`} className="text-line-green">
+        <footer className="py-4 text-center text-sm text-noah-text-sub border-t border-gray-200 bg-white">
+          <a href={`tel:${settings.phone_number}`} className="text-noah-teal font-medium">
             📞 {settings.phone_number}
           </a>
         </footer>
