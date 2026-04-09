@@ -236,6 +236,10 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 
 	// Phase 6: 予約確定通知（LINE + メール）fire-and-forget
 	if s.notifier != nil {
+		// 通知メッセージ用にリレーションをロード
+		if enriched, err := s.adminRepo.FindByIDForNotify(ctx, clinicID, appt.ID); err == nil {
+			appt = enriched
+		}
 		customer, _ := s.customerRepo.FindByID(ctx, clinicID, customerID)
 		s.notifier.NotifyCreated(ctx, appt, customer)
 	}
