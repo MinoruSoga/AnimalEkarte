@@ -3,6 +3,8 @@
   "outputDirectory": "dist",
   "framework": null,
   "rewrites": [
+    { "source": "/api/:path*", "destination": "https://api.stg.noah-karte.com/api/:path*" },
+    { "source": "/line-reserve/:path*", "destination": "/line-reserve/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
