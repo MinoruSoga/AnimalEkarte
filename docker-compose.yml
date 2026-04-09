@@ -71,17 +71,6 @@ services:
       backend:
         condition: service_healthy
 
-  liff-app:
-    build:
-      context: ./liff-app
-      dockerfile: Dockerfile
-    networks:
-      - ekarte-network
-    ports:
-      - "3001:80"
-    profiles:
-      - liff
-
   codegen:
     image: golang:1.25-alpine
     working_dir: /app
