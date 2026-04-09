@@ -1,70 +1,34 @@
 # Phase 6: LINE連携
 
-## TASK-RES-060: LINE Messaging API連携
+> **状態**: ✅ 全タスク完了（2026-04-08〜09）
 
-**概要**: 予約確定/キャンセル時にLINEプッシュ通知を送信。
+## TASK-RES-060: LINE Messaging API連携 ✅
 
-**対象ファイル**: `backend/internal/service/line_messaging_service.go`（新規）
+**実装済みファイル**: `backend/internal/service/line_messaging_service.go`
 
-**メッセージテンプレート（予約確定）**:
-```
-ご予約を承りました。
-
-■ 予約番号: R-000123
-■ 日時: 2026年4月10日(金) 09:00〜09:15
-■ メニュー: 一般診察
-■ 担当: 城東センター病院 林 文明(獣医)
-■ ペット: ポチ（柴犬）
-
-キャンセルはLINEメニューの
-「予約確認・キャンセル」から行えます。
-```
-
-**メッセージテンプレート（キャンセル）**:
-```
-以下のご予約をキャンセルしました。
-
-■ 予約番号: R-000123
-■ 日時: 2026年4月10日(金) 09:00〜09:15
-■ メニュー: 一般診察
-
-再度のご予約はLINEメニューの
-「予約する」から行えます。
-```
+**実装内容**:
+- `PushText(ctx, lineUserID, text string) error` メソッド
+- `channelToken == ""` の場合は noop（環境変数未設定時はスキップ）
+- `liff_service.go` 内の予約確定・キャンセル時に `ReservationNotifier` interface 経由で呼び出し
 
 **完了条件**:
-- [ ] 予約確定時にLINE Push送信
-- [ ] キャンセル時にLINE Push送信
-- [ ] 送信失敗時のエラーハンドリング（予約自体は成功させる）
+- [x] 予約確定時にLINE Push送信
+- [x] キャンセル時にLINE Push送信
+- [x] 送信失敗時のエラーハンドリング（予約自体は成功させる）
 
 ---
 
-## TASK-RES-061: メール通知
+## TASK-RES-061: メール通知 ✅
 
-**概要**: 病院側への予約通知メール送信。
+**実装済みファイル**: `backend/internal/service/reservation_notification_service.go`
 
-**対象ファイル**: `backend/internal/service/reservation_notification_service.go`（新規）
-
-**メール内容（予約確定）**:
-```
-件名: 【予約通知】{顧客名} 様 - {コース名} ({日付} {時間})
-
-新規予約が入りました。
-
-■ 予約番号: R-000123
-■ お名前: 曽我テスト
-■ 飼い主名: テスト飼い主
-■ ペット: テストペット
-■ 電話番号: 08072777231
-■ 診察内容: テスト診察内容
-■ コース: 一般診察（15分）
-■ 担当: 城東センター病院 林 文明
-■ 日時: 2026年4月10日(金) 09:00〜09:15
-■ 要望: （なし）
-■ 予約元: LINE
-```
+**実装内容**:
+- `ReservationNotifier` interface（`NotifyCreated` / `NotifyCancelled`）
+- fire-and-forget goroutine（15秒タイムアウト付き context）
+- `net/smtp.SendMail` を使用したメール送信
+- `backend/internal/config/config.go` に SMTP 設定を追加（環境変数）
 
 **完了条件**:
-- [ ] 予約確定時にメール送信
-- [ ] キャンセル時にメール送信
-- [ ] 飼い主名・ペット情報・診察内容をメール本文に含む
+- [x] 予約確定時にメール送信
+- [x] キャンセル時にメール送信
+- [x] 飼い主名・ペット情報・診察内容をメール本文に含む

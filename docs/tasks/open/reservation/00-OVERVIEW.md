@@ -2,20 +2,20 @@
 
 > **仕様書**: `docs/line-reseavation.md` セクション15（実装確定仕様）
 > **作成日**: 2026-04-08
-> **ステータス**: 未着手
+> **ステータス**: ✅ Phase 1〜6 実装完了 / Phase 7 結合テスト・デプロイ残
 
 ---
 
 ## 全体構成
 
 ```
-Phase 1: DB・モデル基盤        ← 最初に着手（全ての土台）
-Phase 2: バックエンド管理者API  ← 管理画面のデータ操作
-Phase 3: バックエンド公開API    ← LIFF Appが呼ぶAPI
-Phase 4: 管理画面フロントエンド ← 既存AnimalEkarteに統合
-Phase 5: LIFF App             ← 新規プロジェクト（顧客向け予約UI）
-Phase 6: LINE連携             ← LIFF認証・Push通知
-Phase 7: 結合・デプロイ        ← 最後
+Phase 1: DB・モデル基盤        ✅ 完了
+Phase 2: バックエンド管理者API  ✅ 完了
+Phase 3: バックエンド公開API    ✅ 完了
+Phase 4: 管理画面フロントエンド ✅ 完了
+Phase 5: LIFF App             ✅ 完了
+Phase 6: LINE連携             ✅ 完了
+Phase 7: 結合・デプロイ        🔲 結合テスト・本番デプロイ残
 ```
 
 ## 依存関係
@@ -29,16 +29,16 @@ Phase 7 は全Phase完了後
 
 ## タスクサマリー
 
-| Phase | タスク数 | 推定規模 | 詳細ファイル |
-|---|---|---|---|
-| Phase 1: DB・モデル | 3 | S | `01-PHASE1-DB.md` |
-| Phase 2: 管理者API | 7 | M | `02-PHASE2-ADMIN-API.md` |
-| Phase 3: 公開API | 6 | L（時間枠エンジンが核心） | `03-PHASE3-LIFF-API.md` |
-| Phase 4: 管理画面FE | 7 | L（予約カレンダーが核心） | `04-PHASE4-ADMIN-FE.md` |
-| Phase 5: LIFF App | 10 | L | `05-PHASE5-LIFF-APP.md` |
-| Phase 6: LINE連携 | 2 | S | `06-PHASE6-LINE.md` |
-| Phase 7: 結合・デプロイ | 4 | M | `07-PHASE7-DEPLOY.md` |
-| **合計** | **39タスク** | |  |
+| Phase | タスク数 | 推定規模 | 詳細ファイル | 状態 |
+|---|---|---|---|---|
+| Phase 1: DB・モデル | 3 | S | `01-PHASE1-DB.md` | ✅ 完了 |
+| Phase 2: 管理者API | 7 | M | `02-PHASE2-ADMIN-API.md` | ✅ 完了 |
+| Phase 3: 公開API | 6 | L（時間枠エンジンが核心） | `03-PHASE3-LIFF-API.md` | ✅ 完了 |
+| Phase 4: 管理画面FE | 7 | L（予約カレンダーが核心） | `04-PHASE4-ADMIN-FE.md` | ✅ 完了 |
+| Phase 5: LIFF App | 10 | L | `05-PHASE5-LIFF-APP.md` | ✅ 完了 |
+| Phase 6: LINE連携 | 2 | S | `06-PHASE6-LINE.md` | ✅ 完了 |
+| Phase 7: 結合・デプロイ | 4 | M | `07-PHASE7-DEPLOY.md` | 🔲 TASK-RES-071/072 残 |
+| **合計** | **39タスク** | | | |
 
 ## 全体方針
 
