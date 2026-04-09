@@ -140,5 +140,8 @@ func (s *reservationAdminService) Delete(ctx context.Context, clinicID, id uint6
 	if err := s.repo.SoftDelete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation appointment")
 	}
+	slog.InfoContext(ctx, "admin reservation deleted",
+		slog.Uint64("reservation_id", id),
+		slog.Uint64("clinic_id", clinicID))
 	return nil
 }

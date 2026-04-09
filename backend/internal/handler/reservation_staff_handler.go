@@ -21,14 +21,18 @@ func (h *Handler) ListReservationStaffs(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	staffIDs := make([]uint64, len(staffs))
+	for i, s := range staffs {
+		staffIDs[i] = s.ID
+	}
+	excludedMap, err := h.svc.ReservationStaff.ListExcludedByStaffIDs(c.Request.Context(), staffIDs)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 	list := make([]reservationStaffResponse, 0, len(staffs))
 	for i := range staffs {
-		excluded, err := h.repos.ReservationStaff.FindExcludedServiceTypes(c.Request.Context(), staffs[i].ID)
-		if err != nil {
-			RespondError(c, err)
-			return
-		}
-		list = append(list, toReservationStaffResponse(&staffs[i], excluded))
+		list = append(list, toReservationStaffResponse(&staffs[i], excludedMap[staffs[i].ID]))
 	}
 	c.JSON(http.StatusOK, list)
 }
@@ -56,7 +60,7 @@ func (h *Handler) CreateReservationStaff(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	excluded, err := h.repos.ReservationStaff.FindExcludedServiceTypes(c.Request.Context(), staff.ID)
+	excluded, err := h.svc.ReservationStaff.GetExcludedServiceTypes(c.Request.Context(), staff.ID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -92,7 +96,7 @@ func (h *Handler) UpdateReservationStaff(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	excluded, err := h.repos.ReservationStaff.FindExcludedServiceTypes(c.Request.Context(), staff.ID)
+	excluded, err := h.svc.ReservationStaff.GetExcludedServiceTypes(c.Request.Context(), staff.ID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -139,7 +143,7 @@ func (h *Handler) PatchReservationStaffStatus(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	excluded, err := h.repos.ReservationStaff.FindExcludedServiceTypes(c.Request.Context(), staff.ID)
+	excluded, err := h.svc.ReservationStaff.GetExcludedServiceTypes(c.Request.Context(), staff.ID)
 	if err != nil {
 		RespondError(c, err)
 		return

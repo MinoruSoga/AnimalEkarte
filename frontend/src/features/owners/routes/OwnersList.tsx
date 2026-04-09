@@ -225,8 +225,10 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   }, [urlPage, pagination.totalPages]);
 
   // BUG-049: ページ変更時にURLクエリパラメータを更新
+  // rerender-dependencies: pagination オブジェクトを destructure し stable な goToPage を deps に指定
+  const { goToPage } = pagination;
   const handlePageChange = useCallback((page: number) => {
-    pagination.goToPage(page);
+    goToPage(page);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (page === 1) {
@@ -236,7 +238,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       }
       return next;
     }, { replace: true });
-  }, [pagination, setSearchParams]);
+  }, [goToPage, setSearchParams]);
 
   // フィルタ計算が遅延中（入力値 ≠ deferred 値）の視覚フィードバック
   const isFiltering = searchTerm !== deferredSearchTerm;

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -104,5 +105,7 @@ func (s *reservationSettingService) Upsert(ctx context.Context, clinicID uint64,
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get reservation setting after upsert")
 	}
+	slog.InfoContext(ctx, "reservation setting upserted",
+		slog.Uint64("clinic_id", clinicID))
 	return result, nil
 }

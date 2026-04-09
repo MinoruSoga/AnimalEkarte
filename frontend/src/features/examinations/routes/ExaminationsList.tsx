@@ -133,8 +133,10 @@ export function ExaminationsList() {
   }, [urlPage, pagination.totalPages]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新
+  // rerender-dependencies: pagination オブジェクトを destructure し stable な goToPage を deps に指定
+  const { goToPage } = pagination;
   const handlePageChange = useCallback((page: number) => {
-    pagination.goToPage(page);
+    goToPage(page);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (page === 1) {
@@ -144,7 +146,7 @@ export function ExaminationsList() {
       }
       return next;
     }, { replace: true });
-  }, [pagination, setSearchParams]);
+  }, [goToPage, setSearchParams]);
 
   const handleCreate = useCallback(() => {
     navigate(paths.examinations.selectPet.getHref());

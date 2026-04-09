@@ -123,7 +123,7 @@ func (r *permissionGroupRepository) SetRules(ctx context.Context, groupID uint64
 
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "failed to set permission group rules")
+		return err
 	}
 	return nil
 }
@@ -210,7 +210,7 @@ func (r *permissionGroupRepository) SetStaffGroups(ctx context.Context, staffID 
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "failed to set staff permission groups")
+		return err
 	}
 	return nil
 }
@@ -232,7 +232,7 @@ func (r *permissionGroupRepository) Reorder(ctx context.Context, clinicID uint64
 		return nil
 	})
 	if err != nil {
-		return apperrors.Wrap(err, "reorder permission group")
+		return err
 	}
 	return nil
 }

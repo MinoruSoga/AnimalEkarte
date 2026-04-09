@@ -107,6 +107,10 @@ func (m *mockLiffStaffRepository) FindExcludedServiceTypes(ctx context.Context, 
 	return nil, nil
 }
 
+func (m *mockLiffStaffRepository) FindExcludedServiceTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffExcludedServiceType, error) {
+	return nil, nil
+}
+
 func (m *mockLiffStaffRepository) ReplaceExcludedServiceTypes(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
 }

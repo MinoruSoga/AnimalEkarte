@@ -20,6 +20,7 @@ type ReservationStaffRepository interface {
 	SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 	// ExcludedServiceTypes
 	FindExcludedServiceTypes(ctx context.Context, staffID uint64) ([]model.StaffExcludedServiceType, error)
+	FindExcludedServiceTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffExcludedServiceType, error)
 	ReplaceExcludedServiceTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error
 }
 
@@ -140,6 +141,22 @@ func (r *reservationStaffRepository) FindExcludedServiceTypes(ctx context.Contex
 		Find(&items).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_staff", "")
+	}
+	return items, nil
+}
+
+// FindExcludedServiceTypesByStaffIDs は複数スタッフの除外コースを一括取得する（N+1回避）
+func (r *reservationStaffRepository) FindExcludedServiceTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffExcludedServiceType, error) {
+	if len(staffIDs) == 0 {
+		return nil, nil
+	}
+	var items []model.StaffExcludedServiceType
+	err := r.db.WithContext(ctx).
+		Preload("ServiceType").
+		Where("staff_id IN ?", staffIDs).
+		Find(&items).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "staff_excluded_service_type", "")
 	}
 	return items, nil
 }

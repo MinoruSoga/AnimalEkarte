@@ -104,6 +104,17 @@
 | [BUG-265](BUG-265_multitenancy-clinic-id-missing-2.md) | BE Repository/Handler | マルチテナント clinic_id 欠落 第2波（6リポジトリ+8ハンドラ） | Critical | code-quality/ |
 | [BUG-266](BUG-266_model-json-tag-and-secret-exposure.md) | BE Model | VitalRecord json タグ欠落 + LINE シークレット json:"-" 未設定 | High/Medium | code-quality/ |
 
+## バックエンド Go 規約準拠監査（2026-04-10 第11回監査）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| [BUG-270](BUG-270_backend-go-convention-audit-4.md) | BE 全ドメイン | バックエンド Go コード規約準拠監査 第4回（親チケット） | — | code-quality/ |
+| [BUG-271](BUG-271_handler-direct-repo-access.md) | BE Handler | handler → repository 直接アクセス（9箇所/3ファイル） | High | code-quality/ |
+| [BUG-272](BUG-272_slog-audit-log-missing-3.md) | BE 5サービス | slog 監査ログ欠落 第3波（8箇所） | High | code-quality/ |
+| [BUG-273](BUG-273_repository-reorder-outer-double-wrap.md) | BE 8リポジトリ | Reorder/Transaction 外側二重ラップ（11箇所） | Medium | code-quality/ |
+| [BUG-274](BUG-274_test-mock-source-param-missing.md) | BE Test | reservation mock の source パラメータ欠落（2ファイル） | High | code-quality/ |
+| [BUG-275](BUG-275_misc-medium-violations.md) | BE 複合 | swaggerignore残存 / liff URLエンコード / audit_log型 / FK チェック等 | Medium | code-quality/ |
+
 ## 修正優先順位（BUG-221〜223 追加後）
 
 1. **BUG-186** (Critical): LoginResponse から Token フィールド削除 — 5分

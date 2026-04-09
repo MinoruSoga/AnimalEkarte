@@ -99,7 +99,7 @@ func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, id
 		return nil
 	})
 	if err != nil {
-		return apperrors.Wrap(err, "reorder checkup type")
+		return err
 	}
 	return nil
 }

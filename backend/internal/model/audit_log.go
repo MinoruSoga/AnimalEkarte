@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // AuditLog は権限変更・認証操作の記録。削除禁止テーブル。
 type AuditLog struct {
@@ -11,8 +14,8 @@ type AuditLog struct {
 	Action     string    `gorm:"not null"     json:"action"`
 	Resource   string    `gorm:"not null"     json:"resource"`
 	ResourceID *uint64   `json:"resource_id"`
-	OldValue   []byte    `gorm:"type:jsonb"   json:"old_value"`
-	NewValue   []byte    `gorm:"type:jsonb"   json:"new_value"`
+	OldValue   json.RawMessage `gorm:"type:jsonb"   json:"old_value"`
+	NewValue   json.RawMessage `gorm:"type:jsonb"   json:"new_value"`
 	IPAddress  string    `json:"ip_address"`
 	UserAgent  string    `json:"user_agent"`
 	CreatedAt  time.Time `json:"created_at"`

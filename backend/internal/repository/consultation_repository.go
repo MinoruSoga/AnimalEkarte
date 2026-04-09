@@ -99,7 +99,7 @@ func (r *consultationRepository) Reorder(ctx context.Context, clinicID uint64, i
 		return nil
 	})
 	if err != nil {
-		return apperrors.Wrap(err, "reorder consultation")
+		return err
 	}
 	return nil
 }

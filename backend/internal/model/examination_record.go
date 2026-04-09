@@ -35,7 +35,7 @@ type Examination struct {
 	ResultSummary   string            `gorm:"default:''"                                     json:"result_summary"`
 	Machine         string            `gorm:"default:''"                                     json:"machine"`
 	Status          ExaminationStatus `gorm:"type:examination_status;default:'pending'"        json:"status"`
-	DeletedAt       gorm.DeletedAt    `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt       gorm.DeletedAt    `                                                      json:"-"`
 	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

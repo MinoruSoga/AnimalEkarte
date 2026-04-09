@@ -14,7 +14,7 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
-	findAllFn                          func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
+	findAllFn                          func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
 	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
 	createFn                           func(ctx context.Context, reservation *model.ReservationAppointment) error
 	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
@@ -24,7 +24,7 @@ type mockReservationRepository struct {
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
-	return m.findAllFn(ctx, clinicID, page, limit, date, status, petID, ownerID)
+	return m.findAllFn(ctx, clinicID, page, limit, date, status, source, petID, ownerID)
 }
 
 func (m *mockReservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error) {
@@ -213,7 +213,7 @@ func TestReservationService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationRepository{
-				findAllFn: func(_ context.Context, _ uint64, _, _ int, _ *time.Time, _ *string, _ *uint64, _ *uint64) ([]model.ReservationAppointment, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, _, _ int, _ *time.Time, _ *string, _ *string, _ *uint64, _ *uint64) ([]model.ReservationAppointment, int64, error) {
 					return tt.repoReservations, tt.repoTotal, tt.repoErr
 				},
 			}

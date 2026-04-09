@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useActionState } from "react";
+import { useState, useEffect, useRef, useCallback, useActionState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -63,6 +63,8 @@ export function ShiftFormDialog({
   canDelete = false,
 }: ShiftFormDialogProps) {
   const isEdit = editShift !== undefined;
+  // rerender-dependencies: editShift オブジェクトの代わりに primitive id を deps に使用
+  const editShiftId = editShift?.id;
   const queryClient = useQueryClient();
 
   // Controlled state for Select and time inputs (needed for UI feedback and FormData relay)
@@ -72,6 +74,9 @@ export function ShiftFormDialog({
   const [breaks, setBreaks] = useState<ShiftBreakInput[]>(() =>
     (editShift?.breaks ?? []).map((b) => ({ break_start: normalizeTimeToHHmm(b.break_start), break_end: normalizeTimeToHHmm(b.break_end) })),
   );
+  // rerender-dependencies: breaks 配列を ref 経由で参照し formAction deps から除外
+  const breaksRef = useRef(breaks);
+  useEffect(() => { breaksRef.current = breaks; }, [breaks]);
 
   useEffect(() => {
     if (open) {
@@ -94,8 +99,8 @@ export function ShiftFormDialog({
       }
 
       try {
-        if (isEdit && editShift) {
-          const validBreaks = breaks.filter((b) => b.break_start && b.break_end);
+        if (isEdit && editShiftId) {
+          const validBreaks = breaksRef.current.filter((b) => b.break_start && b.break_end);
           const input: UpdateShiftInput = {
             shift_type: resolvedShiftType,
             start_time: resolvedStartTime || undefined,
@@ -103,9 +108,9 @@ export function ShiftFormDialog({
             note: (formData.get("note") as string) || undefined,
             breaks: validBreaks,
           };
-          await updateShift(editShift.id, input);
+          await updateShift(editShiftId, input);
         } else {
-          const validBreaks = breaks.filter((b) => b.break_start && b.break_end);
+          const validBreaks = breaksRef.current.filter((b) => b.break_start && b.break_end);
           const input: CreateShiftInput = {
             staff_id: staffId,
             date,
@@ -125,7 +130,8 @@ export function ShiftFormDialog({
         return {};
       }
     },
-    [isEdit, editShift, staffId, date, shiftType, breaks, queryClient, onClose],
+    // rerender-dependencies: editShift → id（primitive）、breaks → ref 経由
+    [isEdit, editShiftId, staffId, date, shiftType, queryClient, onClose],
   );
 
   const [state, dispatchFormAction, isPending] = useActionState<FormActionState, FormData>(formAction, {});

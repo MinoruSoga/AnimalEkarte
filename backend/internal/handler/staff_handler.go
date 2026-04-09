@@ -115,7 +115,7 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 	}
 
 	// NOTE: Best-effort reload for Preload data. Create already succeeded.
-	if reloaded, reloadErr := h.repos.Staff.FindByID(ctx, staff.ID); reloadErr == nil {
+	if reloaded, reloadErr := h.svc.Staff.GetByID(ctx, staff.ID); reloadErr == nil {
 		staff = reloaded
 	}
 	c.JSON(http.StatusCreated, toStaffResponse(staff))
@@ -248,7 +248,7 @@ func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	groupIDs, err := h.repos.PermissionGroup.GetGroupIDsByStaffID(c.Request.Context(), id)
+	groupIDs, err := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -280,7 +280,7 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 	if req.GroupIDs == nil {
 		req.GroupIDs = []uint64{}
 	}
-	if err := h.repos.PermissionGroup.SetStaffGroups(c.Request.Context(), id, req.GroupIDs); err != nil {
+	if err := h.svc.Staff.SetPermissionGroupIDs(c.Request.Context(), id, req.GroupIDs); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -360,14 +360,10 @@ func (h *Handler) GetStaffExcludedServiceTypes(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	items, err := h.repos.ReservationStaff.FindExcludedServiceTypes(c.Request.Context(), id)
+	ids, err := h.svc.Staff.GetExcludedServiceTypeIDs(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
 		return
-	}
-	ids := make([]uint64, 0, len(items))
-	for _, item := range items {
-		ids = append(ids, item.ServiceTypeID)
 	}
 	c.JSON(http.StatusOK, gin.H{"service_type_ids": ids})
 }
@@ -396,7 +392,7 @@ func (h *Handler) SetStaffExcludedServiceTypes(c *gin.Context) {
 	if req.ServiceTypeIDs == nil {
 		req.ServiceTypeIDs = []uint64{}
 	}
-	if err := h.repos.ReservationStaff.ReplaceExcludedServiceTypes(c.Request.Context(), id, req.ServiceTypeIDs); err != nil {
+	if err := h.svc.Staff.SetExcludedServiceTypeIDs(c.Request.Context(), id, req.ServiceTypeIDs); err != nil {
 		RespondError(c, err)
 		return
 	}

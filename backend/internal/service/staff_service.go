@@ -84,14 +84,24 @@ type StaffService interface {
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	// GetPermissionGroupIDs はスタッフが所属する権限グループIDリストを返す
+	GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error)
+	// SetPermissionGroupIDs はスタッフの権限グループを全置換する
+	SetPermissionGroupIDs(ctx context.Context, staffID uint64, groupIDs []uint64) error
+	// GetExcludedServiceTypeIDs はスタッフの除外サービス種別IDリストを返す
+	GetExcludedServiceTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error)
+	// SetExcludedServiceTypeIDs はスタッフの除外サービス種別を全置換する
+	SetExcludedServiceTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error
 }
 
 type staffService struct {
-	repo            repository.StaffRepository
-	accountRepo     repository.AccountRepository
-	assignmentRepo  repository.StaffClinicAssignmentRepository
-	reservationRepo repository.ReservationRepository
-	shiftEntryRepo  repository.ShiftEntryRepository
+	repo                repository.StaffRepository
+	accountRepo         repository.AccountRepository
+	assignmentRepo      repository.StaffClinicAssignmentRepository
+	reservationRepo     repository.ReservationRepository
+	shiftEntryRepo      repository.ShiftEntryRepository
+	permissionGroupRepo repository.PermissionGroupRepository
+	resStaffRepo        repository.ReservationStaffRepository
 }
 
 func NewStaffService(
@@ -100,13 +110,17 @@ func NewStaffService(
 	assignmentRepo repository.StaffClinicAssignmentRepository,
 	reservationRepo repository.ReservationRepository,
 	shiftEntryRepo repository.ShiftEntryRepository,
+	permissionGroupRepo repository.PermissionGroupRepository,
+	resStaffRepo repository.ReservationStaffRepository,
 ) StaffService {
 	return &staffService{
-		repo:            repo,
-		accountRepo:     accountRepo,
-		assignmentRepo:  assignmentRepo,
-		reservationRepo: reservationRepo,
-		shiftEntryRepo:  shiftEntryRepo,
+		repo:                repo,
+		accountRepo:         accountRepo,
+		assignmentRepo:      assignmentRepo,
+		reservationRepo:     reservationRepo,
+		shiftEntryRepo:      shiftEntryRepo,
+		permissionGroupRepo: permissionGroupRepo,
+		resStaffRepo:        resStaffRepo,
 	}
 }
 
@@ -351,6 +365,44 @@ func (s *staffService) Reorder(ctx context.Context, clinicID uint64, ids []uint6
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder staff")
+	}
+	return nil
+}
+
+// GetPermissionGroupIDs はスタッフが所属する権限グループIDリストを返す
+func (s *staffService) GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
+	ids, err := s.permissionGroupRepo.GetGroupIDsByStaffID(ctx, staffID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get permission group ids")
+	}
+	return ids, nil
+}
+
+// SetPermissionGroupIDs はスタッフの権限グループを全置換する
+func (s *staffService) SetPermissionGroupIDs(ctx context.Context, staffID uint64, groupIDs []uint64) error {
+	if err := s.permissionGroupRepo.SetStaffGroups(ctx, staffID, groupIDs); err != nil {
+		return apperrors.Wrap(err, "failed to set permission group ids")
+	}
+	return nil
+}
+
+// GetExcludedServiceTypeIDs はスタッフの除外サービス種別IDリストを返す
+func (s *staffService) GetExcludedServiceTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
+	items, err := s.resStaffRepo.FindExcludedServiceTypes(ctx, staffID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get excluded service type ids")
+	}
+	ids := make([]uint64, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ServiceTypeID)
+	}
+	return ids, nil
+}
+
+// SetExcludedServiceTypeIDs はスタッフの除外サービス種別を全置換する
+func (s *staffService) SetExcludedServiceTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error {
+	if err := s.resStaffRepo.ReplaceExcludedServiceTypes(ctx, staffID, typeIDs); err != nil {
+		return apperrors.Wrap(err, "failed to set excluded service type ids")
 	}
 	return nil
 }

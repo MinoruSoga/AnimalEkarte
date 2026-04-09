@@ -26,7 +26,7 @@ type MedicalRecord struct {
 	Version                  int                 `gorm:"default:1"                                       json:"version"`
 	CreatedAt                time.Time           `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt                time.Time           `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt                gorm.DeletedAt      `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt                gorm.DeletedAt      `                                                      json:"-"`
 	VisitCount               int64               `gorm:"-"                                              json:"visit_count"`
 
 	// Relations

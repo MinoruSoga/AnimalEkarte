@@ -37,6 +37,13 @@ const ReservationDetailModal = lazy(() =>
   })),
 );
 
+// rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+const CALENDAR_VIEW_SELECT_ITEMS = CALENDAR_VIEW_VALUES.map((v) => (
+  <SelectItem key={v} value={v}>
+    {getCalendarViewLabel(v)}
+  </SelectItem>
+));
+
 /** Navigation step per calendar view */
 const VIEW_NAV_PREV: Record<CalendarView, (d: Date) => Date> = {
   month: (d) => subMonths(d, 1),
@@ -231,11 +238,7 @@ export function ReservationManagement() {
                 <SelectValue placeholder="表示切替" />
               </SelectTrigger>
               <SelectContent>
-                {CALENDAR_VIEW_VALUES.map((v) => (
-                  <SelectItem key={v} value={v}>
-                    {getCalendarViewLabel(v)}
-                  </SelectItem>
-                ))}
+                {CALENDAR_VIEW_SELECT_ITEMS}
               </SelectContent>
             </Select>
           </div>

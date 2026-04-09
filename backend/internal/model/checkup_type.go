@@ -19,7 +19,7 @@ type CheckupType struct {
 	SortOrder   int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt   time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt   gorm.DeletedAt `                                                      json:"-"`
 }
 
 func (CheckupType) TableName() string { return "checkup_types" }

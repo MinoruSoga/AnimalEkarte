@@ -38,7 +38,7 @@ type Hospitalization struct {
 	StaffNotes          string                `gorm:"default:''"                                     json:"staff_notes"`
 	CreatedAt           time.Time             `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt           time.Time             `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt           gorm.DeletedAt        `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt           gorm.DeletedAt        `                                                      json:"-"`
 
 	// Relations
 	Owner          *Owner          `gorm:"foreignKey:OwnerID"           json:"owner,omitempty"`
@@ -117,7 +117,7 @@ type TreatmentPlan struct {
 	DiscountAmount    int64          `gorm:"default:0"                                      json:"discount_amount"`
 	Subtotal          int64          `gorm:"default:0"                                      json:"subtotal"`
 	SortOrder         int            `gorm:"type:integer;default:0"                         json:"sort_order"`
-	DeletedAt         gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt         gorm.DeletedAt `                                                      json:"-"`
 	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

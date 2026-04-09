@@ -109,7 +109,7 @@ func (r *insuranceRepository) Reorder(ctx context.Context, clinicID uint64, ids 
 		return nil
 	})
 	if err != nil {
-		return apperrors.Wrap(err, "reorder insurance")
+		return err
 	}
 	return nil
 }

@@ -53,10 +53,11 @@ type UpdateReservationCourseInput struct {
 type reservationCourseService struct {
 	repo         repository.ReservationCourseRepository
 	resAdminRepo repository.ReservationAdminRepository
+	resRepo      repository.ReservationRepository
 }
 
-func NewReservationCourseService(repo repository.ReservationCourseRepository, resAdminRepo repository.ReservationAdminRepository) ReservationCourseService {
-	return &reservationCourseService{repo: repo, resAdminRepo: resAdminRepo}
+func NewReservationCourseService(repo repository.ReservationCourseRepository, resAdminRepo repository.ReservationAdminRepository, resRepo repository.ReservationRepository) ReservationCourseService {
+	return &reservationCourseService{repo: repo, resAdminRepo: resAdminRepo, resRepo: resRepo}
 }
 
 func (s *reservationCourseService) List(ctx context.Context, clinicID uint64) ([]model.ServiceType, error) {
@@ -124,13 +125,26 @@ func (s *reservationCourseService) Update(ctx context.Context, clinicID, id uint
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get reservation course after update")
 	}
+	slog.InfoContext(ctx, "reservation course updated",
+		slog.Uint64("service_type_id", id),
+		slog.Uint64("clinic_id", clinicID))
 	return updated, nil
 }
 
 func (s *reservationCourseService) Delete(ctx context.Context, clinicID, id uint64) error {
+	exists, err := s.resRepo.ExistsByServiceTypeID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check reservation dependency")
+	}
+	if exists {
+		return apperrors.WrapConflict("この予約コースは予約データで使用中のため削除できません")
+	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation course")
 	}
+	slog.InfoContext(ctx, "reservation course deleted",
+		slog.Uint64("service_type_id", id),
+		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 

@@ -140,7 +140,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	if !ok {
 		return
 	}
-	myGroupIDs, groupErr := h.repos.PermissionGroup.GetGroupIDsByStaffID(c.Request.Context(), staffID)
+	myGroupIDs, groupErr := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), staffID)
 	if groupErr == nil {
 		isSelfGroup := false
 		for _, gid := range myGroupIDs {

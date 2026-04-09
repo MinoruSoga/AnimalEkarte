@@ -67,7 +67,7 @@ type Billing struct {
 	ScheduledDate     time.Time      `gorm:"type:date;not null"                             json:"scheduled_date"`
 	CompletedAt       *time.Time     `                                                      json:"completed_at,omitempty"`
 	Memo              string         `gorm:"default:''"                                     json:"memo"`
-	DeletedAt         gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt         gorm.DeletedAt `                                                      json:"-"`
 	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -100,7 +100,7 @@ type BillingItem struct {
 	SortOrder             int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt             time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt             time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt             gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt             gorm.DeletedAt `                                                      json:"-"`
 }
 
 func (BillingItem) TableName() string { return "billing_items" }
@@ -121,7 +121,7 @@ type Payment struct {
 	Method          PaymentMethod  `gorm:"type:payment_method;default:'cash'"             json:"method"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt       gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt       gorm.DeletedAt `                                                      json:"-"`
 }
 
 func (Payment) TableName() string { return "payments" }

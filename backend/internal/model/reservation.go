@@ -46,7 +46,7 @@ type ReservationAppointment struct {
 	IsDesignated  bool              `gorm:"default:false"                                  json:"is_designated"`
 	Status        ReservationStatus `gorm:"type:reservation_status;default:'pending'"      json:"status"`
 	Notes         string            `gorm:"default:''"                                     json:"notes"`
-	DeletedAt     gorm.DeletedAt    `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt     gorm.DeletedAt    `                                                      json:"-"`
 	CreatedAt     time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

@@ -187,8 +187,70 @@ func (m *mockAssignmentForStaff) DeleteByStaffID(ctx context.Context, staffID ui
 	return nil
 }
 
+// mockPermissionGroupForStaff は Staff テストで使用する PermissionGroupRepository のスタブ
+type mockPermissionGroupForStaff struct{}
+
+func (m *mockPermissionGroupForStaff) FindAll(_ context.Context, _ uint64) ([]model.PermissionGroup, error) {
+	return nil, nil
+}
+func (m *mockPermissionGroupForStaff) FindByID(_ context.Context, _ uint64) (*model.PermissionGroup, error) {
+	return nil, nil
+}
+func (m *mockPermissionGroupForStaff) Create(_ context.Context, _ *model.PermissionGroup) error {
+	return nil
+}
+func (m *mockPermissionGroupForStaff) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+	return nil
+}
+func (m *mockPermissionGroupForStaff) Delete(_ context.Context, _ uint64) error { return nil }
+func (m *mockPermissionGroupForStaff) SetRules(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+	return nil
+}
+func (m *mockPermissionGroupForStaff) CountStaffsByGroupID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+func (m *mockPermissionGroupForStaff) Reorder(_ context.Context, _ uint64, _ []uint64) error {
+	return nil
+}
+func (m *mockPermissionGroupForStaff) GetEffectivePermissionsByStaffID(_ context.Context, _ uint64) ([]model.PermissionGroupRule, error) {
+	return nil, nil
+}
+func (m *mockPermissionGroupForStaff) GetGroupIDsByStaffID(_ context.Context, _ uint64) ([]uint64, error) {
+	return nil, nil
+}
+func (m *mockPermissionGroupForStaff) SetStaffGroups(_ context.Context, _ uint64, _ []uint64) error {
+	return nil
+}
+
+// mockResStaffForStaff は Staff テストで使用する ReservationStaffRepository のスタブ
+type mockResStaffForStaff struct{}
+
+func (m *mockResStaffForStaff) FindAllByClinicID(_ context.Context, _ uint64) ([]model.Staff, error) {
+	return nil, nil
+}
+func (m *mockResStaffForStaff) FindByID(_ context.Context, _ uint64) (*model.Staff, error) {
+	return nil, nil
+}
+func (m *mockResStaffForStaff) Create(_ context.Context, _ *model.Staff, _ uint64) error { return nil }
+func (m *mockResStaffForStaff) Update(_ context.Context, _ uint64, _ map[string]any) error {
+	return nil
+}
+func (m *mockResStaffForStaff) SoftDelete(_ context.Context, _ uint64) error { return nil }
+func (m *mockResStaffForStaff) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
+	return nil
+}
+func (m *mockResStaffForStaff) FindExcludedServiceTypes(_ context.Context, _ uint64) ([]model.StaffExcludedServiceType, error) {
+	return nil, nil
+}
+func (m *mockResStaffForStaff) FindExcludedServiceTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffExcludedServiceType, error) {
+	return nil, nil
+}
+func (m *mockResStaffForStaff) ReplaceExcludedServiceTypes(_ context.Context, _ uint64, _ []uint64) error {
+	return nil
+}
+
 func newTestStaffService(repo *mockStaffRepository) StaffService {
-	return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{})
+	return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{})
 }
 
 func TestStaffService_List(t *testing.T) {
@@ -635,7 +697,7 @@ func TestStaffService_Delete(t *testing.T) {
 					return tt.shiftExists, tt.checkShiftErr
 				},
 			}
-			svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, reservationRepo, shiftRepo)
+			svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, reservationRepo, shiftRepo, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 

@@ -23,7 +23,7 @@ type Staff struct {
 	OccupationID  *uint64        `                                                      json:"occupation_id,omitempty"`
 	LicenseNumber string         `gorm:"default:''"                                     json:"license_number"`
 	SortOrder     int            `gorm:"type:integer;default:0"                         json:"sort_order"`
-	DeletedAt     gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt     gorm.DeletedAt `                                                      json:"-"`
 	CreatedAt     time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

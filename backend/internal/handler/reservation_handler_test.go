@@ -22,7 +22,7 @@ import (
 // ---- mock ReservationService ----
 
 type mockReservationService struct {
-	listFn    func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
+	listFn    func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
 	createFn  func(ctx context.Context, r *model.ReservationAppointment) error
 	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.ReservationAppointment, error)
@@ -30,7 +30,7 @@ type mockReservationService struct {
 }
 
 func (m *mockReservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
-	return m.listFn(ctx, clinicID, page, limit, date, status, petID, ownerID)
+	return m.listFn(ctx, clinicID, page, limit, date, status, source, petID, ownerID)
 }
 
 func (m *mockReservationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error) {
@@ -96,7 +96,7 @@ func TestListReservations(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				listFn: func(_ context.Context, _ uint64, _, _ int, date *time.Time, status *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
+				listFn: func(_ context.Context, _ uint64, _, _ int, date *time.Time, status, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
 					assert.Nil(t, date)
 					assert.Nil(t, status)
 					return []model.ReservationAppointment{{ID: 1, Notes: "初診"}}, 1, nil
@@ -110,7 +110,7 @@ func TestListReservations(t *testing.T) {
 			query:    "page=1&limit=10&date=2026-03-24",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				listFn: func(_ context.Context, _ uint64, _, _ int, date *time.Time, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
+				listFn: func(_ context.Context, _ uint64, _, _ int, date *time.Time, _, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
 					require.NotNil(t, date)
 					assert.Equal(t, 2026, date.Year())
 					assert.Equal(t, time.March, date.Month())
@@ -146,7 +146,7 @@ func TestListReservations(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				listFn: func(_ context.Context, _ uint64, _, _ int, _ *time.Time, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
+				listFn: func(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
 					return nil, 0, fmt.Errorf("db error")
 				},
 			},
