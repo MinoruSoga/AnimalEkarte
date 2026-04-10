@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,9 +16,8 @@ func (h *Handler) ListReservationSchedules(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staffID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid staffId"))
+	staffID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	month := c.Query("month")
@@ -44,9 +42,8 @@ func (h *Handler) UpsertReservationSchedule(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staffID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid staffId"))
+	staffID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	dateStr := c.Param("date")
@@ -86,9 +83,8 @@ func (h *Handler) DeleteReservationSchedule(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staffID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid staffId"))
+	staffID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	dateStr := c.Param("date")
