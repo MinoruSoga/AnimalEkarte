@@ -306,6 +306,17 @@ export function Reception() {
         [filteredColumns, addClickHandlers, handleCardClick]
     );
 
+    // js-set-map-lookups: レンダーパスの O(n²) find+some を O(1) Map ルックアップへ変換
+    const appointmentColumnTitleMap = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const col of filteredColumns) {
+            for (const apt of col.appointments) {
+                map.set(apt.id, col.title);
+            }
+        }
+        return map;
+    }, [filteredColumns]);
+
     return (
         <div className={`flex-1 flex flex-col h-full ${C.bgPage}`}>
             <FormHeader
@@ -407,7 +418,7 @@ export function Reception() {
                     onEdit={canEditReservation ? handleEditAppointment : undefined}
                     onCancel={canDeleteReservation ? handleCancelAppointment : undefined}
                     appointment={selectedAppointment}
-                    currentStatus={selectedAppointment ? filteredColumns.find(c => c.appointments.some(a => a.id === selectedAppointment.id))?.title : undefined}
+                    currentStatus={selectedAppointment ? appointmentColumnTitleMap.get(selectedAppointment.id) : undefined}
                     canCreateMedicalRecord={canCreateMedicalRecord}
                     canCreateAccounting={canCreateAccounting}
                     canCreateHospitalization={canCreateHospitalization}
