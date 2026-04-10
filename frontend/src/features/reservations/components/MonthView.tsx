@@ -13,7 +13,7 @@ import { getReservationTypeColor } from "@/utils/status-helpers";
 // Types
 import type { ReservationAppointment } from "@/types";
 
-interface ServiceTypeColor {
+interface ReservationCategoryColor {
   style: React.CSSProperties;
   dotStyle: React.CSSProperties;
   hex: string;
@@ -25,7 +25,7 @@ interface MonthViewProps {
   onAppointmentClick: (appointment: ReservationAppointment) => void;
   /** BUG-076: 日付セルクリックで週表示に遷移するコールバック */
   onDateClick?: (date: Date) => void;
-  dynamicColorMap?: Map<string, ServiceTypeColor>;
+  dynamicColorMap?: Map<string, ReservationCategoryColor>;
 }
 
 const DAYS_OF_WEEK = ["日", "月", "火", "水", "木", "金", "土"] as const;

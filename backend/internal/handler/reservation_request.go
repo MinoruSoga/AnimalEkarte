@@ -9,7 +9,7 @@ type createReservationRequest struct {
 	OwnerID       *uint64   `json:"owner_id"`
 	PetID         *uint64   `json:"pet_id"`
 	VisitType     string    `json:"visit_type"`
-	ServiceTypeID uint64    `json:"service_type_id" binding:"required"`
+	ReservationCategoryID uint64    `json:"reservation_category_id" binding:"required"`
 	DoctorID      *uint64   `json:"doctor_id"`
 	IsDesignated  bool      `json:"is_designated"`
 	Status        string    `json:"status"`
@@ -24,7 +24,7 @@ type updateReservationRequest struct {
 	OwnerID       *uint64    `json:"owner_id"`
 	PetID         *uint64    `json:"pet_id"`
 	VisitType     *string    `json:"visit_type"`
-	ServiceTypeID *uint64    `json:"service_type_id"`
+	ReservationCategoryID *uint64    `json:"reservation_category_id"`
 	DoctorID      *uint64    `json:"doctor_id"`
 	IsDesignated  *bool      `json:"is_designated"`
 	Status        *string    `json:"status"`

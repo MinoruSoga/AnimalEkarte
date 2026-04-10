@@ -44,7 +44,9 @@ export function useReservationManagement() {
   const { data: appointments = EMPTY_APPOINTMENTS, isLoading } = useGetReservations();
   const createMutation = useCreateReservation();
   const updateMutation = useUpdateReservation();
+  const { mutate: updateReservationFn } = updateMutation;
   const deleteMutation = useDeleteReservation();
+  const { mutate: deleteReservationFn } = deleteMutation;
 
   // useTransition for update and delete mutations
   const [, startUpdateTransition] = useTransition();
@@ -171,7 +173,7 @@ export function useReservationManagement() {
             start_time: data.start.toISOString(),
             end_time: data.end.toISOString(),
             visit_type: data.visitType || "first",
-            service_type_id: data.type ? Number(data.type) : undefined,
+            reservation_category_id: data.type ? Number(data.type) : undefined,
             doctor_id: targetDoctor ? Number(targetDoctor) : undefined,
             is_designated: data.isDesignated ?? false,
             status: data.status || ("confirmed" as const),
@@ -179,7 +181,7 @@ export function useReservationManagement() {
           },
         };
         startUpdateTransition(() => {
-          updateMutation.mutate(updatePayload, {
+          updateReservationFn(updatePayload, {
             onSuccess: () => {
               toast.success("予約を更新しました", { description: `担当医: ${targetDoctor}` });
               handleCloseForm();
@@ -210,7 +212,7 @@ export function useReservationManagement() {
         }
       }
     },
-    [checkOverlap, handleCloseForm, locationFrom, navigate, updateMutation, createMutation]
+    [checkOverlap, handleCloseForm, locationFrom, navigate, updateReservationFn, createMutation]
     // editingAppointment をオブジェクト参照ではなくrefで参照するため依存から除外
   );
 
@@ -239,7 +241,7 @@ export function useReservationManagement() {
       };
 
       startUpdateTransition(() => {
-        updateMutation.mutate(updatePayload, {
+        updateReservationFn(updatePayload, {
           onSuccess: () => {
             toast.success("予約時間を変更しました", {
               description: `${appointment.petName} / ${appointment.doctor}`,
@@ -248,7 +250,7 @@ export function useReservationManagement() {
         });
       });
     },
-    [checkOverlap, updateMutation]
+    [checkOverlap, updateReservationFn]
   );
 
   // Status Change Handler

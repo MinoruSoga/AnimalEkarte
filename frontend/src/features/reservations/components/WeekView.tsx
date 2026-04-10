@@ -39,7 +39,7 @@ const STATUS_DOT_STYLE: Partial<Record<ReservationStatus, { color: string; label
   cancelled:       { color: C.bgNotionRed, label: "キャンセル" },
 };
 
-interface ServiceTypeColor {
+interface ReservationCategoryColor {
   style: React.CSSProperties;
   dotStyle: React.CSSProperties;
   hex: string;
@@ -51,8 +51,8 @@ interface WeekViewProps {
   onAppointmentClick: (appointment: ReservationAppointment) => void;
   onTimeSlotClick?: (date: Date) => void;
   onAppointmentUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  /** Dynamic color map from serviceType master (name → ServiceTypeColor) */
-  dynamicColorMap?: Map<string, ServiceTypeColor>;
+  /** Dynamic color map from reservationCategory master (name → ReservationCategoryColor) */
+  dynamicColorMap?: Map<string, ReservationCategoryColor>;
 }
 
 // Helper: Calculate event layout (overlapping)
@@ -150,7 +150,7 @@ const AppointmentCard = memo(function AppointmentCard({
   layoutStyle: { left: string; width: string };
   onClick: (appointment: ReservationAppointment) => void;
   onUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  dynamicColorMap?: Map<string, ServiceTypeColor>;
+  dynamicColorMap?: Map<string, ReservationCategoryColor>;
 }) {
   const startHour = appointment.start.getHours();
   const startMin = appointment.start.getMinutes();
@@ -355,7 +355,7 @@ const DayColumn = memo(function DayColumn({
   onAppointmentClick: (appointment: ReservationAppointment) => void;
   onTimeSlotClick?: (date: Date) => void;
   onAppointmentUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  dynamicColorMap?: Map<string, ServiceTypeColor>;
+  dynamicColorMap?: Map<string, ReservationCategoryColor>;
 }) {
   const layoutStyles = useMemo(
     () => calculateEventLayout(appointments),
@@ -518,15 +518,21 @@ export const WeekView = memo(function WeekView({
             >
               {format(day, "E", { locale: ja })}
             </div>
-            <div
-              className={`text-lg font-bold ${
-                isToday ? C.accent : C.text
-              }`}
-            >
-              {format(day, "d")}
-            </div>
-            <div className={`text-xs mt-0.5 ${count > 0 ? C.accent : C.text40}`}>
-              {count}件
+            <div className="flex items-center justify-center">
+              <div
+                className={`relative text-lg font-bold ${
+                  isToday ? C.accent : C.text
+                }`}
+              >
+                {format(day, "d")}
+                {count > 0 ? (
+                  <span
+                    className={`absolute -right-7 bottom-0 text-xs whitespace-nowrap ${C.accent}`}
+                  >
+                    {count}件
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
         );

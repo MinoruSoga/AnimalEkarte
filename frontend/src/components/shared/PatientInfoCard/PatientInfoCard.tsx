@@ -13,9 +13,9 @@ interface PatientInfoCardProps {
   status?: "alive" | "deceased";
   staffName?: string;
   staffLabel?: string;
-  serviceType?: string;
+  reservationCategory?: string;
   /** 診療種別ラベル（デフォルト: "診療種別"） */
-  serviceTypeLabel?: string;
+  reservationCategoryLabel?: string;
   className?: string;
   sticky?: boolean;
   hideStaff?: boolean;
@@ -28,7 +28,7 @@ interface PatientInfoCardProps {
   onStaffClick?: () => void;
   onVitalClick?: () => void;
   onOwnerClick?: () => void;
-  onServiceTypeClick?: () => void;
+  onReservationCategoryClick?: () => void;
   staffButtonId?: string;
 }
 
@@ -40,8 +40,8 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   status = "alive",
   staffName = "医師A",
   staffLabel = "",
-  serviceType = "診療",
-  serviceTypeLabel = "診療種別",
+  reservationCategory = "診療",
+  reservationCategoryLabel = "診療種別",
   petDetails = "9才5ヶ月 / メス / 避妊済",
   insuranceName = "ペット保険Aプラン",
   insuranceDetails = "普通or危険",
@@ -53,7 +53,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   onStaffClick,
   onVitalClick,
   onOwnerClick,
-  onServiceTypeClick,
+  onReservationCategoryClick,
   staffButtonId,
 }: PatientInfoCardProps) {
   const isDeceased = status === "deceased";
@@ -119,17 +119,17 @@ export const PatientInfoCard = memo(function PatientInfoCard({
         <div className="flex items-center gap-3 flex-1 overflow-x-auto no-scrollbar">
           {/* Service Type */}
           <div className="flex flex-col gap-0 min-w-[60px]">
-            <span className={`text-sm ${C.text60}`}>{serviceTypeLabel}</span>
-            {onServiceTypeClick ? (
+            <span className={`text-sm ${C.text60}`}>{reservationCategoryLabel}</span>
+            {onReservationCategoryClick ? (
               <div
                 className={`flex items-center gap-1 cursor-pointer ${C.hoverBgPage} rounded px-1 -ml-1 transition-colors`}
-                onClick={onServiceTypeClick}
+                onClick={onReservationCategoryClick}
               >
-                <span className={`text-sm font-medium ${C.text}`}>{serviceType}</span>
+                <span className={`text-sm font-medium ${C.text}`}>{reservationCategory}</span>
                 <ChevronDown className={`${ICON.xs} ${C.text40}`} />
               </div>
             ) : (
-              <span className={`text-sm font-medium ${C.text} px-1 -ml-1`}>{serviceType}</span>
+              <span className={`text-sm font-medium ${C.text} px-1 -ml-1`}>{reservationCategory}</span>
             )}
           </div>
 

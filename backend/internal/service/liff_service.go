@@ -16,7 +16,7 @@ import (
 type LiffService interface {
 	GetSettings(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error)
 	GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.ReservationCustomer, error)
-	GetCourses(ctx context.Context, clinicID uint64) ([]model.ServiceType, error)
+	GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error)
 	GetStaffs(ctx context.Context, clinicID, courseID uint64) ([]model.Staff, error)
 	GetAvailableDates(ctx context.Context, clinicID, courseID, staffID uint64) ([]AvailableDateResult, BookingWindow, error)
 	GetAvailableTimes(ctx context.Context, clinicID, courseID, staffID uint64, date time.Time) ([]TimeSlot, error)
@@ -81,12 +81,12 @@ func (s *liffService) GetProfile(ctx context.Context, clinicID, customerID uint6
 }
 
 // GetCourses はLIFF向け公開コース一覧を返す（is_internal=false && reservation_visible=true）。
-func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.ServiceType, error) {
+func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error) {
 	all, err := s.courseRepo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get courses")
 	}
-	result := make([]model.ServiceType, 0, len(all))
+	result := make([]model.ReservationCategory, 0, len(all))
 	for _, c := range all {
 		if !c.IsInternal && c.ReservationVisible {
 			result = append(result, c)
@@ -106,7 +106,7 @@ func (s *liffService) GetStaffs(ctx context.Context, clinicID, courseID uint64) 
 		if !st.ReservationVisible {
 			continue
 		}
-		excluded, err := s.staffRepo.FindExcludedServiceTypes(ctx, st.ID)
+		excluded, err := s.staffRepo.FindExcludedReservationCategories(ctx, st.ID)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to get excluded service types")
 		}
@@ -222,7 +222,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 	if input.StaffID == 0 {
 		date, err := toDateTime(input.Date, input.StartTime)
 		if err == nil {
-			assignedID, err := s.delegateStaff(ctx, clinicID, input.ServiceTypeID, setting.NoStaffMode, date, input.StartTime, input.EndTime)
+			assignedID, err := s.delegateStaff(ctx, clinicID, input.ReservationCategoryID, setting.NoStaffMode, date, input.StartTime, input.EndTime)
 			if err == nil && assignedID != 0 {
 				input.StaffID = assignedID
 			}
@@ -316,7 +316,7 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, courseI
 		if !st.ReservationVisible {
 			continue
 		}
-		excluded, err := s.staffRepo.FindExcludedServiceTypes(ctx, st.ID)
+		excluded, err := s.staffRepo.FindExcludedReservationCategories(ctx, st.ID)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to get excluded service types")
 		}
@@ -445,9 +445,9 @@ func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.Rese
 }
 
 // isExcluded は指定コースIDがスタッフの除外リストに含まれるか確認する。
-func isExcluded(excluded []model.StaffExcludedServiceType, courseID uint64) bool {
+func isExcluded(excluded []model.StaffExcludedReservationCategory, courseID uint64) bool {
 	for _, ex := range excluded {
-		if ex.ServiceTypeID == courseID {
+		if ex.ReservationCategoryID == courseID {
 			return true
 		}
 	}

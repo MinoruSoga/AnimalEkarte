@@ -184,7 +184,7 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 	}
 
 	input := &service.CreateReservationInput{
-		ServiceTypeID:  req.CourseID,
+		ReservationCategoryID:  req.CourseID,
 		StaffID:        req.StaffID,
 		Date:           date,
 		StartTime:      req.StartTime,

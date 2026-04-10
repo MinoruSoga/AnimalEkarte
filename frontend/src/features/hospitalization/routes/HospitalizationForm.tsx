@@ -195,7 +195,7 @@ export function HospitalizationForm() {
               petNumber={selectedPet.petNumber || selectedPet.id}
               weight={selectedPet.weight || "-"}
               staffName={user?.displayName ?? ""}
-              serviceType={formData.hospitalizationType}
+              reservationCategory={formData.hospitalizationType}
               petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
               insuranceName={selectedPet.insuranceName || "保険情報未登録"}
               insuranceDetails={selectedPet.insuranceDetails || "-"}

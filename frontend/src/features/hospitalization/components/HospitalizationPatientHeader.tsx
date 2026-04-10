@@ -18,7 +18,7 @@ export function HospitalizationPatientHeader({ hospitalization, currentWeight }:
             petNumber={hospitalization.hospitalizationNo}
             weight={currentWeight || "-"}
             staffName={hospitalization.doctorName ?? "担当医未設定"}
-            serviceType={hospitalization.hospitalizationType}
+            reservationCategory={hospitalization.hospitalizationType}
             petDetails={hospitalization.species}
             insuranceName="-"
             insuranceDetails="-"

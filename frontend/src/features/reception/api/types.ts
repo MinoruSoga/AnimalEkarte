@@ -12,7 +12,7 @@ export interface ReceptionAppointment {
   petType: string;
   petName: string;
   visitType: "初診" | "再診";
-  serviceType: string;
+  reservationCategory: string;
   nextAppointment?: "次回予約無" | "次回予約済" | "精算未確認" | "精算確認済";
   isDesignated: boolean;
   doctor?: string;

@@ -224,9 +224,9 @@ export const paths = {
       path: "/settings/medicine",
       getHref: () => "/settings/medicine",
     },
-    serviceType: {
-      path: "/settings/service-type",
-      getHref: () => "/settings/service-type",
+    reservationCategory: {
+      path: "/settings/reservation-category",
+      getHref: () => "/settings/reservation-category",
     },
     hospitalization: {
       path: "/settings/hospitalization",

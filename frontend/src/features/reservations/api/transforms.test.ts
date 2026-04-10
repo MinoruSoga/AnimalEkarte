@@ -103,10 +103,10 @@ describe("transformReservation", () => {
     expect(result.petName).toBe("ポチ");
   });
 
-  it("service_type.name を type にマップする", () => {
+  it("reservation_category.name を type にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,
-      service_type: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["service_type"],
+      reservation_category: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["reservation_category"],
     });
     expect(result.type).toBe("診療");
   });
@@ -176,9 +176,9 @@ describe("transformToCreateRequest", () => {
     expect(result.visit_type).toBe("first");
   });
 
-  it("type を service_type_id (number) に変換する", () => {
+  it("type を reservation_category_id (number) に変換する", () => {
     const result = transformToCreateRequest({ ...baseData, type: "3" }, "1", "1");
-    expect(result.service_type_id).toBe(3);
+    expect(result.reservation_category_id).toBe(3);
   });
 
   it("notes を正しく渡す", () => {

@@ -48,7 +48,7 @@ type liffCourseResponse struct {
 	SortOrder           int    `json:"sort_order"`
 }
 
-func toLiffCourseResponse(st model.ServiceType) liffCourseResponse {
+func toLiffCourseResponse(st model.ReservationCategory) liffCourseResponse {
 	// 名前のフォールバックチェーン:
 	// 1. ReservationDisplayName（LINE表示名）
 	// 2. ShortName（ShowShortName が true の場合）
@@ -139,13 +139,13 @@ func toLiffReservationResponse(r model.ReservationAppointment) liffReservationRe
 		Notes:     r.Notes,
 		CreatedAt: r.CreatedAt,
 	}
-	if r.ServiceType != nil {
-		res.CourseName = r.ServiceType.ReservationDisplayName
+	if r.ReservationCategory != nil {
+		res.CourseName = r.ReservationCategory.ReservationDisplayName
 		if res.CourseName == "" {
-			if r.ServiceType.ShowShortName && r.ServiceType.ShortName != "" {
-				res.CourseName = r.ServiceType.ShortName
+			if r.ReservationCategory.ShowShortName && r.ReservationCategory.ShortName != "" {
+				res.CourseName = r.ReservationCategory.ShortName
 			} else {
-				res.CourseName = r.ServiceType.Name
+				res.CourseName = r.ReservationCategory.Name
 			}
 		}
 	}

@@ -34,7 +34,7 @@ export const PALETTE = {
 
   /** Tailwind gray-500 — default color for permission group color pickers */
   pickerDefaultGray: "#6B7280",
-  /** Tailwind blue-500 — default color for service type color pickers */
+  /** Tailwind blue-500 — default color for reservation category color pickers */
   pickerDefaultBlue: "#3B82F6",
 
   /* ── Brand (hospital main color) ── */
@@ -181,7 +181,7 @@ export const PALETTE = {
   /* ── Master settings default colors (DB-configurable) ── */
   /** Default gray for badge when no color set */
   defaultGray: "#6B7280",
-  /** Default blue for service type when no color set */
+  /** Default blue for reservation category when no color set */
   defaultBlue: "#3B82F6",
   /** Light border for unselected items (Tailwind gray-200) */
   borderUnselected: "#e5e7eb",

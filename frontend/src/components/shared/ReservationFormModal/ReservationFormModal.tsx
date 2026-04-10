@@ -142,7 +142,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       errors.date = "日付を選択してください";
     }
     if (!formData.type) {
-      errors.type = "診療サービスを選択してください";
+      errors.type = "予約区分を選択してください";
     }
     // BUG-034: end_time > start_time バリデーション
     if (formData.start && formData.end && formData.end <= formData.start) {

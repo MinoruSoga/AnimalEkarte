@@ -598,7 +598,7 @@ components:
           type: string
     ReservationAppointment:
       type: object
-      required: [start_time, end_time, service_type_id]
+      required: [start_time, end_time, reservation_category_id]
       properties:
         id:
           type: integer
@@ -627,7 +627,7 @@ components:
         visit_type:
           type: string
           enum: [first, revisit]
-        service_type_id:
+        reservation_category_id:
           type: integer
           format: int64
         doctor_id:
@@ -659,7 +659,7 @@ components:
           $ref: '#/components/schemas/PetSummary'
           description: ペット情報（owner含む、Preload時のみ含まれる）
           nullable: true
-        service_type:
+        reservation_category:
           $ref: '#/components/schemas/ServiceTypeSummary'
           description: サービス種別情報（Preload時のみ含まれる）
           nullable: true
@@ -6468,7 +6468,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/service-types:
+  /masters/reservation-categories:
     get:
       operationId: listServiceTypes
       summary: サービス種別一覧
@@ -6507,7 +6507,7 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/service-types/550e8400-e29b-41d4-a716-446655440000
+                example: /masters/reservation-categories/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -6522,7 +6522,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/service-types/reorder:
+  /masters/reservation-categories/reorder:
     patch:
       operationId: reorderServiceTypes
       summary: 予約区分マスタ一括並び替え
@@ -6558,7 +6558,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/service-types/{id}:
+  /masters/reservation-categories/{id}:
     patch:
       operationId: updateServiceType
       summary: サービス種別更新

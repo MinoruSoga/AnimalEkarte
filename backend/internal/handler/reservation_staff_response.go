@@ -25,16 +25,16 @@ type excludedCourseResponse struct {
 	Name string `json:"name"`
 }
 
-func toReservationStaffResponse(staff *model.Staff, excluded []model.StaffExcludedServiceType) reservationStaffResponse {
+func toReservationStaffResponse(staff *model.Staff, excluded []model.StaffExcludedReservationCategory) reservationStaffResponse {
 	courses := make([]excludedCourseResponse, 0, len(excluded))
 	for _, e := range excluded {
-		if e.ServiceType != nil {
+		if e.ReservationCategory != nil {
 			courses = append(courses, excludedCourseResponse{
-				ID:   e.ServiceTypeID,
-				Name: e.ServiceType.Name,
+				ID:   e.ReservationCategoryID,
+				Name: e.ReservationCategory.Name,
 			})
 		} else {
-			courses = append(courses, excludedCourseResponse{ID: e.ServiceTypeID})
+			courses = append(courses, excludedCourseResponse{ID: e.ReservationCategoryID})
 		}
 	}
 	return reservationStaffResponse{

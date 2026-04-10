@@ -47,7 +47,7 @@ func allModels() []any {
 		&model.StaffClinicAssignment{},
 		&model.ShiftEntry{},
 		&model.AnimalSpecies{},
-		&model.ServiceType{},
+		&model.ReservationCategory{},
 		&model.Occupation{},
 		&model.Insurance{},
 		&model.ChiefComplaintCategory{},
@@ -96,7 +96,7 @@ func allModels() []any {
 		// LINE予約システム
 		&model.ReservationSetting{},
 		&model.ReservationCustomer{},
-		&model.StaffExcludedServiceType{},
+		&model.StaffExcludedReservationCategory{},
 		&model.ShiftEntryBreak{},
 	}
 }

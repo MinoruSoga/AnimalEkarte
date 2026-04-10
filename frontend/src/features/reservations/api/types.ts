@@ -18,7 +18,7 @@ export interface CreateReservationRequest {
   start_time: string;
   end_time: string;
   visit_type: string;
-  service_type_id: number;
+  reservation_category_id: number;
   is_designated?: boolean;
   notes?: string;
   source?: "manual" | "line";
@@ -32,7 +32,7 @@ export interface UpdateReservationRequest {
   start_time?: string;
   end_time?: string;
   visit_type?: string;
-  service_type_id?: number;
+  reservation_category_id?: number;
   doctor_id?: number;
   is_designated?: boolean;
   status?: string;

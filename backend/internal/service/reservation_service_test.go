@@ -42,7 +42,7 @@ func (m *mockReservationRepository) Delete(ctx context.Context, clinicID, id uin
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockReservationRepository) ExistsByServiceTypeID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockReservationRepository) ExistsByReservationCategoryID(_ context.Context, _ uint64) (bool, error) {
 	return false, nil
 }
 
@@ -321,7 +321,7 @@ func TestReservationService_Create(t *testing.T) {
 				ClinicID:      1,
 				StartTime:     now,
 				EndTime:       now,
-				ServiceTypeID: 1,
+				ReservationCategoryID: 1,
 			},
 			wantErr:          true,
 			wantInvalidInput: true,
@@ -333,7 +333,7 @@ func TestReservationService_Create(t *testing.T) {
 				ClinicID:      1,
 				StartTime:     now,
 				EndTime:       now.Add(-time.Minute),
-				ServiceTypeID: 1,
+				ReservationCategoryID: 1,
 			},
 			wantErr:          true,
 			wantInvalidInput: true,

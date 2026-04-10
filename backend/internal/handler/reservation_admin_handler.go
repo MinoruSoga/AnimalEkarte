@@ -76,7 +76,7 @@ func (h *Handler) CreateReservationAdmin(c *gin.Context) {
 		OwnerID:          req.OwnerID,
 		PetID:            req.PetID,
 		VisitType:        req.VisitType,
-		ServiceTypeID:    req.ServiceTypeID,
+		ReservationCategoryID:    req.ReservationCategoryID,
 		DoctorID:         req.DoctorID,
 		IsDesignated:     req.IsDesignated,
 		Notes:            req.Notes,

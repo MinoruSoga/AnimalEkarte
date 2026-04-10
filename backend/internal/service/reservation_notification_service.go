@@ -144,7 +144,7 @@ func (s *reservationNotificationService) NotifyCancelled(
 
 // ---- ヘルパー: LINE表示名フォールバック ----
 
-func serviceTypeDisplayName(st *model.ServiceType) string {
+func reservationCategoryDisplayName(st *model.ReservationCategory) string {
 	if st == nil {
 		return ""
 	}
@@ -174,7 +174,7 @@ func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.Res
 	sb.WriteString("ご予約を承りました。\n\n")
 	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
 	sb.WriteString(fmt.Sprintf("■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime)))
-	if name := serviceTypeDisplayName(appt.ServiceType); name != "" {
+	if name := reservationCategoryDisplayName(appt.ReservationCategory); name != "" {
 		sb.WriteString(fmt.Sprintf("■ メニュー: %s\n", name))
 	}
 	if name := staffDisplayName(appt.Doctor); name != "" {
@@ -192,7 +192,7 @@ func (s *reservationNotificationService) buildCancelledLineMessage(appt *model.R
 	sb.WriteString("以下のご予約をキャンセルしました。\n\n")
 	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
 	sb.WriteString(fmt.Sprintf("■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime)))
-	if name := serviceTypeDisplayName(appt.ServiceType); name != "" {
+	if name := reservationCategoryDisplayName(appt.ReservationCategory); name != "" {
 		sb.WriteString(fmt.Sprintf("■ メニュー: %s\n", name))
 	}
 	sb.WriteString("\n再度のご予約はLINEメニューの\n「予約する」から行えます。")
@@ -206,8 +206,8 @@ func (s *reservationNotificationService) buildCreatedEmail(
 	customer *model.ReservationCustomer,
 ) (subject, body string) {
 	courseName := ""
-	if appt.ServiceType != nil {
-		courseName = appt.ServiceType.Name
+	if appt.ReservationCategory != nil {
+		courseName = appt.ReservationCategory.Name
 	}
 	dateStr := appt.StartTime.Format("2006年01月02日 15:04")
 
@@ -260,8 +260,8 @@ func (s *reservationNotificationService) buildCancelledEmail(
 	customer *model.ReservationCustomer,
 ) (subject, body string) {
 	courseName := ""
-	if appt.ServiceType != nil {
-		courseName = appt.ServiceType.Name
+	if appt.ReservationCategory != nil {
+		courseName = appt.ReservationCategory.Name
 	}
 	dateStr := appt.StartTime.Format("2006年01月02日 15:04")
 

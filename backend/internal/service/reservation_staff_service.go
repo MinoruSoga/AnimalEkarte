@@ -18,10 +18,10 @@ type ReservationStaffService interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, error)
 	PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
-	// GetExcludedServiceTypes は指定スタッフの除外コース一覧を返す
-	GetExcludedServiceTypes(ctx context.Context, staffID uint64) ([]model.StaffExcludedServiceType, error)
+	// GetExcludedReservationCategories は指定スタッフの除外コース一覧を返す
+	GetExcludedReservationCategories(ctx context.Context, staffID uint64) ([]model.StaffExcludedReservationCategory, error)
 	// ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す（N+1回避）
-	ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffExcludedServiceType, error)
+	ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffExcludedReservationCategory, error)
 }
 
 // CreateReservationStaffInput は予約スタッフ作成の入力データ
@@ -92,7 +92,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 		return nil, apperrors.Wrap(err, "failed to create reservation staff")
 	}
 	if len(input.ExcludedCourseIDs) > 0 {
-		if err := s.repo.ReplaceExcludedServiceTypes(ctx, staff.ID, input.ExcludedCourseIDs); err != nil {
+		if err := s.repo.ReplaceExcludedReservationCategories(ctx, staff.ID, input.ExcludedCourseIDs); err != nil {
 			return nil, apperrors.Wrap(err, "failed to set excluded courses")
 		}
 	}
@@ -115,7 +115,7 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 		}
 	}
 	if input.ExcludedCourseIDs != nil {
-		if err := s.repo.ReplaceExcludedServiceTypes(ctx, id, *input.ExcludedCourseIDs); err != nil {
+		if err := s.repo.ReplaceExcludedReservationCategories(ctx, id, *input.ExcludedCourseIDs); err != nil {
 			return nil, apperrors.Wrap(err, "failed to update excluded courses")
 		}
 	}
@@ -170,9 +170,9 @@ func (s *reservationStaffService) PatchSortOrder(ctx context.Context, clinicID, 
 	return nil
 }
 
-// GetExcludedServiceTypes は指定スタッフの除外コース一覧を返す
-func (s *reservationStaffService) GetExcludedServiceTypes(ctx context.Context, staffID uint64) ([]model.StaffExcludedServiceType, error) {
-	items, err := s.repo.FindExcludedServiceTypes(ctx, staffID)
+// GetExcludedReservationCategories は指定スタッフの除外コース一覧を返す
+func (s *reservationStaffService) GetExcludedReservationCategories(ctx context.Context, staffID uint64) ([]model.StaffExcludedReservationCategory, error) {
+	items, err := s.repo.FindExcludedReservationCategories(ctx, staffID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get excluded service types")
 	}
@@ -180,12 +180,12 @@ func (s *reservationStaffService) GetExcludedServiceTypes(ctx context.Context, s
 }
 
 // ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す
-func (s *reservationStaffService) ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffExcludedServiceType, error) {
-	items, err := s.repo.FindExcludedServiceTypesByStaffIDs(ctx, staffIDs)
+func (s *reservationStaffService) ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffExcludedReservationCategory, error) {
+	items, err := s.repo.FindExcludedReservationCategoriesByStaffIDs(ctx, staffIDs)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list excluded service types")
 	}
-	m := make(map[uint64][]model.StaffExcludedServiceType, len(staffIDs))
+	m := make(map[uint64][]model.StaffExcludedReservationCategory, len(staffIDs))
 	for i := range items {
 		sid := items[i].StaffID
 		m[sid] = append(m[sid], items[i])

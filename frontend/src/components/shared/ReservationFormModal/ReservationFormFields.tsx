@@ -63,7 +63,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   validationErrors,
   onClearError: _onClearError,
 }: ReservationFormFieldsProps) {
-  const { data: serviceTypes } = useMasterItems("serviceType");
+  const { data: reservationCategories } = useMasterItems("reservationCategory");
   const { data: staffItems } = useMasterItems("staff");
   const activeStaff = staffItems.filter((s) => s.status === "active");
 
@@ -180,13 +180,13 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           <FieldLabel
             trailing={
               <MasterLink
-                category="serviceType"
+                category="reservationCategory"
                 label="編集"
                 className="text-[11px]"
               />
             }
           >
-            診療サービス
+            予約区分
           </FieldLabel>
           <Select
             value={formData.type || ""}
@@ -196,7 +196,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent>
-              {serviceTypes.map((item) => (
+              {reservationCategories.map((item) => (
                 <SelectItem key={item.id} value={String(item.id)}>
                   {item.name}
                 </SelectItem>

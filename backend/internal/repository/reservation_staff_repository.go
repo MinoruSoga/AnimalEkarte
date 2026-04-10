@@ -18,10 +18,10 @@ type ReservationStaffRepository interface {
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 	SoftDelete(ctx context.Context, id uint64) error
 	SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
-	// ExcludedServiceTypes
-	FindExcludedServiceTypes(ctx context.Context, staffID uint64) ([]model.StaffExcludedServiceType, error)
-	FindExcludedServiceTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffExcludedServiceType, error)
-	ReplaceExcludedServiceTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error
+	// ExcludedReservationCategories
+	FindExcludedReservationCategories(ctx context.Context, staffID uint64) ([]model.StaffExcludedReservationCategory, error)
+	FindExcludedReservationCategoriesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffExcludedReservationCategory, error)
+	ReplaceExcludedReservationCategories(ctx context.Context, staffID uint64, courseIDs []uint64) error
 }
 
 type reservationStaffRepository struct{ db *gorm.DB }
@@ -133,10 +133,10 @@ func (r *reservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID
 	})
 }
 
-func (r *reservationStaffRepository) FindExcludedServiceTypes(ctx context.Context, staffID uint64) ([]model.StaffExcludedServiceType, error) {
-	var items []model.StaffExcludedServiceType
+func (r *reservationStaffRepository) FindExcludedReservationCategories(ctx context.Context, staffID uint64) ([]model.StaffExcludedReservationCategory, error) {
+	var items []model.StaffExcludedReservationCategory
 	err := r.db.WithContext(ctx).
-		Preload("ServiceType").
+		Preload("ReservationCategory").
 		Where("staff_id = ?", staffID).
 		Find(&items).Error
 	if err != nil {
@@ -145,42 +145,42 @@ func (r *reservationStaffRepository) FindExcludedServiceTypes(ctx context.Contex
 	return items, nil
 }
 
-// FindExcludedServiceTypesByStaffIDs は複数スタッフの除外コースを一括取得する（N+1回避）
-func (r *reservationStaffRepository) FindExcludedServiceTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffExcludedServiceType, error) {
+// FindExcludedReservationCategoriesByStaffIDs は複数スタッフの除外コースを一括取得する（N+1回避）
+func (r *reservationStaffRepository) FindExcludedReservationCategoriesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffExcludedReservationCategory, error) {
 	if len(staffIDs) == 0 {
 		return nil, nil
 	}
-	var items []model.StaffExcludedServiceType
+	var items []model.StaffExcludedReservationCategory
 	err := r.db.WithContext(ctx).
-		Preload("ServiceType").
+		Preload("ReservationCategory").
 		Where("staff_id IN ?", staffIDs).
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "staff_excluded_service_type", "")
+		return nil, apperrors.FromGORM(err, "staff_excluded_reservation_category", "")
 	}
 	return items, nil
 }
 
-// ReplaceExcludedServiceTypes は staffID の除外コースを courseIDs で完全置換する（差分更新）
-func (r *reservationStaffRepository) ReplaceExcludedServiceTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error {
+// ReplaceExcludedReservationCategories は staffID の除外コースを courseIDs で完全置換する（差分更新）
+func (r *reservationStaffRepository) ReplaceExcludedReservationCategories(ctx context.Context, staffID uint64, courseIDs []uint64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存を全削除
-		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffExcludedServiceType{}).Error; err != nil {
-			return apperrors.FromGORM(err, "staff_excluded_service_type", fmt.Sprintf("%d", staffID))
+		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffExcludedReservationCategory{}).Error; err != nil {
+			return apperrors.FromGORM(err, "staff_excluded_reservation_category", fmt.Sprintf("%d", staffID))
 		}
 		// 新規挿入
 		if len(courseIDs) == 0 {
 			return nil
 		}
-		items := make([]model.StaffExcludedServiceType, 0, len(courseIDs))
+		items := make([]model.StaffExcludedReservationCategory, 0, len(courseIDs))
 		for _, cid := range courseIDs {
-			items = append(items, model.StaffExcludedServiceType{
+			items = append(items, model.StaffExcludedReservationCategory{
 				StaffID:       staffID,
-				ServiceTypeID: cid,
+				ReservationCategoryID: cid,
 			})
 		}
 		if err := tx.Create(&items).Error; err != nil {
-			return apperrors.FromGORM(err, "staff_excluded_service_type", "")
+			return apperrors.FromGORM(err, "staff_excluded_reservation_category", "")
 		}
 		return nil
 	})

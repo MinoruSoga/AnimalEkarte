@@ -75,7 +75,7 @@ func (m *mockReservationForStaff) UpdateFields(_ context.Context, _, _ uint64, _
 func (m *mockReservationForStaff) Delete(_ context.Context, _, _ uint64) error {
 	return nil
 }
-func (m *mockReservationForStaff) ExistsByServiceTypeID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockReservationForStaff) ExistsByReservationCategoryID(_ context.Context, _ uint64) (bool, error) {
 	return false, nil
 }
 func (m *mockReservationForStaff) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
@@ -235,13 +235,13 @@ func (m *mockResStaffForStaff) SoftDelete(_ context.Context, _ uint64) error { r
 func (m *mockResStaffForStaff) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
-func (m *mockResStaffForStaff) FindExcludedServiceTypes(_ context.Context, _ uint64) ([]model.StaffExcludedServiceType, error) {
+func (m *mockResStaffForStaff) FindExcludedReservationCategories(_ context.Context, _ uint64) ([]model.StaffExcludedReservationCategory, error) {
 	return nil, nil
 }
-func (m *mockResStaffForStaff) FindExcludedServiceTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffExcludedServiceType, error) {
+func (m *mockResStaffForStaff) FindExcludedReservationCategoriesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffExcludedReservationCategory, error) {
 	return nil, nil
 }
-func (m *mockResStaffForStaff) ReplaceExcludedServiceTypes(_ context.Context, _ uint64, _ []uint64) error {
+func (m *mockResStaffForStaff) ReplaceExcludedReservationCategories(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
 }
 

@@ -55,7 +55,7 @@ export interface Appointment {
   petType: string;
   petName: string;
   visitType: "初診" | "再診";
-  serviceType: string;
+  reservationCategory: string;
   nextAppointment?: "次回予約無" | "次回予約済" | "精算未確認" | "精算確認済";
   isDesignated?: boolean;
   doctor?: string;
@@ -135,7 +135,7 @@ export interface ReservationAppointment {
   petName: string;
   visitType: "first" | "revisit";
   type: string;
-  serviceTypeId?: string;
+  reservationCategoryId?: string;
   doctor: string;
   doctorId?: string;
   isDesignated: boolean;
@@ -400,5 +400,5 @@ export interface MasterItem {
   duration?: number | null;
 }
 
-export type MasterCategory = "vaccine" | "serviceType" | "consultation" | "procedure" | "hospitalization" | "diagnosis_category" | "diagnosis_name" | "checkup";
+export type MasterCategory = "vaccine" | "reservationCategory" | "consultation" | "procedure" | "hospitalization" | "diagnosis_category" | "diagnosis_name" | "checkup";
 

@@ -26,7 +26,7 @@ type reservationCourseResponse struct {
 	UpdatedAt            time.Time `json:"updated_at"`
 }
 
-func toReservationCourseResponse(st *model.ServiceType) reservationCourseResponse {
+func toReservationCourseResponse(st *model.ReservationCategory) reservationCourseResponse {
 	return reservationCourseResponse{
 		ID:                   st.ID,
 		ClinicID:             st.ClinicID,
@@ -48,7 +48,7 @@ func toReservationCourseResponse(st *model.ServiceType) reservationCourseRespons
 	}
 }
 
-func toReservationCourseResponseList(items []model.ServiceType) []reservationCourseResponse {
+func toReservationCourseResponseList(items []model.ReservationCategory) []reservationCourseResponse {
 	list := make([]reservationCourseResponse, 0, len(items))
 	for i := range items {
 		list = append(list, toReservationCourseResponse(&items[i]))

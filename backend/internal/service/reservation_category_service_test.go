@@ -13,116 +13,116 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// mockServiceTypeRepository は ServiceTypeRepository のテスト用モック実装
-type mockServiceTypeRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ServiceType, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ServiceType, error)
-	createFn   func(ctx context.Context, st *model.ServiceType) error
+// mockReservationCategoryRepository は ReservationCategoryRepository のテスト用モック実装
+type mockReservationCategoryRepository struct {
+	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationCategory, error)
+	createFn   func(ctx context.Context, st *model.ReservationCategory) error
 	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 	reorderFn  func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-func (m *mockServiceTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ServiceType, error) {
+func (m *mockReservationCategoryRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error) {
 	if m.findAllFn != nil {
 		return m.findAllFn(ctx, clinicID)
 	}
-	return []model.ServiceType{}, nil
+	return []model.ReservationCategory{}, nil
 }
 
-func (m *mockServiceTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ServiceType, error) {
+func (m *mockReservationCategoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationCategory, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
-	return &model.ServiceType{ID: id, ClinicID: clinicID}, nil
+	return &model.ReservationCategory{ID: id, ClinicID: clinicID}, nil
 }
 
-func (m *mockServiceTypeRepository) Create(ctx context.Context, st *model.ServiceType) error {
+func (m *mockReservationCategoryRepository) Create(ctx context.Context, st *model.ReservationCategory) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, st)
 	}
 	return nil
 }
 
-func (m *mockServiceTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (m *mockReservationCategoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, fields)
 	}
 	return nil
 }
 
-func (m *mockServiceTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+func (m *mockReservationCategoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(ctx, clinicID, id)
 	}
 	return nil
 }
 
-func (m *mockServiceTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+func (m *mockReservationCategoryRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if m.reorderFn != nil {
 		return m.reorderFn(ctx, clinicID, ids)
 	}
 	return nil
 }
 
-// mockReservationForServiceType は ServiceType テストで使用する ReservationRepository のスタブ
-type mockReservationForServiceType struct {
-	existsByServiceTypeIDFn func(ctx context.Context, serviceTypeID uint64) (bool, error)
+// mockReservationForReservationCategory は ReservationCategory テストで使用する ReservationRepository のスタブ
+type mockReservationForReservationCategory struct {
+	existsByReservationCategoryIDFn func(ctx context.Context, reservationCategoryID uint64) (bool, error)
 	existsByStaffIDFn       func(ctx context.Context, staffID uint64) (bool, error)
 }
 
-func (m *mockReservationForServiceType) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
+func (m *mockReservationForReservationCategory) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockReservationForServiceType) FindByID(_ context.Context, _, _ uint64) (*model.ReservationAppointment, error) {
+func (m *mockReservationForReservationCategory) FindByID(_ context.Context, _, _ uint64) (*model.ReservationAppointment, error) {
 	return nil, nil
 }
-func (m *mockReservationForServiceType) Create(_ context.Context, _ *model.ReservationAppointment) error {
+func (m *mockReservationForReservationCategory) Create(_ context.Context, _ *model.ReservationAppointment) error {
 	return nil
 }
-func (m *mockReservationForServiceType) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationAppointment, error) {
+func (m *mockReservationForReservationCategory) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationAppointment, error) {
 	return nil, nil
 }
-func (m *mockReservationForServiceType) Delete(_ context.Context, _, _ uint64) error {
+func (m *mockReservationForReservationCategory) Delete(_ context.Context, _, _ uint64) error {
 	return nil
 }
-func (m *mockReservationForServiceType) ExistsByServiceTypeID(ctx context.Context, serviceTypeID uint64) (bool, error) {
-	if m.existsByServiceTypeIDFn != nil {
-		return m.existsByServiceTypeIDFn(ctx, serviceTypeID)
+func (m *mockReservationForReservationCategory) ExistsByReservationCategoryID(ctx context.Context, reservationCategoryID uint64) (bool, error) {
+	if m.existsByReservationCategoryIDFn != nil {
+		return m.existsByReservationCategoryIDFn(ctx, reservationCategoryID)
 	}
 	return false, nil
 }
-func (m *mockReservationForServiceType) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+func (m *mockReservationForReservationCategory) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
 	if m.existsByStaffIDFn != nil {
 		return m.existsByStaffIDFn(ctx, staffID)
 	}
 	return false, nil
 }
 
-func (m *mockReservationForServiceType) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockReservationForReservationCategory) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }
 
-func newTestServiceTypeService(repo *mockServiceTypeRepository) ServiceTypeService {
-	return NewServiceTypeService(repo, &mockReservationForServiceType{})
+func newTestReservationCategoryService(repo *mockReservationCategoryRepository) ReservationCategoryService {
+	return NewReservationCategoryService(repo, &mockReservationForReservationCategory{})
 }
 
 // ---- List ----
 
-func TestServiceTypeService_List(t *testing.T) {
+func TestReservationCategoryService_List(t *testing.T) {
 	t.Run("returns service types with clinicID filter", func(t *testing.T) {
 		const clinicID uint64 = 42
-		want := []model.ServiceType{
+		want := []model.ReservationCategory{
 			{ID: 1, ClinicID: clinicID, Name: "診察"},
 			{ID: 2, ClinicID: clinicID, Name: "トリミング"},
 		}
-		repo := &mockServiceTypeRepository{
-			findAllFn: func(_ context.Context, cid uint64) ([]model.ServiceType, error) {
+		repo := &mockReservationCategoryRepository{
+			findAllFn: func(_ context.Context, cid uint64) ([]model.ReservationCategory, error) {
 				assert.Equal(t, clinicID, cid)
 				return want, nil
 			},
 		}
-		svc := newTestServiceTypeService(repo)
+		svc := newTestReservationCategoryService(repo)
 
 		got, err := svc.List(context.Background(), clinicID)
 
@@ -131,12 +131,12 @@ func TestServiceTypeService_List(t *testing.T) {
 	})
 
 	t.Run("propagates repository error", func(t *testing.T) {
-		repo := &mockServiceTypeRepository{
-			findAllFn: func(_ context.Context, _ uint64) ([]model.ServiceType, error) {
+		repo := &mockReservationCategoryRepository{
+			findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationCategory, error) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := newTestServiceTypeService(repo)
+		svc := newTestReservationCategoryService(repo)
 
 		_, err := svc.List(context.Background(), 1)
 
@@ -146,24 +146,24 @@ func TestServiceTypeService_List(t *testing.T) {
 
 // ---- Create ----
 
-func TestServiceTypeService_Create(t *testing.T) {
+func TestReservationCategoryService_Create(t *testing.T) {
 	t.Run("creates service type successfully", func(t *testing.T) {
 		const clinicID uint64 = 10
-		input := &CreateServiceTypeInput{
+		input := &CreateReservationCategoryInput{
 			Name:        "診察",
 			Color:       "#FF0000",
 			IsActive:    true,
 			Description: "通常診察",
 			SortOrder:   1,
 		}
-		var captured *model.ServiceType
-		repo := &mockServiceTypeRepository{
-			createFn: func(_ context.Context, st *model.ServiceType) error {
+		var captured *model.ReservationCategory
+		repo := &mockReservationCategoryRepository{
+			createFn: func(_ context.Context, st *model.ReservationCategory) error {
 				captured = st
 				return nil
 			},
 		}
-		svc := newTestServiceTypeService(repo)
+		svc := newTestReservationCategoryService(repo)
 
 		got, err := svc.Create(context.Background(), clinicID, input)
 
@@ -179,14 +179,14 @@ func TestServiceTypeService_Create(t *testing.T) {
 	})
 
 	t.Run("propagates repository error", func(t *testing.T) {
-		repo := &mockServiceTypeRepository{
-			createFn: func(_ context.Context, _ *model.ServiceType) error {
+		repo := &mockReservationCategoryRepository{
+			createFn: func(_ context.Context, _ *model.ReservationCategory) error {
 				return errors.New("db error")
 			},
 		}
-		svc := newTestServiceTypeService(repo)
+		svc := newTestReservationCategoryService(repo)
 
-		_, err := svc.Create(context.Background(), 1, &CreateServiceTypeInput{Name: "診察"})
+		_, err := svc.Create(context.Background(), 1, &CreateReservationCategoryInput{Name: "診察"})
 
 		assert.Error(t, err)
 	})
@@ -194,28 +194,28 @@ func TestServiceTypeService_Create(t *testing.T) {
 
 // ---- Update ----
 
-func TestServiceTypeService_Update(t *testing.T) {
+func TestReservationCategoryService_Update(t *testing.T) {
 	t.Run("returns existing record when no fields provided", func(t *testing.T) {
 		const (
 			clinicID uint64 = 1
 			id       uint64 = 5
 		)
-		existing := &model.ServiceType{ID: id, ClinicID: clinicID, Name: "既存"}
+		existing := &model.ReservationCategory{ID: id, ClinicID: clinicID, Name: "既存"}
 		updateCalled := false
-		repo := &mockServiceTypeRepository{
+		repo := &mockReservationCategoryRepository{
 			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 				updateCalled = true
 				return nil
 			},
-			findByIDFn: func(_ context.Context, cid, rid uint64) (*model.ServiceType, error) {
+			findByIDFn: func(_ context.Context, cid, rid uint64) (*model.ReservationCategory, error) {
 				assert.Equal(t, clinicID, cid)
 				assert.Equal(t, id, rid)
 				return existing, nil
 			},
 		}
-		svc := newTestServiceTypeService(repo)
+		svc := newTestReservationCategoryService(repo)
 
-		got, err := svc.Update(context.Background(), clinicID, id, &UpdateServiceTypeInput{})
+		got, err := svc.Update(context.Background(), clinicID, id, &UpdateReservationCategoryInput{})
 
 		require.NoError(t, err)
 		assert.Equal(t, existing, got)
@@ -229,44 +229,44 @@ func TestServiceTypeService_Update(t *testing.T) {
 		)
 		newName := "新しい名前"
 		newActive := false
-		updated := &model.ServiceType{ID: id, ClinicID: clinicID, Name: newName, IsActive: newActive}
+		updated := &model.ReservationCategory{ID: id, ClinicID: clinicID, Name: newName, IsActive: newActive}
 
 		var capturedFields map[string]any
-		repo := &mockServiceTypeRepository{
+		repo := &mockReservationCategoryRepository{
 			updateFn: func(_ context.Context, cid, rid uint64, fields map[string]any) error {
 				assert.Equal(t, clinicID, cid)
 				assert.Equal(t, id, rid)
 				capturedFields = fields
 				return nil
 			},
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ServiceType, error) {
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationCategory, error) {
 				return updated, nil
 			},
 		}
-		svc := newTestServiceTypeService(repo)
+		svc := newTestReservationCategoryService(repo)
 
-		got, err := svc.Update(context.Background(), clinicID, id, &UpdateServiceTypeInput{
+		got, err := svc.Update(context.Background(), clinicID, id, &UpdateReservationCategoryInput{
 			Name:     &newName,
 			IsActive: &newActive,
 		})
 
 		require.NoError(t, err)
 		assert.Equal(t, updated, got)
-		assert.Equal(t, newName, capturedFields[colServiceTypeName])
-		assert.Equal(t, newActive, capturedFields[colServiceTypeIsActive])
-		assert.NotContains(t, capturedFields, colServiceTypeColor)
+		assert.Equal(t, newName, capturedFields[colReservationCategoryName])
+		assert.Equal(t, newActive, capturedFields[colReservationCategoryIsActive])
+		assert.NotContains(t, capturedFields, colReservationCategoryColor)
 	})
 
 	t.Run("returns not found when record does not exist", func(t *testing.T) {
 		name := "test"
-		repo := &mockServiceTypeRepository{
+		repo := &mockReservationCategoryRepository{
 			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-				return apperrors.WrapNotFound("service_type", "5")
+				return apperrors.WrapNotFound("reservation_category", "5")
 			},
 		}
-		svc := newTestServiceTypeService(repo)
+		svc := newTestReservationCategoryService(repo)
 
-		_, err := svc.Update(context.Background(), 1, 5, &UpdateServiceTypeInput{Name: &name})
+		_, err := svc.Update(context.Background(), 1, 5, &UpdateReservationCategoryInput{Name: &name})
 
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -275,20 +275,20 @@ func TestServiceTypeService_Update(t *testing.T) {
 
 // ---- Delete ----
 
-func TestServiceTypeService_Delete(t *testing.T) {
+func TestReservationCategoryService_Delete(t *testing.T) {
 	t.Run("deletes successfully", func(t *testing.T) {
 		const (
 			clinicID uint64 = 1
 			id       uint64 = 5
 		)
-		repo := &mockServiceTypeRepository{
+		repo := &mockReservationCategoryRepository{
 			deleteFn: func(_ context.Context, cid, rid uint64) error {
 				assert.Equal(t, clinicID, cid)
 				assert.Equal(t, id, rid)
 				return nil
 			},
 		}
-		svc := newTestServiceTypeService(repo)
+		svc := newTestReservationCategoryService(repo)
 
 		err := svc.Delete(context.Background(), clinicID, id)
 
@@ -296,12 +296,12 @@ func TestServiceTypeService_Delete(t *testing.T) {
 	})
 
 	t.Run("returns not found when record does not exist", func(t *testing.T) {
-		repo := &mockServiceTypeRepository{
+		repo := &mockReservationCategoryRepository{
 			deleteFn: func(_ context.Context, _, _ uint64) error {
-				return apperrors.WrapNotFound("service_type", "5")
+				return apperrors.WrapNotFound("reservation_category", "5")
 			},
 		}
-		svc := newTestServiceTypeService(repo)
+		svc := newTestReservationCategoryService(repo)
 
 		err := svc.Delete(context.Background(), 1, 5)
 
@@ -312,7 +312,7 @@ func TestServiceTypeService_Delete(t *testing.T) {
 
 // ---- Reorder ----
 
-func TestServiceTypeService_Reorder(t *testing.T) {
+func TestReservationCategoryService_Reorder(t *testing.T) {
 	tests := []struct {
 		name        string
 		ids         []uint64
@@ -349,19 +349,19 @@ func TestServiceTypeService_Reorder(t *testing.T) {
 		{
 			name:    "returns invalid error when id not found in clinic",
 			ids:     []uint64{1, 999},
-			repoErr: apperrors.WrapInvalidInput("service_type id 999 not found in this clinic"),
+			repoErr: apperrors.WrapInvalidInput("reservation_category id 999 not found in this clinic"),
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockServiceTypeRepository{
+			repo := &mockReservationCategoryRepository{
 				reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
 					return tt.repoErr
 				},
 			}
-			svc := newTestServiceTypeService(repo)
+			svc := newTestReservationCategoryService(repo)
 
 			err := svc.Reorder(context.Background(), 1, tt.ids)
 

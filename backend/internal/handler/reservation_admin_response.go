@@ -28,7 +28,7 @@ type reservationDetailResponse struct {
 	OwnerID          *uint64         `json:"owner_id,omitempty"`
 	PetID            *uint64         `json:"pet_id,omitempty"`
 	VisitType        string          `json:"visit_type"`
-	ServiceTypeID    uint64          `json:"service_type_id"`
+	ReservationCategoryID    uint64          `json:"reservation_category_id"`
 	DoctorID         *uint64         `json:"doctor_id,omitempty"`
 	IsDesignated     bool            `json:"is_designated"`
 	IsStaffDelegated bool            `json:"is_staff_delegated"`
@@ -56,10 +56,10 @@ func toReservationSummaryResponse(ra *model.ReservationAppointment) reservationS
 	}
 
 	courseShortName := ""
-	if ra.ServiceType != nil {
-		courseShortName = ra.ServiceType.ShortName
+	if ra.ReservationCategory != nil {
+		courseShortName = ra.ReservationCategory.ShortName
 		if courseShortName == "" {
-			courseShortName = ra.ServiceType.Name
+			courseShortName = ra.ReservationCategory.Name
 		}
 	}
 
@@ -93,10 +93,10 @@ func toReservationDetailResponse(ra *model.ReservationAppointment) reservationDe
 	}
 
 	courseShortName := ""
-	if ra.ServiceType != nil {
-		courseShortName = ra.ServiceType.ShortName
+	if ra.ReservationCategory != nil {
+		courseShortName = ra.ReservationCategory.ShortName
 		if courseShortName == "" {
-			courseShortName = ra.ServiceType.Name
+			courseShortName = ra.ReservationCategory.Name
 		}
 	}
 
@@ -112,7 +112,7 @@ func toReservationDetailResponse(ra *model.ReservationAppointment) reservationDe
 		OwnerID:          ra.OwnerID,
 		PetID:            ra.PetID,
 		VisitType:        string(ra.VisitType),
-		ServiceTypeID:    ra.ServiceTypeID,
+		ReservationCategoryID:    ra.ReservationCategoryID,
 		DoctorID:         ra.DoctorID,
 		IsDesignated:     ra.IsDesignated,
 		IsStaffDelegated: ra.IsStaffDelegated,

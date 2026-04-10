@@ -17,7 +17,7 @@ type ReservationRepository interface {
 	Create(ctx context.Context, reservation *model.ReservationAppointment) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	ExistsByServiceTypeID(ctx context.Context, serviceTypeID uint64) (bool, error)
+	ExistsByReservationCategoryID(ctx context.Context, reservationCategoryID uint64) (bool, error)
 	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
 	CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error)
 }
@@ -55,7 +55,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
-	if err := q.Preload("Pet").Preload("Pet.Owner").Preload("Pet.AnimalSpecies").Preload("ServiceType").Preload("Doctor").
+	if err := q.Preload("Pet").Preload("Pet.Owner").Preload("Pet.AnimalSpecies").Preload("ReservationCategory").Preload("Doctor").
 		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
@@ -68,7 +68,7 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		Preload("Pet").
 		Preload("Pet.Owner").
 		Preload("Pet.AnimalSpecies").
-		Preload("ServiceType").
+		Preload("ReservationCategory").
 		Preload("Doctor").
 		First(&reservation, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
@@ -112,10 +112,10 @@ func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64)
 	return nil
 }
 
-func (r *reservationRepository) ExistsByServiceTypeID(ctx context.Context, serviceTypeID uint64) (bool, error) {
+func (r *reservationRepository) ExistsByReservationCategoryID(ctx context.Context, reservationCategoryID uint64) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&model.ReservationAppointment{}).
-		Where("service_type_id = ?", serviceTypeID).
+		Where("reservation_category_id = ?", reservationCategoryID).
 		Count(&count).Error
 	if err != nil {
 		return false, apperrors.FromGORM(err, "reservation", "")

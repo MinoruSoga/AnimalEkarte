@@ -18,7 +18,7 @@ function toAppointment(appt: ReceptionAppointment, staffMap: Map<string, string>
     petType: appt.petType,
     petName: appt.petName,
     visitType: appt.visitType,
-    serviceType: appt.serviceType,
+    reservationCategory: appt.reservationCategory,
     nextAppointment: appt.nextAppointment,
     isDesignated: appt.isDesignated,
     // doctor_id（UUID）をスタッフ名に変換。未登録IDの場合はUUIDをそのまま表示
@@ -111,7 +111,7 @@ export function useReceptionKanban() {
 
         // 3. Trimming Filter
         if (isTrimmingOnly) {
-          if (!app.serviceType.includes("トリミング")) return false;
+          if (!app.reservationCategory.includes("トリミング")) return false;
         }
 
         return true;

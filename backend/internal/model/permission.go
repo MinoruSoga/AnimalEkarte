@@ -22,7 +22,7 @@ const (
 	// マスタ設定: 個別リソース
 	ResourceMasterAnimalSpecies   Resource = "master-animal-species"
 	ResourceMasterMedical         Resource = "master-medical"
-	ResourceMasterServiceType     Resource = "master-service-type"
+	ResourceMasterReservationCategory     Resource = "master-reservation-category"
 	ResourceMasterHospitalization Resource = "master-hospitalization"
 	ResourceMasterTrimming        Resource = "master-trimming"
 	ResourceMasterPermission      Resource = "master-permission"
@@ -49,7 +49,7 @@ var AllResources = []Resource{
 	ResourceHospitalSettings,
 	ResourceMasterAnimalSpecies,
 	ResourceMasterMedical,
-	ResourceMasterServiceType,
+	ResourceMasterReservationCategory,
 	ResourceMasterHospitalization,
 	ResourceMasterTrimming,
 	ResourceMasterPermission,

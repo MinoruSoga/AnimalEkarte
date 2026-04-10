@@ -9,13 +9,13 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ReservationCourseService は予約コース（service_types）のビジネスロジックインターフェース
+// ReservationCourseService は予約コース（reservation_categories）のビジネスロジックインターフェース
 type ReservationCourseService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.ServiceType, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateReservationCourseInput) (*model.ServiceType, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCourseInput) (*model.ServiceType, error)
+	List(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateReservationCourseInput) (*model.ReservationCategory, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCourseInput) (*model.ReservationCategory, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ServiceType, error)
+	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationCategory, error)
 	PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
@@ -59,7 +59,7 @@ func NewReservationCourseService(repo repository.ReservationCourseRepository, re
 	return &reservationCourseService{repo: repo, resAdminRepo: resAdminRepo, resRepo: resRepo}
 }
 
-func (s *reservationCourseService) List(ctx context.Context, clinicID uint64) ([]model.ServiceType, error) {
+func (s *reservationCourseService) List(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error) {
 	result, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list reservation course")
@@ -67,12 +67,12 @@ func (s *reservationCourseService) List(ctx context.Context, clinicID uint64) ([
 	return result, nil
 }
 
-func (s *reservationCourseService) Create(ctx context.Context, clinicID uint64, input *CreateReservationCourseInput) (*model.ServiceType, error) {
+func (s *reservationCourseService) Create(ctx context.Context, clinicID uint64, input *CreateReservationCourseInput) (*model.ReservationCategory, error) {
 	dayOption := model.ReservationDayOption(input.ReservationDayOption)
 	if dayOption == "" {
 		dayOption = model.DayOptionNone
 	}
-	st := &model.ServiceType{
+	st := &model.ReservationCategory{
 		ClinicID:             clinicID,
 		Name:                 input.Name,
 		Color:                input.Color,
@@ -91,7 +91,7 @@ func (s *reservationCourseService) Create(ctx context.Context, clinicID uint64, 
 		return nil, apperrors.Wrap(err, "failed to create reservation course")
 	}
 	slog.InfoContext(ctx, "reservation course created",
-		slog.Uint64("service_type_id", st.ID),
+		slog.Uint64("reservation_category_id", st.ID),
 		slog.Uint64("clinic_id", clinicID))
 	created, err := s.repo.FindByID(ctx, clinicID, st.ID)
 	if err != nil {
@@ -100,7 +100,7 @@ func (s *reservationCourseService) Create(ctx context.Context, clinicID uint64, 
 	return created, nil
 }
 
-func (s *reservationCourseService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCourseInput) (*model.ServiceType, error) {
+func (s *reservationCourseService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCourseInput) (*model.ReservationCategory, error) {
 	fields := buildReservationCourseUpdateFields(input)
 	if len(fields) == 0 {
 		result, err := s.repo.FindByID(ctx, clinicID, id)
@@ -117,13 +117,13 @@ func (s *reservationCourseService) Update(ctx context.Context, clinicID, id uint
 		return nil, apperrors.Wrap(err, "failed to get reservation course after update")
 	}
 	slog.InfoContext(ctx, "reservation course updated",
-		slog.Uint64("service_type_id", id),
+		slog.Uint64("reservation_category_id", id),
 		slog.Uint64("clinic_id", clinicID))
 	return updated, nil
 }
 
 func (s *reservationCourseService) Delete(ctx context.Context, clinicID, id uint64) error {
-	exists, err := s.resRepo.ExistsByServiceTypeID(ctx, id)
+	exists, err := s.resRepo.ExistsByReservationCategoryID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}
@@ -134,12 +134,12 @@ func (s *reservationCourseService) Delete(ctx context.Context, clinicID, id uint
 		return apperrors.Wrap(err, "failed to delete reservation course")
 	}
 	slog.InfoContext(ctx, "reservation course deleted",
-		slog.Uint64("service_type_id", id),
+		slog.Uint64("reservation_category_id", id),
 		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 
-func (s *reservationCourseService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ServiceType, error) {
+func (s *reservationCourseService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationCategory, error) {
 	if err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to patch status")
 	}

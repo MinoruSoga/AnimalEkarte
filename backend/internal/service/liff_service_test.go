@@ -125,7 +125,7 @@ func TestLiffService_GetProfile(t *testing.T) {
 func TestLiffService_GetCourses(t *testing.T) {
 	ctx := context.Background()
 
-	allCourses := []model.ServiceType{
+	allCourses := []model.ReservationCategory{
 		{ID: 1, Name: "一般診察", IsInternal: false, ReservationVisible: true},
 		{ID: 2, Name: "休憩枠", IsInternal: true, ReservationVisible: false}, // 内部メニュー → 除外
 		{ID: 3, Name: "手術", IsInternal: false, ReservationVisible: true},
@@ -136,7 +136,7 @@ func TestLiffService_GetCourses(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffCourseRepository{
-				findAllFn: func(_ context.Context, _ uint64) ([]model.ServiceType, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationCategory, error) {
 					return allCourses, nil
 				},
 			},
@@ -159,8 +159,8 @@ func TestLiffService_GetCourses(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffCourseRepository{
-				findAllFn: func(_ context.Context, _ uint64) ([]model.ServiceType, error) {
-					return []model.ServiceType{{ID: 1, IsInternal: true, ReservationVisible: false}}, nil
+				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationCategory, error) {
+					return []model.ReservationCategory{{ID: 1, IsInternal: true, ReservationVisible: false}}, nil
 				},
 			},
 			&mockLiffStaffRepository{},
@@ -180,7 +180,7 @@ func TestLiffService_GetCourses(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffCourseRepository{
-				findAllFn: func(_ context.Context, _ uint64) ([]model.ServiceType, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationCategory, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -215,7 +215,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 						{ID: 2, Name: "スタッフ山田", ReservationVisible: false}, // 非公開 → 除外
 					}, nil
 				},
-				findExcludedServiceTypesFn: func(_ context.Context, _ uint64) ([]model.StaffExcludedServiceType, error) {
+				findExcludedReservationCategoriesFn: func(_ context.Context, _ uint64) ([]model.StaffExcludedReservationCategory, error) {
 					return nil, nil
 				},
 			},
@@ -244,9 +244,9 @@ func TestLiffService_GetStaffs(t *testing.T) {
 						{ID: 2, Name: "トリマー田中", ReservationVisible: true},
 					}, nil
 				},
-				findExcludedServiceTypesFn: func(_ context.Context, staffID uint64) ([]model.StaffExcludedServiceType, error) {
+				findExcludedReservationCategoriesFn: func(_ context.Context, staffID uint64) ([]model.StaffExcludedReservationCategory, error) {
 					if staffID == 2 {
-						return []model.StaffExcludedServiceType{{StaffID: 2, ServiceTypeID: courseID}}, nil
+						return []model.StaffExcludedReservationCategory{{StaffID: 2, ReservationCategoryID: courseID}}, nil
 					}
 					return nil, nil
 				},
@@ -264,7 +264,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 		assert.Equal(t, uint64(1), got[0].ID)
 	})
 
-	t.Run("FindExcludedServiceTypes がエラーを返す → エラー伝播", func(t *testing.T) {
+	t.Run("FindExcludedReservationCategories がエラーを返す → エラー伝播", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffCourseRepository{},
@@ -272,7 +272,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
 				},
-				findExcludedServiceTypesFn: func(_ context.Context, _ uint64) ([]model.StaffExcludedServiceType, error) {
+				findExcludedReservationCategoriesFn: func(_ context.Context, _ uint64) ([]model.StaffExcludedReservationCategory, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -297,7 +297,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 
 	baseInput := func() *CreateReservationInput {
 		return &CreateReservationInput{
-			ServiceTypeID: 1,
+			ReservationCategoryID: 1,
 			StaffID:       10,
 			Date:          time.Date(2026, 5, 1, 0, 0, 0, 0, time.Local),
 			StartTime:     "1000",
@@ -355,7 +355,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 						{ID: 6, Name: "三井先生", ReservationVisible: true},
 					}, nil
 				},
-				findExcludedServiceTypesFn: func(_ context.Context, _ uint64) ([]model.StaffExcludedServiceType, error) {
+				findExcludedReservationCategoriesFn: func(_ context.Context, _ uint64) ([]model.StaffExcludedReservationCategory, error) {
 					return nil, nil
 				},
 			},
@@ -403,7 +403,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 						{ID: 6, Name: "三井先生", ReservationVisible: true},
 					}, nil
 				},
-				findExcludedServiceTypesFn: func(_ context.Context, _ uint64) ([]model.StaffExcludedServiceType, error) {
+				findExcludedReservationCategoriesFn: func(_ context.Context, _ uint64) ([]model.StaffExcludedReservationCategory, error) {
 					return nil, nil
 				},
 			},
@@ -811,9 +811,9 @@ func TestIsStaffAvailable(t *testing.T) {
 // ================================================================
 
 func TestIsExcluded(t *testing.T) {
-	excluded := []model.StaffExcludedServiceType{
-		{StaffID: 1, ServiceTypeID: 5},
-		{StaffID: 1, ServiceTypeID: 8},
+	excluded := []model.StaffExcludedReservationCategory{
+		{StaffID: 1, ReservationCategoryID: 5},
+		{StaffID: 1, ReservationCategoryID: 8},
 	}
 
 	t.Run("除外リストにあるコースIDはtrue", func(t *testing.T) {
@@ -828,6 +828,6 @@ func TestIsExcluded(t *testing.T) {
 
 	t.Run("除外リストが空のときは常にfalse", func(t *testing.T) {
 		assert.False(t, isExcluded(nil, 5))
-		assert.False(t, isExcluded([]model.StaffExcludedServiceType{}, 5))
+		assert.False(t, isExcluded([]model.StaffExcludedReservationCategory{}, 5))
 	})
 }

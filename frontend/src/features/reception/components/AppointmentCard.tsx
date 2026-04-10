@@ -75,8 +75,8 @@ export const AppointmentCard = memo(function AppointmentCard({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const isTrimming = appointment.serviceType.includes("トリミング");
-  const isHospitalization = appointment.serviceType.includes("入院");
+  const isTrimming = appointment.reservationCategory.includes("トリミング");
+  const isHospitalization = appointment.reservationCategory.includes("入院");
   const visitColor = getVisitTypeColor(appointment.visitType);
 
   const handleKarteClick = useCallback((e: React.MouseEvent) => {
@@ -162,8 +162,8 @@ export const AppointmentCard = memo(function AppointmentCard({
               {appointment.visitType}
             </Badge>
             <Badge variant="outline" className="flex items-center gap-1 text-sm px-[7.5px] h-[22px] bg-white tracking-[var(--tracking-notion-sm)]">
-              <ServiceIcon service={appointment.serviceType} />
-              <span className="truncate max-w-[80px]">{appointment.serviceType}</span>
+              <ServiceIcon service={appointment.reservationCategory} />
+              <span className="truncate max-w-[80px]">{appointment.reservationCategory}</span>
             </Badge>
 
             {/* BUG-037: 担当医バッジ — doctor が未設定でも「担当医未設定」として表示 */}

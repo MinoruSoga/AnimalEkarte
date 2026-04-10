@@ -243,7 +243,7 @@ export function Reception() {
             end: addHours(start, 1), // Default 1 hour duration
             status: "confirmed",
             visitType: appointment.visitType === "初診" ? "first" : "revisit",
-            type: appointment.serviceType,
+            type: appointment.reservationCategory,
             doctor: appointment.doctor || "医師A",
             isDesignated: appointment.isDesignated || false,
             petId: appointment.petId,
@@ -273,7 +273,7 @@ export function Reception() {
             petName: selectedPets[0]?.name || data.petName || "",
             petType: selectedPets[0]?.species || "犬",
             visitType: data.visitType === "first" ? "初診" : "再診",
-            serviceType: data.type || "診療",
+            reservationCategory: data.type || "診療",
             doctor: data.doctor,
             isDesignated: data.isDesignated,
             petId: selectedPets[0]?.id || data.petId,

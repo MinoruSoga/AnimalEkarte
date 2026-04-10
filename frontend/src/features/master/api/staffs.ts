@@ -306,16 +306,16 @@ export function useSetStaffClinics() {
 // ─────────────────────────────────────────────────
 
 const STAFF_EXCLUDED_ST_KEY = (staffId: string) =>
-  [...STAFFS_QUERY_KEY, staffId, "excluded-service-types"] as const;
+  [...STAFFS_QUERY_KEY, staffId, "excluded-reservation-categories"] as const;
 
-export function useGetStaffExcludedServiceTypes(staffId: string | null) {
+export function useGetStaffExcludedReservationCategories(staffId: string | null) {
   return useQuery({
     queryKey: STAFF_EXCLUDED_ST_KEY(staffId ?? ""),
     queryFn: async (): Promise<string[]> => {
-      const { data } = await axios.get<{ service_type_ids: number[] }>(
-        `/v1/masters/staffs/${staffId}/excluded-service-types`,
+      const { data } = await axios.get<{ reservation_category_ids: number[] }>(
+        `/v1/masters/staffs/${staffId}/excluded-reservation-categories`,
       );
-      return (data.service_type_ids ?? []).map(String);
+      return (data.reservation_category_ids ?? []).map(String);
     },
     enabled: staffId !== null,
     staleTime: QUERY_STALE_TIMES.STATIC,
@@ -323,18 +323,18 @@ export function useGetStaffExcludedServiceTypes(staffId: string | null) {
   });
 }
 
-export function useSetStaffExcludedServiceTypes() {
+export function useSetStaffExcludedReservationCategories() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       staffId,
-      serviceTypeIds,
+      reservationCategoryIds,
     }: {
       staffId: string;
-      serviceTypeIds: string[];
+      reservationCategoryIds: string[];
     }) => {
-      await axios.put(`/v1/masters/staffs/${staffId}/excluded-service-types`, {
-        service_type_ids: serviceTypeIds.map((id) => parseInt(id, 10)),
+      await axios.put(`/v1/masters/staffs/${staffId}/excluded-reservation-categories`, {
+        reservation_category_ids: reservationCategoryIds.map((id) => parseInt(id, 10)),
       });
     },
     onSuccess: (_data, variables) => {

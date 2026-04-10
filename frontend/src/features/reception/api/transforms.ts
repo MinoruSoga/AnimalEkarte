@@ -84,7 +84,7 @@ export function transformReservationToReceptionAppointment(
     petType,
     petName,
     visitType: visitTypeToJapanese(reservation.visit_type),
-    serviceType: reservation.service_type?.name ?? "",
+    reservationCategory: reservation.reservation_category?.name ?? "",
     isDesignated: reservation.is_designated,
     doctor: reservation.doctor?.name ?? (reservation.doctor_id ? String(reservation.doctor_id) : undefined),
     petId: String(reservation.pet_id ?? 0),

@@ -359,9 +359,9 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
 
   if (!appointment) return null;
 
-  const isTrimming = appointment.serviceType.includes("トリミング");
-  const isHospitalization = appointment.serviceType.includes("入院");
-  const isMedical = appointment.serviceType.includes("診療") || (!isTrimming && !isHospitalization);
+  const isTrimming = appointment.reservationCategory.includes("トリミング");
+  const isHospitalization = appointment.reservationCategory.includes("入院");
+  const isMedical = appointment.reservationCategory.includes("診療") || (!isTrimming && !isHospitalization);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -378,7 +378,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
                 {appointment.visitType === "初診" ? "初" : "再"}
               </span>
               <DialogTitle className={`text-lg font-bold ${C.text}`}>
-                {appointment.serviceType}
+                {appointment.reservationCategory}
               </DialogTitle>
             </div>
             {currentStatus ? (

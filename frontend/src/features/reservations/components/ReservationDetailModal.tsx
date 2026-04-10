@@ -13,7 +13,7 @@ import type { ReservationAppointment, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import { useServiceTypeColorMap } from "@/features/master";
+import { useReservationCategoryColorMap } from "@/features/master";
 import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/utils/constants/status-colors";
 
 interface ReservationDetailModalProps {
@@ -74,7 +74,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
   onStatusChange,
   appointment,
 }: ReservationDetailModalProps) {
-  const { getColor } = useServiceTypeColorMap();
+  const { getColor } = useReservationCategoryColorMap();
 
   if (!appointment) return null;
 
