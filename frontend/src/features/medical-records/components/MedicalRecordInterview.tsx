@@ -18,6 +18,14 @@ interface MedicalRecordInterviewProps {
   setHistoryItems?: (items: InterviewHistoryItem[]) => void;
 }
 
+// rendering-hoist-jsx: テンプレート一覧は静的なのでモジュール定数に巻き上げ
+const INTERVIEW_TEMPLATES: { label: string; text: string }[] = [
+  { label: "定期検診", text: "# 定期検診\n特に異常なし。食欲・元気あり。" },
+  { label: "ワクチン", text: "# 混合ワクチン接種\n体調良好。" },
+  { label: "下痢・嘔吐", text: "# 消化器症状\n・嘔吐：あり（回数：　）\n・下痢：あり（性状：　）\n・食欲：なし" },
+  { label: "皮膚", text: "# 皮膚症状\n・痒み：あり\n・発赤：あり\n・部位：" },
+];
+
 const DEFAULT_HISTORY_ITEMS: InterviewHistoryItem[] = [
   {
     id: "1",
@@ -54,13 +62,6 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
   setTreatmentPolicy,
   historyItems,
 }: MedicalRecordInterviewProps) {
-  const templates = [
-    { label: "定期検診", text: "# 定期検診\n特に異常なし。食欲・元気あり。" },
-    { label: "ワクチン", text: "# 混合ワクチン接種\n体調良好。" },
-    { label: "下痢・嘔吐", text: "# 消化器症状\n・嘔吐：あり（回数：　）\n・下痢：あり（性状：　）\n・食欲：なし" },
-    { label: "皮膚", text: "# 皮膚症状\n・痒み：あり\n・発赤：あり\n・部位：" },
-  ];
-
   const handleInsertTemplate = useCallback((text: string) => {
     setChiefComplaint(text);
   }, [setChiefComplaint]);
@@ -77,7 +78,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
         setChiefComplaint={setChiefComplaint}
         chiefComplaintCategoryId={chiefComplaintCategoryId}
         setChiefComplaintCategoryId={setChiefComplaintCategoryId}
-        templates={templates}
+        templates={INTERVIEW_TEMPLATES}
         onInsertTemplate={handleInsertTemplate}
       />
 
