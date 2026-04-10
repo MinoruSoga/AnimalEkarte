@@ -1,5 +1,5 @@
 // React/Framework
-import { memo } from "react";
+import { memo, useMemo } from "react";
 
 // Internal
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,14 @@ export const VaccinationForm = memo(function VaccinationForm({
   remarks,
   setRemarks,
 }: VaccinationFormProps) {
+  // js-cache-function-results: props 配列から生成する JSX リストを useMemo でキャッシュ
+  const vaccineSelectItems = useMemo(
+    () => vaccineOptions.map((opt) => (
+      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+    )),
+    [vaccineOptions]
+  );
+
   return (
     <div className="col-span-6 flex flex-col gap-4">
       {/* Row 1: Name and Date */}
@@ -75,11 +83,7 @@ export const VaccinationForm = memo(function VaccinationForm({
               <SelectValue placeholder="ワクチンを選択" />
             </SelectTrigger>
             <SelectContent className="z-[9999]">
-              {vaccineOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
+              {vaccineSelectItems}
             </SelectContent>
           </Select>
         </div>
