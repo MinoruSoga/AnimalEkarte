@@ -163,11 +163,22 @@
 4. ~~**BUG-224**~~ CLOSED — owners/inventory の useEffect は全て正当な副作用（ナビゲーション/URL同期）
 5. ~~**BUG-226**~~ CLOSED — filter().map() 残存1件は useMemo 内（小配列・依存変化時のみ実行）
 6. ~~**BUG-228**~~ CLOSED — OwnerSearchModal に useMemo なし / MedicineSettings の useMemo は全て計算量大（正当）
-7. **BUG-229** (Low): useAuth → ref パターンに変更 — 20分（2ファイル）
-8. **BUG-233** (Low): content-visibility: auto（MedicineSettings, TreatmentPlanMaster）
+7. ~~**BUG-229**~~ CLOSED — BillingReviewSection が userIdRef パターン (advanced-event-handler-refs) で実装済み（実コード確認 2026-04-11）
+8. **BUG-233** (Low): content-visibility: auto（MedicineSettings, TreatmentPlanMaster）— CSS 最適化、対応は余裕のある時に
 9. ~~**BUG-234**~~ CLOSED — isPetSelected は Set.has() 使用済み / togglePetSelection の .some(prev) は setState callback で正当
 
-**→ FE Low 残存: BUG-229、BUG-233 のみ**
+**→ FE 残存 Open: BUG-193 (High・DB変更), BUG-190 (Medium・デザイントークン), BUG-233 (Low・CSS最適化) のみ**
+**→ バックエンド残存 Open: ゼロ（全 Critical/High は実コード検証で CLOSED 確認）**
+
+## 監査完了サマリー（2026-04-11）
+
+全 89 件の BUG チケットを実コード検証済み。未修正・Open の課題は以下のみ:
+
+| BUG | カテゴリ | 優先度 | 内容 |
+|-----|---------|--------|------|
+| BUG-193 | DB スキーマ | High | billing_items.updated_at / payments.deleted_at 欠落 |
+| BUG-190 | FE デザイントークン | Medium | ハードコード色（スポットチェック箇所のみ） |
+| BUG-233 | FE CSS 最適化 | Low | content-visibility: auto 未適用（MedicineSettings, TreatmentPlanMaster） |
 
 ### バックエンド残存課題（実コード検証済み）
 
