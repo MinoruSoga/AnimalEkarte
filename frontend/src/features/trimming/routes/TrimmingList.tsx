@@ -232,7 +232,7 @@ export function TrimmingList() {
   const deleteModal = useModalState<{ id: string; label: string }>();
 
   const handleEdit = useCallback((id: string) => {
-    navigate(`/trimming/${id}`, { state: { from: "/trimming" } });
+    navigate(paths.trimming.detail.getHref(id), { state: { from: paths.trimming.getHref() } });
   }, [navigate]);
 
   // rerender-dependencies: deleteModal のメソッドを primitive に抽出して deps を安定化

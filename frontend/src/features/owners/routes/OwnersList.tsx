@@ -249,7 +249,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
 
   // rerender-functional-setstate: useCallback で安定した関数参照を維持
   const handleEdit = useCallback((ownerId: string) => {
-    navigate(`/owners/${ownerId}`);
+    navigate(paths.owners.detail.getHref(ownerId));
   }, [navigate]);
 
   // 行クリック → 飼主編集・ペット一覧ページに遷移

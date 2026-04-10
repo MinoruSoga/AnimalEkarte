@@ -10,6 +10,7 @@ import { useModalState } from "@/hooks/use-modal-state";
 import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar, CircleDot, User, PawPrint } from "lucide-react";
 
 // Internal
+import { paths } from "@/config/paths";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -249,7 +250,7 @@ export function MedicalRecords() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/accounting/${r.accountingId}`);
+                        navigate(paths.accounting.detail.getHref(r.accountingId));
                       }}
                       className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-[3px] border ${C.textSuccess} ${C.bgSuccess10} ${C.borderSuccess30} ${C.hoverBgSuccess20} transition-colors`}
                     >

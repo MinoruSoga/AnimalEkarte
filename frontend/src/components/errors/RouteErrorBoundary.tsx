@@ -2,6 +2,7 @@ import { useRouteError, isRouteErrorResponse, Link } from "react-router";
 import { AlertCircle, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ICON, C } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 
 export function RouteErrorBoundary() {
   const error = useRouteError();
@@ -25,7 +26,7 @@ export function RouteErrorBoundary() {
       <h1 className="text-xl font-bold text-foreground">{title}</h1>
       <p className="text-muted-foreground text-center max-w-md">{message}</p>
       <Button asChild variant="outline">
-        <Link to="/">
+        <Link to={paths.home.getHref()}>
           <Home className={`${ICON.action} mr-2`} />
           ダッシュボードへ戻る
         </Link>
