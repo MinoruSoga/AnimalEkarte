@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
 
@@ -9,7 +10,7 @@ interface SortableHeaderProps {
   onToggle: () => void;
 }
 
-export function SortableHeader({ label, direction, onToggle }: SortableHeaderProps) {
+export const SortableHeader = memo(function SortableHeader({ label, direction, onToggle }: SortableHeaderProps) {
   const Icon =
     direction === "ascending"
       ? ArrowUp
@@ -28,4 +29,4 @@ export function SortableHeader({ label, direction, onToggle }: SortableHeaderPro
       <Icon className={`${ICON.xs} ${direction === "none" ? C.text30 : C.text}`} />
     </button>
   );
-}
+});

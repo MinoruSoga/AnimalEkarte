@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
@@ -14,7 +15,7 @@ export interface RowActionDropdownProps {
   actions: RowActionDropdownAction[];
 }
 
-export function RowActionDropdown({ actions }: RowActionDropdownProps) {
+export const RowActionDropdown = memo(function RowActionDropdown({ actions }: RowActionDropdownProps) {
   return (
     <div
       className="flex items-center justify-end gap-1"
@@ -57,4 +58,4 @@ export function RowActionDropdown({ actions }: RowActionDropdownProps) {
       </DropdownMenu>
     </div>
   );
-}
+});

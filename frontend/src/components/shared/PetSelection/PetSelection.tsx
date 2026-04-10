@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,7 @@ interface PetSelectionProps {
   listClassName?: string;
 }
 
-export function PetSelection({
+export const PetSelection = memo(function PetSelection({
   searchQuery,
   onSearchChange,
   filteredPets,
@@ -113,4 +113,4 @@ export function PetSelection({
       ) : null}
     </div>
   );
-}
+});

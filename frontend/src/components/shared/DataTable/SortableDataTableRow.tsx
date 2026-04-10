@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import type { ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
@@ -30,7 +31,7 @@ interface SortableDataTableRowProps {
  * - `gripClassName` — overrides the grip cell className.
  * - `isDraggingOpacity` — controls row opacity while dragging (default: `0.5`).
  */
-export function SortableDataTableRow({
+export const SortableDataTableRow = memo(function SortableDataTableRow({
   id,
   onClick,
   children,
@@ -55,4 +56,4 @@ export function SortableDataTableRow({
       {children}
     </DataTableRow>
   );
-}
+});

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ICON, C } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
@@ -10,7 +11,7 @@ interface FormHeaderProps {
   action?: React.ReactNode;
 }
 
-export function FormHeader({ title, description, icon, onBack, action }: FormHeaderProps) {
+export const FormHeader = memo(function FormHeader({ title, description, icon, onBack, action }: FormHeaderProps) {
   return (
     <div className={`sticky top-0 z-10 ${C.bgPage} border-b ${C.borderLight} px-4 flex items-center justify-between h-[53px]`}>
       <div className="flex items-center gap-2">
@@ -36,4 +37,4 @@ export function FormHeader({ title, description, icon, onBack, action }: FormHea
       {action ? <div>{action}</div> : null}
     </div>
   );
-}
+});

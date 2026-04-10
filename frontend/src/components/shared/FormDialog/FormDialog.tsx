@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
@@ -29,7 +29,7 @@ export interface FormDialogProps {
  *
  * フォームフィールド（children）は各 Dialog が持つ。
  */
-export function FormDialog({
+export const FormDialog = memo(function FormDialog({
   open,
   onClose,
   title,
@@ -74,4 +74,4 @@ export function FormDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});

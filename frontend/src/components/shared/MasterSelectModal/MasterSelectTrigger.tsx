@@ -1,5 +1,5 @@
+import { memo, type ReactNode } from "react";
 import { ICON, C } from "@/lib/design-tokens";
-import { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 
 interface MasterSelectTriggerProps {
@@ -19,7 +19,7 @@ interface MasterSelectTriggerProps {
   variant?: "inline" | "block";
 }
 
-export function MasterSelectTrigger({
+export const MasterSelectTrigger = memo(function MasterSelectTrigger({
   id,
   selectedItem,
   placeholder,
@@ -110,4 +110,4 @@ export function MasterSelectTrigger({
       <span className={`text-sm ${C.text40}`}>{placeholder}</span>
     </button>
   );
-}
+});

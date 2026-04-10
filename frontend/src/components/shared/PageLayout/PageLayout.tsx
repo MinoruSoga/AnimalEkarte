@@ -1,4 +1,4 @@
-import { ReactNode, type RefObject } from "react";
+import { memo, type ReactNode, type RefObject } from "react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
 import { C } from "@/lib/design-tokens";
@@ -20,7 +20,7 @@ interface PageLayoutProps {
   scrollContainerRef?: RefObject<HTMLDivElement | null>;
 }
 
-export function PageLayout({
+export const PageLayout = memo(function PageLayout({
   children,
   title,
   description: _description,
@@ -59,4 +59,4 @@ export function PageLayout({
       </div>
     </div>
   );
-}
+});

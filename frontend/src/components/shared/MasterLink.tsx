@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import { Settings } from "lucide-react";
 import { Link } from "react-router";
@@ -49,7 +50,7 @@ interface MasterLinkProps {
   className?: string;
 }
 
-export function MasterLink({ category, label = "マスタ管理", className }: MasterLinkProps) {
+export const MasterLink = memo(function MasterLink({ category, label = "マスタ管理", className }: MasterLinkProps) {
   const path = CATEGORY_PATH_MAP[category] || "/settings";
 
   return (
@@ -61,4 +62,4 @@ export function MasterLink({ category, label = "マスタ管理", className }: M
       <span>{label}</span>
     </Link>
   );
-}
+});

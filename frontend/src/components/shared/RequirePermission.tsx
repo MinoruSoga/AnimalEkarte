@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import type { Resource } from "@/types/generated/models";
 import { useAuth } from "@/features/auth";
 import type { ResourceAction } from "@/features/auth";
@@ -16,7 +16,7 @@ interface RequirePermissionProps {
  * デフォルト action は "view"（ページアクセス制御に使用）。
  * isSystemAdmin=true の場合は常に children を表示する。
  */
-export function RequirePermission({
+export const RequirePermission = memo(function RequirePermission({
   resource,
   action = "view",
   children,
@@ -29,7 +29,7 @@ export function RequirePermission({
   }
 
   return <>{children}</>;
-}
+});
 
 function AccessDenied() {
   return (
