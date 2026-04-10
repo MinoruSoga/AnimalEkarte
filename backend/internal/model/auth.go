@@ -14,18 +14,3 @@ type RefreshToken struct {
 }
 
 func (RefreshToken) TableName() string { return "refresh_tokens" }
-
-// IsExpired はトークンが期限切れかどうかを返す
-func (t *RefreshToken) IsExpired() bool {
-	return time.Now().After(t.ExpiresAt)
-}
-
-// IsRevoked はトークンが無効化されているかどうかを返す
-func (t *RefreshToken) IsRevoked() bool {
-	return t.RevokedAt != nil
-}
-
-// IsValid はトークンが有効（期限内かつ未無効化）かどうかを返す
-func (t *RefreshToken) IsValid() bool {
-	return !t.IsExpired() && !t.IsRevoked()
-}

@@ -64,7 +64,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 
 	protected := api.Group("")
 	protected.Use(middleware.Auth(h.cfg.JWTSecret))
-	protected.Use(middleware.SanitizeNullBytes()) // BUG-067: NULL バイト・制御文字を除去
+	// NOTE: SanitizeNullBytes は main.go でグローバル登録済み（BUG-067）
 
 	protected.GET("/me", h.GetMe)
 	protected.PUT("/users/me/password", h.ChangeMyPassword) // BUG-148: 自分のパスワード変更

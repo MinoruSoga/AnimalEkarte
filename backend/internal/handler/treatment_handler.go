@@ -56,11 +56,6 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 		return
 	}
 
-	if err := validateTreatmentItemType(req.ItemType); err != nil {
-		RespondError(c, err)
-		return
-	}
-
 	input := &service.CreateTreatmentInput{
 		ItemType:       model.TreatmentItemType(req.ItemType),
 		ConsultationID: req.ConsultationID,

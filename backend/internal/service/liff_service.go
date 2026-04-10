@@ -201,7 +201,11 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, courseID,
 		MinCourseDuration: course.DurationMinutes,
 		Staffs:            staffInputs,
 	}
-	return GenerateTimeSlots(input)
+	result, err := GenerateTimeSlots(input)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to generate time slots")
+	}
+	return result, nil
 }
 
 // CreateReservation は予約を確定する。staffID=0 の場合は no_staff_mode に従って自動割当する。

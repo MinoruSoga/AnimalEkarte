@@ -17,7 +17,6 @@ type AccountRepository interface {
 	FindByEmail(ctx context.Context, email string) (*model.Account, error)
 	Create(ctx context.Context, account *model.Account) error
 	Update(ctx context.Context, account *model.Account) error
-	Delete(ctx context.Context, id uint64) error
 }
 
 // accountRepository は AccountRepository の実装
@@ -70,10 +69,3 @@ func (r *accountRepository) Update(ctx context.Context, account *model.Account) 
 	return nil
 }
 
-// Delete はアカウントを論理削除する
-func (r *accountRepository) Delete(ctx context.Context, id uint64) error {
-	if err := r.db.WithContext(ctx).Model(&model.Account{}).Where("id = ?", id).Update("deleted_at", gorm.Expr("now()")).Error; err != nil {
-		return apperrors.FromGORM(err, "account", fmt.Sprintf("%d", id))
-	}
-	return nil
-}

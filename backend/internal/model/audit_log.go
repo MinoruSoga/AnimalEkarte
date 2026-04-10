@@ -28,9 +28,8 @@ const (
 	AuditActionPermissionGroupCreate  = "permission_group.create"
 	AuditActionPermissionGroupUpdate  = "permission_group.update"
 	AuditActionPermissionGroupDelete  = "permission_group.delete"
-	AuditActionPermissionRulesUpdate  = "permission_rules.update"
-	AuditActionUserPermissionGroupSet = "user_permission_group.set"
-	AuditActionAuthLoginSuccess       = "auth.login.success"
+	AuditActionPermissionRulesUpdate = "permission_rules.update"
+	AuditActionAuthLoginSuccess      = "auth.login.success"
 	AuditActionAuthLoginFailure       = "auth.login.failure"
 	AuditActionAuthLogout             = "auth.logout"
 )

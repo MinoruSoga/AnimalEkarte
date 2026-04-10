@@ -105,7 +105,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, error) {
 	// clinicID 確認
 	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
 
 	fields := buildReservationStaffUpdateFields(input)
@@ -131,7 +131,7 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 
 func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
 	if err := s.repo.SoftDelete(ctx, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation staff")
@@ -144,7 +144,7 @@ func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint6
 
 func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, error) {
 	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
 	if err := s.repo.Update(ctx, id, map[string]any{"is_active": isActive}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to patch staff status")
@@ -153,6 +153,10 @@ func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id 
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get reservation staff after patch status")
 	}
+	slog.InfoContext(ctx, "reservation staff status patched",
+		slog.Uint64("staff_id", id),
+		slog.Uint64("clinic_id", clinicID),
+		slog.Bool("is_active", isActive))
 	return result, nil
 }
 

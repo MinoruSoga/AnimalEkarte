@@ -12,7 +12,6 @@ import (
 // ReservationCourseService は予約コース（service_types）のビジネスロジックインターフェース
 type ReservationCourseService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ServiceType, error)
-	GetByID(ctx context.Context, clinicID, id uint64) (*model.ServiceType, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateReservationCourseInput) (*model.ServiceType, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCourseInput) (*model.ServiceType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -64,14 +63,6 @@ func (s *reservationCourseService) List(ctx context.Context, clinicID uint64) ([
 	result, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list reservation course")
-	}
-	return result, nil
-}
-
-func (s *reservationCourseService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ServiceType, error) {
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get reservation course")
 	}
 	return result, nil
 }

@@ -129,6 +129,21 @@
 | ~~BUG-278~~ | BE Service/Handler | ✅ **CLOSED** — AuditService を auth_handler + permission_group_handler に組み込み（2026-04-10） | High | closed/ |
 | ~~BUG-279~~ | BE 複合 | ✅ **CLOSED** — デッドコード削除完了（空ファイル9個、未使用メソッド8+1個、未使用型2個、dangling comment 1件）（2026-04-10） | Medium | closed/ |
 
+## バックエンド Go 規約準拠監査（2026-04-10 第13回・第6回監査）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| ~~BUG-287~~ | BE 全ドメイン | ✅ **CLOSED** — 第6回監査 HIGH 1件 + MEDIUM 6件 全修正（2026-04-10） | — | closed/ |
+| ~~BUG-288~~ | BE Service | ✅ **CLOSED** — timeslot_engine raw error を apperrors.Wrap で修正 | — | closed/ |
+| ~~BUG-289~~ | BE 複合 | ✅ **CLOSED** — c.JSON→RespondError / 裸return→Wrap / slog追加（2026-04-10） | — | closed/ |
+
+## バックエンド デッドコード監査 第2回（2026-04-10）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| ~~BUG-285~~ | BE 全ドメイン | ✅ **CLOSED** — デッドコード監査 第2回（2026-04-10） | — | closed/ |
+| ~~BUG-286~~ | BE 複合 | ✅ **CLOSED** — カテゴリA全8件削除（ミドルウェア二重登録、重複バリデーション、未使用メソッド等）（2026-04-10） | — | closed/ |
+
 ## 修正優先順位（BUG-221〜223 追加後）
 
 1. **BUG-186** (Critical): LoginResponse から Token フィールド削除 — 5分
