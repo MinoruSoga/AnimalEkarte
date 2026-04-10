@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,7 +55,7 @@ interface ReservationFormFieldsProps {
   onClearError?: (field: string) => void;
 }
 
-export function ReservationFormFields({
+export const ReservationFormFields = memo(function ReservationFormFields({
   formData,
   onChange,
   validationErrors,
@@ -311,4 +312,4 @@ export function ReservationFormFields({
       </div>
     </div>
   );
-}
+});
