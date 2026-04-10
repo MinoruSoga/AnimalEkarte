@@ -33,12 +33,11 @@ type PermissionGroupService interface {
 }
 
 type permissionGroupService struct {
-	repo     repository.PermissionGroupRepository
-	auditSvc AuditService
+	repo repository.PermissionGroupRepository
 }
 
-func NewPermissionGroupService(repo repository.PermissionGroupRepository, auditSvc AuditService) PermissionGroupService {
-	return &permissionGroupService{repo: repo, auditSvc: auditSvc}
+func NewPermissionGroupService(repo repository.PermissionGroupRepository) PermissionGroupService {
+	return &permissionGroupService{repo: repo}
 }
 
 func (s *permissionGroupService) List(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
@@ -65,14 +64,6 @@ func (s *permissionGroupService) Create(ctx context.Context, group *model.Permis
 		slog.Uint64("group_id", group.ID),
 		slog.Uint64("clinic_id", group.ClinicID),
 		slog.String("name", group.Name))
-	// 監査ログ（DB記録）
-	_ = s.auditSvc.Log(ctx, &model.AuditLog{
-		ClinicID:   &group.ClinicID,
-		Action:     model.AuditActionPermissionGroupCreate,
-		Resource:   "permission_group",
-		ResourceID: &group.ID,
-		NewValue:   repository.MarshalAuditJSON(group),
-	})
 	return nil
 }
 
@@ -91,14 +82,6 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get permission group after update")
 	}
-	// 監査ログ（DB記録）
-	_ = s.auditSvc.Log(ctx, &model.AuditLog{
-		ClinicID:   &clinicID,
-		Action:     model.AuditActionPermissionGroupUpdate,
-		Resource:   "permission_group",
-		ResourceID: &id,
-		NewValue:   repository.MarshalAuditJSON(result),
-	})
 	return result, nil
 }
 
@@ -115,12 +98,6 @@ func (s *permissionGroupService) Delete(ctx context.Context, id uint64) error {
 	}
 	slog.InfoContext(ctx, "permission group deleted",
 		slog.Uint64("group_id", id))
-	// 監査ログ（DB記録）
-	_ = s.auditSvc.Log(ctx, &model.AuditLog{
-		Action:     model.AuditActionPermissionGroupDelete,
-		Resource:   "permission_group",
-		ResourceID: &id,
-	})
 	return nil
 }
 
@@ -131,13 +108,6 @@ func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, r
 	slog.InfoContext(ctx, "permission group rules set",
 		slog.Uint64("group_id", groupID),
 		slog.Int("rule_count", len(rules)))
-	// 監査ログ（DB記録）
-	_ = s.auditSvc.Log(ctx, &model.AuditLog{
-		Action:     model.AuditActionPermissionRulesUpdate,
-		Resource:   "permission_group",
-		ResourceID: &groupID,
-		NewValue:   repository.MarshalAuditJSON(rules),
-	})
 	return nil
 }
 

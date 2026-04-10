@@ -109,7 +109,7 @@ func NewServices(repos *repository.Repositories, notifCfg ReservationNotificatio
 		Inquiry:                  NewInquiryService(repos.Inquiry),
 		InquiryTemplate:          NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                  NewCompanyService(repos.Company),
-		PermissionGroup:          NewPermissionGroupService(repos.PermissionGroup, auditSvc),
+		PermissionGroup:          NewPermissionGroupService(repos.PermissionGroup),
 		BillingReview:            NewBillingReviewService(repos.BillingReview),
 		CarePlanItem:             NewCarePlanItemService(repos.CarePlanItem),
 		ShiftEntry:               NewShiftEntryService(repos.ShiftEntry),
