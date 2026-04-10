@@ -97,6 +97,8 @@ process.stdin.on('end', () => {
       if (/\.(png|jpg|jpeg|gif|svg|ico|woff|ttf|eot|lock)$/.test(file)) continue;
       if (file.includes('node_modules') || file.includes('vendor')) continue;
       if (file === 'package-lock.json' || file === 'go.sum') continue;
+      // Skip SQL migration/seed files — credentials in seed data are intentional
+      if (/migrations\/.*\.sql$/.test(file)) continue;
 
       let content;
       try {
