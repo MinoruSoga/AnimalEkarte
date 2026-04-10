@@ -25,7 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth, usePermission } from "@/features/auth";
 
 // Relative
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";

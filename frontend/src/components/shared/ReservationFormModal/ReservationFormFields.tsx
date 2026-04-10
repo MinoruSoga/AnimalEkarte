@@ -10,7 +10,7 @@ import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { useMasterItems } from "@/hooks/use-master-items";
+import { useMasterItems } from "@/features/master";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { isOneOf } from "@/lib/type-utils";
 import type { ReservationAppointment } from "@/types";

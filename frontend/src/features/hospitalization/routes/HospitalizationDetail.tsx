@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { DischargeAlertDialog } from "../components/DischargeAlertDialog";

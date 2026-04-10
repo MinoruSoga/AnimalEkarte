@@ -29,10 +29,7 @@ import { SortableDataTableRow } from "@/components/shared/DataTable/SortableData
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
-import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
-import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useGetDiagnosisCategories, useCreateDiagnosisCategory, useUpdateDiagnosisCategory, useDeleteDiagnosisCategory, useReorderDiagnosisCategories, useGetDiagnosisNames, useCreateDiagnosisName, useUpdateDiagnosisName, useDeleteDiagnosisName, useReorderDiagnosisNames } from "@/features/master/api/diagnosis";

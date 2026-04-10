@@ -1,5 +1,5 @@
 import { ICON, C } from "@/lib/design-tokens";
-import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback } from "@/components/shared/DataStates";
 import { memo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { FileText } from 'lucide-react';

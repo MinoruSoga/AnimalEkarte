@@ -10,7 +10,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
+import { PropertyRow } from "@/components/shared/SidePeek";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useGetCompany, useUpdateCompany } from "@/features/master/api/company";
 import type { UpdateCompanyRequest } from "@/features/master/api/company";

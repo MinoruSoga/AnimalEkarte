@@ -9,9 +9,7 @@ import { SortableDataTableRow } from "@/components/shared/DataTable/SortableData
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { usePermission } from "@/features/auth";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
-import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { PropertyRow, StatusToggleButton, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";

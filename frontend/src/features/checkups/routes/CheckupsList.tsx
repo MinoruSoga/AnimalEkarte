@@ -17,7 +17,7 @@ import { FilteringIndicator } from "@/components/shared/FilteringIndicator/Filte
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { usePagination } from "@/hooks/use-pagination";
 import { usePermission } from "@/features/auth";

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 // Internal
 import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
 import { C, STYLE } from "@/lib/design-tokens";
-import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { useGetClinicalPlan, useUpdateClinicalPlan } from "@/features/medical-records/api/clinical-plan";
