@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { memo, useState } from "react";
 
 // Internal
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
@@ -14,7 +14,7 @@ interface ReturnReasonDialogProps {
   isPending: boolean;
 }
 
-export function ReturnReasonDialog({
+export const ReturnReasonDialog = memo(function ReturnReasonDialog({
   open,
   onOpenChange,
   onSubmit,
@@ -58,4 +58,4 @@ export function ReturnReasonDialog({
       </div>
     </FormDialog>
   );
-}
+});

@@ -89,6 +89,11 @@ const MERCHANDISE_CATEGORY_OPTIONS = [
   { value: "other", label: "その他" },
 ];
 
+// rendering-hoist-jsx: 静的 SelectItem リストをモジュールスコープに巻き上げ
+const MERCHANDISE_CATEGORY_SELECT_ITEMS = MERCHANDISE_CATEGORY_OPTIONS.map((o) => (
+  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+));
+
 const ItemListCard = memo(function ItemListCard({
   items,
   subtotal,
@@ -261,9 +266,7 @@ const ItemListCard = memo(function ItemListCard({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {MERCHANDISE_CATEGORY_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
+                      {MERCHANDISE_CATEGORY_SELECT_ITEMS}
                     </SelectContent>
                   </Select>
                 </div>

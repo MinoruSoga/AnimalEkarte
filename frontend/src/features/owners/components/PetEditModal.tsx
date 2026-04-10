@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
+import { memo, useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,7 +70,7 @@ interface PetEditModalProps {
   onChangeOwner?: (newOwner: { id: string; name: string }) => void;
 }
 
-export function PetEditModal({
+export const PetEditModal = memo(function PetEditModal({
   open,
   onOpenChange,
   ownerName = "飼主名",
@@ -629,4 +629,4 @@ export function PetEditModal({
       ) : null}
     </Dialog>
   );
-}
+});

@@ -1,5 +1,5 @@
 // React/Framework
-import { lazy, Suspense, useState, useCallback, useMemo } from "react";
+import { memo, lazy, Suspense, useState, useCallback, useMemo } from "react";
 
 // External
 import { Plus, Search } from "lucide-react";
@@ -71,7 +71,7 @@ interface TreatmentsTabProps {
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: TreatmentsTabProps) {
+export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: TreatmentsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: treatments, isLoading } = useGetTreatments(medicalRecordId);
   const createMutation = useCreateTreatment(medicalRecordId);
@@ -410,4 +410,4 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
       </div>
     </div>
   );
-}
+});

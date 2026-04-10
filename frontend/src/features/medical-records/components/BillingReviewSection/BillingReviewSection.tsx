@@ -1,5 +1,5 @@
 // React/Framework
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { memo, lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 // External
 import { CheckCircle, AlertCircle, Clock } from "lucide-react";
@@ -42,7 +42,7 @@ const STATUS_ICON: Record<BillingReviewStatus, StatusIconComponent> = {
   returned: AlertCircle,
 };
 
-export function BillingReviewSection({
+export const BillingReviewSection = memo(function BillingReviewSection({
   medicalRecordId,
 }: BillingReviewSectionProps) {
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
@@ -159,4 +159,4 @@ export function BillingReviewSection({
       </Suspense>
     </>
   );
-}
+});

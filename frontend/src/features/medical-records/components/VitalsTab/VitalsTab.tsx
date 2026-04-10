@@ -284,7 +284,7 @@ interface VitalsTabProps {
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
+export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: vitals, isLoading } = useGetVitals(medicalRecordId);
   const createMutation = useCreateVital(medicalRecordId);
@@ -625,4 +625,4 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
       ) : null}
     </div>
   );
-}
+});
