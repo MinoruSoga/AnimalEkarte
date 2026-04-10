@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useCallback } from "react";
+import { memo, useState, useCallback } from "react";
 
 // External
 import { MessageSquare, Plus } from "lucide-react";
@@ -37,7 +37,7 @@ function getCurrentTime(): string {
     return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-export function DailyStaffNotesSection({
+export const DailyStaffNotesSection = memo(function DailyStaffNotesSection({
     staffNotes,
     onAddStaffNote,
     isPending,
@@ -151,4 +151,4 @@ export function DailyStaffNotesSection({
             </FormDialog>
         </div>
     );
-}
+});

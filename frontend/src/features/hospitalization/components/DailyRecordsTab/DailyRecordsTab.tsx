@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useCallback, useMemo, useTransition } from "react";
+import { memo, useState, useCallback, useMemo, useTransition } from "react";
 
 // External
 import { Loader2, PlusCircle } from "lucide-react";
@@ -36,7 +36,7 @@ function clampDate(date: string, min: string, max: string): string {
     return date;
 }
 
-export function DailyRecordsTab({
+export const DailyRecordsTab = memo(function DailyRecordsTab({
     hospitalizationId,
     admissionDate,
     dischargeDate,
@@ -175,4 +175,4 @@ export function DailyRecordsTab({
             )}
         </div>
     );
-}
+});

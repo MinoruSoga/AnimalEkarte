@@ -1,3 +1,6 @@
+// React/Framework
+import { memo } from "react";
+
 // Internal
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -29,7 +32,7 @@ interface HospitalizationListViewProps {
   canEdit: boolean;
 }
 
-export function HospitalizationListView({ hospitalizations, onNavigate, canEdit }: HospitalizationListViewProps) {
+export const HospitalizationListView = memo(function HospitalizationListView({ hospitalizations, onNavigate, canEdit }: HospitalizationListViewProps) {
 
   return (
     <DataTable
@@ -71,4 +74,4 @@ export function HospitalizationListView({ hospitalizations, onNavigate, canEdit 
       )}
     />
   );
-}
+});

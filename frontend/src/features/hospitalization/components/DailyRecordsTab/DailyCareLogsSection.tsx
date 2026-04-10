@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useCallback } from "react";
+import { memo, useState, useCallback } from "react";
 
 // External
 import { UtensilsCrossed, Droplets, Pill, Stethoscope, MoreHorizontal, Plus } from "lucide-react";
@@ -82,7 +82,7 @@ function getCurrentTime(): string {
     return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-export function DailyCareLogsSection({
+export const DailyCareLogsSection = memo(function DailyCareLogsSection({
     careLogs,
     onAddCareLog,
     isPending,
@@ -245,4 +245,4 @@ export function DailyCareLogsSection({
             </FormDialog>
         </div>
     );
-}
+});

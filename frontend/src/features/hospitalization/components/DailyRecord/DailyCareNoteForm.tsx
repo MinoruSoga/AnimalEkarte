@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { memo, useState } from "react";
 
 // External
 import { Send } from "lucide-react";
@@ -22,7 +22,7 @@ interface DailyCareNoteFormProps {
     onSave: (data: CreateCareLogDTO) => void;
 }
 
-export function DailyCareNoteForm({ onSave }: DailyCareNoteFormProps) {
+export const DailyCareNoteForm = memo(function DailyCareNoteForm({ onSave }: DailyCareNoteFormProps) {
     const [note, setNote] = useState("");
 
     const handleSubmit = () => {
@@ -63,4 +63,4 @@ export function DailyCareNoteForm({ onSave }: DailyCareNoteFormProps) {
             </div>
         </div>
     );
-}
+});
