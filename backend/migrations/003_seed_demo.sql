@@ -258,7 +258,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (1, 'hospital-settings',      true, true,  true,  true),
     (1, 'master-animal-species',  true, true,  true,  true),
     (1, 'master-medical',         true, true,  true,  true),
-    (1, 'master-service-type',    true, true,  true,  true),
+    (1, 'master-reservation-category',    true, true,  true,  true),
     (1, 'master-hospitalization', true, true,  true,  true),
     (1, 'master-trimming',        true, true,  true,  true),
     (1, 'master-permission',      true, true,  true,  true),
@@ -282,7 +282,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (2, 'hospital-settings',      true, false, false, false),
     (2, 'master-animal-species',  true, false, false, false),
     (2, 'master-medical',         true, false, false, false),
-    (2, 'master-service-type',    true, false, false, false),
+    (2, 'master-reservation-category',    true, false, false, false),
     (2, 'master-hospitalization', true, false, false, false),
     (2, 'master-trimming',        true, false, false, false),
     (2, 'master-permission',      false, false, false, false),
@@ -306,7 +306,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (3, 'hospital-settings',      true, true,  true,  true),
     (3, 'master-animal-species',  true, true,  true,  true),
     (3, 'master-medical',         true, true,  true,  true),
-    (3, 'master-service-type',    true, true,  true,  true),
+    (3, 'master-reservation-category',    true, true,  true,  true),
     (3, 'master-hospitalization', true, true,  true,  true),
     (3, 'master-trimming',        true, true,  true,  true),
     (3, 'master-permission',      true, true,  true,  true),
@@ -330,7 +330,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (4, 'hospital-settings',      true, false, false, false),
     (4, 'master-animal-species',  true, false, false, false),
     (4, 'master-medical',         true, false, false, false),
-    (4, 'master-service-type',    true, false, false, false),
+    (4, 'master-reservation-category',    true, false, false, false),
     (4, 'master-hospitalization', true, false, false, false),
     (4, 'master-trimming',        true, false, false, false),
     (4, 'master-permission',      false, false, false, false),
@@ -354,7 +354,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (5, 'hospital-settings',      true, true,  true,  true),
     (5, 'master-animal-species',  true, true,  true,  true),
     (5, 'master-medical',         true, true,  true,  true),
-    (5, 'master-service-type',    true, true,  true,  true),
+    (5, 'master-reservation-category',    true, true,  true,  true),
     (5, 'master-hospitalization', true, true,  true,  true),
     (5, 'master-trimming',        true, true,  true,  true),
     (5, 'master-permission',      true, true,  true,  true),
@@ -378,7 +378,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (6, 'hospital-settings',      true, false, false, false),
     (6, 'master-animal-species',  true, false, false, false),
     (6, 'master-medical',         true, false, false, false),
-    (6, 'master-service-type',    true, false, false, false),
+    (6, 'master-reservation-category',    true, false, false, false),
     (6, 'master-hospitalization', true, false, false, false),
     (6, 'master-trimming',        true, false, false, false),
     (6, 'master-permission',      false, false, false, false),
@@ -438,14 +438,14 @@ INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 8. service_types（サービス種別）
+-- 8. reservation_categories（サービス種別）
 -- 八王子院 (clinic_id=3): 25件 (ID 1-25)
 -- 城東医院 (clinic_id=4): 19件 (ID 26-44)
 -- 敷島医院 (clinic_id=5): 14件 (ID 45-58)
 -- -----------------------------------------------------------------------------
 
 -- 八王子院 (clinic_id=3) 公開コース (is_internal=false, reservation_visible=true)
-INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (1,  3, '一般診察',               '診察',     true, '内科・外科・皮膚科などの一般的な診察',         '#3B82F6', 1,  15, true,  '', false),
     (2,  3, '一般診察(再診)',          '再診',     true, '継続通院の一般診察',                           '#3B82F6', 2,  15, true,  '', false),
     (3,  3, 'ワクチン接種',            'ワクチン', true, '各種ワクチン接種（予防接種）',                 '#10B981', 3,  15, true,  '', false),
@@ -462,7 +462,7 @@ INSERT INTO service_types (id, clinic_id, name, short_name, is_active, descripti
 ON CONFLICT DO NOTHING;
 
 -- 八王子院 (clinic_id=3) スタッフ専用コース (is_internal=true, reservation_visible=false)
-INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (14, 3, '手術60',                 '手術60',   true, '手術枠（60分）',                               '#EF4444', 14, 60, false, '', true),
     (15, 3, 'ホテルお迎え',           'お迎え',   true, 'ホテルお迎え対応',                             '#6B7280', 15, 15, false, '', true),
     (16, 3, 'ホテル預かり',           '預かり',   true, 'ペットホテル預かり',                           '#6B7280', 16, 15, false, '', true),
@@ -477,7 +477,7 @@ INSERT INTO service_types (id, clinic_id, name, short_name, is_active, descripti
     (25, 3, '予約不可30',             '不可30',   true, '予約不可ブロック（30分）',                     '#6B7280', 25, 30, false, '', true)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('service_types', 'id'), (SELECT MAX(id) FROM service_types));
+SELECT setval(pg_get_serial_sequence('reservation_categories', 'id'), (SELECT MAX(id) FROM reservation_categories));
 
 -- -----------------------------------------------------------------------------
 -- 9. cages（ケージ: 8件）
@@ -920,7 +920,7 @@ SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 -- -----------------------------------------------------------------------------
 -- 3. reservation_appointments（予約: 10件）
 -- -----------------------------------------------------------------------------
-INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, service_type_id, doctor_id, is_designated, status, notes) VALUES
+INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_category_id, doctor_id, is_designated, status, notes) VALUES
     (1,  3, '2026-03-12 09:00:00+09', '2026-03-12 09:15:00+09', 1,  1,  'revisit', 1, 1, true,  'completed',       '皮膚の経過観察'),
     (2,  3, '2026-03-12 09:15:00+09', '2026-03-12 09:30:00+09', 2,  3,  'revisit', 7, 2, false, 'accounting',      '猫の定期健診'),
     (3,  3, '2026-03-12 10:00:00+09', '2026-03-12 10:15:00+09', 3,  4,  'revisit', 1, 1, true,  'in_consultation', '足を引きずっている'),
@@ -1164,11 +1164,11 @@ SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) F
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 城東医院 service_types（サービス種別: 19件、ID 26-44）
+-- 城東医院 reservation_categories（サービス種別: 19件、ID 26-44）
 -- -----------------------------------------------------------------------------
 
 -- 城東医院 公開コース
-INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (26, 4, '一般診察',               '診察',     true, '内科・外科・皮膚科などの一般的な診察',         '#3B82F6', 1,  15, true,  '', false),
     (27, 4, '一般診察(再診)',          '再診',     true, '継続通院の一般診察',                           '#3B82F6', 2,  15, true,  '', false),
     (28, 4, 'ワクチン接種',            'ワクチン', true, '各種ワクチン接種（予防接種）',                 '#10B981', 3,  15, true,  '', false),
@@ -1182,7 +1182,7 @@ INSERT INTO service_types (id, clinic_id, name, short_name, is_active, descripti
 ON CONFLICT DO NOTHING;
 
 -- 城東医院 スタッフ専用コース
-INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (36, 4, '手術60',                 '手術60',   true, '手術枠（60分）',                               '#EF4444', 11, 60, false, '', true),
     (37, 4, '手術30',                 '手術30',   true, '手術枠（30分）',                               '#EF4444', 12, 30, false, '', true),
     (38, 4, 'ホテルお迎え',           'お迎え',   true, 'ホテルお迎え対応',                             '#6B7280', 13, 15, false, '', true),
@@ -1194,7 +1194,7 @@ INSERT INTO service_types (id, clinic_id, name, short_name, is_active, descripti
     (44, 4, 'エコー枠',               'エコー',   true, '超音波検査専用枠',                             '#8B5CF6', 19, 30, false, '', true)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('service_types', 'id'), (SELECT MAX(id) FROM service_types));
+SELECT setval(pg_get_serial_sequence('reservation_categories', 'id'), (SELECT MAX(id) FROM reservation_categories));
 
 -- -----------------------------------------------------------------------------
 -- 城東医院 cages（ケージ: 4件）
@@ -1453,11 +1453,11 @@ SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 敷島医院 service_types（サービス種別: 14件、ID 45-58）
+-- 敷島医院 reservation_categories（サービス種別: 14件、ID 45-58）
 -- -----------------------------------------------------------------------------
 
 -- 敷島医院 公開コース
-INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (45, 5, '一般診察',               '診察',     true, '内科・外科・皮膚科などの一般的な診察',         '#3B82F6', 1,  15, true,  '', false),
     (46, 5, '一般診察(再診)',          '再診',     true, '継続通院の一般診察',                           '#3B82F6', 2,  15, true,  '', false),
     (47, 5, 'ワクチン接種',            'ワクチン', true, '各種ワクチン接種（予防接種）',                 '#10B981', 3,  15, true,  '', false),
@@ -1469,7 +1469,7 @@ INSERT INTO service_types (id, clinic_id, name, short_name, is_active, descripti
 ON CONFLICT DO NOTHING;
 
 -- 敷島医院 スタッフ専用コース
-INSERT INTO service_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (53, 5, '手術60',                 '手術60',   true, '手術枠（60分）',                               '#EF4444', 9,  60, false, '', true),
     (54, 5, '手術30',                 '手術30',   true, '手術枠（30分）',                               '#EF4444', 10, 30, false, '', true),
     (55, 5, '休憩枠',                 '休憩',     true, '休憩・ブロック枠',                             '#6B7280', 11, 60, false, '', true),
@@ -1478,7 +1478,7 @@ INSERT INTO service_types (id, clinic_id, name, short_name, is_active, descripti
     (58, 5, '予約不可30',             '不可30',   true, '予約不可ブロック（30分）',                     '#6B7280', 14, 30, false, '', true)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('service_types', 'id'), (SELECT MAX(id) FROM service_types));
+SELECT setval(pg_get_serial_sequence('reservation_categories', 'id'), (SELECT MAX(id) FROM reservation_categories));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 cages（ケージ: 4件）
@@ -1817,7 +1817,7 @@ ON CONFLICT DO NOTHING;
 -- LINE予約システム シードデータ
 -- =============================================================================
 
--- A. service_types の予約用カラムはすべて INSERT 時に設定済み（更新不要）
+-- A. reservation_categories の予約用カラムはすべて INSERT 時に設定済み（更新不要）
 -- B. staffs の予約用カラムはすべて INSERT 時に設定済み（更新不要）
 
 -- C. reservation_settings 初期データ
@@ -1848,34 +1848,34 @@ ON CONFLICT (clinic_id) DO NOTHING;
 UPDATE reservation_settings SET
     status              = 'running',
     header_text         = 'ノア動物病院 八王子',
-    line_channel_id     = '2009755544',
-    line_channel_secret = '5344ef84eb7072b5894f7e087db28827',
-    liff_id             = '2009755581-w5NOA3EW',
-    line_access_token   = 'pwMi3yP6jhRa0xbmnR0IPEcE5l+OIp21a7ia3hmoiuFSCvqkR5Tmmfm6fLoSTB1Bt7uQjAe9NN7fZ+LBDtNKLGnrqBrjDmhTnws9PVxQKLyinomNzUAb61KADX7NJmFBfEsLQQ9VmlU+tMJcWh+zswdB04t89/1O/w1cDnyilFU='
+    line_channel_id     = 'DEMO_CHANNEL_ID_HACHIOJI',
+    line_channel_secret = 'DEMO_CHANNEL_SECRET_HACHIOJI',
+    liff_id             = 'DEMO_LIFF_ID_HACHIOJI',
+    line_access_token   = 'DEMO_ACCESS_TOKEN_HACHIOJI'
 WHERE clinic_id = 3;
 
 UPDATE reservation_settings SET
     status              = 'running',
     header_text         = 'ノア動物病院 城東',
-    line_channel_id     = '2009755545',
-    line_channel_secret = '25e4661a8de553953a4b34c6ac7a91cb',
-    liff_id             = '2009755586-nvKfG3Cp',
-    line_access_token   = 'CUAtYMry8doD9ALCF/6Y0JocVqRrxC8IbOCMyRyxwDw5EJhyujJ4lQ8mVGrt7WawTi+voAxZ79mKAg+4qlsUPBVU6VMZdk7wEA42NZXQAl8gBr2tSYmZpbRzAiLfuGhxuba+koBHVk8yTuaCCjLBzAdB04t89/1O/w1cDnyilFU='
+    line_channel_id     = 'DEMO_CHANNEL_ID_JOTO',
+    line_channel_secret = 'DEMO_CHANNEL_SECRET_JOTO',
+    liff_id             = 'DEMO_LIFF_ID_JOTO',
+    line_access_token   = 'DEMO_ACCESS_TOKEN_JOTO'
 WHERE clinic_id = 4;
 
--- D. staff_excluded_service_types 初期データ
+-- D. staff_excluded_reservation_categories 初期データ
 -- 獣医スタッフはトリミング系コースを非対応とする（同一クリニック内のみ）
-INSERT INTO staff_excluded_service_types (staff_id, service_type_id)
+INSERT INTO staff_excluded_reservation_categories (staff_id, reservation_category_id)
 SELECT s.id, st.id
 FROM staffs s
 JOIN staff_clinic_assignments sca ON sca.staff_id = s.id
-JOIN service_types st ON sca.clinic_id = st.clinic_id
+JOIN reservation_categories st ON sca.clinic_id = st.clinic_id
 WHERE s.staff_type = 'doctor'
   AND st.name IN (
       'トリミングコース', 'トリミング部分カットコース', 'トリミングシャンプーコース',
       'クイックシャンプー', 'お手入れ', '室内ドッグラン'
   )
-ON CONFLICT (staff_id, service_type_id) DO NOTHING;
+ON CONFLICT (staff_id, reservation_category_id) DO NOTHING;
 
 -- E. reservation_customers テスト用 LINE 顧客データ
 INSERT INTO reservation_customers (clinic_id, line_user_id, display_name, real_name, additional_fields, owner_id)
@@ -1887,7 +1887,7 @@ ON CONFLICT DO NOTHING;
 
 -- F. 城東医院 (clinic_id=4) テスト予約 3件
 -- ※ owners/pets が先に挿入されている必要がある
-INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, service_type_id, doctor_id, is_designated, status, notes) VALUES
+INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_category_id, doctor_id, is_designated, status, notes) VALUES
     (11, 4, '2026-03-12 10:00:00+09', '2026-03-12 10:15:00+09', 23, 29, 'revisit', 26, 16, true,  'confirmed', 'クロの定期診察'),
     (12, 4, '2026-03-13 14:00:00+09', '2026-03-13 14:15:00+09', 24, 31, 'first',   28, 16, false, 'confirmed', 'ポポのワクチン接種'),
     (13, 4, '2026-03-14 11:00:00+09', '2026-03-14 11:15:00+09', 25, 32, 'revisit', 31, 16, false, 'confirmed', 'ダンの健康診断')
