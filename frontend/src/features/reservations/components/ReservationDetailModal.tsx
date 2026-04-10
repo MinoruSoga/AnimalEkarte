@@ -1,5 +1,6 @@
+import { memo } from "react";
 import { ICON, C } from "@/lib/design-tokens";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Calendar, Clock, Stethoscope, FileText, Pencil, Scissors, Building2, FilePlus2, PawPrint, Tag } from "lucide-react";
@@ -64,7 +65,7 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export function ReservationDetailModal({
+export const ReservationDetailModal = memo(function ReservationDetailModal({
   isOpen,
   onClose,
   onEdit,
@@ -183,7 +184,7 @@ export function ReservationDetailModal({
                   ) : null}
                 </div>
               </InfoRow>
-              <InfoRow label="診療サービス">
+              <InfoRow label="予約区分">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full shrink-0" style={appointment ? getColor(appointment.type).dotStyle : undefined} />
                   <Tag className={`${ICON.xs} ${C.text40}`} />
@@ -238,4 +239,4 @@ export function ReservationDetailModal({
       </DialogContent>
     </Dialog>
   );
-}
+});

@@ -87,7 +87,7 @@ const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} bo
 
 /* ---- Login Form ---- */
 
-export function LoginForm() {
+export const LoginForm = memo(function LoginForm() {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -257,4 +257,4 @@ export function LoginForm() {
       ) : null}
     </div>
   );
-}
+});
