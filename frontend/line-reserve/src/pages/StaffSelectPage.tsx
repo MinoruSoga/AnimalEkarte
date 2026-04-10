@@ -72,7 +72,8 @@ export function StaffSelectPage({
                 <ListItem
                   key={staff.id}
                   onClick={() => onSelect(staff.id, staff.name)}
-                  subtitle={staff.description || undefined}
+                  description={staff.reservation_comment || undefined}
+                  imageUrl={staff.reservation_image_url || undefined}
                 >
                   {staff.name}
                 </ListItem>

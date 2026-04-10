@@ -18,6 +18,9 @@ interface ConfirmPageProps {
   clinicId: string;
   idToken: string;
   flow: ReservationFlow;
+  reservationNotice?: string;
+  cancelNotice?: string;
+  privacyPolicy?: string;
   onConfirm: (reservationId: number, notes: string) => void;
   onSlotTaken: (message: string, redirectStep: number) => void;
   onBack: () => void;
@@ -80,6 +83,9 @@ export function ConfirmPage({
   clinicId,
   idToken,
   flow,
+  reservationNotice,
+  cancelNotice,
+  privacyPolicy,
   onConfirm,
   onSlotTaken,
   onBack,
@@ -188,6 +194,20 @@ export function ConfirmPage({
             ))}
           </div>
 
+          {reservationNotice ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+              <p className="text-xs font-medium text-blue-700 mb-1">ご予約にあたって</p>
+              <p className="text-sm text-blue-800 whitespace-pre-wrap">{reservationNotice}</p>
+            </div>
+          ) : null}
+
+          {cancelNotice ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+              <p className="text-xs font-medium text-gray-500 mb-1">キャンセルポリシー</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{cancelNotice}</p>
+            </div>
+          ) : null}
+
           {error ? (
             <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
               <p className="text-sm text-red-700" role="alert">{error}</p>
@@ -195,7 +215,10 @@ export function ConfirmPage({
           ) : null}
         </div>
 
-        <div className="px-4 py-6">
+        <div className="px-4 py-6 space-y-3">
+          {privacyPolicy ? (
+            <p className="text-xs text-center text-gray-500 whitespace-pre-wrap">{privacyPolicy}</p>
+          ) : null}
           <PrimaryButton onClick={handleConfirm} disabled={submitting}>
             {submitting ? '送信中...' : '予約を確定する'}
           </PrimaryButton>

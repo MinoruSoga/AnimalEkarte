@@ -7,6 +7,9 @@ export interface LiffSettings {
   phone_number: string;
   status: 'running' | 'stopped';
   request_example: string;
+  reservation_notice: string;
+  cancel_notice: string;
+  privacy_policy: string;
   show_no_staff_option: boolean;
   booking_window: number; // 予約可能な日数（今日から何日後まで）
 }
@@ -48,12 +51,15 @@ export interface Course {
 export interface Staff {
   id: number;
   name: string;
-  description: string;
+  reservation_comment: string;
+  reservation_image_url: string;
+  sort_order: number;
 }
 
 export interface AvailableDate {
   date: string; // "YYYY-MM-DD"
   available: boolean;
+  reason?: 'closed' | 'holiday' | 'staff_off' | 'no_slots'; // 予約不可の理由
 }
 
 export interface AvailableTime {
@@ -67,11 +73,17 @@ export interface Reservation {
   course_name: string;
   staff_name: string;
   date: string;       // "YYYY-MM-DD"
-  start_time: string; // "HHMM"
-  end_time: string;   // "HHMM"
+  start_time: string; // "HH:MM"
+  end_time: string;   // "HH:MM"
   status: 'confirmed' | 'cancelled' | 'completed';
   notes: string;
   created_at: string;
+}
+
+/** POST /reservations のレスポンス（予約作成直後は id と notes のみ返す） */
+export interface CreateReservationResponse {
+  id: number;
+  notes: string;
 }
 
 export interface PetSelection {

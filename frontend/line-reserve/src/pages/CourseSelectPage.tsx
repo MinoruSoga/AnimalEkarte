@@ -64,6 +64,8 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
                   key={course.id}
                   onClick={() => onSelect(course.id, course.name)}
                   subtitle={formatDuration(course.duration_minutes)}
+                  description={course.reservation_comment || undefined}
+                  imageUrl={course.reservation_image_url || undefined}
                 >
                   {course.name}
                 </ListItem>

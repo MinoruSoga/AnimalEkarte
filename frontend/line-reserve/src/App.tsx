@@ -258,6 +258,9 @@ export function App() {
         clinicId={clinicId}
         idToken={idToken}
         flow={flow}
+        reservationNotice={settings.reservation_notice}
+        cancelNotice={settings.cancel_notice}
+        privacyPolicy={settings.privacy_policy}
         onConfirm={handleConfirm}
         onSlotTaken={handleSlotTaken}
         onBack={() => goTo('step6')}
