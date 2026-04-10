@@ -1,6 +1,7 @@
 import { C, ICON } from "@/lib/design-tokens";
 import { Settings } from "lucide-react";
 import { Link } from "react-router";
+import { paths } from "@/config/paths";
 
 /** 設定ページへのリンクに対応する全マスタカテゴリ */
 export type MasterLinkCategory =
@@ -22,22 +23,22 @@ export type MasterLinkCategory =
   | "interview_template";
 
 const CATEGORY_PATH_MAP: Record<MasterLinkCategory, string> = {
-  serviceType: "/settings/service-type",
-  vaccine: "/settings/vaccine",
-  examination: "/settings/examination",
-  cage: "/settings/cage",
-  trimming_course: "/settings/trimming-course",
-  trimming_option: "/settings/trimming-option",
-  medicine: "/settings/medicine",
-  consultation: "/settings/consultation",
-  procedure: "/settings/procedure",
-  hospitalization: "/settings/hospitalization",
-  insurance: "/settings/insurance",
-  staff: "/settings/staff",
-  diagnosis_category: "/settings/diagnosis-category",
-  diagnosis_name: "/settings/diagnosis-name",
-  chief_complaint: "/settings/interview/chief-complaint",
-  interview_template: "/settings/interview/templates",
+  serviceType: paths.settings.serviceType.getHref(),
+  vaccine: paths.settings.vaccine.getHref(),
+  examination: paths.settings.examination.getHref(),
+  cage: paths.settings.cage.getHref(),
+  trimming_course: paths.settings.trimmingCourse.getHref(),
+  trimming_option: paths.settings.trimmingOption.getHref(),
+  medicine: paths.settings.medicine.getHref(),
+  consultation: paths.settings.consultation.getHref(),
+  procedure: paths.settings.procedure.getHref(),
+  hospitalization: paths.settings.hospitalization.getHref(),
+  insurance: paths.settings.insurance.getHref(),
+  staff: paths.settings.staff.getHref(),
+  diagnosis_category: paths.settings.diagnosisCategory.getHref(),
+  diagnosis_name: paths.settings.diagnosisName.getHref(),
+  chief_complaint: paths.settings.interview.chiefComplaint.getHref(),
+  interview_template: paths.settings.interview.interviewTemplate.getHref(),
 };
 
 interface MasterLinkProps {

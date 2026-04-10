@@ -157,7 +157,7 @@ export function HospitalizationForm() {
                     variant="outline"
                     type="button"
                     className={`gap-2 h-10 text-sm px-4 ${C.text}`}
-                    onClick={() => navigate(`/hospitalization/${hospitalizationId}`)}
+                    onClick={() => navigate(paths.hospitalization.detail.getHref(String(hospitalizationId)))}
                   >
                     <FileText className={ICON.action} />
                     デイリーカルテ

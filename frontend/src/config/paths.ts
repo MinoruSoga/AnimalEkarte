@@ -256,6 +256,38 @@ export const paths = {
       path: "/settings/merchandise-items",
       getHref: () => "/settings/merchandise-items",
     },
+    vaccine: {
+      path: "/settings/vaccine",
+      getHref: () => "/settings/vaccine",
+    },
+    examination: {
+      path: "/settings/examination",
+      getHref: () => "/settings/examination",
+    },
+    trimmingCourse: {
+      path: "/settings/trimming-course",
+      getHref: () => "/settings/trimming-course",
+    },
+    trimmingOption: {
+      path: "/settings/trimming-option",
+      getHref: () => "/settings/trimming-option",
+    },
+    consultation: {
+      path: "/settings/consultation",
+      getHref: () => "/settings/consultation",
+    },
+    procedure: {
+      path: "/settings/procedure",
+      getHref: () => "/settings/procedure",
+    },
+    diagnosisCategory: {
+      path: "/settings/diagnosis-category",
+      getHref: () => "/settings/diagnosis-category",
+    },
+    diagnosisName: {
+      path: "/settings/diagnosis-name",
+      getHref: () => "/settings/diagnosis-name",
+    },
     interview: {
       chiefComplaint: {
         path: "/settings/interview/chief-complaint",
