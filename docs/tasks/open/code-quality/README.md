@@ -1,6 +1,6 @@
 # Frontend + Backend コード規約準拠監査結果
 
-**実施日**: 2026-04-11（第11回監査まで反映）
+**実施日**: 2026-04-11（第12回監査まで反映）
 **検証方法**: 監査エージェント → grep/Read による実コード検証
 **注意**: 全指摘は実コードで検証済み。スポットチェック未実施の箇所は明記している。
 
@@ -19,7 +19,7 @@
 | [BUG-194](BUG-194_vercel-react-best-practices-violations.md) | Vercel React BP | useDeferredValue 1件 + デザイントークン 19箇所/9ファイル | Medium | code-quality/ |
 | ~~BUG-221~~ | FE rerender-transitions | ✅ **CLOSED** — 全 7箇所修正済み（2026-04-09） | — | closed/ |
 | [BUG-222](BUG-222_useCallback-object-deps.md) | FE rerender-dependencies | useCallback deps にオブジェクト（deleteModal in EstimateList 等） | Low | code-quality/ |
-| [BUG-223](BUG-223_memo-default-nonprimitive-prop.md) | FE rerender-memo | DailyRecordSection の `plans = []` が memo を無効化 | Low | code-quality/ |
+| ~~BUG-223~~ | FE rerender-memo | ✅ **CLOSED** — EMPTY_PLANS はモジュール定数として既存確認済み（2026-04-11） | — | closed/ |
 | [BUG-224](BUG-224_derived-state-in-useEffect.md) | FE derived-state | useEffect で derived state を同期（owners/inventory 各1件） | Low | code-quality/ |
 | ~~BUG-225~~ | FE bundle | ✅ **CLOSED** — StaffSelectionModal が lazy() + Suspense 使用確認済み（2026-04-11） | — | closed/ |
 | [BUG-226](BUG-226_filter-map-double-iteration.md) | FE js-perf | `.filter().map()` による二重イテレーション（要再調査） | Low | code-quality/ |
@@ -32,7 +32,7 @@
 | [BUG-233](BUG-233_content-visibility-unpaginated-lists.md) | FE rendering-perf | MedicineSettings/TreatmentPlanMaster の全件レンダーに content-visibility 未適用 | Low | code-quality/ |
 | [BUG-234](BUG-234_set-map-lookups.md) | FE js-set-map | O(n) .some()/.includes() を Set で O(1) に（PetSelection 等3箇所） | Low | code-quality/ |
 | ~~BUG-235~~ | FE bundle | ✅ **CLOSED** — TreatmentSearchDialog が全ての使用箇所で lazy() + Suspense 確認済み（2026-04-11） | — | closed/ |
-| [BUG-236](BUG-236_trivial-useMemo-daily-records-tab.md) | FE rerender-memo | DailyRecordsTab の getTodayStr() を useMemo で不要メモ化 | Low | code-quality/ |
+| ~~BUG-236~~ | FE rerender-memo | ✅ **CLOSED** — getTodayStr() は直接呼び出し（useMemo なし）確認済み（2026-04-11） | — | closed/ |
 | ~~BUG-237~~ | FE rerender-lazy-state-init | ✅ **CLOSED** — use-hospitalization-form.ts treatmentPlans をモジュール定数化 | — | closed/ |
 | ~~BUG-238~~ | FE rerender-lazy-state-init | ✅ **CLOSED** — VitalsTab EditRow の buildEditRowForm() + lazy init | — | closed/ |
 | ~~BUG-239~~ | FE rerender-lazy-state-init | ✅ **CLOSED** — DailyCareLogDialog getCurrentTime をモジュールスコープに + lazy init | — | closed/ |
@@ -115,6 +115,15 @@
 | [BUG-274](BUG-274_test-mock-source-param-missing.md) | BE Test | reservation mock の source パラメータ欠落（2ファイル） | High | code-quality/ |
 | [BUG-275](BUG-275_misc-medium-violations.md) | BE 複合 | swaggerignore残存 / liff URLエンコード / audit_log型 / FK チェック等 | Medium | code-quality/ |
 
+## バックエンド Go 規約準拠監査（2026-04-11 第12回監査）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| ~~BUG-252~~ | BE 複数 | ✅ **CLOSED** — examination enum検証・N+1 全て実コード確認済み（2026-04-11） | — | closed/ |
+| ~~BUG-249/256/262~~ | BE Service | ✅ **CLOSED** — naked return grep 0件確認済み（2026-04-11） | — | closed/ |
+| ~~BUG-271~~ | BE Handler | ✅ **CLOSED** — `h.repo.` grep 0件確認済み（2026-04-11） | — | closed/ |
+| ~~BUG-257/263/272~~ | BE slog | ✅ **CLOSED** — permission_group_service の重複・silent 監査ログを削除（2026-04-11 fix済み） | — | closed/ |
+
 ## バックエンド Go 規約準拠監査（2026-04-10 第12回・最終監査）
 
 | BUG | 対象 | 内容 | 優先度 | パス |
@@ -151,28 +160,21 @@
 1. **BUG-193** (High): billing_items updated_at 追加 — 30分（DB スキーマ変更）
 2. **BUG-190** (Medium): デザイントークン置換 — 要個別確認
 3. **BUG-222** (Low): useCallback deps オブジェクト（deleteModal in EstimateList）— 20分
-4. **BUG-223** (Low): DailyRecordSection EMPTY_PLANS 定数化 — 5分
-5. **BUG-224** (Low): derived state を useEffect で同期 → レンダー中に直接導出 — 30分
-6. **BUG-226** (Low): filter().map() → 要再調査（多くが既修正の可能性）
-7. **BUG-228** (Low): trivial useMemo 削除 — 10分（2箇所）
-8. **BUG-229** (Low): useAuth → ref パターンに変更 — 20分（2ファイル）
-9. **BUG-233** (Low): content-visibility: auto（MedicineSettings, TreatmentPlanMaster）
-10. **BUG-234** (Low): .some()/.includes() → Set.has()（PetSelection 等）
-11. **BUG-236** (Low): DailyRecordsTab の trivial useMemo 削除 — 1分
+4. **BUG-224** (Low): derived state を useEffect で同期 → レンダー中に直接導出 — 30分
+5. **BUG-226** (Low): filter().map() → 要再調査（多くが既修正の可能性）
+6. **BUG-228** (Low): trivial useMemo 削除 — 10分（2箇所）
+7. **BUG-229** (Low): useAuth → ref パターンに変更 — 20分（2ファイル）
+8. **BUG-233** (Low): content-visibility: auto（MedicineSettings, TreatmentPlanMaster）
+9. **BUG-234** (Low): .some()/.includes() → Set.has()（PetSelection 等）
 
 ### バックエンド残存課題（未修正確認）
 
-12. **BUG-245** (Critical): buildXxxUpdateFields の price ポインタ未デリファレンス
-13. **BUG-246** (Critical): staff_handler に bcrypt/Account操作漏出
-14. **BUG-247** (Critical): clinical_plan clinic_id マルチテナント境界なし
-15. **BUG-254** (Critical): マルチテナント clinic_id 欠落（8ドメイン）
-16. **BUG-265** (Critical): マルチテナント clinic_id 欠落 第2波
-17. **BUG-248** (High): Repository FromGORM 未使用
-18. **BUG-249** (High): Service naked return
-19. **BUG-250** (High): auth_handler の直接 repository アクセス
-20. **BUG-251** (High): gorm.ErrRecordNotFound を == で比較
-21. **BUG-256** (High): Service naked return 第2波
-22. **BUG-262** (High): Service naked return 第3波
-23. **BUG-266** (High): json タグ欠落 + LINE シークレット json:"-" 未設定
-24. **BUG-271** (High): handler → repository 直接アクセス（9箇所）
-25. **BUG-272** (High): slog 監査ログ欠落 第3波
+10. **BUG-245** (Critical): buildXxxUpdateFields の price ポインタ未デリファレンス
+11. **BUG-246** (Critical): staff_handler に bcrypt/Account操作漏出
+12. **BUG-247** (Critical): clinical_plan clinic_id マルチテナント境界なし
+13. **BUG-254** (Critical): マルチテナント clinic_id 欠落（8ドメイン）
+14. **BUG-265** (Critical): マルチテナント clinic_id 欠落 第2波
+15. **BUG-248** (High): Repository FromGORM 未使用
+16. **BUG-250** (High): auth_handler の直接 repository アクセス
+17. **BUG-251** (High): gorm.ErrRecordNotFound を == で比較
+18. **BUG-266** (High): json タグ欠落 + LINE シークレット json:"-" 未設定
