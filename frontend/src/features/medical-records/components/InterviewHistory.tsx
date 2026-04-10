@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useDeferredValue, useState, useCallback } from "react";
+import { memo, useDeferredValue, useState, useCallback, useMemo } from "react";
 
 // External
 import { Search, History, Plus, ChevronDown, ChevronUp } from "lucide-react";
@@ -30,10 +30,14 @@ export const InterviewHistory = memo(function InterviewHistory({
     setExpandedId((prev) => prev === id ? null : id);
   }, []);
 
-  const filteredItems = historyItems.filter(item =>
-    item.title.includes(deferredSearch) ||
-    item.content.includes(deferredSearch) ||
-    item.type.includes(deferredSearch)
+  // js-cache-function-results: API 由来の filter 結果は useMemo でキャッシュ
+  const filteredItems = useMemo(() =>
+    historyItems.filter(item =>
+      item.title.includes(deferredSearch) ||
+      item.content.includes(deferredSearch) ||
+      item.type.includes(deferredSearch)
+    ),
+    [historyItems, deferredSearch]
   );
 
   return (
