@@ -288,7 +288,9 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: vitals, isLoading } = useGetVitals(medicalRecordId);
   const createMutation = useCreateVital(medicalRecordId);
+  const { mutate: createVitalFn } = createMutation;
   const updateMutation = useUpdateVital(medicalRecordId);
+  const { mutate: updateVitalFn } = updateMutation;
   const deleteMutation = useDeleteVital(medicalRecordId);
   const { mutate: deleteVitalFn } = deleteMutation;
 
@@ -351,14 +353,14 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
       weight_unit: addForm.weight_unit,
       note: addForm.note.trim() || null,
     };
-    createMutation.mutate(input, {
+    createVitalFn(input, {
       onSuccess: () => {
         setAddForm(EMPTY_ADD_FORM);
         setIsAdding(false);
         toast.success("バイタルを追加しました");
       },
     });
-  }, [canCreate, addForm, createMutation]);
+  }, [canCreate, addForm, createVitalFn]);
 
   const handleAddCancel = useCallback(() => {
     setAddForm(EMPTY_ADD_FORM);
@@ -368,7 +370,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
   const handleEditSave = useCallback(
     (vitalId: string, input: UpdateVitalInput) => {
       if (!canEdit) return;
-      updateMutation.mutate(
+      updateVitalFn(
         { vitalId, input },
         {
           onSuccess: () => {
@@ -378,7 +380,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
         }
       );
     },
-    [canEdit, updateMutation]
+    [canEdit, updateVitalFn]
   );
 
   const handleEditCancel = useCallback(() => {
