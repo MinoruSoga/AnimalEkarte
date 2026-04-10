@@ -22,7 +22,7 @@ const ReservationFormModal = lazy(() =>
   })),
 );
 import { useReservationManagement } from "../hooks/use-reservation-management";
-import { useServiceTypeColorMap } from "@/features/master";
+import { useReservationCategoryColorMap } from "@/features/master";
 import { usePermission } from "@/features/auth";
 
 const MonthView = lazy(() =>
@@ -38,6 +38,14 @@ const ReservationDetailModal = lazy(() =>
 );
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+const SOURCE_FILTER_SELECT_ITEMS = (
+  <>
+    <SelectItem value="all">すべて</SelectItem>
+    <SelectItem value="manual">手動予約</SelectItem>
+    <SelectItem value="line">LINE予約</SelectItem>
+  </>
+);
+
 const CALENDAR_VIEW_SELECT_ITEMS = CALENDAR_VIEW_VALUES.map((v) => (
   <SelectItem key={v} value={v}>
     {getCalendarViewLabel(v)}
@@ -61,7 +69,7 @@ export function ReservationManagement() {
   const [doctorFilter, setDoctorFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
 
-  const { activeEntries, colorMap: dynamicColorMap } = useServiceTypeColorMap();
+  const { activeEntries, colorMap: dynamicColorMap } = useReservationCategoryColorMap();
 
   const {
     appointments,
@@ -99,7 +107,7 @@ export function ReservationManagement() {
         ownerName: appointment.ownerName,
         petName: appointment.petName,
         visitType: appointment.visitType,
-        type: appointment.serviceTypeId ?? "",
+        type: appointment.reservationCategoryId ?? "",
         doctor: appointment.doctorId ?? "",
         isDesignated: appointment.isDesignated,
         status: appointment.status,
@@ -216,11 +224,7 @@ export function ReservationManagement() {
               <SelectTrigger className={`w-[140px] bg-white ${C.borderMedium} h-10 text-base`}>
                 <SelectValue placeholder="予約ソース" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべて</SelectItem>
-                <SelectItem value="manual">手動予約</SelectItem>
-                <SelectItem value="line">LINE予約</SelectItem>
-              </SelectContent>
+              <SelectContent>{SOURCE_FILTER_SELECT_ITEMS}</SelectContent>
             </Select>
 
             {/* Doctor Filter */}

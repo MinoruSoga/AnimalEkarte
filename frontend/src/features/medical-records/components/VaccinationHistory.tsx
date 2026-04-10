@@ -6,6 +6,14 @@ import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDat
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C } from "@/lib/design-tokens";
 
+// rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+const SORT_ORDER_SELECT_ITEMS = (
+  <>
+    <SelectItem value="desc">降順</SelectItem>
+    <SelectItem value="asc">昇順</SelectItem>
+  </>
+);
+
 interface HistoryItem {
   id: number;
   name: string;
@@ -83,10 +91,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
               <SelectTrigger className={`w-[80px] h-10 bg-white ${C.borderMedium} text-sm`}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="desc">降順</SelectItem>
-                <SelectItem value="asc">昇順</SelectItem>
-              </SelectContent>
+              <SelectContent>{SORT_ORDER_SELECT_ITEMS}</SelectContent>
             </Select>
           </div>
         </div>

@@ -25,8 +25,8 @@ import {
   useSetStaffClinics,
   useGetClinicsList,
   useGetAllStaffPermissionGroupMap,
-  useGetStaffExcludedServiceTypes,
-  useSetStaffExcludedServiceTypes,
+  useGetStaffExcludedReservationCategories,
+  useSetStaffExcludedReservationCategories,
 } from "@/features/master/api/staffs";
 import type { Staff, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
@@ -34,14 +34,23 @@ import { useGetPermissionGroups } from "@/features/master/api/permission-groups"
 import type { PermissionGroup } from "@/features/master/api/permission-groups";
 import type { ClinicSummary } from "@/features/master/api/staffs";
 import { useGetAllOccupations } from "@/features/master/api/occupations";
-import { useGetServiceTypes } from "@/features/master/api/service-types";
-import type { ServiceType } from "@/features/master/api/service-types";
+import { useGetReservationCategories } from "@/features/master/api/reservation-categories";
+import type { ReservationCategory } from "@/features/master/api/reservation-categories";
 import type { Occupation } from "@/features/master/api/occupations";
 import { ResourceMasterStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────
+
+// rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+const STAFF_TYPE_SELECT_ITEMS = (
+  <>
+    <SelectItem value="doctor">医師</SelectItem>
+    <SelectItem value="nurse">看護師</SelectItem>
+    <SelectItem value="resource">設備</SelectItem>
+  </>
+);
 
 const COLUMNS = [
   { header: "氏名", className: "flex-1" },
@@ -90,10 +99,10 @@ interface StaffSidePanelProps {
   allClinics: ClinicSummary[];
   /** Called when clinics should be saved for this staff */
   onSaveClinics: (staffId: string, clinicIds: string[]) => void;
-  /** All service types for excluded courses */
-  allServiceTypes: ServiceType[];
-  /** Called when excluded service types should be saved */
-  onSaveExcludedServiceTypes: (staffId: string, serviceTypeIds: string[]) => void;
+  /** All reservation categorys for excluded courses */
+  allReservationCategories: ReservationCategory[];
+  /** Called when excluded reservation categorys should be saved */
+  onSaveExcludedReservationCategories: (staffId: string, reservationCategoryIds: string[]) => void;
 }
 
 const StaffSidePanel = memo(function StaffSidePanel({
@@ -107,8 +116,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
   onSaveGroups,
   allClinics,
   onSaveClinics,
-  allServiceTypes,
-  onSaveExcludedServiceTypes,
+  allReservationCategories,
+  onSaveExcludedReservationCategories,
 }: StaffSidePanelProps) {
   const isNew = item === null;
   const staffId = item?.id ?? null;
@@ -141,9 +150,9 @@ const StaffSidePanel = memo(function StaffSidePanel({
   );
 
   // js-combine-iterations: filter().map() を一回の reduce に統合（active サービスタイプのみ）
-  const activeServiceTypes = useMemo(
-    () => allServiceTypes.filter((st) => st.isActive),
-    [allServiceTypes],
+  const activeReservationCategories = useMemo(
+    () => allReservationCategories.filter((st) => st.isActive),
+    [allReservationCategories],
   );
 
   // ── Permission groups state ──────────────────────
@@ -168,8 +177,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
   // js-set-map-lookups: O(n) includes() → Set.has() O(1)
   const clinicIdSet = useMemo(() => new Set(clinicIds), [clinicIds]);
 
-  // ── Excluded service types state ─────────────────
-  const { data: serverExcludedIds } = useGetStaffExcludedServiceTypes(staffId);
+  // ── Excluded reservation categorys state ─────────────────
+  const { data: serverExcludedIds } = useGetStaffExcludedReservationCategories(staffId);
   const [userEditedExcludedIds, setUserEditedExcludedIds] = useState<string[] | null>(null);
 
   const excludedIds = useMemo(
@@ -181,10 +190,10 @@ const StaffSidePanel = memo(function StaffSidePanel({
 
   // ── Handlers ─────────────────────────────────────
   const handleExcludedToggle = useCallback(
-    (serviceTypeId: string, checked: boolean) => {
+    (reservationCategoryId: string, checked: boolean) => {
       setUserEditedExcludedIds((prev) => {
         const current = prev ?? serverExcludedIds ?? [];
-        return checked ? [...current, serviceTypeId] : current.filter((id) => id !== serviceTypeId);
+        return checked ? [...current, reservationCategoryId] : current.filter((id) => id !== reservationCategoryId);
       });
       setIsDirty(true);
     },
@@ -223,10 +232,10 @@ const StaffSidePanel = memo(function StaffSidePanel({
     if (!isNew && staffId) {
       onSaveGroups(staffId, groupIds);
       onSaveClinics(staffId, clinicIds);
-      onSaveExcludedServiceTypes(staffId, excludedIds);
+      onSaveExcludedReservationCategories(staffId, excludedIds);
     }
     setIsDirty(false);
-  }, [f, isNew, staffId, groupIds, clinicIds, excludedIds, onSave, onSaveGroups, onSaveClinics, onSaveExcludedServiceTypes]);
+  }, [f, isNew, staffId, groupIds, clinicIds, excludedIds, onSave, onSaveGroups, onSaveClinics, onSaveExcludedReservationCategories]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -375,11 +384,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
             <SelectTrigger className={STYLE.selectCompact}>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="doctor">医師</SelectItem>
-              <SelectItem value="nurse">看護師</SelectItem>
-              <SelectItem value="resource">設備</SelectItem>
-            </SelectContent>
+            <SelectContent>{STAFF_TYPE_SELECT_ITEMS}</SelectContent>
           </Select>
         </PropertyRow>
 
@@ -404,7 +409,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
         </PropertyRow>
       </div>
 
-      {/* ── Excluded service types ───────────────── */}
+      {/* ── Excluded reservation categorys ───────────────── */}
       <div className="mt-4 border-t pt-4">
         <div className="flex items-center gap-1.5 mb-2">
           <Ban className={`${ICON.xs} text-muted-foreground`} />
@@ -415,13 +420,13 @@ const StaffSidePanel = memo(function StaffSidePanel({
           <p className="text-xs text-muted-foreground pl-0.5">
             スタッフ登録後に設定できます
           </p>
-        ) : allServiceTypes.length === 0 ? (
+        ) : allReservationCategories.length === 0 ? (
           <p className="text-xs text-muted-foreground pl-0.5">
-            診療サービスが登録されていません
+            予約区分が登録されていません
           </p>
         ) : (
           <div className="space-y-0.5">
-            {activeServiceTypes.map((st) => (
+            {activeReservationCategories.map((st) => (
               <label
                 key={st.id}
                 className="flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer hover:bg-muted/40 transition-colors"
@@ -539,8 +544,8 @@ export function StaffSettings() {
   const allGroups = useMemo(() => allGroupsData ?? [], [allGroupsData]);
 
   // Service Types — shown as checkboxes in excluded courses panel
-  const { data: allServiceTypesData } = useGetServiceTypes();
-  const allServiceTypes = useMemo(() => allServiceTypesData ?? [], [allServiceTypesData]);
+  const { data: allReservationCategoriesData } = useGetReservationCategories();
+  const allReservationCategories = useMemo(() => allReservationCategoriesData ?? [], [allReservationCategoriesData]);
 
   // Clinics — shown as checkboxes in the panel
   const { data: allClinicsData } = useGetClinicsList("all");
@@ -549,7 +554,7 @@ export function StaffSettings() {
   // Group / Clinic / Excluded mutation
   const setGroupsMutation = useSetStaffPermissionGroups();
   const setClinicsMutation = useSetStaffClinics();
-  const setExcludedMutation = useSetStaffExcludedServiceTypes();
+  const setExcludedMutation = useSetStaffExcludedReservationCategories();
 
   // スタッフ全員の権限グループIDマップ（テーブル表示用）
   const staffIds = useMemo(() => (data ?? []).map((s) => s.id), [data]);
@@ -658,9 +663,9 @@ export function StaffSettings() {
     [setClinicsMutation],
   );
 
-  const handleSaveExcludedServiceTypes = useCallback(
-    (staffId: string, serviceTypeIds: string[]) => {
-      setExcludedMutation.mutate({ staffId, serviceTypeIds });
+  const handleSaveExcludedReservationCategories = useCallback(
+    (staffId: string, reservationCategoryIds: string[]) => {
+      setExcludedMutation.mutate({ staffId, reservationCategoryIds });
     },
     [setExcludedMutation],
   );
@@ -736,8 +741,8 @@ export function StaffSettings() {
           onSaveGroups={handleSaveGroups}
           allClinics={allClinics}
           onSaveClinics={handleSaveClinics}
-          allServiceTypes={allServiceTypes}
-          onSaveExcludedServiceTypes={handleSaveExcludedServiceTypes}
+          allReservationCategories={allReservationCategories}
+          onSaveExcludedReservationCategories={handleSaveExcludedReservationCategories}
         />
       )}
     />
