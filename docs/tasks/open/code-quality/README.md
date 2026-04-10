@@ -176,9 +176,11 @@
 
 | BUG | カテゴリ | 優先度 | 内容 |
 |-----|---------|--------|------|
-| BUG-193 | DB スキーマ | High | billing_items.updated_at / payments.deleted_at 欠落 |
-| BUG-190 | FE デザイントークン | Medium | ハードコード色（スポットチェック箇所のみ） |
-| BUG-233 | FE CSS 最適化 | Low | content-visibility: auto 未適用（MedicineSettings, TreatmentPlanMaster） |
+| ~~BUG-193~~ | DB スキーマ | CLOSED | billing_items.updated_at + deleted_at / payments.deleted_at いずれも 001_init.sql に存在確認済み（2026-04-11） |
+| ~~BUG-190~~ | FE デザイントークン | CLOSED | docs/tasks/closed/BUG-190_* に移動済みを確認（2026-04-11） |
+| BUG-233 | FE CSS 最適化 | Low | content-visibility: auto 未適用（MedicineSettings, TreatmentPlanMaster）— 余裕のある時に |
+
+**→ 実質 Open: BUG-233 (Low) のみ。全 Critical/High/Medium は CLOSED 確認。**
 
 ### バックエンド残存課題（実コード検証済み）
 
