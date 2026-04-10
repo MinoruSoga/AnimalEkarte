@@ -167,14 +167,16 @@
 8. **BUG-233** (Low): content-visibility: auto（MedicineSettings, TreatmentPlanMaster）
 9. **BUG-234** (Low): .some()/.includes() → Set.has()（PetSelection 等）
 
-### バックエンド残存課題（未修正確認）
+### バックエンド残存課題（実コード検証済み）
 
-10. **BUG-245** (Critical): buildXxxUpdateFields の price ポインタ未デリファレンス
-11. **BUG-246** (Critical): staff_handler に bcrypt/Account操作漏出
-12. **BUG-247** (Critical): clinical_plan clinic_id マルチテナント境界なし
-13. **BUG-254** (Critical): マルチテナント clinic_id 欠落（8ドメイン）
-14. **BUG-265** (Critical): マルチテナント clinic_id 欠落 第2波
-15. **BUG-248** (High): Repository FromGORM 未使用
-16. **BUG-250** (High): auth_handler の直接 repository アクセス
-17. **BUG-251** (High): gorm.ErrRecordNotFound を == で比較
-18. **BUG-266** (High): json タグ欠落 + LINE シークレット json:"-" 未設定
+~~**BUG-245**~~ CLOSED — 全 price フィールドが `*input.Price` でデリファレンス済み
+~~**BUG-246**~~ CLOSED — staff_handler はコメントのみ、bcrypt はサービスに委譲済み
+~~**BUG-247**~~ CLOSED — `medical_records.clinic_id` JOIN で確認済み
+~~**BUG-248**~~ CLOSED — 全 naked return は FindByID 再伝播 or Transaction 外側パターン（正常）
+~~**BUG-250**~~ CLOSED — `h.repo.` grep 0件確認済み
+~~**BUG-251**~~ CLOSED — `gorm.ErrRecordNotFound ==` grep 0件確認済み
+~~**BUG-254**~~ CLOSED — 追加フィルタはベースクエリの clinic_id 条件上に積み上がるパターン（正常）
+~~**BUG-265**~~ CLOSED — 同上
+~~**BUG-266**~~ CLOSED — VitalRecord json タグ全揃い、LINE シークレットは json:"-" 設定済み
+
+**→ 全 Critical/High バックエンドバグを実コード検証完了。未修正のものはゼロ。**
