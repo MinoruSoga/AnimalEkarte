@@ -3,10 +3,11 @@ import { PetSelectionSearchForm } from "@/components/shared/PetSelection/PetSele
 import { PetSelectionResultsTable } from "@/components/shared/PetSelection/PetSelectionResultsTable";
 import { usePetSelectionPage } from "@/hooks/use-pet-selection-page";
 import { ResourceVaccinations } from "@/types/generated/models";
+import { paths } from "@/config/paths";
 
 export function VaccinationPetSelection() {
   const { searchParams, setSearchParams, filteredPets, handleSearch, handleClear, handleSelect, handleBack } =
-    usePetSelectionPage({ selectPath: "/vaccinations/new", backPath: "/vaccinations" });
+    usePetSelectionPage({ selectPath: paths.vaccinations.new.getHref(), backPath: paths.vaccinations.getHref() });
 
   return (
     <PageLayout title="ワクチン接種 - ペット選択" onBack={handleBack} resource={ResourceVaccinations} maxWidth="max-w-full">
