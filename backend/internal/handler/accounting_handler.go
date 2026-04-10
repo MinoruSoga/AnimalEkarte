@@ -190,15 +190,3 @@ func (h *Handler) DeleteAccounting(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
-
-// RegisterAccountingRoutes は会計関連のルートを登録する
-func (h *Handler) RegisterAccountingRoutes(rg *gin.RouterGroup) {
-	accountings := rg.Group("/accountings")
-	accountings.GET("", h.ListAccountings)
-	accountings.POST("", h.CreateAccounting)
-	accountings.GET("/:id", h.GetAccounting)
-	accountings.PATCH("/:id", h.UpdateAccounting)
-	accountings.DELETE("/:id", h.DeleteAccounting)
-	accountings.GET("/:id/refunds", h.ListRefunds)
-	accountings.POST("/:id/refunds", h.CreateRefund)
-}

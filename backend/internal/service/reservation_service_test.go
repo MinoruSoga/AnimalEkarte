@@ -19,7 +19,6 @@ type mockReservationRepository struct {
 	createFn                           func(ctx context.Context, reservation *model.ReservationAppointment) error
 	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
-	findByStaffAndTimeSlotFn           func(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error)
 	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
 }
 
@@ -48,13 +47,6 @@ func (m *mockReservationRepository) ExistsByServiceTypeID(_ context.Context, _ u
 }
 
 func (m *mockReservationRepository) ExistsByStaffID(_ context.Context, _ uint64) (bool, error) {
-	return false, nil
-}
-
-func (m *mockReservationRepository) FindByStaffAndTimeSlot(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error) {
-	if m.findByStaffAndTimeSlotFn != nil {
-		return m.findByStaffAndTimeSlotFn(ctx, clinicID, staffID, startTime, endTime, excludeID)
-	}
 	return false, nil
 }
 

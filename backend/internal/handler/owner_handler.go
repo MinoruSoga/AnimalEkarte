@@ -187,12 +187,3 @@ func (h *Handler) DeleteOwner(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// RegisterOwnerRoutes は飼主関連のルートを登録する
-func (h *Handler) RegisterOwnerRoutes(rg *gin.RouterGroup) {
-	owners := rg.Group("/owners")
-	owners.GET("", h.ListOwners)
-	owners.POST("", h.CreateOwner)
-	owners.GET("/:id", h.GetOwner)
-	owners.PATCH("/:id", h.UpdateOwner)
-	owners.DELETE("/:id", h.DeleteOwner)
-}

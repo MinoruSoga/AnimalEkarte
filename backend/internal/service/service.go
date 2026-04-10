@@ -69,11 +69,12 @@ type Services struct {
 // NewServices はリポジトリからすべてのサービスを初期化して返す
 func NewServices(repos *repository.Repositories, notifCfg ReservationNotificationConfig) *Services {
 	notifier := NewReservationNotificationService(notifCfg, repos.ReservationSetting)
+	auditSvc := NewAuditService(repos.Audit)
 
 	return &Services{
 		Account:                NewAccountService(repos.Account),
 		StaffClinicAssignment:  NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
-		Audit:                  NewAuditService(repos.Audit),
+		Audit:                  auditSvc,
 		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
 		Owner:                  NewOwnerService(repos.Owner),
 		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
@@ -106,7 +107,7 @@ func NewServices(repos *repository.Repositories, notifCfg ReservationNotificatio
 		Inquiry:                NewInquiryService(repos.Inquiry),
 		InquiryTemplate:        NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                NewCompanyService(repos.Company),
-		PermissionGroup:        NewPermissionGroupService(repos.PermissionGroup),
+		PermissionGroup:        NewPermissionGroupService(repos.PermissionGroup, auditSvc),
 		BillingReview:          NewBillingReviewService(repos.BillingReview),
 		CarePlanItem:           NewCarePlanItemService(repos.CarePlanItem),
 		ShiftEntry:             NewShiftEntryService(repos.ShiftEntry),

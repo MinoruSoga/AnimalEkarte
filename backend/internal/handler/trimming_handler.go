@@ -195,12 +195,3 @@ func (h *Handler) DeleteTrimming(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// RegisterTrimmingRoutes はトリミング関連のルートを登録する
-func (h *Handler) RegisterTrimmingRoutes(rg *gin.RouterGroup) {
-	trimmings := rg.Group("/trimmings")
-	trimmings.GET("", h.ListTrimmings)
-	trimmings.POST("", h.CreateTrimming)
-	trimmings.GET("/:id", h.GetTrimming)
-	trimmings.PATCH("/:id", h.UpdateTrimming)
-	trimmings.DELETE("/:id", h.DeleteTrimming)
-}

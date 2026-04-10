@@ -16,16 +16,15 @@ import (
 
 // Handler はHTTPハンドラーのルートコンテナ
 type Handler struct {
-	cfg       *config.Config
-	svc       *service.Services
-	repos     *repository.Repositories
-	auditRepo repository.AuditRepository
-	uploader  infra.FileUploader
+	cfg      *config.Config
+	svc      *service.Services
+	repos    *repository.Repositories
+	uploader infra.FileUploader
 }
 
 // New はHandlerを初期化して返す
 func New(cfg *config.Config, svc *service.Services, repos *repository.Repositories, uploader infra.FileUploader) *Handler {
-	return &Handler{cfg: cfg, svc: svc, repos: repos, auditRepo: repos.Audit, uploader: uploader}
+	return &Handler{cfg: cfg, svc: svc, repos: repos, uploader: uploader}
 }
 
 // PaginatedResponse はページネーション付きレスポンスの共通構造
@@ -204,5 +203,3 @@ func (h *Handler) registerEstimateRoutesWithAuth(rg *gin.RouterGroup) {
 	estimates.PATCH("/:id", h.RequirePermission(string(model.ResourceEstimates), "edit"), h.UpdateEstimate)
 	estimates.DELETE("/:id", h.RequirePermission(string(model.ResourceEstimates), "delete"), h.DeleteEstimate)
 }
-
-// registerPermissionGroupRoutesWithAuth は権限グループ管理ルートを認可ミドルウェア付きで登録する

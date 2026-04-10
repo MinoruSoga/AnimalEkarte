@@ -216,13 +216,3 @@ func (h *Handler) DeleteVaccination(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
-
-// RegisterVaccinationRoutes は予防接種関連のルートを登録する
-func (h *Handler) RegisterVaccinationRoutes(rg *gin.RouterGroup) {
-	vaccinations := rg.Group("/vaccinations")
-	vaccinations.GET("", h.ListVaccinations)
-	vaccinations.POST("", h.CreateVaccination)
-	vaccinations.GET("/:id", h.GetVaccination)
-	vaccinations.PATCH("/:id", h.UpdateVaccination)
-	vaccinations.DELETE("/:id", h.DeleteVaccination)
-}

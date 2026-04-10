@@ -180,12 +180,3 @@ func (h *Handler) DeleteEstimate(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// RegisterEstimateRoutes は見積書関連のルートを登録する
-func (h *Handler) RegisterEstimateRoutes(rg *gin.RouterGroup) {
-	estimates := rg.Group("/estimates")
-	estimates.GET("", h.ListEstimates)
-	estimates.POST("", h.CreateEstimate)
-	estimates.GET("/:id", h.GetEstimate)
-	estimates.PATCH("/:id", h.UpdateEstimate)
-	estimates.DELETE("/:id", h.DeleteEstimate)
-}

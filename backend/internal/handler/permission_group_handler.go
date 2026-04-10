@@ -3,6 +3,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -10,6 +11,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -69,6 +71,24 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+
+	// 監査ログ: 権限グループ作成
+	if staffID, ok := extractStaffID(c); ok {
+		if auditErr := h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+			ClinicID:   &clinicID,
+			ActorID:    &staffID,
+			ActorType:  "staff",
+			Action:     model.AuditActionPermissionGroupCreate,
+			Resource:   "permission_group",
+			ResourceID: &pg.ID,
+			NewValue:   repository.MarshalAuditJSON(pg),
+			IPAddress:  c.ClientIP(),
+			UserAgent:  c.Request.Header.Get("User-Agent"),
+		}); auditErr != nil {
+			slog.ErrorContext(c.Request.Context(), "failed to log permission group creation", slog.String("error", auditErr.Error()))
+		}
+	}
+
 	c.JSON(http.StatusCreated, toPermissionGroupResponse(pg))
 }
 
@@ -103,6 +123,24 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+
+	// 監査ログ: 権限グループ更新
+	if staffID, ok := extractStaffID(c); ok {
+		if auditErr := h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+			ClinicID:   &clinicID,
+			ActorID:    &staffID,
+			ActorType:  "staff",
+			Action:     model.AuditActionPermissionGroupUpdate,
+			Resource:   "permission_group",
+			ResourceID: &id,
+			NewValue:   repository.MarshalAuditJSON(updated),
+			IPAddress:  c.ClientIP(),
+			UserAgent:  c.Request.Header.Get("User-Agent"),
+		}); auditErr != nil {
+			slog.ErrorContext(c.Request.Context(), "failed to log permission group update", slog.String("error", auditErr.Error()))
+		}
+	}
+
 	c.JSON(http.StatusOK, toPermissionGroupResponse(updated))
 }
 
@@ -113,10 +151,34 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
+	// 削除前に old value を取得（監査ログ用）
+	oldPG, _ := h.svc.PermissionGroup.GetByID(c.Request.Context(), id)
+
 	if err := h.svc.PermissionGroup.Delete(c.Request.Context(), id); err != nil {
 		RespondError(c, err)
 		return
 	}
+
+	// 監査ログ: 権限グループ削除
+	if staffID, ok := extractStaffID(c); ok {
+		auditLog := &model.AuditLog{
+			ActorID:    &staffID,
+			ActorType:  "staff",
+			Action:     model.AuditActionPermissionGroupDelete,
+			Resource:   "permission_group",
+			ResourceID: &id,
+			IPAddress:  c.ClientIP(),
+			UserAgent:  c.Request.Header.Get("User-Agent"),
+		}
+		if oldPG != nil {
+			auditLog.ClinicID = &oldPG.ClinicID
+			auditLog.OldValue = repository.MarshalAuditJSON(oldPG)
+		}
+		if auditErr := h.svc.Audit.Log(c.Request.Context(), auditLog); auditErr != nil {
+			slog.ErrorContext(c.Request.Context(), "failed to log permission group deletion", slog.String("error", auditErr.Error()))
+		}
+	}
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -197,6 +259,22 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	if err := h.svc.PermissionGroup.SetRules(c.Request.Context(), id, rules); err != nil {
 		RespondError(c, err)
 		return
+	}
+
+	// 監査ログ: 権限ルール更新
+	if auditStaffID, auditOK := extractStaffID(c); auditOK {
+		if auditErr := h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+			ActorID:    &auditStaffID,
+			ActorType:  "staff",
+			Action:     model.AuditActionPermissionRulesUpdate,
+			Resource:   "permission_group_rules",
+			ResourceID: &id,
+			NewValue:   repository.MarshalAuditJSON(rules),
+			IPAddress:  c.ClientIP(),
+			UserAgent:  c.Request.Header.Get("User-Agent"),
+		}); auditErr != nil {
+			slog.ErrorContext(c.Request.Context(), "failed to log permission rules update", slog.String("error", auditErr.Error()))
+		}
 	}
 
 	// Return updated group with rules

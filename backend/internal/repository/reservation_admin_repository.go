@@ -11,12 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ReservationAdminFilter は管理者向け予約一覧のフィルタ条件
-type ReservationAdminFilter struct {
-	View string // "month" or "day"
-	Date string // "YYYY-MM" or "YYYY-MM-DD"
-}
-
 // ReservationAdminRepository は管理者向け予約管理のデータアクセスインターフェース
 type ReservationAdminRepository interface {
 	FindByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.ReservationAppointment, error)

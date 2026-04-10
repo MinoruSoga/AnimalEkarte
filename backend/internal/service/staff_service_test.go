@@ -85,10 +85,6 @@ func (m *mockReservationForStaff) ExistsByStaffID(ctx context.Context, staffID u
 	return false, nil
 }
 
-func (m *mockReservationForStaff) FindByStaffAndTimeSlot(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
-	return false, nil
-}
-
 func (m *mockReservationForStaff) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }

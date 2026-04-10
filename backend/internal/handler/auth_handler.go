@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -108,6 +109,10 @@ func (h *Handler) Login(c *gin.Context) {
 	account, err := h.svc.Account.FindByEmail(ctx, input.Email)
 	if err != nil {
 		if apperrors.IsNotFound(err) {
+			// 監査ログ: ログイン失敗（アカウント不存在）
+			if auditErr := h.svc.Audit.LogAuthLogin(ctx, nil, nil, model.AuditActionAuthLoginFailure, c.ClientIP(), c.Request.Header.Get("User-Agent")); auditErr != nil {
+				slog.ErrorContext(ctx, "failed to log login failure", slog.String("error", auditErr.Error()))
+			}
 			RespondError(c, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません"))
 			return
 		}
@@ -123,6 +128,10 @@ func (h *Handler) Login(c *gin.Context) {
 
 	// パスワード検証
 	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(input.Password)); err != nil {
+		// 監査ログ: ログイン失敗（パスワード不正）
+		if auditErr := h.svc.Audit.LogAuthLogin(ctx, nil, &account.ID, model.AuditActionAuthLoginFailure, c.ClientIP(), c.Request.Header.Get("User-Agent")); auditErr != nil {
+			slog.ErrorContext(ctx, "failed to log login failure", slog.String("error", auditErr.Error()))
+		}
 		RespondError(c, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません"))
 		return
 	}
@@ -246,6 +255,14 @@ func (h *Handler) Login(c *gin.Context) {
 	// 実効権限を計算
 	permMap := h.calculateEffectivePermissions(ctx, account.IsSystemAdmin, staff.ID)
 
+	// 監査ログ: ログイン成功
+	if len(clinicIDs) > 0 {
+		mainCID := clinicIDs[0]
+		if auditErr := h.svc.Audit.LogAuthLogin(ctx, &mainCID, &staff.ID, model.AuditActionAuthLoginSuccess, c.ClientIP(), c.Request.Header.Get("User-Agent")); auditErr != nil {
+			slog.ErrorContext(ctx, "failed to log login success", slog.String("error", auditErr.Error()))
+		}
+	}
+
 	c.JSON(http.StatusOK, LoginResponse{
 		IsSystemAdmin: account.IsSystemAdmin,
 		User:          buildMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap),
@@ -254,6 +271,17 @@ func (h *Handler) Login(c *gin.Context) {
 
 // Logout godoc
 func (h *Handler) Logout(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// 監査ログ: ログアウト（ベストエフォート — JWT Cookie から staffID/clinicID を取得）
+	if staffID, ok := extractStaffID(c); ok {
+		if clinicID, clOK := extractClinicID(c); clOK {
+			if auditErr := h.svc.Audit.LogAuthLogin(ctx, &clinicID, &staffID, model.AuditActionAuthLogout, c.ClientIP(), c.Request.Header.Get("User-Agent")); auditErr != nil {
+				slog.ErrorContext(ctx, "failed to log logout", slog.String("error", auditErr.Error()))
+			}
+		}
+	}
+
 	isProduction := h.cfg.GinMode == "release"
 	sameSite := http.SameSiteLaxMode
 	if isProduction {

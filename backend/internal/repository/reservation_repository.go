@@ -19,7 +19,6 @@ type ReservationRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ExistsByServiceTypeID(ctx context.Context, serviceTypeID uint64) (bool, error)
 	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
-	FindByStaffAndTimeSlot(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error)
 	CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error)
 }
 
@@ -130,22 +129,6 @@ func (r *reservationRepository) ExistsByStaffID(ctx context.Context, staffID uin
 		Where("doctor_id = ?", staffID).
 		Count(&count).Error
 	if err != nil {
-		return false, apperrors.FromGORM(err, "reservation", "")
-	}
-	return count > 0, nil
-}
-
-// FindByStaffAndTimeSlot は同一 staff_id + clinic_id で時間帯が重複する予約が存在するか確認する。
-// excludeID が指定された場合は、その ID のレコードを除外する（更新時の自己重複回避）。
-func (r *reservationRepository) FindByStaffAndTimeSlot(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error) {
-	var count int64
-	q := r.db.WithContext(ctx).Model(&model.ReservationAppointment{}).
-		Where("clinic_id = ? AND doctor_id = ?", clinicID, staffID).
-		Where("start_time < ? AND end_time > ?", endTime, startTime)
-	if excludeID != nil {
-		q = q.Where("id != ?", *excludeID)
-	}
-	if err := q.Count(&count).Error; err != nil {
 		return false, apperrors.FromGORM(err, "reservation", "")
 	}
 	return count > 0, nil

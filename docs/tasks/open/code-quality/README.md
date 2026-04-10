@@ -121,6 +121,14 @@
 |-----|------|------|--------|------|
 | [BUG-276](BUG-276_backend-go-convention-audit-5.md) | BE 全ドメイン | 第5回最終監査 — CRITICAL/HIGH ゼロ確認。MEDIUM 2件（slog 欠落）のみ残存 | Medium | code-quality/ |
 
+## バックエンド デッドコード監査（2026-04-10）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| ~~BUG-277~~ | BE 全ドメイン | ✅ **CLOSED** — デッドコード監査（親チケット） | — | closed/ |
+| ~~BUG-278~~ | BE Service/Handler | ✅ **CLOSED** — AuditService を auth_handler + permission_group_handler に組み込み（2026-04-10） | High | closed/ |
+| ~~BUG-279~~ | BE 複合 | ✅ **CLOSED** — デッドコード削除完了（空ファイル9個、未使用メソッド8+1個、未使用型2個、dangling comment 1件）（2026-04-10） | Medium | closed/ |
+
 ## 修正優先順位（BUG-221〜223 追加後）
 
 1. **BUG-186** (Critical): LoginResponse から Token フィールド削除 — 5分
