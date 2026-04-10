@@ -478,11 +478,27 @@ export const WeekView = memo(function WeekView({
     [currentDate]
   );
 
+  // Pre-compute appointments grouped by date key for O(1) per-day lookup
+  const appointmentsByDay = useMemo(() => {
+    const map = new Map<string, ReservationAppointment[]>();
+    for (const app of appointments) {
+      const key = format(app.start, "yyyy-MM-dd");
+      const existing = map.get(key);
+      if (existing) {
+        existing.push(app);
+      } else {
+        map.set(key, [app]);
+      }
+    }
+    return map;
+  }, [appointments]);
+
   const headerDays = useMemo(
     () =>
       WEEK_DAYS.map((i) => {
         const day = addDays(startDate, i);
         const isToday = isSameDay(day, new Date());
+        const count = appointmentsByDay.get(format(day, "yyyy-MM-dd"))?.length ?? 0;
         return (
           <div
             key={i}
@@ -509,26 +525,14 @@ export const WeekView = memo(function WeekView({
             >
               {format(day, "d")}
             </div>
+            <div className={`text-xs mt-0.5 ${count > 0 ? C.accent : C.text40}`}>
+              {count}件
+            </div>
           </div>
         );
       }),
-    [startDate]
+    [startDate, appointmentsByDay]
   );
-
-  // Pre-compute appointments grouped by date key for O(1) per-day lookup
-  const appointmentsByDay = useMemo(() => {
-    const map = new Map<string, ReservationAppointment[]>();
-    for (const app of appointments) {
-      const key = format(app.start, "yyyy-MM-dd");
-      const existing = map.get(key);
-      if (existing) {
-        existing.push(app);
-      } else {
-        map.set(key, [app]);
-      }
-    }
-    return map;
-  }, [appointments]);
 
   return (
     <div className={`flex-1 border ${C.borderMedium} rounded-lg bg-white overflow-auto relative`}>
