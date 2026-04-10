@@ -53,7 +53,7 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
   const [f, setF] = useState<ServiceTypeFormData>(() => ({
     name: item?.name ?? "",
     description: item?.description ?? "",
-    color: item?.color ?? "#3B82F6",
+    color: item?.color ?? PALETTE.pickerDefaultBlue,
     isActive: item?.isActive ?? true,
     reservationDisplayName: item?.reservationDisplayName ?? "",
     durationMinutes: item?.durationMinutes ?? 15,

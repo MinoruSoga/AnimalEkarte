@@ -10,7 +10,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { usePermission } from "@/features/auth";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow, StatusToggleButton, MasterSidePanel } from "@/components/shared/SidePeek";
-import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
 import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
@@ -82,7 +82,7 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
   const [f, setF] = useState<PermissionGroupFormData>(() => ({
     name: item?.name ?? "",
     description: item?.description ?? "",
-    color: item?.color ?? "#6B7280",
+    color: item?.color ?? PALETTE.pickerDefaultGray,
     isActive: item?.isActive ?? true,
     rules: item?.rules?.map((r) => ({
       resource: r.resource,

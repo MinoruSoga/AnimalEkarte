@@ -32,6 +32,11 @@ export const PALETTE = {
   /** LINE official brand green */
   lineGreen: "#06C755",
 
+  /** Tailwind gray-500 — default color for permission group color pickers */
+  pickerDefaultGray: "#6B7280",
+  /** Tailwind blue-500 — default color for service type color pickers */
+  pickerDefaultBlue: "#3B82F6",
+
   /* ── Brand (hospital main color) ── */
   /** Brand primary — veterinary teal */
   brand: "#038B94",

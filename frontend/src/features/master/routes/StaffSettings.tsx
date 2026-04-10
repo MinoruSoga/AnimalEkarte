@@ -346,7 +346,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
       {/* ── LINE予約設定 ─────────────────────────── */}
       <div className="mt-4 border-t pt-4">
         <div className="flex items-center gap-1.5 mb-3">
-          <MessageCircle className="size-3.5" style={{ color: "#06C755" }} />
+          <MessageCircle className="size-3.5" style={{ color: PALETTE.lineGreen }} />
           <p className="text-xs font-medium text-muted-foreground">LINE予約設定</p>
         </div>
 
