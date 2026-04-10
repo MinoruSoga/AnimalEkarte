@@ -29,8 +29,8 @@ export const transformMedicalRecord = (
     assessment: record.clinical_plan?.diagnosis_details,
     plan: record.clinical_plan?.treatment_policy,
     surgeryNotes: undefined,
-    diagnosis: record.clinical_plan?.diagnosis_details,
-    treatment: record.clinical_plan?.treatment_policy,
+    diagnosis: undefined, // clinical_plan.diagnosis_details は assessment にマップ済み
+    treatment: undefined, // clinical_plan.treatment_policy は plan にマップ済み
     prescription: undefined,
     notes: record.inquiry?.notes,
     accountingId: record.accounting_id ? String(record.accounting_id) : undefined,

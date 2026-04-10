@@ -2,15 +2,41 @@ import type { ReservationAppointment } from "@/types";
 import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
 import type { CreateReservationRequest } from "./types";
 
+/** customer_fields JSON（LINE予約のオーナー未紐付け時のフォールバック用） */
+interface CustomerFieldsJSON {
+  customer_name?: string;
+  owner_name?: string;
+  pets?: Array<{ name?: string; type?: string }>;
+}
+
+function parseCustomerFields(raw: string | undefined): CustomerFieldsJSON {
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as CustomerFieldsJSON;
+  } catch {
+    return {};
+  }
+}
+
 export const transformReservation = (
   reservation: BackendReservation
 ): ReservationAppointment => {
+  // LINE予約でオーナー未紐付けの場合、customer_fields をフォールバックとして使用
+  const cf = parseCustomerFields(reservation.customer_fields);
+  const ownerName =
+    reservation.owner?.owner_name ??
+    reservation.pet?.owner?.owner_name ??
+    cf.owner_name ??
+    cf.customer_name ??
+    "";
+  const petName = reservation.pet?.name ?? cf.pets?.[0]?.name ?? "";
+
   return {
     id: String(reservation.id ?? 0),
     start: new Date(reservation.start_time),
     end: new Date(reservation.end_time),
-    ownerName: reservation.owner?.owner_name ?? reservation.pet?.owner?.owner_name ?? "",
-    petName: reservation.pet?.name ?? "",
+    ownerName,
+    petName,
     visitType: (reservation.visit_type as "first" | "revisit") ?? "first",
     type: reservation.service_type?.name ?? "",
     serviceTypeId: reservation.service_type_id ? String(reservation.service_type_id) : undefined,
