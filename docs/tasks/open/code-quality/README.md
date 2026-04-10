@@ -159,13 +159,15 @@
 
 1. **BUG-193** (High): billing_items updated_at 追加 — 30分（DB スキーマ変更）
 2. **BUG-190** (Medium): デザイントークン置換 — 要個別確認
-3. **BUG-222** (Low): useCallback deps オブジェクト（deleteModal in EstimateList）— 20分
-4. **BUG-224** (Low): derived state を useEffect で同期 → レンダー中に直接導出 — 30分
-5. **BUG-226** (Low): filter().map() → 要再調査（多くが既修正の可能性）
-6. **BUG-228** (Low): trivial useMemo 削除 — 10分（2箇所）
+3. ~~**BUG-222**~~ CLOSED — EstimateList の deleteModal.item/deleteModal.close を deps に修正（2026-04-11 fix済み）
+4. ~~**BUG-224**~~ CLOSED — owners/inventory の useEffect は全て正当な副作用（ナビゲーション/URL同期）
+5. ~~**BUG-226**~~ CLOSED — filter().map() 残存1件は useMemo 内（小配列・依存変化時のみ実行）
+6. ~~**BUG-228**~~ CLOSED — OwnerSearchModal に useMemo なし / MedicineSettings の useMemo は全て計算量大（正当）
 7. **BUG-229** (Low): useAuth → ref パターンに変更 — 20分（2ファイル）
 8. **BUG-233** (Low): content-visibility: auto（MedicineSettings, TreatmentPlanMaster）
-9. **BUG-234** (Low): .some()/.includes() → Set.has()（PetSelection 等）
+9. ~~**BUG-234**~~ CLOSED — isPetSelected は Set.has() 使用済み / togglePetSelection の .some(prev) は setState callback で正当
+
+**→ FE Low 残存: BUG-229、BUG-233 のみ**
 
 ### バックエンド残存課題（実コード検証済み）
 

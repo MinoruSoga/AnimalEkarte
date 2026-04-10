@@ -172,14 +172,15 @@ export function EstimateList() {
     resetKey: deferredSearch,
   });
 
+  // rerender-dependencies: deleteModal オブジェクトでなく primitive/安定参照を deps に
+  const deleteItemId = deleteModal.item;
   const handleDeleteConfirm = useCallback(() => {
-    const itemId = deleteModal.item;
-    if (itemId == null) return;
+    if (deleteItemId == null) return;
     startDeleteTransition(() => {
-      deleteEstimate(itemId);
+      deleteEstimate(deleteItemId);
       deleteModal.close();
     });
-  }, [deleteModal, deleteEstimate]);
+  }, [deleteItemId, deleteModal.close, deleteEstimate]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
     setActiveSorts(sorts);
@@ -225,7 +226,7 @@ export function EstimateList() {
         ) : null}
       </TableCell>
     </DataTableRow>
-  ), [navigate, canEdit, canDelete, deleteModal]);
+  ), [navigate, canEdit, canDelete, deleteModal.open]);
 
   if (isLoading) {
     return <LoadingFallback />;
