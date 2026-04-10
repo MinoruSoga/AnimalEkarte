@@ -37,14 +37,14 @@ export const router = createBrowserRouter([
       {
         path: "/forgot-password",
         lazy: async () => {
-          const { ForgotPasswordPage } = await import("@/features/auth/routes/ForgotPasswordPage");
+          const { ForgotPasswordPage } = await import("@/features/auth");
           return { Component: ForgotPasswordPage };
         },
       },
       {
         path: "/reset-password",
         lazy: async () => {
-          const { ResetPasswordPage } = await import("@/features/auth/routes/ResetPasswordPage");
+          const { ResetPasswordPage } = await import("@/features/auth");
           return { Component: ResetPasswordPage };
         },
       },
@@ -398,7 +398,7 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { AccountingList } = await import("@/features/accounting/routes/AccountingList");
+              const { AccountingList } = await import("@/features/accounting");
               return { Component: AccountingList };
             },
           },
@@ -408,9 +408,7 @@ export const router = createBrowserRouter([
             children: [{
               index: true,
               lazy: async () => {
-                const { AccountingPetSelection } = await import(
-                  "@/features/accounting/routes/AccountingPetSelection"
-                );
+                const { AccountingPetSelection } = await import("@/features/accounting");
                 return { Component: AccountingPetSelection };
               },
             }],

@@ -2,7 +2,6 @@ export { MasterSettingsIndex } from "./routes/MasterSettingsIndex";
 export { AnimalSpeciesSettings } from "./routes/AnimalSpeciesSettings";
 export { CageSettings } from "./routes/CageSettings";
 export { ChiefComplaintSettings } from "./routes/ChiefComplaintSettings";
-export { CompanySettings } from "./routes/CompanySettings";
 export { DiagnosisSettings } from "./routes/DiagnosisSettings";
 export { HospitalizationSettings } from "./routes/HospitalizationSettings";
 export { InsuranceSettings } from "./routes/InsuranceSettings";
