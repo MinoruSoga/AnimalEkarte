@@ -82,6 +82,9 @@ SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staff
 --   9(system)→NULL, 10(kimura)→staff 16(木村 健太)
 --   11(sasaki)→staff 17(佐々木), 12(fujiwara)→staff 26(藤原)
 --   13(matsumoto)→staff 27(松本)
+--   14(trimmer@example.com)→新staff(さくら/八王子院デモ)
+--   15(joto-vet@example.com)→新staff(城東獣医デモ)
+--   16(shiki-vet@example.com)→新staff(敷島獣医デモ)
 -- -----------------------------------------------------------------------------
 INSERT INTO accounts (id, email, password_hash, is_active, is_system_admin) VALUES
     -- システム管理者（全院アクセス）
@@ -101,7 +104,11 @@ INSERT INTO accounts (id, email, password_hash, is_active, is_system_admin) VALU
     (11, 'sasaki@noah-vet.co.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     -- 敷島医院スタッフ
     (12, 'fujiwara@noah-vet.co.jp',  '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
-    (13, 'matsumoto@noah-vet.co.jp', '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false)
+    (13, 'matsumoto@noah-vet.co.jp', '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    -- デモアカウント（frontend LoginForm の DEMO_ACCOUNTS に対応）
+    (14, 'trimmer@example.com',      '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (15, 'joto-vet@example.com',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (16, 'shiki-vet@example.com',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('accounts', 'id'), (SELECT MAX(id) FROM accounts));
@@ -133,6 +140,14 @@ INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_
     (32, NULL, 'トリミング',       true, '',        11, 7, 'resource', true)
 ON CONFLICT DO NOTHING;
 
+-- デモアカウント用スタッフ（frontend LoginForm の DEMO_ACCOUNTS に対応）
+-- occupation_id: 3=トリマー(八王子), 5=獣医師(城東), 9=獣医師(敷島)
+INSERT INTO staffs (id, account_id, name, is_active, occupation_id, staff_type) VALUES
+    (33, 14, 'さくら（デモ）',    true, 3, 'doctor'),
+    (34, 15, '城東 獣医（デモ）', true, 5, 'doctor'),
+    (35, 16, '敷島 獣医（デモ）', true, 9, 'doctor')
+ON CONFLICT DO NOTHING;
+
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
 
 -- account_id → staff_id マッピング
@@ -148,6 +163,10 @@ UPDATE staffs SET account_id = 10 WHERE id = 16; -- kimura@noah-vet.co.jp → �
 UPDATE staffs SET account_id = 11 WHERE id = 17; -- sasaki@noah-vet.co.jp → 佐々木 美香
 UPDATE staffs SET account_id = 12 WHERE id = 26; -- fujiwara@noah-vet.co.jp → 藤原 誠一
 UPDATE staffs SET account_id = 13 WHERE id = 27; -- matsumoto@noah-vet.co.jp → 松本 さやか
+-- デモアカウント（inline account_id: staffs INSERT で設定済みだが念のため）
+UPDATE staffs SET account_id = 14 WHERE id = 33; -- trimmer@example.com → さくら（デモ）
+UPDATE staffs SET account_id = 15 WHERE id = 34; -- joto-vet@example.com → 城東 獣医（デモ）
+UPDATE staffs SET account_id = 16 WHERE id = 35; -- shiki-vet@example.com → 敷島 獣医（デモ）
 
 -- -----------------------------------------------------------------------------
 -- 7. staff_clinic_assignments（スタッフ・クリニック割当: 37件）
@@ -193,7 +212,11 @@ INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
     (29, 5, true),   -- 岡本 菜々子
     (30, 5, true),   -- 西村 健二
     (31, 5, true),   -- 健診・ワクチン・狂犬病 (resource)
-    (32, 5, true)    -- トリミング (resource)
+    (32, 5, true),   -- トリミング (resource)
+    -- デモアカウント用割当
+    (33, 3, true),   -- さくら（デモ）→ 八王子院
+    (34, 4, true),   -- 城東 獣医（デモ）→ 城東医院
+    (35, 5, true)    -- 敷島 獣医（デモ）→ 敷島医院
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
@@ -407,7 +430,11 @@ INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
     (29, 6),  -- 岡本 菜々子
     (30, 6),  -- 西村 健二
     (31, 6),  -- 健診・ワクチン・狂犬病 (resource)
-    (32, 6)   -- トリミング (resource)
+    (32, 6),  -- トリミング (resource)
+    -- デモアカウント用権限グループ割当
+    (33, 2),  -- さくら（デモ）→ 八王子院 一般
+    (34, 3),  -- 城東 獣医（デモ）→ 城東医院 執行
+    (35, 5)   -- 敷島 獣医（デモ）→ 敷島医院 執行
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
