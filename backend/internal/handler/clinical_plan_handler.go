@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,9 +17,8 @@ func (h *Handler) GetClinicalPlan(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	plan, err := h.svc.ClinicalPlan.GetOrCreate(c.Request.Context(), clinicID, medicalRecordID)
@@ -38,9 +36,8 @@ func (h *Handler) UpdateClinicalPlan(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var req updateClinicalPlanRequest
@@ -72,9 +69,8 @@ func (h *Handler) DeleteClinicalPlan(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.ClinicalPlan.Delete(c.Request.Context(), clinicID, medicalRecordID); err != nil {

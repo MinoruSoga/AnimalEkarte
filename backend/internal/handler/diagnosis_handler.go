@@ -19,9 +19,8 @@ func (h *Handler) GetDiagnosisCategory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	category, err := h.svc.DiagnosisCategory.GetByID(c.Request.Context(), clinicID, id)
@@ -85,9 +84,8 @@ func (h *Handler) UpdateDiagnosisCategory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -116,9 +114,8 @@ func (h *Handler) DeleteDiagnosisCategory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.DiagnosisCategory.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -154,9 +151,8 @@ func (h *Handler) GetDiagnosisName(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	diagnosisName, err := h.svc.DiagnosisName.GetByID(c.Request.Context(), clinicID, id)
@@ -238,9 +234,8 @@ func (h *Handler) UpdateDiagnosisName(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -270,9 +265,8 @@ func (h *Handler) DeleteDiagnosisName(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.DiagnosisName.Delete(c.Request.Context(), clinicID, id); err != nil {

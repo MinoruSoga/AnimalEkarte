@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -19,9 +18,8 @@ func (h *Handler) GetBillingReview(c *gin.Context) {
 		return
 	}
 
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -41,9 +39,8 @@ func (h *Handler) ConfirmBillingReview(c *gin.Context) {
 		return
 	}
 
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -74,9 +71,8 @@ func (h *Handler) ReturnBillingReview(c *gin.Context) {
 		return
 	}
 
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 

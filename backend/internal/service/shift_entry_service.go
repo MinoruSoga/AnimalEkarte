@@ -80,7 +80,7 @@ func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth
 		YearMonth: yearMonth,
 		StaffID:   staffID,
 	}
-	items, err := s.repo.List(ctx, clinicID, filter)
+	items, err := s.repo.FindAll(ctx, clinicID, filter)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list shift entries")
 	}

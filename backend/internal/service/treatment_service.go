@@ -158,7 +158,7 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 
 			if targetInvID > 0 {
 				if err := txRepos.Inventory.DecreaseStock(ctx, targetInvID, input.Quantity); err != nil {
-					return apperrors.Wrap(err, "在庫の減算に失敗しました")
+					return apperrors.Wrap(err, "failed to decrease inventory stock")
 				}
 			}
 		}

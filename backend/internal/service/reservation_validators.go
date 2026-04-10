@@ -124,7 +124,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 					dateStr+" 00:00:00",
 					dateStr+" 23:59:59",
 				).Count(&dailyCount).Error; err != nil {
-				return apperrors.Wrap(err, "count daily reservations")
+				return apperrors.Wrap(err, "failed to count daily reservations")
 			}
 			if int(dailyCount) >= *settings.DailyLimit {
 				return &ReservationLimitError{
@@ -147,7 +147,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 					input.ClinicID, input.CustomerID,
 					monthStart, monthEnd,
 				).Count(&monthlyCount).Error; err != nil {
-				return apperrors.Wrap(err, "count monthly reservations")
+				return apperrors.Wrap(err, "failed to count monthly reservations")
 			}
 			if int(monthlyCount) >= *settings.MonthlyLimit {
 				return &ReservationLimitError{
@@ -161,7 +161,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		// 確認番号生成
 		confirmationNumber, err := generateConfirmationNumber(tx, input.ClinicID, input.Date)
 		if err != nil {
-			return apperrors.Wrap(err, "generate confirmation number")
+			return apperrors.Wrap(err, "failed to generate confirmation number")
 		}
 
 		// 予約作成
@@ -197,7 +197,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			VisitType:        model.VisitTypeRevisit,
 		}
 		if err := tx.Create(appt).Error; err != nil {
-			return apperrors.Wrap(err, "create reservation")
+			return apperrors.Wrap(err, "failed to create reservation")
 		}
 		result = appt
 		return nil

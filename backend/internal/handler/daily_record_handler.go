@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,9 +18,8 @@ func (h *Handler) ListDailyRecords(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospitalizationID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -45,9 +43,8 @@ func (h *Handler) GetDailyRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospitalizationID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -73,9 +70,8 @@ func (h *Handler) CreateDailyRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospitalizationID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -108,9 +104,8 @@ func (h *Handler) AddVitalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospitalizationID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -158,9 +153,8 @@ func (h *Handler) AddCareLogRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospitalizationID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -207,9 +201,8 @@ func (h *Handler) AddStaffNoteRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospitalizationID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 

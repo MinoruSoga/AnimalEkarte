@@ -15,15 +15,15 @@ import (
 // ---- ShiftEntry モック ----
 
 type mockShiftEntryRepository struct {
-	listFn     func(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error)
+	findAllFn  func(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error)
 	createFn   func(ctx context.Context, entry *model.ShiftEntry) error
 	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockShiftEntryRepository) List(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
-	return m.listFn(ctx, clinicID, filter)
+func (m *mockShiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
+	return m.findAllFn(ctx, clinicID, filter)
 }
 
 func (m *mockShiftEntryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error) {
@@ -118,7 +118,7 @@ func TestShiftEntryService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockShiftEntryRepository{
-				listFn: func(_ context.Context, _ uint64, _ repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
 					return tt.repoEntries, tt.repoErr
 				},
 			}

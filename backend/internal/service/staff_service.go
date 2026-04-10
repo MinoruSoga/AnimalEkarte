@@ -241,7 +241,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 
 // UpdatePassword はスタッフに紐づくアカウントのパスワードを更新する。
 func (s *staffService) UpdatePassword(ctx context.Context, accountID uint64, newPassword string) error {
-	account, err := s.accountRepo.GetByID(ctx, accountID)
+	account, err := s.accountRepo.FindByID(ctx, accountID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get account")
 	}

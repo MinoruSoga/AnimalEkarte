@@ -13,7 +13,7 @@ import (
 
 // AccountRepository はアカウント管理のインターフェース
 type AccountRepository interface {
-	GetByID(ctx context.Context, id uint64) (*model.Account, error)
+	FindByID(ctx context.Context, id uint64) (*model.Account, error)
 	FindByEmail(ctx context.Context, email string) (*model.Account, error)
 	Create(ctx context.Context, account *model.Account) error
 	Update(ctx context.Context, account *model.Account) error
@@ -29,8 +29,8 @@ func NewAccountRepository(db *gorm.DB) AccountRepository {
 	return &accountRepository{db: db}
 }
 
-// GetByID はIDでアカウントを取得する
-func (r *accountRepository) GetByID(ctx context.Context, id uint64) (*model.Account, error) {
+// FindByID はIDでアカウントを取得する
+func (r *accountRepository) FindByID(ctx context.Context, id uint64) (*model.Account, error) {
 	var account model.Account
 	if err := r.db.WithContext(ctx).First(&account, "id = ? AND deleted_at IS NULL", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -68,4 +68,3 @@ func (r *accountRepository) Update(ctx context.Context, account *model.Account) 
 	}
 	return nil
 }
-

@@ -84,24 +84,7 @@ func (r *checkupTypeRepository) Delete(ctx context.Context, clinicID, id uint64)
 }
 
 func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.CheckupType{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("checkup_type id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return reorderByClinicID(r.db, ctx, &model.CheckupType{}, "checkup_type", clinicID, ids)
 }
 
 // CountUsageByCheckupTypeID は定期健診種別を参照している checkup_records の件数を返す（BUG-107）

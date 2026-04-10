@@ -66,7 +66,7 @@ func NewLiffService(
 func (s *liffService) GetSettings(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "get reservation setting")
+		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
 	return setting, nil
 }
@@ -75,7 +75,7 @@ func (s *liffService) GetSettings(ctx context.Context, clinicID uint64) (*model.
 func (s *liffService) GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.ReservationCustomer, error) {
 	c, err := s.customerRepo.FindByID(ctx, clinicID, customerID)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "get customer profile")
+		return nil, apperrors.Wrap(err, "failed to get customer profile")
 	}
 	return c, nil
 }
@@ -84,7 +84,7 @@ func (s *liffService) GetProfile(ctx context.Context, clinicID, customerID uint6
 func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.ServiceType, error) {
 	all, err := s.courseRepo.FindAll(ctx, clinicID)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "get courses")
+		return nil, apperrors.Wrap(err, "failed to get courses")
 	}
 	result := make([]model.ServiceType, 0, len(all))
 	for _, c := range all {
@@ -99,7 +99,7 @@ func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.
 func (s *liffService) GetStaffs(ctx context.Context, clinicID, courseID uint64) ([]model.Staff, error) {
 	all, err := s.staffRepo.FindAllByClinicID(ctx, clinicID)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "get staffs")
+		return nil, apperrors.Wrap(err, "failed to get staffs")
 	}
 	result := make([]model.Staff, 0, len(all))
 	for _, st := range all {
@@ -108,7 +108,7 @@ func (s *liffService) GetStaffs(ctx context.Context, clinicID, courseID uint64) 
 		}
 		excluded, err := s.staffRepo.FindExcludedServiceTypes(ctx, st.ID)
 		if err != nil {
-			return nil, apperrors.Wrap(err, "get excluded service types")
+			return nil, apperrors.Wrap(err, "failed to get excluded service types")
 		}
 		if isExcluded(excluded, courseID) {
 			continue
@@ -122,11 +122,11 @@ func (s *liffService) GetStaffs(ctx context.Context, clinicID, courseID uint64) 
 func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, courseID, staffID uint64) ([]AvailableDateResult, BookingWindow, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		return nil, BookingWindow{}, apperrors.Wrap(err, "get reservation setting")
+		return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get reservation setting")
 	}
 	course, err := s.courseRepo.FindByID(ctx, clinicID, courseID)
 	if err != nil {
-		return nil, BookingWindow{}, apperrors.Wrap(err, "get course")
+		return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get course")
 	}
 
 	// スタッフを事前取得（クロージャで再利用）
@@ -174,11 +174,11 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, courseID,
 func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, courseID, staffID uint64, date time.Time) ([]TimeSlot, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "get reservation setting")
+		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
 	course, err := s.courseRepo.FindByID(ctx, clinicID, courseID)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "get course")
+		return nil, apperrors.Wrap(err, "failed to get course")
 	}
 
 	visibleStaffs, err := s.resolveTargetStaffs(ctx, clinicID, courseID, staffID)
@@ -212,7 +212,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, courseID,
 func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.ReservationAppointment, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "get reservation setting")
+		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
 	input.ClinicID = clinicID
 	input.CustomerID = customerID
@@ -262,7 +262,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.ReservationAppointment, error) {
 	items, err := s.adminRepo.FindByCustomerID(ctx, clinicID, customerID)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "get my reservations")
+		return nil, apperrors.Wrap(err, "failed to get my reservations")
 	}
 	return items, nil
 }
@@ -280,7 +280,7 @@ func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerI
 	}
 
 	if err := s.adminRepo.CancelByID(ctx, clinicID, customerID, reservationID); err != nil {
-		return apperrors.Wrap(err, "cancel reservation")
+		return apperrors.Wrap(err, "failed to cancel reservation")
 	}
 
 	// Phase 6: キャンセル通知（LINE + メール）fire-and-forget
@@ -299,7 +299,7 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, courseI
 	if staffID != 0 {
 		staff, err := s.staffRepo.FindByID(ctx, staffID)
 		if err != nil {
-			return nil, apperrors.Wrap(err, "get staff")
+			return nil, apperrors.Wrap(err, "failed to get staff")
 		}
 		if !staff.ReservationVisible {
 			return nil, nil
@@ -309,7 +309,7 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, courseI
 
 	all, err := s.staffRepo.FindAllByClinicID(ctx, clinicID)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "get staffs")
+		return nil, apperrors.Wrap(err, "failed to get staffs")
 	}
 	result := make([]model.Staff, 0, len(all))
 	for _, st := range all {
@@ -318,7 +318,7 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, courseI
 		}
 		excluded, err := s.staffRepo.FindExcludedServiceTypes(ctx, st.ID)
 		if err != nil {
-			return nil, apperrors.Wrap(err, "get excluded service types")
+			return nil, apperrors.Wrap(err, "failed to get excluded service types")
 		}
 		if !isExcluded(excluded, courseID) {
 			result = append(result, st)
@@ -332,7 +332,7 @@ func (s *liffService) buildStaffSlotInputs(ctx context.Context, clinicID uint64,
 	// 当日の全予約を一括取得（N+1回避）
 	dayResv, err := s.adminRepo.FindByDay(ctx, clinicID, date)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "get day reservations")
+		return nil, apperrors.Wrap(err, "failed to get day reservations")
 	}
 
 	inputs := make([]StaffSlotInput, 0, len(staffs))

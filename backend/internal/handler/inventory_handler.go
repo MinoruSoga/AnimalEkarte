@@ -3,7 +3,6 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -50,9 +49,8 @@ func (h *Handler) GetInventory(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	item, err := h.svc.Inventory.GetByID(c.Request.Context(), clinicID, id)
@@ -118,9 +116,8 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var input updateInventoryRequest
@@ -178,9 +175,8 @@ func (h *Handler) DeleteInventory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.Inventory.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -189,4 +185,3 @@ func (h *Handler) DeleteInventory(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
-

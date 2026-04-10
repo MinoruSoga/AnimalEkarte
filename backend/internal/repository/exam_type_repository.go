@@ -84,24 +84,7 @@ func (r *examTypeRepository) Delete(ctx context.Context, clinicID, id uint64) er
 }
 
 func (r *examTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.ExaminationType{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "examination_type", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("examination_type id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return reorderByClinicID(r.db, ctx, &model.ExaminationType{}, "exam_type", clinicID, ids)
 }
 
 // CountUsageByExamTypeID は検査種別を参照している examination_records の件数を返す（BUG-107）

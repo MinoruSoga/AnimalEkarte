@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -85,9 +84,8 @@ func (h *Handler) hasPermission(c *gin.Context, resource, action string) bool {
 // GetClinic godoc
 // system_admin は任意クリニックを取得可能。それ以外は所属クリニックのみ。
 func (h *Handler) GetClinic(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	isSystemAdmin, ok := extractIsSystemAdmin(c)
@@ -115,9 +113,8 @@ func (h *Handler) GetClinic(c *gin.Context) {
 // UpdateClinic godoc
 // system_admin は任意クリニックを更新可能。それ以外は所属クリニックのみ。
 func (h *Handler) UpdateClinic(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	isSystemAdmin, ok := extractIsSystemAdmin(c)
@@ -212,9 +209,8 @@ func (h *Handler) DeleteClinic(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.Clinic.DeleteClinic(c.Request.Context(), id); err != nil {

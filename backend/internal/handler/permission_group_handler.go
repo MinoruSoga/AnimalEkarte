@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -19,9 +18,8 @@ import (
 
 // GetPermissionGroup godoc
 func (h *Handler) GetPermissionGroup(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), id)
@@ -98,9 +96,8 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -146,9 +143,8 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 
 // DeletePermissionGroup godoc
 func (h *Handler) DeletePermissionGroup(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	// 削除前に old value を取得（監査ログ用）
@@ -185,9 +181,8 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 // SetPermissionGroupRules godoc
 // PUTメソッドで全ルールを置き換える
 func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 

@@ -20,7 +20,7 @@ type ShiftEntryFilter struct {
 
 // ShiftEntryRepository はシフト管理のデータアクセスインターフェース
 type ShiftEntryRepository interface {
-	List(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error)
+	FindAll(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error)
 	Create(ctx context.Context, entry *model.ShiftEntry) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -36,7 +36,7 @@ func NewShiftEntryRepository(db *gorm.DB) ShiftEntryRepository {
 	return &shiftEntryRepository{db: db}
 }
 
-func (r *shiftEntryRepository) List(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error) {
+func (r *shiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error) {
 	q := r.db.WithContext(ctx).
 		Preload("Staff").
 		Preload("Breaks").

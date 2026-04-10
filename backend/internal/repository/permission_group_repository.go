@@ -217,22 +217,5 @@ func (r *permissionGroupRepository) SetStaffGroups(ctx context.Context, staffID 
 
 // Reorder は指定されたIDリストの順序でソート順を更新する
 func (r *permissionGroupRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.PermissionGroup{}).
-				Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("permission_group id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return reorderByClinicID(r.db, ctx, &model.PermissionGroup{}, "permission_group", clinicID, ids)
 }

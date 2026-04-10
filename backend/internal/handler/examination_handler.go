@@ -74,9 +74,8 @@ func (h *Handler) GetExamination(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	exam, err := h.svc.Examination.GetByID(c.Request.Context(), clinicID, id)
@@ -138,9 +137,8 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var input updateExaminationRequest
@@ -195,9 +193,8 @@ func (h *Handler) DeleteExamination(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.Examination.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -206,4 +203,3 @@ func (h *Handler) DeleteExamination(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
-

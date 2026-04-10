@@ -257,6 +257,23 @@ func parsePagination(c *gin.Context) (page, limit int, err error) {
 	return page, limit, nil
 }
 
+// parseIDParam は URL path parameter を uint64 にパースする汎用ヘルパー。
+// パース失敗時は即座に HTTP 400 レスポンスを書いて false を返す。
+// 呼び出し元は false 時に即 return すること。
+func parseIDParam(c *gin.Context, key string) (uint64, bool) {
+	s := c.Param(key)
+	if s == "" {
+		RespondError(c, apperrors.WrapInvalidInput("missing "+key))
+		return 0, false
+	}
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid "+key))
+		return 0, false
+	}
+	return id, true
+}
+
 // extractClinicIDFromParam は URL path parameter :clinicId を取得してパースする。
 // 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
 // 呼び出し元は false 時に即 return すること。

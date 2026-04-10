@@ -3,7 +3,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -20,9 +19,8 @@ func (h *Handler) GetHospitalizationPlan(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	plan, err := h.svc.HospitalizationPlan.GetByID(c.Request.Context(), clinicID, id)
@@ -96,9 +94,8 @@ func (h *Handler) CreateHospitalizationPlan(c *gin.Context) {
 
 // UpdateHospitalizationPlan godoc
 func (h *Handler) UpdateHospitalizationPlan(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	clinicID, ok := extractClinicID(c)
@@ -153,9 +150,8 @@ func (h *Handler) DeleteHospitalizationPlan(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.HospitalizationPlan.Delete(c.Request.Context(), clinicID, id); err != nil {

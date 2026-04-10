@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -43,9 +42,8 @@ func (h *Handler) GetOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	owner, err := h.svc.Owner.GetByID(c.Request.Context(), clinicID, id)
@@ -125,9 +123,8 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var req updateOwnerRequest
@@ -175,9 +172,8 @@ func (h *Handler) DeleteOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.Owner.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -186,4 +182,3 @@ func (h *Handler) DeleteOwner(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
-

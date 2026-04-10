@@ -98,23 +98,7 @@ func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uin
 }
 
 func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.MerchandiseItem{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("merchandise_item id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
+	return reorderByClinicID(r.db, ctx, &model.MerchandiseItem{}, "merchandise_item", clinicID, ids)
 }
 
 // CountUsageByMerchandiseItemID は物販品目を参照している billing_items と estimate_items の件数の合計を返す（BUG-109）

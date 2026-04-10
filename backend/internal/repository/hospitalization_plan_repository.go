@@ -96,18 +96,5 @@ func (r *hospitalizationPlanRepository) CountCarePlanItemsByPlanID(ctx context.C
 }
 
 func (r *hospitalizationPlanRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.HospitalizationPlan{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "hospitalization_plan", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("hospitalization_plan id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	})
+	return reorderByClinicID(r.db, ctx, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, ids)
 }

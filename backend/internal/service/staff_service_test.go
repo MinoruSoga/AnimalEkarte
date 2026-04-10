@@ -94,7 +94,7 @@ type mockShiftEntryForStaff struct {
 	existsByStaffIDFn func(ctx context.Context, staffID uint64) (bool, error)
 }
 
-func (m *mockShiftEntryForStaff) List(_ context.Context, _ uint64, _ repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
+func (m *mockShiftEntryForStaff) FindAll(_ context.Context, _ uint64, _ repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
 	return nil, nil
 }
 func (m *mockShiftEntryForStaff) FindByID(_ context.Context, _, _ uint64) (*model.ShiftEntry, error) {
@@ -127,7 +127,7 @@ type mockAccountForStaff struct {
 	updateFn      func(ctx context.Context, account *model.Account) error
 }
 
-func (m *mockAccountForStaff) GetByID(ctx context.Context, id uint64) (*model.Account, error) {
+func (m *mockAccountForStaff) FindByID(ctx context.Context, id uint64) (*model.Account, error) {
 	if m.getByIDFn != nil {
 		return m.getByIDFn(ctx, id)
 	}

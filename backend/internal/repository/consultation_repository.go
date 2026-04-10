@@ -84,24 +84,7 @@ func (r *consultationRepository) Delete(ctx context.Context, clinicID, id uint64
 }
 
 func (r *consultationRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.Consultation{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "consultation", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("consultation id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return reorderByClinicID(r.db, ctx, &model.Consultation{}, "consultation", clinicID, ids)
 }
 
 // CountUsageByConsultationID は診察マスタを参照している treatments の件数を返す（BUG-107）

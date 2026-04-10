@@ -34,7 +34,7 @@ func (s *accountService) FindByEmail(ctx context.Context, email string) (*model.
 }
 
 func (s *accountService) GetByID(ctx context.Context, id uint64) (*model.Account, error) {
-	account, err := s.repo.GetByID(ctx, id)
+	account, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, fmt.Sprintf("failed to get account: %d", id))
 	}
@@ -42,7 +42,7 @@ func (s *accountService) GetByID(ctx context.Context, id uint64) (*model.Account
 }
 
 func (s *accountService) UpdatePasswordHash(ctx context.Context, accountID uint64, newHash string) error {
-	account, err := s.repo.GetByID(ctx, accountID)
+	account, err := s.repo.FindByID(ctx, accountID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get account for password update")
 	}

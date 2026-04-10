@@ -191,7 +191,7 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID uint64, id
 func (s *billingItemService) recalculateTotals(ctx context.Context, clinicID, billingID uint64) error {
 	items, err := s.repo.FindByBillingID(ctx, clinicID, billingID)
 	if err != nil {
-		return apperrors.Wrap(err, "find billing items")
+		return apperrors.Wrap(err, "failed to find billing items")
 	}
 	subtotal, taxTotal, totalAmount := CalculateBillingTotals(items)
 	if err := s.repo.UpdateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount); err != nil {

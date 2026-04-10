@@ -121,24 +121,7 @@ func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fi
 }
 
 func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.Medicine{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("medicine id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return reorderByClinicID(r.db, ctx, &model.Medicine{}, "medicine", clinicID, ids)
 }
 
 func (r *medicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {

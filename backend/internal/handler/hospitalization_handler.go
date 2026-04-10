@@ -72,9 +72,8 @@ func (h *Handler) GetHospitalization(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	hospitalization, err := h.svc.Hospitalization.GetByID(c.Request.Context(), clinicID, id)
@@ -146,9 +145,8 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var input updateHospitalizationRequest
@@ -208,9 +206,8 @@ func (h *Handler) DischargeWithBilling(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -237,9 +234,8 @@ func (h *Handler) DeleteHospitalization(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.Hospitalization.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -248,4 +244,3 @@ func (h *Handler) DeleteHospitalization(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
-

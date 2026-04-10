@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,9 +17,8 @@ func (h *Handler) ListCarePlanItems(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospitalizationID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -44,9 +42,8 @@ func (h *Handler) CreateCarePlanItem(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospitalizationID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -86,15 +83,13 @@ func (h *Handler) UpdateCarePlanItem(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospitalizationID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
-	itemID, err := strconv.ParseUint(c.Param("itemId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid itemId"))
+	itemID, ok := parseIDParam(c, "itemId")
+	if !ok {
 		return
 	}
 
@@ -137,15 +132,13 @@ func (h *Handler) DeleteCarePlanItem(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospitalizationID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
-	itemID, err := strconv.ParseUint(c.Param("itemId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid itemId"))
+	itemID, ok := parseIDParam(c, "itemId")
+	if !ok {
 		return
 	}
 
