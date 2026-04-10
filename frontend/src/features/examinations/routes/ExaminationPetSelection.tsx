@@ -3,10 +3,11 @@ import { PetSelectionSearchForm } from "@/components/shared/PetSelection/PetSele
 import { PetSelectionResultsTable } from "@/components/shared/PetSelection/PetSelectionResultsTable";
 import { usePetSelectionPage } from "@/hooks/use-pet-selection-page";
 import { ResourceExaminations } from "@/types/generated/models";
+import { paths } from "@/config/paths";
 
 export function ExaminationPetSelection() {
   const { searchParams, setSearchParams, filteredPets, handleSearch, handleClear, handleSelect, handleBack } =
-    usePetSelectionPage({ selectPath: "/examinations/new", backPath: "/examinations" });
+    usePetSelectionPage({ selectPath: paths.examinations.new.getHref(), backPath: paths.examinations.getHref() });
 
   return (
     <PageLayout title="検査登録 - ペット選択" onBack={handleBack} resource={ResourceExaminations} maxWidth="max-w-full">

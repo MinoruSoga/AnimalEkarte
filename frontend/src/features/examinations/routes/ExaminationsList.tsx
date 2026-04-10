@@ -153,7 +153,7 @@ export function ExaminationsList() {
   }, [navigate]);
 
   const handleEdit = useCallback((id: string) => {
-    navigate(`/examinations/${id}`);
+    navigate(paths.examinations.detail.getHref(id));
   }, [navigate]);
 
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）

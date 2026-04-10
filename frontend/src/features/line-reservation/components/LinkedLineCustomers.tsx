@@ -4,7 +4,7 @@
  * この飼主に紐付いたLINE顧客を表示し、紐付け/解除を行う。
  * app/pages/OwnerFormPage で line-reservation feature から注入する（依存逆転）。
  */
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import { Link2, Link2Off, Search, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -27,7 +27,7 @@ interface LinkedLineCustomersProps {
   ownerId: number;
 }
 
-export function LinkedLineCustomers({ clinicId, ownerId }: LinkedLineCustomersProps) {
+export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId, ownerId }: LinkedLineCustomersProps) {
   const { data: allCustomers = [] } = useGetReservationCustomers(clinicId);
   const linkMutation = useUpdateOwnerLink(clinicId);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -137,7 +137,7 @@ export function LinkedLineCustomers({ clinicId, ownerId }: LinkedLineCustomersPr
       ) : null}
     </div>
   );
-}
+});
 
 // ---- 未紐付けLINE顧客を検索して選択するダイアログ ----
 
