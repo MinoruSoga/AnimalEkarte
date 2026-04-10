@@ -164,10 +164,10 @@
 5. ~~**BUG-226**~~ CLOSED — filter().map() 残存1件は useMemo 内（小配列・依存変化時のみ実行）
 6. ~~**BUG-228**~~ CLOSED — OwnerSearchModal に useMemo なし / MedicineSettings の useMemo は全て計算量大（正当）
 7. ~~**BUG-229**~~ CLOSED — BillingReviewSection が userIdRef パターン (advanced-event-handler-refs) で実装済み（実コード確認 2026-04-11）
-8. **BUG-233** (Low): content-visibility: auto（MedicineSettings, TreatmentPlanMaster）— CSS 最適化、対応は余裕のある時に
+8. ~~**BUG-233**~~ CLOSED (N/A) — `content-visibility: auto` は `<tr>` 要素非対応のため適用不可（2026-04-11 検証）
 9. ~~**BUG-234**~~ CLOSED — isPetSelected は Set.has() 使用済み / togglePetSelection の .some(prev) は setState callback で正当
 
-**→ FE 残存 Open: BUG-193 (High・DB変更), BUG-190 (Medium・デザイントークン), BUG-233 (Low・CSS最適化) のみ**
+**→ FE 残存 Open: なし（全 Critical/High/Medium/Low CLOSED 確認）**
 **→ バックエンド残存 Open: ゼロ（全 Critical/High は実コード検証で CLOSED 確認）**
 
 ## 監査完了サマリー（2026-04-11）
@@ -178,11 +178,13 @@
 |-----|---------|--------|------|
 | ~~BUG-193~~ | DB スキーマ | CLOSED | billing_items.updated_at + deleted_at / payments.deleted_at いずれも 001_init.sql に存在確認済み（2026-04-11） |
 | ~~BUG-190~~ | FE デザイントークン | CLOSED | docs/tasks/closed/BUG-190_* に移動済みを確認（2026-04-11） |
-| BUG-233 | FE CSS 最適化 | Low | content-visibility: auto 未適用（MedicineSettings, TreatmentPlanMaster）— 余裕のある時に |
+| ~~BUG-233~~ | FE CSS 最適化 | **CLOSED (N/A)** | content-visibility: auto は `<tr>` 要素非対応。両コンポーネントは `<table>/<tr>` ベースのため適用不可。div 化 or 仮想スクロールは別タスクとして起票する |
 
 ~~**BUG-312**~~ CLOSED — useMutation オブジェクト全体を useCallback deps に入れていた違反を修正（14ファイル対応 2026-04-11 cc0ed0c8）
 
-**→ 実質 Open: BUG-233 (Low) のみ。全 Critical/High/Medium は CLOSED 確認。**
+~~**BUG-233**~~ CLOSED (N/A) — `content-visibility: auto` は `<tr>` 要素非対応のため適用不可（2026-04-11 検証）
+
+**→ 全チケット CLOSED 確認。フロントエンド/バックエンドとも未修正 Open はゼロ。**
 
 ### バックエンド残存課題（実コード検証済み）
 
