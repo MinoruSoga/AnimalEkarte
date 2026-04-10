@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useEffect, useCallback } from "react";
+import { memo, useState, useEffect, useCallback } from "react";
 
 // Internal
 import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
@@ -20,7 +20,7 @@ interface ClinicalPlanSectionProps {
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export function ClinicalPlanSection({ medicalRecordId, onRegisterSave, canEdit = false }: ClinicalPlanSectionProps) {
+export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRecordId, onRegisterSave, canEdit = false }: ClinicalPlanSectionProps) {
   const { data, isLoading } = useGetClinicalPlan(medicalRecordId);
   const updateMutation = useUpdateClinicalPlan(medicalRecordId);
 
@@ -142,4 +142,4 @@ export function ClinicalPlanSection({ medicalRecordId, onRegisterSave, canEdit =
       </div>
     </div>
   );
-}
+});

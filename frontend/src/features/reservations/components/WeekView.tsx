@@ -464,7 +464,7 @@ const DayColumn = memo(function DayColumn({
 });
 
 // Main Component
-export function WeekView({
+export const WeekView = memo(function WeekView({
   currentDate,
   appointments,
   onAppointmentClick,
@@ -566,4 +566,4 @@ export function WeekView({
       </div>
     </div>
   );
-}
+});

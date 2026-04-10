@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useActionState } from "react";
+import { memo, useState, useEffect, useRef, useCallback, useActionState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -52,7 +52,7 @@ interface FormActionState {
   timeError?: string;
 }
 
-export function ShiftFormDialog({
+export const ShiftFormDialog = memo(function ShiftFormDialog({
   open,
   onClose,
   staffId,
@@ -319,4 +319,4 @@ export function ShiftFormDialog({
     />
     </>
   );
-}
+});
