@@ -74,6 +74,20 @@ const FormFieldsSection = memo(function FormFieldsSection({
   onDeleteClick,
 }: FormFieldsSectionProps) {
   const canSubmit = isEdit ? canEdit : canCreate;
+
+  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
+  const examTypeSelectItems = useMemo(
+    () => examTypes.map((item) => (
+      <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
+    )),
+    [examTypes]
+  );
+  const staffSelectItems = useMemo(
+    () => staffList.map((staff) => (
+      <SelectItem key={staff.id} value={String(staff.id)}>{staff.name}</SelectItem>
+    )),
+    [staffList]
+  );
   return (
     <div className={`${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
       {isConfirmed ? (
@@ -94,11 +108,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent>
-              {examTypes.map((item) => (
-                <SelectItem key={item.id} value={String(item.id)}>
-                  {item.name}
-                </SelectItem>
-              ))}
+              {examTypeSelectItems}
             </SelectContent>
           </Select>
         </div>
@@ -116,11 +126,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent>
-              {staffList.map((staff) => (
-                <SelectItem key={staff.id} value={String(staff.id)}>
-                  {staff.name}
-                </SelectItem>
-              ))}
+              {staffSelectItems}
             </SelectContent>
           </Select>
         </div>

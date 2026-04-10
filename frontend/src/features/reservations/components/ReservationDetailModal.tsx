@@ -43,6 +43,16 @@ const DEFAULT_ACTION_CONFIG: ActionConfig = {
   Icon: FilePlus2,
 };
 
+// rendering-hoist-jsx: 静的な定数から生成する JSX はモジュールレベルで巻き上げ
+const RESERVATION_STATUS_SELECT_ITEMS = (Object.entries(RESERVATION_STATUS_COLORS) as [ReservationStatus, typeof RESERVATION_STATUS_COLORS[ReservationStatus]][]).map(([value, colors]) => (
+  <SelectItem key={value} value={value} className="text-sm">
+    <div className="flex items-center gap-2">
+      <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
+      {colors.label}
+    </div>
+  </SelectItem>
+));
+
 // getVisitTypeAccent は getVisitTypeColor に集約済み（status-colors.ts）
 
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
@@ -111,14 +121,7 @@ export function ReservationDetailModal({
                   <SelectValue placeholder="変更" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.entries(RESERVATION_STATUS_COLORS) as [ReservationStatus, typeof RESERVATION_STATUS_COLORS[ReservationStatus]][]).map(([value, colors]) => (
-                    <SelectItem key={value} value={value} className="text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                        {colors.label}
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {RESERVATION_STATUS_SELECT_ITEMS}
                 </SelectContent>
               </Select>
             </div>

@@ -118,6 +118,14 @@ export function ReservationManagement() {
     [appointments],
   );
 
+  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
+  const doctorNameSelectItems = useMemo(
+    () => doctorNames.map((name) => (
+      <SelectItem key={name} value={name}>{name}</SelectItem>
+    )),
+    [doctorNames]
+  );
+
   const filteredAppointments = useMemo(
     () => {
       let result = appointments;
@@ -222,11 +230,7 @@ export function ReservationManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">すべての医師</SelectItem>
-                {doctorNames.map((name) => (
-                  <SelectItem key={name} value={name}>
-                    {name}
-                  </SelectItem>
-                ))}
+                {doctorNameSelectItems}
               </SelectContent>
             </Select>
 

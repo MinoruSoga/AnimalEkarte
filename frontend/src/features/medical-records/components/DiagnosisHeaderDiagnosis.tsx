@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 
 // External
 import { ChevronRight } from "lucide-react";
@@ -45,6 +45,26 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
   const { data: names1 = [], isLoading: isNames1Loading } = useGetDiagnosisNames(diagnosis1CategoryId);
   const { data: names2 = [], isLoading: isNames2Loading } = useGetDiagnosisNames(diagnosis2CategoryId);
 
+  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
+  const categorySelectItems = useMemo(
+    () => categories.map((cat) => (
+      <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
+    )),
+    [categories]
+  );
+  const names1SelectItems = useMemo(
+    () => names1.map((name) => (
+      <SelectItem key={name.id} value={String(name.id)}>{name.name}</SelectItem>
+    )),
+    [names1]
+  );
+  const names2SelectItems = useMemo(
+    () => names2.map((name) => (
+      <SelectItem key={name.id} value={String(name.id)}>{name.name}</SelectItem>
+    )),
+    [names2]
+  );
+
   return (
     <div className="col-span-5 flex flex-col min-h-0">
       <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent">
@@ -72,11 +92,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                   <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={String(cat.id)}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
+                  {categorySelectItems}
                 </SelectContent>
               </Select>
               <Select
@@ -88,11 +104,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                   <SelectValue placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
-                  {names1.map((name) => (
-                    <SelectItem key={name.id} value={String(name.id)}>
-                      {name.name}
-                    </SelectItem>
-                  ))}
+                  {names1SelectItems}
                 </SelectContent>
               </Select>
             </div>
@@ -113,11 +125,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                   <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={String(cat.id)}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
+                  {categorySelectItems}
                 </SelectContent>
               </Select>
               <Select
@@ -129,11 +137,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                   <SelectValue placeholder={isNames2Loading ? "読み込み中..." : "病名を選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
-                  {names2.map((name) => (
-                    <SelectItem key={name.id} value={String(name.id)}>
-                      {name.name}
-                    </SelectItem>
-                  ))}
+                  {names2SelectItems}
                 </SelectContent>
               </Select>
             </div>

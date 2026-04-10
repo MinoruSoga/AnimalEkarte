@@ -65,6 +65,14 @@ export function Reception() {
       { id: "医師指名なし", name: "医師指名なし" },
     ], [staffs]);
 
+    // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
+    const doctorSelectItems = useMemo(
+      () => doctors.map((doctor) => (
+        <SelectItem key={doctor.id} value={doctor.id}>{doctor.name}</SelectItem>
+      )),
+      [doctors]
+    );
+
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
     // rerender-dependencies: primitive id で deps 安定化
@@ -374,11 +382,7 @@ export function Reception() {
                                     <SelectValue placeholder="指名を選択" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {doctors.map((doctor) => (
-                                        <SelectItem key={doctor.id} value={doctor.id}>
-                                            {doctor.name}
-                                        </SelectItem>
-                                    ))}
+                                    {doctorSelectItems}
                                 </SelectContent>
                             </Select>
                         </div>

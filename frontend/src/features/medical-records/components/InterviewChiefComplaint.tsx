@@ -1,5 +1,5 @@
 // React/Framework
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -40,6 +40,29 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   const { canEdit } = usePermission("medical-records");
   const { data: categories = [], isLoading } = useGetChiefComplaintCategories();
 
+  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
+  const categorySelectItems = useMemo(
+    () => categories.map((category) => (
+      <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
+    )),
+    [categories]
+  );
+  const templateButtons = useMemo(
+    () => templates.map((tmpl) => (
+      <Button
+        key={tmpl.label}
+        variant="outline"
+        size="sm"
+        className={`${LAYOUT.touch.md} text-sm px-3 bg-white ${C.hoverBgPage} ${C.text60} ${C.borderMedium}`}
+        onClick={() => onInsertTemplate(tmpl.text)}
+        disabled={!canEdit}
+      >
+        {tmpl.label}
+      </Button>
+    )),
+    [templates, onInsertTemplate, canEdit]
+  );
+
   return (
     <div className={`flex flex-col ${className ?? ""}`}>
       <div className="pb-1.5">
@@ -72,11 +95,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
               <SelectValue placeholder={isLoading ? "読み込み中..." : "選択してください"} />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={String(category.id)}>
-                  {category.name}
-                </SelectItem>
-              ))}
+              {categorySelectItems}
             </SelectContent>
           </Select>
         </div>
@@ -96,18 +115,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
-            {templates.map((tmpl) => (
-              <Button
-                key={tmpl.label}
-                variant="outline"
-                size="sm"
-                className={`${LAYOUT.touch.md} text-sm px-3 bg-white ${C.hoverBgPage} ${C.text60} ${C.borderMedium}`}
-                onClick={() => onInsertTemplate(tmpl.text)}
-                disabled={!canEdit}
-              >
-                {tmpl.label}
-              </Button>
-            ))}
+            {templateButtons}
           </div>
         </div>
 
