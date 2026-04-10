@@ -31,5 +31,7 @@ export function transformTrimming(data: BackendTrimming): TrimmingUI {
     usedShampoo: data.used_shampoo ?? "",
     usedRibbon: data.used_ribbon ?? "",
     remarks: data.remarks ?? "",
+    styleImage: data.style_image || undefined,
+    completedImage: data.completed_image || undefined,
   };
 }

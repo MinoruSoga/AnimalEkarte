@@ -90,6 +90,9 @@ export function useTrimmingForm(id?: string) {
     }
   }, [DRAFT_KEY, localOverrides]);
 
+  const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
+  const [completedImagePreview, setCompletedImagePreview] = useState<string | null>(null);
+
   // 編集モード: サーバーデータを全フィールド復元（初回のみ）
   // rerender-use-ref-transient-values: フラグを useState → useRef に変更して setState-in-effect を排除
   const serverDataLoadedRef = useRef(false);
@@ -110,6 +113,13 @@ export function useTrimmingForm(id?: string) {
         staffId: existingTrimming.staffId ?? "",
         staffName: existingTrimming.staff ?? "",
       });
+      // 既存画像URLをプレビューとして復元
+      if (existingTrimming.styleImage) {
+        setStyleImagePreview(existingTrimming.styleImage);
+      }
+      if (existingTrimming.completedImage) {
+        setCompletedImagePreview(existingTrimming.completedImage);
+      }
     }
   }, [isEdit, existingTrimming]);
 
@@ -179,9 +189,6 @@ export function useTrimmingForm(id?: string) {
     },
     INITIAL_ACTION_STATE
   );
-
-  const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
-  const [completedImagePreview, setCompletedImagePreview] = useState<string | null>(null);
 
   // Edit mode: restore pet from fetched trimming data
   useEffect(() => {

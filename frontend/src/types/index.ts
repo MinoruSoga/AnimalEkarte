@@ -309,6 +309,8 @@ export interface VaccinationRecord {
   doctor: string;
   date: string;
   nextDate: string;
+  lot1?: string;
+  lot2?: string;
 }
 
 /**
@@ -328,6 +330,10 @@ export interface TrimmingUI {
   styleRequest: string;
   staff: string;
   status: "完了" | "予約" | "進行中";
+  /** 施術前スタイル参考画像 URL */
+  styleImage?: string;
+  /** 施術後完成画像 URL */
+  completedImage?: string;
   // Form fields
   staffId: string;
   courseId: string;

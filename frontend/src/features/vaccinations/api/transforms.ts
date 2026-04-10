@@ -14,5 +14,7 @@ export function transformVaccination(
     doctor: data.doctor?.name ?? "",
     date: data.date ? data.date.slice(0, 10) : "",
     nextDate: data.next_date ? data.next_date.slice(0, 10) : "",
+    lot1: data.lot1 || undefined,
+    lot2: data.lot2 || undefined,
   };
 }
