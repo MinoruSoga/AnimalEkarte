@@ -277,9 +277,10 @@ export function useVaccinationForm(id?: string) {
   const setRemarks = useCallback((v: string) => setField("remarks", v), [setField]);
 
   // BUG-025: delete handler
+  const { mutate: deleteVaccinationFn } = deleteMutation;
   const handleDelete = useCallback((onSuccess?: () => void) => {
     if (!isEdit || !id) return;
-    deleteMutation.mutate(id, {
+    deleteVaccinationFn(id, {
       onSuccess: () => {
         toast.success("予防接種情報を削除しました");
         onSuccess?.();
@@ -288,7 +289,7 @@ export function useVaccinationForm(id?: string) {
         handleApiError(error, "削除");
       },
     });
-  }, [isEdit, id, deleteMutation]);
+  }, [isEdit, id, deleteVaccinationFn]);
 
   const isDeleting = deleteMutation.isPending;
 

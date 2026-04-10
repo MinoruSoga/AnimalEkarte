@@ -55,10 +55,12 @@ export const BillingReviewSection = memo(function BillingReviewSection({
 
   const { data: review, isLoading } = useGetBillingReview(medicalRecordId);
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
+  const { mutate: confirmBillingFn } = confirmMutation;
   const returnMutation = useReturnBillingReview(medicalRecordId, userId);
+  const { mutate: returnBillingFn } = returnMutation;
 
   const handleConfirm = useCallback(() => {
-    confirmMutation.mutate(
+    confirmBillingFn(
       { confirmed_by: userIdRef.current },
       {
         onSuccess: () => {
@@ -66,14 +68,14 @@ export const BillingReviewSection = memo(function BillingReviewSection({
         },
       }
     );
-  }, [confirmMutation]);
+  }, [confirmBillingFn]);
 
   const handleReturnSubmit = useCallback((reason: string) => {
-    returnMutation.mutate(
+    returnBillingFn(
       { return_reason: reason },
       { onSuccess: () => setIsReturnDialogOpen(false) }
     );
-  }, [returnMutation]);
+  }, [returnBillingFn]);
 
   if (isLoading) {
     return (

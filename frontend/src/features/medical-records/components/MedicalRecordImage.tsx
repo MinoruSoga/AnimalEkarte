@@ -51,15 +51,16 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
     [canCreate, resolvedId, uploadMutation],
   );
 
+  const { mutate: deleteImageFn } = deleteMutation;
   const handleDeleteImage = useCallback(
     (imageId: number) => {
       if (!canDelete || !resolvedId) return;
       setDeletingId(imageId);
-      deleteMutation.mutate(imageId, {
+      deleteImageFn(imageId, {
         onSettled: () => setDeletingId(null),
       });
     },
-    [canDelete, resolvedId, deleteMutation],
+    [canDelete, resolvedId, deleteImageFn],
   );
 
   return (

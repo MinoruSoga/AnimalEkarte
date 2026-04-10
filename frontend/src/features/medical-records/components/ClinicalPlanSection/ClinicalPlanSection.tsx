@@ -42,6 +42,7 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
     }
   }, [data]);
 
+  const { mutateAsync: updateClinicalPlanAsync } = updateMutation;
   const handleSave = useCallback(async (): Promise<void> => {
     if (!canEdit) return;
     const input: UpdateClinicalPlanInput = {
@@ -51,8 +52,8 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
       diagnosis_details: diagnosisDetails,
       treatment_policy: treatmentPolicy,
     };
-    await updateMutation.mutateAsync(input);
-  }, [canEdit, physicalExam, diagnosisCategoryId, diagnosisNameId, diagnosisDetails, treatmentPolicy, updateMutation]);
+    await updateClinicalPlanAsync(input);
+  }, [canEdit, physicalExam, diagnosisCategoryId, diagnosisNameId, diagnosisDetails, treatmentPolicy, updateClinicalPlanAsync]);
 
   // Register save function with parent
   useEffect(() => {

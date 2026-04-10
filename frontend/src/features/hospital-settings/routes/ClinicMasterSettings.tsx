@@ -269,10 +269,11 @@ export function ClinicMasterSettings() {
   const pendingDeleteId = pendingDelete?.id ?? null;
   const [isDeletePending, startDeleteTransition] = useTransition();
 
+  const { mutate: deleteClinicMasterFn } = deleteMutation;
   const handleDeleteConfirm = useCallback(() => {
     if (pendingDeleteId === null) return;
     startDeleteTransition(() => {
-      deleteMutation.mutate(pendingDeleteId, {
+      deleteClinicMasterFn(pendingDeleteId, {
         onSuccess: () => {
           setPendingDelete(null);
           setIsEditing(false);
@@ -283,7 +284,7 @@ export function ClinicMasterSettings() {
         },
       });
     });
-  }, [pendingDeleteId, deleteMutation]);
+  }, [pendingDeleteId, deleteClinicMasterFn]);
 
   return (
     <>

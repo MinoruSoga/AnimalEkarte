@@ -270,7 +270,7 @@ export function useReservationManagement() {
       };
 
       startUpdateTransition(() => {
-        updateMutation.mutate(updatePayload, {
+        updateReservationFn(updatePayload, {
           onSuccess: () => {
             setDetailAppointment((prev) => (prev ? { ...prev, status } : null));
             const statusLabel = getReservationStatusLabel(status);
@@ -281,7 +281,7 @@ export function useReservationManagement() {
         });
       });
     },
-    [updateMutation]
+    [updateReservationFn]
   );
 
   // Delete handler
@@ -293,7 +293,7 @@ export function useReservationManagement() {
   const executeDelete = useCallback(() => {
     if (!deleteTarget) return;
     startDeleteTransition(() => {
-      deleteMutation.mutate(deleteTarget.id, {
+      deleteReservationFn(deleteTarget.id, {
         onSuccess: () => {
           setDeleteConfirmOpen(false);
           setDeleteTarget(null);
@@ -307,7 +307,7 @@ export function useReservationManagement() {
         },
       });
     });
-  }, [deleteTarget, deleteMutation, handleCloseDetail]);
+  }, [deleteTarget, deleteReservationFn, handleCloseDetail]);
 
   // Create Record Handler
   const handleCreateRecord = useCallback(

@@ -553,8 +553,11 @@ export function StaffSettings() {
 
   // Group / Clinic / Excluded mutation
   const setGroupsMutation = useSetStaffPermissionGroups();
+  const { mutate: setGroupsFn } = setGroupsMutation;
   const setClinicsMutation = useSetStaffClinics();
+  const { mutate: setClinicsFn } = setClinicsMutation;
   const setExcludedMutation = useSetStaffExcludedReservationCategories();
+  const { mutate: setExcludedFn } = setExcludedMutation;
 
   // スタッフ全員の権限グループIDマップ（テーブル表示用）
   const staffIds = useMemo(() => (data ?? []).map((s) => s.id), [data]);
@@ -651,23 +654,23 @@ export function StaffSettings() {
 
   const handleSaveGroups = useCallback(
     (staffId: string, groupIds: string[]) => {
-      setGroupsMutation.mutate({ staffId, groupIds });
+      setGroupsFn({ staffId, groupIds });
     },
-    [setGroupsMutation],
+    [setGroupsFn],
   );
 
   const handleSaveClinics = useCallback(
     (staffId: string, clinicIds: string[]) => {
-      setClinicsMutation.mutate({ staffId, clinicIds });
+      setClinicsFn({ staffId, clinicIds });
     },
-    [setClinicsMutation],
+    [setClinicsFn],
   );
 
   const handleSaveExcludedReservationCategories = useCallback(
     (staffId: string, reservationCategoryIds: string[]) => {
-      setExcludedMutation.mutate({ staffId, reservationCategoryIds });
+      setExcludedFn({ staffId, reservationCategoryIds });
     },
-    [setExcludedMutation],
+    [setExcludedFn],
   );
 
   return (

@@ -290,6 +290,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
   const createMutation = useCreateVital(medicalRecordId);
   const updateMutation = useUpdateVital(medicalRecordId);
   const deleteMutation = useDeleteVital(medicalRecordId);
+  const { mutate: deleteVitalFn } = deleteMutation;
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -386,13 +387,13 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
 
   const handleDeleteConfirm = useCallback(() => {
     if (!canDelete || !deletingId) return;
-    deleteMutation.mutate(deletingId, {
+    deleteVitalFn(deletingId, {
       onSuccess: () => {
         setDeletingId(null);
         toast.success("バイタルを削除しました");
       },
     });
-  }, [canDelete, deletingId, deleteMutation]);
+  }, [canDelete, deletingId, deleteVitalFn]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeletingId(null);

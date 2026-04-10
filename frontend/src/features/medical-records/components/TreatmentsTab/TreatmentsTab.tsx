@@ -75,9 +75,13 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: treatments, isLoading } = useGetTreatments(medicalRecordId);
   const createMutation = useCreateTreatment(medicalRecordId);
+  const { mutate: createTreatmentFn } = createMutation;
   const updateMutation = useUpdateTreatment(medicalRecordId);
+  const { mutate: updateTreatmentFn } = updateMutation;
   const deleteMutation = useDeleteTreatment(medicalRecordId);
+  const { mutate: deleteTreatmentFn } = deleteMutation;
   const reorderMutation = useReorderTreatments(medicalRecordId);
+  const { mutate: reorderTreatmentsFn } = reorderMutation;
 
   // マスタ検索ダイアログ
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -130,17 +134,17 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
   const handleUpdate = useCallback(
     (treatmentId: string, input: UpdateTreatmentInput) => {
       if (!canEdit) return;
-      updateMutation.mutate({ treatmentId, input });
+      updateTreatmentFn({ treatmentId, input });
     },
-    [canEdit, updateMutation]
+    [canEdit, updateTreatmentFn]
   );
 
   const handleDelete = useCallback(
     (treatmentId: string) => {
       if (!canDelete) return;
-      deleteMutation.mutate(treatmentId);
+      deleteTreatmentFn(treatmentId);
     },
-    [canDelete, deleteMutation]
+    [canDelete, deleteTreatmentFn]
   );
 
   const handleMoveUp = useCallback(
@@ -154,9 +158,9 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
         if (i === idx) return { id: t.id, sort_order: list[idx - 1].sort_order };
         return { id: t.id, sort_order: t.sort_order };
       });
-      reorderMutation.mutate({ treatments: newList });
+      reorderTreatmentsFn({ treatments: newList });
     },
-    [canEdit, sortedTreatments, reorderMutation]
+    [canEdit, sortedTreatments, reorderTreatmentsFn]
   );
 
   const handleMoveDown = useCallback(
@@ -170,9 +174,9 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
         if (i === idx + 1) return { id: t.id, sort_order: list[idx].sort_order };
         return { id: t.id, sort_order: t.sort_order };
       });
-      reorderMutation.mutate({ treatments: newList });
+      reorderTreatmentsFn({ treatments: newList });
     },
-    [canEdit, sortedTreatments, reorderMutation]
+    [canEdit, sortedTreatments, reorderTreatmentsFn]
   );
 
   const handleAddSubmit = useCallback(() => {
@@ -186,7 +190,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
       addItemType === "medicine" && addAdminRoute
         ? `[投与方法: ${addAdminRoute}]`
         : "";
-    createMutation.mutate(
+    createTreatmentFn(
       {
         item_type: addItemType,
         content: addContent.trim(),
@@ -207,7 +211,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
         },
       }
     );
-  }, [canCreate, addItemType, addContent, addAdminRoute, sortedTreatments, createMutation]);
+  }, [canCreate, addItemType, addContent, addAdminRoute, sortedTreatments, createTreatmentFn]);
 
   const handleAddCancel = useCallback(() => {
     setAddContent("");
@@ -226,7 +230,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
         : item.category === "処置" ? "procedure"
         : item.category === "診察" ? "consultation"
         : "other";
-    createMutation.mutate(
+    createTreatmentFn(
       {
         item_type: itemType,
         content: item.name,
@@ -240,7 +244,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
       },
       { onSuccess: () => setFocusLastRow(true) },
     );
-  }, [canCreate, sortedTreatments, createMutation]);
+  }, [canCreate, sortedTreatments, createTreatmentFn]);
 
   // ── render ──
 

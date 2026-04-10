@@ -173,8 +173,11 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: Checku
   const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const createMutation = useCreateCheckup(medicalRecordId);
+  const { mutate: createCheckupFn } = createMutation;
   const updateMutation = useUpdateCheckup(medicalRecordId);
+  const { mutate: updateCheckupFn } = updateMutation;
   const deleteMutation = useDeleteCheckup(medicalRecordId);
+  const { mutate: deleteCheckupFn } = deleteMutation;
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -213,14 +216,14 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: Checku
       next_date: addForm.next_date || null,
       result: addForm.result,
     };
-    createMutation.mutate(input, {
+    createCheckupFn(input, {
       onSuccess: () => {
         setAddForm(makeDefaultAddForm());
         setIsAdding(false);
         toast.success("健診記録を追加しました");
       },
     });
-  }, [canCreate, addForm, createMutation]);
+  }, [canCreate, addForm, createCheckupFn]);
 
   const handleAddCancel = useCallback(() => {
     setAddForm(EMPTY_ADD_FORM);
@@ -230,7 +233,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: Checku
   const handleEditSave = useCallback(
     (checkupId: string, input: UpdateCheckupInput) => {
       if (!canEdit) return;
-      updateMutation.mutate(
+      updateCheckupFn(
         { checkupId, input },
         {
           onSuccess: () => {
@@ -240,7 +243,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: Checku
         }
       );
     },
-    [canEdit, updateMutation]
+    [canEdit, updateCheckupFn]
   );
 
   const handleEditCancel = useCallback(() => {
@@ -250,13 +253,13 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: Checku
   const handleDelete = useCallback(
     (checkupId: string) => {
       if (!canDelete) return;
-      deleteMutation.mutate(checkupId, {
+      deleteCheckupFn(checkupId, {
         onSuccess: () => {
           toast.success("健診記録を削除しました");
         },
       });
     },
-    [canDelete, deleteMutation]
+    [canDelete, deleteCheckupFn]
   );
 
   // ── render ──

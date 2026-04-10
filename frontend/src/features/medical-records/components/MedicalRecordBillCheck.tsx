@@ -35,18 +35,19 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   const { data: treatments = [] } = useGetTreatments(medicalRecordId);
   const { data: billingReview } = useGetBillingReview(medicalRecordId);
   const createTreatmentMutation = useCreateTreatment(medicalRecordId);
-  const updateTreatmentMutation = useUpdateTreatment(medicalRecordId);
+  const { mutate: updateTreatment } = useUpdateTreatment(medicalRecordId);
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
   const userId = Number(user?.id ?? 0);
   const returnMutation = useReturnBillingReview(medicalRecordId, userId);
 
   const [isConfirmPending, startConfirmTransition] = useTransition();
 
+  const { mutateAsync: confirmBillingAsync } = confirmMutation;
   const handleConfirm = useCallback(() => {
     if (!canEdit) return;
     startConfirmTransition(async () => {
       try {
-        await confirmMutation.mutateAsync({
+        await confirmBillingAsync({
           confirmed_by: Number(userId ?? 0),
           memo: "医師確認済み",
         });
@@ -55,18 +56,19 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         handleApiError(error, "会計確認");
       }
     });
-  }, [canEdit, confirmMutation, userId]);
+  }, [canEdit, confirmBillingAsync, userId]);
 
+  const { mutate: returnBillingFn } = returnMutation;
   const handleReturn = useCallback(() => {
     if (!canEdit) return;
-    returnMutation.mutate({
+    returnBillingFn({
       return_reason: "医師による差し戻し",
     }, {
       onSuccess: () => {
         toast.success("会計確認を差し戻しました");
       }
     });
-  }, [canEdit, returnMutation]);
+  }, [canEdit, returnBillingFn]);
 
   const items: TreatmentItem[] = useMemo(() => {
     return treatments.map(t => ({
@@ -96,15 +98,15 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     if (field === "status") input.status = String(value);
     if (field === "selected") input.selected = Boolean(value);
 
-    updateTreatmentMutation.mutate({ treatmentId: String(id), input });
-  }, [canEdit, updateTreatmentMutation]);
+    updateTreatment({ treatmentId: String(id), input });
+  }, [canEdit, updateTreatment]);
 
-  const deleteMutation = useDeleteTreatment(medicalRecordId);
+  const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId);
 
   const handleRemoveItem = useCallback((id: number) => {
     if (!canDelete) return;
-    deleteMutation.mutate(String(id));
-  }, [canDelete, deleteMutation]);
+    deleteTreatmentFn(String(id));
+  }, [canDelete, deleteTreatmentFn]);
 
   // rerender-dependencies: treatments 配列を deps から除外するため nextOrder を useMemo で事前計算
   const nextOrder = useMemo(

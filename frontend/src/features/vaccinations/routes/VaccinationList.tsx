@@ -65,7 +65,7 @@ export function VaccinationList() {
   const { canCreate, canEdit, canDelete } = usePermission("vaccinations");
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const deleteMutation = useDeleteVaccination();
+  const { mutate: deleteVaccinationFn } = useDeleteVaccination();
   const [isDeletePending, startDeleteTransition] = useTransition();
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearchTerm = useDeferredValue(searchTerm);
@@ -144,11 +144,11 @@ export function VaccinationList() {
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDeleteId) return;
     startDeleteTransition(() => {
-      deleteMutation.mutate(pendingDeleteId, {
+      deleteVaccinationFn(pendingDeleteId, {
         onSuccess: () => setPendingDeleteId(null),
       });
     });
-  }, [pendingDeleteId, deleteMutation]);
+  }, [pendingDeleteId, deleteVaccinationFn]);
 
   const columns = useMemo(() => [
     {

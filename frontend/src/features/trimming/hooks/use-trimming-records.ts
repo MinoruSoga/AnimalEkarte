@@ -10,7 +10,7 @@ export function useFilterTrimmingRecords(
   activeFilters?: ActiveFilter[],
 ) {
   const { data: trimmingRecords = [], isLoading, error } = useGetTrimmings(filters);
-  const deleteMutation = useDeleteTrimming();
+  const { mutate: deleteTrimmingFn } = useDeleteTrimming();
 
   const filteredRecords = useMemo(() => {
     let result = trimmingRecords;
@@ -66,8 +66,8 @@ export function useFilterTrimmingRecords(
   }, [trimmingRecords, searchTerm, activeFilters]);
 
   const deleteRecord = useCallback((id: string) => {
-    deleteMutation.mutate(id);
-  }, [deleteMutation]);
+    deleteTrimmingFn(id);
+  }, [deleteTrimmingFn]);
 
   return { data: filteredRecords, allTrimmings: trimmingRecords, isLoading, error, deleteRecord };
 }

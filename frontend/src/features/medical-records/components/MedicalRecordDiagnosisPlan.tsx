@@ -63,8 +63,9 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   // ── API ──
   const { data: treatments = [] } = useGetTreatments(medicalRecordId ?? "");
   const createMutation = useCreateTreatment(medicalRecordId ?? "");
-  const updateMutation = useUpdateTreatment(medicalRecordId ?? "");
-  const deleteMutation = useDeleteTreatment(medicalRecordId ?? "");
+  const { mutate: createTreatmentFn } = createMutation;
+  const { mutate: updateTreatmentFn } = useUpdateTreatment(medicalRecordId ?? "");
+  const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId ?? "");
 
   // Treatment[] (Backend) -> TreatmentItem[] (Generic Table) 変換
   const treatmentItems: TreatmentItem[] = useMemo(() => {
@@ -90,8 +91,8 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
   const handleRemoveItem = useCallback((id: number) => {
     if (!canDelete) return;
-    deleteMutation.mutate(String(id));
-  }, [canDelete, deleteMutation]);
+    deleteTreatmentFn(String(id));
+  }, [canDelete, deleteTreatmentFn]);
 
   const handleUpdateItem = useCallback((id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
     if (!canEdit) return;
@@ -106,12 +107,12 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
     if (field === "status") input.status = String(value);
     if (field === "selected") input.selected = Boolean(value);
 
-    updateMutation.mutate({ treatmentId: String(id), input });
-  }, [canEdit, updateMutation]);
+    updateTreatmentFn({ treatmentId: String(id), input });
+  }, [canEdit, updateTreatmentFn]);
 
   const handleAddRow = useCallback(() => {
     if (!canCreate) return;
-    createMutation.mutate({
+    createTreatmentFn({
       item_type: "other" as TreatmentItemType,
       content: "",
       unit_price: 0,
@@ -121,11 +122,11 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       discount_amount: 0,
       sort_order: nextOrder,
     });
-  }, [canCreate, nextOrder, createMutation]);
+  }, [canCreate, nextOrder, createTreatmentFn]);
 
   const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
     if (!canCreate) return;
-    createMutation.mutate({
+    createTreatmentFn({
       item_type: (item.category === "薬品" ? "medicine" : item.category === "処置" ? "procedure" : "other") as TreatmentItemType,
       content: item.name,
       memo: item.category,
@@ -136,7 +137,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       discount_amount: 0,
       sort_order: nextOrder,
     });
-  }, [canCreate, nextOrder, createMutation]);
+  }, [canCreate, nextOrder, createTreatmentFn]);
 
   // Calculations
   const { subtotal, tax, total } = useMemo(() => {
