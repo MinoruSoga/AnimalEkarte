@@ -29,5 +29,8 @@ export const transformHospitalization = (
     doctorId: hosp.doctor_id ? String(hosp.doctor_id) : undefined,
     doctorName: hosp.doctor?.name ?? undefined,
     petIsDeceased: hosp.pet?.status === "deceased",
+    memo: hosp.memo || undefined,
+    ownerRequest: hosp.owner_request || undefined,
+    staffNotes: hosp.staff_notes || undefined,
   };
 };

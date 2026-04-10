@@ -167,6 +167,9 @@ export interface Hospitalization {
   doctorName?: string;
   /** 臨床安全ガード: ペットが死亡済みの場合 true */
   petIsDeceased?: boolean;
+  memo?: string;
+  ownerRequest?: string;
+  staffNotes?: string;
 }
 
 /**
