@@ -22,6 +22,9 @@ const DEFAULT_TREATMENT_POLICY = "# 治療方針";
 const DEFAULT_PLAN = "# 治療方針";
 const DEFAULT_ASSESSMENT = "# 診断詳細";
 
+// rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
+const MEDICAL_RECORD_PRIORITY_FIELDS = ["treatment_policy", "diagnosis1_category_id"] as const;
+
 export function useMedicalRecordForm(recordId?: string) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,8 +45,7 @@ export function useMedicalRecordForm(recordId?: string) {
 
     // 優先順位に基づいたエラーフィールドの特定
     // key は API のフィールド名、value は DOM ID またはタブ切り替えロジック
-    const PRIORITY_FIELDS = ["treatment_policy", "diagnosis1_category_id"];
-    const firstError = PRIORITY_FIELDS.find(f => errorFields.includes(f)) || errorFields[0];
+    const firstError = MEDICAL_RECORD_PRIORITY_FIELDS.find(f => errorFields.includes(f)) || errorFields[0];
 
     // 治療方針にエラーがある場合は「問診」タブへ強制移動
     if (["treatment_policy"].includes(firstError)) {

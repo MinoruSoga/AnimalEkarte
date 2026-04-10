@@ -442,6 +442,16 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
   );
 });
 
+// rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
+const OWNER_FIELD_ID_MAP: Record<string, string> = {
+  ownerName: "ownerName",
+  ownerNameKana: "ownerNameKana",
+  phone: "phone",
+  email: "email",
+  discountRate: "discountRate",
+};
+const OWNER_PRIORITY_FIELDS = ["ownerName", "ownerNameKana", "phone", "email", "discountRate"] as const;
+
 interface OwnerFormProps {
   petMutations?: PetMutations;
   lineSection?: React.ReactNode;
@@ -501,18 +511,9 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
   useEffect(() => {
     const errorFields = Object.keys(fieldErrors);
     if (errorFields.length === 0) return;
-    // フィールド名とDOM IDのマッピング（OwnerInfoSection内の htmlFor と対応）
-    const FIELD_ID_MAP: Record<string, string> = {
-      ownerName: "ownerName",
-      ownerNameKana: "ownerNameKana",
-      phone: "phone",
-      email: "email",
-      discountRate: "discountRate",
-    };
     // 優先度順にフォーカスする最初のフィールドを探す
-    const PRIORITY_FIELDS = ["ownerName", "ownerNameKana", "phone", "email", "discountRate"];
-    const firstErrorField = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ?? errorFields[0];
-    const domId = FIELD_ID_MAP[firstErrorField] ?? firstErrorField;
+    const firstErrorField = OWNER_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ?? errorFields[0];
+    const domId = OWNER_FIELD_ID_MAP[firstErrorField] ?? firstErrorField;
     const el = document.getElementById(domId) as HTMLElement | null;
     el?.focus();
   // fieldErrors オブジェクトのキー変化で発火させるため JSON.stringify を使用

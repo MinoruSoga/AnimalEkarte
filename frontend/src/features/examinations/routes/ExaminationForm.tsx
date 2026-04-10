@@ -190,6 +190,9 @@ const FormFieldsSection = memo(function FormFieldsSection({
   );
 });
 
+// rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
+const EXAMINATION_PRIORITY_FIELDS = ["testTypeId", "doctorId"] as const;
+
 export function ExaminationForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -244,8 +247,7 @@ export function ExaminationForm() {
     const errorFields = Object.keys(formState.fieldErrors || {});
     if (errorFields.length === 0) return;
 
-    const PRIORITY_FIELDS = ["testTypeId", "doctorId"];
-    const firstError = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
+    const firstError = EXAMINATION_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
 
     const element = document.getElementById(firstError);
     if (element) {

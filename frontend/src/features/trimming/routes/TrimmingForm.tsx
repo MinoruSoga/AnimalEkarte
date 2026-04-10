@@ -388,6 +388,9 @@ const RightColumn = memo(function RightColumn({
   );
 });
 
+// rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
+const TRIMMING_PRIORITY_FIELDS = ["staffId", "courseId"] as const;
+
 // ─── メインコンポーネント ────────────────────────────────────────────────────
 
 export function TrimmingForm() {
@@ -434,8 +437,7 @@ export function TrimmingForm() {
     if (errorFields.length === 0) return;
 
     // 優先順位に基づいたエラーフィールドの特定
-    const PRIORITY_FIELDS = ["staffId", "courseId"];
-    const firstError = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
+    const firstError = TRIMMING_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
 
     const element = document.getElementById(firstError);
     if (element) {

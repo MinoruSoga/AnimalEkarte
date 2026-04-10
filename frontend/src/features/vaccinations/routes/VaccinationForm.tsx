@@ -48,6 +48,13 @@ const NEXT_SCHEDULE_ITEMS = (
   </>
 );
 
+// rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
+const VACCINATION_PRIORITY_FIELDS = ["date", "vaccineId"] as const;
+const VACCINATION_FIELD_ID_MAP: Record<string, string> = {
+  date: "vaccination-date",
+  vaccineId: "vaccine-select",
+};
+
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -75,14 +82,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
     const errorFields = Object.keys(formState.fieldErrors || {});
     if (errorFields.length === 0) return;
 
-    const PRIORITY_FIELDS = ["date", "vaccineId"];
-    const firstError = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
-
-    const idMap: Record<string, string> = {
-      date: "vaccination-date",
-      vaccineId: "vaccine-select",
-    };
-    const targetId = idMap[firstError] || firstError;
+    const firstError = VACCINATION_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
+    const targetId = VACCINATION_FIELD_ID_MAP[firstError] || firstError;
 
     const element = document.getElementById(targetId);
     if (element) {
