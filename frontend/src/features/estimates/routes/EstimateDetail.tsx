@@ -1,4 +1,5 @@
 import { ICON, C } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { useNavigate, useParams } from 'react-router';
 import { FileText, Pencil, Trash2, ArrowLeft } from 'lucide-react';
@@ -27,7 +28,7 @@ export function EstimateDetail() {
     if (!id) return;
     startDeleteTransition(() => {
       deleteEstimate(id, {
-        onSuccess: () => navigate('/estimates'),
+        onSuccess: () => navigate(paths.estimates.getHref()),
       });
     });
   }, [id, deleteEstimate, navigate]);
@@ -49,7 +50,7 @@ export function EstimateDetail() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate('/estimates')}
+            onClick={() => navigate(paths.estimates.getHref())}
             className="h-9 gap-1.5 text-sm"
           >
             <ArrowLeft className={ICON.action} />
@@ -59,7 +60,7 @@ export function EstimateDetail() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/estimates/${id}/edit`)}
+              onClick={() => navigate(paths.estimates.edit.getHref(id))}
               className="h-9 gap-1.5 text-sm"
             >
               <Pencil className={ICON.action} />

@@ -5,6 +5,7 @@ import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { toast } from "sonner";
 import { C, ICON } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -53,7 +54,7 @@ export function ResetPasswordPage() {
       try {
         await resetPassword({ token, password });
         toast.success("パスワードを変更しました");
-        void navigate("/login");
+        void navigate(paths.auth.login.getHref());
         return { error: null };
       } catch (err) {
         handleApiError(err, "パスワードのリセット");
@@ -76,7 +77,7 @@ export function ResetPasswordPage() {
             パスワードリセットリンクが無効または期限切れです。再度リセットを申請してください。
           </p>
           <Link
-            to="/forgot-password"
+            to={paths.auth.forgotPassword.getHref()}
             className={`block text-sm ${C.text50} hover:underline`}
           >
             パスワードリセットを再申請する
@@ -165,7 +166,7 @@ export function ResetPasswordPage() {
           </SubmitButton>
 
           <Link
-            to="/login"
+            to={paths.auth.login.getHref()}
             className={`block text-center text-sm ${C.text50} hover:underline`}
           >
             ログインページに戻る

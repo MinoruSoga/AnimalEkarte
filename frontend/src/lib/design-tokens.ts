@@ -28,6 +28,10 @@ export const PALETTE = {
   /** White */
   white: "#ffffff",
 
+  /* ── External brand colors ── */
+  /** LINE official brand green */
+  lineGreen: "#06C755",
+
   /* ── Brand (hospital main color) ── */
   /** Brand primary — veterinary teal */
   brand: "#038B94",

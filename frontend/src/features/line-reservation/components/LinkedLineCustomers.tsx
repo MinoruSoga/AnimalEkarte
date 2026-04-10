@@ -8,7 +8,7 @@ import { useState, useCallback, useMemo } from "react";
 import { Link2, Link2Off, Search, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { C } from "@/lib/design-tokens";
+import { C, PALETTE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -65,7 +65,7 @@ export function LinkedLineCustomers({ clinicId, ownerId }: LinkedLineCustomersPr
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className={`text-sm font-semibold ${C.text} flex items-center gap-1.5`}>
-          <MessageCircle className="size-4" style={{ color: "#06C755" }} />
+          <MessageCircle className="size-4" style={{ color: PALETTE.lineGreen }} />
           LINE連携
         </h3>
         <Button
@@ -94,7 +94,7 @@ export function LinkedLineCustomers({ clinicId, ownerId }: LinkedLineCustomersPr
               <div className="flex items-center gap-3">
                 <div
                   className="size-8 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: "#06C755" }}
+                  style={{ backgroundColor: PALETTE.lineGreen }}
                 >
                   <MessageCircle className="size-4 text-white" />
                 </div>
@@ -198,7 +198,7 @@ function LinkSearchDialog({ unlinked, onLink, onClose, isPending }: LinkSearchDi
                 >
                   <div
                     className="size-8 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: "#06C755" }}
+                    style={{ backgroundColor: PALETTE.lineGreen }}
                   >
                     <MessageCircle className="size-4 text-white" />
                   </div>

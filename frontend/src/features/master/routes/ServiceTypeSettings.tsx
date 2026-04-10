@@ -12,7 +12,7 @@ import { SortableDataTableRow } from "@/components/shared/DataTable/SortableData
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
-import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
@@ -133,7 +133,7 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
       {/* ── LINE予約設定 ──────────────────────────── */}
       <div className="mt-4 border-t pt-4">
         <div className="flex items-center gap-1.5 mb-3">
-          <MessageCircle className="size-3.5" style={{ color: "#06C755" }} />
+          <MessageCircle className="size-3.5" style={{ color: PALETTE.lineGreen }} />
           <p className="text-xs font-medium text-muted-foreground">LINE予約設定</p>
         </div>
 

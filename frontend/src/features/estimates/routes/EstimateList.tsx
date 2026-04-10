@@ -241,7 +241,7 @@ export function EstimateList() {
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
-          <PrimaryButton onClick={() => navigate("/estimates/new")}>
+          <PrimaryButton onClick={() => navigate(paths.estimates.new.getHref())}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規見積書登録
           </PrimaryButton>

@@ -1,4 +1,5 @@
 import { ICON, C } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { memo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
@@ -263,11 +264,11 @@ function EstimateFormContent({ id }: { id?: string }) {
     if (formState.success) {
       markClean();
       if (isEdit && estimateId != null) {
-        navigate(`/estimates/${estimateId}`);
+        navigate(paths.estimates.detail.getHref(estimateId));
       } else {
         // Since we don't have the new ID easily here, we might need to handle it in hook
         // but for now redirect to list
-        navigate('/estimates');
+        navigate(paths.estimates.getHref());
       }
     }
   }, [formState.success, formState.timestamp, navigate, markClean, isEdit, estimateId]);
