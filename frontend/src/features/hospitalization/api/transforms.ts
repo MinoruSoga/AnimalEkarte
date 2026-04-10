@@ -26,6 +26,8 @@ export const transformHospitalization = (
     status: statusMap[hosp.status] ?? "予約",
     cageId: hosp.cage_id ? String(hosp.cage_id) : undefined,
     petId: hosp.pet?.id ? String(hosp.pet.id) : undefined,
+    doctorId: hosp.doctor_id ? String(hosp.doctor_id) : undefined,
+    doctorName: hosp.doctor?.name ?? undefined,
     petIsDeceased: hosp.pet?.status === "deceased",
   };
 };

@@ -90,6 +90,8 @@ export function transformReservationToReceptionAppointment(
     petId: String(reservation.pet_id ?? 0),
     ownerId: String(reservation.owner_id ?? 0),
     status,
+    notes: reservation.notes || undefined,
+    source: (reservation.source as "manual" | "line") ?? "manual",
   };
 }
 

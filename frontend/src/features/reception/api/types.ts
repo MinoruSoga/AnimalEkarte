@@ -19,6 +19,8 @@ export interface ReceptionAppointment {
   petId: string;
   ownerId: string;
   status: ReservationStatus;
+  notes?: string;
+  source?: "manual" | "line";
 }
 
 /** 当日の受付カンバンカラム */

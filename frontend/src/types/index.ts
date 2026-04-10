@@ -162,6 +162,9 @@ export interface Hospitalization {
   cageId?: string;
   /** 退院後の会計連携で使用 */
   petId?: string;
+  /** 担当医 */
+  doctorId?: string;
+  doctorName?: string;
   /** 臨床安全ガード: ペットが死亡済みの場合 true */
   petIsDeceased?: boolean;
 }
