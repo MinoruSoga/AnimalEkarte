@@ -154,8 +154,8 @@ export interface AuditLog {
   action: string;
   resource: string;
   resource_id?: number /* uint64 */;
-  old_value: string /* []byte */;
-  new_value: string /* []byte */;
+  old_value: any /* json.RawMessage */;
+  new_value: any /* json.RawMessage */;
   ip_address: string;
   user_agent: string;
   created_at: string;
@@ -179,10 +179,6 @@ export const AuditActionPermissionRulesUpdate = "permission_rules.update";
 /**
  * 監査アクション定数
  */
-export const AuditActionUserPermissionGroupSet = "user_permission_group.set";
-/**
- * 監査アクション定数
- */
 export const AuditActionAuthLoginSuccess = "auth.login.success";
 /**
  * 監査アクション定数
@@ -192,31 +188,6 @@ export const AuditActionAuthLoginFailure = "auth.login.failure";
  * 監査アクション定数
  */
 export const AuditActionAuthLogout = "auth.logout";
-
-//////////
-// source: auth.go
-
-/**
- * RefreshToken はリフレッシュトークンのDBモデル
- */
-export interface RefreshToken {
-  id: number /* uint64 */;
-  user_id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  expires_at: string;
-  revoked_at?: string;
-  created_at: string;
-}
-/**
- * PasswordResetToken はパスワードリセットトークンのDBモデル
- */
-export interface PasswordResetToken {
-  id: number /* uint64 */;
-  user_id: number /* uint64 */;
-  expires_at: string;
-  used_at?: string;
-  created_at: string;
-}
 
 //////////
 // source: billing_refund.go
@@ -1097,7 +1068,7 @@ export const ResourceHospitalSettings: Resource = "hospital-settings";
  */
 export const ResourceMasterAnimalSpecies: Resource = "master-animal-species";
 export const ResourceMasterMedical: Resource = "master-medical";
-export const ResourceMasterServiceType: Resource = "master-service-type";
+export const ResourceMasterReservationCategory: Resource = "master-reservation-category";
 export const ResourceMasterHospitalization: Resource = "master-hospitalization";
 export const ResourceMasterTrimming: Resource = "master-trimming";
 export const ResourceMasterPermission: Resource = "master-permission";
@@ -1306,7 +1277,7 @@ export interface ReservationAppointment {
   owner_id?: number /* uint64 */;
   pet_id?: number /* uint64 */;
   visit_type: VisitType;
-  service_type_id: number /* uint64 */;
+  reservation_category_id: number /* uint64 */;
   doctor_id?: number /* uint64 */;
   is_designated: boolean;
   status: ReservationStatus;
@@ -1325,9 +1296,66 @@ export interface ReservationAppointment {
    */
   owner?: Owner;
   pet?: Pet;
-  service_type?: ServiceType;
+  reservation_category?: ReservationCategory;
   doctor?: Staff;
   line_customer?: ReservationCustomer;
+}
+
+//////////
+// source: reservation_category.go
+
+/**
+ * ReservationDayOption defines which weekdays a service type is available for LINE reservation.
+ */
+export type ReservationDayOption = string;
+export const DayOptionNone: ReservationDayOption = "none";
+export const DayOptionSaturday: ReservationDayOption = "saturday";
+export const DayOptionWeekday: ReservationDayOption = "weekday";
+export const DayOptionAnyday: ReservationDayOption = "anyday";
+export interface ReservationCategory {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  is_active: boolean;
+  description: string;
+  color: string;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+  /**
+   * LINE予約用フィールド
+   */
+  reservation_display_name: string; // 空ならNameをフォールバック
+  duration_minutes: number /* int */;
+  short_name: string;
+  show_short_name: boolean;
+  reservation_visible: boolean;
+  reservation_comment: string;
+  reservation_image_url: string;
+  reservation_day_option: ReservationDayOption;
+  is_internal: boolean;
+  /**
+   * グループ（カレンダー凡例用）
+   */
+  group_id?: number /* uint64 */;
+  group?: ReservationCategoryGroup;
+}
+
+//////////
+// source: reservation_category_group.go
+
+/**
+ * ReservationCategoryGroup は予約区分のグループ（カレンダー凡例用）
+ */
+export interface ReservationCategoryGroup {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  color: string;
+  sort_order: number /* int */;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -1380,46 +1408,9 @@ export interface ReservationSetting {
   show_no_staff_option: boolean;
   additional_fields: string /* []byte */;
   line_channel_id: string;
-  line_channel_secret: string;
   liff_id: string;
-  line_access_token: string;
   created_at: string;
   updated_at: string;
-}
-
-//////////
-// source: service_type.go
-
-/**
- * ReservationDayOption defines which weekdays a service type is available for LINE reservation.
- */
-export type ReservationDayOption = string;
-export const DayOptionNone: ReservationDayOption = "none";
-export const DayOptionSaturday: ReservationDayOption = "saturday";
-export const DayOptionWeekday: ReservationDayOption = "weekday";
-export const DayOptionAnyday: ReservationDayOption = "anyday";
-export interface ServiceType {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  name: string;
-  is_active: boolean;
-  description: string;
-  color: string;
-  sort_order: number /* int */;
-  created_at: string;
-  updated_at: string;
-  /**
-   * LINE予約用フィールド
-   */
-  reservation_display_name: string; // 空ならNameをフォールバック
-  duration_minutes: number /* int */;
-  short_name: string;
-  show_short_name: boolean;
-  reservation_visible: boolean;
-  reservation_comment: string;
-  reservation_image_url: string;
-  reservation_day_option: ReservationDayOption;
-  is_internal: boolean;
 }
 
 //////////
@@ -1496,17 +1487,17 @@ export interface ShiftEntry {
 }
 
 //////////
-// source: staff_excluded_service_type.go
+// source: staff_excluded_reservation_category.go
 
-export interface StaffExcludedServiceType {
+export interface StaffExcludedReservationCategory {
   id: number /* uint64 */;
   staff_id: number /* uint64 */;
-  service_type_id: number /* uint64 */;
+  reservation_category_id: number /* uint64 */;
   /**
    * Relations
    */
   staff?: Staff;
-  service_type?: ServiceType;
+  reservation_category?: ReservationCategory;
 }
 
 //////////
@@ -1704,22 +1695,20 @@ export type BodyWeightUnit = string;
 export const BodyWeightUnitKg: BodyWeightUnit = "Kg";
 export const BodyWeightUnitG: BodyWeightUnit = "g";
 export interface VitalRecord {
-  ID: number /* uint64 */;
-  PetID: number /* uint64 */;
-  MedicalRecordID?: number /* uint64 */;
-  DailyRecordID?: number /* uint64 */;
-  RecordedAt: string;
-  StaffID?: number /* uint64 */;
-  Temperature?: number /* float64 */;
-  HeartRate?: number /* int */;
-  RespirationRate?: number /* int */;
-  Weight?: number /* float64 */;
-  WeightUnit: BodyWeightUnit;
-  Notes: string;
-  CreatedAt: string;
-  UpdatedAt: string;
-  Pet?: Pet;
-  MedicalRecord?: MedicalRecord;
-  DailyRecord?: DailyRecord;
-  Staff?: Staff;
+  id: number /* uint64 */;
+  pet_id: number /* uint64 */;
+  medical_record_id?: number /* uint64 */;
+  daily_record_id?: number /* uint64 */;
+  recorded_at: string;
+  staff_id?: number /* uint64 */;
+  temperature?: number /* float64 */;
+  heart_rate?: number /* int */;
+  respiration_rate?: number /* int */;
+  weight?: number /* float64 */;
+  weight_unit: BodyWeightUnit;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+  pet?: Pet;
+  staff?: Staff;
 }

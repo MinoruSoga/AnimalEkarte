@@ -346,9 +346,9 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"clinic_ids": req.ClinicIDs})
 }
 
-// GetStaffExcludedServiceTypes godoc
-// GET /v1/masters/staffs/:id/excluded-service-types
-func (h *Handler) GetStaffExcludedServiceTypes(c *gin.Context) {
+// GetStaffExcludedReservationCategories godoc
+// GET /v1/masters/staffs/:id/excluded-reservation-categories
+func (h *Handler) GetStaffExcludedReservationCategories(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -360,17 +360,17 @@ func (h *Handler) GetStaffExcludedServiceTypes(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	ids, err := h.svc.Staff.GetExcludedServiceTypeIDs(c.Request.Context(), id)
+	ids, err := h.svc.Staff.GetExcludedReservationCategoryIDs(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"service_type_ids": ids})
+	c.JSON(http.StatusOK, gin.H{"reservation_category_ids": ids})
 }
 
-// SetStaffExcludedServiceTypes godoc
-// PUT /v1/masters/staffs/:id/excluded-service-types
-func (h *Handler) SetStaffExcludedServiceTypes(c *gin.Context) {
+// SetStaffExcludedReservationCategories godoc
+// PUT /v1/masters/staffs/:id/excluded-reservation-categories
+func (h *Handler) SetStaffExcludedReservationCategories(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -383,20 +383,20 @@ func (h *Handler) SetStaffExcludedServiceTypes(c *gin.Context) {
 		return
 	}
 	var req struct {
-		ServiceTypeIDs []uint64 `json:"service_type_ids"`
+		ReservationCategoryIDs []uint64 `json:"reservation_category_ids"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	if req.ServiceTypeIDs == nil {
-		req.ServiceTypeIDs = []uint64{}
+	if req.ReservationCategoryIDs == nil {
+		req.ReservationCategoryIDs = []uint64{}
 	}
-	if err := h.svc.Staff.SetExcludedServiceTypeIDs(c.Request.Context(), id, req.ServiceTypeIDs); err != nil {
+	if err := h.svc.Staff.SetExcludedReservationCategoryIDs(c.Request.Context(), id, req.ReservationCategoryIDs); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"service_type_ids": req.ServiceTypeIDs})
+	c.JSON(http.StatusOK, gin.H{"reservation_category_ids": req.ReservationCategoryIDs})
 }
 
 // ReorderStaffs godoc
@@ -445,8 +445,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PUT("/staffs/:id/permission-groups", perm(model.ResourceMasterStaff, "edit"), h.SetStaffPermissionGroups)
 	masters.GET("/staffs/:id/clinics", h.GetStaffClinicAssignments)
 	masters.PUT("/staffs/:id/clinics", perm(model.ResourceMasterStaff, "edit"), h.SetStaffClinicAssignments)
-	masters.GET("/staffs/:id/excluded-service-types", h.GetStaffExcludedServiceTypes)
-	masters.PUT("/staffs/:id/excluded-service-types", perm(model.ResourceMasterStaff, "edit"), h.SetStaffExcludedServiceTypes)
+	masters.GET("/staffs/:id/excluded-reservation-categories", h.GetStaffExcludedReservationCategories)
+	masters.PUT("/staffs/:id/excluded-reservation-categories", perm(model.ResourceMasterStaff, "edit"), h.SetStaffExcludedReservationCategories)
 
 	// Cages
 	masters.GET("/cages", h.ListCages)
@@ -480,13 +480,21 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PATCH("/insurances/:id", perm(model.ResourceMasterInsurance, "edit"), h.UpdateInsurance)
 	masters.DELETE("/insurances/:id", perm(model.ResourceMasterInsurance, "delete"), h.DeleteInsurance)
 
+	// Reservation Category Groups
+	masters.GET("/reservation-category-groups", h.ListReservationCategoryGroups)
+	masters.POST("/reservation-category-groups", perm(model.ResourceMasterReservationCategory, "create"), h.CreateReservationCategoryGroup)
+	masters.PATCH("/reservation-category-groups/reorder", perm(model.ResourceMasterReservationCategory, "edit"), h.ReorderReservationCategoryGroups)
+	masters.GET("/reservation-category-groups/:id", h.GetReservationCategoryGroup)
+	masters.PATCH("/reservation-category-groups/:id", perm(model.ResourceMasterReservationCategory, "edit"), h.UpdateReservationCategoryGroup)
+	masters.DELETE("/reservation-category-groups/:id", perm(model.ResourceMasterReservationCategory, "delete"), h.DeleteReservationCategoryGroup)
+
 	// Service Types
-	masters.GET("/service-types", h.ListServiceTypes)
-	masters.POST("/service-types", perm(model.ResourceMasterServiceType, "create"), h.CreateServiceType)
-	masters.PATCH("/service-types/reorder", perm(model.ResourceMasterServiceType, "edit"), h.ReorderServiceTypes)
-	masters.GET("/service-types/:id", h.GetServiceType)
-	masters.PATCH("/service-types/:id", perm(model.ResourceMasterServiceType, "edit"), h.UpdateServiceType)
-	masters.DELETE("/service-types/:id", perm(model.ResourceMasterServiceType, "delete"), h.DeleteServiceType)
+	masters.GET("/reservation-categories", h.ListReservationCategories)
+	masters.POST("/reservation-categories", perm(model.ResourceMasterReservationCategory, "create"), h.CreateReservationCategory)
+	masters.PATCH("/reservation-categories/reorder", perm(model.ResourceMasterReservationCategory, "edit"), h.ReorderReservationCategories)
+	masters.GET("/reservation-categories/:id", h.GetReservationCategory)
+	masters.PATCH("/reservation-categories/:id", perm(model.ResourceMasterReservationCategory, "edit"), h.UpdateReservationCategory)
+	masters.DELETE("/reservation-categories/:id", perm(model.ResourceMasterReservationCategory, "delete"), h.DeleteReservationCategory)
 
 	// Consultations
 	masters.GET("/consultations", h.ListConsultations)

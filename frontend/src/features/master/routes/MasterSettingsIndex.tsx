@@ -97,7 +97,7 @@ const MASTER_SECTIONS: SectionDef[] = [
     title: "カルテ",
     keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "medicine"],
   },
-  { title: "診療関連マスタ", keys: ["serviceType"] },
+  { title: "予約管理マスタ", keys: ["reservationCategoryGroup", "reservationCategory"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
   { title: "トリミング関連", keys: ["trimmingGroup"] },
   { title: "会計・商品", keys: ["merchandise_item", "insurance"] },

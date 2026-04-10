@@ -4,6 +4,7 @@ import Syringe from "lucide-react/dist/esm/icons/syringe";
 import Pill from "lucide-react/dist/esm/icons/pill";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Activity from "lucide-react/dist/esm/icons/activity";
+import Layers from "lucide-react/dist/esm/icons/layers";
 import Bed from "lucide-react/dist/esm/icons/bed";
 import Building2 from "lucide-react/dist/esm/icons/building-2";
 import Users from "lucide-react/dist/esm/icons/users";
@@ -18,7 +19,7 @@ import PawPrint from "lucide-react/dist/esm/icons/paw-print";
 import ShoppingBag from "lucide-react/dist/esm/icons/shopping-bag";
 
 import type { Resource } from "@/types/generated/models";
-import { ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterServiceType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCheckups } from "@/types/generated/models";
+import { ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationCategory, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCheckups } from "@/types/generated/models";
 
 // All master categories for the settings UI
 // Note: some of these have their own backend tables, but all appear in settings UI
@@ -27,7 +28,8 @@ export type MasterSettingsCategory =
   | "vaccine"
   | "medicine"
   | "consultation"
-  | "serviceType"
+  | "reservationCategory"
+  | "reservationCategoryGroup"
   | "procedure"
   | "hospitalization"
   | "cage"
@@ -101,15 +103,25 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     showPrice: true, showCode: false, showCategory: false, showParentItem: true,
     namePlaceholder: "再診料", codePlaceholder: "",
   },
-  serviceType: {
+  reservationCategory: {
     label: "予約区分マスタ",
     description: "予約の区分（診療、トリミング入院等）を管理します",
-    settingsPath: "/settings/service-type",
+    settingsPath: "/settings/reservation-category",
     IconComponent: Activity,
-    resource: ResourceMasterServiceType,
+    resource: ResourceMasterReservationCategory,
     labels: { code: "コード", name: "名称", category: "分類" },
     showPrice: false, showCode: false, showCategory: false, showParentItem: false,
     namePlaceholder: "診療", codePlaceholder: "",
+  },
+  reservationCategoryGroup: {
+    label: "予約区分グループマスタ",
+    description: "予約区分をグループ化しカレンダー凡例に色を設定します",
+    settingsPath: "/settings/reservation-category-group",
+    IconComponent: Layers,
+    resource: ResourceMasterReservationCategory,
+    labels: { code: "コード", name: "グループ名", category: "分類" },
+    showPrice: false, showCode: false, showCategory: false, showParentItem: false,
+    namePlaceholder: "診療グループ", codePlaceholder: "",
   },
   procedure: {
     label: "処置マスタ",
