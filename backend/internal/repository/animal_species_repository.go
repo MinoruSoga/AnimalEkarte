@@ -88,21 +88,5 @@ func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
 
 // Reorder はトランザクション内で sort_order を ids の順序で更新する
 func (r *animalSpeciesRepository) Reorder(ctx context.Context, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.AnimalSpecies{}).
-				Where("id = ?", id).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "animal_species", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("animal_species id %d not found", id))
-			}
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
+	return reorderGlobal(r.db, ctx, &model.AnimalSpecies{}, "animal_species", ids)
 }

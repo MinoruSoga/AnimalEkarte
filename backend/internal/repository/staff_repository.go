@@ -120,10 +120,10 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	// staffs テーブルに clinic_id カラムは存在しない。
+	// staff_clinic_assignments を経由して clinic_id でフィルタする。
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
-			// staffs テーブルに clinic_id は存在しない。
-			// staff_clinic_assignments を経由して clinic_id でフィルタ
 			result := tx.Model(&model.Staff{}).
 				Where("staffs.id = ?", id).
 				Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?)", clinicID).
@@ -136,8 +136,5 @@ func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []ui
 			}
 		}
 		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
