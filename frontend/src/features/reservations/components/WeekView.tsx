@@ -15,8 +15,9 @@ import { useReducedMotion } from "@/hooks/use-reduced-motion";
 // Types
 import type { ReservationAppointment, ReservationStatus } from "@/types";
 
-// Reduced height for High Density UI
-const HOUR_HEIGHT = 120;
+// 15分予約が narrow モード（petName + ownerName 表示）に収まる最小高さ
+// 15min = 40px (> isCompact 閾値 35px), 30min = 80px (full モード)
+const HOUR_HEIGHT = 160;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 const WHILE_DRAG_FULL = {

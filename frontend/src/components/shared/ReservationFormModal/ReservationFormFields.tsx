@@ -25,7 +25,9 @@ function generateTimeOptions(): string[] {
   const times: string[] = [];
   for (let h = 0; h < 24; h++) {
     times.push(`${h}:00`);
+    times.push(`${h}:15`);
     times.push(`${h}:30`);
+    times.push(`${h}:45`);
   }
   return times;
 }
