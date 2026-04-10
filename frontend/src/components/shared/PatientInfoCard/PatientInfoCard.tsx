@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import { ChevronDown, User, Calendar, Activity } from "lucide-react";
 import imgEllipse1 from "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png";
@@ -31,7 +32,7 @@ interface PatientInfoCardProps {
   staffButtonId?: string;
 }
 
-export function PatientInfoCard({
+export const PatientInfoCard = memo(function PatientInfoCard({
   ownerName,
   petName,
   petNumber,
@@ -182,4 +183,4 @@ export function PatientInfoCard({
       </div>
     </div>
   );
-}
+});

@@ -69,7 +69,7 @@ const SelectedPetChip = memo(function SelectedPetChip({ pet, onRemove }: { pet: 
   );
 });
 
-export function ReservationFormModal({
+export const ReservationFormModal = memo(function ReservationFormModal({
   isOpen,
   onClose,
   onSave,
@@ -326,4 +326,4 @@ export function ReservationFormModal({
       </DialogContent>
     </Dialog>
   );
-}
+});

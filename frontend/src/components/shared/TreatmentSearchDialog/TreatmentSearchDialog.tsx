@@ -101,7 +101,7 @@ const CategoryFilter = memo(function CategoryFilter({
 
 // --- Main Component ---
 
-export function TreatmentSearchDialog({
+export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
   open,
   onOpenChange,
   onSelect,
@@ -263,4 +263,4 @@ export function TreatmentSearchDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});

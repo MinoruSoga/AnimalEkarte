@@ -168,7 +168,7 @@ interface CheckupsTabProps {
 
 // ── Component ──────────────────────────────────────────────────────────
 
-export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
+export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
@@ -408,4 +408,4 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
       ) : null}
     </div>
   );
-}
+});
