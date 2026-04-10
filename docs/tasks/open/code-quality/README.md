@@ -180,6 +180,8 @@
 | ~~BUG-190~~ | FE デザイントークン | CLOSED | docs/tasks/closed/BUG-190_* に移動済みを確認（2026-04-11） |
 | BUG-233 | FE CSS 最適化 | Low | content-visibility: auto 未適用（MedicineSettings, TreatmentPlanMaster）— 余裕のある時に |
 
+~~**BUG-312**~~ CLOSED — useMutation オブジェクト全体を useCallback deps に入れていた違反を修正（14ファイル対応 2026-04-11 cc0ed0c8）
+
 **→ 実質 Open: BUG-233 (Low) のみ。全 Critical/High/Medium は CLOSED 確認。**
 
 ### バックエンド残存課題（実コード検証済み）
