@@ -730,17 +730,6 @@ export const router = createBrowserRouter([
             }],
           },
           {
-            path: "reservation-category-group",
-            element: <RequirePermission resource={ResourceMasterReservationCategory}><Outlet /></RequirePermission>,
-            children: [{
-              index: true,
-              lazy: async () => {
-                const { ReservationCategoryGroupSettings } = await import("@/features/master");
-                return { Component: ReservationCategoryGroupSettings };
-              },
-            }],
-          },
-          {
             path: "reservation-category",
             element: <RequirePermission resource={ResourceMasterReservationCategory}><Outlet /></RequirePermission>,
             children: [{

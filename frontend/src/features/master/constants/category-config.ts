@@ -4,7 +4,6 @@ import Syringe from "lucide-react/dist/esm/icons/syringe";
 import Pill from "lucide-react/dist/esm/icons/pill";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Activity from "lucide-react/dist/esm/icons/activity";
-import Layers from "lucide-react/dist/esm/icons/layers";
 import Bed from "lucide-react/dist/esm/icons/bed";
 import Building2 from "lucide-react/dist/esm/icons/building-2";
 import Users from "lucide-react/dist/esm/icons/users";
@@ -29,7 +28,6 @@ export type MasterSettingsCategory =
   | "medicine"
   | "consultation"
   | "reservationCategory"
-  | "reservationCategoryGroup"
   | "procedure"
   | "hospitalization"
   | "cage"
@@ -112,16 +110,6 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     labels: { code: "コード", name: "名称", category: "分類" },
     showPrice: false, showCode: false, showCategory: false, showParentItem: false,
     namePlaceholder: "診療", codePlaceholder: "",
-  },
-  reservationCategoryGroup: {
-    label: "予約区分グループマスタ",
-    description: "予約区分をグループ化しカレンダー凡例に色を設定します",
-    settingsPath: "/settings/reservation-category-group",
-    IconComponent: Layers,
-    resource: ResourceMasterReservationCategory,
-    labels: { code: "コード", name: "グループ名", category: "分類" },
-    showPrice: false, showCode: false, showCategory: false, showParentItem: false,
-    namePlaceholder: "診療グループ", codePlaceholder: "",
   },
   procedure: {
     label: "処置マスタ",
