@@ -351,9 +351,25 @@ CREATE TABLE cages (
 );
 
 -- ------------------------------------
--- 15. service_types（サービス種別マスタ）
+-- 15. reservation_category_groups（予約区分グループマスタ）
 -- ------------------------------------
-CREATE TABLE service_types (
+CREATE TABLE reservation_category_groups (
+    id         BIGSERIAL   PRIMARY KEY,
+    clinic_id  bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name       text        NOT NULL,
+    color      text        NOT NULL DEFAULT '#3B82F6',
+    sort_order integer              DEFAULT 0,
+    is_active  boolean     NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_rcg_clinic ON reservation_category_groups(clinic_id);
+
+-- ------------------------------------
+-- 16. reservation_categories（予約区分マスタ）
+-- ------------------------------------
+CREATE TABLE reservation_categories (
     id                       BIGSERIAL   PRIMARY KEY,
     clinic_id                bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name                     text        NOT NULL,
@@ -361,6 +377,7 @@ CREATE TABLE service_types (
     description              text        NOT NULL DEFAULT '',
     color                    text        NOT NULL DEFAULT '#3B82F6',
     sort_order               integer              DEFAULT 0,
+    group_id                 bigint               REFERENCES reservation_category_groups(id) ON DELETE SET NULL,
     reservation_display_name text        NOT NULL DEFAULT '',
     duration_minutes         int         NOT NULL DEFAULT 15,
     short_name               text        NOT NULL DEFAULT '',
@@ -373,6 +390,8 @@ CREATE TABLE service_types (
     created_at               timestamptz NOT NULL DEFAULT now(),
     updated_at               timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE INDEX idx_reservation_categories_group_id ON reservation_categories(group_id);
 
 -- ------------------------------------
 -- 16. consultations（診察項目マスタ）
@@ -663,7 +682,7 @@ CREATE TABLE reservation_appointments (
     owner_id           bigint                        REFERENCES owners(id) ON DELETE SET NULL,
     pet_id             bigint                        REFERENCES pets(id) ON DELETE SET NULL,
     visit_type         visit_type           NOT NULL DEFAULT 'revisit',
-    service_type_id    bigint               NOT NULL REFERENCES service_types(id) ON DELETE RESTRICT,
+    reservation_category_id    bigint               NOT NULL REFERENCES reservation_categories(id) ON DELETE RESTRICT,
     doctor_id          bigint                        REFERENCES staffs(id) ON DELETE SET NULL,
     is_designated      boolean                       DEFAULT false,
     status             reservation_status            DEFAULT 'pending',
@@ -1318,7 +1337,7 @@ CREATE INDEX idx_medicines_clinic_id ON medicines(clinic_id);
 CREATE INDEX idx_medicines_parent_id ON medicines(parent_id);
 CREATE INDEX idx_insurances_clinic_id ON insurances(clinic_id);
 CREATE INDEX idx_cages_clinic_id ON cages(clinic_id);
-CREATE INDEX idx_service_types_clinic_id ON service_types(clinic_id);
+CREATE INDEX idx_reservation_categories_clinic_id ON reservation_categories(clinic_id);
 CREATE INDEX idx_consultations_clinic_id ON consultations(clinic_id);
 CREATE INDEX idx_consultations_parent_id ON consultations(parent_id);
 CREATE INDEX idx_procedures_clinic_id ON procedures(clinic_id);
@@ -1356,7 +1375,7 @@ CREATE INDEX idx_merchandise_items_sort ON merchandise_items(clinic_id, sort_ord
 -- 予約 FK インデックス
 CREATE INDEX idx_reservation_appointments_owner_id ON reservation_appointments(owner_id);
 CREATE INDEX idx_reservation_appointments_pet_id ON reservation_appointments(pet_id);
-CREATE INDEX idx_reservation_appointments_service_type_id ON reservation_appointments(service_type_id);
+CREATE INDEX idx_reservation_appointments_reservation_category_id ON reservation_appointments(reservation_category_id);
 CREATE INDEX idx_reservation_appointments_doctor_id ON reservation_appointments(doctor_id);
 
 -- medical_records 子テーブル FK インデックス
@@ -1521,7 +1540,7 @@ CREATE UNIQUE INDEX idx_medicines_clinic_name ON medicines(clinic_id, name) WHER
 CREATE UNIQUE INDEX idx_consultations_clinic_name ON consultations(clinic_id, name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_procedures_clinic_name ON procedures(clinic_id, name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_cages_clinic_name ON cages(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_service_types_clinic_name ON service_types(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_reservation_categories_clinic_name ON reservation_categories(clinic_id, name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_diagnosis_categories_clinic_name ON diagnosis_categories(clinic_id, name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_trimming_courses_clinic_name ON trimming_courses(clinic_id, name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_trimming_options_clinic_name ON trimming_options(clinic_id, name) WHERE is_active = true;
@@ -1551,7 +1570,7 @@ COMMENT ON TABLE vaccines IS 'ワクチンマスタ';
 COMMENT ON TABLE medicines IS '薬剤マスタ';
 COMMENT ON TABLE insurances IS '保険マスタ';
 COMMENT ON TABLE cages IS 'ケージマスタ';
-COMMENT ON TABLE service_types IS 'サービス種別マスタ';
+COMMENT ON TABLE reservation_categories IS '予約区分マスタ';
 COMMENT ON TABLE consultations IS '診察項目マスタ';
 COMMENT ON TABLE procedures IS '処置項目マスタ';
 COMMENT ON TABLE hospitalization_plans IS '入院プランマスタ';
@@ -1692,13 +1711,13 @@ CREATE INDEX idx_res_customers_owner
     ON reservation_customers(owner_id) WHERE owner_id IS NOT NULL;
 
 -- ------------------------------------
--- 65. staff_excluded_service_types（スタッフ × 非対応コース M:N）
+-- 65. staff_excluded_reservation_categories（スタッフ × 非対応予約区分 M:N）
 -- ------------------------------------
-CREATE TABLE staff_excluded_service_types (
+CREATE TABLE staff_excluded_reservation_categories (
     id              BIGSERIAL PRIMARY KEY,
     staff_id        bigint    NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
-    service_type_id bigint    NOT NULL REFERENCES service_types(id) ON DELETE CASCADE,
-    UNIQUE(staff_id, service_type_id)
+    reservation_category_id bigint    NOT NULL REFERENCES reservation_categories(id) ON DELETE CASCADE,
+    UNIQUE(staff_id, reservation_category_id)
 );
 
 -- ------------------------------------

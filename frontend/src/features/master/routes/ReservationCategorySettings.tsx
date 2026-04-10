@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
@@ -20,6 +20,7 @@ import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import { usePermission } from "@/features/auth";
 import { useGetReservationCategories, useCreateReservationCategory, useUpdateReservationCategory, useDeleteReservationCategory, useReorderReservationCategories } from "@/features/master/api/reservation-categories";
 import type { ReservationCategory } from "@/features/master/api/reservation-categories";
+import { useGetReservationCategoryGroups } from "@/features/master/api/reservation-category-groups";
 import type { CreateReservationCategoryRequest, UpdateReservationCategoryRequest } from "@/types/reservation-category";
 import { ResourceMasterReservationCategory } from "@/types/generated/models";
 
@@ -45,6 +46,7 @@ interface ReservationCategoryFormData {
   description: string;
   color: string;
   isActive: boolean;
+  groupId: string | undefined;
   // LINE予約用
   reservationDisplayName: string;
   durationMinutes: number;
@@ -57,14 +59,17 @@ interface ReservationCategoryFormData {
   isInternal: boolean;
 }
 
+interface GroupOption { id: string; name: string; color: string; }
+
 const ReservationCategorySidePanel = memo(function ReservationCategorySidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly,
-}: { item: ReservationCategory | null; onClose: () => void; onSave: (d: ReservationCategoryFormData) => void; onDeleteRequest?: (i: ReservationCategory) => void; readOnly?: boolean; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly, groups,
+}: { item: ReservationCategory | null; onClose: () => void; onSave: (d: ReservationCategoryFormData) => void; onDeleteRequest?: (i: ReservationCategory) => void; readOnly?: boolean; groups: GroupOption[]; }) {
   const [f, setF] = useState<ReservationCategoryFormData>(() => ({
     name: item?.name ?? "",
     description: item?.description ?? "",
     color: item?.color ?? PALETTE.pickerDefaultBlue,
     isActive: item?.isActive ?? true,
+    groupId: item?.groupId,
     reservationDisplayName: item?.reservationDisplayName ?? "",
     durationMinutes: item?.durationMinutes ?? 15,
     shortName: item?.shortName ?? "",
@@ -136,6 +141,29 @@ const ReservationCategorySidePanel = memo(function ReservationCategorySidePanel(
           <PropertyInput value={f.color} onChange={handleColorInputChange} placeholder="#3B82F6" />
         </div>
       </PropertyRow>
+      {groups.length > 0 ? (
+        <PropertyRow label="グループ">
+          <Select
+            value={f.groupId ?? "none"}
+            onValueChange={(v) => { setF((p) => ({ ...p, groupId: v === "none" ? undefined : v })); setIsDirty(true); }}
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder="グループを選択" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">未分類</SelectItem>
+              {groups.map((g) => (
+                <SelectItem key={g.id} value={g.id}>
+                  <div className="flex items-center gap-2">
+                    <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
+                    {g.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </PropertyRow>
+      ) : null}
       <PropertyRow label="備考">
         <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
       </PropertyRow>
@@ -230,10 +258,17 @@ const ReservationCategorySidePanel = memo(function ReservationCategorySidePanel(
 export function ReservationCategorySettings() {
   const { canEdit } = usePermission(ResourceMasterReservationCategory);
   const { data } = useGetReservationCategories();
+  const { data: groupsRaw = [] } = useGetReservationCategoryGroups();
   const createMutation = useCreateReservationCategory();
   const updateMutation = useUpdateReservationCategory();
   const deleteMutation = useDeleteReservationCategory();
   const reorderMutation = useReorderReservationCategories();
+
+  // js-cache-function-results: グループ選択肢を useMemo でキャッシュ
+  const activeGroups = useMemo(
+    () => groupsRaw.filter((g) => g.isActive).map((g) => ({ id: g.id, name: g.name, color: g.color })),
+    [groupsRaw],
+  );
 
   const crud = useMasterCRUD<ReservationCategory>({ data, deleteMutation, entityLabel: "予約区分" });
 
@@ -253,6 +288,7 @@ export function ReservationCategorySettings() {
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: (d) => ({
       name: d.name, description: d.description || undefined, color: d.color || undefined, is_active: true,
+      group_id: d.groupId ? Number(d.groupId) : undefined,
       reservation_display_name: d.reservationDisplayName || undefined,
       duration_minutes: d.durationMinutes, short_name: d.shortName || undefined,
       reservation_visible: d.reservationVisible, reservation_comment: d.reservationComment || undefined,
@@ -262,6 +298,7 @@ export function ReservationCategorySettings() {
     }),
     toUpdateRequest: (d) => ({
       name: d.name, description: d.description || undefined, color: d.color || undefined, is_active: d.isActive,
+      group_id: d.groupId ? Number(d.groupId) : undefined,
       reservation_display_name: d.reservationDisplayName || undefined,
       duration_minutes: d.durationMinutes, short_name: d.shortName || undefined,
       reservation_visible: d.reservationVisible, reservation_comment: d.reservationComment || undefined,
@@ -277,7 +314,7 @@ export function ReservationCategorySettings() {
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={() => null}
-      renderSidePanel={({ readOnly, ...props }) => <ReservationCategorySidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />}
+      renderSidePanel={({ readOnly, ...props }) => <ReservationCategorySidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} groups={activeGroups} />}
     >
       <DndContext sensors={sensors} collisionDetection={closestCenter}
         onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
