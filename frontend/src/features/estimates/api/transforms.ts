@@ -9,6 +9,7 @@ function transformEstimateItem(item: BackendEstimateItem): EstimateLineItem {
     category: item.category,
     unitPrice: item.unit_price ?? 0,
     quantity: item.quantity ?? 1,
+    taxType: item.tax_type ?? "excluded",
     taxRate: item.tax_rate ?? 0.1,
     discountRate: item.discount_rate ?? 0,
     discountAmount: item.discount_amount ?? 0,

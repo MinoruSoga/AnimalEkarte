@@ -273,6 +273,7 @@ export interface ExaminationItem {
   result: string;
   unit: string;
   referenceRange: string;
+  isAbnormal: boolean;
 }
 
 /**
