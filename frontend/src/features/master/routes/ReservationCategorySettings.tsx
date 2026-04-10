@@ -1,10 +1,9 @@
 import { memo, useState, useCallback, useRef, useEffect, useMemo, useTransition, useDeferredValue } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
-import { Activity, Layers, MessageCircle, Plus } from "lucide-react";
+import { Activity, Layers, MessageCircle, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { Switch } from "@/components/ui/switch";
@@ -38,7 +37,6 @@ import {
   useCreateReservationCategoryGroup,
   useUpdateReservationCategoryGroup,
   useDeleteReservationCategoryGroup,
-  useReorderReservationCategoryGroups,
 } from "@/features/master/api/reservation-category-groups";
 import type { ReservationCategoryGroup } from "@/features/master/api/reservation-category-groups";
 import type { CreateReservationCategoryGroupRequest, UpdateReservationCategoryGroupRequest } from "@/features/master/api/reservation-category-groups";
@@ -55,17 +53,18 @@ const RESERVATION_DAY_OPTION_ITEMS = (
 );
 
 // ── カラム定義 ─────────────────────────────────────────────────
-const GROUP_COLUMNS = [
+const CATEGORY_COLUMNS_ALL = [
   { header: "", className: "w-[32px]" },
-  { header: "グループ名" },
+  { header: "名称" },
+  { header: "グループ", className: "w-[180px]" },
+  { header: "備考", className: "w-[200px]" },
   { header: "ステータス", className: "w-[100px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
-const CATEGORY_COLUMNS = [
+const CATEGORY_COLUMNS_FILTERED = [
   { header: "", className: "w-[32px]" },
   { header: "名称" },
-  { header: "グループ", className: "w-[180px]" },
   { header: "備考", className: "w-[200px]" },
   { header: "ステータス", className: "w-[100px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
@@ -172,7 +171,7 @@ interface CategoryFormData {
 interface GroupOption { id: string; name: string; color: string; }
 
 const CategorySidePanel = memo(function CategorySidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly, groups,
+  item, onClose, onSave, onDeleteRequest, readOnly, groups, defaultGroupId,
 }: {
   item: ReservationCategory | null;
   onClose: () => void;
@@ -180,12 +179,13 @@ const CategorySidePanel = memo(function CategorySidePanel({
   onDeleteRequest?: (i: ReservationCategory) => void;
   readOnly?: boolean;
   groups: GroupOption[];
+  defaultGroupId?: string;
 }) {
   const [f, setF] = useState<CategoryFormData>(() => ({
     name: item?.name ?? "",
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
-    groupId: item?.groupId,
+    groupId: item?.groupId ?? defaultGroupId,
     reservationDisplayName: item?.reservationDisplayName ?? "",
     durationMinutes: item?.durationMinutes ?? 15,
     shortName: item?.shortName ?? "",
@@ -315,112 +315,121 @@ const CategorySidePanel = memo(function CategorySidePanel({
 });
 
 // ─────────────────────────────────────────────────────────────────
-// GroupTab
+// GroupSidebar（左ペイン：グループ選択）
 // ─────────────────────────────────────────────────────────────────
 
-interface GroupTabProps {
-  onEdit: (item: ReservationCategoryGroup) => void;
-  onDeleteRequest: (item: ReservationCategoryGroup) => void;
+interface GroupSidebarProps {
+  groups: ReservationCategoryGroup[];
+  selectedGroupId: string | null;
+  totalCount: number;
+  categoryCountByGroupId: Map<string, number>;
+  onSelect: (id: string | null) => void;
+  onEdit: (g: ReservationCategoryGroup) => void;
+  onAdd: () => void;
   canEdit: boolean;
 }
 
-function GroupTab({ onEdit, onDeleteRequest, canEdit }: GroupTabProps) {
-  const { data: rawGroups = [] } = useGetReservationCategoryGroups();
-  const reorderMutation = useReorderReservationCategoryGroups();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const deferredSearch = useDeferredValue(searchTerm);
-  const resetOrderRef = useRef<() => void>(() => {});
-
-  const handleReorder = useCallback((newIds: string[]) => {
-    reorderMutation.mutate({ ids: newIds.map(Number) }, {
-      onError: (error: unknown) => { resetOrderRef.current(); handleApiError(error, "並び替え"); },
-    });
-  }, [reorderMutation]);
-
-  const filteredRaw = useMemo(() => {
-    let items = rawGroups;
-    for (const f of activeFilters) {
-      if (f.key === "status" && typeof f.value === "string") {
-        const want = f.value === "active";
-        items = items.filter((i) => (f.condition === "is" ? i.isActive === want : i.isActive !== want));
-      }
-    }
-    if (deferredSearch) {
-      const lower = deferredSearch.toLowerCase();
-      items = items.filter((i) => i.name.toLowerCase().includes(lower));
-    }
-    return items;
-  }, [rawGroups, activeFilters, deferredSearch]);
-
-  const { orderedItems, sensors, handleDragStart, handleDragEnd, handleDragCancel, resetOrder } =
-    useSortableList({ items: filteredRaw, onReorder: handleReorder });
-  useEffect(() => { resetOrderRef.current = resetOrder; }, [resetOrder]);
-
+const GroupSidebar = memo(function GroupSidebar({
+  groups, selectedGroupId, totalCount, categoryCountByGroupId,
+  onSelect, onEdit, onAdd, canEdit,
+}: GroupSidebarProps) {
   return (
-    <div className="flex flex-col gap-4">
-      <NotionFilter
-        properties={[MASTER_STATUS_FILTER]}
-        activeFilters={activeFilters}
-        onFilterChange={setActiveFilters}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="グループ名で検索..."
-        count={orderedItems.length}
-      />
-      <DndContext sensors={sensors} collisionDetection={closestCenter}
-        onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
-        <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-          <DataTable columns={GROUP_COLUMNS} data={orderedItems} emptyMessage="グループが登録されていません"
-            renderRow={(item) => (
-              <SortableDataTableRow key={item.id} id={item.id} onClick={() => onEdit(item)}>
-                <TableCell className={`font-medium text-base ${C.text}`}>
-                  <div className="flex items-center gap-2">
-                    <span className="size-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                    {item.name}
-                  </div>
-                </TableCell>
-                <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-                <TableCell className="p-0 text-right">
-                  {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
-                </TableCell>
-              </SortableDataTableRow>
-            )}
-          />
-        </SortableContext>
-      </DndContext>
+    <div className={`w-52 shrink-0 flex flex-col border-r ${C.borderLight}`}>
+      {/* header */}
+      <div className={`flex items-center justify-between px-3 h-10 border-b ${C.borderLight} shrink-0`}>
+        <span className={`text-xs font-semibold ${C.text50} uppercase tracking-wide`}>グループ</span>
+        {canEdit ? (
+          <button
+            type="button"
+            onClick={onAdd}
+            className={`size-6 rounded flex items-center justify-center hover:bg-accent ${C.text50} transition-colors`}
+            title="グループを追加"
+          >
+            <Plus className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+
+      {/* 全て */}
+      <button
+        type="button"
+        onClick={() => onSelect(null)}
+        className={`flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors
+          ${selectedGroupId === null
+            ? `${C.text} font-medium bg-accent`
+            : `${C.text60} hover:bg-accent`
+          }`}
+      >
+        <span className="size-2 rounded-full shrink-0 bg-gray-300" />
+        <span className="flex-1 text-left">全て</span>
+        <span className={`text-xs tabular-nums ${C.text40}`}>{totalCount}</span>
+      </button>
+
+      {groups.length > 0 ? (
+        <div className={`mx-3 my-0.5 h-px ${C.borderLight}`} />
+      ) : null}
+
+      {/* group rows */}
+      <div className="flex-1 overflow-y-auto">
+        {groups.map((group) => {
+          const count = categoryCountByGroupId.get(group.id) ?? 0;
+          const isSelected = selectedGroupId === group.id;
+          return (
+            <div
+              key={group.id}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect(group.id); }}
+              className={`group relative flex items-center gap-2 w-full px-3 py-2 cursor-pointer transition-colors select-none
+                ${isSelected ? `${C.text} font-medium bg-accent` : `${C.text60} hover:bg-accent`}`}
+              onClick={() => onSelect(group.id)}
+            >
+              <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
+              <span className="flex-1 truncate text-sm">{group.name}</span>
+              <span className={`text-xs tabular-nums ${C.text40}`}>{count}</span>
+              {canEdit ? (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onEdit(group); }}
+                  className={`opacity-0 group-hover:opacity-100 absolute right-1.5 top-1/2 -translate-y-1/2
+                    size-5 rounded flex items-center justify-center hover:bg-background transition-opacity ${C.text50}`}
+                  title="グループを編集"
+                >
+                  <Pencil className="size-3" />
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+        {groups.length === 0 ? (
+          <p className={`px-3 py-3 text-xs ${C.text40}`}>グループがありません</p>
+        ) : null}
+      </div>
     </div>
   );
-}
+});
 
 // ─────────────────────────────────────────────────────────────────
-// CategoryTab
+// CategoryList（右ペイン：予約区分一覧）
 // ─────────────────────────────────────────────────────────────────
 
-interface CategoryTabProps {
+interface CategoryListProps {
+  selectedGroupId: string | null;
   onEdit: (item: ReservationCategory) => void;
-  onDeleteRequest: (item: ReservationCategory) => void;
   canEdit: boolean;
-  allGroups: GroupOption[];
+  groupColorById: Map<string, string>;
+  groupNameById: Map<string, string>;
 }
 
-function CategoryTab({ onEdit, onDeleteRequest: _onDeleteRequest, canEdit, allGroups }: CategoryTabProps) {
+function CategoryList({
+  selectedGroupId, onEdit, canEdit, groupColorById, groupNameById,
+}: CategoryListProps) {
   const { data: rawCategories = [] } = useGetReservationCategories();
   const reorderMutation = useReorderReservationCategories();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
   const resetOrderRef = useRef<() => void>(() => {});
-
-  // js-cache-function-results: グループ色・名称マップをキャッシュ
-  const groupColorById = useMemo(
-    () => new Map(allGroups.map((g) => [g.id, g.color])),
-    [allGroups],
-  );
-  const groupNameById = useMemo(
-    () => new Map(allGroups.map((g) => [g.id, g.name])),
-    [allGroups],
-  );
 
   const handleReorder = useCallback((newIds: string[]) => {
     reorderMutation.mutate({ ids: newIds.map(Number) }, {
@@ -430,6 +439,11 @@ function CategoryTab({ onEdit, onDeleteRequest: _onDeleteRequest, canEdit, allGr
 
   const filteredRaw = useMemo(() => {
     let items = rawCategories;
+    // グループフィルタ
+    if (selectedGroupId !== null) {
+      items = items.filter((i) => i.groupId === selectedGroupId);
+    }
+    // ステータスフィルタ
     for (const f of activeFilters) {
       if (f.key === "status" && typeof f.value === "string") {
         const want = f.value === "active";
@@ -441,14 +455,18 @@ function CategoryTab({ onEdit, onDeleteRequest: _onDeleteRequest, canEdit, allGr
       items = items.filter((i) => i.name.toLowerCase().includes(lower));
     }
     return items;
-  }, [rawCategories, activeFilters, deferredSearch]);
+  }, [rawCategories, selectedGroupId, activeFilters, deferredSearch]);
 
   const { orderedItems, sensors, handleDragStart, handleDragEnd, handleDragCancel, resetOrder } =
     useSortableList({ items: filteredRaw, onReorder: handleReorder });
   useEffect(() => { resetOrderRef.current = resetOrder; }, [resetOrder]);
 
+  // グループ選択時はグループ列を非表示
+  const showGroupColumn = selectedGroupId === null;
+  const columns = showGroupColumn ? CATEGORY_COLUMNS_ALL : CATEGORY_COLUMNS_FILTERED;
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col flex-1 min-w-0 gap-4 px-4 py-4">
       <NotionFilter
         properties={[MASTER_STATUS_FILTER]}
         activeFilters={activeFilters}
@@ -461,7 +479,7 @@ function CategoryTab({ onEdit, onDeleteRequest: _onDeleteRequest, canEdit, allGr
       <DndContext sensors={sensors} collisionDetection={closestCenter}
         onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-          <DataTable columns={CATEGORY_COLUMNS} data={orderedItems} emptyMessage="予約区分が登録されていません"
+          <DataTable columns={columns} data={orderedItems} emptyMessage="予約区分が登録されていません"
             renderRow={(item) => {
               const groupColor = item.groupId ? groupColorById.get(item.groupId) : undefined;
               const groupName = item.groupId ? groupNameById.get(item.groupId) : undefined;
@@ -474,16 +492,18 @@ function CategoryTab({ onEdit, onDeleteRequest: _onDeleteRequest, canEdit, allGr
                       {item.name}
                     </div>
                   </TableCell>
-                  <TableCell className={`text-base ${C.text70}`}>
-                    {groupName ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: groupColor }} />
-                        {groupName}
-                      </div>
-                    ) : (
-                      <span className={C.text40}>未分類</span>
-                    )}
-                  </TableCell>
+                  {showGroupColumn ? (
+                    <TableCell className={`text-base ${C.text70}`}>
+                      {groupName ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: groupColor }} />
+                          {groupName}
+                        </div>
+                      ) : (
+                        <span className={C.text40}>未分類</span>
+                      )}
+                    </TableCell>
+                  ) : null}
                   <TableCell className={`text-base ${C.text70} truncate max-w-[200px]`}>
                     {item.description || "-"}
                   </TableCell>
@@ -502,31 +522,45 @@ function CategoryTab({ onEdit, onDeleteRequest: _onDeleteRequest, canEdit, allGr
 }
 
 // ─────────────────────────────────────────────────────────────────
-// ReservationCategorySettings（統合ページ）
+// ReservationCategorySettings（統合ページ・2カラムレイアウト）
 // ─────────────────────────────────────────────────────────────────
-
-const TABS = [
-  { value: "group", label: "グループ" },
-  { value: "category", label: "予約区分" },
-] as const;
 
 export function ReservationCategorySettings() {
   const navigate = useNavigate();
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterReservationCategory);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") ?? "category";
 
   const { data: groupsRaw = [] } = useGetReservationCategoryGroups();
+  const { data: categoriesRaw = [] } = useGetReservationCategories();
 
-  // js-cache-function-results: グループ選択肢をキャッシュ
+  // 選択グループ (null = 全て)
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+
+  // グループ選択肢
   const activeGroups = useMemo(
     () => groupsRaw.filter((g) => g.isActive).map((g) => ({ id: g.id, name: g.name, color: g.color })),
     [groupsRaw],
   );
-  const allGroups = useMemo(
-    () => groupsRaw.map((g) => ({ id: g.id, name: g.name, color: g.color })),
+
+  // グループ色・名称マップ (CategoryList へ渡す)
+  const groupColorById = useMemo(
+    () => new Map(groupsRaw.map((g) => [g.id, g.color])),
     [groupsRaw],
   );
+  const groupNameById = useMemo(
+    () => new Map(groupsRaw.map((g) => [g.id, g.name])),
+    [groupsRaw],
+  );
+
+  // グループごとの区分件数
+  const categoryCountByGroupId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const cat of categoriesRaw) {
+      if (cat.groupId) {
+        map.set(cat.groupId, (map.get(cat.groupId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [categoriesRaw]);
 
   // 編集・削除ターゲット
   const [groupEditTarget, setGroupEditTarget] = useState<ReservationCategoryGroup | "new" | null>(null);
@@ -543,17 +577,41 @@ export function ReservationCategorySettings() {
   const updateCategoryMutation = useUpdateReservationCategory();
   const deleteCategoryMutation = useDeleteReservationCategory();
 
-  const handleTabChange = useCallback((tab: string) => {
-    setSearchParams({ tab });
+  // ── グループ操作 ─────────────────────────────────────────────
+  const handleGroupSelect = useCallback((id: string | null) => {
+    setSelectedGroupId(id);
     setGroupEditTarget(null);
     setCategoryEditTarget(null);
-  }, [setSearchParams]);
+  }, []);
 
-  // rerender-dependencies: primitive 化してコールバック deps を安定化
-  const handleGroupEdit = useCallback((item: ReservationCategoryGroup) => setGroupEditTarget(item), []);
-  const handleGroupDeleteRequest = useCallback((item: ReservationCategoryGroup) => setGroupPendingDelete(item), []);
-  const handleCategoryEdit = useCallback((item: ReservationCategory) => setCategoryEditTarget(item), []);
-  const handleCategoryDeleteRequest = useCallback((item: ReservationCategory) => setCategoryPendingDelete(item), []);
+  const handleGroupEdit = useCallback((item: ReservationCategoryGroup) => {
+    setGroupEditTarget(item);
+    setCategoryEditTarget(null);
+  }, []);
+
+  const handleGroupAdd = useCallback(() => {
+    setGroupEditTarget("new");
+    setCategoryEditTarget(null);
+  }, []);
+
+  const handleGroupDeleteRequest = useCallback((item: ReservationCategoryGroup) => {
+    setGroupPendingDelete(item);
+  }, []);
+
+  // ── 予約区分操作 ─────────────────────────────────────────────
+  const handleCategoryEdit = useCallback((item: ReservationCategory) => {
+    setCategoryEditTarget(item);
+    setGroupEditTarget(null);
+  }, []);
+
+  const handleCategoryNew = useCallback(() => {
+    setCategoryEditTarget("new");
+    setGroupEditTarget(null);
+  }, []);
+
+  const handleCategoryDeleteRequest = useCallback((item: ReservationCategory) => {
+    setCategoryPendingDelete(item);
+  }, []);
 
   // ── グループ保存 ─────────────────────────────────────────────
   const handleGroupSave = useCallback((data: GroupFormData) => {
@@ -664,49 +722,37 @@ export function ReservationCategorySettings() {
             maxWidth="max-w-full"
             headerAction={
               canCreate ? (
-                <PrimaryButton onClick={() => {
-                  if (activeTab === "group") setGroupEditTarget("new");
-                  else setCategoryEditTarget("new");
-                }}>
+                <PrimaryButton onClick={handleCategoryNew}>
                   <Plus className={`mr-1.5 ${ICON.action}`} />
                   新規登録
                 </PrimaryButton>
               ) : null
             }
           >
-            <TabsPrimitive.Root value={activeTab} onValueChange={handleTabChange} className="flex flex-col gap-4">
-              <TabsPrimitive.List className={`flex h-9 border-b ${C.borderLight} gap-0`}>
-                {TABS.map((tab) => (
-                  <TabsPrimitive.Trigger
-                    key={tab.value}
-                    value={tab.value}
-                    className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
-                      ${C.dataActiveBorderB} ${C.dataActiveText} data-[state=active]:font-medium`}
-                  >
-                    {tab.label}
-                  </TabsPrimitive.Trigger>
-                ))}
-              </TabsPrimitive.List>
-              <TabsPrimitive.Content value="group" className="mt-4">
-                <GroupTab
-                  onEdit={handleGroupEdit}
-                  onDeleteRequest={handleGroupDeleteRequest}
-                  canEdit={canEdit}
-                />
-              </TabsPrimitive.Content>
-              <TabsPrimitive.Content value="category" className="mt-4">
-                <CategoryTab
-                  onEdit={handleCategoryEdit}
-                  onDeleteRequest={handleCategoryDeleteRequest}
-                  canEdit={canEdit}
-                  allGroups={allGroups}
-                />
-              </TabsPrimitive.Content>
-            </TabsPrimitive.Root>
+            {/* 2カラムレイアウト: PageLayout の px-3 py-5 を打ち消して端まで広げる */}
+            <div className="-mx-3 -mt-5 flex flex-1 min-h-0">
+              <GroupSidebar
+                groups={groupsRaw}
+                selectedGroupId={selectedGroupId}
+                totalCount={categoriesRaw.length}
+                categoryCountByGroupId={categoryCountByGroupId}
+                onSelect={handleGroupSelect}
+                onEdit={handleGroupEdit}
+                onAdd={handleGroupAdd}
+                canEdit={canEdit}
+              />
+              <CategoryList
+                selectedGroupId={selectedGroupId}
+                onEdit={handleCategoryEdit}
+                canEdit={canEdit}
+                groupColorById={groupColorById}
+                groupNameById={groupNameById}
+              />
+            </div>
           </PageLayout>
         </div>
 
-        {activeTab === "group" && groupEditTarget !== null ? (
+        {groupEditTarget !== null ? (
           <GroupSidePanel
             key={groupPanelItem ? String(groupPanelItem.id) : "new-group"}
             item={groupPanelItem}
@@ -716,7 +762,7 @@ export function ReservationCategorySettings() {
             readOnly={!canEdit}
           />
         ) : null}
-        {activeTab === "category" && categoryEditTarget !== null ? (
+        {categoryEditTarget !== null ? (
           <CategorySidePanel
             key={categoryPanelItem ? String(categoryPanelItem.id) : "new-category"}
             item={categoryPanelItem}
@@ -725,6 +771,7 @@ export function ReservationCategorySettings() {
             onDeleteRequest={canDelete ? handleCategoryDeleteRequest : undefined}
             readOnly={!canEdit}
             groups={activeGroups}
+            defaultGroupId={selectedGroupId ?? undefined}
           />
         ) : null}
       </div>
