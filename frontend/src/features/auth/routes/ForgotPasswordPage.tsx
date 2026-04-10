@@ -2,6 +2,7 @@ import { useActionState } from "react";
 import { Link } from "react-router";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import { C } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -65,7 +66,7 @@ export function ForgotPasswordPage() {
               </p>
             </div>
             <Link
-              to="/login"
+              to={paths.auth.login.getHref()}
               className={`block text-center text-sm ${C.text50} hover:underline`}
             >
               ログインページに戻る
@@ -99,7 +100,7 @@ export function ForgotPasswordPage() {
             </SubmitButton>
 
             <Link
-              to="/login"
+              to={paths.auth.login.getHref()}
               className={`block text-center text-sm ${C.text50} hover:underline`}
             >
               ログインページに戻る

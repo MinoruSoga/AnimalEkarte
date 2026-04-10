@@ -1,6 +1,7 @@
 import { useState, useCallback, useActionState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from "sonner";
+import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { Estimate, EstimateStatus } from '../types';
 import { useCreateEstimate } from '../api/create-estimate';
@@ -123,9 +124,9 @@ export function useEstimateForm(estimate?: Estimate) {
 
   const handleCancel = useCallback(() => {
     if (isEdit && estimate) {
-      navigate(`/estimates/${estimate.id}`);
+      navigate(paths.estimates.detail.getHref(estimate.id));
     } else {
-      navigate('/estimates');
+      navigate(paths.estimates.getHref());
     }
   }, [isEdit, estimate, navigate]);
 

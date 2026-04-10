@@ -1,5 +1,6 @@
 import { useState, useCallback, memo, useActionState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
@@ -145,7 +146,7 @@ export function LoginForm() {
 
   // ログイン済みなら即リダイレクト（直接 /login にアクセスした場合）
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={paths.home.getHref()} replace />;
   }
 
   return (
@@ -226,7 +227,7 @@ export function LoginForm() {
 
         <div className="text-center">
           <Link
-            to="/forgot-password"
+            to={paths.auth.forgotPassword.getHref()}
             className={`text-sm ${C.text50} hover:underline`}
           >
             パスワードをお忘れですか？
