@@ -2,6 +2,9 @@
 import { memo, useCallback } from "react";
 import { useNavigate } from "react-router";
 
+// Internal
+import { paths } from "@/config/paths";
+
 // External
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -79,28 +82,40 @@ export const AppointmentCard = memo(function AppointmentCard({
   const handleKarteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (isTrimming) {
-      navigate(appointment.petId ? `/trimming/new?petId=${appointment.petId}` : "/trimming/new", {
-        state: { from: "/" },
-      });
+      navigate(
+        appointment.petId
+          ? `${paths.trimming.new.getHref()}?petId=${appointment.petId}`
+          : paths.trimming.new.getHref(),
+        { state: { from: "/" } },
+      );
     } else {
-      navigate(appointment.petId ? `/medical-records/new?petId=${appointment.petId}` : "/medical-records/select-pet", {
-        state: { from: "/", appointmentId: appointment.id },
-      });
+      navigate(
+        appointment.petId
+          ? `${paths.medicalRecords.new.getHref()}?petId=${appointment.petId}`
+          : paths.medicalRecords.selectPet.getHref(),
+        { state: { from: "/", appointmentId: appointment.id } },
+      );
     }
   }, [navigate, isTrimming, appointment.petId, appointment.id]);
 
   const handleAccountingClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(appointment.petId ? `/accounting/new?petId=${appointment.petId}` : "/accounting/new", {
-      state: { from: "/", appointmentId: appointment.id },
-    });
+    navigate(
+      appointment.petId
+        ? `${paths.accounting.new.getHref()}?petId=${appointment.petId}`
+        : paths.accounting.new.getHref(),
+      { state: { from: "/", appointmentId: appointment.id } },
+    );
   }, [navigate, appointment.petId, appointment.id]);
 
   const handleHospitalizationClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(appointment.petId ? `/hospitalization/new?petId=${appointment.petId}` : "/hospitalization/new", {
-      state: { from: "/" },
-    });
+    navigate(
+      appointment.petId
+        ? `${paths.hospitalization.new.getHref()}?petId=${appointment.petId}`
+        : paths.hospitalization.new.getHref(),
+      { state: { from: "/" } },
+    );
   }, [navigate, appointment.petId]);
 
   return (

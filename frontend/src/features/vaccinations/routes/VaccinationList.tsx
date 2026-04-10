@@ -138,7 +138,7 @@ export function VaccinationList() {
   }, [navigate]);
 
   const handleEdit = useCallback((id: string) => {
-    navigate(`/vaccinations/${id}`);
+    navigate(paths.vaccinations.detail.getHref(id));
   }, [navigate]);
 
   const handleDeleteConfirm = useCallback(() => {
