@@ -167,7 +167,7 @@ const SidebarItemWithPermission = memo(function SidebarItemWithPermission({
 /*  Sidebar                                                            */
 /* ================================================================== */
 
-export function Sidebar() {
+export const Sidebar = memo(function Sidebar() {
   const [collapsed, setCollapsed] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 1280,
   );
@@ -353,7 +353,7 @@ export function Sidebar() {
                     { icon: <Pill           className={ICON.toolbar} />, label: "薬剤マスタ", path: paths.settings.medicine.getHref(), resource: ResourceMasterMedical },
                   ],
                 },
-                { icon: <Activity     className={ICON.toolbar} />, label: "診療サービス", path: paths.settings.serviceType.getHref(), resource: ResourceMasterServiceType },
+                { icon: <Activity     className={ICON.toolbar} />, label: "予約区分", path: paths.settings.serviceType.getHref(), resource: ResourceMasterServiceType },
                 { icon: <Bed          className={ICON.toolbar} />, label: "入院・ケージ", path: paths.settings.hospitalization.getHref(), resource: ResourceMasterHosp },
                 { icon: <Scissors     className={ICON.toolbar} />, label: "トリミング", path: paths.settings.trimming.getHref(), resource: ResourceMasterTrim },
                 { icon: <Lock         className={ICON.toolbar} />, label: "権限グループ", path: paths.settings.permissionGroups.getHref(), resource: ResourceMasterPermission },
@@ -423,4 +423,4 @@ export function Sidebar() {
       />
     </div>
   );
-}
+});

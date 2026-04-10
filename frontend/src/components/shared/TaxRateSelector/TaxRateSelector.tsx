@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STYLE } from "@/lib/design-tokens";
 
@@ -15,7 +16,7 @@ interface TaxRateSelectorProps {
   disabled?: boolean;
 }
 
-export function TaxRateSelector({
+export const TaxRateSelector = memo(function TaxRateSelector({
   value,
   onChange,
   disabled,
@@ -32,4 +33,4 @@ export function TaxRateSelector({
       <SelectContent>{TAX_RATE_SELECT_ITEMS_STANDARD}</SelectContent>
     </Select>
   );
-}
+});
