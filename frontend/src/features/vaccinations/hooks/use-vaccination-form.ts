@@ -94,14 +94,14 @@ export function useVaccinationForm(id?: string) {
     ? {
         vaccineId: existingVaccination.vaccineId,
         date: existingVaccination.date ? existingVaccination.date.slice(0, 10) : "",
-        supplemental: "",
+        supplemental: existingVaccination.supplemental ?? "",
         lot1: existingVaccination.lot1 ?? "",
         lot2: existingVaccination.lot2 ?? "",
-        lot3: "",
-        lot4: "",
-        nextScheduleType: "4weeks",
+        lot3: existingVaccination.lot3 ?? "",
+        lot4: existingVaccination.lot4 ?? "",
+        nextScheduleType: existingVaccination.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE,
         nextDate: existingVaccination.nextDate ? existingVaccination.nextDate.slice(0, 10) : "",
-        remarks: "",
+        remarks: existingVaccination.remarks ?? "",
         ...localOverrides,
       }
     : { ...DEFAULT_FORM, ...localOverrides };

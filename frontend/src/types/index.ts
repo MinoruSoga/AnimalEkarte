@@ -316,8 +316,13 @@ export interface VaccinationRecord {
   doctor: string;
   date: string;
   nextDate: string;
+  nextScheduleType?: string;
   lot1?: string;
   lot2?: string;
+  lot3?: string;
+  lot4?: string;
+  supplemental?: string;
+  remarks?: string;
 }
 
 /**
