@@ -227,7 +227,7 @@ export const Sidebar = memo(function Sidebar() {
                     type="button"
                     className={`flex items-center gap-1 min-w-0 text-base font-semibold ${C.text} ${C.hoverBgLight} rounded-[3px] px-1.5 py-1 transition-colors outline-none`}
                   >
-                    <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
+                    <span className={`${ICON.dot} rounded-full ${C.bgBrand} shrink-0`} />
                     <span className="truncate">{clinicName}</span>
                     <ChevronDown className={`${ICON.xs} opacity-40 shrink-0`} />
                   </button>
@@ -244,7 +244,7 @@ export const Sidebar = memo(function Sidebar() {
                           : `${C.text65} ${C.hoverBgLight}`
                       }`}
                     >
-                      <span className={`size-1.5 rounded-full shrink-0 ${
+                      <span className={`${ICON.dotSm} rounded-full shrink-0 ${
                         c.clinicId === currentClinicId ? C.bgBrand : C.bgInactive
                       }`} />
                       {c.clinicName}
@@ -254,7 +254,7 @@ export const Sidebar = memo(function Sidebar() {
               </Popover>
             ) : (
               <div className={`flex items-center gap-1 min-w-0 text-base font-semibold px-1.5 py-1 ${C.text}`}>
-                <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
+                <span className={`${ICON.dot} rounded-full ${C.bgBrand} shrink-0`} />
                 <span className="truncate">{clinicName}</span>
               </div>
             )}

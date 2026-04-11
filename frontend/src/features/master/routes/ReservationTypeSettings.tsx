@@ -133,7 +133,7 @@ function GroupedTable({
                             <ChevronDown className={`${ICON.smXs} transition-transform duration-150`}
                               style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }} />
                           </button>
-                          <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
+                          <span className={`${ICON.dotMd} rounded-full shrink-0`} style={{ backgroundColor: group.color }} />
                           <button type="button" onClick={() => onGroupEdit(group)}
                             className={`text-sm font-medium ${C.text} ${C.hoverBgLight} px-1 rounded-[3px] transition-colors`}>
                             {group.name}
@@ -198,7 +198,7 @@ function GroupedTable({
                           <ChevronDown className={`${ICON.smXs} transition-transform duration-150`}
                             style={{ transform: uncatCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }} />
                         </button>
-                        <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: PALETTE.grayMedium }} />
+                        <span className={`${ICON.dotMd} rounded-full shrink-0`} style={{ backgroundColor: PALETTE.grayMedium }} />
                         <span className={`text-sm font-medium ${C.text55}`}>未分類</span>
                         <span className={`text-xs ${C.text35} tabular-nums`}>{uncatCats.length}</span>
                         {canEdit ? (

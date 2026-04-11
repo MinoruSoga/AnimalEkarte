@@ -110,7 +110,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
             {groups.map((g) => (
               <SelectItem key={g.id} value={g.id}>
                 <div className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
+                  <span className={`${ICON.dotMd} rounded-full shrink-0`} style={{ backgroundColor: g.color }} />
                   {g.name}
                 </div>
               </SelectItem>

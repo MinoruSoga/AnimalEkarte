@@ -438,7 +438,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
                   }
                 />
                 <span
-                  className="size-2.5 rounded-full shrink-0"
+                  className={`${ICON.dotMd} rounded-full shrink-0`}
                   style={{ backgroundColor: st.color }}
                 />
                 <span className="text-sm">{st.name}</span>
@@ -709,7 +709,7 @@ export function StaffSettings() {
                         }}
                       >
                         <span
-                          className="size-1.5 rounded-full shrink-0"
+                          className={`${ICON.dotSm} rounded-full shrink-0`}
                           style={{ backgroundColor: g.color ?? PALETTE.defaultGray }}
                         />
                         {g.name}

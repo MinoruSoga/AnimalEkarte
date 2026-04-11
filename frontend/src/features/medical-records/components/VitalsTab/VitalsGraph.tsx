@@ -5,7 +5,7 @@ import { useState, memo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // Internal
-import { C, PALETTE } from "@/lib/design-tokens";
+import { C, ICON, PALETTE } from "@/lib/design-tokens";
 
 // Relative
 import type { Vital } from "@/features/medical-records/types";
@@ -135,7 +135,7 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
               style={active ? { backgroundColor: m.color, borderColor: m.color } : {}}
             >
               <span
-                className="size-2 rounded-full shrink-0"
+                className={`${ICON.dot} rounded-full shrink-0`}
                 style={{ backgroundColor: active ? PALETTE.whiteAlpha80 : m.color }}
               />
               {m.label}
