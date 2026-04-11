@@ -13,7 +13,7 @@ import { C, PALETTE } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 // Types
-import type { ReservationAppointment, ReservationStatus } from "@/types";
+import type { Appointment, ReservationStatus } from "@/types";
 
 // 15分予約が narrow モード（petName + ownerName 表示）に収まる最小高さ
 // 15min = 40px (> isCompact 閾値 35px), 30min = 80px (full モード)
@@ -39,7 +39,7 @@ const STATUS_DOT_STYLE: Partial<Record<ReservationStatus, { color: string; label
   cancelled:       { color: C.bgNotionRed, label: "キャンセル" },
 };
 
-interface ReservationCategoryColor {
+interface ReservationTypeColor {
   style: React.CSSProperties;
   dotStyle: React.CSSProperties;
   hex: string;
@@ -47,23 +47,23 @@ interface ReservationCategoryColor {
 
 interface WeekViewProps {
   currentDate: Date;
-  appointments: ReservationAppointment[];
-  onAppointmentClick: (appointment: ReservationAppointment) => void;
+  appointments: Appointment[];
+  onAppointmentClick: (appointment: Appointment) => void;
   onTimeSlotClick?: (date: Date) => void;
-  onAppointmentUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  /** Dynamic color map from reservationCategory master (name → ReservationCategoryColor) */
-  dynamicColorMap?: Map<string, ReservationCategoryColor>;
+  onAppointmentUpdate?: (appointment: Appointment, newStart: Date, newEnd: Date) => void;
+  /** Dynamic color map from reservationType master (name → ReservationTypeColor) */
+  dynamicColorMap?: Map<string, ReservationTypeColor>;
 }
 
 // Helper: Calculate event layout (overlapping)
 const calculateEventLayout = (
-  dayAppointments: ReservationAppointment[]
+  dayAppointments: Appointment[]
 ): Record<string, { left: string; width: string }> => {
   const sorted = [...dayAppointments].sort(
     (a, b) => a.start.getTime() - b.start.getTime()
   );
-  const clusters: ReservationAppointment[][] = [];
-  let currentCluster: ReservationAppointment[] = [];
+  const clusters: Appointment[][] = [];
+  let currentCluster: Appointment[] = [];
   let clusterEnd = 0;
 
   sorted.forEach((ev) => {
@@ -86,7 +86,7 @@ const calculateEventLayout = (
   const styles: Record<string, { left: string; width: string }> = {};
 
   clusters.forEach((cluster) => {
-    const columns: ReservationAppointment[][] = [];
+    const columns: Appointment[][] = [];
     const eventColIndex: Record<string, number> = {};
 
     cluster.forEach((ev) => {
@@ -146,11 +146,11 @@ const AppointmentCard = memo(function AppointmentCard({
   onUpdate,
   dynamicColorMap,
 }: {
-  appointment: ReservationAppointment;
+  appointment: Appointment;
   layoutStyle: { left: string; width: string };
-  onClick: (appointment: ReservationAppointment) => void;
-  onUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  dynamicColorMap?: Map<string, ReservationCategoryColor>;
+  onClick: (appointment: Appointment) => void;
+  onUpdate?: (appointment: Appointment, newStart: Date, newEnd: Date) => void;
+  dynamicColorMap?: Map<string, ReservationTypeColor>;
 }) {
   const startHour = appointment.start.getHours();
   const startMin = appointment.start.getMinutes();
@@ -351,11 +351,11 @@ const DayColumn = memo(function DayColumn({
   dynamicColorMap,
 }: {
   date: Date;
-  appointments: ReservationAppointment[];
-  onAppointmentClick: (appointment: ReservationAppointment) => void;
+  appointments: Appointment[];
+  onAppointmentClick: (appointment: Appointment) => void;
   onTimeSlotClick?: (date: Date) => void;
-  onAppointmentUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  dynamicColorMap?: Map<string, ReservationCategoryColor>;
+  onAppointmentUpdate?: (appointment: Appointment, newStart: Date, newEnd: Date) => void;
+  dynamicColorMap?: Map<string, ReservationTypeColor>;
 }) {
   const layoutStyles = useMemo(
     () => calculateEventLayout(appointments),
@@ -480,7 +480,7 @@ export const WeekView = memo(function WeekView({
 
   // Pre-compute appointments grouped by date key for O(1) per-day lookup
   const appointmentsByDay = useMemo(() => {
-    const map = new Map<string, ReservationAppointment[]>();
+    const map = new Map<string, Appointment[]>();
     for (const app of appointments) {
       const key = format(app.start, "yyyy-MM-dd");
       const existing = map.get(key);

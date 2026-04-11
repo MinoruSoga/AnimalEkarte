@@ -14,7 +14,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { getCalendarViewLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import type { CalendarView, ReservationAppointment } from "../types";
+import type { CalendarView, Appointment } from "../types";
 import { CALENDAR_VIEW_VALUES } from "../types";
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
@@ -22,7 +22,7 @@ const ReservationFormModal = lazy(() =>
   })),
 );
 import { useReservationManagement } from "../hooks/use-reservation-management";
-import { useReservationCategoryColorMap } from "@/features/master";
+import { useReservationTypeColorMap } from "@/features/master";
 import { usePermission } from "@/features/auth";
 
 const MonthView = lazy(() =>
@@ -69,7 +69,7 @@ export function ReservationManagement() {
   const [doctorFilter, setDoctorFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
 
-  const { activeEntries, colorMap: dynamicColorMap } = useReservationCategoryColorMap();
+  const { activeEntries, colorMap: dynamicColorMap } = useReservationTypeColorMap();
 
   const {
     appointments,
@@ -96,10 +96,10 @@ export function ReservationManagement() {
     handlePetSelectConfirm,
   } = useReservationManagement();
 
-  // BUG-069: ReservationAppointment → ReservationFormData 変換を行うラッパー
-  // handleOpenForm は ReservationFormData を期待するが、詳細モーダルからは ReservationAppointment が来る
+  // BUG-069: Appointment → ReservationFormData 変換を行うラッパー
+  // handleOpenForm は ReservationFormData を期待するが、詳細モーダルからは Appointment が来る
   const handleOpenFormFromAppointment = useCallback(
-    (appointment: ReservationAppointment) => {
+    (appointment: Appointment) => {
       handleOpenForm({
         id: appointment.id,
         start: appointment.start,
@@ -107,7 +107,7 @@ export function ReservationManagement() {
         ownerName: appointment.ownerName,
         petName: appointment.petName,
         visitType: appointment.visitType,
-        type: appointment.reservationCategoryId ?? "",
+        type: appointment.reservationTypeId ?? "",
         doctor: appointment.doctorId ?? "",
         isDesignated: appointment.isDesignated,
         status: appointment.status,

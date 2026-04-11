@@ -14,7 +14,4 @@ type ReservationTypeGroup struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime"           json:"updated_at"`
 }
 
-func (ReservationTypeGroup) TableName() string { return "reservation_category_groups" }
-
-// ReservationCategoryGroup は ReservationTypeGroup の後方互換エイリアス。
-type ReservationCategoryGroup = ReservationTypeGroup
+func (ReservationTypeGroup) TableName() string { return "reservation_type_groups" }

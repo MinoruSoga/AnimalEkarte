@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { transformReservation, transformToCreateRequest } from "./transforms";
 import type { Appointment as BackendReservation } from "@/types/generated/models";
-import type { ReservationAppointment } from "@/types";
+import type { Appointment } from "@/types";
 
 /** BackendReservation の最小スタブ */
 const minimalBackend: BackendReservation = {
@@ -56,7 +56,7 @@ describe("transformReservation", () => {
   });
 
   it("status をそのままマップする", () => {
-    const statuses: ReservationAppointment["status"][] = [
+    const statuses: Appointment["status"][] = [
       "confirmed", "pending", "checked_in", "in_consultation", "accounting", "completed", "cancelled",
     ];
     for (const status of statuses) {
@@ -147,7 +147,7 @@ describe("transformReservation", () => {
 });
 
 describe("transformToCreateRequest", () => {
-  const baseData: Partial<ReservationAppointment> = {
+  const baseData: Partial<Appointment> = {
     start: new Date("2026-03-25T10:00:00Z"),
     end: new Date("2026-03-25T10:30:00Z"),
     visitType: "first",
@@ -177,9 +177,9 @@ describe("transformToCreateRequest", () => {
     expect(result.visit_type).toBe("first");
   });
 
-  it("type を reservation_category_id (number) に変換する", () => {
+  it("type を reservation_type_id (number) に変換する", () => {
     const result = transformToCreateRequest({ ...baseData, type: "3" }, "1", "1");
-    expect(result.reservation_category_id).toBe(3);
+    expect(result.reservation_type_id).toBe(3);
   });
 
   it("notes を正しく渡す", () => {

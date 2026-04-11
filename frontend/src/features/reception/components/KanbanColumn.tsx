@@ -13,12 +13,13 @@ import { getReceptionColumnColor } from "@/utils/status-helpers";
 import { AppointmentCard } from "./AppointmentCard";
 
 // Types
-import type { Appointment, ColumnData } from "@/types";
+import type { ColumnData } from "@/types";
+import type { ReceptionAppointment } from "../api/types";
 
 interface KanbanColumnProps {
   data: ColumnData;
   onAddClick?: () => void;
-  onCardClick: (appointment: Appointment) => void;
+  onCardClick: (appointment: ReceptionAppointment) => void;
 }
 
 export const KanbanColumn = memo(function KanbanColumn({

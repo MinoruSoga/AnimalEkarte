@@ -13,7 +13,7 @@ export interface ApiVitalRecord {
     created_at: string;
 }
 
-export interface ApiCareLogRecord {
+export interface ApiCareLog {
     id: string;
     daily_record_id: string;
     time: string;
@@ -25,7 +25,7 @@ export interface ApiCareLogRecord {
     created_at: string;
 }
 
-export interface ApiStaffNoteRecord {
+export interface ApiStaffNote {
     id: string;
     daily_record_id: string;
     time: string;
@@ -41,8 +41,8 @@ export interface ApiDailyRecord {
     created_at: string;
     updated_at: string;
     vital_records: ApiVitalRecord[];
-    care_logs: ApiCareLogRecord[];
-    staff_notes: ApiStaffNoteRecord[];
+    care_logs: ApiCareLog[];
+    staff_notes: ApiStaffNote[];
 }
 
 // Request types
@@ -57,7 +57,7 @@ export interface CreateVitalRecordRequest {
     staff_id?: number;
 }
 
-export interface CreateCareLogRecordRequest {
+export interface CreateCareLogRequest {
     time: string;
     type: string;
     status?: string;
@@ -66,7 +66,7 @@ export interface CreateCareLogRecordRequest {
     notes?: string;
 }
 
-export interface CreateStaffNoteRecordRequest {
+export interface CreateStaffNoteRequest {
     time: string;
     content: string;
     staff_id?: number;

@@ -18,10 +18,10 @@ type ReservationStaffRepository interface {
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 	SoftDelete(ctx context.Context, id uint64) error
 	SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
-	// ExcludedReservationCategories
-	FindExcludedReservationCategories(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
-	FindExcludedReservationCategoriesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
-	ReplaceExcludedReservationCategories(ctx context.Context, staffID uint64, courseIDs []uint64) error
+	// ExcludedReservationTypes
+	FindExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
+	FindExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
+	ReplaceExcludedReservationTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error
 }
 
 type reservationStaffRepository struct{ db *gorm.DB }
@@ -133,7 +133,7 @@ func (r *reservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID
 	})
 }
 
-func (r *reservationStaffRepository) FindExcludedReservationCategories(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+func (r *reservationStaffRepository) FindExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
 	var items []model.StaffReservationExclusion
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType").
@@ -145,8 +145,8 @@ func (r *reservationStaffRepository) FindExcludedReservationCategories(ctx conte
 	return items, nil
 }
 
-// FindExcludedReservationCategoriesByStaffIDs は複数スタッフの除外コースを一括取得する（N+1回避）
-func (r *reservationStaffRepository) FindExcludedReservationCategoriesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
+// FindExcludedReservationTypesByStaffIDs は複数スタッフの除外コースを一括取得する（N+1回避）
+func (r *reservationStaffRepository) FindExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
 	if len(staffIDs) == 0 {
 		return nil, nil
 	}
@@ -156,17 +156,17 @@ func (r *reservationStaffRepository) FindExcludedReservationCategoriesByStaffIDs
 		Where("staff_id IN ?", staffIDs).
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "staff_excluded_reservation_category", "")
+		return nil, apperrors.FromGORM(err, "staff_excluded_reservation_type", "")
 	}
 	return items, nil
 }
 
-// ReplaceExcludedReservationCategories は staffID の除外コースを courseIDs で完全置換する（差分更新）
-func (r *reservationStaffRepository) ReplaceExcludedReservationCategories(ctx context.Context, staffID uint64, courseIDs []uint64) error {
+// ReplaceExcludedReservationTypes は staffID の除外コースを courseIDs で完全置換する（差分更新）
+func (r *reservationStaffRepository) ReplaceExcludedReservationTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存を全削除
 		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffReservationExclusion{}).Error; err != nil {
-			return apperrors.FromGORM(err, "staff_excluded_reservation_category", fmt.Sprintf("%d", staffID))
+			return apperrors.FromGORM(err, "staff_excluded_reservation_type", fmt.Sprintf("%d", staffID))
 		}
 		// 新規挿入
 		if len(courseIDs) == 0 {
@@ -180,7 +180,7 @@ func (r *reservationStaffRepository) ReplaceExcludedReservationCategories(ctx co
 			})
 		}
 		if err := tx.Create(&items).Error; err != nil {
-			return apperrors.FromGORM(err, "staff_excluded_reservation_category", "")
+			return apperrors.FromGORM(err, "staff_excluded_reservation_type", "")
 		}
 		return nil
 	})

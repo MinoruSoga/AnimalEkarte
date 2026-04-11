@@ -28,7 +28,7 @@ import (
 type mockLiffService struct {
 	getSettingsFn       func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 	getProfileFn        func(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error)
-	getCoursesFn        func(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error)
+	getCoursesFn        func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	getStaffsFn         func(ctx context.Context, clinicID, courseID uint64) ([]model.Staff, error)
 	getAvailableDatesFn func(ctx context.Context, clinicID, courseID, staffID uint64) ([]service.AvailableDateResult, service.BookingWindow, error)
 	getAvailableTimesFn func(ctx context.Context, clinicID, courseID, staffID uint64, date time.Time) ([]service.TimeSlot, error)
@@ -51,11 +51,11 @@ func (m *mockLiffService) GetProfile(ctx context.Context, clinicID, customerID u
 	return &model.LineCustomer{ID: customerID, ClinicID: clinicID}, nil
 }
 
-func (m *mockLiffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error) {
+func (m *mockLiffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	if m.getCoursesFn != nil {
 		return m.getCoursesFn(ctx, clinicID)
 	}
-	return []model.ReservationCategory{}, nil
+	return []model.ReservationType{}, nil
 }
 
 func (m *mockLiffService) GetStaffs(ctx context.Context, clinicID, courseID uint64) ([]model.Staff, error) {
@@ -241,8 +241,8 @@ func TestGetLiffCourses(t *testing.T) {
 
 	t.Run("正常系: コース一覧を返す", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{
-			getCoursesFn: func(_ context.Context, _ uint64) ([]model.ReservationCategory, error) {
-				return []model.ReservationCategory{
+			getCoursesFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
+				return []model.ReservationType{
 					{ID: 1, Name: "一般診察"},
 					{ID: 2, Name: "ワクチン接種"},
 				}, nil
@@ -258,7 +258,7 @@ func TestGetLiffCourses(t *testing.T) {
 
 	t.Run("サービスエラー → 500", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{
-			getCoursesFn: func(_ context.Context, _ uint64) ([]model.ReservationCategory, error) {
+			getCoursesFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
 				return nil, errors.New("internal error")
 			},
 		})

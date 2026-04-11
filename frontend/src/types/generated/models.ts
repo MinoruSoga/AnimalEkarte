@@ -203,7 +203,7 @@ export interface BillingRefund {
 }
 
 //////////
-// source: billing_review.go
+// source: billing_confirmation.go
 
 /**
  * ConfirmationStatus は会計医師確認ステータス
@@ -1068,7 +1068,7 @@ export const ResourceHospitalSettings: Resource = "hospital-settings";
  */
 export const ResourceMasterAnimalSpecies: Resource = "master-animal-species";
 export const ResourceMasterMedical: Resource = "master-medical";
-export const ResourceMasterReservationCategory: Resource = "master-reservation-category";
+export const ResourceMasterReservationType: Resource = "master-reservation-category";
 export const ResourceMasterHospitalization: Resource = "master-hospitalization";
 export const ResourceMasterTrimming: Resource = "master-trimming";
 export const ResourceMasterPermission: Resource = "master-permission";
@@ -1208,7 +1208,7 @@ export interface Procedure {
 }
 
 //////////
-// source: record_image.go
+// source: medical_record_image.go
 
 /**
  * MedicalImageType は診療画像種別
@@ -1296,13 +1296,13 @@ export interface Appointment {
    */
   owner?: Owner;
   pet?: Pet;
-  reservation_type?: ReservationCategory;
+  reservation_type?: ReservationType;
   doctor?: Staff;
   line_customer?: LineCustomer;
 }
 
 //////////
-// source: reservation_category.go
+// source: reservation_type.go
 
 /**
  * ReservationDayOption defines which weekdays a service type is available for LINE reservation.
@@ -1312,7 +1312,7 @@ export const DayOptionNone: ReservationDayOption = "none";
 export const DayOptionSaturday: ReservationDayOption = "saturday";
 export const DayOptionWeekday: ReservationDayOption = "weekday";
 export const DayOptionAnyday: ReservationDayOption = "anyday";
-export interface ReservationCategory {
+export interface ReservationType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
@@ -1338,16 +1338,16 @@ export interface ReservationCategory {
    * グループ（カレンダー凡例用）
    */
   group_id?: number /* uint64 */;
-  group?: ReservationCategoryGroup;
+  group?: ReservationTypeGroup;
 }
 
 //////////
-// source: reservation_category_group.go
+// source: reservation_type_group.go
 
 /**
- * ReservationCategoryGroup は予約区分のグループ（カレンダー凡例用）
+ * ReservationTypeGroup は予約区分のグループ（カレンダー凡例用）
  */
-export interface ReservationCategoryGroup {
+export interface ReservationTypeGroup {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
@@ -1487,9 +1487,9 @@ export interface ShiftEntry {
 }
 
 //////////
-// source: staff_excluded_reservation_category.go
+// source: staff_excluded_reservation_type.go
 
-export interface StaffExcludedReservationCategory {
+export interface StaffExcludedReservationType {
   id: number /* uint64 */;
   staff_id: number /* uint64 */;
   reservation_type_id: number /* uint64 */;
@@ -1497,7 +1497,7 @@ export interface StaffExcludedReservationCategory {
    * Relations
    */
   staff?: Staff;
-  reservation_type?: ReservationCategory;
+  reservation_type?: ReservationType;
 }
 
 //////////

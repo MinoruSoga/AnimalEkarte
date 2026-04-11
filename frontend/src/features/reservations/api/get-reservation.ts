@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { ReservationAppointment } from "@/types";
+import type { Appointment } from "@/types";
 import { transformReservation } from "./transforms";
 import type { Appointment as BackendReservation } from "@/types/generated/models";
 
 export const getReservation = async (
   id: string
-): Promise<ReservationAppointment> => {
+): Promise<Appointment> => {
   const { data } = await axios.get<BackendReservation>(
     `/v1/reservations/${id}`
   );

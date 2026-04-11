@@ -88,10 +88,10 @@ type StaffService interface {
 	GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error)
 	// SetPermissionGroupIDs はスタッフの権限グループを全置換する
 	SetPermissionGroupIDs(ctx context.Context, staffID uint64, groupIDs []uint64) error
-	// GetExcludedReservationCategoryIDs はスタッフの除外サービス種別IDリストを返す
-	GetExcludedReservationCategoryIDs(ctx context.Context, staffID uint64) ([]uint64, error)
-	// SetExcludedReservationCategoryIDs はスタッフの除外サービス種別を全置換する
-	SetExcludedReservationCategoryIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error
+	// GetExcludedReservationTypeIDs はスタッフの除外サービス種別IDリストを返す
+	GetExcludedReservationTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error)
+	// SetExcludedReservationTypeIDs はスタッフの除外サービス種別を全置換する
+	SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error
 }
 
 type staffService struct {
@@ -386,9 +386,9 @@ func (s *staffService) SetPermissionGroupIDs(ctx context.Context, staffID uint64
 	return nil
 }
 
-// GetExcludedReservationCategoryIDs はスタッフの除外サービス種別IDリストを返す
-func (s *staffService) GetExcludedReservationCategoryIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
-	items, err := s.resStaffRepo.FindExcludedReservationCategories(ctx, staffID)
+// GetExcludedReservationTypeIDs はスタッフの除外サービス種別IDリストを返す
+func (s *staffService) GetExcludedReservationTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
+	items, err := s.resStaffRepo.FindExcludedReservationTypes(ctx, staffID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get excluded service type ids")
 	}
@@ -399,9 +399,9 @@ func (s *staffService) GetExcludedReservationCategoryIDs(ctx context.Context, st
 	return ids, nil
 }
 
-// SetExcludedReservationCategoryIDs はスタッフの除外サービス種別を全置換する
-func (s *staffService) SetExcludedReservationCategoryIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error {
-	if err := s.resStaffRepo.ReplaceExcludedReservationCategories(ctx, staffID, typeIDs); err != nil {
+// SetExcludedReservationTypeIDs はスタッフの除外サービス種別を全置換する
+func (s *staffService) SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error {
+	if err := s.resStaffRepo.ReplaceExcludedReservationTypes(ctx, staffID, typeIDs); err != nil {
 		return apperrors.Wrap(err, "failed to set excluded service type ids")
 	}
 	return nil

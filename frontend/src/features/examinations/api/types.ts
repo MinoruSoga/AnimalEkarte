@@ -4,7 +4,7 @@
  */
 import type { Examination, ExamResult } from "@/types/generated/models";
 
-export type BackendExaminationItem = ExamResult;
+export type BackendExamResult = ExamResult;
 export type BackendExamination = Examination;
 
 export interface CreateExaminationRequest {

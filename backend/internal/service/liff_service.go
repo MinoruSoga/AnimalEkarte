@@ -16,7 +16,7 @@ import (
 type LiffService interface {
 	GetSettings(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 	GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error)
-	GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error)
+	GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	GetStaffs(ctx context.Context, clinicID, courseID uint64) ([]model.Staff, error)
 	GetAvailableDates(ctx context.Context, clinicID, courseID, staffID uint64) ([]AvailableDateResult, BookingWindow, error)
 	GetAvailableTimes(ctx context.Context, clinicID, courseID, staffID uint64, date time.Time) ([]TimeSlot, error)
@@ -27,7 +27,7 @@ type LiffService interface {
 
 type liffService struct {
 	settingRepo  repository.LineReservationSettingRepository
-	courseRepo   repository.ReservationCourseRepository
+	courseRepo   repository.ReservationTypeLiffRepository
 	staffRepo    repository.ReservationStaffRepository
 	scheduleRepo repository.ReservationScheduleRepository
 	adminRepo    repository.ReservationAdminRepository
@@ -40,7 +40,7 @@ type liffService struct {
 // NewLiffService はLIFFサービスを初期化して返す。
 func NewLiffService(
 	settingRepo repository.LineReservationSettingRepository,
-	courseRepo repository.ReservationCourseRepository,
+	courseRepo repository.ReservationTypeLiffRepository,
 	staffRepo repository.ReservationStaffRepository,
 	scheduleRepo repository.ReservationScheduleRepository,
 	adminRepo repository.ReservationAdminRepository,
@@ -81,12 +81,12 @@ func (s *liffService) GetProfile(ctx context.Context, clinicID, customerID uint6
 }
 
 // GetCourses はLIFF向け公開コース一覧を返す（is_internal=false && reservation_visible=true）。
-func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error) {
+func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	all, err := s.courseRepo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get courses")
 	}
-	result := make([]model.ReservationCategory, 0, len(all))
+	result := make([]model.ReservationType, 0, len(all))
 	for _, c := range all {
 		if !c.IsInternal && c.ReservationVisible {
 			result = append(result, c)
@@ -106,7 +106,7 @@ func (s *liffService) GetStaffs(ctx context.Context, clinicID, courseID uint64) 
 		if !st.ReservationVisible {
 			continue
 		}
-		excluded, err := s.staffRepo.FindExcludedReservationCategories(ctx, st.ID)
+		excluded, err := s.staffRepo.FindExcludedReservationTypes(ctx, st.ID)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to get excluded service types")
 		}
@@ -316,7 +316,7 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, courseI
 		if !st.ReservationVisible {
 			continue
 		}
-		excluded, err := s.staffRepo.FindExcludedReservationCategories(ctx, st.ID)
+		excluded, err := s.staffRepo.FindExcludedReservationTypes(ctx, st.ID)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to get excluded service types")
 		}
@@ -445,7 +445,7 @@ func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.Appo
 }
 
 // isExcluded は指定コースIDがスタッフの除外リストに含まれるか確認する。
-func isExcluded(excluded []model.StaffExcludedReservationCategory, courseID uint64) bool {
+func isExcluded(excluded []model.StaffReservationExclusion, courseID uint64) bool {
 	for _, ex := range excluded {
 		if ex.ReservationTypeID == courseID {
 			return true

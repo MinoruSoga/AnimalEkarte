@@ -44,12 +44,12 @@ type Examination struct {
 	Pet             *Pet              `gorm:"foreignKey:PetID"           json:"pet,omitempty"`
 	ExaminationType *ExaminationType  `gorm:"foreignKey:ExamTypeID"      json:"exam_type,omitempty"`
 	Doctor          *Staff            `gorm:"foreignKey:DoctorID"        json:"doctor,omitempty"`
-	Items           []ExaminationItem `gorm:"foreignKey:ExamID"          json:"items,omitempty"`
+	Items           []ExamResult `gorm:"foreignKey:ExamID"          json:"items,omitempty"`
 }
 
 func (Examination) TableName() string { return "exams" }
 
-type ExaminationItem struct {
+type ExamResult struct {
 	ID              uint64                  `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ExamID          uint64                  `gorm:"not null"                                       json:"exam_id"`
 	ExamTypeItemID  *uint64                 `gorm:"column:exam_type_field_id"                      json:"exam_type_field_id,omitempty"`
@@ -71,4 +71,4 @@ type ExaminationItem struct {
 	ExamTypeField *ExamTypeField `gorm:"foreignKey:ExamTypeItemID" json:"exam_type_item,omitempty"`
 }
 
-func (ExaminationItem) TableName() string { return "exam_results" }
+func (ExamResult) TableName() string { return "exam_results" }

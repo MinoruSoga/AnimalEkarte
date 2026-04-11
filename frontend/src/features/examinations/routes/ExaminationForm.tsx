@@ -366,7 +366,7 @@ export function ExaminationForm() {
               petNumber={selectedPet.petNumber || selectedPet.id}
               weight={selectedPet.weight || "-"}
               staffName="医師A"
-              reservationCategory="検査"
+              reservationType="検査"
               petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
               insuranceName={selectedPet.insuranceName || "保険情報未登録"}
               insuranceDetails={selectedPet.insuranceDetails || "-"}

@@ -1,14 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
-import type { ReservationCustomer } from "./types";
+import type { LineCustomer } from "./types";
 
 export async function updateOwnerLink(
   clinicId: string,
   customerId: number,
   ownerID: number | null,
-): Promise<ReservationCustomer> {
-  const { data } = await axios.patch<ReservationCustomer>(
+): Promise<LineCustomer> {
+  const { data } = await axios.patch<LineCustomer>(
     `/v1/clinics/${clinicId}/line-customers/${customerId}/link-owner`,
     { owner_id: ownerID },
   );

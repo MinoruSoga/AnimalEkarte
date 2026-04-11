@@ -13,11 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Types
-import type { ApiStaffNoteRecord, CreateStaffNoteRecordRequest } from "@/features/hospitalization/api/daily-records-types";
+import type { ApiStaffNote, CreateStaffNoteRequest } from "@/features/hospitalization/api/daily-records-types";
 
 interface DailyStaffNotesSectionProps {
-    staffNotes: ApiStaffNoteRecord[];
-    onAddStaffNote: (payload: CreateStaffNoteRecordRequest) => void;
+    staffNotes: ApiStaffNote[];
+    onAddStaffNote: (payload: CreateStaffNoteRequest) => void;
     isPending: boolean;
     canCreate?: boolean;
 }

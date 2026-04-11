@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { ReservationCategoryGroup as ModelReservationCategoryGroup } from "@/types/generated/models";
+import type { ReservationTypeGroup as ModelReservationTypeGroup } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformReservationCategoryGroup(data: ModelReservationCategoryGroup) {
+function transformReservationTypeGroup(data: ModelReservationTypeGroup) {
   return {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
@@ -20,7 +20,7 @@ function transformReservationCategoryGroup(data: ModelReservationCategoryGroup) 
   };
 }
 
-export type ReservationCategoryGroup = ReturnType<typeof transformReservationCategoryGroup>;
+export type ReservationTypeGroup = ReturnType<typeof transformReservationTypeGroup>;
 
 // ─────────────────────────────────────────────────
 // Query keys
@@ -32,17 +32,17 @@ export const RESERVATION_CATEGORY_GROUPS_QUERY_KEY = ["masters", "reservation-ty
 // Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export type CreateReservationCategoryGroupRequest = Pick<ModelReservationCategoryGroup, "name"> & {
+export type CreateReservationTypeGroupRequest = Pick<ModelReservationTypeGroup, "name"> & {
   color?: string;
   sort_order?: number;
   is_active?: boolean;
 };
 
-export type UpdateReservationCategoryGroupRequest = Partial<
-  Pick<ModelReservationCategoryGroup, "name" | "color" | "sort_order" | "is_active">
+export type UpdateReservationTypeGroupRequest = Partial<
+  Pick<ModelReservationTypeGroup, "name" | "color" | "sort_order" | "is_active">
 >;
 
-export type ReorderReservationCategoryGroupRequest = {
+export type ReorderReservationTypeGroupRequest = {
   ids: number[];
 };
 
@@ -50,40 +50,40 @@ export type ReorderReservationCategoryGroupRequest = {
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listReservationCategoryGroups(): Promise<ReservationCategoryGroup[]> {
-  const { data } = await axios.get<ModelReservationCategoryGroup[]>(
+export async function listReservationTypeGroups(): Promise<ReservationTypeGroup[]> {
+  const { data } = await axios.get<ModelReservationTypeGroup[]>(
     "/v1/masters/reservation-type-groups",
   );
-  return data.map(transformReservationCategoryGroup);
+  return data.map(transformReservationTypeGroup);
 }
 
-export async function createReservationCategoryGroup(
-  req: CreateReservationCategoryGroupRequest,
-): Promise<ReservationCategoryGroup> {
-  const { data } = await axios.post<ModelReservationCategoryGroup>(
+export async function createReservationTypeGroup(
+  req: CreateReservationTypeGroupRequest,
+): Promise<ReservationTypeGroup> {
+  const { data } = await axios.post<ModelReservationTypeGroup>(
     "/v1/masters/reservation-type-groups",
     req,
   );
-  return transformReservationCategoryGroup(data);
+  return transformReservationTypeGroup(data);
 }
 
-export async function updateReservationCategoryGroup(
+export async function updateReservationTypeGroup(
   id: string,
-  req: UpdateReservationCategoryGroupRequest,
-): Promise<ReservationCategoryGroup> {
-  const { data } = await axios.patch<ModelReservationCategoryGroup>(
+  req: UpdateReservationTypeGroupRequest,
+): Promise<ReservationTypeGroup> {
+  const { data } = await axios.patch<ModelReservationTypeGroup>(
     `/v1/masters/reservation-type-groups/${id}`,
     req,
   );
-  return transformReservationCategoryGroup(data);
+  return transformReservationTypeGroup(data);
 }
 
-export async function deleteReservationCategoryGroup(id: string): Promise<void> {
+export async function deleteReservationTypeGroup(id: string): Promise<void> {
   await axios.delete(`/v1/masters/reservation-type-groups/${id}`);
 }
 
-export async function reorderReservationCategoryGroups(
-  req: ReorderReservationCategoryGroupRequest,
+export async function reorderReservationTypeGroups(
+  req: ReorderReservationTypeGroupRequest,
 ): Promise<void> {
   await axios.patch("/v1/masters/reservation-type-groups/reorder", req);
 }
@@ -92,50 +92,50 @@ export async function reorderReservationCategoryGroups(
 // TanStack Query hooks
 // ─────────────────────────────────────────────────
 
-export function useGetReservationCategoryGroups() {
+export function useGetReservationTypeGroups() {
   return useQuery({
     queryKey: RESERVATION_CATEGORY_GROUPS_QUERY_KEY,
-    queryFn: listReservationCategoryGroups,
+    queryFn: listReservationTypeGroups,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
-export function useCreateReservationCategoryGroup() {
+export function useCreateReservationTypeGroup() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createReservationCategoryGroup,
+    mutationFn: createReservationTypeGroup,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: RESERVATION_CATEGORY_GROUPS_QUERY_KEY });
     },
   });
 }
 
-export function useUpdateReservationCategoryGroup() {
+export function useUpdateReservationTypeGroup() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateReservationCategoryGroupRequest }) =>
-      updateReservationCategoryGroup(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdateReservationTypeGroupRequest }) =>
+      updateReservationTypeGroup(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: RESERVATION_CATEGORY_GROUPS_QUERY_KEY });
     },
   });
 }
 
-export function useDeleteReservationCategoryGroup() {
+export function useDeleteReservationTypeGroup() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deleteReservationCategoryGroup,
+    mutationFn: deleteReservationTypeGroup,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: RESERVATION_CATEGORY_GROUPS_QUERY_KEY });
     },
   });
 }
 
-export function useReorderReservationCategoryGroups() {
+export function useReorderReservationTypeGroups() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: reorderReservationCategoryGroups,
+    mutationFn: reorderReservationTypeGroups,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: RESERVATION_CATEGORY_GROUPS_QUERY_KEY });
     },

@@ -18,7 +18,7 @@ import PawPrint from "lucide-react/dist/esm/icons/paw-print";
 import ShoppingBag from "lucide-react/dist/esm/icons/shopping-bag";
 
 import type { Resource } from "@/types/generated/models";
-import { ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationCategory, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCheckups } from "@/types/generated/models";
+import { ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCheckups } from "@/types/generated/models";
 
 // All master categories for the settings UI
 // Note: some of these have their own backend tables, but all appear in settings UI
@@ -27,7 +27,7 @@ export type MasterSettingsCategory =
   | "vaccine"
   | "medicine"
   | "consultation"
-  | "reservationCategory"
+  | "reservationType"
   | "procedure"
   | "hospitalization"
   | "cage"
@@ -101,12 +101,12 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     showPrice: true, showCode: false, showCategory: false, showParentItem: true,
     namePlaceholder: "再診料", codePlaceholder: "",
   },
-  reservationCategory: {
+  reservationType: {
     label: "予約区分マスタ",
     description: "予約の区分（診療、トリミング入院等）を管理します",
     settingsPath: "/settings/reservation-category",
     IconComponent: Activity,
-    resource: ResourceMasterReservationCategory,
+    resource: ResourceMasterReservationType,
     labels: { code: "コード", name: "名称", category: "分類" },
     showPrice: false, showCode: false, showCategory: false, showParentItem: false,
     namePlaceholder: "診療", codePlaceholder: "",

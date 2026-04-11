@@ -10,32 +10,32 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// ListReservationCourses godoc
-func (h *Handler) ListReservationCourses(c *gin.Context) {
+// ListReservationTypeLiffs godoc
+func (h *Handler) ListReservationTypeLiffs(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	items, err := h.svc.ReservationCourse.List(c.Request.Context(), clinicID)
+	items, err := h.svc.ReservationTypeLiff.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationCourseResponseList(items))
+	c.JSON(http.StatusOK, toReservationTypeLiffResponseList(items))
 }
 
-// CreateReservationCourse godoc
-func (h *Handler) CreateReservationCourse(c *gin.Context) {
+// CreateReservationTypeLiff godoc
+func (h *Handler) CreateReservationTypeLiff(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	var req createReservationCourseRequest
+	var req createReservationTypeLiffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	st, err := h.svc.ReservationCourse.Create(c.Request.Context(), clinicID, &service.CreateReservationCourseInput{
+	st, err := h.svc.ReservationTypeLiff.Create(c.Request.Context(), clinicID, &service.CreateReservationTypeLiffInput{
 		Name:                 req.Name,
 		Color:                req.Color,
 		Description:          req.Description,
@@ -52,11 +52,11 @@ func (h *Handler) CreateReservationCourse(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, toReservationCourseResponse(st))
+	c.JSON(http.StatusCreated, toReservationTypeLiffResponse(st))
 }
 
-// UpdateReservationCourse godoc
-func (h *Handler) UpdateReservationCourse(c *gin.Context) {
+// UpdateReservationTypeLiff godoc
+func (h *Handler) UpdateReservationTypeLiff(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -66,12 +66,12 @@ func (h *Handler) UpdateReservationCourse(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	var req updateReservationCourseRequest
+	var req updateReservationTypeLiffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	st, err := h.svc.ReservationCourse.Update(c.Request.Context(), clinicID, id, &service.UpdateReservationCourseInput{
+	st, err := h.svc.ReservationTypeLiff.Update(c.Request.Context(), clinicID, id, &service.UpdateReservationTypeLiffInput{
 		Name:                 req.Name,
 		Color:                req.Color,
 		Description:          req.Description,
@@ -88,11 +88,11 @@ func (h *Handler) UpdateReservationCourse(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationCourseResponse(st))
+	c.JSON(http.StatusOK, toReservationTypeLiffResponse(st))
 }
 
-// DeleteReservationCourse godoc
-func (h *Handler) DeleteReservationCourse(c *gin.Context) {
+// DeleteReservationTypeLiff godoc
+func (h *Handler) DeleteReservationTypeLiff(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -102,15 +102,15 @@ func (h *Handler) DeleteReservationCourse(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.ReservationCourse.Delete(c.Request.Context(), clinicID, id); err != nil {
+	if err := h.svc.ReservationTypeLiff.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
 }
 
-// PatchReservationCourseStatus godoc
-func (h *Handler) PatchReservationCourseStatus(c *gin.Context) {
+// PatchReservationTypeLiffStatus godoc
+func (h *Handler) PatchReservationTypeLiffStatus(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -120,21 +120,21 @@ func (h *Handler) PatchReservationCourseStatus(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	var req patchReservationCourseStatusRequest
+	var req patchReservationTypeLiffStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	st, err := h.svc.ReservationCourse.PatchStatus(c.Request.Context(), clinicID, id, req.IsActive)
+	st, err := h.svc.ReservationTypeLiff.PatchStatus(c.Request.Context(), clinicID, id, req.IsActive)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationCourseResponse(st))
+	c.JSON(http.StatusOK, toReservationTypeLiffResponse(st))
 }
 
-// PatchReservationCourseSortOrder godoc
-func (h *Handler) PatchReservationCourseSortOrder(c *gin.Context) {
+// PatchReservationTypeLiffSortOrder godoc
+func (h *Handler) PatchReservationTypeLiffSortOrder(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -144,19 +144,19 @@ func (h *Handler) PatchReservationCourseSortOrder(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	var req patchReservationCourseSortOrderRequest
+	var req patchReservationTypeLiffSortOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	if err := h.svc.ReservationCourse.PatchSortOrder(c.Request.Context(), clinicID, id, req.Direction); err != nil {
+	if err := h.svc.ReservationTypeLiff.PatchSortOrder(c.Request.Context(), clinicID, id, req.Direction); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
 }
 
-// UploadReservationCourseImage godoc — v2 スコープ：未実装
-func (h *Handler) UploadReservationCourseImage(c *gin.Context) {
+// UploadReservationTypeLiffImage godoc — v2 スコープ：未実装
+func (h *Handler) UploadReservationTypeLiffImage(c *gin.Context) {
 	RespondError(c, apperrors.WrapInternalServerError("この機能は未実装です"))
 }

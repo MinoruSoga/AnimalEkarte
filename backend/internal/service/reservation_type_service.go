@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for ReservationCategory entity.
+// Package service provides business logic implementations for ReservationType entity.
 package service
 
 import (
@@ -12,8 +12,8 @@ import (
 
 // ---- Input DTOs ----
 
-// CreateReservationCategoryInput はサービス種別作成のための入力データ
-type CreateReservationCategoryInput struct {
+// CreateReservationTypeInput はサービス種別作成のための入力データ
+type CreateReservationTypeInput struct {
 	Name        string
 	Color       string
 	IsActive    bool
@@ -33,8 +33,8 @@ type CreateReservationCategoryInput struct {
 	IsInternal             bool
 }
 
-// UpdateReservationCategoryInput はサービス種別更新のための入力データ（ポインタ型でゼロ値を区別する）
-type UpdateReservationCategoryInput struct {
+// UpdateReservationTypeInput はサービス種別更新のための入力データ（ポインタ型でゼロ値を区別する）
+type UpdateReservationTypeInput struct {
 	Name        *string
 	Color       *string
 	IsActive    *bool
@@ -57,65 +57,65 @@ type UpdateReservationCategoryInput struct {
 // ---- DB column constants ----
 
 const (
-	colReservationCategoryName                = "name"
-	colReservationCategoryColor               = "color"
-	colReservationCategoryIsActive            = "is_active"
-	colReservationCategoryDescription         = "description"
-	colReservationCategorySortOrder           = "sort_order"
-	colReservationCategoryReservationDispName = "reservation_display_name"
-	colReservationCategoryDurationMinutes     = "duration_minutes"
-	colReservationCategoryShortName           = "short_name"
-	colReservationCategoryShowShortName       = "show_short_name"
-	colReservationCategoryReservationVisible  = "reservation_visible"
-	colReservationCategoryReservationComment  = "reservation_comment"
-	colReservationCategoryReservationDayOpt   = "reservation_day_option"
-	colReservationCategoryIsInternal          = "is_internal"
+	colReservationTypeName                = "name"
+	colReservationTypeColor               = "color"
+	colReservationTypeIsActive            = "is_active"
+	colReservationTypeDescription         = "description"
+	colReservationTypeSortOrder           = "sort_order"
+	colReservationTypeReservationDispName = "reservation_display_name"
+	colReservationTypeDurationMinutes     = "duration_minutes"
+	colReservationTypeShortName           = "short_name"
+	colReservationTypeShowShortName       = "show_short_name"
+	colReservationTypeReservationVisible  = "reservation_visible"
+	colReservationTypeReservationComment  = "reservation_comment"
+	colReservationTypeReservationDayOpt   = "reservation_day_option"
+	colReservationTypeIsInternal          = "is_internal"
 )
 
-// buildReservationCategoryUpdateFields は UpdateReservationCategoryInput から nil でないフィールドのみ map に変換する
-func buildReservationCategoryUpdateFields(input *UpdateReservationCategoryInput) map[string]any {
+// buildReservationTypeUpdateFields は UpdateReservationTypeInput から nil でないフィールドのみ map に変換する
+func buildReservationTypeUpdateFields(input *UpdateReservationTypeInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields[colReservationCategoryName] = *input.Name
+		fields[colReservationTypeName] = *input.Name
 	}
 	if input.Color != nil {
-		fields[colReservationCategoryColor] = *input.Color
+		fields[colReservationTypeColor] = *input.Color
 	}
 	if input.IsActive != nil {
-		fields[colReservationCategoryIsActive] = *input.IsActive
+		fields[colReservationTypeIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields[colReservationCategoryDescription] = *input.Description
+		fields[colReservationTypeDescription] = *input.Description
 	}
 	if input.SortOrder != nil {
-		fields[colReservationCategorySortOrder] = *input.SortOrder
+		fields[colReservationTypeSortOrder] = *input.SortOrder
 	}
 	if input.ReservationDisplayName != nil {
-		fields[colReservationCategoryReservationDispName] = *input.ReservationDisplayName
+		fields[colReservationTypeReservationDispName] = *input.ReservationDisplayName
 	}
 	if input.DurationMinutes != nil {
-		fields[colReservationCategoryDurationMinutes] = *input.DurationMinutes
+		fields[colReservationTypeDurationMinutes] = *input.DurationMinutes
 	}
 	if input.ShortName != nil {
-		fields[colReservationCategoryShortName] = *input.ShortName
+		fields[colReservationTypeShortName] = *input.ShortName
 	}
 	if input.ShowShortName != nil {
-		fields[colReservationCategoryShowShortName] = *input.ShowShortName
+		fields[colReservationTypeShowShortName] = *input.ShowShortName
 	}
 	if input.ReservationVisible != nil {
-		fields[colReservationCategoryReservationVisible] = *input.ReservationVisible
+		fields[colReservationTypeReservationVisible] = *input.ReservationVisible
 	}
 	if input.ReservationComment != nil {
-		fields[colReservationCategoryReservationComment] = *input.ReservationComment
+		fields[colReservationTypeReservationComment] = *input.ReservationComment
 	}
 	if input.ReservationImageURL != nil {
 		fields["reservation_image_url"] = *input.ReservationImageURL
 	}
 	if input.ReservationDayOption != nil {
-		fields[colReservationCategoryReservationDayOpt] = *input.ReservationDayOption
+		fields[colReservationTypeReservationDayOpt] = *input.ReservationDayOption
 	}
 	if input.IsInternal != nil {
-		fields[colReservationCategoryIsInternal] = *input.IsInternal
+		fields[colReservationTypeIsInternal] = *input.IsInternal
 	}
 	if input.GroupID != nil {
 		fields["group_id"] = *input.GroupID
@@ -123,27 +123,27 @@ func buildReservationCategoryUpdateFields(input *UpdateReservationCategoryInput)
 	return fields
 }
 
-// ---- ReservationCategoryService ----
+// ---- ReservationTypeService ----
 
-type ReservationCategoryService interface { //nolint:revive // ReservationCategory is a domain entity name, cannot avoid stutter
-	List(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error)
-	GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationCategory, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateReservationCategoryInput) (*model.ReservationCategory, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCategoryInput) (*model.ReservationCategory, error)
+type ReservationTypeService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
+	List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeInput) (*model.ReservationType, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeInput) (*model.ReservationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type reservationCategoryService struct {
-	repo            repository.ReservationCategoryRepository
+	repo            repository.ReservationTypeRepository
 	reservationRepo repository.ReservationRepository
 }
 
-func NewReservationCategoryService(repo repository.ReservationCategoryRepository, reservationRepo repository.ReservationRepository) ReservationCategoryService {
+func NewReservationTypeService(repo repository.ReservationTypeRepository, reservationRepo repository.ReservationRepository) ReservationTypeService {
 	return &reservationCategoryService{repo: repo, reservationRepo: reservationRepo}
 }
 
-func (s *reservationCategoryService) List(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error) {
+func (s *reservationCategoryService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list service types")
@@ -151,7 +151,7 @@ func (s *reservationCategoryService) List(ctx context.Context, clinicID uint64) 
 	return items, nil
 }
 
-func (s *reservationCategoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationCategory, error) {
+func (s *reservationCategoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get service type")
@@ -159,13 +159,13 @@ func (s *reservationCategoryService) GetByID(ctx context.Context, clinicID, id u
 	return result, nil
 }
 
-func (s *reservationCategoryService) Create(ctx context.Context, clinicID uint64, input *CreateReservationCategoryInput) (*model.ReservationCategory, error) {
+func (s *reservationCategoryService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeInput) (*model.ReservationType, error) {
 	reservationDayOption := model.ReservationDayOption(input.ReservationDayOption)
 	if reservationDayOption == "" {
 		reservationDayOption = model.DayOptionNone
 	}
 
-	st := &model.ReservationCategory{
+	st := &model.ReservationType{
 		ClinicID:               clinicID,
 		Name:                   input.Name,
 		Color:                  input.Color,
@@ -186,12 +186,12 @@ func (s *reservationCategoryService) Create(ctx context.Context, clinicID uint64
 	if err := s.repo.Create(ctx, st); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create service type")
 	}
-	slog.InfoContext(ctx, "service type created", slog.Uint64("reservation_category_id", st.ID))
+	slog.InfoContext(ctx, "service type created", slog.Uint64("reservation_type_id", st.ID))
 	return st, nil
 }
 
-func (s *reservationCategoryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCategoryInput) (*model.ReservationCategory, error) {
-	fields := buildReservationCategoryUpdateFields(input)
+func (s *reservationCategoryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeInput) (*model.ReservationType, error) {
+	fields := buildReservationTypeUpdateFields(input)
 	if len(fields) == 0 {
 		result, err := s.repo.FindByID(ctx, clinicID, id)
 		if err != nil {
@@ -202,7 +202,7 @@ func (s *reservationCategoryService) Update(ctx context.Context, clinicID, id ui
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update service type")
 	}
-	slog.InfoContext(ctx, "service type updated", slog.Uint64("reservation_category_id", id))
+	slog.InfoContext(ctx, "service type updated", slog.Uint64("reservation_type_id", id))
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get service type after update")
@@ -211,7 +211,7 @@ func (s *reservationCategoryService) Update(ctx context.Context, clinicID, id ui
 }
 
 func (s *reservationCategoryService) Delete(ctx context.Context, clinicID, id uint64) error {
-	exists, err := s.reservationRepo.ExistsByReservationCategoryID(ctx, id)
+	exists, err := s.reservationRepo.ExistsByReservationTypeID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}
@@ -221,7 +221,7 @@ func (s *reservationCategoryService) Delete(ctx context.Context, clinicID, id ui
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete service type")
 	}
-	slog.InfoContext(ctx, "service type deleted", slog.Uint64("reservation_category_id", id), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "service type deleted", slog.Uint64("reservation_type_id", id), slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 

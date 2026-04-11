@@ -9,7 +9,7 @@ import { CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-interface ExaminationItem {
+interface ExamResult {
   id: number;
   name: string;
   result: string;
@@ -23,7 +23,7 @@ interface ExaminationGroupProps {
     id: number;
     date: string;
     machine: string;
-    items: ExaminationItem[];
+    items: ExamResult[];
   };
 }
 

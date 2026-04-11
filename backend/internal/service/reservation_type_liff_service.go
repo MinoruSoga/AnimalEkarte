@@ -9,18 +9,18 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ReservationCourseService は予約コース（reservation_categories）のビジネスロジックインターフェース
-type ReservationCourseService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateReservationCourseInput) (*model.ReservationCategory, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCourseInput) (*model.ReservationCategory, error)
+// ReservationTypeLiffService は予約コース（reservation_categories）のビジネスロジックインターフェース
+type ReservationTypeLiffService interface {
+	List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeLiffInput) (*model.ReservationType, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeLiffInput) (*model.ReservationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationCategory, error)
+	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationType, error)
 	PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
-// CreateReservationCourseInput は予約コース作成の入力データ
-type CreateReservationCourseInput struct {
+// CreateReservationTypeLiffInput は予約コース作成の入力データ
+type CreateReservationTypeLiffInput struct {
 	Name                 string
 	Color                string
 	Description          string
@@ -34,8 +34,8 @@ type CreateReservationCourseInput struct {
 	IsInternal           bool
 }
 
-// UpdateReservationCourseInput は予約コース更新の入力データ（ポインタ型でゼロ値を区別）
-type UpdateReservationCourseInput struct {
+// UpdateReservationTypeLiffInput は予約コース更新の入力データ（ポインタ型でゼロ値を区別）
+type UpdateReservationTypeLiffInput struct {
 	Name                 *string
 	Color                *string
 	Description          *string
@@ -49,17 +49,17 @@ type UpdateReservationCourseInput struct {
 	IsInternal           *bool
 }
 
-type reservationCourseService struct {
-	repo         repository.ReservationCourseRepository
+type reservationTypeLiffService struct {
+	repo         repository.ReservationTypeLiffRepository
 	resAdminRepo repository.ReservationAdminRepository
 	resRepo      repository.ReservationRepository
 }
 
-func NewReservationCourseService(repo repository.ReservationCourseRepository, resAdminRepo repository.ReservationAdminRepository, resRepo repository.ReservationRepository) ReservationCourseService {
-	return &reservationCourseService{repo: repo, resAdminRepo: resAdminRepo, resRepo: resRepo}
+func NewReservationTypeLiffService(repo repository.ReservationTypeLiffRepository, resAdminRepo repository.ReservationAdminRepository, resRepo repository.ReservationRepository) ReservationTypeLiffService {
+	return &reservationTypeLiffService{repo: repo, resAdminRepo: resAdminRepo, resRepo: resRepo}
 }
 
-func (s *reservationCourseService) List(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error) {
+func (s *reservationTypeLiffService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	result, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list reservation course")
@@ -67,12 +67,12 @@ func (s *reservationCourseService) List(ctx context.Context, clinicID uint64) ([
 	return result, nil
 }
 
-func (s *reservationCourseService) Create(ctx context.Context, clinicID uint64, input *CreateReservationCourseInput) (*model.ReservationCategory, error) {
+func (s *reservationTypeLiffService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeLiffInput) (*model.ReservationType, error) {
 	dayOption := model.ReservationDayOption(input.ReservationDayOption)
 	if dayOption == "" {
 		dayOption = model.DayOptionNone
 	}
-	st := &model.ReservationCategory{
+	st := &model.ReservationType{
 		ClinicID:             clinicID,
 		Name:                 input.Name,
 		Color:                input.Color,
@@ -91,7 +91,7 @@ func (s *reservationCourseService) Create(ctx context.Context, clinicID uint64, 
 		return nil, apperrors.Wrap(err, "failed to create reservation course")
 	}
 	slog.InfoContext(ctx, "reservation course created",
-		slog.Uint64("reservation_category_id", st.ID),
+		slog.Uint64("reservation_type_id", st.ID),
 		slog.Uint64("clinic_id", clinicID))
 	created, err := s.repo.FindByID(ctx, clinicID, st.ID)
 	if err != nil {
@@ -100,8 +100,8 @@ func (s *reservationCourseService) Create(ctx context.Context, clinicID uint64, 
 	return created, nil
 }
 
-func (s *reservationCourseService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCourseInput) (*model.ReservationCategory, error) {
-	fields := buildReservationCourseUpdateFields(input)
+func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
+	fields := buildReservationTypeLiffUpdateFields(input)
 	if len(fields) == 0 {
 		result, err := s.repo.FindByID(ctx, clinicID, id)
 		if err != nil {
@@ -117,13 +117,13 @@ func (s *reservationCourseService) Update(ctx context.Context, clinicID, id uint
 		return nil, apperrors.Wrap(err, "failed to get reservation course after update")
 	}
 	slog.InfoContext(ctx, "reservation course updated",
-		slog.Uint64("reservation_category_id", id),
+		slog.Uint64("reservation_type_id", id),
 		slog.Uint64("clinic_id", clinicID))
 	return updated, nil
 }
 
-func (s *reservationCourseService) Delete(ctx context.Context, clinicID, id uint64) error {
-	exists, err := s.resRepo.ExistsByReservationCategoryID(ctx, id)
+func (s *reservationTypeLiffService) Delete(ctx context.Context, clinicID, id uint64) error {
+	exists, err := s.resRepo.ExistsByReservationTypeID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}
@@ -134,12 +134,12 @@ func (s *reservationCourseService) Delete(ctx context.Context, clinicID, id uint
 		return apperrors.Wrap(err, "failed to delete reservation course")
 	}
 	slog.InfoContext(ctx, "reservation course deleted",
-		slog.Uint64("reservation_category_id", id),
+		slog.Uint64("reservation_type_id", id),
 		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 
-func (s *reservationCourseService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationCategory, error) {
+func (s *reservationTypeLiffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationType, error) {
 	if err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to patch status")
 	}
@@ -150,7 +150,7 @@ func (s *reservationCourseService) PatchStatus(ctx context.Context, clinicID, id
 	return result, nil
 }
 
-func (s *reservationCourseService) PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
+func (s *reservationTypeLiffService) PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
 	if direction != "up" && direction != "down" {
 		return apperrors.WrapInvalidInput("direction must be 'up' or 'down'")
 	}
@@ -160,7 +160,7 @@ func (s *reservationCourseService) PatchSortOrder(ctx context.Context, clinicID,
 	return nil
 }
 
-func buildReservationCourseUpdateFields(input *UpdateReservationCourseInput) map[string]any {
+func buildReservationTypeLiffUpdateFields(input *UpdateReservationTypeLiffInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields["name"] = *input.Name

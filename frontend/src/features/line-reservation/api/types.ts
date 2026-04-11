@@ -1,10 +1,10 @@
-import type { LineReservationSetting, LineCustomer } from "@/types/generated/models";
+import type { LineReservationSetting, LineCustomer as LineCustomerModel } from "@/types/generated/models";
 
 // ── Re-export backend types ──
-export type { LineReservationSetting, LineCustomer };
+export type { LineReservationSetting };
+export type { LineCustomerModel as LineCustomer };
 // Backward-compat aliases
 export type ReservationSetting = LineReservationSetting;
-export type ReservationCustomer = LineCustomer;
 
 // ── API Request types ──
 export type UpdateReservationSettingRequest = Omit<LineReservationSetting, "id" | "clinic_id" | "created_at" | "updated_at">;

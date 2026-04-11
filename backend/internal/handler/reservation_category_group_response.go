@@ -17,7 +17,7 @@ type reservationCategoryGroupResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func toReservationCategoryGroupResponse(g *model.ReservationCategoryGroup) reservationCategoryGroupResponse {
+func toReservationTypeGroupResponse(g *model.ReservationTypeGroup) reservationCategoryGroupResponse {
 	return reservationCategoryGroupResponse{
 		ID:        g.ID,
 		ClinicID:  g.ClinicID,
@@ -30,10 +30,10 @@ func toReservationCategoryGroupResponse(g *model.ReservationCategoryGroup) reser
 	}
 }
 
-func toReservationCategoryGroupResponseList(items []model.ReservationCategoryGroup) []reservationCategoryGroupResponse {
+func toReservationTypeGroupResponseList(items []model.ReservationTypeGroup) []reservationCategoryGroupResponse {
 	list := make([]reservationCategoryGroupResponse, 0, len(items))
 	for i := range items {
-		list = append(list, toReservationCategoryGroupResponse(&items[i]))
+		list = append(list, toReservationTypeGroupResponse(&items[i]))
 	}
 	return list
 }

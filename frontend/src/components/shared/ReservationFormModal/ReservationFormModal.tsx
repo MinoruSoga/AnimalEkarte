@@ -21,13 +21,13 @@ import { PatientSelectionTable } from "./PatientSelectionTable";
 import { ReservationFormFields } from "./ReservationFormFields";
 
 // Types
-import type { Pet, ReservationAppointment } from "@/types";
+import type { Pet, Appointment } from "@/types";
 
 interface ReservationFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Partial<ReservationAppointment>, selectedPets: Pet[]) => void;
-  initialData: Partial<ReservationAppointment> | null;
+  onSave: (data: Partial<Appointment>, selectedPets: Pet[]) => void;
+  initialData: Partial<Appointment> | null;
   canCreate?: boolean;
   canEdit?: boolean;
 }
@@ -77,7 +77,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   canCreate = false,
   canEdit = false,
 }: ReservationFormModalProps) {
-  const [formData, setFormData] = useState<Partial<ReservationAppointment>>({});
+  const [formData, setFormData] = useState<Partial<Appointment>>({});
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<"search" | "form">("search");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});

@@ -9,21 +9,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
-import type { ReservationAppointment, ReservationStatus } from "../types";
+import type { Appointment, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import { useReservationCategoryColorMap } from "@/features/master";
+import { useReservationTypeColorMap } from "@/features/master";
 import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/utils/constants/status-colors";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEdit?: (appointment: ReservationAppointment) => void;
-  onDelete?: (appointment: ReservationAppointment) => void;
-  onCreateRecord?: (appointment: ReservationAppointment) => void;
-  onStatusChange?: (appointment: ReservationAppointment, status: ReservationStatus) => void;
-  appointment: ReservationAppointment | null;
+  onEdit?: (appointment: Appointment) => void;
+  onDelete?: (appointment: Appointment) => void;
+  onCreateRecord?: (appointment: Appointment) => void;
+  onStatusChange?: (appointment: Appointment, status: ReservationStatus) => void;
+  appointment: Appointment | null;
 }
 
 // STATUS_OPTIONS は RESERVATION_STATUS_COLORS に集約済み（status-colors.ts）
@@ -74,7 +74,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
   onStatusChange,
   appointment,
 }: ReservationDetailModalProps) {
-  const { getColor } = useReservationCategoryColorMap();
+  const { getColor } = useReservationTypeColorMap();
 
   if (!appointment) return null;
 

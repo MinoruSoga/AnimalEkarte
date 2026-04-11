@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { ReservationAppointment } from "@/types";
+import type { Appointment } from "@/types";
 import { transformReservation } from "./transforms";
 import type { Appointment as BackendReservation } from "@/types/generated/models";
 import type { UpdateReservationRequest } from "./types";
@@ -8,7 +8,7 @@ import type { UpdateReservationRequest } from "./types";
 export const updateReservation = async (
   id: string,
   req: UpdateReservationRequest
-): Promise<ReservationAppointment> => {
+): Promise<Appointment> => {
   const { data } = await axios.patch<BackendReservation>(
     `/v1/reservations/${id}`,
     req

@@ -251,7 +251,7 @@ func TestCreateReservation(t *testing.T) {
 		return map[string]any{
 			"start_time":      now.Format(time.RFC3339),
 			"end_time":        now.Add(30 * time.Minute).Format(time.RFC3339),
-			"reservation_category_id": 1,
+			"reservation_type_id": 1,
 			"notes":           "健康診断",
 		}
 	}
@@ -284,7 +284,7 @@ func TestCreateReservation(t *testing.T) {
 		},
 		{
 			name:       "returns 400 when required fields are missing",
-			body:       map[string]any{"notes": "テスト"}, // start_time, end_time, reservation_category_id missing
+			body:       map[string]any{"notes": "テスト"}, // start_time, end_time, reservation_type_id missing
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,

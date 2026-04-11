@@ -144,7 +144,7 @@ func (s *reservationNotificationService) NotifyCancelled(
 
 // ---- ヘルパー: LINE表示名フォールバック ----
 
-func reservationCategoryDisplayName(st *model.ReservationCategory) string {
+func reservationCategoryDisplayName(st *model.ReservationType) string {
 	if st == nil {
 		return ""
 	}

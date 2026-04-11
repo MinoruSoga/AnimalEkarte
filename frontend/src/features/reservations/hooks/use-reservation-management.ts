@@ -6,7 +6,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 
 import { getReservationStatusLabel } from "@/utils/status-helpers";
 import type {
-  ReservationAppointment,
+  Appointment,
   ReservationFormData,
   ReservationStatus,
   Pet,
@@ -19,7 +19,7 @@ import { useUpdateReservation } from "../api/update-reservation";
 import { useDeleteReservation } from "../api/delete-reservation";
 import { transformToCreateRequest } from "../api/transforms";
 
-const EMPTY_APPOINTMENTS: ReservationAppointment[] = [];
+const EMPTY_APPOINTMENTS: Appointment[] = [];
 
 /** Maps reservation type → record creation path */
 const RECORD_PATH: Record<string, string> = {
@@ -58,11 +58,11 @@ export function useReservationManagement() {
 
   // Detail Modal State
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [detailAppointment, setDetailAppointment] = useState<ReservationAppointment | null>(null);
+  const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null);
 
   // Confirm Dialog State
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ReservationAppointment | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Appointment | null>(null);
   const [petSelectConfirmOpen, setPetSelectConfirmOpen] = useState(false);
   const [petSelectPath, setPetSelectPath] = useState("");
 
@@ -120,7 +120,7 @@ export function useReservationManagement() {
   }, [location.search, handleOpenForm]);
 
   // Open Detail Modal
-  const handleOpenDetail = useCallback((appointment: ReservationAppointment) => {
+  const handleOpenDetail = useCallback((appointment: Appointment) => {
     setDetailAppointment(appointment);
     setIsDetailOpen(true);
   }, []);
@@ -173,7 +173,7 @@ export function useReservationManagement() {
             start_time: data.start.toISOString(),
             end_time: data.end.toISOString(),
             visit_type: data.visitType || "first",
-            reservation_category_id: data.type ? Number(data.type) : undefined,
+            reservation_type_id: data.type ? Number(data.type) : undefined,
             doctor_id: targetDoctor ? Number(targetDoctor) : undefined,
             is_designated: data.isDesignated ?? false,
             status: data.status || ("confirmed" as const),
@@ -217,7 +217,7 @@ export function useReservationManagement() {
   );
 
   const handleAppointmentUpdate = useCallback(
-    (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => {
+    (appointment: Appointment, newStart: Date, newEnd: Date) => {
       const hasOverlap = checkOverlap(newStart, newEnd, appointment.doctor, appointment.id);
 
       if (hasOverlap) {
@@ -255,7 +255,7 @@ export function useReservationManagement() {
 
   // Status Change Handler
   const handleStatusChange = useCallback(
-    (appointment: ReservationAppointment, status: ReservationStatus) => {
+    (appointment: Appointment, status: ReservationStatus) => {
       const updatePayload = {
         id: appointment.id,
         req: {
@@ -285,7 +285,7 @@ export function useReservationManagement() {
   );
 
   // Delete handler
-  const handleDelete = useCallback((appointment: ReservationAppointment) => {
+  const handleDelete = useCallback((appointment: Appointment) => {
     setDeleteTarget(appointment);
     setDeleteConfirmOpen(true);
   }, []);
@@ -311,7 +311,7 @@ export function useReservationManagement() {
 
   // Create Record Handler
   const handleCreateRecord = useCallback(
-    (appointment: ReservationAppointment) => {
+    (appointment: Appointment) => {
       const targetPath = RECORD_PATH[appointment.type] || "/medical-records/new";
 
       // Build query params: petId + doctorId (if available from reservation)

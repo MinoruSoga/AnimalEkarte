@@ -93,13 +93,13 @@ export const getReceptionColumnColor = (title: string): ReceptionColumnColorSet 
   };
 };
 
-interface ReservationCategoryColor {
+interface ReservationTypeColor {
   style: React.CSSProperties;
   dotStyle: React.CSSProperties;
   hex: string;
 }
 
-export const getReservationTypeColor = (type: string, dynamicColorMap?: Map<string, ReservationCategoryColor>) => {
+export const getReservationTypeColor = (type: string, dynamicColorMap?: Map<string, ReservationTypeColor>) => {
   if (dynamicColorMap) {
     const mapped = dynamicColorMap.get(type);
     if (mapped) return mapped.style;

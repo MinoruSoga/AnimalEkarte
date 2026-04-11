@@ -1,18 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { ReservationCategory as ModelReservationCategory } from "@/types/generated/models";
+import type { ReservationType as ModelReservationType } from "@/types/generated/models";
 import type {
-  CreateReservationCategoryRequest,
-  UpdateReservationCategoryRequest,
-  ReorderReservationCategoryRequest,
+  CreateReservationTypeRequest,
+  UpdateReservationTypeRequest,
+  ReorderReservationTypeRequest,
 } from "@/types/reservation-category";
 
 // ─────────────────────────────────────────────────
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformReservationCategory(data: ModelReservationCategory) {
+function transformReservationType(data: ModelReservationType) {
   return {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
@@ -38,13 +38,13 @@ function transformReservationCategory(data: ModelReservationCategory) {
 }
 
 // Frontend domain type (ReturnType から自動導出)
-export type ReservationCategory = ReturnType<typeof transformReservationCategory>;
+export type ReservationType = ReturnType<typeof transformReservationType>;
 
 // Re-export request types
 export type {
-  CreateReservationCategoryRequest,
-  UpdateReservationCategoryRequest,
-  ReorderReservationCategoryRequest,
+  CreateReservationTypeRequest,
+  UpdateReservationTypeRequest,
+  ReorderReservationTypeRequest,
 } from "@/types/reservation-category";
 
 // ─────────────────────────────────────────────────
@@ -57,35 +57,35 @@ export const SERVICE_TYPES_QUERY_KEY = ["masters", "reservation-types"] as const
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listReservationCategories(): Promise<ReservationCategory[]> {
-  const { data } = await axios.get<ModelReservationCategory[]>("/v1/masters/reservation-types");
-  return data.map(transformReservationCategory);
+export async function listReservationCategories(): Promise<ReservationType[]> {
+  const { data } = await axios.get<ModelReservationType[]>("/v1/masters/reservation-types");
+  return data.map(transformReservationType);
 }
 
-export async function createReservationCategory(
-  req: CreateReservationCategoryRequest,
-): Promise<ReservationCategory> {
-  const { data } = await axios.post<ModelReservationCategory>("/v1/masters/reservation-types", req);
-  return transformReservationCategory(data);
+export async function createReservationType(
+  req: CreateReservationTypeRequest,
+): Promise<ReservationType> {
+  const { data } = await axios.post<ModelReservationType>("/v1/masters/reservation-types", req);
+  return transformReservationType(data);
 }
 
-export async function updateReservationCategory(
+export async function updateReservationType(
   id: string,
-  req: UpdateReservationCategoryRequest,
-): Promise<ReservationCategory> {
-  const { data } = await axios.patch<ModelReservationCategory>(
+  req: UpdateReservationTypeRequest,
+): Promise<ReservationType> {
+  const { data } = await axios.patch<ModelReservationType>(
     `/v1/masters/reservation-types/${id}`,
     req,
   );
-  return transformReservationCategory(data);
+  return transformReservationType(data);
 }
 
-export async function deleteReservationCategory(id: string): Promise<void> {
+export async function deleteReservationType(id: string): Promise<void> {
   await axios.delete(`/v1/masters/reservation-types/${id}`);
 }
 
 export async function reorderReservationCategories(
-  req: ReorderReservationCategoryRequest,
+  req: ReorderReservationTypeRequest,
 ): Promise<void> {
   await axios.patch("/v1/masters/reservation-types/reorder", req);
 }
@@ -103,31 +103,31 @@ export function useGetReservationCategories() {
   });
 }
 
-export function useCreateReservationCategory() {
+export function useCreateReservationType() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createReservationCategory,
+    mutationFn: createReservationType,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
     },
   });
 }
 
-export function useUpdateReservationCategory() {
+export function useUpdateReservationType() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateReservationCategoryRequest }) =>
-      updateReservationCategory(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdateReservationTypeRequest }) =>
+      updateReservationType(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
     },
   });
 }
 
-export function useDeleteReservationCategory() {
+export function useDeleteReservationType() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deleteReservationCategory,
+    mutationFn: deleteReservationType,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
     },

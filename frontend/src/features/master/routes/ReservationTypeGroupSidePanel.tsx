@@ -2,7 +2,7 @@ import { memo, useState, useCallback } from "react";
 import { Layers } from "lucide-react";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, PALETTE } from "@/lib/design-tokens";
-import type { ReservationCategoryGroup } from "@/features/master/api/reservation-category-groups";
+import type { ReservationTypeGroup } from "@/features/master/api/reservation-category-groups";
 
 export interface GroupFormData {
   name: string;
@@ -13,10 +13,10 @@ export interface GroupFormData {
 export const GroupSidePanel = memo(function GroupSidePanel({
   item, onClose, onSave, onDeleteRequest, readOnly,
 }: {
-  item: ReservationCategoryGroup | null;
+  item: ReservationTypeGroup | null;
   onClose: () => void;
   onSave: (d: GroupFormData) => void;
-  onDeleteRequest?: (i: ReservationCategoryGroup) => void;
+  onDeleteRequest?: (i: ReservationTypeGroup) => void;
   readOnly?: boolean;
 }) {
   const [f, setF] = useState<GroupFormData>(() => ({

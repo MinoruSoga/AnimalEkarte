@@ -27,7 +27,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { getVisitTypeColor } from "@/utils/constants/status-colors";
 
 // Types
-import type { Appointment } from "@/types";
+import type { ReceptionAppointment } from "../api/types";
 
 interface ServiceIconProps {
   service: string;
@@ -42,9 +42,9 @@ function ServiceIcon({ service }: ServiceIconProps) {
 }
 
 interface AppointmentCardProps {
-  appointment: Appointment;
+  appointment: ReceptionAppointment;
   columnTitle: string;
-  onCardClick: (appointment: Appointment) => void;
+  onCardClick: (appointment: ReceptionAppointment) => void;
   isDragOverlay?: boolean;
 }
 
@@ -75,8 +75,8 @@ export const AppointmentCard = memo(function AppointmentCard({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const isTrimming = appointment.reservationCategory.includes("トリミング");
-  const isHospitalization = appointment.reservationCategory.includes("入院");
+  const isTrimming = appointment.reservationType.includes("トリミング");
+  const isHospitalization = appointment.reservationType.includes("入院");
   const visitColor = getVisitTypeColor(appointment.visitType);
 
   const handleKarteClick = useCallback((e: React.MouseEvent) => {
@@ -162,8 +162,8 @@ export const AppointmentCard = memo(function AppointmentCard({
               {appointment.visitType}
             </Badge>
             <Badge variant="outline" className="flex items-center gap-1 text-sm px-[7.5px] h-[22px] bg-white tracking-[var(--tracking-notion-sm)]">
-              <ServiceIcon service={appointment.reservationCategory} />
-              <span className="truncate max-w-[80px]">{appointment.reservationCategory}</span>
+              <ServiceIcon service={appointment.reservationType} />
+              <span className="truncate max-w-[80px]">{appointment.reservationType}</span>
             </Badge>
 
             {/* BUG-037: 担当医バッジ — doctor が未設定でも「担当医未設定」として表示 */}

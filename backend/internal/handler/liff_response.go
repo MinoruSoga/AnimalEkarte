@@ -48,7 +48,7 @@ type liffCourseResponse struct {
 	SortOrder           int    `json:"sort_order"`
 }
 
-func toLiffCourseResponse(st model.ReservationCategory) liffCourseResponse {
+func toLiffCourseResponse(st model.ReservationType) liffCourseResponse {
 	// 名前のフォールバックチェーン:
 	// 1. ReservationDisplayName（LINE表示名）
 	// 2. ShortName（ShowShortName が true の場合）

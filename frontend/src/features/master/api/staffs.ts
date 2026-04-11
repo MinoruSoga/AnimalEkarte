@@ -312,10 +312,10 @@ export function useGetStaffExcludedReservationCategories(staffId: string | null)
   return useQuery({
     queryKey: STAFF_EXCLUDED_ST_KEY(staffId ?? ""),
     queryFn: async (): Promise<string[]> => {
-      const { data } = await axios.get<{ reservation_category_ids: number[] }>(
+      const { data } = await axios.get<{ reservation_type_ids: number[] }>(
         `/v1/masters/staffs/${staffId}/excluded-reservation-types`,
       );
-      return (data.reservation_category_ids ?? []).map(String);
+      return (data.reservation_type_ids ?? []).map(String);
     },
     enabled: staffId !== null,
     staleTime: QUERY_STALE_TIMES.STATIC,
@@ -328,13 +328,13 @@ export function useSetStaffExcludedReservationCategories() {
   return useMutation({
     mutationFn: async ({
       staffId,
-      reservationCategoryIds,
+      reservationTypeIds,
     }: {
       staffId: string;
-      reservationCategoryIds: string[];
+      reservationTypeIds: string[];
     }) => {
       await axios.put(`/v1/masters/staffs/${staffId}/excluded-reservation-types`, {
-        reservation_category_ids: reservationCategoryIds.map((id) => parseInt(id, 10)),
+        reservation_type_ids: reservationTypeIds.map((id) => parseInt(id, 10)),
       });
     },
     onSuccess: (_data, variables) => {

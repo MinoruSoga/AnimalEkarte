@@ -618,7 +618,7 @@ export function TrimmingForm() {
             weight={selectedPet.weight || ""}
             staffName={formData.staffName}
             staffButtonId="staffId"
-            reservationCategory="トリミング"
+            reservationType="トリミング"
             nextVisitDate="-"
             nextVisitContent="-"
             onStaffClick={handleOpenStaffModal}

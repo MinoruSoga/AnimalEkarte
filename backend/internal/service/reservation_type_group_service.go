@@ -9,51 +9,51 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-type CreateReservationCategoryGroupInput struct {
+type CreateReservationTypeGroupInput struct {
 	Name      string
 	Color     string
 	SortOrder int
 	IsActive  bool
 }
 
-type UpdateReservationCategoryGroupInput struct {
+type UpdateReservationTypeGroupInput struct {
 	Name      *string
 	Color     *string
 	SortOrder *int
 	IsActive  *bool
 }
 
-type ReservationCategoryGroupService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.ReservationCategoryGroup, error)
-	GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationCategoryGroup, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateReservationCategoryGroupInput) (*model.ReservationCategoryGroup, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCategoryGroupInput) (*model.ReservationCategoryGroup, error)
+type ReservationTypeGroupService interface {
+	List(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeGroupInput) (*model.ReservationTypeGroup, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeGroupInput) (*model.ReservationTypeGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type reservationCategoryGroupService struct {
-	repo repository.ReservationCategoryGroupRepository
+	repo repository.ReservationTypeGroupRepository
 }
 
-func NewReservationCategoryGroupService(repo repository.ReservationCategoryGroupRepository) ReservationCategoryGroupService {
+func NewReservationTypeGroupService(repo repository.ReservationTypeGroupRepository) ReservationTypeGroupService {
 	return &reservationCategoryGroupService{repo: repo}
 }
 
-func (s *reservationCategoryGroupService) List(ctx context.Context, clinicID uint64) ([]model.ReservationCategoryGroup, error) {
+func (s *reservationCategoryGroupService) List(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error) {
 	return s.repo.FindAll(ctx, clinicID)
 }
 
-func (s *reservationCategoryGroupService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationCategoryGroup, error) {
+func (s *reservationCategoryGroupService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error) {
 	return s.repo.FindByID(ctx, clinicID, id)
 }
 
-func (s *reservationCategoryGroupService) Create(ctx context.Context, clinicID uint64, input *CreateReservationCategoryGroupInput) (*model.ReservationCategoryGroup, error) {
+func (s *reservationCategoryGroupService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeGroupInput) (*model.ReservationTypeGroup, error) {
 	color := input.Color
 	if color == "" {
 		color = "#3B82F6"
 	}
-	g := &model.ReservationCategoryGroup{
+	g := &model.ReservationTypeGroup{
 		ClinicID:  clinicID,
 		Name:      input.Name,
 		Color:     color,
@@ -61,13 +61,13 @@ func (s *reservationCategoryGroupService) Create(ctx context.Context, clinicID u
 		IsActive:  true,
 	}
 	if err := s.repo.Create(ctx, g); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create reservation_category_group")
+		return nil, apperrors.Wrap(err, "failed to create reservation_type_group")
 	}
-	slog.InfoContext(ctx, "reservation_category_group created", "id", g.ID, "name", g.Name)
+	slog.InfoContext(ctx, "reservation_type_group created", "id", g.ID, "name", g.Name)
 	return g, nil
 }
 
-func (s *reservationCategoryGroupService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationCategoryGroupInput) (*model.ReservationCategoryGroup, error) {
+func (s *reservationCategoryGroupService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeGroupInput) (*model.ReservationTypeGroup, error) {
 	fields := map[string]any{}
 	if input.Name != nil {
 		fields["name"] = *input.Name
@@ -85,7 +85,7 @@ func (s *reservationCategoryGroupService) Update(ctx context.Context, clinicID, 
 		return s.repo.FindByID(ctx, clinicID, id)
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, apperrors.Wrap(err, "failed to update reservation_category_group")
+		return nil, apperrors.Wrap(err, "failed to update reservation_type_group")
 	}
 	return s.repo.FindByID(ctx, clinicID, id)
 }

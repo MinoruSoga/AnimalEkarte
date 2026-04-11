@@ -28,8 +28,8 @@ type Repositories struct {
 	Medicine                 MedicineRepository
 	Vaccine                  VaccineRepository
 	Insurance                InsuranceRepository
-	ReservationCategory      ReservationCategoryRepository
-	ReservationCategoryGroup ReservationCategoryGroupRepository
+	ReservationType      ReservationTypeRepository
+	ReservationTypeGroup ReservationTypeGroupRepository
 	Consultation             ConsultationRepository
 	Procedure                ProcedureRepository
 	HospitalizationPlan      HospitalizationPlanRepository
@@ -65,7 +65,7 @@ type Repositories struct {
 	Audit                    AuditRepository
 	// LINE予約
 	LineReservationSetting     LineReservationSettingRepository
-	ReservationCourse      ReservationCourseRepository
+	ReservationTypeLiff      ReservationTypeLiffRepository
 	ReservationStaff       ReservationStaffRepository
 	ReservationSchedule    ReservationScheduleRepository
 	ReservationAdmin       ReservationAdminRepository
@@ -92,8 +92,8 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Medicine:                 NewMedicineRepository(db),
 		Vaccine:                  NewVaccineRepository(db),
 		Insurance:                NewInsuranceRepository(db),
-		ReservationCategory:      NewReservationCategoryRepository(db),
-		ReservationCategoryGroup: NewReservationCategoryGroupRepository(db),
+		ReservationType:      NewReservationTypeRepository(db),
+		ReservationTypeGroup: NewReservationTypeGroupRepository(db),
 		Consultation:             NewConsultationRepository(db),
 		Procedure:                NewProcedureRepository(db),
 		HospitalizationPlan:      NewHospitalizationPlanRepository(db),
@@ -128,7 +128,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Refund:                   NewRefundRepository(db),
 		Audit:                    NewAuditRepository(db),
 		LineReservationSetting:       NewLineReservationSettingRepository(db),
-		ReservationCourse:        NewReservationCourseRepository(db),
+		ReservationTypeLiff:        NewReservationTypeLiffRepository(db),
 		ReservationStaff:         NewReservationStaffRepository(db),
 		ReservationSchedule:      NewReservationScheduleRepository(db),
 		ReservationAdmin:         NewReservationAdminRepository(db),

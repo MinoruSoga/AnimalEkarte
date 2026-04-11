@@ -42,7 +42,4 @@ type ReservationType struct {
 	Group   *ReservationTypeGroup `gorm:"foreignKey:GroupID" json:"group,omitempty"`
 }
 
-func (ReservationType) TableName() string { return "reservation_categories" }
-
-// ReservationCategory は ReservationType の後方互換エイリアス。
-type ReservationCategory = ReservationType
+func (ReservationType) TableName() string { return "reservation_types" }

@@ -36,7 +36,7 @@ func (r *reservationAdminRepository) FindByMonth(ctx context.Context, clinicID u
 
 	items := make([]model.Appointment, 0)
 	err := r.db.WithContext(ctx).
-		Preload("ReservationCategory").
+		Preload("ReservationType").
 		Preload("Doctor").
 		Preload("LineCustomer").
 		Where("clinic_id = ? AND start_time >= ? AND start_time < ?", clinicID, start, end).
@@ -54,7 +54,7 @@ func (r *reservationAdminRepository) FindByDay(ctx context.Context, clinicID uin
 
 	items := make([]model.Appointment, 0)
 	err := r.db.WithContext(ctx).
-		Preload("ReservationCategory").
+		Preload("ReservationType").
 		Preload("Doctor").
 		Preload("LineCustomer").
 		Preload("Owner").
@@ -90,7 +90,7 @@ func (r *reservationAdminRepository) SoftDelete(ctx context.Context, clinicID, i
 func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error) {
 	items := make([]model.Appointment, 0)
 	err := r.db.WithContext(ctx).
-		Preload("ReservationCategory").
+		Preload("ReservationType").
 		Preload("Doctor").
 		Where("clinic_id = ? AND line_customer_id = ? AND deleted_at IS NULL", clinicID, customerID).
 		Order("start_time DESC").
@@ -104,7 +104,7 @@ func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clini
 func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
 	var appt model.Appointment
 	err := r.db.WithContext(ctx).
-		Preload("ReservationCategory").
+		Preload("ReservationType").
 		Preload("Doctor").
 		Preload("Owner").
 		Preload("Pet").

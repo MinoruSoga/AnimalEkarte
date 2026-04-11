@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for ReservationCategory entity.
+// Package handler provides HTTP handler implementations for ReservationType entity.
 package handler
 
 import (
@@ -11,10 +11,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// ---- ReservationCategory ----
+// ---- ReservationType ----
 
-// GetReservationCategory godoc
-func (h *Handler) GetReservationCategory(c *gin.Context) {
+// GetReservationType godoc
+func (h *Handler) GetReservationType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -24,12 +24,12 @@ func (h *Handler) GetReservationCategory(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	st, err := h.svc.ReservationCategory.GetByID(c.Request.Context(), clinicID, id)
+	st, err := h.svc.ReservationType.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationCategoryResponse(st))
+	c.JSON(http.StatusOK, toReservationTypeResponse(st))
 }
 
 // ListReservationCategories godoc
@@ -38,21 +38,21 @@ func (h *Handler) ListReservationCategories(c *gin.Context) {
 	if !ok {
 		return
 	}
-	reservationCategories, err := h.svc.ReservationCategory.List(c.Request.Context(), clinicID)
+	reservationCategories, err := h.svc.ReservationType.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationCategoryResponseList(reservationCategories))
+	c.JSON(http.StatusOK, toReservationTypeResponseList(reservationCategories))
 }
 
-// CreateReservationCategory godoc
-func (h *Handler) CreateReservationCategory(c *gin.Context) {
+// CreateReservationType godoc
+func (h *Handler) CreateReservationType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	var req createReservationCategoryRequest
+	var req createReservationTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -65,7 +65,7 @@ func (h *Handler) CreateReservationCategory(c *gin.Context) {
 	if req.DurationMinutes != nil {
 		durationMinutes = *req.DurationMinutes
 	}
-	st, err := h.svc.ReservationCategory.Create(c.Request.Context(), clinicID, &service.CreateReservationCategoryInput{
+	st, err := h.svc.ReservationType.Create(c.Request.Context(), clinicID, &service.CreateReservationTypeInput{
 		Name:                   req.Name,
 		Color:                  req.Color,
 		IsActive:               true,
@@ -86,11 +86,11 @@ func (h *Handler) CreateReservationCategory(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, toReservationCategoryResponse(st))
+	c.JSON(http.StatusCreated, toReservationTypeResponse(st))
 }
 
-// UpdateReservationCategory godoc
-func (h *Handler) UpdateReservationCategory(c *gin.Context) {
+// UpdateReservationType godoc
+func (h *Handler) UpdateReservationType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -100,12 +100,12 @@ func (h *Handler) UpdateReservationCategory(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	var req updateReservationCategoryRequest
+	var req updateReservationTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	st, err := h.svc.ReservationCategory.Update(c.Request.Context(), clinicID, id, &service.UpdateReservationCategoryInput{
+	st, err := h.svc.ReservationType.Update(c.Request.Context(), clinicID, id, &service.UpdateReservationTypeInput{
 		Name:                   req.Name,
 		Color:                  req.Color,
 		IsActive:               req.IsActive,
@@ -126,11 +126,11 @@ func (h *Handler) UpdateReservationCategory(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationCategoryResponse(st))
+	c.JSON(http.StatusOK, toReservationTypeResponse(st))
 }
 
-// DeleteReservationCategory godoc
-func (h *Handler) DeleteReservationCategory(c *gin.Context) {
+// DeleteReservationType godoc
+func (h *Handler) DeleteReservationType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -140,7 +140,7 @@ func (h *Handler) DeleteReservationCategory(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if err := h.svc.ReservationCategory.Delete(c.Request.Context(), clinicID, id); err != nil {
+	if err := h.svc.ReservationType.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -153,12 +153,12 @@ func (h *Handler) ReorderReservationCategories(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderReservationCategoryRequest
+	var req reorderReservationTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	if err := h.svc.ReservationCategory.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+	if err := h.svc.ReservationType.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
 		RespondError(c, err)
 		return
 	}

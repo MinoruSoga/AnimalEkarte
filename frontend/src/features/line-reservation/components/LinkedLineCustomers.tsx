@@ -18,9 +18,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useGetReservationCustomers } from "../api/get-reservation-customers";
+import { useGetLineCustomers } from "../api/get-reservation-customers";
 import { useUpdateOwnerLink } from "../api/update-owner-link";
-import type { ReservationCustomer } from "../api/types";
+import type { LineCustomer } from "../api/types";
 
 interface LinkedLineCustomersProps {
   clinicId: string | null;
@@ -28,7 +28,7 @@ interface LinkedLineCustomersProps {
 }
 
 export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId, ownerId }: LinkedLineCustomersProps) {
-  const { data: allCustomers = [] } = useGetReservationCustomers(clinicId);
+  const { data: allCustomers = [] } = useGetLineCustomers(clinicId);
   const linkMutation = useUpdateOwnerLink(clinicId);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
 
@@ -142,7 +142,7 @@ export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId,
 // ---- 未紐付けLINE顧客を検索して選択するダイアログ ----
 
 interface LinkSearchDialogProps {
-  unlinked: ReservationCustomer[];
+  unlinked: LineCustomer[];
   onLink: (customerId: number) => void;
   onClose: () => void;
   isPending: boolean;

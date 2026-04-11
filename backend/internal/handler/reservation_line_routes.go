@@ -16,13 +16,13 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 
 	// TASK-RES-011: 予約区分（LINE管理用）
 	types := clinics.Group("/reservation-types")
-	types.GET("", h.ListReservationCourses)
-	types.POST("", h.CreateReservationCourse)
-	types.PUT("/:id", h.UpdateReservationCourse)
-	types.DELETE("/:id", h.DeleteReservationCourse)
-	types.PATCH("/:id/status", h.PatchReservationCourseStatus)
-	types.PATCH("/:id/sort-order", h.PatchReservationCourseSortOrder)
-	types.POST("/:id/image", h.UploadReservationCourseImage)
+	types.GET("", h.ListReservationTypeLiffs)
+	types.POST("", h.CreateReservationTypeLiff)
+	types.PUT("/:id", h.UpdateReservationTypeLiff)
+	types.DELETE("/:id", h.DeleteReservationTypeLiff)
+	types.PATCH("/:id/status", h.PatchReservationTypeLiffStatus)
+	types.PATCH("/:id/sort-order", h.PatchReservationTypeLiffSortOrder)
+	types.POST("/:id/image", h.UploadReservationTypeLiffImage)
 
 	// TASK-RES-012: スタッフ
 	staffs := clinics.Group("/reservation-staffs")

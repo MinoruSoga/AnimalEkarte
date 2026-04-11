@@ -8,8 +8,8 @@ import { axios } from "@/lib/axios";
 import type {
     ApiDailyRecord,
     CreateVitalRecordRequest,
-    CreateCareLogRecordRequest,
-    CreateStaffNoteRecordRequest,
+    CreateCareLogRequest,
+    CreateStaffNoteRequest,
 } from "./daily-records-types";
 
 // ---- Fetchers ----
@@ -54,10 +54,10 @@ export const addVitalRecord = async (
     return data;
 };
 
-export const addCareLogRecord = async (
+export const addCareLog = async (
     hospitalizationId: string,
     date: string,
-    payload: CreateCareLogRecordRequest
+    payload: CreateCareLogRequest
 ): Promise<ApiDailyRecord> => {
     const { data } = await axios.post<ApiDailyRecord>(
         `/v1/hospitalizations/${hospitalizationId}/daily-records/${date}/care-logs`,
@@ -66,10 +66,10 @@ export const addCareLogRecord = async (
     return data;
 };
 
-const addStaffNoteRecord = async (
+const addStaffNote = async (
     hospitalizationId: string,
     date: string,
-    payload: CreateStaffNoteRecordRequest
+    payload: CreateStaffNoteRequest
 ): Promise<ApiDailyRecord> => {
     const { data } = await axios.post<ApiDailyRecord>(
         `/v1/hospitalizations/${hospitalizationId}/daily-records/${date}/staff-notes`,
@@ -142,8 +142,8 @@ export function useCreateDailyVital(hospitalizationId: string, date: string) {
 export function useCreateCareLog(hospitalizationId: string, date: string) {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (payload: CreateCareLogRecordRequest) =>
-            addCareLogRecord(hospitalizationId, date, payload),
+        mutationFn: (payload: CreateCareLogRequest) =>
+            addCareLog(hospitalizationId, date, payload),
         onSuccess: (data) => {
             queryClient.setQueryData(
                 dailyRecordKeys.byDate(hospitalizationId, date),
@@ -159,8 +159,8 @@ export function useCreateCareLog(hospitalizationId: string, date: string) {
 export function useCreateStaffNote(hospitalizationId: string, date: string) {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (payload: CreateStaffNoteRecordRequest) =>
-            addStaffNoteRecord(hospitalizationId, date, payload),
+        mutationFn: (payload: CreateStaffNoteRequest) =>
+            addStaffNote(hospitalizationId, date, payload),
         onSuccess: (data) => {
             queryClient.setQueryData(
                 dailyRecordKeys.byDate(hospitalizationId, date),
@@ -176,9 +176,9 @@ export function useCreateStaffNote(hospitalizationId: string, date: string) {
 export type {
     ApiDailyRecord,
     ApiVitalRecord,
-    ApiCareLogRecord,
-    ApiStaffNoteRecord,
+    ApiCareLog,
+    ApiStaffNote,
     CreateVitalRecordRequest,
-    CreateCareLogRecordRequest,
-    CreateStaffNoteRecordRequest,
+    CreateCareLogRequest,
+    CreateStaffNoteRequest,
 } from "./daily-records-types";

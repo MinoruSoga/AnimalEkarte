@@ -25,7 +25,7 @@ type excludedCourseResponse struct {
 	Name string `json:"name"`
 }
 
-func toReservationStaffResponse(staff *model.Staff, excluded []model.StaffExcludedReservationCategory) reservationStaffResponse {
+func toReservationStaffResponse(staff *model.Staff, excluded []model.StaffReservationExclusion) reservationStaffResponse {
 	courses := make([]excludedCourseResponse, 0, len(excluded))
 	for _, e := range excluded {
 		if e.ReservationType != nil {

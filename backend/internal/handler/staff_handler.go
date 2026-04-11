@@ -346,9 +346,9 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"clinic_ids": req.ClinicIDs})
 }
 
-// GetStaffExcludedReservationCategories godoc
+// GetStaffExcludedReservationTypes godoc
 // GET /v1/masters/staffs/:id/excluded-reservation-types
-func (h *Handler) GetStaffExcludedReservationCategories(c *gin.Context) {
+func (h *Handler) GetStaffExcludedReservationTypes(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -360,17 +360,17 @@ func (h *Handler) GetStaffExcludedReservationCategories(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	ids, err := h.svc.Staff.GetExcludedReservationCategoryIDs(c.Request.Context(), id)
+	ids, err := h.svc.Staff.GetExcludedReservationTypeIDs(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"reservation_category_ids": ids})
+	c.JSON(http.StatusOK, gin.H{"reservation_type_ids": ids})
 }
 
-// SetStaffExcludedReservationCategories godoc
+// SetStaffExcludedReservationTypes godoc
 // PUT /v1/masters/staffs/:id/excluded-reservation-types
-func (h *Handler) SetStaffExcludedReservationCategories(c *gin.Context) {
+func (h *Handler) SetStaffExcludedReservationTypes(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -383,20 +383,20 @@ func (h *Handler) SetStaffExcludedReservationCategories(c *gin.Context) {
 		return
 	}
 	var req struct {
-		ReservationCategoryIDs []uint64 `json:"reservation_category_ids"`
+		ReservationTypeIDs []uint64 `json:"reservation_type_ids"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	if req.ReservationCategoryIDs == nil {
-		req.ReservationCategoryIDs = []uint64{}
+	if req.ReservationTypeIDs == nil {
+		req.ReservationTypeIDs = []uint64{}
 	}
-	if err := h.svc.Staff.SetExcludedReservationCategoryIDs(c.Request.Context(), id, req.ReservationCategoryIDs); err != nil {
+	if err := h.svc.Staff.SetExcludedReservationTypeIDs(c.Request.Context(), id, req.ReservationTypeIDs); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"reservation_category_ids": req.ReservationCategoryIDs})
+	c.JSON(http.StatusOK, gin.H{"reservation_type_ids": req.ReservationTypeIDs})
 }
 
 // ReorderStaffs godoc
@@ -445,8 +445,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PUT("/staffs/:id/permission-groups", perm(model.ResourceMasterStaff, "edit"), h.SetStaffPermissionGroups)
 	masters.GET("/staffs/:id/clinics", h.GetStaffClinicAssignments)
 	masters.PUT("/staffs/:id/clinics", perm(model.ResourceMasterStaff, "edit"), h.SetStaffClinicAssignments)
-	masters.GET("/staffs/:id/excluded-reservation-types", h.GetStaffExcludedReservationCategories)
-	masters.PUT("/staffs/:id/excluded-reservation-types", perm(model.ResourceMasterStaff, "edit"), h.SetStaffExcludedReservationCategories)
+	masters.GET("/staffs/:id/excluded-reservation-types", h.GetStaffExcludedReservationTypes)
+	masters.PUT("/staffs/:id/excluded-reservation-types", perm(model.ResourceMasterStaff, "edit"), h.SetStaffExcludedReservationTypes)
 
 	// Cages
 	masters.GET("/cages", h.ListCages)
@@ -481,20 +481,20 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.DELETE("/insurances/:id", perm(model.ResourceMasterInsurance, "delete"), h.DeleteInsurance)
 
 	// Reservation Category Groups
-	masters.GET("/reservation-type-groups", h.ListReservationCategoryGroups)
-	masters.POST("/reservation-type-groups", perm(model.ResourceMasterReservationCategory, "create"), h.CreateReservationCategoryGroup)
-	masters.PATCH("/reservation-type-groups/reorder", perm(model.ResourceMasterReservationCategory, "edit"), h.ReorderReservationCategoryGroups)
-	masters.GET("/reservation-type-groups/:id", h.GetReservationCategoryGroup)
-	masters.PATCH("/reservation-type-groups/:id", perm(model.ResourceMasterReservationCategory, "edit"), h.UpdateReservationCategoryGroup)
-	masters.DELETE("/reservation-type-groups/:id", perm(model.ResourceMasterReservationCategory, "delete"), h.DeleteReservationCategoryGroup)
+	masters.GET("/reservation-type-groups", h.ListReservationTypeGroups)
+	masters.POST("/reservation-type-groups", perm(model.ResourceMasterReservationType, "create"), h.CreateReservationTypeGroup)
+	masters.PATCH("/reservation-type-groups/reorder", perm(model.ResourceMasterReservationType, "edit"), h.ReorderReservationTypeGroups)
+	masters.GET("/reservation-type-groups/:id", h.GetReservationTypeGroup)
+	masters.PATCH("/reservation-type-groups/:id", perm(model.ResourceMasterReservationType, "edit"), h.UpdateReservationTypeGroup)
+	masters.DELETE("/reservation-type-groups/:id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteReservationTypeGroup)
 
 	// Reservation Types
 	masters.GET("/reservation-types", h.ListReservationCategories)
-	masters.POST("/reservation-types", perm(model.ResourceMasterReservationCategory, "create"), h.CreateReservationCategory)
-	masters.PATCH("/reservation-types/reorder", perm(model.ResourceMasterReservationCategory, "edit"), h.ReorderReservationCategories)
-	masters.GET("/reservation-types/:id", h.GetReservationCategory)
-	masters.PATCH("/reservation-types/:id", perm(model.ResourceMasterReservationCategory, "edit"), h.UpdateReservationCategory)
-	masters.DELETE("/reservation-types/:id", perm(model.ResourceMasterReservationCategory, "delete"), h.DeleteReservationCategory)
+	masters.POST("/reservation-types", perm(model.ResourceMasterReservationType, "create"), h.CreateReservationType)
+	masters.PATCH("/reservation-types/reorder", perm(model.ResourceMasterReservationType, "edit"), h.ReorderReservationCategories)
+	masters.GET("/reservation-types/:id", h.GetReservationType)
+	masters.PATCH("/reservation-types/:id", perm(model.ResourceMasterReservationType, "edit"), h.UpdateReservationType)
+	masters.DELETE("/reservation-types/:id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteReservationType)
 
 	// Consultations
 	masters.GET("/consultations", h.ListConsultations)

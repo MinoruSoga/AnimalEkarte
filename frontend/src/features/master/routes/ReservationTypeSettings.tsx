@@ -19,28 +19,28 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/features/auth";
-import { ResourceMasterReservationCategory } from "@/types/generated/models";
+import { ResourceMasterReservationType } from "@/types/generated/models";
 import {
   useGetReservationCategories,
-  useCreateReservationCategory,
-  useUpdateReservationCategory,
-  useDeleteReservationCategory,
+  useCreateReservationType,
+  useUpdateReservationType,
+  useDeleteReservationType,
   useReorderReservationCategories,
 } from "@/features/master/api/reservation-categories";
-import type { ReservationCategory } from "@/features/master/api/reservation-categories";
+import type { ReservationType } from "@/features/master/api/reservation-categories";
 import {
-  useGetReservationCategoryGroups,
-  useCreateReservationCategoryGroup,
-  useUpdateReservationCategoryGroup,
-  useDeleteReservationCategoryGroup,
+  useGetReservationTypeGroups,
+  useCreateReservationTypeGroup,
+  useUpdateReservationTypeGroup,
+  useDeleteReservationTypeGroup,
 } from "@/features/master/api/reservation-category-groups";
-import type { ReservationCategoryGroup } from "@/features/master/api/reservation-category-groups";
-import type { CreateReservationCategoryGroupRequest, UpdateReservationCategoryGroupRequest } from "@/features/master/api/reservation-category-groups";
-import type { CreateReservationCategoryRequest, UpdateReservationCategoryRequest } from "@/types/reservation-category";
-import { GroupSidePanel } from "./ReservationCategoryGroupSidePanel";
-import type { GroupFormData } from "./ReservationCategoryGroupSidePanel";
-import { CategorySidePanel } from "./ReservationCategorySidePanel";
-import type { CategoryFormData } from "./ReservationCategorySidePanel";
+import type { ReservationTypeGroup } from "@/features/master/api/reservation-category-groups";
+import type { CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest } from "@/features/master/api/reservation-category-groups";
+import type { CreateReservationTypeRequest, UpdateReservationTypeRequest } from "@/types/reservation-category";
+import { GroupSidePanel } from "./ReservationTypeGroupSidePanel";
+import type { GroupFormData } from "./ReservationTypeGroupSidePanel";
+import { CategorySidePanel } from "./ReservationTypeSidePanel";
+import type { CategoryFormData } from "./ReservationTypeSidePanel";
 
 // ─────────────────────────────────────────────────────────────────
 // GroupedTable
@@ -50,10 +50,10 @@ import type { CategoryFormData } from "./ReservationCategorySidePanel";
 const UNCATEGORIZED_ID = "__uncategorized__";
 
 interface GroupedTableProps {
-  groups: ReservationCategoryGroup[];
-  categories: ReservationCategory[];
-  onCategoryEdit: (cat: ReservationCategory) => void;
-  onGroupEdit: (group: ReservationCategoryGroup) => void;
+  groups: ReservationTypeGroup[];
+  categories: ReservationType[];
+  onCategoryEdit: (cat: ReservationType) => void;
+  onGroupEdit: (group: ReservationTypeGroup) => void;
   onCategoryAddInGroup: (groupId: string | undefined) => void;
   canEdit: boolean;
 }
@@ -85,8 +85,8 @@ function GroupedTable({
 
   // orderedItems をグループIDで振り分け
   const categoriesByGroupId = useMemo(() => {
-    const map = new Map<string, ReservationCategory[]>();
-    const uncat: ReservationCategory[] = [];
+    const map = new Map<string, ReservationType[]>();
+    const uncat: ReservationType[] = [];
     for (const cat of orderedItems) {
       if (cat.groupId) {
         const arr = map.get(cat.groupId) ?? [];
@@ -240,14 +240,14 @@ function GroupedTable({
 }
 
 // ─────────────────────────────────────────────────────────────────
-// ReservationCategorySettings
+// ReservationTypeSettings
 // ─────────────────────────────────────────────────────────────────
 
-export function ReservationCategorySettings() {
+export function ReservationTypeSettings() {
   const navigate = useNavigate();
-  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterReservationCategory);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterReservationType);
 
-  const { data: groupsRaw = [] } = useGetReservationCategoryGroups();
+  const { data: groupsRaw = [] } = useGetReservationTypeGroups();
   const { data: categoriesRaw = [] } = useGetReservationCategories();
 
   // グループ選択肢（有効のみ）
@@ -277,23 +277,23 @@ export function ReservationCategorySettings() {
   }, [categoriesRaw, activeFilters, deferredSearch]);
 
   // 編集・削除ターゲット
-  const [groupEditTarget, setGroupEditTarget] = useState<ReservationCategoryGroup | "new" | null>(null);
-  const [groupPendingDelete, setGroupPendingDelete] = useState<ReservationCategoryGroup | null>(null);
-  const [categoryEditTarget, setCategoryEditTarget] = useState<ReservationCategory | "new" | null>(null);
+  const [groupEditTarget, setGroupEditTarget] = useState<ReservationTypeGroup | "new" | null>(null);
+  const [groupPendingDelete, setGroupPendingDelete] = useState<ReservationTypeGroup | null>(null);
+  const [categoryEditTarget, setCategoryEditTarget] = useState<ReservationType | "new" | null>(null);
   const [categoryDefaultGroupId, setCategoryDefaultGroupId] = useState<string | undefined>(undefined);
-  const [categoryPendingDelete, setCategoryPendingDelete] = useState<ReservationCategory | null>(null);
+  const [categoryPendingDelete, setCategoryPendingDelete] = useState<ReservationType | null>(null);
   const [, startTransition] = useTransition();
 
   // ミューテーション
-  const createGroupMutation = useCreateReservationCategoryGroup();
-  const updateGroupMutation = useUpdateReservationCategoryGroup();
-  const deleteGroupMutation = useDeleteReservationCategoryGroup();
-  const createCategoryMutation = useCreateReservationCategory();
-  const updateCategoryMutation = useUpdateReservationCategory();
-  const deleteCategoryMutation = useDeleteReservationCategory();
+  const createGroupMutation = useCreateReservationTypeGroup();
+  const updateGroupMutation = useUpdateReservationTypeGroup();
+  const deleteGroupMutation = useDeleteReservationTypeGroup();
+  const createCategoryMutation = useCreateReservationType();
+  const updateCategoryMutation = useUpdateReservationType();
+  const deleteCategoryMutation = useDeleteReservationType();
 
   // ── ハンドラ ─────────────────────────────────────────────────
-  const handleGroupEdit = useCallback((group: ReservationCategoryGroup) => {
+  const handleGroupEdit = useCallback((group: ReservationTypeGroup) => {
     setGroupEditTarget(group);
     setCategoryEditTarget(null);
   }, []);
@@ -303,11 +303,11 @@ export function ReservationCategorySettings() {
     setCategoryEditTarget(null);
   }, []);
 
-  const handleGroupDeleteRequest = useCallback((item: ReservationCategoryGroup) => {
+  const handleGroupDeleteRequest = useCallback((item: ReservationTypeGroup) => {
     setGroupPendingDelete(item);
   }, []);
 
-  const handleCategoryEdit = useCallback((cat: ReservationCategory) => {
+  const handleCategoryEdit = useCallback((cat: ReservationType) => {
     setCategoryEditTarget(cat);
     setGroupEditTarget(null);
     setCategoryDefaultGroupId(undefined);
@@ -319,7 +319,7 @@ export function ReservationCategorySettings() {
     setGroupEditTarget(null);
   }, []);
 
-  const handleCategoryDeleteRequest = useCallback((item: ReservationCategory) => {
+  const handleCategoryDeleteRequest = useCallback((item: ReservationType) => {
     setCategoryPendingDelete(item);
   }, []);
 
@@ -327,7 +327,7 @@ export function ReservationCategorySettings() {
   const handleGroupSave = useCallback((data: GroupFormData) => {
     startTransition(() => {
       if (groupEditTarget !== null && groupEditTarget !== "new") {
-        const req: UpdateReservationCategoryGroupRequest = {
+        const req: UpdateReservationTypeGroupRequest = {
           name: data.name, color: data.color || undefined, is_active: data.isActive,
         };
         updateGroupMutation.mutate({ id: groupEditTarget.id, req }, {
@@ -335,7 +335,7 @@ export function ReservationCategorySettings() {
           onError: (error) => handleApiError(error, "更新"),
         });
       } else {
-        const req: CreateReservationCategoryGroupRequest = {
+        const req: CreateReservationTypeGroupRequest = {
           name: data.name, color: data.color || undefined, is_active: data.isActive,
         };
         createGroupMutation.mutate(req, {
@@ -360,7 +360,7 @@ export function ReservationCategorySettings() {
   const handleCategorySave = useCallback((data: CategoryFormData) => {
     startTransition(() => {
       if (categoryEditTarget !== null && categoryEditTarget !== "new") {
-        const req: UpdateReservationCategoryRequest = {
+        const req: UpdateReservationTypeRequest = {
           name: data.name, description: data.description || undefined,
           is_active: data.isActive, group_id: data.groupId ? Number(data.groupId) : undefined,
           reservation_display_name: data.reservationDisplayName || undefined,
@@ -377,7 +377,7 @@ export function ReservationCategorySettings() {
           onError: (error) => handleApiError(error, "更新"),
         });
       } else {
-        const req: CreateReservationCategoryRequest = {
+        const req: CreateReservationTypeRequest = {
           name: data.name, description: data.description || undefined,
           is_active: true, group_id: data.groupId ? Number(data.groupId) : undefined,
           reservation_display_name: data.reservationDisplayName || undefined,
@@ -417,7 +417,7 @@ export function ReservationCategorySettings() {
           <PageLayout
             title="予約区分マスタ"
             icon={<Activity className={`${ICON.page} ${C.text}`} />}
-            resource={ResourceMasterReservationCategory}
+            resource={ResourceMasterReservationType}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={

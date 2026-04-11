@@ -80,12 +80,12 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.petName).toBe("ポチ");
   });
 
-  it("reservation_type.name を reservationCategory にマップする", () => {
+  it("reservation_type.name を reservationType にマップする", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
       reservation_type: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["reservation_type"],
     });
-    expect(result.reservationCategory).toBe("診療");
+    expect(result.reservationType).toBe("診療");
   });
 
   it("is_designated をそのまま返す", () => {

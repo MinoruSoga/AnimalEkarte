@@ -1,6 +1,6 @@
 import type { Pet, VisitType, ReservationStatus } from "@/types";
 export type {
-  ReservationAppointment,
+  Appointment,
   ReservationStatus,
   CalendarView,
   VisitType,

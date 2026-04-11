@@ -1,23 +1,23 @@
-import type { ReservationCategory as ModelReservationCategory } from "@/types/generated/models";
+import type { ReservationType as ModelReservationType } from "@/types/generated/models";
 
 // Server-managed fields excluded from request types
 type ServerFields = "id" | "clinic_id" | "created_at" | "updated_at";
 
 // ─────────────────────────────────────────────────
-// ReservationCategory request types (models.ts から導出)
+// ReservationType request types (models.ts から導出)
 // ─────────────────────────────────────────────────
 
-export type CreateReservationCategoryRequest =
-  Required<Pick<ModelReservationCategory, "name">> &
-  Partial<Omit<ModelReservationCategory, ServerFields | "name">>;
+export type CreateReservationTypeRequest =
+  Required<Pick<ModelReservationType, "name">> &
+  Partial<Omit<ModelReservationType, ServerFields | "name">>;
 
-export type UpdateReservationCategoryRequest =
-  Partial<Omit<ModelReservationCategory, ServerFields>>;
+export type UpdateReservationTypeRequest =
+  Partial<Omit<ModelReservationType, ServerFields>>;
 
 // ─────────────────────────────────────────────────
 // Reorder request type (手書き)
 // ─────────────────────────────────────────────────
 
-export interface ReorderReservationCategoryRequest {
+export interface ReorderReservationTypeRequest {
   ids: number[];
 }

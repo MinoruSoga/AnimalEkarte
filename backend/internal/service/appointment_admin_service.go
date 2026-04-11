@@ -27,7 +27,7 @@ type CreateReservationAdminInput struct {
 	OwnerID          *uint64
 	PetID            *uint64
 	VisitType        string
-	ReservationCategoryID    uint64
+	ReservationTypeID    uint64
 	DoctorID         *uint64
 	IsDesignated     bool
 	Notes            string
@@ -111,7 +111,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 			OwnerID:          input.OwnerID,
 			PetID:            input.PetID,
 			VisitType:        visitType,
-			ReservationTypeID:    input.ReservationCategoryID,
+			ReservationTypeID:    input.ReservationTypeID,
 			DoctorID:         input.DoctorID,
 			IsDesignated:     input.IsDesignated,
 			Notes:            input.Notes,

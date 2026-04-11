@@ -34,25 +34,25 @@ func (m *mockLiffSettingRepository) Upsert(_ context.Context, _ *model.LineReser
 // --- mockLiffCourseRepository ---
 
 type mockLiffCourseRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationCategory, error)
+	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 }
 
-func (m *mockLiffCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error) {
+func (m *mockLiffCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	if m.findAllFn != nil {
 		return m.findAllFn(ctx, clinicID)
 	}
 	return nil, nil
 }
 
-func (m *mockLiffCourseRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationCategory, error) {
+func (m *mockLiffCourseRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return nil, apperrors.ErrNotFound
 }
 
-func (m *mockLiffCourseRepository) Create(_ context.Context, _ *model.ReservationCategory) error { return nil }
+func (m *mockLiffCourseRepository) Create(_ context.Context, _ *model.ReservationType) error { return nil }
 
 func (m *mockLiffCourseRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
 	return nil
@@ -69,7 +69,7 @@ func (m *mockLiffCourseRepository) SwapSortOrder(_ context.Context, _, _ uint64,
 type mockLiffStaffRepository struct {
 	findAllByClinicIDFn        func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
 	findByIDFn                 func(ctx context.Context, id uint64) (*model.Staff, error)
-	findExcludedReservationCategoriesFn func(ctx context.Context, staffID uint64) ([]model.StaffExcludedReservationCategory, error)
+	findExcludedReservationTypesFn func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 }
 
 func (m *mockLiffStaffRepository) FindAllByClinicID(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
@@ -100,18 +100,18 @@ func (m *mockLiffStaffRepository) SwapSortOrder(_ context.Context, _, _ uint64, 
 	return nil
 }
 
-func (m *mockLiffStaffRepository) FindExcludedReservationCategories(ctx context.Context, staffID uint64) ([]model.StaffExcludedReservationCategory, error) {
-	if m.findExcludedReservationCategoriesFn != nil {
-		return m.findExcludedReservationCategoriesFn(ctx, staffID)
+func (m *mockLiffStaffRepository) FindExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
+	if m.findExcludedReservationTypesFn != nil {
+		return m.findExcludedReservationTypesFn(ctx, staffID)
 	}
 	return nil, nil
 }
 
-func (m *mockLiffStaffRepository) FindExcludedReservationCategoriesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffExcludedReservationCategory, error) {
+func (m *mockLiffStaffRepository) FindExcludedReservationTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
 	return nil, nil
 }
 
-func (m *mockLiffStaffRepository) ReplaceExcludedReservationCategories(_ context.Context, _ uint64, _ []uint64) error {
+func (m *mockLiffStaffRepository) ReplaceExcludedReservationTypes(_ context.Context, _ uint64, _ []uint64) error {
 	return nil
 }
 

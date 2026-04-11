@@ -47,7 +47,7 @@ func allModels() []any {
 		&model.StaffClinicAssignment{},
 		&model.ShiftEntry{},
 		&model.AnimalSpecies{},
-		&model.ReservationCategory{},
+		&model.ReservationType{},
 		&model.Occupation{},
 		&model.Insurance{},
 		&model.ChiefComplaintCategory{},
@@ -65,7 +65,7 @@ func allModels() []any {
 		&model.VitalRecord{},
 		&model.Treatment{},
 		&model.Examination{},
-		&model.ExaminationItem{},
+		&model.ExamResult{},
 		&model.Vaccination{},
 		&model.Checkup{},
 		&model.MedicalRecordImage{},
@@ -96,7 +96,7 @@ func allModels() []any {
 		// LINE予約システム
 		&model.LineReservationSetting{},
 		&model.LineCustomer{},
-		&model.StaffExcludedReservationCategory{},
+		&model.StaffReservationExclusion{},
 		&model.ShiftEntryBreak{},
 	}
 }

@@ -1,6 +1,6 @@
 package handler
 
-type createReservationCategoryRequest struct {
+type createReservationTypeRequest struct {
 	Name        string  `json:"name"        binding:"required"`
 	Color       string  `json:"color"`
 	IsActive    bool    `json:"is_active"`
@@ -20,7 +20,7 @@ type createReservationCategoryRequest struct {
 	IsInternal             bool   `json:"is_internal"`
 }
 
-type updateReservationCategoryRequest struct {
+type updateReservationTypeRequest struct {
 	Name        *string  `json:"name"`
 	Color       *string  `json:"color"`
 	IsActive    *bool    `json:"is_active"`
@@ -40,6 +40,6 @@ type updateReservationCategoryRequest struct {
 	IsInternal             *bool   `json:"is_internal"`
 }
 
-type reorderReservationCategoryRequest struct {
+type reorderReservationTypeRequest struct {
 	IDs []uint64 `json:"ids" binding:"required,min=1"`
 }

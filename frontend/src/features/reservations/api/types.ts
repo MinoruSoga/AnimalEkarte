@@ -5,11 +5,11 @@
 import type { Appointment } from "@/types/generated/models";
 
 // Backend 型エイリアス
-export type BackendReservationAppointment = Appointment;
+export type BackendAppointment = Appointment;
 
 /**
  * 予約作成リクエスト
- * models.ts の ReservationAppointment から導出
+ * models.ts の Appointment から導出
  */
 export interface CreateReservationRequest {
   pet_id: number;
@@ -18,7 +18,7 @@ export interface CreateReservationRequest {
   start_time: string;
   end_time: string;
   visit_type: string;
-  reservation_category_id: number;
+  reservation_type_id: number;
   is_designated?: boolean;
   notes?: string;
   source?: "manual" | "line";
@@ -26,13 +26,13 @@ export interface CreateReservationRequest {
 
 /**
  * 予約更新リクエスト
- * models.ts の ReservationAppointment から導出
+ * models.ts の Appointment から導出
  */
 export interface UpdateReservationRequest {
   start_time?: string;
   end_time?: string;
   visit_type?: string;
-  reservation_category_id?: number;
+  reservation_type_id?: number;
   doctor_id?: number;
   is_designated?: boolean;
   status?: string;

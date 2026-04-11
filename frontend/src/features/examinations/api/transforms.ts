@@ -1,5 +1,5 @@
-import type { ExaminationRecord, ExaminationItem } from "@/types";
-import type { BackendExamination, BackendExaminationItem } from "./types";
+import type { ExaminationRecord, ExamResult } from "@/types";
+import type { BackendExamination, BackendExamResult } from "./types";
 
 const EXAM_STATUS_EN_TO_JA: Record<string, "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定"> = {
   pending: "依頼中",
@@ -9,9 +9,9 @@ const EXAM_STATUS_EN_TO_JA: Record<string, "依頼中" | "検査中" | "結果�
   confirmed: "確定",
 };
 
-function transformExaminationItem(
-  item: BackendExaminationItem
-): ExaminationItem {
+function transformExamResult(
+  item: BackendExamResult
+): ExamResult {
   return {
     id: String(item.id ?? 0),
     name: item.name ?? "",
@@ -38,6 +38,6 @@ export function transformExamination(
     status: EXAM_STATUS_EN_TO_JA[data.status ?? ""] ?? "依頼中",
     resultSummary: data.result_summary ?? undefined,
     machine: data.machine ?? undefined,
-    items: data.items?.map(transformExaminationItem),
+    items: data.items?.map(transformExamResult),
   };
 }

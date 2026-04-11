@@ -1,6 +1,6 @@
 package handler
 
-type createReservationCourseRequest struct {
+type createReservationTypeLiffRequest struct {
 	Name                 string `json:"name"                   binding:"required"`
 	Color                string `json:"color"`
 	Description          string `json:"description"`
@@ -14,7 +14,7 @@ type createReservationCourseRequest struct {
 	IsInternal           bool   `json:"is_internal"`
 }
 
-type updateReservationCourseRequest struct {
+type updateReservationTypeLiffRequest struct {
 	Name                 *string `json:"name"`
 	Color                *string `json:"color"`
 	Description          *string `json:"description"`
@@ -28,10 +28,10 @@ type updateReservationCourseRequest struct {
 	IsInternal           *bool   `json:"is_internal"`
 }
 
-type patchReservationCourseStatusRequest struct {
+type patchReservationTypeLiffStatusRequest struct {
 	IsActive bool `json:"is_active"`
 }
 
-type patchReservationCourseSortOrderRequest struct {
+type patchReservationTypeLiffSortOrderRequest struct {
 	Direction string `json:"direction" binding:"required,oneof=up down"`
 }

@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect, useTransition } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
-import type { Appointment, ColumnData } from "@/types";
+import type { ColumnData } from "@/types";
 // bundle-barrel-imports: barrel経由ではなく各ファイルから直接import
 import { useGetReception, todayISO } from "../api/get-reception";
 import { useGetStaffs, buildStaffMap } from "../api/get-staffs";
@@ -9,22 +9,12 @@ import { useUpdateAppointmentStatus } from "../api/update-appointment-status";
 import { COLUMN_TITLE_TO_STATUS, RECEPTION_COLUMNS } from "../api/transforms";
 import type { ReceptionColumn, ReceptionAppointment } from "../api/types";
 
-/** ReceptionAppointment → Appointment（@/types）変換。doctor_id をスタッフ名に解決する */
-function toAppointment(appt: ReceptionAppointment, staffMap: Map<string, string>): Appointment {
+/** ReceptionAppointment にスタッフ名解決を適用して返す */
+function toAppointment(appt: ReceptionAppointment, staffMap: Map<string, string>): ReceptionAppointment {
   return {
-    id: appt.id,
-    time: appt.time,
-    ownerName: appt.ownerName,
-    petType: appt.petType,
-    petName: appt.petName,
-    visitType: appt.visitType,
-    reservationCategory: appt.reservationCategory,
-    nextAppointment: appt.nextAppointment,
-    isDesignated: appt.isDesignated,
+    ...appt,
     // doctor_id（UUID）をスタッフ名に変換。未登録IDの場合はUUIDをそのまま表示
     doctor: appt.doctor ? (staffMap.get(appt.doctor) ?? appt.doctor) : undefined,
-    petId: appt.petId,
-    ownerId: appt.ownerId,
   };
 }
 
@@ -111,7 +101,7 @@ export function useReceptionKanban() {
 
         // 3. Trimming Filter
         if (isTrimmingOnly) {
-          if (!app.reservationCategory.includes("トリミング")) return false;
+          if (!app.reservationType.includes("トリミング")) return false;
         }
 
         return true;
@@ -214,7 +204,7 @@ export function useReceptionKanban() {
     return true;
   }, [updateStatusMutation, startUpdateStatusTransition]);
 
-  const advanceStatus = useCallback((appointment: Appointment) => {
+  const advanceStatus = useCallback((appointment: ReceptionAppointment) => {
     const currentColumnTitle = filteredColumnsRef.current.find(c => c.appointments.some(a => a.id === appointment.id))?.title;
     if (!currentColumnTitle) return;
 
@@ -311,7 +301,7 @@ export function useReceptionKanban() {
     });
   }, [updateStatusMutation, startUpdateStatusTransition]);
 
-  const updateAppointment = useCallback((updatedAppointment: Appointment) => {
+  const updateAppointment = useCallback((updatedAppointment: ReceptionAppointment) => {
     setColumns(prev => {
       const newColumns = prev.map(col => ({ ...col, appointments: [...col.appointments] }));
       for (const col of newColumns) {

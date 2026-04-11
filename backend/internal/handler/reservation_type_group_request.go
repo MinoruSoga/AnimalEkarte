@@ -1,19 +1,19 @@
 package handler
 
-type createReservationCategoryGroupRequest struct {
+type createReservationTypeGroupRequest struct {
 	Name      string `json:"name"       binding:"required"`
 	Color     string `json:"color"`
 	SortOrder int    `json:"sort_order"`
 	IsActive  bool   `json:"is_active"`
 }
 
-type updateReservationCategoryGroupRequest struct {
+type updateReservationTypeGroupRequest struct {
 	Name      *string `json:"name"`
 	Color     *string `json:"color"`
 	SortOrder *int    `json:"sort_order"`
 	IsActive  *bool   `json:"is_active"`
 }
 
-type reorderReservationCategoryGroupRequest struct {
+type reorderReservationTypeGroupRequest struct {
 	IDs []uint64 `json:"ids" binding:"required,min=1"`
 }

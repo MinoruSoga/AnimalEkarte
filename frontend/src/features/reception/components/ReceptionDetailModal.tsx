@@ -25,7 +25,7 @@ import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { RECEPTION_STATUS_COLORS, RECEPTION_STATUS_COLOR_FALLBACK } from "@/utils/constants/status-colors";
 
 // Types
-import type { Appointment } from "@/types";
+import type { ReceptionAppointment as Appointment } from "../api/types";
 
 // Module-level constants — avoid recreating compound class strings on every render
 const SECTION_LABEL = `text-sm font-semibold ${C.text60} uppercase tracking-wider`;
@@ -359,9 +359,9 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
 
   if (!appointment) return null;
 
-  const isTrimming = appointment.reservationCategory.includes("トリミング");
-  const isHospitalization = appointment.reservationCategory.includes("入院");
-  const isMedical = appointment.reservationCategory.includes("診療") || (!isTrimming && !isHospitalization);
+  const isTrimming = appointment.reservationType.includes("トリミング");
+  const isHospitalization = appointment.reservationType.includes("入院");
+  const isMedical = appointment.reservationType.includes("診療") || (!isTrimming && !isHospitalization);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -378,7 +378,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
                 {appointment.visitType === "初診" ? "初" : "再"}
               </span>
               <DialogTitle className={`text-lg font-bold ${C.text}`}>
-                {appointment.reservationCategory}
+                {appointment.reservationType}
               </DialogTitle>
             </div>
             {currentStatus ? (

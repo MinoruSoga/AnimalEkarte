@@ -42,7 +42,7 @@ func (m *mockReservationRepository) Delete(ctx context.Context, clinicID, id uin
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockReservationRepository) ExistsByReservationCategoryID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockReservationRepository) ExistsByReservationTypeID(_ context.Context, _ uint64) (bool, error) {
 	return false, nil
 }
 

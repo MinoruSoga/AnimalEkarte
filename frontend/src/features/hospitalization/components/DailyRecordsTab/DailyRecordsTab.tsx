@@ -18,7 +18,7 @@ import { useDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCar
 import { usePermission } from "@/features/auth";
 
 // Types
-import type { CreateVitalRecordRequest, CreateCareLogRecordRequest, CreateStaffNoteRecordRequest } from "@/features/hospitalization/api/daily-records-types";
+import type { CreateVitalRecordRequest, CreateCareLogRequest, CreateStaffNoteRequest } from "@/features/hospitalization/api/daily-records-types";
 
 interface DailyRecordsTabProps {
     hospitalizationId: string;
@@ -90,7 +90,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
     );
 
     const handleAddCareLog = useCallback(
-        (payload: CreateCareLogRecordRequest) => {
+        (payload: CreateCareLogRequest) => {
             startCareLogTransition(async () => {
                 await createCareLog.mutateAsync(payload);
             });
@@ -99,7 +99,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
     );
 
     const handleAddStaffNote = useCallback(
-        (payload: CreateStaffNoteRecordRequest) => {
+        (payload: CreateStaffNoteRequest) => {
             startStaffNoteTransition(async () => {
                 await createStaffNote.mutateAsync(payload);
             });

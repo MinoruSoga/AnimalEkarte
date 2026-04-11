@@ -281,9 +281,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           status={selectedPet.status === "死亡" ? "deceased" : "alive"}
           staffName={staffName}
           staffLabel="担当医: "
-          reservationCategory={visitType}
-          reservationCategoryLabel="来院種別"
-          onReservationCategoryClick={() => {
+          reservationType={visitType}
+          reservationTypeLabel="来院種別"
+          onReservationTypeClick={() => {
             const idx = VISIT_TYPE_OPTIONS.indexOf(visitType as typeof VISIT_TYPE_OPTIONS[number]);
             setVisitType(VISIT_TYPE_OPTIONS[(idx + 1) % VISIT_TYPE_OPTIONS.length]);
           }}

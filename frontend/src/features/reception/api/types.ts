@@ -1,6 +1,6 @@
 /**
  * Reception API types
- * Backend source: {@link import("@/types/generated/models").ReservationAppointment}
+ * Backend source: {@link import("@/types/generated/models").Appointment}
  * ReservationStatus は src/types の union 型を使用（models.ts は string 型のため型安全性維持）
  */
 import type { ReservationStatus } from "@/types";
@@ -12,7 +12,7 @@ export interface ReceptionAppointment {
   petType: string;
   petName: string;
   visitType: "初診" | "再診";
-  reservationCategory: string;
+  reservationType: string;
   nextAppointment?: "次回予約無" | "次回予約済" | "精算未確認" | "精算確認済";
   isDesignated: boolean;
   doctor?: string;

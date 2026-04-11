@@ -60,7 +60,7 @@ func (h *Handler) CreateReservationStaff(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	excluded, err := h.svc.ReservationStaff.GetExcludedReservationCategories(c.Request.Context(), staff.ID)
+	excluded, err := h.svc.ReservationStaff.GetExcludedReservationTypes(c.Request.Context(), staff.ID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -96,7 +96,7 @@ func (h *Handler) UpdateReservationStaff(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	excluded, err := h.svc.ReservationStaff.GetExcludedReservationCategories(c.Request.Context(), staff.ID)
+	excluded, err := h.svc.ReservationStaff.GetExcludedReservationTypes(c.Request.Context(), staff.ID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -143,7 +143,7 @@ func (h *Handler) PatchReservationStaffStatus(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	excluded, err := h.svc.ReservationStaff.GetExcludedReservationCategories(c.Request.Context(), staff.ID)
+	excluded, err := h.svc.ReservationStaff.GetExcludedReservationTypes(c.Request.Context(), staff.ID)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -37,7 +37,7 @@ type groupSummary struct {
 	Color string `json:"color"`
 }
 
-func toReservationCategoryResponse(st *model.ReservationCategory) reservationCategoryResponse {
+func toReservationTypeResponse(st *model.ReservationType) reservationCategoryResponse {
 	resp := reservationCategoryResponse{
 		ID:                     st.ID,
 		ClinicID:               st.ClinicID,
@@ -69,10 +69,10 @@ func toReservationCategoryResponse(st *model.ReservationCategory) reservationCat
 	return resp
 }
 
-func toReservationCategoryResponseList(items []model.ReservationCategory) []reservationCategoryResponse {
+func toReservationTypeResponseList(items []model.ReservationType) []reservationCategoryResponse {
 	list := make([]reservationCategoryResponse, 0, len(items))
 	for i := range items {
-		list = append(list, toReservationCategoryResponse(&items[i]))
+		list = append(list, toReservationTypeResponse(&items[i]))
 	}
 	return list
 }

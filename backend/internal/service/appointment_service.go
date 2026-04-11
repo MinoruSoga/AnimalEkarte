@@ -127,7 +127,7 @@ type UpdateReservationInput struct {
 	OwnerID       *uint64
 	PetID         *uint64
 	VisitType     *model.VisitType
-	ReservationCategoryID *uint64
+	ReservationTypeID *uint64
 	DoctorID      *uint64
 	IsDesignated  *bool
 	Status        *model.ReservationStatus
@@ -151,8 +151,8 @@ func buildReservationUpdateFields(input *UpdateReservationInput) map[string]any 
 	if input.VisitType != nil {
 		fields["visit_type"] = *input.VisitType
 	}
-	if input.ReservationCategoryID != nil {
-		fields["reservation_category_id"] = *input.ReservationCategoryID
+	if input.ReservationTypeID != nil {
+		fields["reservation_type_id"] = *input.ReservationTypeID
 	}
 	if input.DoctorID != nil {
 		fields["doctor_id"] = *input.DoctorID

@@ -23,8 +23,8 @@ type Services struct {
 	Medicine                 MedicineService
 	Vaccine                  VaccineService
 	Insurance                InsuranceService
-	ReservationCategory      ReservationCategoryService
-	ReservationCategoryGroup ReservationCategoryGroupService
+	ReservationType      ReservationTypeService
+	ReservationTypeGroup ReservationTypeGroupService
 	Consultation             ConsultationService
 	Procedure                ProcedureService
 	HospitalizationPlan      HospitalizationPlanService
@@ -59,7 +59,7 @@ type Services struct {
 	Refund                   RefundService
 	// LINE予約
 	LineReservationSetting  LineReservationSettingService
-	ReservationCourse   ReservationCourseService
+	ReservationTypeLiff   ReservationTypeLiffService
 	ReservationStaff    ReservationStaffService
 	ReservationSchedule ReservationScheduleService
 	ReservationAdmin    ReservationAdminService
@@ -90,8 +90,8 @@ func NewServices(repos *repository.Repositories, notifCfg ReservationNotificatio
 		Medicine:                 NewMedicineService(repos.Medicine),
 		Vaccine:                  NewVaccineService(repos.Vaccine),
 		Insurance:                NewInsuranceService(repos.Insurance),
-		ReservationCategory:      NewReservationCategoryService(repos.ReservationCategory, repos.Reservation),
-		ReservationCategoryGroup: NewReservationCategoryGroupService(repos.ReservationCategoryGroup),
+		ReservationType:      NewReservationTypeService(repos.ReservationType, repos.Reservation),
+		ReservationTypeGroup: NewReservationTypeGroupService(repos.ReservationTypeGroup),
 		Consultation:             NewConsultationService(repos.Consultation),
 		Procedure:                NewProcedureService(repos.Procedure),
 		HospitalizationPlan:      NewHospitalizationPlanService(repos.HospitalizationPlan),
@@ -125,14 +125,14 @@ func NewServices(repos *repository.Repositories, notifCfg ReservationNotificatio
 		BillingItem:              NewBillingItemService(repos.BillingItem),
 		Refund:                   NewRefundService(repos.Refund, repos.Accounting),
 		LineReservationSetting:       NewLineReservationSettingService(repos.LineReservationSetting),
-		ReservationCourse:        NewReservationCourseService(repos.ReservationCourse, repos.ReservationAdmin, repos.Reservation),
+		ReservationTypeLiff:        NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),
 		ReservationStaff:         NewReservationStaffService(repos.ReservationStaff),
 		ReservationSchedule:      NewReservationScheduleService(repos.ReservationSchedule),
 		ReservationAdmin:         NewReservationAdminService(repos.ReservationAdmin, repos.DB()),
 		LineCustomer:      NewLineCustomerService(repos.LineCustomerMgr),
 		Liff: NewLiffService(
 			repos.LineReservationSetting,
-			repos.ReservationCourse,
+			repos.ReservationTypeLiff,
 			repos.ReservationStaff,
 			repos.ReservationSchedule,
 			repos.ReservationAdmin,

@@ -12,6 +12,3 @@ type StaffReservationExclusion struct {
 }
 
 func (StaffReservationExclusion) TableName() string { return "staff_reservation_exclusions" }
-
-// StaffExcludedReservationCategory は StaffReservationExclusion の後方互換エイリアス。
-type StaffExcludedReservationCategory = StaffReservationExclusion

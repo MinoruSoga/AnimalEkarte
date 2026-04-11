@@ -14,13 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Types
-import type { ApiCareLogRecord, CreateCareLogRecordRequest } from "@/features/hospitalization/api/daily-records-types";
+import type { ApiCareLog, CreateCareLogRequest } from "@/features/hospitalization/api/daily-records-types";
 
 type CareLogType = "food" | "excretion" | "medicine" | "treatment" | "other";
 
 interface DailyCareLogsSectionProps {
-    careLogs: ApiCareLogRecord[];
-    onAddCareLog: (payload: CreateCareLogRecordRequest) => void;
+    careLogs: ApiCareLog[];
+    onAddCareLog: (payload: CreateCareLogRequest) => void;
     isPending: boolean;
     canCreate?: boolean;
 }
@@ -108,7 +108,7 @@ export const DailyCareLogsSection = memo(function DailyCareLogsSection({
     const handleSubmit = useCallback(() => {
         if (!form.time) return;
 
-        const payload: CreateCareLogRecordRequest = {
+        const payload: CreateCareLogRequest = {
             time: form.time,
             type: form.type,
         };

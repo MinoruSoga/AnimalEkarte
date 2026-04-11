@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
-import type { ReservationCategory } from "@/features/master/api/reservation-categories";
+import type { ReservationType } from "@/features/master/api/reservation-categories";
 
 // ── 静的 SelectItem JSX (rendering-hoist-jsx) ──────────────────
 export const RESERVATION_DAY_OPTION_ITEMS = (
@@ -37,10 +37,10 @@ export interface GroupOption { id: string; name: string; color: string; }
 export const CategorySidePanel = memo(function CategorySidePanel({
   item, onClose, onSave, onDeleteRequest, readOnly, groups, defaultGroupId,
 }: {
-  item: ReservationCategory | null;
+  item: ReservationType | null;
   onClose: () => void;
   onSave: (d: CategoryFormData) => void;
-  onDeleteRequest?: (i: ReservationCategory) => void;
+  onDeleteRequest?: (i: ReservationType) => void;
   readOnly?: boolean;
   groups: GroupOption[];
   defaultGroupId?: string;
@@ -122,10 +122,10 @@ export const CategorySidePanel = memo(function CategorySidePanel({
         <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
       </PropertyRow>
 
-      <div className="mt-4 border-t pt-4">
+      <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
         <div className="flex items-center gap-1.5 mb-3">
           <MessageCircle className="size-3.5" style={{ color: PALETTE.lineGreen }} />
-          <p className="text-xs font-medium text-muted-foreground">LINE予約設定</p>
+          <p className={`text-xs font-medium ${C.text50}`}>LINE予約設定</p>
         </div>
         <PropertyRow label="LINE表示名">
           <PropertyInput value={f.reservationDisplayName}

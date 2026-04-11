@@ -10,8 +10,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ReservationCourseRepository は予約コース（reservation_categories の予約用ラッパー）のデータアクセスインターフェース
-type ReservationCourseRepository interface {
+// ReservationTypeLiffRepository は予約コース（reservation_categories の予約用ラッパー）のデータアクセスインターフェース
+type ReservationTypeLiffRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 	Create(ctx context.Context, st *model.ReservationType) error
@@ -22,13 +22,13 @@ type ReservationCourseRepository interface {
 	SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
-type reservationCourseRepository struct{ db *gorm.DB }
+type reservationTypeLiffRepository struct{ db *gorm.DB }
 
-func NewReservationCourseRepository(db *gorm.DB) ReservationCourseRepository {
-	return &reservationCourseRepository{db: db}
+func NewReservationTypeLiffRepository(db *gorm.DB) ReservationTypeLiffRepository {
+	return &reservationTypeLiffRepository{db: db}
 }
 
-func (r *reservationCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
+func (r *reservationTypeLiffRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	items := make([]model.ReservationType, 0)
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ?", clinicID).
@@ -40,7 +40,7 @@ func (r *reservationCourseRepository) FindAll(ctx context.Context, clinicID uint
 	return items, nil
 }
 
-func (r *reservationCourseRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+func (r *reservationTypeLiffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	var st model.ReservationType
 	err := r.db.WithContext(ctx).First(&st, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
@@ -49,7 +49,7 @@ func (r *reservationCourseRepository) FindByID(ctx context.Context, clinicID, id
 	return &st, nil
 }
 
-func (r *reservationCourseRepository) Create(ctx context.Context, st *model.ReservationType) error {
+func (r *reservationTypeLiffRepository) Create(ctx context.Context, st *model.ReservationType) error {
 	if err := r.db.WithContext(ctx).Create(st).Error; err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
@@ -59,7 +59,7 @@ func (r *reservationCourseRepository) Create(ctx context.Context, st *model.Rese
 	return nil
 }
 
-func (r *reservationCourseRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ReservationType{}).
 		Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -73,7 +73,7 @@ func (r *reservationCourseRepository) Update(ctx context.Context, clinicID, id u
 	return nil
 }
 
-func (r *reservationCourseRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.ReservationType{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		if isFKConstraintErr(result.Error) {
@@ -87,7 +87,7 @@ func (r *reservationCourseRepository) Delete(ctx context.Context, clinicID, id u
 	return nil
 }
 
-func (r *reservationCourseRepository) SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
+func (r *reservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var target model.ReservationType
 		if err := tx.First(&target, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {

@@ -35,7 +35,8 @@ import { KanbanColumn } from "../components/KanbanColumn";
 import { useReceptionKanban } from "../hooks/use-reception-kanban";
 
 // Types
-import type { Appointment, ReservationAppointment, Pet } from "@/types";
+import type { Appointment, Pet } from "@/types";
+import type { ReceptionAppointment } from "../api/types";
 
 // Columns that don't show the "add" button — Set for O(1) lookup
 const NO_ADD_BUTTON_COLUMNS = new Set(["診療中", "会計待ち", "会計済"]);
@@ -74,19 +75,19 @@ export function Reception() {
     );
 
     const [modalOpen, setModalOpen] = useState(false);
-    const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+    const [selectedAppointment, setSelectedAppointment] = useState<ReceptionAppointment | null>(null);
     // rerender-dependencies: primitive id で deps 安定化
     const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
 
     // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingAppointment, setEditingAppointment] = useState<Partial<ReservationAppointment> | null>(null);
+    const [editingAppointment, setEditingAppointment] = useState<Partial<Appointment> | null>(null);
     // rerender-dependencies: primitive id で deps 安定化
     const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
 
     // Cancel Confirm Dialog State
     const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
-    const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
+    const [cancelTarget, setCancelTarget] = useState<ReceptionAppointment | null>(null);
     // rerender-dependencies: primitive id で deps 安定化
     const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
 
@@ -211,7 +212,7 @@ export function Reception() {
         return handlers;
     }, [filteredColumns, handleAddClick, canCreateReservation]);
 
-    const handleCardClick = useCallback((appointment: Appointment) => {
+    const handleCardClick = useCallback((appointment: ReceptionAppointment) => {
         setSelectedAppointment(appointment);
         setSelectedAppointmentId(appointment.id);
         setModalOpen(true);
@@ -231,19 +232,19 @@ export function Reception() {
         setSelectedAppointmentId(null);
     }, [selectedAppointmentId, advanceStatus]);
 
-    const handleEditAppointment = useCallback((appointment: Appointment) => {
-        // Appointment を ReservationAppointment のフォームデータに変換
+    const handleEditAppointment = useCallback((appointment: ReceptionAppointment) => {
+        // ReceptionAppointment を ReservationFormModal 用の Partial<Appointment> に変換
         const now = new Date();
         const [hours, minutes] = appointment.time.split(':').map(Number);
         const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
 
-        const reservationFormData: Partial<ReservationAppointment> = {
+        const reservationFormData: Partial<Appointment> = {
             id: appointment.id,
             start: start,
             end: addHours(start, 1), // Default 1 hour duration
             status: "confirmed",
             visitType: appointment.visitType === "初診" ? "first" : "revisit",
-            type: appointment.reservationCategory,
+            type: appointment.reservationType,
             doctor: appointment.doctor || "医師A",
             isDesignated: appointment.isDesignated || false,
             petId: appointment.petId,
@@ -261,24 +262,25 @@ export function Reception() {
     const editingAppointmentRef = useRef(editingAppointment);
     useEffect(() => { editingAppointmentRef.current = editingAppointment; }, [editingAppointment]);
 
-    const handleEditSave = useCallback((data: Partial<ReservationAppointment>, selectedPets: Pet[]) => {
+    const handleEditSave = useCallback((data: Partial<Appointment>, selectedPets: Pet[]) => {
         if (!editingAppointmentId || !data.start) return;
 
         const updatedTime = format(data.start, "HH:mm");
 
-        const updatedAppointment: Appointment = {
+        const updatedAppointment: ReceptionAppointment = {
             id: editingAppointmentId,
             time: updatedTime,
             ownerName: selectedPets[0]?.ownerName || data.ownerName || "",
             petName: selectedPets[0]?.name || data.petName || "",
             petType: selectedPets[0]?.species || "犬",
             visitType: data.visitType === "first" ? "初診" : "再診",
-            reservationCategory: data.type || "診療",
+            reservationType: data.type || "診療",
             doctor: data.doctor,
-            isDesignated: data.isDesignated,
-            petId: selectedPets[0]?.id || data.petId,
-            // Other fields are preserved by updateAppointment merging
-        } as Appointment;
+            isDesignated: data.isDesignated ?? false,
+            petId: selectedPets[0]?.id || data.petId || "",
+            ownerId: "",
+            status: "confirmed",
+        };
 
         updateAppointment(updatedAppointment);
         setIsEditModalOpen(false);
@@ -286,7 +288,7 @@ export function Reception() {
         setEditingAppointmentId(null);
     }, [editingAppointmentId, updateAppointment]);
 
-    const handleCancelAppointment = useCallback((appointment: Appointment) => {
+    const handleCancelAppointment = useCallback((appointment: ReceptionAppointment) => {
         setCancelTarget(appointment);
         setCancelTargetId(appointment.id);
         setCancelConfirmOpen(true);

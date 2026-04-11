@@ -10,13 +10,13 @@ export { OccupationSettings } from "./routes/OccupationSettings";
 export { PermissionGroupSettings } from "./routes/PermissionGroupSettings";
 export { MedicineSettings } from "./routes/MedicineSettings";
 export { MerchandiseItemSettings } from "./routes/MerchandiseItemSettings";
-export { ReservationCategorySettings } from "./routes/ReservationCategorySettings";
+export { ReservationTypeSettings } from "./routes/ReservationTypeSettings";
 export { StaffSettings } from "./routes/StaffSettings";
 export { TreatmentPlanMaster } from "./routes/TreatmentPlanMaster";
 export { TrimmingSettings } from "./routes/TrimmingSettings";
 
 export { useMasterItems } from "./hooks/use-master-items";
-export { useReservationCategoryColorMap } from "./hooks/use-reservation-category-color-map";
+export { useReservationTypeColorMap } from "./hooks/use-reservation-category-color-map";
 export { useGetCompany } from "./api/company";
 export { useGetAllConsultations } from "./api/consultations";
 export { useGetAllProcedures } from "./api/procedures";
@@ -25,10 +25,10 @@ export { useGetAllCheckupTypes } from "./api/checkup-types";
 export type { CheckupTypeItem } from "./api/checkup-types";
 export { useGetStaffs } from "./api/staffs";
 export {
-  useGetReservationCategoryGroups,
-  useCreateReservationCategoryGroup,
-  useUpdateReservationCategoryGroup,
-  useDeleteReservationCategoryGroup,
-  useReorderReservationCategoryGroups,
+  useGetReservationTypeGroups,
+  useCreateReservationTypeGroup,
+  useUpdateReservationTypeGroup,
+  useDeleteReservationTypeGroup,
+  useReorderReservationTypeGroups,
 } from "./api/reservation-category-groups";
-export type { ReservationCategoryGroup } from "./api/reservation-category-groups";
+export type { ReservationTypeGroup } from "./api/reservation-category-groups";

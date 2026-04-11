@@ -10,25 +10,25 @@ import { Button } from "@/components/ui/button";
 import { BADGE, C, ICON } from "@/lib/design-tokens";
 
 // Relative
-import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } from "@/features/medical-records/api/billing-review";
+import { useGetBillingConfirmation, useConfirmBillingConfirmation, useReturnBillingConfirmation } from "@/features/medical-records/api/billing-review";
 import { useAuth } from "@/features/auth";
-import type { BillingReviewStatus } from "@/features/medical-records/types";
+import type { ConfirmationStatus } from "@/features/medical-records/types";
 
 const ReturnReasonDialog = lazy(() =>
   import("./ReturnReasonDialog").then((m) => ({ default: m.ReturnReasonDialog }))
 );
 
-interface BillingReviewSectionProps {
+interface BillingConfirmationSectionProps {
   medicalRecordId: string;
 }
 
-const STATUS_LABELS: Record<BillingReviewStatus, string> = {
+const STATUS_LABELS: Record<ConfirmationStatus, string> = {
   pending: "確認待ち",
   confirmed: "確認済み",
   returned: "差し戻し",
 };
 
-function getBillingReviewStatusColor(s: BillingReviewStatus): string {
+function getConfirmationStatusColor(s: ConfirmationStatus): string {
   if (s === "confirmed") return BADGE.green;
   if (s === "returned") return BADGE.red;
   return BADGE.yellow;
@@ -36,15 +36,15 @@ function getBillingReviewStatusColor(s: BillingReviewStatus): string {
 
 type StatusIconComponent = typeof Clock;
 
-const STATUS_ICON: Record<BillingReviewStatus, StatusIconComponent> = {
+const STATUS_ICON: Record<ConfirmationStatus, StatusIconComponent> = {
   pending: Clock,
   confirmed: CheckCircle,
   returned: AlertCircle,
 };
 
-export const BillingReviewSection = memo(function BillingReviewSection({
+export const BillingConfirmationSection = memo(function BillingConfirmationSection({
   medicalRecordId,
-}: BillingReviewSectionProps) {
+}: BillingConfirmationSectionProps) {
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
   const { user } = useAuth();
   const userId = Number(user?.id ?? 0);
@@ -53,10 +53,10 @@ export const BillingReviewSection = memo(function BillingReviewSection({
   // eslint-disable-next-line react-hooks/set-state-in-effect -- userIdRef の更新（副作用なし、ref への書き込みのみ）
   useEffect(() => { userIdRef.current = userId; }, [userId]);
 
-  const { data: review, isLoading } = useGetBillingReview(medicalRecordId);
-  const confirmMutation = useConfirmBillingReview(medicalRecordId);
+  const { data: review, isLoading } = useGetBillingConfirmation(medicalRecordId);
+  const confirmMutation = useConfirmBillingConfirmation(medicalRecordId);
   const { mutate: confirmBillingFn } = confirmMutation;
-  const returnMutation = useReturnBillingReview(medicalRecordId, userId);
+  const returnMutation = useReturnBillingConfirmation(medicalRecordId, userId);
   const { mutate: returnBillingFn } = returnMutation;
 
   const handleConfirm = useCallback(() => {
@@ -95,8 +95,8 @@ export const BillingReviewSection = memo(function BillingReviewSection({
     );
   }
 
-  const status = review.status as BillingReviewStatus;
-  const badgeClass = getBillingReviewStatusColor(status);
+  const status = review.status as ConfirmationStatus;
+  const badgeClass = getConfirmationStatusColor(status);
   const StatusIcon = STATUS_ICON[status];
   const label = STATUS_LABELS[status];
   const isConfirmDisabled =

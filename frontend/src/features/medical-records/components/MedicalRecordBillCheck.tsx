@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
-import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } from "../api/billing-review";
+import { useGetBillingConfirmation, useConfirmBillingConfirmation, useReturnBillingConfirmation } from "../api/billing-review";
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
 import { useAuth, usePermission } from "@/features/auth";
 import { CheckCircle2, RotateCcw } from "lucide-react";
@@ -33,12 +33,12 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
 
   // ── API ──
   const { data: treatments = [] } = useGetTreatments(medicalRecordId);
-  const { data: billingReview } = useGetBillingReview(medicalRecordId);
+  const { data: billingConfirmation } = useGetBillingConfirmation(medicalRecordId);
   const createTreatmentMutation = useCreateTreatment(medicalRecordId);
   const { mutate: updateTreatment } = useUpdateTreatment(medicalRecordId);
-  const confirmMutation = useConfirmBillingReview(medicalRecordId);
+  const confirmMutation = useConfirmBillingConfirmation(medicalRecordId);
   const userId = Number(user?.id ?? 0);
-  const returnMutation = useReturnBillingReview(medicalRecordId, userId);
+  const returnMutation = useReturnBillingConfirmation(medicalRecordId, userId);
 
   const [isConfirmPending, startConfirmTransition] = useTransition();
 
@@ -148,7 +148,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     );
   }
 
-  const isConfirmed = billingReview?.status === "confirmed";
+  const isConfirmed = billingConfirmation?.status === "confirmed";
 
   return (
     <div className="flex flex-col gap-4 relative h-full">

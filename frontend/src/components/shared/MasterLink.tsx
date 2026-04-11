@@ -6,7 +6,7 @@ import { paths } from "@/config/paths";
 
 /** 設定ページへのリンクに対応する全マスタカテゴリ */
 export type MasterLinkCategory =
-  | "reservationCategory"
+  | "reservationType"
   | "vaccine"
   | "examination"
   | "cage"
@@ -24,7 +24,7 @@ export type MasterLinkCategory =
   | "interview_template";
 
 const CATEGORY_PATH_MAP: Record<MasterLinkCategory, string> = {
-  reservationCategory: paths.settings.reservationCategory.getHref(),
+  reservationType: paths.settings.reservationType.getHref(),
   vaccine: paths.settings.vaccine.getHref(),
   examination: paths.settings.examination.getHref(),
   cage: paths.settings.cage.getHref(),
@@ -43,7 +43,7 @@ const CATEGORY_PATH_MAP: Record<MasterLinkCategory, string> = {
 };
 
 interface MasterLinkProps {
-  /** Master category key (e.g. "reservationCategory", "vaccine") */
+  /** Master category key (e.g. "reservationType", "vaccine") */
   category: MasterLinkCategory;
   /** Override the display label. Defaults to "マスタ管理" */
   label?: string;

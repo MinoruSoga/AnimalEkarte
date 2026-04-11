@@ -48,24 +48,15 @@ export interface MenuItem {
 }
 
 // --- Reception（当日の受付）/ Calendar ---
-export interface Appointment {
-  id: string;
-  time: string;
-  ownerName: string;
-  petType: string;
-  petName: string;
-  visitType: "初診" | "再診";
-  reservationCategory: string;
-  nextAppointment?: "次回予約無" | "次回予約済" | "精算未確認" | "精算確認済";
-  isDesignated?: boolean;
-  doctor?: string;
-  petId?: string;
-  ownerId?: string;
-}
+// Note: ReceptionAppointment（受付カンバン用、visitType: "初診"|"再診"）は
+//       features/reception/api/types.ts で定義。
+//       ColumnData は reception feature 内でのみ使用するため、
+//       Appointment の型は ReceptionAppointment を参照する。
+import type { ReceptionAppointment } from "@/features/reception/api/types";
 
 export interface ColumnData {
   title: string;
-  appointments: Appointment[];
+  appointments: ReceptionAppointment[];
 }
 
 // --- Common UI Components ---
@@ -127,7 +118,7 @@ export interface NavigationState {
  * フロントエンド予約アポイントメント型（UI 表示用 - id:string, start/end:Date）
  * transforms.ts の変換結果として使用
  */
-export interface ReservationAppointment {
+export interface Appointment {
   id: string;
   start: Date;
   end: Date;
@@ -135,7 +126,7 @@ export interface ReservationAppointment {
   petName: string;
   visitType: "first" | "revisit";
   type: string;
-  reservationCategoryId?: string;
+  reservationTypeId?: string;
   doctor: string;
   doctorId?: string;
   isDesignated: boolean;
@@ -273,7 +264,7 @@ export interface MedicalRecord {
  * フロントエンド検査項目型（UI 表示用）
  * transforms.ts の変換結果として使用
  */
-export interface ExaminationItem {
+export interface ExamResult {
   id: string;
   name: string;
   result: string;
@@ -299,7 +290,7 @@ export interface ExaminationRecord {
   status: "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定";
   resultSummary?: string;
   machine?: string;
-  items?: ExaminationItem[];
+  items?: ExamResult[];
 }
 
 /**
@@ -400,5 +391,5 @@ export interface MasterItem {
   duration?: number | null;
 }
 
-export type MasterCategory = "vaccine" | "reservationCategory" | "consultation" | "procedure" | "hospitalization" | "diagnosis_category" | "diagnosis_name" | "checkup";
+export type MasterCategory = "vaccine" | "reservationType" | "consultation" | "procedure" | "hospitalization" | "diagnosis_category" | "diagnosis_name" | "checkup";
 

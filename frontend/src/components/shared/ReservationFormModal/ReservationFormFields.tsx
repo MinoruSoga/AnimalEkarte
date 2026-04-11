@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/features/master";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { isOneOf } from "@/lib/type-utils";
-import type { ReservationAppointment } from "@/types";
+import type { Appointment } from "@/types";
 
 const TRIGGER_CLASS =
   `h-9 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
@@ -51,8 +51,8 @@ function FieldLabel({ children, trailing }: FieldLabelProps) {
 }
 
 interface ReservationFormFieldsProps {
-  formData: Partial<ReservationAppointment>;
-  onChange: (data: Partial<ReservationAppointment>) => void;
+  formData: Partial<Appointment>;
+  onChange: (data: Partial<Appointment>) => void;
   validationErrors?: Record<string, string>;
   onClearError?: (field: string) => void;
 }
@@ -63,7 +63,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   validationErrors,
   onClearError: _onClearError,
 }: ReservationFormFieldsProps) {
-  const { data: reservationCategories } = useMasterItems("reservationCategory");
+  const { data: reservationCategories } = useMasterItems("reservationType");
   const { data: staffItems } = useMasterItems("staff");
   const activeStaff = staffItems.filter((s) => s.status === "active");
 
@@ -180,7 +180,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           <FieldLabel
             trailing={
               <MasterLink
-                category="reservationCategory"
+                category="reservationType"
                 label="編集"
                 className="text-[11px]"
               />

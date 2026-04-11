@@ -82,16 +82,16 @@ export interface BulkReorderTreatmentsInput {
   treatments: Array<{ id: string; sort_order: number }>;
 }
 
-// ── BillingReview (会計医師確認) ──────────────────────────────────────
+// ── BillingConfirmation (会計医師確認) ──────────────────────────────────────
 
 /** 会計医師確認ステータス @see {@link import("@/types/generated/models").ConfirmationStatus} */
-export type BillingReviewStatus = 'pending' | 'confirmed' | 'returned';
+export type ConfirmationStatus = 'pending' | 'confirmed' | 'returned';
 
 /** 会計医師確認レコード */
-export interface BillingReview {
+export interface BillingConfirmation {
   id: string;
   medical_record_id: string;
-  status: BillingReviewStatus;
+  status: ConfirmationStatus;
   confirmed_by?: string | null;
   confirmed_at?: string | null;
   return_reason?: string | null;
@@ -103,7 +103,7 @@ export interface BillingReview {
 }
 
 /** 会計差し戻しリクエスト入力 */
-export interface ReturnBillingReviewInput {
+export interface ReturnBillingConfirmationInput {
   return_reason: string;
 }
 
