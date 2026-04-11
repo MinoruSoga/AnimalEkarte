@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
-import { Activity, ChevronDown, Plus } from "lucide-react";
+import { Activity, ChevronDown, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { TableCell } from "@/components/ui/table";
@@ -140,11 +140,18 @@ function GroupedTable({
                           </button>
                           <span className={`text-xs ${C.text35} tabular-nums`}>{groupCats.length}</span>
                           {canEdit ? (
-                            <button type="button" onClick={() => onCategoryAddInGroup(group.id)}
-                              className={`ml-auto flex items-center gap-1 text-xs ${C.text45} opacity-0 group-hover/grouprow:opacity-100
-                                px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-all`}>
-                              <Plus className="size-3" />追加
-                            </button>
+                            <div className="ml-auto flex items-center gap-1">
+                              <button type="button" onClick={() => onGroupEdit(group)}
+                                className={`flex items-center gap-1 text-xs ${C.text45} opacity-0 group-hover/grouprow:opacity-100
+                                  px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-all`}>
+                                <Pencil className="size-3" />編集
+                              </button>
+                              <button type="button" onClick={() => onCategoryAddInGroup(group.id)}
+                                className={`flex items-center gap-1 text-xs ${C.text45} opacity-0 group-hover/grouprow:opacity-100
+                                  px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-all`}>
+                                <Plus className="size-3" />追加
+                              </button>
+                            </div>
                           ) : null}
                         </div>
                       </td>
