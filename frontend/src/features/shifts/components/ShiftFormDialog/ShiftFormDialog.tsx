@@ -12,7 +12,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { Shift, ShiftType, ShiftBreakInput, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
 import { SHIFT_TYPE_LABELS } from "@/features/shifts/types";
 import { ShiftTypeOff } from "@/types/generated/models";
-import { C } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { createShift } from "@/features/shifts/api/create-shift";
 import { updateShift } from "@/features/shifts/api/update-shift";
 import { useDeleteShift } from "@/features/shifts/api/delete-shift";
