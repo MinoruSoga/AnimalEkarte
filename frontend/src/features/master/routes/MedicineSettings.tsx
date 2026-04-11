@@ -782,7 +782,7 @@ export function MedicineSettings() {
                           className={`flex items-center gap-1.5 py-1.5 px-1 ${C.hoverBgLight} rounded-[3px] transition-colors`}
                         >
                           <ChevronRight
-                            className={`size-5 ${C.text50} transition-transform duration-150 ${
+                            className={`${ICON.xs} ${C.text50} transition-transform duration-150 ${
                               isCollapsed ? "" : "rotate-90"
                             }`}
                           />

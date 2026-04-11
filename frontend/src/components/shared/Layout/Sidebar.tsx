@@ -1,4 +1,4 @@
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase, Smartphone } from "lucide-react";
 import { useState, useEffect, memo, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -214,7 +214,7 @@ export const Sidebar = memo(function Sidebar() {
 
   return (
     <div
-      className={`${STYLE.sidebarContainer} ${collapsed ? "w-[56px]" : "w-[220px]"}`}
+      className={`${STYLE.sidebarContainer} ${collapsed ? LAYOUT.sidebar.collapsed : LAYOUT.sidebar.expanded}`}
     >
       {/* Header */}
       <div className={STYLE.sidebarHeader}>

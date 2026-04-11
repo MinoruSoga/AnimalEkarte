@@ -93,7 +93,7 @@ export const SortPill = memo(function SortPill({
                   className={`text-base ${prop.key === sort.key ? `${C.bgAccent8} ${C.accent}` : ""}`}
                 >
                   {prop.icon ? (
-                    <prop.icon className={`mr-2 size-5 ${C.text50}`} />
+                    <prop.icon className={`mr-2 ${ICON.xs} ${C.text50}`} />
                   ) : null}
                   {prop.label}
                 </CommandItem>

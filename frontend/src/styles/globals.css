@@ -87,6 +87,9 @@
   --tracking-notion: -0.0156em;   /* -0.2344px at 15px — for body/heading text */
   --tracking-notion-sm: -0.0059em; /* -0.0762px at 13px — for badge text */
   --tracking-notion-xs: 0.0059em;  /* +0.065px at 11px — for small action buttons */
+  /* Notion-style shadow — used by STYLE.dropdownShadow / STYLE.btnOutline */
+  --notion-shadow: rgba(15,15,15,0.05) 0px 0px 0px 1px, rgba(15,15,15,0.10) 0px 3px 6px, rgba(15,15,15,0.20) 0px 9px 24px;
+  --notion-shadow-btn: rgba(15,15,15,0.10) 0px 1px 2px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
