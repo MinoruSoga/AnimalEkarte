@@ -1253,7 +1253,7 @@ CREATE TABLE shift_entries (
     shift_type shift_type  NOT NULL,
     start_time time,
     end_time   time,
-    note       text        NOT NULL DEFAULT '',
+    notes      text        NOT NULL DEFAULT '',
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT uk_shift_staff_date UNIQUE (clinic_id, staff_id, date)

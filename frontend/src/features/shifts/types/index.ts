@@ -36,7 +36,7 @@ export interface Shift {
   shift_type: ShiftType;
   start_time: string;
   end_time: string;
-  note: string;
+  notes: string;
   breaks: ShiftBreak[];
   created_at: string;
   updated_at: string;
@@ -54,7 +54,7 @@ export interface CreateShiftInput {
   shift_type: ShiftType;
   start_time?: string;
   end_time?: string;
-  note?: string;
+  notes?: string;
   breaks?: ShiftBreakInput[];
 }
 
@@ -63,7 +63,7 @@ export interface UpdateShiftInput {
   shift_type?: ShiftType;
   start_time?: string;
   end_time?: string;
-  note?: string;
+  notes?: string;
   breaks?: ShiftBreakInput[];
 }
 

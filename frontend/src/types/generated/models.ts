@@ -190,19 +190,6 @@ export const AuditActionAuthLoginFailure = "auth.login.failure";
 export const AuditActionAuthLogout = "auth.logout";
 
 //////////
-// source: billing_refund.go
-
-export interface BillingRefund {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  billing_id: number /* uint64 */;
-  amount: number /* int64 */; // 返金額（正の整数、円）
-  reason: string;
-  refunded_at: string;
-  created_at: string;
-}
-
-//////////
 // source: billing_confirmation.go
 
 /**
@@ -233,6 +220,19 @@ export interface BillingConfirmation {
   medical_record?: MedicalRecord;
   confirmed_staff?: Staff;
   returned_staff?: Staff;
+}
+
+//////////
+// source: billing_refund.go
+
+export interface BillingRefund {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  billing_id: number /* uint64 */;
+  amount: number /* int64 */; // 返金額（正の整数、円）
+  reason: string;
+  refunded_at: string;
+  created_at: string;
 }
 
 //////////
@@ -307,13 +307,13 @@ export interface CheckupType {
 // source: chief_complaint_type.go
 
 /**
- * ChiefComplaintType は主訴区分マスタ（v11.0追加）
+ * ChiefComplaintType は主訴区分マスタ
  */
 export interface ChiefComplaintType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  description: string;
+  Description: string;
   is_active: boolean;
   sort_order: number /* int */;
   created_at: string;
@@ -367,7 +367,7 @@ export interface ClinicalPlan {
   medical_record?: MedicalRecord;
   diagnosis_type?: DiagnosisType;
   diagnosis_name?: DiagnosisName;
-  diagnosis_2_type?: DiagnosisType;
+  diagnosis_2_category?: DiagnosisType;
   diagnosis_2_name?: DiagnosisName;
 }
 
@@ -895,6 +895,61 @@ export interface InventoryItem {
 }
 
 //////////
+// source: line_customer.go
+
+export interface LineCustomer {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  line_user_id: string;
+  display_name: string;
+  real_name: string;
+  additional_fields: string /* []byte */;
+  owner_id?: number /* uint64 */;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  owner?: Owner;
+}
+
+//////////
+// source: line_reservation_setting.go
+
+export interface LineReservationSetting {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  status: string;
+  header_text: string;
+  reservation_notice: string;
+  cancel_notice: string;
+  privacy_policy: string;
+  closed_weekdays: string /* []byte */;
+  closed_dates: string /* []byte */;
+  national_holiday_closed: boolean;
+  business_hours: string /* []byte */;
+  business_hours_by_weekday?: string /* []byte */;
+  break_hours: string /* []byte */;
+  daily_limit?: number /* int */;
+  monthly_limit?: number /* int */;
+  booking_window_max_days: number /* int */;
+  booking_window_min_days: number /* int */;
+  calendar_months: number /* int */;
+  phone_number: string;
+  notification_email: string;
+  request_example: string;
+  time_slot_mode: string;
+  time_slot_interval_minutes: number /* int */;
+  no_staff_mode: string;
+  show_no_staff_option: boolean;
+  additional_fields: string /* []byte */;
+  line_channel_id: string;
+  liff_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: medical_record.go
 
 export type MedicalRecordStatus = string;
@@ -930,6 +985,48 @@ export interface MedicalRecord {
   estimates?: Estimate[];
   billing_confirmation?: BillingConfirmation;
   billing?: Billing;
+}
+
+//////////
+// source: medical_record_image.go
+
+/**
+ * MedicalImageType は診療画像種別
+ */
+export type MedicalImageType = string;
+export const MedicalImageTypeXray: MedicalImageType = "xray";
+export const MedicalImageTypeEcho: MedicalImageType = "echo";
+export const MedicalImageTypePhoto: MedicalImageType = "photo";
+export const MedicalImageTypeEndoscope: MedicalImageType = "endoscope";
+export const MedicalImageTypeCT: MedicalImageType = "ct";
+export const MedicalImageTypeMRI: MedicalImageType = "mri";
+export const MedicalImageTypeMicroscope: MedicalImageType = "microscope";
+export const MedicalImageTypeOther: MedicalImageType = "other";
+/**
+ * MedicalRecordImage は診療画像（v7.0追加）
+ */
+export interface MedicalRecordImage {
+  id: number /* uint64 */;
+  medical_record_id: number /* uint64 */;
+  image_url: string;
+  thumbnail_url: string;
+  file_name: string;
+  file_size: number /* int64 */;
+  mime_type: string;
+  image_type: MedicalImageType;
+  description: string;
+  taken_at?: string;
+  exam_id?: number /* uint64 */;
+  staff_id?: number /* uint64 */;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  medical_record?: MedicalRecord;
+  exam?: Examination;
+  staff?: Staff;
 }
 
 //////////
@@ -1208,48 +1305,6 @@ export interface Procedure {
 }
 
 //////////
-// source: medical_record_image.go
-
-/**
- * MedicalImageType は診療画像種別
- */
-export type MedicalImageType = string;
-export const MedicalImageTypeXray: MedicalImageType = "xray";
-export const MedicalImageTypeEcho: MedicalImageType = "echo";
-export const MedicalImageTypePhoto: MedicalImageType = "photo";
-export const MedicalImageTypeEndoscope: MedicalImageType = "endoscope";
-export const MedicalImageTypeCT: MedicalImageType = "ct";
-export const MedicalImageTypeMRI: MedicalImageType = "mri";
-export const MedicalImageTypeMicroscope: MedicalImageType = "microscope";
-export const MedicalImageTypeOther: MedicalImageType = "other";
-/**
- * MedicalRecordImage は診療画像（v7.0追加）
- */
-export interface MedicalRecordImage {
-  id: number /* uint64 */;
-  medical_record_id: number /* uint64 */;
-  image_url: string;
-  thumbnail_url: string;
-  file_name: string;
-  file_size: number /* int64 */;
-  mime_type: string;
-  image_type: MedicalImageType;
-  description: string;
-  taken_at?: string;
-  exam_id?: number /* uint64 */;
-  staff_id?: number /* uint64 */;
-  sort_order: number /* int */;
-  created_at: string;
-  updated_at: string;
-  /**
-   * Relations
-   */
-  medical_record?: MedicalRecord;
-  exam?: Examination;
-  staff?: Staff;
-}
-
-//////////
 // source: reservation.go
 
 export type ReservationStatus = string;
@@ -1312,12 +1367,15 @@ export const DayOptionNone: ReservationDayOption = "none";
 export const DayOptionSaturday: ReservationDayOption = "saturday";
 export const DayOptionWeekday: ReservationDayOption = "weekday";
 export const DayOptionAnyday: ReservationDayOption = "anyday";
+/**
+ * ReservationType はサービス種別（予約区分）マスタ
+ */
 export interface ReservationType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
   is_active: boolean;
-  description: string;
+  Description: string;
   color: string;
   sort_order: number /* int */;
   created_at: string;
@@ -1325,13 +1383,13 @@ export interface ReservationType {
   /**
    * LINE予約用フィールド
    */
-  reservation_display_name: string; // 空ならNameをフォールバック
+  ReservationDisplayName: string;
   duration_minutes: number /* int */;
-  short_name: string;
+  ShortName: string;
   show_short_name: boolean;
   reservation_visible: boolean;
-  reservation_comment: string;
-  reservation_image_url: string;
+  ReservationComment: string;
+  ReservationImageURL: string;
   reservation_day_option: ReservationDayOption;
   is_internal: boolean;
   /**
@@ -1354,61 +1412,6 @@ export interface ReservationTypeGroup {
   color: string;
   sort_order: number /* int */;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-//////////
-// source: reservation_customer.go
-
-export interface LineCustomer {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  line_user_id: string;
-  display_name: string;
-  real_name: string;
-  additional_fields: string /* []byte */;
-  owner_id?: number /* uint64 */;
-  created_at: string;
-  updated_at: string;
-  /**
-   * Relations
-   */
-  owner?: Owner;
-}
-
-//////////
-// source: reservation_setting.go
-
-export interface LineReservationSetting {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  status: string;
-  header_text: string;
-  reservation_notice: string;
-  cancel_notice: string;
-  privacy_policy: string;
-  closed_weekdays: string /* []byte */;
-  closed_dates: string /* []byte */;
-  national_holiday_closed: boolean;
-  business_hours: string /* []byte */;
-  business_hours_by_weekday?: string /* []byte */;
-  break_hours: string /* []byte */;
-  daily_limit?: number /* int */;
-  monthly_limit?: number /* int */;
-  booking_window_max_days: number /* int */;
-  booking_window_min_days: number /* int */;
-  calendar_months: number /* int */;
-  phone_number: string;
-  notification_email: string;
-  request_example: string;
-  time_slot_mode: string;
-  time_slot_interval_minutes: number /* int */;
-  no_staff_mode: string;
-  show_no_staff_option: boolean;
-  additional_fields: string /* []byte */;
-  line_channel_id: string;
-  liff_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -1476,7 +1479,7 @@ export interface ShiftEntry {
   shift_type: ShiftType;
   start_time?: string;
   end_time?: string;
-  note: string;
+  notes: string;
   created_at: string;
   updated_at: string;
   /**
@@ -1487,9 +1490,12 @@ export interface ShiftEntry {
 }
 
 //////////
-// source: staff_excluded_reservation_type.go
+// source: staff_reservation_exclusion.go
 
-export interface StaffExcludedReservationType {
+/**
+ * StaffReservationExclusion records which reservation types a staff member cannot handle.
+ */
+export interface StaffReservationExclusion {
   id: number /* uint64 */;
   staff_id: number /* uint64 */;
   reservation_type_id: number /* uint64 */;

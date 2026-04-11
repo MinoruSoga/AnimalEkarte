@@ -13,7 +13,7 @@ type createShiftRequest struct {
 	ShiftType string              `json:"shift_type" binding:"required,oneof=full morning afternoon off paid_leave"`
 	StartTime string              `json:"start_time"`
 	EndTime   string              `json:"end_time"`
-	Note      string              `json:"note"`
+	Notes     string              `json:"notes"`
 	Breaks    []shiftBreakRequest `json:"breaks"`
 }
 
@@ -22,6 +22,6 @@ type updateShiftRequest struct {
 	ShiftType *string              `json:"shift_type" binding:"omitempty,oneof=full morning afternoon off paid_leave"`
 	StartTime *string              `json:"start_time"`
 	EndTime   *string              `json:"end_time"`
-	Note      *string              `json:"note"`
+	Notes     *string              `json:"notes"`
 	Breaks    *[]shiftBreakRequest `json:"breaks"`
 }

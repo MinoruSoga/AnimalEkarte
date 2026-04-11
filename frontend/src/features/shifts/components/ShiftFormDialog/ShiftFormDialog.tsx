@@ -106,7 +106,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
             shift_type: resolvedShiftType,
             start_time: resolvedStartTime || undefined,
             end_time: resolvedEndTime || undefined,
-            note: (formData.get("note") as string) || undefined,
+            notes: (formData.get("notes") as string) || undefined,
             breaks: validBreaks,
           };
           await updateShift(editShiftId, input);
@@ -118,7 +118,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
             shift_type: resolvedShiftType,
             start_time: resolvedStartTime || undefined,
             end_time: resolvedEndTime || undefined,
-            note: (formData.get("note") as string) || undefined,
+            notes: (formData.get("notes") as string) || undefined,
             breaks: validBreaks.length > 0 ? validBreaks : undefined,
           };
           await createShift(input);
@@ -229,12 +229,12 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="note">メモ</Label>
+            <Label htmlFor="notes">メモ</Label>
             <Input
-              id="note"
-              name="note"
+              id="notes"
+              name="notes"
               placeholder="メモ（任意）"
-              defaultValue={editShift?.note ?? ""}
+              defaultValue={editShift?.notes ?? ""}
             />
           </div>
 

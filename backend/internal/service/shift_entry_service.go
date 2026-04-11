@@ -40,7 +40,7 @@ type CreateShiftEntryInput struct {
 	ShiftType model.ShiftType
 	StartTime *string
 	EndTime   *string
-	Note      string
+	Notes     string
 	Breaks    []ShiftBreakInput
 }
 
@@ -49,7 +49,7 @@ type UpdateShiftEntryInput struct {
 	ShiftType *model.ShiftType
 	StartTime *string
 	EndTime   *string
-	Note      *string
+	Notes     *string
 	Breaks    *[]ShiftBreakInput
 }
 
@@ -138,7 +138,7 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 		ShiftType: input.ShiftType,
 		StartTime: startTime,
 		EndTime:   endTime,
-		Note:      input.Note,
+		Notes:     input.Notes,
 	}
 	if err := s.repo.Create(ctx, entry); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create shift entry")
@@ -232,8 +232,8 @@ func buildShiftEntryUpdateFields(input *UpdateShiftEntryInput) map[string]any {
 	if input.EndTime != nil {
 		fields["end_time"] = normalizeTimeString(input.EndTime)
 	}
-	if input.Note != nil {
-		fields["note"] = *input.Note
+	if input.Notes != nil {
+		fields["notes"] = *input.Notes
 	}
 	return fields
 }

@@ -23,7 +23,7 @@ type shiftResponse struct {
 	ShiftType model.ShiftType       `json:"shift_type"`
 	StartTime string                `json:"start_time"`
 	EndTime   string                `json:"end_time"`
-	Note      string                `json:"note"`
+	Notes     string                `json:"notes"`
 	Breaks    []shiftBreakResponse  `json:"breaks"`
 	CreatedAt string                `json:"created_at"`
 	UpdatedAt string                `json:"updated_at"`
@@ -54,7 +54,7 @@ func toShiftResponse(s *model.ShiftEntry) shiftResponse {
 		ShiftType: s.ShiftType,
 		StartTime: startTime,
 		EndTime:   endTime,
-		Note:      s.Note,
+		Notes:     s.Notes,
 		Breaks:    breaks,
 		CreatedAt: s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),

@@ -11,7 +11,7 @@ export function transformShift(data: BackendShift): Shift {
     shift_type: data.shift_type,
     start_time: data.start_time ?? "",
     end_time: data.end_time ?? "",
-    note: data.note ?? "",
+    notes: data.notes ?? "",
     breaks: (data.breaks ?? []).map((b) => ({
       id: String(b.id ?? 0),
       break_start: b.break_start ?? "",

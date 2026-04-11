@@ -75,7 +75,7 @@ func (h *Handler) CreateShiftEntry(c *gin.Context) {
 		ShiftType: model.ShiftType(req.ShiftType),
 		StartTime: startTime,
 		EndTime:   endTime,
-		Note:      req.Note,
+		Notes:     req.Notes,
 		Breaks:    breaks,
 	})
 	if err != nil {
@@ -107,7 +107,7 @@ func (h *Handler) UpdateShiftEntry(c *gin.Context) {
 	input := &service.UpdateShiftEntryInput{
 		StartTime: req.StartTime,
 		EndTime:   req.EndTime,
-		Note:      req.Note,
+		Notes:     req.Notes,
 	}
 	if req.ShiftType != nil {
 		st := model.ShiftType(*req.ShiftType)

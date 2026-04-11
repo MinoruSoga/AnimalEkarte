@@ -60,7 +60,7 @@ type ShiftEntry struct {
 	ShiftType ShiftType `gorm:"type:shift_type;not null"                       json:"shift_type"`
 	StartTime *string   `gorm:"type:time"                                     json:"start_time,omitempty"`
 	EndTime   *string   `gorm:"type:time"                                     json:"end_time,omitempty"`
-	Note      string    `gorm:"default:''"                                     json:"note"`
+	Notes     string    `gorm:"default:''"                                     json:"notes"`
 	CreatedAt time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

@@ -10,7 +10,7 @@ const minimal: BackendShift = {
   shift_type: "day",
   start_time: "09:00",
   end_time: "18:00",
-  note: "",
+  notes: "",
   created_at: "2026-03-25T00:00:00Z",
   updated_at: "2026-03-25T00:00:00Z",
 };
@@ -54,7 +54,7 @@ describe("transformShift", () => {
     expect(transformShift({ ...minimal, shift_type: "night" }).shift_type).toBe("night");
   });
 
-  it("note が未設定のとき空文字を返す", () => {
-    expect(transformShift({ ...minimal, note: undefined }).note).toBe("");
+  it("notes が未設定のとき空文字を返す", () => {
+    expect(transformShift({ ...minimal, notes: undefined }).notes).toBe("");
   });
 });

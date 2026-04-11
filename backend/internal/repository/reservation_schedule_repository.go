@@ -109,7 +109,7 @@ func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model
 				"shift_type": entry.ShiftType,
 				"start_time": entry.StartTime,
 				"end_time":   entry.EndTime,
-				"note":       entry.Note,
+				"notes":      entry.Notes,
 				"updated_at": entry.UpdatedAt,
 			}
 			if err2 := tx.Model(&model.ShiftEntry{}).Where("id = ?", existing.ID).Updates(fields).Error; err2 != nil {
