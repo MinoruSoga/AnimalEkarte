@@ -26,7 +26,7 @@ type createTrimmingOptionRequest struct {
 	IsActive    bool   `json:"is_active"`
 	Description string `json:"description"`
 	Duration    *int   `json:"duration"`
-	Combinable  bool   `json:"combinable"`
+	IsCombinable  bool   `json:"is_combinable"`
 	SortOrder   int    `json:"sort_order"`
 }
 
@@ -36,7 +36,7 @@ type updateTrimmingOptionRequest struct {
 	IsActive    *bool   `json:"is_active"`
 	Description *string `json:"description"`
 	Duration    *int    `json:"duration"`
-	Combinable  *bool   `json:"combinable"`
+	IsCombinable  *bool   `json:"is_combinable"`
 	SortOrder   *int    `json:"sort_order"`
 }
 

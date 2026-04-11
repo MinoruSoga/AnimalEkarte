@@ -78,7 +78,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                   />
                 </td>
                 <td className={`px-3 py-1 text-center ${H_STYLES.text.base} ${C.text}`}>
-                  {plan.insurance ? "◯" : "×"}
+                  {plan.is_insurance ? "◯" : "×"}
                 </td>
                 <td className={`px-3 py-1 text-right ${H_STYLES.text.base} tabular-nums ${C.text}`}>
                   {plan.unitPrice.toLocaleString()}

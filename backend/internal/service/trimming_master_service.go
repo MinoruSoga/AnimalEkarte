@@ -204,7 +204,7 @@ type UpdateTrimmingOptionInput struct {
 	IsActive    *bool
 	Description *string
 	Duration    *int
-	Combinable  *bool
+	IsCombinable  *bool
 	SortOrder   *int
 }
 
@@ -225,8 +225,8 @@ func buildTrimmingOptionUpdateFields(input UpdateTrimmingOptionInput) map[string
 	if input.Duration != nil {
 		fields["duration"] = *input.Duration
 	}
-	if input.Combinable != nil {
-		fields["is_combinable"] = *input.Combinable
+	if input.IsCombinable != nil {
+		fields["is_combinable"] = *input.IsCombinable
 	}
 	if input.SortOrder != nil {
 		fields["sort_order"] = *input.SortOrder

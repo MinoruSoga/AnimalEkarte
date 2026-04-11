@@ -57,7 +57,7 @@ func (h *Handler) CreateTreatmentPlanForMedicalRecord(c *gin.Context) {
 	input := &service.CreateTreatmentPlanInput{
 		TreatmentContent: req.TreatmentContent,
 		Memo:             req.Memo,
-		Insurance:        req.Insurance,
+		IsInsurance:      req.IsInsurance,
 		UnitPrice:        req.UnitPrice,
 		Quantity:         req.Quantity,
 		DiscountRate:     req.DiscountRate,
@@ -121,7 +121,7 @@ func (h *Handler) CreateTreatmentPlanForHospitalization(c *gin.Context) {
 	input := &service.CreateTreatmentPlanInput{
 		TreatmentContent: req.TreatmentContent,
 		Memo:             req.Memo,
-		Insurance:        req.Insurance,
+		IsInsurance:      req.IsInsurance,
 		UnitPrice:        req.UnitPrice,
 		Quantity:         req.Quantity,
 		DiscountRate:     req.DiscountRate,
@@ -142,7 +142,7 @@ func buildUpdateTreatmentPlanInput(req updateTreatmentPlanRequest) *service.Upda
 	return &service.UpdateTreatmentPlanInput{
 		TreatmentContent: req.TreatmentContent,
 		Memo:             req.Memo,
-		Insurance:        req.Insurance,
+		IsInsurance:      req.IsInsurance,
 		UnitPrice:        req.UnitPrice,
 		Quantity:         req.Quantity,
 		DiscountRate:     req.DiscountRate,

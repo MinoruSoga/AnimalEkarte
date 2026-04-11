@@ -210,7 +210,7 @@ func (h *Handler) CreateTrimmingOption(c *gin.Context) {
 		IsActive:     req.IsActive,
 		Description:  req.Description,
 		Duration:     req.Duration,
-		IsCombinable: req.Combinable,
+		IsCombinable: req.IsCombinable,
 		SortOrder:    req.SortOrder,
 	}
 
@@ -244,7 +244,7 @@ func (h *Handler) UpdateTrimmingOption(c *gin.Context) {
 		IsActive:    req.IsActive,
 		Description: req.Description,
 		Duration:    req.Duration,
-		Combinable:  req.Combinable,
+		IsCombinable:  req.IsCombinable,
 		SortOrder:   req.SortOrder,
 	}
 

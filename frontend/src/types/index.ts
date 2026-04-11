@@ -64,7 +64,7 @@ export interface TreatmentPlan {
   id: string;
   treatmentContent: string;
   memo: string;
-  insurance: boolean;
+  is_insurance: boolean;
   unitPrice: number;
   quantity: number;
   discount: number;

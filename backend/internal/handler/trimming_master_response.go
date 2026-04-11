@@ -56,7 +56,7 @@ type trimmingOptionResponse struct {
 	IsActive    bool      `json:"is_active"`
 	Description string    `json:"description"`
 	Duration    *int      `json:"duration,omitempty"`
-	Combinable  bool      `json:"combinable"`
+	IsCombinable  bool      `json:"is_combinable"`
 	SortOrder   int       `json:"sort_order"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -71,7 +71,7 @@ func toTrimmingOptionResponse(o *model.TrimmingOption) trimmingOptionResponse {
 		IsActive:    o.IsActive,
 		Description: o.Description,
 		Duration:    o.Duration,
-		Combinable:  o.IsCombinable,
+		IsCombinable:  o.IsCombinable,
 		SortOrder:   o.SortOrder,
 		CreatedAt:   o.CreatedAt,
 		UpdatedAt:   o.UpdatedAt,

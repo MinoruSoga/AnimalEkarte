@@ -12,7 +12,7 @@ import (
 type CreateTreatmentPlanInput struct {
 	TreatmentContent string
 	Memo             string
-	Insurance        bool
+	IsInsurance       bool
 	UnitPrice        int64
 	Quantity         float64
 	DiscountRate     float64
@@ -24,7 +24,7 @@ type CreateTreatmentPlanInput struct {
 type UpdateTreatmentPlanInput struct {
 	TreatmentContent *string
 	Memo             *string
-	Insurance        *bool
+	IsInsurance       *bool
 	UnitPrice        *int64
 	Quantity         *float64
 	DiscountRate     *float64
@@ -80,7 +80,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 		HospitalizationID: hospitalizationID,
 		TreatmentContent:  input.TreatmentContent,
 		Memo:              input.Memo,
-		IsInsurance:       input.Insurance,
+		IsInsurance:       input.IsInsurance,
 		UnitPrice:         input.UnitPrice,
 		Quantity:          input.Quantity,
 		DiscountRate:      input.DiscountRate,
@@ -133,8 +133,8 @@ func buildTreatmentPlanUpdateFields(input *UpdateTreatmentPlanInput) map[string]
 	if input.Memo != nil {
 		fields["memo"] = *input.Memo
 	}
-	if input.Insurance != nil {
-		fields["is_insurance"] = *input.Insurance
+	if input.IsInsurance != nil {
+		fields["is_insurance"] = *input.IsInsurance
 	}
 	if input.UnitPrice != nil {
 		fields["unit_price"] = *input.UnitPrice

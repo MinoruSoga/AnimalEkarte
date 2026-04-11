@@ -21,12 +21,12 @@ type CreateTreatmentInput struct {
 	InventoryID    *uint64
 	UnitPrice      int64
 	Quantity       float64
-	Selected       bool
+	IsSelected      bool
 	Status         string
 	Content        string
 	Memo           string
 	AdminRoute     string
-	Insurance      bool
+	IsInsurance     bool
 	DiscountRate   float64
 	DiscountAmount int64
 	SortOrder      int
@@ -41,12 +41,12 @@ type UpdateTreatmentInput struct {
 	InventoryID    *uint64
 	UnitPrice      *int64
 	Quantity       *float64
-	Selected       *bool
+	IsSelected      *bool
 	Status         *string
 	Content        *string
 	Memo           *string
 	AdminRoute     *string
-	Insurance      *bool
+	IsInsurance     *bool
 	DiscountRate   *float64
 	DiscountAmount *int64
 	SortOrder      *int
@@ -131,12 +131,12 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 			InventoryID:     input.InventoryID,
 			UnitPrice:       input.UnitPrice,
 			Quantity:        input.Quantity,
-			IsSelected:      input.Selected,
+			IsSelected:      input.IsSelected,
 			Status:          status,
 			Content:         input.Content,
 			Memo:            input.Memo,
 			AdminRoute:      input.AdminRoute,
-			IsInsurance:     input.Insurance,
+			IsInsurance:     input.IsInsurance,
 			DiscountRate:    input.DiscountRate,
 			DiscountAmount:  input.DiscountAmount,
 			SortOrder:       input.SortOrder,
@@ -297,8 +297,8 @@ func buildTreatmentUpdateFields(input *UpdateTreatmentInput) map[string]any {
 	if input.Quantity != nil {
 		fields["quantity"] = *input.Quantity
 	}
-	if input.Selected != nil {
-		fields["is_selected"] = *input.Selected
+	if input.IsSelected != nil {
+		fields["is_selected"] = *input.IsSelected
 	}
 	if input.Status != nil {
 		fields["status"] = *input.Status
@@ -312,8 +312,8 @@ func buildTreatmentUpdateFields(input *UpdateTreatmentInput) map[string]any {
 	if input.AdminRoute != nil {
 		fields["admin_route"] = *input.AdminRoute
 	}
-	if input.Insurance != nil {
-		fields["is_insurance"] = *input.Insurance
+	if input.IsInsurance != nil {
+		fields["is_insurance"] = *input.IsInsurance
 	}
 	if input.DiscountRate != nil {
 		fields["discount_rate"] = *input.DiscountRate

@@ -20,7 +20,7 @@ type CreateAccountingInput struct {
 	Subtotal          int
 	TaxTotal          int
 	TotalAmount       int
-	HasInsurance      bool
+	HasInsurance     bool
 	Status            model.BillingStatus
 	ScheduledDate     time.Time
 	CompletedAt       *time.Time
@@ -39,7 +39,7 @@ type UpdateAccountingInput struct {
 	Subtotal          *int
 	TaxTotal          *int
 	TotalAmount       *int
-	HasInsurance      *bool
+	HasInsurance     *bool
 	Status            *model.BillingStatus
 	ScheduledDate     *time.Time
 	CompletedAt       *time.Time
