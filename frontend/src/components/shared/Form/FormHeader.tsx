@@ -20,7 +20,7 @@ export const FormHeader = memo(function FormHeader({ title, description, icon, o
             variant="ghost"
             type="button"
             onClick={onBack}
-            className={`${C.text60} ${C.hoverText} hover:bg-transparent pl-0 size-11`}
+            className={`${STYLE.btnGhost} pl-0 size-11`}
           >
             <ChevronLeft className={ICON.page} />
             <span className="sr-only">戻る</span>

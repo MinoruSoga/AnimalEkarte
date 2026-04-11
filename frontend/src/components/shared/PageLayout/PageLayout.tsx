@@ -1,7 +1,7 @@
 import { memo, type ReactNode, type RefObject } from "react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
-import { C } from "@/lib/design-tokens";
+import { STYLE } from "@/lib/design-tokens";
 import type { Resource } from "@/types/generated/models";
 
 interface PageLayoutProps {
@@ -42,7 +42,7 @@ export const PageLayout = memo(function PageLayout({
 
   return (
     <div
-      className={`flex flex-col h-full ${C.bgPage} overflow-hidden ${className || ""}`}
+      className={`flex flex-col h-full ${STYLE.page} ${className || ""}`}
     >
       <FormHeader
         title={title}

@@ -62,7 +62,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
         "w-full flex items-center gap-3 px-3 h-12 rounded-[3px] text-base transition-colors",
         isActive
           ? STYLE.sidebarItemActive
-          : `${C.text65} ${C.hoverBgLight} ${C.hoverText}`,
+          : STYLE.sidebarItemIdle,
         collapsed ? "justify-center" : "",
         level === 1 ? "pl-8" : level > 1 ? "pl-14" : "",
       ].join(" ")}
@@ -214,12 +214,10 @@ export const Sidebar = memo(function Sidebar() {
 
   return (
     <div
-      className={`h-full ${C.bgPage} border-r ${C.borderLight} flex flex-col transition-all duration-300 ${
-        collapsed ? "w-[56px]" : "w-[220px]"
-      }`}
+      className={`${STYLE.sidebarContainer} ${collapsed ? "w-[56px]" : "w-[220px]"}`}
     >
       {/* Header */}
-      <div className={`h-[53px] flex items-center px-2.5 border-b ${C.borderDivider}`}>
+      <div className={STYLE.sidebarHeader}>
         {!collapsed ? (
           <div className="flex items-center justify-between w-full">
             {hasMultipleClinics ? (

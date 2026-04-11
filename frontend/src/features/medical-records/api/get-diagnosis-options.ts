@@ -48,7 +48,7 @@ export const getDiagnosisNames = async (categoryId?: number | null): Promise<Dia
 
 export const useGetDiagnosisTypes = () =>
   useQuery({
-    queryKey: ["masters", "diagnosis-categories"],
+    queryKey: ["masters", "diagnosis-types"],
     queryFn: getDiagnosisTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
