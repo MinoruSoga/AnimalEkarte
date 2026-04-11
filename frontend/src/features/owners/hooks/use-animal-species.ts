@@ -33,7 +33,7 @@ export const useAnimalSpecies = (opts?: { includeInactive?: boolean }) => {
     if (!allSpecies) return [];
 
     return allSpecies.map((species) => {
-      const isInactive = species.isActive === false;
+      const isInactive = species.is_active === false;
       return {
         ...species,
         isInactive,
