@@ -382,7 +382,7 @@ export const Sidebar = memo(function Sidebar() {
                 onClick={() => setIsChangePasswordOpen(true)}
                 aria-label="パスワード変更"
                 title="パスワード変更"
-                className={`size-7 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} ${C.hoverBgMedium} transition-colors shrink-0`}
+                className={`${STYLE.iconBtn28} ${C.text35} ${C.hoverText} ${C.hoverBgMedium} shrink-0`}
               >
                 <KeyRound className={ICON.action} />
               </button>
@@ -391,7 +391,7 @@ export const Sidebar = memo(function Sidebar() {
                 onClick={logout}
                 aria-label="ログアウト"
                 title="ログアウト"
-                className={`size-7 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} ${C.hoverBgMedium} transition-colors shrink-0`}
+                className={`${STYLE.iconBtn28} ${C.text35} ${C.hoverText} ${C.hoverBgMedium} shrink-0`}
               >
                 <LogOut className={ICON.action} />
               </button>

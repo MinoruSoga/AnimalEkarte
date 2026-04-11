@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { C, BADGE, ICON } from "@/lib/design-tokens";
+import { C, BADGE, ICON, STYLE } from "@/lib/design-tokens";
 
 // Relative
 import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "@/features/medical-records/types";
@@ -364,7 +364,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           <Button
             variant="ghost"
             size="icon"
-            className={`size-7 ${C.text40} ${C.hoverText} disabled:opacity-20`}
+            className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverText} disabled:opacity-20`}
             onClick={handleMoveUp}
             disabled={isFirst}
             title="上に移動"
@@ -374,7 +374,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           <Button
             variant="ghost"
             size="icon"
-            className={`size-7 ${C.text40} ${C.hoverText} disabled:opacity-20`}
+            className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverText} disabled:opacity-20`}
             onClick={handleMoveDown}
             disabled={isLast}
             title="下に移動"
@@ -384,7 +384,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           {canDelete ? (
             <DeleteIconButton
               onClick={handleDelete}
-              className="size-7"
+              className={STYLE.iconBtn28}
             />
           ) : null}
         </div>

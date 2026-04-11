@@ -141,7 +141,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
           <button
             onClick={handleSave}
             disabled={isPending}
-            className={`size-8 flex items-center justify-center rounded-[3px] ${C.textStatusGreen} ${C.hoverBgStatusGreen} transition-colors`}
+            className={`${STYLE.iconBtn32} ${C.textStatusGreen} ${C.hoverBgStatusGreen}`}
             title="保存"
           >
             <Check className={`${ICON.xs}`} />
@@ -149,7 +149,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
           <button
             onClick={onCancel}
             disabled={isPending}
-            className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverBgLight} transition-colors`}
+            className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverBgLight}`}
             title="キャンセル"
           >
             <X className={`${ICON.xs}`} />
@@ -318,7 +318,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: Checku
                         {canEdit ? (
                           <button
                             onClick={() => setEditingId(checkup.id)}
-                            className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
+                            className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverText} ${C.hoverBgLight}`}
                             title="編集"
                           >
                             <Pencil className={`${ICON.xs}`} />
