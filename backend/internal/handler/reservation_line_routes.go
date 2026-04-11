@@ -14,15 +14,15 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	clinics.GET("/reservation-settings", h.GetReservationSetting)
 	clinics.PUT("/reservation-settings", h.UpsertReservationSetting)
 
-	// TASK-RES-011: コース
-	courses := clinics.Group("/reservation-courses")
-	courses.GET("", h.ListReservationCourses)
-	courses.POST("", h.CreateReservationCourse)
-	courses.PUT("/:id", h.UpdateReservationCourse)
-	courses.DELETE("/:id", h.DeleteReservationCourse)
-	courses.PATCH("/:id/status", h.PatchReservationCourseStatus)
-	courses.PATCH("/:id/sort-order", h.PatchReservationCourseSortOrder)
-	courses.POST("/:id/image", h.UploadReservationCourseImage)
+	// TASK-RES-011: 予約区分（LINE管理用）
+	types := clinics.Group("/reservation-types")
+	types.GET("", h.ListReservationCourses)
+	types.POST("", h.CreateReservationCourse)
+	types.PUT("/:id", h.UpdateReservationCourse)
+	types.DELETE("/:id", h.DeleteReservationCourse)
+	types.PATCH("/:id/status", h.PatchReservationCourseStatus)
+	types.PATCH("/:id/sort-order", h.PatchReservationCourseSortOrder)
+	types.POST("/:id/image", h.UploadReservationCourseImage)
 
 	// TASK-RES-012: スタッフ
 	staffs := clinics.Group("/reservation-staffs")
@@ -47,7 +47,7 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	reservations.DELETE("/:id", h.DeleteReservationAdmin)
 
 	// TASK-RES-015: 顧客管理
-	customers := clinics.Group("/reservation-customers")
+	customers := clinics.Group("/line-customers")
 	customers.GET("", h.ListReservationCustomers)
 	customers.PATCH("/:id/link-owner", h.LinkOwnerToReservationCustomer)
 }
@@ -66,7 +66,7 @@ func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
 	authed.Use(liffAuth)
 
 	authed.GET("/profile", h.GetLiffProfile)
-	authed.GET("/courses", h.GetLiffCourses)
+	authed.GET("/types", h.GetLiffCourses)
 	authed.GET("/staffs", h.GetLiffStaffs)
 	authed.GET("/available-dates", h.GetLiffAvailableDates)
 	authed.GET("/available-times", h.GetLiffAvailableTimes)

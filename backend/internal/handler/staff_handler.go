@@ -347,7 +347,7 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 }
 
 // GetStaffExcludedReservationCategories godoc
-// GET /v1/masters/staffs/:id/excluded-reservation-categories
+// GET /v1/masters/staffs/:id/excluded-reservation-types
 func (h *Handler) GetStaffExcludedReservationCategories(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -369,7 +369,7 @@ func (h *Handler) GetStaffExcludedReservationCategories(c *gin.Context) {
 }
 
 // SetStaffExcludedReservationCategories godoc
-// PUT /v1/masters/staffs/:id/excluded-reservation-categories
+// PUT /v1/masters/staffs/:id/excluded-reservation-types
 func (h *Handler) SetStaffExcludedReservationCategories(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -445,8 +445,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PUT("/staffs/:id/permission-groups", perm(model.ResourceMasterStaff, "edit"), h.SetStaffPermissionGroups)
 	masters.GET("/staffs/:id/clinics", h.GetStaffClinicAssignments)
 	masters.PUT("/staffs/:id/clinics", perm(model.ResourceMasterStaff, "edit"), h.SetStaffClinicAssignments)
-	masters.GET("/staffs/:id/excluded-reservation-categories", h.GetStaffExcludedReservationCategories)
-	masters.PUT("/staffs/:id/excluded-reservation-categories", perm(model.ResourceMasterStaff, "edit"), h.SetStaffExcludedReservationCategories)
+	masters.GET("/staffs/:id/excluded-reservation-types", h.GetStaffExcludedReservationCategories)
+	masters.PUT("/staffs/:id/excluded-reservation-types", perm(model.ResourceMasterStaff, "edit"), h.SetStaffExcludedReservationCategories)
 
 	// Cages
 	masters.GET("/cages", h.ListCages)
@@ -481,20 +481,20 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.DELETE("/insurances/:id", perm(model.ResourceMasterInsurance, "delete"), h.DeleteInsurance)
 
 	// Reservation Category Groups
-	masters.GET("/reservation-category-groups", h.ListReservationCategoryGroups)
-	masters.POST("/reservation-category-groups", perm(model.ResourceMasterReservationCategory, "create"), h.CreateReservationCategoryGroup)
-	masters.PATCH("/reservation-category-groups/reorder", perm(model.ResourceMasterReservationCategory, "edit"), h.ReorderReservationCategoryGroups)
-	masters.GET("/reservation-category-groups/:id", h.GetReservationCategoryGroup)
-	masters.PATCH("/reservation-category-groups/:id", perm(model.ResourceMasterReservationCategory, "edit"), h.UpdateReservationCategoryGroup)
-	masters.DELETE("/reservation-category-groups/:id", perm(model.ResourceMasterReservationCategory, "delete"), h.DeleteReservationCategoryGroup)
+	masters.GET("/reservation-type-groups", h.ListReservationCategoryGroups)
+	masters.POST("/reservation-type-groups", perm(model.ResourceMasterReservationCategory, "create"), h.CreateReservationCategoryGroup)
+	masters.PATCH("/reservation-type-groups/reorder", perm(model.ResourceMasterReservationCategory, "edit"), h.ReorderReservationCategoryGroups)
+	masters.GET("/reservation-type-groups/:id", h.GetReservationCategoryGroup)
+	masters.PATCH("/reservation-type-groups/:id", perm(model.ResourceMasterReservationCategory, "edit"), h.UpdateReservationCategoryGroup)
+	masters.DELETE("/reservation-type-groups/:id", perm(model.ResourceMasterReservationCategory, "delete"), h.DeleteReservationCategoryGroup)
 
-	// Service Types
-	masters.GET("/reservation-categories", h.ListReservationCategories)
-	masters.POST("/reservation-categories", perm(model.ResourceMasterReservationCategory, "create"), h.CreateReservationCategory)
-	masters.PATCH("/reservation-categories/reorder", perm(model.ResourceMasterReservationCategory, "edit"), h.ReorderReservationCategories)
-	masters.GET("/reservation-categories/:id", h.GetReservationCategory)
-	masters.PATCH("/reservation-categories/:id", perm(model.ResourceMasterReservationCategory, "edit"), h.UpdateReservationCategory)
-	masters.DELETE("/reservation-categories/:id", perm(model.ResourceMasterReservationCategory, "delete"), h.DeleteReservationCategory)
+	// Reservation Types
+	masters.GET("/reservation-types", h.ListReservationCategories)
+	masters.POST("/reservation-types", perm(model.ResourceMasterReservationCategory, "create"), h.CreateReservationCategory)
+	masters.PATCH("/reservation-types/reorder", perm(model.ResourceMasterReservationCategory, "edit"), h.ReorderReservationCategories)
+	masters.GET("/reservation-types/:id", h.GetReservationCategory)
+	masters.PATCH("/reservation-types/:id", perm(model.ResourceMasterReservationCategory, "edit"), h.UpdateReservationCategory)
+	masters.DELETE("/reservation-types/:id", perm(model.ResourceMasterReservationCategory, "delete"), h.DeleteReservationCategory)
 
 	// Consultations
 	masters.GET("/consultations", h.ListConsultations)

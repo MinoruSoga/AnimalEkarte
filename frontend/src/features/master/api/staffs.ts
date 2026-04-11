@@ -306,14 +306,14 @@ export function useSetStaffClinics() {
 // ─────────────────────────────────────────────────
 
 const STAFF_EXCLUDED_ST_KEY = (staffId: string) =>
-  [...STAFFS_QUERY_KEY, staffId, "excluded-reservation-categories"] as const;
+  [...STAFFS_QUERY_KEY, staffId, "excluded-reservation-types"] as const;
 
 export function useGetStaffExcludedReservationCategories(staffId: string | null) {
   return useQuery({
     queryKey: STAFF_EXCLUDED_ST_KEY(staffId ?? ""),
     queryFn: async (): Promise<string[]> => {
       const { data } = await axios.get<{ reservation_category_ids: number[] }>(
-        `/v1/masters/staffs/${staffId}/excluded-reservation-categories`,
+        `/v1/masters/staffs/${staffId}/excluded-reservation-types`,
       );
       return (data.reservation_category_ids ?? []).map(String);
     },
@@ -333,7 +333,7 @@ export function useSetStaffExcludedReservationCategories() {
       staffId: string;
       reservationCategoryIds: string[];
     }) => {
-      await axios.put(`/v1/masters/staffs/${staffId}/excluded-reservation-categories`, {
+      await axios.put(`/v1/masters/staffs/${staffId}/excluded-reservation-types`, {
         reservation_category_ids: reservationCategoryIds.map((id) => parseInt(id, 10)),
       });
     },

@@ -9,7 +9,7 @@ export async function updateOwnerLink(
   ownerID: number | null,
 ): Promise<ReservationCustomer> {
   const { data } = await axios.patch<ReservationCustomer>(
-    `/v1/clinics/${clinicId}/reservation-customers/${customerId}/link-owner`,
+    `/v1/clinics/${clinicId}/line-customers/${customerId}/link-owner`,
     { owner_id: ownerID },
   );
   return data;
@@ -26,7 +26,7 @@ export function useUpdateOwnerLink(clinicId: string | null) {
       ownerID: number | null;
     }) => updateOwnerLink(clinicId!, customerId, ownerID),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reservation-customers", clinicId] });
+      queryClient.invalidateQueries({ queryKey: ["line-customers", clinicId] });
     },
     onError: (error) => {
       handleApiError(error, "オーナー紐付け");

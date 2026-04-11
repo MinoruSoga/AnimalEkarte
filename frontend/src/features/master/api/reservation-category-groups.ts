@@ -26,7 +26,7 @@ export type ReservationCategoryGroup = ReturnType<typeof transformReservationCat
 // Query keys
 // ─────────────────────────────────────────────────
 
-export const RESERVATION_CATEGORY_GROUPS_QUERY_KEY = ["masters", "reservation-category-groups"] as const;
+export const RESERVATION_CATEGORY_GROUPS_QUERY_KEY = ["masters", "reservation-type-groups"] as const;
 
 // ─────────────────────────────────────────────────
 // Request types (derived from models.ts)
@@ -52,7 +52,7 @@ export type ReorderReservationCategoryGroupRequest = {
 
 export async function listReservationCategoryGroups(): Promise<ReservationCategoryGroup[]> {
   const { data } = await axios.get<ModelReservationCategoryGroup[]>(
-    "/v1/masters/reservation-category-groups",
+    "/v1/masters/reservation-type-groups",
   );
   return data.map(transformReservationCategoryGroup);
 }
@@ -61,7 +61,7 @@ export async function createReservationCategoryGroup(
   req: CreateReservationCategoryGroupRequest,
 ): Promise<ReservationCategoryGroup> {
   const { data } = await axios.post<ModelReservationCategoryGroup>(
-    "/v1/masters/reservation-category-groups",
+    "/v1/masters/reservation-type-groups",
     req,
   );
   return transformReservationCategoryGroup(data);
@@ -72,20 +72,20 @@ export async function updateReservationCategoryGroup(
   req: UpdateReservationCategoryGroupRequest,
 ): Promise<ReservationCategoryGroup> {
   const { data } = await axios.patch<ModelReservationCategoryGroup>(
-    `/v1/masters/reservation-category-groups/${id}`,
+    `/v1/masters/reservation-type-groups/${id}`,
     req,
   );
   return transformReservationCategoryGroup(data);
 }
 
 export async function deleteReservationCategoryGroup(id: string): Promise<void> {
-  await axios.delete(`/v1/masters/reservation-category-groups/${id}`);
+  await axios.delete(`/v1/masters/reservation-type-groups/${id}`);
 }
 
 export async function reorderReservationCategoryGroups(
   req: ReorderReservationCategoryGroupRequest,
 ): Promise<void> {
-  await axios.patch("/v1/masters/reservation-category-groups/reorder", req);
+  await axios.patch("/v1/masters/reservation-type-groups/reorder", req);
 }
 
 // ─────────────────────────────────────────────────

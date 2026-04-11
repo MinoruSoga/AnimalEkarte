@@ -25,7 +25,7 @@ export const MASTER_CATEGORY_ENDPOINT: Record<string, string> = {
   vaccine: "/v1/masters/vaccines",
   medicine: "/v1/masters/medicines",
   consultation: "/v1/masters/consultations",
-  reservationCategory: "/v1/masters/reservation-categories",
+  reservationCategory: "/v1/masters/reservation-types",
   procedure: "/v1/masters/procedures",
   hospitalization: "/v1/masters/hospitalization-plans",
   insurance: "/v1/masters/insurances",

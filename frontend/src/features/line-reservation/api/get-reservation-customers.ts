@@ -5,14 +5,14 @@ import type { ReservationCustomer } from "./types";
 
 export async function getReservationCustomers(clinicId: string): Promise<ReservationCustomer[]> {
   const { data } = await axios.get<ReservationCustomer[]>(
-    `/v1/clinics/${clinicId}/reservation-customers`
+    `/v1/clinics/${clinicId}/line-customers`
   );
   return data ?? [];
 }
 
 export function useGetReservationCustomers(clinicId: string | null) {
   return useQuery({
-    queryKey: ["reservation-customers", clinicId],
+    queryKey: ["line-customers", clinicId],
     queryFn: () => getReservationCustomers(clinicId!),
     enabled: clinicId !== null,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

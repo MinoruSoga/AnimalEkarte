@@ -86,11 +86,11 @@ reservation_type_groups  -- 予約種別のグルーピング
 |--------|------|---------|
 | `staffs` | 担当医 | `doctor_id`（ドメイン上「医師」が明確な場合） |
 | `staffs` | 操作者・記録者 | `staff_id` |
-| `staffs` | 確認者 | `confirmed_by_staff_id` |
-| `staffs` | 作成者 | `created_by_staff_id` |
-| `staffs` | 差戻者 | `returned_by_staff_id` |
+| `staffs` | 確認者 | `confirmed_by`（慣例として許容） |
+| `staffs` | 作成者 | `created_by`（慣例として許容） |
+| `staffs` | 差戻者 | `returned_by`（慣例として許容） |
 
-`confirmed_by`, `created_by` のように FK 先が不明な名前は避ける。
+`confirmed_by` 等は `staffs` テーブルへの FK であることが文脈で自明なため、`_staff_id` サフィックスは省略可。
 
 ### 日付・時刻カラム
 
@@ -202,7 +202,13 @@ const (
 | Handler impl | `appointment_handler.go` | — |
 | Routes | `appointment_routes.go` | — |
 
-**1エンティティ = 1ファイルセット**。同じテーブルに対して複数の handler/service を作らない（例: `reservation_course_handler.go` と `reservation_category_handler.go` が同じテーブルを参照するのは禁止）。
+**原則 1エンティティ = 1ファイルセット**。ただし、管理 API（`/v1/masters/`）と LIFF 公開 API（`/api/clinics/`）で同一テーブルを異なるレイヤーから提供する場合は、目的別に分離してよい。その場合も **API パス名はテーブル名と一致** させること。
+
+```
+# 同じ reservation_types テーブルに対して:
+/v1/masters/reservation-types          ← 管理用（reservation_category_handler.go）
+/api/clinics/{id}/reservation-types    ← LINE予約用（reservation_course_handler.go）
+```
 
 ---
 

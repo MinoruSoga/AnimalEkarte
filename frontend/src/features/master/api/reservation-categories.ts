@@ -51,21 +51,21 @@ export type {
 // Query keys
 // ─────────────────────────────────────────────────
 
-export const SERVICE_TYPES_QUERY_KEY = ["masters", "reservation-categories"] as const;
+export const SERVICE_TYPES_QUERY_KEY = ["masters", "reservation-types"] as const;
 
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
 
 export async function listReservationCategories(): Promise<ReservationCategory[]> {
-  const { data } = await axios.get<ModelReservationCategory[]>("/v1/masters/reservation-categories");
+  const { data } = await axios.get<ModelReservationCategory[]>("/v1/masters/reservation-types");
   return data.map(transformReservationCategory);
 }
 
 export async function createReservationCategory(
   req: CreateReservationCategoryRequest,
 ): Promise<ReservationCategory> {
-  const { data } = await axios.post<ModelReservationCategory>("/v1/masters/reservation-categories", req);
+  const { data } = await axios.post<ModelReservationCategory>("/v1/masters/reservation-types", req);
   return transformReservationCategory(data);
 }
 
@@ -74,20 +74,20 @@ export async function updateReservationCategory(
   req: UpdateReservationCategoryRequest,
 ): Promise<ReservationCategory> {
   const { data } = await axios.patch<ModelReservationCategory>(
-    `/v1/masters/reservation-categories/${id}`,
+    `/v1/masters/reservation-types/${id}`,
     req,
   );
   return transformReservationCategory(data);
 }
 
 export async function deleteReservationCategory(id: string): Promise<void> {
-  await axios.delete(`/v1/masters/reservation-categories/${id}`);
+  await axios.delete(`/v1/masters/reservation-types/${id}`);
 }
 
 export async function reorderReservationCategories(
   req: ReorderReservationCategoryRequest,
 ): Promise<void> {
-  await axios.patch("/v1/masters/reservation-categories/reorder", req);
+  await axios.patch("/v1/masters/reservation-types/reorder", req);
 }
 
 // ─────────────────────────────────────────────────
