@@ -4022,6 +4022,8 @@
 
 ## 16. 認証 (auth)
 
+**Backend Test Coverage (2026-04-12)**: `backend/internal/handler/auth_handler_test.go` に全エンドポイントの包括的なテストケース定義を作成。60+シナリオを文書化（JWT生成・検証、Cookie セキュリティ、RBAC権限計算、監査ログ等）。
+
 ### 16.1 ログイン  `/login`
 
 #### フォームフィールド
