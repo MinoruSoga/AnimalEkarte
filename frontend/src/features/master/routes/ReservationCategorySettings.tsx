@@ -412,7 +412,7 @@ export function ReservationCategorySettings() {
             icon={<Activity className={`${ICON.page} ${C.text}`} />}
             resource={ResourceMasterReservationCategory}
             onBack={() => navigate(paths.settings.getHref())}
-            maxWidth="max-w-4xl"
+            maxWidth="max-w-full"
             headerAction={
               canCreate ? (
                 <PrimaryButton onClick={() => handleCategoryAddInGroup(undefined)}>
