@@ -142,9 +142,9 @@ export function useTrimmingForm(id?: string) {
         if (isEdit && id) {
           const req: UpdateTrimmingRequest = {
             style_request: formData.styleRequest || undefined,
-            bw: formData.bw ? Number(formData.bw) : undefined,
+            body_weight: formData.bw ? Number(formData.bw) : undefined,
             bw_unit: formData.bwUnit || undefined,
-            bt: formData.bt ? Number(formData.bt) : undefined,
+            body_temperature: formData.bt ? Number(formData.bt) : undefined,
             used_shampoo: formData.usedShampoo || undefined,
             used_ribbon: formData.usedRibbon || undefined,
             remarks: formData.remarks || undefined,

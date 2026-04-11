@@ -110,7 +110,7 @@ type TreatmentPlan struct {
 	HospitalizationID *uint64        `                                                      json:"hospitalization_id,omitempty"`
 	TreatmentContent  string         `gorm:"not null;default:''"                            json:"treatment_content"`
 	Memo              string         `gorm:"default:''"                                     json:"memo"`
-	Insurance         bool           `gorm:"default:false"                                  json:"insurance"`
+	IsInsurance       bool           `gorm:"column:is_insurance;default:false"              json:"is_insurance"`
 	UnitPrice         int64          `gorm:"default:0"                                      json:"unit_price"`
 	Quantity          float64        `gorm:"type:numeric(10,1);default:1"                   json:"quantity"`
 	DiscountRate      float64        `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
@@ -178,7 +178,7 @@ type CareLogRecord struct {
 	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
 }
 
-func (CareLogRecord) TableName() string { return "care_log_records" }
+func (CareLogRecord) TableName() string { return "care_logs" }
 
 type StaffNoteRecord struct {
 	ID            uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
@@ -193,4 +193,4 @@ type StaffNoteRecord struct {
 	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
 }
 
-func (StaffNoteRecord) TableName() string { return "staff_note_records" }
+func (StaffNoteRecord) TableName() string { return "staff_notes" }

@@ -42,4 +42,4 @@ type RecordImage struct {
 	Staff         *Staff         `gorm:"foreignKey:StaffID"         json:"staff,omitempty"`
 }
 
-func (RecordImage) TableName() string { return "record_images" }
+func (RecordImage) TableName() string { return "medical_record_images" }

@@ -509,7 +509,7 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('insurances', 'id'), (SELECT MAX(id) FROM insurances));
 
 -- -----------------------------------------------------------------------------
--- 11. exam_types（検査種別: 5件）+ exam_type_items（検査項目）
+-- 11. exam_types（検査種別: 5件）+ exam_type_fields（検査項目定義）
 -- -----------------------------------------------------------------------------
 INSERT INTO exam_types (id, clinic_id, name, price, is_active, description, sort_order) VALUES
     (1, 3, '血液検査（CBC）',     3000, true, '全血球計算（Complete Blood Count）',         1),
@@ -521,44 +521,44 @@ ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('exam_types', 'id'), (SELECT MAX(id) FROM exam_types));
 
--- exam_type_items: 血液検査（CBC）
-INSERT INTO exam_type_items (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+-- exam_type_fields: 血液検査（CBC）
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
     (1, 1, 'WBC（白血球数）',      '', '6.0-17.0 x10^3/uL', 1),
     (2, 1, 'RBC（赤血球数）',      '', '5.5-8.5 x10^6/uL',  2),
     (3, 1, 'HCT（ヘマトクリット）', '', '37-55%',            3),
     (4, 1, 'PLT（血小板数）',      '', '175-500 x10^3/uL',  4)
 ON CONFLICT DO NOTHING;
 
--- exam_type_items: 血液化学検査
-INSERT INTO exam_type_items (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+-- exam_type_fields: 血液化学検査
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
     (5, 2, 'ALT（GPT）',        '', '10-125 U/L',    1),
     (6, 2, 'BUN（尿素窒素）',   '', '7-27 mg/dL',    2),
     (7, 2, 'CRE（クレアチニン）', '', '0.5-1.8 mg/dL', 3),
     (8, 2, 'GLU（血糖値）',     '', '74-143 mg/dL',   4)
 ON CONFLICT DO NOTHING;
 
--- exam_type_items: 尿検査
-INSERT INTO exam_type_items (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+-- exam_type_fields: 尿検査
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
     (9,  3, '尿比重',   '', '1.015-1.045', 1),
     (10, 3, '尿pH',     '', '5.5-7.5',     2),
     (11, 3, '尿タンパク', '', '陰性',       3),
     (12, 3, '尿潜血',   '', '陰性',        4)
 ON CONFLICT DO NOTHING;
 
--- exam_type_items: レントゲン検査
-INSERT INTO exam_type_items (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+-- exam_type_fields: レントゲン検査
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
     (13, 4, '胸部正面', '', '異常なし', 1),
     (14, 4, '腹部正面', '', '異常なし', 2),
     (15, 4, '四肢',     '', '異常なし', 3)
 ON CONFLICT DO NOTHING;
 
--- exam_type_items: 超音波検査
-INSERT INTO exam_type_items (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+-- exam_type_fields: 超音波検査
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
     (16, 5, '腹部エコー', '', '異常なし', 1),
     (17, 5, '心臓エコー', '', '異常なし', 2)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_type_items', 'id'), (SELECT MAX(id) FROM exam_type_items));
+SELECT setval(pg_get_serial_sequence('exam_type_fields', 'id'), (SELECT MAX(id) FROM exam_type_fields));
 
 -- -----------------------------------------------------------------------------
 -- 12. vaccines（ワクチン: 10件）
@@ -1230,8 +1230,8 @@ ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('exam_types', 'id'), (SELECT MAX(id) FROM exam_types));
 
--- exam_type_items for clinic 4
-INSERT INTO exam_type_items (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+-- exam_type_fields for clinic 4
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
     (18, 6, 'WBC（白血球数）', '', '6.0-17.0 x10^3/uL', 1),
     (19, 6, 'RBC（赤血球数）', '', '5.5-8.5 x10^6/uL',  2),
     (20, 6, 'HCT（ヘマトクリット）', '', '37-55%',       3),
@@ -1242,7 +1242,7 @@ INSERT INTO exam_type_items (id, exam_type_id, name, inspection_value, normal_va
     (25, 8, '腹部正面',        '', '異常なし',            2)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_type_items', 'id'), (SELECT MAX(id) FROM exam_type_items));
+SELECT setval(pg_get_serial_sequence('exam_type_fields', 'id'), (SELECT MAX(id) FROM exam_type_fields));
 
 -- -----------------------------------------------------------------------------
 -- 城東医院 vaccines（ワクチン: 5件）
@@ -1514,8 +1514,8 @@ ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('exam_types', 'id'), (SELECT MAX(id) FROM exam_types));
 
--- exam_type_items for clinic 5
-INSERT INTO exam_type_items (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+-- exam_type_fields for clinic 5
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
     (26, 9,  'WBC（白血球数）',        '', '6.0-17.0 x10^3/uL', 1),
     (27, 9,  'RBC（赤血球数）',        '', '5.5-8.5 x10^6/uL',  2),
     (28, 9,  'PLT（血小板数）',        '', '175-500 x10^3/uL',  3),
@@ -1526,7 +1526,7 @@ INSERT INTO exam_type_items (id, exam_type_id, name, inspection_value, normal_va
     (33, 11, '心臓エコー',             '', '異常なし',           2)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_type_items', 'id'), (SELECT MAX(id) FROM exam_type_items));
+SELECT setval(pg_get_serial_sequence('exam_type_fields', 'id'), (SELECT MAX(id) FROM exam_type_fields));
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 vaccines（ワクチン: 5件）
@@ -1755,7 +1755,7 @@ ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
 
-INSERT INTO exam_items (id, exam_id, exam_type_item_id, inspection_value, status) VALUES
+INSERT INTO exam_results (id, exam_id, exam_type_item_id, inspection_value, status) VALUES
     -- Exam 1 (CBC for MR2)
     (34, 1, 1, '9.8',  'normal'),
     (35, 1, 2, '7.2',  'normal'),
@@ -1773,7 +1773,7 @@ INSERT INTO exam_items (id, exam_id, exam_type_item_id, inspection_value, status
     (45, 3, 4, '280',  'normal')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('exam_items', 'id'), (SELECT MAX(id) FROM exam_items));
+SELECT setval(pg_get_serial_sequence('exam_results', 'id'), (SELECT MAX(id) FROM exam_results));
 
 -- -----------------------------------------------------------------------------
 -- 城東医院 inventory_items（在庫管理: 5件）

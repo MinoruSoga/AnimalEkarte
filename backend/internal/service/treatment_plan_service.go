@@ -80,7 +80,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 		HospitalizationID: hospitalizationID,
 		TreatmentContent:  input.TreatmentContent,
 		Memo:              input.Memo,
-		Insurance:         input.Insurance,
+		IsInsurance:       input.Insurance,
 		UnitPrice:         input.UnitPrice,
 		Quantity:          input.Quantity,
 		DiscountRate:      input.DiscountRate,
@@ -134,7 +134,7 @@ func buildTreatmentPlanUpdateFields(input *UpdateTreatmentPlanInput) map[string]
 		fields["memo"] = *input.Memo
 	}
 	if input.Insurance != nil {
-		fields["insurance"] = *input.Insurance
+		fields["is_insurance"] = *input.Insurance
 	}
 	if input.UnitPrice != nil {
 		fields["unit_price"] = *input.UnitPrice

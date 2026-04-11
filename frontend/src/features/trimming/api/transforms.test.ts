@@ -85,12 +85,12 @@ describe("transformTrimming", () => {
     expect(result.staffId).toBe("5");
   });
 
-  it("bw / bt / usedShampoo / remarks を正しく変換する", () => {
+  it("body_weight / body_temperature / usedShampoo / remarks を正しく変換する", () => {
     const result = transformTrimming({
       ...minimalBackend,
-      bw: "3.5",
+      body_weight: 3.5,
       bw_unit: "Kg",
-      bt: "38.5",
+      body_temperature: 38.5,
       used_shampoo: "シャンプーA",
       remarks: "特記なし",
     });

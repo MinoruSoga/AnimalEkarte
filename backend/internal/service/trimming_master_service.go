@@ -226,7 +226,7 @@ func buildTrimmingOptionUpdateFields(input UpdateTrimmingOptionInput) map[string
 		fields["duration"] = *input.Duration
 	}
 	if input.Combinable != nil {
-		fields["combinable"] = *input.Combinable
+		fields["is_combinable"] = *input.Combinable
 	}
 	if input.SortOrder != nil {
 		fields["sort_order"] = *input.SortOrder

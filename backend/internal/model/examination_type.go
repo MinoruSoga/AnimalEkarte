@@ -34,4 +34,4 @@ type ExaminationTypeItem struct {
 	UpdatedAt       time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
 
-func (ExaminationTypeItem) TableName() string { return "exam_type_items" }
+func (ExaminationTypeItem) TableName() string { return "exam_type_fields" }

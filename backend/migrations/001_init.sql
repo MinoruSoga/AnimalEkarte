@@ -47,7 +47,7 @@ CREATE TYPE appetite_level AS ENUM ('normal', 'increased', 'decreased', 'none');
 CREATE TYPE water_intake_level AS ENUM ('normal', 'increased', 'decreased', 'none');
 CREATE TYPE medical_image_type AS ENUM ('xray', 'echo', 'photo', 'endoscope', 'ct', 'mri', 'microscope', 'other');
 CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected');
-CREATE TYPE billing_review_status AS ENUM ('pending', 'confirmed', 'returned');
+CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'returned');
 CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other');
 CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization');
 
@@ -262,9 +262,9 @@ CREATE TABLE exam_types (
 );
 
 -- ------------------------------------
--- 10. exam_type_items（検査項目定義）
+-- 10. exam_type_fields（検査項目定義）
 -- ------------------------------------
-CREATE TABLE exam_type_items (
+CREATE TABLE exam_type_fields (
     id               BIGSERIAL   PRIMARY KEY,
     exam_type_id     bigint      NOT NULL REFERENCES exam_types(id) ON DELETE CASCADE,
     name             text        NOT NULL,
@@ -480,7 +480,7 @@ CREATE TABLE trimming_options (
     is_active   boolean     NOT NULL DEFAULT true,
     description text        NOT NULL DEFAULT '',
     duration    integer,
-    combinable  boolean     NOT NULL DEFAULT true,
+    is_combinable  boolean     NOT NULL DEFAULT true,
     sort_order  integer              DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),
     updated_at  timestamptz NOT NULL DEFAULT now()
@@ -731,9 +731,9 @@ CREATE TABLE trimming_records (
     staff_id        bigint                    REFERENCES staffs(id) ON DELETE SET NULL,
     status          trimming_status           DEFAULT 'reserved',
     course_id       bigint                    REFERENCES trimming_courses(id) ON DELETE SET NULL,
-    bw              numeric(6,2),             -- 体重（body weight）
+    body_weight     numeric(6,2),             -- 体重（body weight）
     bw_unit         body_weight_unit          DEFAULT 'Kg',
-    bt              numeric(4,1),             -- 体温（body temperature, ℃）
+    body_temperature numeric(4,1),            -- 体温（body temperature, ℃）
     used_shampoo    text             NOT NULL DEFAULT '',
     used_ribbon     text             NOT NULL DEFAULT '',
     remarks         text             NOT NULL DEFAULT '',
@@ -881,12 +881,12 @@ CREATE TABLE treatments (
     consultation_id   bigint                       REFERENCES consultations(id) ON DELETE SET NULL,
     procedure_id      bigint                       REFERENCES procedures(id) ON DELETE SET NULL,
     medicine_id       bigint                       REFERENCES medicines(id) ON DELETE SET NULL,
-    selected          boolean                      DEFAULT false,
+    is_selected       boolean                      DEFAULT false,
     status            treatment_status             DEFAULT 'pending',
     content           text                NOT NULL DEFAULT '',
     memo              text                NOT NULL DEFAULT '',
     admin_route       varchar(50)         NOT NULL DEFAULT '',
-    insurance         boolean                      DEFAULT false,
+    is_insurance      boolean                      DEFAULT false,
     unit_price        bigint                       DEFAULT 0,
     quantity          numeric(10,1)                DEFAULT 1,
     discount_rate     numeric(5,2)                 DEFAULT 0,
@@ -931,9 +931,9 @@ CREATE TABLE treatment_plans (
 );
 
 -- ------------------------------------
--- 41. record_images（画像タブ）
+-- 41. medical_record_images（画像タブ）
 -- ------------------------------------
-CREATE TABLE record_images (
+CREATE TABLE medical_record_images (
     id                BIGSERIAL          PRIMARY KEY,
     medical_record_id bigint             NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
     image_url         text               NOT NULL DEFAULT '',
@@ -952,12 +952,12 @@ CREATE TABLE record_images (
 );
 
 -- ------------------------------------
--- 42. billing_reviews（会計医師確認タブ: medical_recordsと1:1）
+-- 42. billing_confirmations（会計医師確認タブ: medical_recordsと1:1）
 -- ------------------------------------
-CREATE TABLE billing_reviews (
-    id                BIGSERIAL             PRIMARY KEY,
-    medical_record_id bigint                NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
-    status            billing_review_status          DEFAULT 'pending',
+CREATE TABLE billing_confirmations (
+    id                BIGSERIAL          PRIMARY KEY,
+    medical_record_id bigint             NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
+    status            confirmation_status         DEFAULT 'pending',
     confirmed_by      bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
     confirmed_at      timestamptz,
     returned_by       bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
@@ -994,18 +994,18 @@ CREATE TABLE estimates (
 );
 
 -- ------------------------------------
--- 44. exam_items（検査結果明細）
+-- 44. exam_results（検査結果明細）
 -- ------------------------------------
-CREATE TABLE exam_items (
+CREATE TABLE exam_results (
     id                BIGSERIAL                  PRIMARY KEY,
     exam_id           bigint                     NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
-    exam_type_item_id bigint                              REFERENCES exam_type_items(id) ON DELETE SET NULL,
+    exam_type_item_id bigint                              REFERENCES exam_type_fields(id) ON DELETE SET NULL,
     name              text                       NOT NULL DEFAULT '',
     inspection_value  text                       NOT NULL DEFAULT '',
     normal_value      text                       NOT NULL DEFAULT '',
     result            text                       NOT NULL DEFAULT '',
     unit              text                       NOT NULL DEFAULT '',
-    ref               text                       NOT NULL DEFAULT '',
+    reference_value   text                       NOT NULL DEFAULT '',
     ref_min           decimal(10,4),
     ref_max           decimal(10,4),
     is_abnormal       boolean                             DEFAULT false,
@@ -1114,9 +1114,9 @@ CREATE TABLE estimate_items (
 );
 
 -- ------------------------------------
--- 48. care_log_records（ケアログ）
+-- 48. care_logs（ケアログ）
 -- ------------------------------------
-CREATE TABLE care_log_records (
+CREATE TABLE care_logs (
     id              BIGSERIAL       PRIMARY KEY,
     daily_record_id bigint          NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
     time            time            NOT NULL,
@@ -1133,9 +1133,9 @@ CREATE TABLE care_log_records (
 -- 49. (vital_records は 38 に統合済み)
 
 -- ------------------------------------
--- 50. staff_note_records（スタッフノート）
+-- 50. staff_notes（スタッフノート）
 -- ------------------------------------
-CREATE TABLE staff_note_records (
+CREATE TABLE staff_notes (
     id              BIGSERIAL   PRIMARY KEY,
     daily_record_id bigint      NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
     time            time        NOT NULL,
@@ -1392,7 +1392,7 @@ CREATE INDEX idx_checkups_medical_record_id ON checkups(medical_record_id);
 CREATE INDEX idx_checkups_pet_id ON checkups(pet_id);
 CREATE INDEX idx_clinical_plans_medical_record_id ON clinical_plans(medical_record_id);
 CREATE INDEX idx_inquiries_medical_record_id ON inquiries(medical_record_id);
-CREATE INDEX idx_record_images_medical_record_id ON record_images(medical_record_id);
+CREATE INDEX idx_medical_record_images_medical_record_id ON medical_record_images(medical_record_id);
 CREATE INDEX idx_treatment_plans_medical_record_id ON treatment_plans(medical_record_id);
 CREATE INDEX idx_treatment_plans_hospitalization_id ON treatment_plans(hospitalization_id);
 
@@ -1417,10 +1417,10 @@ CREATE INDEX idx_billing_refunds_clinic_billing ON billing_refunds(clinic_id, bi
 CREATE INDEX idx_vital_records_staff_id ON vital_records(staff_id);
 CREATE INDEX idx_trimming_records_staff_id ON trimming_records(staff_id);
 
--- record_images インデックス
-CREATE INDEX idx_record_images_image_type ON record_images(image_type);
-CREATE INDEX idx_record_images_taken_at ON record_images(taken_at DESC);
-CREATE INDEX idx_record_images_exam_id ON record_images(exam_id) WHERE exam_id IS NOT NULL;
+-- medical_record_images インデックス
+CREATE INDEX idx_medical_record_images_image_type ON medical_record_images(image_type);
+CREATE INDEX idx_medical_record_images_taken_at ON medical_record_images(taken_at DESC);
+CREATE INDEX idx_medical_record_images_exam_id ON medical_record_images(exam_id) WHERE exam_id IS NOT NULL;
 
 -- estimates インデックス
 CREATE INDEX idx_estimates_medical_record_id ON estimates(medical_record_id);
@@ -1430,8 +1430,8 @@ CREATE INDEX idx_estimates_owner_id ON estimates(owner_id);
 -- estimate_items インデックス
 CREATE INDEX idx_estimate_items_estimate_id ON estimate_items(estimate_id);
 
--- billing_reviews インデックス
-CREATE INDEX idx_billing_reviews_status ON billing_reviews(status);
+-- billing_confirmations インデックス
+CREATE INDEX idx_billing_confirmations_status ON billing_confirmations(status);
 
 -- -----------------------------------------------------------------------------
 -- 4.5 全文検索インデックス（pg_trgm GIN）
@@ -1565,7 +1565,7 @@ COMMENT ON TABLE staffs IS 'スタッフマスタ';
 COMMENT ON TABLE owners IS '飼主情報';
 COMMENT ON TABLE inventory_items IS '在庫アイテム';
 COMMENT ON TABLE exam_types IS '検査種別マスタ';
-COMMENT ON TABLE exam_type_items IS '検査項目定義マスタ';
+COMMENT ON TABLE exam_type_fields IS '検査項目定義マスタ';
 COMMENT ON TABLE vaccines IS 'ワクチンマスタ';
 COMMENT ON TABLE medicines IS '薬剤マスタ';
 COMMENT ON TABLE insurances IS '保険マスタ';
@@ -1595,15 +1595,15 @@ COMMENT ON TABLE clinical_plans IS '診察所見・診断・治療方針';
 COMMENT ON TABLE vital_records IS 'バイタル記録（外来・入院統合）';
 COMMENT ON TABLE treatments IS '治療明細（処置・診察・薬剤）';
 COMMENT ON TABLE treatment_plans IS '治療プラン（外来・入院共用）';
-COMMENT ON TABLE record_images IS '診療画像';
-COMMENT ON TABLE billing_reviews IS '会計医師確認';
+COMMENT ON TABLE medical_record_images IS '診療画像';
+COMMENT ON TABLE billing_confirmations IS '会計医師確認';
 COMMENT ON TABLE estimates IS '見積書';
-COMMENT ON TABLE exam_items IS '検査結果項目';
+COMMENT ON TABLE exam_results IS '検査結果項目';
 COMMENT ON TABLE daily_records IS '入院日次記録';
 COMMENT ON TABLE care_plan_items IS 'ケアプラン項目';
 COMMENT ON TABLE estimate_items IS '見積書明細';
-COMMENT ON TABLE care_log_records IS 'ケアログ';
-COMMENT ON TABLE staff_note_records IS 'スタッフノート';
+COMMENT ON TABLE care_logs IS 'ケアログ';
+COMMENT ON TABLE staff_notes IS 'スタッフノート';
 COMMENT ON TABLE trimming_record_options IS 'トリミングオプション適用';
 COMMENT ON TABLE billings IS '会計';
 COMMENT ON TABLE billing_items IS '会計明細';

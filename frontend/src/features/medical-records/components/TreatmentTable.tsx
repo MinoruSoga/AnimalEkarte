@@ -30,12 +30,12 @@ export interface TreatmentItem {
   status?: string;
   content: string;
   memo: string;
-  insurance: boolean;
+  is_insurance: boolean;
   unitPrice: number;
   quantity: number;
   discountRate: number;
   discountAmount: number;
-  selected?: boolean;
+  is_selected?: boolean;
   inventoryId?: string;
 }
 
@@ -128,10 +128,10 @@ export const TreatmentTable = memo(function TreatmentTable({
               </Cell>
               <Cell
                 align="center"
-                onClick={disabled ? undefined : () => onUpdate(item.id, "insurance", !item.insurance)}
+                onClick={disabled ? undefined : () => onUpdate(item.id, "is_insurance", !item.is_insurance)}
                 className={disabled ? undefined : `cursor-pointer ${C.hoverBgPage}`}
               >
-                {item.insurance ? (
+                {item.is_insurance ? (
                   <Circle className={`${ICON.action} ${C.textRedIcon}`} />
                 ) : (
                   <X className={`${ICON.action} ${C.text25}`} />

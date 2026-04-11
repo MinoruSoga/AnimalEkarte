@@ -604,7 +604,7 @@ export function TrimmingSettings() {
             name: data.name,
             price: priceValue,
             duration: data.duration !== "" ? Number(data.duration) : null,
-            combinable: data.combinable,
+            is_combinable: data.combinable,
             description: data.description || undefined,
             is_active: data.isActive,
           };
@@ -620,7 +620,7 @@ export function TrimmingSettings() {
             name: data.name,
             price: priceValue,
             duration: data.duration !== "" ? Number(data.duration) : null,
-            combinable: data.combinable,
+            is_combinable: data.combinable,
             description: data.description || undefined,
             is_active: true,
           };

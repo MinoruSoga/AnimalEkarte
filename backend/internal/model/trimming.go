@@ -23,9 +23,9 @@ type TrimmingRecord struct {
 	CourseID       *uint64        `                                                      json:"course_id,omitempty"`
 	Status         TrimmingStatus `gorm:"type:trimming_status;default:'reserved'"         json:"status"`
 	StyleRequest   string         `gorm:"default:''"                                     json:"style_request"`
-	BW             *float64       `gorm:"type:numeric(6,2)"                              json:"bw,omitempty"`
-	BWUnit         BodyWeightUnit `gorm:"type:body_weight_unit;default:'Kg'"             json:"bw_unit"`
-	BT             *float64       `gorm:"type:numeric(4,1)"                              json:"bt,omitempty"`
+	BodyWeight      *float64       `gorm:"column:body_weight;type:numeric(6,2)"           json:"body_weight,omitempty"`
+	BWUnit          BodyWeightUnit `gorm:"type:body_weight_unit;default:'Kg'"             json:"bw_unit"`
+	BodyTemperature *float64       `gorm:"column:body_temperature;type:numeric(4,1)"      json:"body_temperature,omitempty"`
 	UsedShampoo    string         `gorm:"default:''"                                     json:"used_shampoo"`
 	UsedRibbon     string         `gorm:"default:''"                                     json:"used_ribbon"`
 	Remarks        string         `gorm:"default:''"                                     json:"remarks"`

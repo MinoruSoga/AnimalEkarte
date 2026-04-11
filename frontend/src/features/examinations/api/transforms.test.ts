@@ -72,7 +72,7 @@ describe("transformExamination", () => {
       name: "白血球",
       result: "5.0",
       unit: "10^3/μL",
-      ref: "4.0-10.0",
+      reference_value: "4.0-10.0",
     } as BackendExaminationItem;
     const result = transformExamination({ ...minimal, items: [item] });
     expect(result.items).toHaveLength(1);

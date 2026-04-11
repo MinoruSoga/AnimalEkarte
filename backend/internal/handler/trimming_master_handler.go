@@ -204,14 +204,14 @@ func (h *Handler) CreateTrimmingOption(c *gin.Context) {
 	}
 
 	option := &model.TrimmingOption{
-		ClinicID:    clinicID,
-		Name:        req.Name,
-		Price:       req.Price,
-		IsActive:    req.IsActive,
-		Description: req.Description,
-		Duration:    req.Duration,
-		Combinable:  req.Combinable,
-		SortOrder:   req.SortOrder,
+		ClinicID:     clinicID,
+		Name:         req.Name,
+		Price:        req.Price,
+		IsActive:     req.IsActive,
+		Description:  req.Description,
+		Duration:     req.Duration,
+		IsCombinable: req.Combinable,
+		SortOrder:    req.SortOrder,
 	}
 
 	if err := h.svc.TrimmingOption.Create(c.Request.Context(), option); err != nil {

@@ -131,12 +131,12 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 			InventoryID:     input.InventoryID,
 			UnitPrice:       input.UnitPrice,
 			Quantity:        input.Quantity,
-			Selected:        input.Selected,
+			IsSelected:      input.Selected,
 			Status:          status,
 			Content:         input.Content,
 			Memo:            input.Memo,
 			AdminRoute:      input.AdminRoute,
-			Insurance:       input.Insurance,
+			IsInsurance:     input.Insurance,
 			DiscountRate:    input.DiscountRate,
 			DiscountAmount:  input.DiscountAmount,
 			SortOrder:       input.SortOrder,
@@ -298,7 +298,7 @@ func buildTreatmentUpdateFields(input *UpdateTreatmentInput) map[string]any {
 		fields["quantity"] = *input.Quantity
 	}
 	if input.Selected != nil {
-		fields["selected"] = *input.Selected
+		fields["is_selected"] = *input.Selected
 	}
 	if input.Status != nil {
 		fields["status"] = *input.Status
@@ -313,7 +313,7 @@ func buildTreatmentUpdateFields(input *UpdateTreatmentInput) map[string]any {
 		fields["admin_route"] = *input.AdminRoute
 	}
 	if input.Insurance != nil {
-		fields["insurance"] = *input.Insurance
+		fields["is_insurance"] = *input.Insurance
 	}
 	if input.DiscountRate != nil {
 		fields["discount_rate"] = *input.DiscountRate

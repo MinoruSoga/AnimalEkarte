@@ -17,7 +17,7 @@ const (
 type BillingReview struct {
 	ID              uint64              `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID uint64              `gorm:"not null;uniqueIndex"                           json:"medical_record_id"`
-	Status          BillingReviewStatus `gorm:"type:billing_review_status;default:'pending'"   json:"status"`
+	Status          BillingReviewStatus `gorm:"type:confirmation_status;default:'pending'"     json:"status"`
 	ConfirmedBy     *uint64             `                                                      json:"confirmed_by,omitempty"`
 	ConfirmedAt     *time.Time          `gorm:"column:confirmed_at"                            json:"confirmed_at,omitempty"`
 	ReturnedBy      *uint64             `                                                      json:"returned_by,omitempty"`
@@ -33,4 +33,4 @@ type BillingReview struct {
 	ReturnedStaff  *Staff         `gorm:"foreignKey:ReturnedBy"      json:"returned_staff,omitempty"`
 }
 
-func (BillingReview) TableName() string { return "billing_reviews" }
+func (BillingReview) TableName() string { return "billing_confirmations" }

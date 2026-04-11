@@ -60,7 +60,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
         id: Date.now(),
         content: "",
         memo: "",
-        insurance: false,
+        is_insurance: false,
         unitPrice: 0,
         quantity: 1,
         discountRate: 0,

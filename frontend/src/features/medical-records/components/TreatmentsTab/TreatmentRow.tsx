@@ -105,14 +105,14 @@ export const TreatmentRow = memo(function TreatmentRow({
 
   const handleSelectedChange = useCallback(
     (checked: boolean | "indeterminate") => {
-      onUpdate(treatment.id, { selected: checked === true });
+      onUpdate(treatment.id, { is_selected: checked === true });
     },
     [treatment.id, onUpdate]
   );
 
   const handleInsuranceChange = useCallback(
     (checked: boolean | "indeterminate") => {
-      onUpdate(treatment.id, { insurance: checked === true });
+      onUpdate(treatment.id, { is_insurance: checked === true });
     },
     [treatment.id, onUpdate]
   );
@@ -200,13 +200,13 @@ export const TreatmentRow = memo(function TreatmentRow({
   return (
     <tr
       className={`border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors ${
-        !treatment.selected ? "opacity-50" : ""
+        !treatment.is_selected ? "opacity-50" : ""
       } ${isUpdating ? "pointer-events-none" : ""}`}
     >
       {/* チェックボックス (selected) */}
       <td className="px-3 py-2 w-10 text-center">
         <Checkbox
-          checked={treatment.selected}
+          checked={treatment.is_selected}
           onCheckedChange={handleSelectedChange}
           className={`${C.dataCheckedBgAccent} ${C.dataCheckedBorderAccent}`}
         />
@@ -247,11 +247,11 @@ export const TreatmentRow = memo(function TreatmentRow({
       {/* 保険アイコン */}
       <td className="px-3 py-2 w-16 text-center">
         <Checkbox
-          checked={treatment.insurance}
+          checked={treatment.is_insurance}
           onCheckedChange={handleInsuranceChange}
           className={`${C.dataCheckedBgBrand} ${C.dataCheckedBorderBrand}`}
         />
-        {treatment.insurance ? (
+        {treatment.is_insurance ? (
           <Shield className={`${ICON.xs} mt-0.5 mx-auto ${C.textStatusGreen}`} />
         ) : null}
       </td>

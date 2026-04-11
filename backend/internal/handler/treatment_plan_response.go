@@ -29,7 +29,7 @@ func toTreatmentPlanResponse(p *model.TreatmentPlan) treatmentPlanResponse {
 		ID:               strconv.FormatUint(p.ID, 10),
 		TreatmentContent: p.TreatmentContent,
 		Memo:             p.Memo,
-		Insurance:        p.Insurance,
+		Insurance:        p.IsInsurance,
 		UnitPrice:        p.UnitPrice,
 		Quantity:         p.Quantity,
 		DiscountRate:     p.DiscountRate,

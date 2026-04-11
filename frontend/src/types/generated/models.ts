@@ -562,7 +562,7 @@ export interface ExaminationItem {
   normal_value: string;
   result: string;
   unit: string;
-  ref: string;
+  reference_value: string;
   ref_min?: number /* float64 */;
   ref_max?: number /* float64 */;
   is_abnormal: boolean;
@@ -688,7 +688,7 @@ export interface TreatmentPlan {
   hospitalization_id?: number /* uint64 */;
   treatment_content: string;
   memo: string;
-  insurance: boolean;
+  is_insurance: boolean;
   unit_price: number /* int64 */;
   quantity: number /* float64 */;
   discount_rate: number /* float64 */;
@@ -1531,12 +1531,12 @@ export interface Treatment {
   inventory_id?: number /* uint64 */;
   unit_price: number /* int64 */;
   quantity: number /* float64 */;
-  selected: boolean;
+  is_selected: boolean;
   status: TreatmentStatus;
   content: string;
   memo: string;
   admin_route: string;
-  insurance: boolean;
+  is_insurance: boolean;
   discount_rate: number /* float64 */;
   discount_amount: number /* int64 */;
   sort_order: number /* int */;
@@ -1568,9 +1568,9 @@ export interface TrimmingRecord {
   course_id?: number /* uint64 */;
   status: TrimmingStatus;
   style_request: string;
-  bw?: number /* float64 */;
+  body_weight?: number /* float64 */;
   bw_unit: BodyWeightUnit;
-  bt?: number /* float64 */;
+  body_temperature?: number /* float64 */;
   used_shampoo: string;
   used_ribbon: string;
   remarks: string;
@@ -1624,7 +1624,7 @@ export interface TrimmingOption {
   is_active: boolean;
   description: string;
   duration?: number /* int */;
-  combinable: boolean;
+  is_combinable: boolean;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;

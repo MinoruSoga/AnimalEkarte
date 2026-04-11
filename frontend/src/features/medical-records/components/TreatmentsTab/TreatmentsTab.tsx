@@ -102,7 +102,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
 
   // 合計金額 (selected のみ)
   const { selectedSubtotal, selectedCount, finalTotal } = useMemo(() => {
-    const selected = sortedTreatments.filter((t) => t.selected);
+    const selected = sortedTreatments.filter((t) => t.is_selected);
     const sub = selected.reduce(
       (sum, t) => sum + t.unit_price * t.quantity - t.discount_amount,
       0
@@ -196,8 +196,8 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
         content: addContent.trim(),
         unit_price: 0,
         quantity: 1,
-        selected: true,
-        insurance: false,
+        is_selected: true,
+        is_insurance: false,
         discount_amount: 0,
         sort_order: nextOrder,
         memo: memoWithRoute,
@@ -236,8 +236,8 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
         content: item.name,
         unit_price: item.unitPrice,
         quantity: 1,
-        selected: true,
-        insurance: false,
+        is_selected: true,
+        is_insurance: false,
         discount_amount: 0,
         sort_order: nextOrder,
         memo: "",

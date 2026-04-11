@@ -75,13 +75,13 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
       id: Number(t.id),
       content: t.content,
       memo: t.memo,
-      insurance: t.insurance,
+      is_insurance: t.is_insurance,
       unitPrice: t.unit_price,
       quantity: t.quantity,
       discountRate: t.discount_rate,
       discountAmount: t.discount_amount,
       status: t.status,
-      selected: t.selected
+      is_selected: t.is_selected
     }));
   }, [treatments]);
 
@@ -90,13 +90,13 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     const input: UpdateTreatmentInput = {};
     if (field === "content") input.content = String(value);
     if (field === "memo") input.memo = String(value);
-    if (field === "insurance") input.insurance = Boolean(value);
+    if (field === "is_insurance") input.is_insurance = Boolean(value);
     if (field === "unitPrice") input.unit_price = Number(value);
     if (field === "quantity") input.quantity = Number(value);
     if (field === "discountRate") input.discount_rate = Number(value) / 100;
     if (field === "discountAmount") input.discount_amount = Number(value);
     if (field === "status") input.status = String(value);
-    if (field === "selected") input.selected = Boolean(value);
+    if (field === "is_selected") input.is_selected = Boolean(value);
 
     updateTreatment({ treatmentId: String(id), input });
   }, [canEdit, updateTreatment]);
@@ -122,8 +122,8 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
       memo: item.category,
       unit_price: item.unitPrice,
       quantity: 1,
-      selected: true,
-      insurance: true,
+      is_selected: true,
+      is_insurance: true,
       discount_amount: 0,
       sort_order: nextOrder,
     };

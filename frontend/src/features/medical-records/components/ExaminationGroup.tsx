@@ -14,7 +14,7 @@ interface ExaminationItem {
   name: string;
   result: string;
   unit: string;
-  ref: string;
+  reference_value: string;
   status: string;
 }
 
@@ -96,7 +96,7 @@ export const ExaminationGroup = memo(function ExaminationGroup({
               {item.unit}
             </div>
             <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
-              {item.ref}
+              {item.reference_value}
             </div>
             <div className="p-2 flex justify-center items-center">
               {item.status === "high" ? (

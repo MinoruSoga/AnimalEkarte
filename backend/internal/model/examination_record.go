@@ -58,7 +58,7 @@ type ExaminationItem struct {
 	NormalValue     string                  `gorm:"default:''"                                     json:"normal_value"`
 	Result          string                  `gorm:"default:''"                                     json:"result"`
 	Unit            string                  `gorm:"default:''"                                     json:"unit"`
-	Ref             string                  `gorm:"default:''"                                     json:"ref"`
+	ReferenceValue  string                  `gorm:"column:reference_value;default:''"              json:"reference_value"`
 	RefMin          *float64                `gorm:"column:ref_min;type:decimal(10,4)"              json:"ref_min,omitempty"`
 	RefMax          *float64                `gorm:"column:ref_max;type:decimal(10,4)"              json:"ref_max,omitempty"`
 	IsAbnormal      bool                    `gorm:"column:is_abnormal;default:false"               json:"is_abnormal"`
@@ -71,4 +71,4 @@ type ExaminationItem struct {
 	ExaminationTypeItem *ExaminationTypeItem `gorm:"foreignKey:ExamTypeItemID" json:"exam_type_item,omitempty"`
 }
 
-func (ExaminationItem) TableName() string { return "exam_items" }
+func (ExaminationItem) TableName() string { return "exam_results" }

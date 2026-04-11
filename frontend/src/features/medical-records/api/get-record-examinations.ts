@@ -8,7 +8,7 @@ export interface ExamGroupItem {
   name: string;
   result: string;
   unit: string;
-  ref: string;
+  reference_value: string;
   status: string;
 }
 
@@ -29,7 +29,7 @@ function transformExamination(exam: Examination): ExamGroup {
       name: item.name,
       result: item.result,
       unit: item.unit,
-      ref: item.ref,
+      reference_value: item.reference_value,
       status: item.status,
     })),
   };

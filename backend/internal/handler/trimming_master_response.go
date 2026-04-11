@@ -71,7 +71,7 @@ func toTrimmingOptionResponse(o *model.TrimmingOption) trimmingOptionResponse {
 		IsActive:    o.IsActive,
 		Description: o.Description,
 		Duration:    o.Duration,
-		Combinable:  o.Combinable,
+		Combinable:  o.IsCombinable,
 		SortOrder:   o.SortOrder,
 		CreatedAt:   o.CreatedAt,
 		UpdatedAt:   o.UpdatedAt,

@@ -13,41 +13,41 @@ import (
 
 // CreateTrimmingInput はトリミング記録作成の入力DTO。
 type CreateTrimmingInput struct {
-	Date           time.Time
-	PetID          *uint64
-	StaffID        *uint64
-	CourseID       *uint64
-	Status         model.TrimmingStatus
-	StyleRequest   string
-	BW             *float64
-	BWUnit         model.BodyWeightUnit
-	BT             *float64
-	UsedShampoo    string
-	UsedRibbon     string
-	Remarks        string
-	StyleImage     string
-	CompletedImage string
-	OptionIDs      []uint64
+	Date            time.Time
+	PetID           *uint64
+	StaffID         *uint64
+	CourseID        *uint64
+	Status          model.TrimmingStatus
+	StyleRequest    string
+	BodyWeight      *float64
+	BWUnit          model.BodyWeightUnit
+	BodyTemperature *float64
+	UsedShampoo     string
+	UsedRibbon      string
+	Remarks         string
+	StyleImage      string
+	CompletedImage  string
+	OptionIDs       []uint64
 }
 
 // UpdateTrimmingInput はトリミング記録部分更新の入力DTO。nil = 未送信フィールド。
 // OptionIDs: nil = 変更なし、non-nil（空スライス含む）= 全置換
 type UpdateTrimmingInput struct {
-	Date           *time.Time
-	PetID          *uint64
-	StaffID        *uint64
-	CourseID       *uint64
-	Status         *model.TrimmingStatus
-	StyleRequest   *string
-	BW             **float64
-	BWUnit         *model.BodyWeightUnit
-	BT             **float64
-	UsedShampoo    *string
-	UsedRibbon     *string
-	Remarks        *string
-	StyleImage     *string
-	CompletedImage *string
-	OptionIDs      *[]uint64
+	Date            *time.Time
+	PetID           *uint64
+	StaffID         *uint64
+	CourseID        *uint64
+	Status          *model.TrimmingStatus
+	StyleRequest    *string
+	BodyWeight      **float64
+	BWUnit          *model.BodyWeightUnit
+	BodyTemperature **float64
+	UsedShampoo     *string
+	UsedRibbon      *string
+	Remarks         *string
+	StyleImage      *string
+	CompletedImage  *string
+	OptionIDs       *[]uint64
 }
 
 type TrimmingService interface {
@@ -92,21 +92,21 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		bwUnit = input.BWUnit
 	}
 	trimming := &model.TrimmingRecord{
-		ClinicID:       clinicID,
-		Date:           input.Date,
-		PetID:          input.PetID,
-		StaffID:        input.StaffID,
-		CourseID:       input.CourseID,
-		Status:         status,
-		StyleRequest:   input.StyleRequest,
-		BW:             input.BW,
-		BWUnit:         bwUnit,
-		BT:             input.BT,
-		UsedShampoo:    input.UsedShampoo,
-		UsedRibbon:     input.UsedRibbon,
-		Remarks:        input.Remarks,
-		StyleImage:     input.StyleImage,
-		CompletedImage: input.CompletedImage,
+		ClinicID:        clinicID,
+		Date:            input.Date,
+		PetID:           input.PetID,
+		StaffID:         input.StaffID,
+		CourseID:        input.CourseID,
+		Status:          status,
+		StyleRequest:    input.StyleRequest,
+		BodyWeight:      input.BodyWeight,
+		BWUnit:          bwUnit,
+		BodyTemperature: input.BodyTemperature,
+		UsedShampoo:     input.UsedShampoo,
+		UsedRibbon:      input.UsedRibbon,
+		Remarks:         input.Remarks,
+		StyleImage:      input.StyleImage,
+		CompletedImage:  input.CompletedImage,
 	}
 	if err := s.repo.Create(ctx, clinicID, trimming); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create trimming record")
@@ -149,14 +149,14 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	if input.StyleRequest != nil {
 		existing.StyleRequest = *input.StyleRequest
 	}
-	if input.BW != nil {
-		existing.BW = *input.BW
+	if input.BodyWeight != nil {
+		existing.BodyWeight = *input.BodyWeight
 	}
 	if input.BWUnit != nil {
 		existing.BWUnit = *input.BWUnit
 	}
-	if input.BT != nil {
-		existing.BT = *input.BT
+	if input.BodyTemperature != nil {
+		existing.BodyTemperature = *input.BodyTemperature
 	}
 	if input.UsedShampoo != nil {
 		existing.UsedShampoo = *input.UsedShampoo

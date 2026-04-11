@@ -17,7 +17,7 @@ function transformExaminationItem(
     name: item.name ?? "",
     result: item.result ?? "",
     unit: item.unit ?? "",
-    referenceRange: item.ref ?? "",
+    referenceRange: item.reference_value ?? "",
     isAbnormal: item.is_abnormal ?? false,
   };
 }

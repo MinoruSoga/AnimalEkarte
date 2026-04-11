@@ -56,7 +56,7 @@ export interface CreateTrimmingOptionRequest {
   price?: number | null;
   description?: string;
   duration?: number | null;
-  combinable?: boolean;
+  is_combinable?: boolean;
   is_active?: boolean;
   sort_order?: number;
 }
@@ -66,7 +66,7 @@ export interface UpdateTrimmingOptionRequest {
   price?: number | null;
   description?: string;
   duration?: number | null;
-  combinable?: boolean;
+  is_combinable?: boolean;
   is_active?: boolean;
   sort_order?: number;
 }
@@ -102,7 +102,7 @@ function transformTrimmingOption(data: ModelTrimmingOption) {
     isActive: data.is_active,
     description: data.description,
     duration: data.duration ?? null,
-    combinable: data.combinable,
+    combinable: data.is_combinable,
     sortOrder: data.sort_order,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
