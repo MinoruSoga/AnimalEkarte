@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { BADGE, C, ICON } from "@/lib/design-tokens";
 
 // Relative
-import { useGetBillingConfirmation, useConfirmBillingConfirmation, useReturnBillingConfirmation } from "@/features/medical-records/api/billing-review";
+import { useGetBillingConfirmation, useConfirmBillingConfirmation, useReturnBillingConfirmation } from "@/features/medical-records/api/billing-confirmation";
 import { useAuth } from "@/features/auth";
 import type { ConfirmationStatus } from "@/features/medical-records/types";
 

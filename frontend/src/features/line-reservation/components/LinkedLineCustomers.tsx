@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useGetLineCustomers } from "../api/get-reservation-customers";
+import { useGetLineCustomers } from "../api/get-line-customers";
 import { useUpdateOwnerLink } from "../api/update-owner-link";
 import type { LineCustomer } from "../api/types";
 

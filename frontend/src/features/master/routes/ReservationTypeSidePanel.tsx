@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
-import type { ReservationType } from "@/features/master/api/reservation-categories";
+import type { ReservationType } from "@/features/master/api/reservation-types";
 
 // ── 静的 SelectItem JSX (rendering-hoist-jsx) ──────────────────
 export const RESERVATION_DAY_OPTION_ITEMS = (

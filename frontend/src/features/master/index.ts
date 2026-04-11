@@ -16,7 +16,7 @@ export { TreatmentPlanMaster } from "./routes/TreatmentPlanMaster";
 export { TrimmingSettings } from "./routes/TrimmingSettings";
 
 export { useMasterItems } from "./hooks/use-master-items";
-export { useReservationTypeColorMap } from "./hooks/use-reservation-category-color-map";
+export { useReservationTypeColorMap } from "./hooks/use-reservation-type-color-map";
 export { useGetCompany } from "./api/company";
 export { useGetAllConsultations } from "./api/consultations";
 export { useGetAllProcedures } from "./api/procedures";
@@ -30,5 +30,5 @@ export {
   useUpdateReservationTypeGroup,
   useDeleteReservationTypeGroup,
   useReorderReservationTypeGroups,
-} from "./api/reservation-category-groups";
-export type { ReservationTypeGroup } from "./api/reservation-category-groups";
+} from "./api/reservation-type-groups";
+export type { ReservationTypeGroup } from "./api/reservation-type-groups";

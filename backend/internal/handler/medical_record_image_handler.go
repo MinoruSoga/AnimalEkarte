@@ -62,7 +62,7 @@ func (h *Handler) ListMedicalRecordImages(c *gin.Context) {
 		return
 	}
 
-	items := make([]recordImageResponse, 0, len(images))
+	items := make([]medicalRecordImageResponse, 0, len(images))
 	for i := range images {
 		items = append(items, toMedicalRecordImageResponse(&images[i]))
 	}

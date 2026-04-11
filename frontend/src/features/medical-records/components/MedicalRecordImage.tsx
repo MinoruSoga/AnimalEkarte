@@ -2,8 +2,8 @@
 import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
 
 // Relative
-import { useGetRecordImages } from "../api/get-record-images";
-import { useUploadImages, useDeleteImage } from "../api/record-images";
+import { useGetRecordImages } from "../api/get-medical-record-images";
+import { useUploadImages, useDeleteImage } from "../api/medical-record-images";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
 import { usePermission } from "@/features/auth";

@@ -13,7 +13,7 @@ type createMedicalRecordRequest struct {
 	OwnerID                  *string    `json:"owner_id" binding:"required"` // FE送信（string）→ uint64に変換
 	PetID                    *string    `json:"pet_id" binding:"required"`   // FE送信（string）→ uint64に変換
 	DoctorID                 *string    `json:"doctor_id"`                   // FE送信（string）→ uint64に変換
-	AppointmentID *string    `json:"reservation_appointment_id"`  // FE送信（string）→ uint64に変換
+	AppointmentID *string    `json:"appointment_id"`  // FE送信（string）→ uint64に変換
 	Status                   string     `json:"status"`
 
 	// ClinicalPlan関連フィールド（原子的作成用）
@@ -34,7 +34,7 @@ type updateMedicalRecordRequest struct {
 	OwnerID                  *uint64    `json:"owner_id"`
 	PetID                    *uint64    `json:"pet_id"`
 	DoctorID                 *uint64    `json:"doctor_id"`
-	AppointmentID *uint64    `json:"reservation_appointment_id"`
+	AppointmentID *uint64    `json:"appointment_id"`
 	Status                   *string    `json:"status"`
 	Version                  *int       `json:"version"` // 楽観的ロック用
 }

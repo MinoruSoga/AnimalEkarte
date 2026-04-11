@@ -115,7 +115,7 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 			return
 		}
 
-		// reservation_customers から顧客を特定（なければ新規作成）
+		// line_customers から顧客を特定（なければ新規作成）
 		customer, err := lookup.FindOrCreateByLineUserID(c.Request.Context(), clinicID, lineUser.Sub, lineUser.Name)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve customer"})

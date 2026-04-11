@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
-import { useGetBillingConfirmation, useConfirmBillingConfirmation, useReturnBillingConfirmation } from "../api/billing-review";
+import { useGetBillingConfirmation, useConfirmBillingConfirmation, useReturnBillingConfirmation } from "../api/billing-confirmation";
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
 import { useAuth, usePermission } from "@/features/auth";
 import { CheckCircle2, RotateCcw } from "lucide-react";

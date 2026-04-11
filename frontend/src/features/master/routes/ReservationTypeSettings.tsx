@@ -26,17 +26,17 @@ import {
   useUpdateReservationType,
   useDeleteReservationType,
   useReorderReservationCategories,
-} from "@/features/master/api/reservation-categories";
-import type { ReservationType } from "@/features/master/api/reservation-categories";
+} from "@/features/master/api/reservation-types";
+import type { ReservationType } from "@/features/master/api/reservation-types";
 import {
   useGetReservationTypeGroups,
   useCreateReservationTypeGroup,
   useUpdateReservationTypeGroup,
   useDeleteReservationTypeGroup,
-} from "@/features/master/api/reservation-category-groups";
-import type { ReservationTypeGroup } from "@/features/master/api/reservation-category-groups";
-import type { CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest } from "@/features/master/api/reservation-category-groups";
-import type { CreateReservationTypeRequest, UpdateReservationTypeRequest } from "@/types/reservation-category";
+} from "@/features/master/api/reservation-type-groups";
+import type { ReservationTypeGroup } from "@/features/master/api/reservation-type-groups";
+import type { CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest } from "@/features/master/api/reservation-type-groups";
+import type { CreateReservationTypeRequest, UpdateReservationTypeRequest } from "@/types/reservation-type";
 import { GroupSidePanel } from "./ReservationTypeGroupSidePanel";
 import type { GroupFormData } from "./ReservationTypeGroupSidePanel";
 import { CategorySidePanel } from "./ReservationTypeSidePanel";

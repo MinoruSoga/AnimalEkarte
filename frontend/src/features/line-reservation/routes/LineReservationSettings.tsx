@@ -15,8 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useGetReservationSetting } from "../api/get-reservation-setting";
-import { updateReservationSetting } from "../api/update-reservation-setting";
+import { useGetReservationSetting } from "../api/get-line-reservation-setting";
+import { updateReservationSetting } from "../api/update-line-reservation-setting";
 import type { ReservationSetting } from "../api/types";
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ

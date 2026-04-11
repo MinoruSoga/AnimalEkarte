@@ -6,8 +6,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// recordImageResponse は診療画像の API レスポンス
-type recordImageResponse struct {
+// medicalRecordImageResponse は診療画像の API レスポンス
+type medicalRecordImageResponse struct {
 	ID              uint64                `json:"id"`
 	MedicalRecordID uint64                `json:"medical_record_id"`
 	ImageURL        string                `json:"image_url"`
@@ -26,9 +26,9 @@ type recordImageResponse struct {
 	Staff           *staffSummaryResponse `json:"staff,omitempty"`
 }
 
-// toMedicalRecordImageResponse は model.MedicalRecordImage を recordImageResponse に変換する
-func toMedicalRecordImageResponse(img *model.MedicalRecordImage) recordImageResponse {
-	r := recordImageResponse{
+// toMedicalRecordImageResponse は model.MedicalRecordImage を medicalRecordImageResponse に変換する
+func toMedicalRecordImageResponse(img *model.MedicalRecordImage) medicalRecordImageResponse {
+	r := medicalRecordImageResponse{
 		ID:              img.ID,
 		MedicalRecordID: img.MedicalRecordID,
 		ImageURL:        img.ImageURL,

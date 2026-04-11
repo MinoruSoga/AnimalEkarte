@@ -6,7 +6,7 @@ import type {
   CreateReservationTypeRequest,
   UpdateReservationTypeRequest,
   ReorderReservationTypeRequest,
-} from "@/types/reservation-category";
+} from "@/types/reservation-type";
 
 // ─────────────────────────────────────────────────
 // Transform
@@ -45,7 +45,7 @@ export type {
   CreateReservationTypeRequest,
   UpdateReservationTypeRequest,
   ReorderReservationTypeRequest,
-} from "@/types/reservation-category";
+} from "@/types/reservation-type";
 
 // ─────────────────────────────────────────────────
 // Query keys

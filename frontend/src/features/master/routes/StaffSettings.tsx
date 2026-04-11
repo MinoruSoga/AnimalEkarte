@@ -34,8 +34,8 @@ import { useGetPermissionGroups } from "@/features/master/api/permission-groups"
 import type { PermissionGroup } from "@/features/master/api/permission-groups";
 import type { ClinicSummary } from "@/features/master/api/staffs";
 import { useGetAllOccupations } from "@/features/master/api/occupations";
-import { useGetReservationCategories } from "@/features/master/api/reservation-categories";
-import type { ReservationType } from "@/features/master/api/reservation-categories";
+import { useGetReservationCategories } from "@/features/master/api/reservation-types";
+import type { ReservationType } from "@/features/master/api/reservation-types";
 import type { Occupation } from "@/features/master/api/occupations";
 import { ResourceMasterStaff } from "@/types/generated/models";
 

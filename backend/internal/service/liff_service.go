@@ -455,7 +455,7 @@ func isExcluded(excluded []model.StaffReservationExclusion, courseID uint64) boo
 }
 
 // tryAutoLinkOwner は予約顧客の氏名+電話番号で owners テーブルを検索し、
-// 1件だけ一致した場合に reservation_customers.owner_id を自動紐付けする。
+// 1件だけ一致した場合に line_customers.owner_id を自動紐付けする。
 // best-effort: 失敗しても予約処理は中断しない。
 func (s *liffService) tryAutoLinkOwner(ctx context.Context, clinicID, customerID uint64, customerFields []byte) {
 	if s.ownerRepo == nil {

@@ -43,7 +43,7 @@ func (r *reservationAdminRepository) FindByMonth(ctx context.Context, clinicID u
 		Order("start_time ASC").
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_appointment", "")
+		return nil, apperrors.FromGORM(err, "appointment", "")
 	}
 	return items, nil
 }
@@ -63,14 +63,14 @@ func (r *reservationAdminRepository) FindByDay(ctx context.Context, clinicID uin
 		Order("start_time ASC").
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_appointment", "")
+		return nil, apperrors.FromGORM(err, "appointment", "")
 	}
 	return items, nil
 }
 
 func (r *reservationAdminRepository) Create(ctx context.Context, ra *model.Appointment) error {
 	if err := r.db.WithContext(ctx).Create(ra).Error; err != nil {
-		return apperrors.FromGORM(err, "reservation_appointment", "")
+		return apperrors.FromGORM(err, "appointment", "")
 	}
 	return nil
 }
@@ -79,10 +79,10 @@ func (r *reservationAdminRepository) SoftDelete(ctx context.Context, clinicID, i
 	result := r.db.WithContext(ctx).
 		Delete(&model.Appointment{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "reservation_appointment", fmt.Sprintf("%d", id))
+		return apperrors.FromGORM(result.Error, "appointment", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_appointment", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("appointment", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
@@ -96,7 +96,7 @@ func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clini
 		Order("start_time DESC").
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_appointment", "")
+		return nil, apperrors.FromGORM(err, "appointment", "")
 	}
 	return items, nil
 }
@@ -110,7 +110,7 @@ func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clin
 		Preload("Pet").
 		First(&appt, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_appointment", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", id))
 	}
 	return &appt, nil
 }
@@ -122,10 +122,10 @@ func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, c
 			id, clinicID, customerID, model.ReservationStatusCancelled).
 		Update("status", model.ReservationStatusCancelled)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "reservation_appointment", fmt.Sprintf("%d", id))
+		return apperrors.FromGORM(result.Error, "appointment", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_appointment", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("appointment", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

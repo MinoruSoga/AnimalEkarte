@@ -104,7 +104,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   reservationType: {
     label: "予約区分マスタ",
     description: "予約の区分（診療、トリミング入院等）を管理します",
-    settingsPath: "/settings/reservation-category",
+    settingsPath: "/settings/reservation-type",
     IconComponent: Activity,
     resource: ResourceMasterReservationType,
     labels: { code: "コード", name: "名称", category: "分類" },

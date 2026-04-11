@@ -6,7 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type reservationCategoryResponse struct {
+type reservationTypeResponse struct {
 	ID          uint64        `json:"id"`
 	ClinicID    uint64        `json:"clinic_id"`
 	Name        string        `json:"name"`
@@ -37,8 +37,8 @@ type groupSummary struct {
 	Color string `json:"color"`
 }
 
-func toReservationTypeResponse(st *model.ReservationType) reservationCategoryResponse {
-	resp := reservationCategoryResponse{
+func toReservationTypeResponse(st *model.ReservationType) reservationTypeResponse {
+	resp := reservationTypeResponse{
 		ID:                     st.ID,
 		ClinicID:               st.ClinicID,
 		Name:                   st.Name,
@@ -69,8 +69,8 @@ func toReservationTypeResponse(st *model.ReservationType) reservationCategoryRes
 	return resp
 }
 
-func toReservationTypeResponseList(items []model.ReservationType) []reservationCategoryResponse {
-	list := make([]reservationCategoryResponse, 0, len(items))
+func toReservationTypeResponseList(items []model.ReservationType) []reservationTypeResponse {
+	list := make([]reservationTypeResponse, 0, len(items))
 	for i := range items {
 		list = append(list, toReservationTypeResponse(&items[i]))
 	}

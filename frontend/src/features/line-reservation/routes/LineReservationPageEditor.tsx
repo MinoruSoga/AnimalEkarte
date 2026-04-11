@@ -7,8 +7,8 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useGetReservationSetting } from "../api/get-reservation-setting";
-import { updateReservationSetting } from "../api/update-reservation-setting";
+import { useGetReservationSetting } from "../api/get-line-reservation-setting";
+import { updateReservationSetting } from "../api/update-line-reservation-setting";
 import type { ReservationSetting } from "../api/types";
 
 // ── Page Editor Form ──
