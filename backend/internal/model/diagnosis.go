@@ -18,7 +18,7 @@ type DiagnosisCategory struct {
 	Names []DiagnosisName `gorm:"foreignKey:DiagnosisCategoryID" json:"names,omitempty"`
 }
 
-func (DiagnosisCategory) TableName() string { return "diagnosis_categories" }
+func (DiagnosisCategory) TableName() string { return "diagnosis_types" }
 
 type DiagnosisName struct {
 	ID                  uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`

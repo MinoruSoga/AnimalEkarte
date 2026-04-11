@@ -14,4 +14,4 @@ type ReservationCategoryGroup struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime"           json:"updated_at"`
 }
 
-func (ReservationCategoryGroup) TableName() string { return "reservation_category_groups" }
+func (ReservationCategoryGroup) TableName() string { return "reservation_type_groups" }

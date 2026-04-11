@@ -16,4 +16,4 @@ type ChiefComplaintCategory struct {
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
 
-func (ChiefComplaintCategory) TableName() string { return "chief_complaint_categories" }
+func (ChiefComplaintCategory) TableName() string { return "chief_complaint_types" }

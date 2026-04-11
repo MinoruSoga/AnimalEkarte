@@ -17,4 +17,4 @@ type ReservationCustomer struct {
 	Owner *Owner `gorm:"foreignKey:OwnerID" json:"owner,omitempty"`
 }
 
-func (ReservationCustomer) TableName() string { return "reservation_customers" }
+func (ReservationCustomer) TableName() string { return "line_customers" }
