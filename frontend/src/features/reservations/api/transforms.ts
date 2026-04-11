@@ -1,5 +1,5 @@
 import type { ReservationAppointment } from "@/types";
-import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
+import type { Appointment as BackendReservation } from "@/types/generated/models";
 import type { CreateReservationRequest } from "./types";
 
 /** customer_fields JSON（LINE予約のオーナー未紐付け時のフォールバック用） */
@@ -38,8 +38,8 @@ export const transformReservation = (
     ownerName,
     petName,
     visitType: (reservation.visit_type as "first" | "revisit") ?? "first",
-    type: reservation.reservation_category?.name ?? "",
-    reservationCategoryId: reservation.reservation_category_id ? String(reservation.reservation_category_id) : undefined,
+    type: reservation.reservation_type?.name ?? "",
+    reservationCategoryId: reservation.reservation_type_id ? String(reservation.reservation_type_id) : undefined,
     doctor: reservation.doctor?.name ?? "",
     doctorId: reservation.doctor_id ? String(reservation.doctor_id) : undefined,
     isDesignated: reservation.is_designated ?? false,

@@ -10,25 +10,25 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// RecordImageRepository は診療画像のデータアクセス層
-type RecordImageRepository interface {
-	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.RecordImage, error)
-	Create(ctx context.Context, image *model.RecordImage) error
+// MedicalRecordImageRepository は診療画像のデータアクセス層
+type MedicalRecordImageRepository interface {
+	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
+	Create(ctx context.Context, image *model.MedicalRecordImage) error
 	Delete(ctx context.Context, id uint64) error
-	FindByID(ctx context.Context, id uint64) (*model.RecordImage, error)
+	FindByID(ctx context.Context, id uint64) (*model.MedicalRecordImage, error)
 }
 
 type recordImageRepository struct {
 	db *gorm.DB
 }
 
-// NewRecordImageRepository は RecordImageRepository を初期化して返す
-func NewRecordImageRepository(db *gorm.DB) RecordImageRepository {
+// NewMedicalRecordImageRepository は MedicalRecordImageRepository を初期化して返す
+func NewMedicalRecordImageRepository(db *gorm.DB) MedicalRecordImageRepository {
 	return &recordImageRepository{db: db}
 }
 
-func (r *recordImageRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.RecordImage, error) {
-	images := make([]model.RecordImage, 0)
+func (r *recordImageRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+	images := make([]model.MedicalRecordImage, 0)
 	if err := r.db.WithContext(ctx).
 		Where("medical_record_id = ?", medicalRecordID).
 		Preload("Staff").
@@ -39,7 +39,7 @@ func (r *recordImageRepository) ListByMedicalRecordID(ctx context.Context, medic
 	return images, nil
 }
 
-func (r *recordImageRepository) Create(ctx context.Context, image *model.RecordImage) error {
+func (r *recordImageRepository) Create(ctx context.Context, image *model.MedicalRecordImage) error {
 	if err := r.db.WithContext(ctx).Create(image).Error; err != nil {
 		return apperrors.FromGORM(err, "record_image", "")
 	}
@@ -49,7 +49,7 @@ func (r *recordImageRepository) Create(ctx context.Context, image *model.RecordI
 func (r *recordImageRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).
 		Where("id = ?", id).
-		Delete(&model.RecordImage{})
+		Delete(&model.MedicalRecordImage{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "record_image", fmt.Sprintf("%d", id))
 	}
@@ -59,8 +59,8 @@ func (r *recordImageRepository) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (r *recordImageRepository) FindByID(ctx context.Context, id uint64) (*model.RecordImage, error) {
-	var image model.RecordImage
+func (r *recordImageRepository) FindByID(ctx context.Context, id uint64) (*model.MedicalRecordImage, error) {
+	var image model.MedicalRecordImage
 	err := r.db.WithContext(ctx).
 		Preload("Staff").
 		First(&image, id).Error

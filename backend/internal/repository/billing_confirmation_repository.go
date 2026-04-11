@@ -10,10 +10,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// BillingReviewRepository は会計医師確認のデータアクセスインターフェース
-type BillingReviewRepository interface {
-	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error)
-	Create(ctx context.Context, review *model.BillingReview) error
+// BillingConfirmationRepository は会計医師確認のデータアクセスインターフェース
+type BillingConfirmationRepository interface {
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error)
+	Create(ctx context.Context, review *model.BillingConfirmation) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 }
 
@@ -21,13 +21,13 @@ type billingReviewRepository struct {
 	db *gorm.DB
 }
 
-// NewBillingReviewRepository はBillingReviewRepositoryを初期化して返す
-func NewBillingReviewRepository(db *gorm.DB) BillingReviewRepository {
+// NewBillingConfirmationRepository はBillingConfirmationRepositoryを初期化して返す
+func NewBillingConfirmationRepository(db *gorm.DB) BillingConfirmationRepository {
 	return &billingReviewRepository{db: db}
 }
 
-func (r *billingReviewRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error) {
-	var review model.BillingReview
+func (r *billingReviewRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
+	var review model.BillingConfirmation
 	err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = billing_reviews.medical_record_id").
 		Where("medical_records.clinic_id = ? AND billing_reviews.medical_record_id = ?", clinicID, medicalRecordID).
@@ -38,7 +38,7 @@ func (r *billingReviewRepository) FindByMedicalRecordID(ctx context.Context, cli
 	return &review, nil
 }
 
-func (r *billingReviewRepository) Create(ctx context.Context, review *model.BillingReview) error {
+func (r *billingReviewRepository) Create(ctx context.Context, review *model.BillingConfirmation) error {
 	if err := r.db.WithContext(ctx).Create(review).Error; err != nil {
 		return apperrors.FromGORM(err, "billing_review", "")
 	}
@@ -48,7 +48,7 @@ func (r *billingReviewRepository) Create(ctx context.Context, review *model.Bill
 func (r *billingReviewRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	// Restrict update to rows belonging to this clinic via subquery on medical_records
 	result := r.db.WithContext(ctx).
-		Model(&model.BillingReview{}).
+		Model(&model.BillingConfirmation{}).
 		Where("id = ? AND medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {

@@ -206,19 +206,19 @@ export interface BillingRefund {
 // source: billing_review.go
 
 /**
- * BillingReviewStatus は会計医師確認ステータス
+ * ConfirmationStatus は会計医師確認ステータス
  */
-export type BillingReviewStatus = string;
-export const BillingReviewStatusPending: BillingReviewStatus = "pending";
-export const BillingReviewStatusConfirmed: BillingReviewStatus = "confirmed";
-export const BillingReviewStatusReturned: BillingReviewStatus = "returned";
+export type ConfirmationStatus = string;
+export const ConfirmationStatusPending: ConfirmationStatus = "pending";
+export const ConfirmationStatusConfirmed: ConfirmationStatus = "confirmed";
+export const ConfirmationStatusReturned: ConfirmationStatus = "returned";
 /**
- * BillingReview は会計医師確認（v7.0追加）
+ * BillingConfirmation は会計医師確認（v7.0追加）
  */
-export interface BillingReview {
+export interface BillingConfirmation {
   id: number /* uint64 */;
   medical_record_id: number /* uint64 */;
-  status: BillingReviewStatus;
+  status: ConfirmationStatus;
   confirmed_by?: number /* uint64 */;
   confirmed_at?: string;
   returned_by?: number /* uint64 */;
@@ -353,9 +353,9 @@ export interface ClinicalPlan {
   id: number /* uint64 */;
   medical_record_id: number /* uint64 */;
   physical_exam: string;
-  diagnosis_category_id?: number /* uint64 */;
+  diagnosis_type_id?: number /* uint64 */;
   diagnosis_name_id?: number /* uint64 */;
-  diagnosis_2_category_id?: number /* uint64 */;
+  diagnosis_2_type_id?: number /* uint64 */;
   diagnosis_2_name_id?: number /* uint64 */;
   diagnosis_details: string;
   treatment_policy: string;
@@ -365,9 +365,9 @@ export interface ClinicalPlan {
    * Relations
    */
   medical_record?: MedicalRecord;
-  diagnosis_category?: DiagnosisCategory;
+  diagnosis_type?: DiagnosisCategory;
   diagnosis_name?: DiagnosisName;
-  diagnosis_2_category?: DiagnosisCategory;
+  diagnosis_2_type?: DiagnosisCategory;
   diagnosis_2_name?: DiagnosisName;
 }
 
@@ -437,7 +437,7 @@ export interface DiagnosisName {
   name: string;
   is_active: boolean;
   description: string;
-  diagnosis_category_id: number /* uint64 */;
+  diagnosis_type_id: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -551,12 +551,12 @@ export interface Examination {
   pet?: Pet;
   exam_type?: ExaminationType;
   doctor?: Staff;
-  items?: ExaminationItem[];
+  items?: ExamResult[];
 }
-export interface ExaminationItem {
+export interface ExamResult {
   id: number /* uint64 */;
   exam_id: number /* uint64 */;
-  exam_type_item_id?: number /* uint64 */;
+  exam_type_field_id?: number /* uint64 */;
   name: string;
   inspection_value: string;
   normal_value: string;
@@ -573,7 +573,7 @@ export interface ExaminationItem {
   /**
    * Relations
    */
-  exam_type_item?: ExaminationTypeItem;
+  exam_type_field?: ExamTypeField;
 }
 
 //////////
@@ -593,9 +593,9 @@ export interface ExaminationType {
   /**
    * Relations
    */
-  items?: ExaminationTypeItem[];
+  items?: ExamTypeField[];
 }
-export interface ExaminationTypeItem {
+export interface ExamTypeField {
   id: number /* uint64 */;
   exam_type_id: number /* uint64 */;
   name: string;
@@ -714,8 +714,8 @@ export interface DailyRecord {
    * Relations
    */
   vital_records?: VitalRecord[];
-  care_logs?: CareLogRecord[];
-  staff_notes?: StaffNoteRecord[];
+  care_logs?: CareLog[];
+  staff_notes?: StaffNote[];
 }
 export type CareLogType = string;
 export const CareLogTypeFood: CareLogType = "food";
@@ -727,7 +727,7 @@ export type CareLogStatus = string;
 export const CareLogStatusCompleted: CareLogStatus = "completed";
 export const CareLogStatusPartial: CareLogStatus = "partial";
 export const CareLogStatusSkipped: CareLogStatus = "skipped";
-export interface CareLogRecord {
+export interface CareLog {
   id: number /* uint64 */;
   daily_record_id: number /* uint64 */;
   time: string;
@@ -743,7 +743,7 @@ export interface CareLogRecord {
    */
   staff?: Staff;
 }
-export interface StaffNoteRecord {
+export interface StaffNote {
   id: number /* uint64 */;
   daily_record_id: number /* uint64 */;
   time: string;
@@ -808,7 +808,7 @@ export const WaterIntakeLevelNone: WaterIntakeLevel = "none";
 export interface Inquiry {
   id: number /* uint64 */;
   medical_record_id: number /* uint64 */;
-  chief_complaint_category_id?: number /* uint64 */;
+  chief_complaint_type_id?: number /* uint64 */;
   chief_complaint: string;
   history: string;
   current_medications: string;
@@ -827,7 +827,7 @@ export interface Inquiry {
    * Relations
    */
   medical_record?: MedicalRecord;
-  chief_complaint_category?: ChiefComplaintCategory;
+  chief_complaint_type?: ChiefComplaintCategory;
   staff?: Staff;
 }
 
@@ -908,7 +908,7 @@ export interface MedicalRecord {
   owner_id?: number /* uint64 */;
   pet_id?: number /* uint64 */;
   doctor_id?: number /* uint64 */;
-  reservation_appointment_id?: number /* uint64 */;
+  appointment_id?: number /* uint64 */;
   status: MedicalRecordStatus;
   version: number /* int */;
   created_at: string;
@@ -928,7 +928,7 @@ export interface MedicalRecord {
   vaccinations?: Vaccination[];
   checkups?: Checkup[];
   estimates?: Estimate[];
-  billing_review?: BillingReview;
+  billing_confirmation?: BillingConfirmation;
   billing?: Billing;
 }
 
@@ -1223,9 +1223,9 @@ export const MedicalImageTypeMRI: MedicalImageType = "mri";
 export const MedicalImageTypeMicroscope: MedicalImageType = "microscope";
 export const MedicalImageTypeOther: MedicalImageType = "other";
 /**
- * RecordImage は診療画像（v7.0追加）
+ * MedicalRecordImage は診療画像（v7.0追加）
  */
-export interface RecordImage {
+export interface MedicalRecordImage {
   id: number /* uint64 */;
   medical_record_id: number /* uint64 */;
   image_url: string;
@@ -1269,7 +1269,7 @@ export const VisitTypeRevisit: VisitType = "revisit";
 export type ReservationSource = string;
 export const ReservationSourceManual: ReservationSource = "manual";
 export const ReservationSourceLine: ReservationSource = "line";
-export interface ReservationAppointment {
+export interface Appointment {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   start_time: string;
@@ -1277,7 +1277,7 @@ export interface ReservationAppointment {
   owner_id?: number /* uint64 */;
   pet_id?: number /* uint64 */;
   visit_type: VisitType;
-  reservation_category_id: number /* uint64 */;
+  reservation_type_id: number /* uint64 */;
   doctor_id?: number /* uint64 */;
   is_designated: boolean;
   status: ReservationStatus;
@@ -1296,9 +1296,9 @@ export interface ReservationAppointment {
    */
   owner?: Owner;
   pet?: Pet;
-  reservation_category?: ReservationCategory;
+  reservation_type?: ReservationCategory;
   doctor?: Staff;
-  line_customer?: ReservationCustomer;
+  line_customer?: LineCustomer;
 }
 
 //////////
@@ -1361,7 +1361,7 @@ export interface ReservationCategoryGroup {
 //////////
 // source: reservation_customer.go
 
-export interface ReservationCustomer {
+export interface LineCustomer {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   line_user_id: string;
@@ -1380,7 +1380,7 @@ export interface ReservationCustomer {
 //////////
 // source: reservation_setting.go
 
-export interface ReservationSetting {
+export interface LineReservationSetting {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   status: string;
@@ -1492,12 +1492,12 @@ export interface ShiftEntry {
 export interface StaffExcludedReservationCategory {
   id: number /* uint64 */;
   staff_id: number /* uint64 */;
-  reservation_category_id: number /* uint64 */;
+  reservation_type_id: number /* uint64 */;
   /**
    * Relations
    */
   staff?: Staff;
-  reservation_category?: ReservationCategory;
+  reservation_type?: ReservationCategory;
 }
 
 //////////

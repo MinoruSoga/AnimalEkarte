@@ -17,9 +17,9 @@ import (
 // 実装はすべてのエラーをログに記録し、呼び出し元には返さない（fire-and-forget）。
 type ReservationNotifier interface {
 	// NotifyCreated は予約確定後に LINE + メールを送信する。
-	NotifyCreated(ctx context.Context, appt *model.ReservationAppointment, customer *model.ReservationCustomer)
+	NotifyCreated(ctx context.Context, appt *model.Appointment, customer *model.LineCustomer)
 	// NotifyCancelled は予約キャンセル後に LINE + メールを送信する。
-	NotifyCancelled(ctx context.Context, appt *model.ReservationAppointment, customer *model.ReservationCustomer)
+	NotifyCancelled(ctx context.Context, appt *model.Appointment, customer *model.LineCustomer)
 }
 
 // ReservationNotificationConfig はSMTP共有設定を保持する。
@@ -35,13 +35,13 @@ type ReservationNotificationConfig struct {
 
 type reservationNotificationService struct {
 	cfg         ReservationNotificationConfig
-	settingRepo repository.ReservationSettingRepository
+	settingRepo repository.LineReservationSettingRepository
 }
 
 // NewReservationNotificationService は通知サービスを初期化して返す。
 // SMTP設定が空の場合はメール送信をスキップする。
 // LINE アクセストークン・通知先メールは予約のクリニック設定（DB）から都度取得する。
-func NewReservationNotificationService(cfg ReservationNotificationConfig, settingRepo repository.ReservationSettingRepository) ReservationNotifier {
+func NewReservationNotificationService(cfg ReservationNotificationConfig, settingRepo repository.LineReservationSettingRepository) ReservationNotifier {
 	return &reservationNotificationService{
 		cfg:         cfg,
 		settingRepo: settingRepo,
@@ -52,8 +52,8 @@ func NewReservationNotificationService(cfg ReservationNotificationConfig, settin
 
 func (s *reservationNotificationService) NotifyCreated(
 	ctx context.Context,
-	appt *model.ReservationAppointment,
-	customer *model.ReservationCustomer,
+	appt *model.Appointment,
+	customer *model.LineCustomer,
 ) {
 	lineText := s.buildCreatedLineMessage(appt)
 	emailSubject, emailBody := s.buildCreatedEmail(appt, customer)
@@ -99,8 +99,8 @@ func (s *reservationNotificationService) NotifyCreated(
 
 func (s *reservationNotificationService) NotifyCancelled(
 	ctx context.Context,
-	appt *model.ReservationAppointment,
-	customer *model.ReservationCustomer,
+	appt *model.Appointment,
+	customer *model.LineCustomer,
 ) {
 	lineMsg := s.buildCancelledLineMessage(appt)
 	emailSubject, emailBody := s.buildCancelledEmail(appt, customer)
@@ -169,7 +169,7 @@ func staffDisplayName(s *model.Staff) string {
 
 // ---- LINE メッセージテンプレート ----
 
-func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.ReservationAppointment) string {
+func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.Appointment) string {
 	var sb strings.Builder
 	sb.WriteString("ご予約を承りました。\n\n")
 	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
@@ -187,7 +187,7 @@ func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.Res
 	return sb.String()
 }
 
-func (s *reservationNotificationService) buildCancelledLineMessage(appt *model.ReservationAppointment) string {
+func (s *reservationNotificationService) buildCancelledLineMessage(appt *model.Appointment) string {
 	var sb strings.Builder
 	sb.WriteString("以下のご予約をキャンセルしました。\n\n")
 	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
@@ -202,8 +202,8 @@ func (s *reservationNotificationService) buildCancelledLineMessage(appt *model.R
 // ---- メールテンプレート ----
 
 func (s *reservationNotificationService) buildCreatedEmail(
-	appt *model.ReservationAppointment,
-	customer *model.ReservationCustomer,
+	appt *model.Appointment,
+	customer *model.LineCustomer,
 ) (subject, body string) {
 	courseName := ""
 	if appt.ReservationType != nil {
@@ -256,8 +256,8 @@ func (s *reservationNotificationService) buildCreatedEmail(
 }
 
 func (s *reservationNotificationService) buildCancelledEmail(
-	appt *model.ReservationAppointment,
-	customer *model.ReservationCustomer,
+	appt *model.Appointment,
+	customer *model.LineCustomer,
 ) (subject, body string) {
 	courseName := ""
 	if appt.ReservationType != nil {
@@ -311,7 +311,7 @@ func (s *reservationNotificationService) sendEmail(_ context.Context, to, subjec
 
 // ---- ユーティリティ ----
 
-func customerDisplayName(c *model.ReservationCustomer) string {
+func customerDisplayName(c *model.LineCustomer) string {
 	if c == nil {
 		return "不明"
 	}
@@ -340,7 +340,7 @@ func formatDateTimeJP(start, end time.Time) string {
 
 // extractPetNamesFromCustomerFields は customer_fields JSONB からペット名一覧を抽出する。
 // appt.Pet (電カル予約) が nil の場合に customer_fields.pets (LINE予約) をフォールバックとして使用。
-func extractPetNamesFromCustomerFields(appt *model.ReservationAppointment) string {
+func extractPetNamesFromCustomerFields(appt *model.Appointment) string {
 	if appt.Pet != nil {
 		return appt.Pet.Name
 	}

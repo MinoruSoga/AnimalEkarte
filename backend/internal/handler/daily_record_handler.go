@@ -146,9 +146,9 @@ func (h *Handler) AddVitalRecord(c *gin.Context) {
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 
-// AddCareLogRecord godoc
+// AddCareLog godoc
 // POST /hospitalizations/:id/daily-records/:date/care-logs
-func (h *Handler) AddCareLogRecord(c *gin.Context) {
+func (h *Handler) AddCareLog(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -165,7 +165,7 @@ func (h *Handler) AddCareLogRecord(c *gin.Context) {
 		return
 	}
 
-	var req addCareLogRecordRequest
+	var req addCareLogRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -177,7 +177,7 @@ func (h *Handler) AddCareLogRecord(c *gin.Context) {
 		return
 	}
 
-	input := &service.CreateCareLogRecordInput{
+	input := &service.CreateCareLogInput{
 		Time:    parsedCareLogTime,
 		Type:    req.Type,
 		Status:  req.Status,
@@ -186,7 +186,7 @@ func (h *Handler) AddCareLogRecord(c *gin.Context) {
 		Notes:   req.Notes,
 	}
 
-	record, err := h.svc.DailyRecord.AddCareLogRecord(c.Request.Context(), clinicID, hospitalizationID, date, input)
+	record, err := h.svc.DailyRecord.AddCareLog(c.Request.Context(), clinicID, hospitalizationID, date, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -194,9 +194,9 @@ func (h *Handler) AddCareLogRecord(c *gin.Context) {
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 
-// AddStaffNoteRecord godoc
+// AddStaffNote godoc
 // POST /hospitalizations/:id/daily-records/:date/staff-notes
-func (h *Handler) AddStaffNoteRecord(c *gin.Context) {
+func (h *Handler) AddStaffNote(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -213,7 +213,7 @@ func (h *Handler) AddStaffNoteRecord(c *gin.Context) {
 		return
 	}
 
-	var req addStaffNoteRecordRequest
+	var req addStaffNoteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -225,13 +225,13 @@ func (h *Handler) AddStaffNoteRecord(c *gin.Context) {
 		return
 	}
 
-	input := &service.CreateStaffNoteRecordInput{
+	input := &service.CreateStaffNoteInput{
 		Time:    parsedStaffNoteTime,
 		Content: req.Content,
 		StaffID: req.StaffID,
 	}
 
-	record, err := h.svc.DailyRecord.AddStaffNoteRecord(c.Request.Context(), clinicID, hospitalizationID, date, input)
+	record, err := h.svc.DailyRecord.AddStaffNote(c.Request.Context(), clinicID, hospitalizationID, date, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -246,6 +246,6 @@ func (h *Handler) RegisterDailyRecordRoutes(rg *gin.RouterGroup) {
 	rg.POST("/:id/daily-records", permCreate, h.CreateDailyRecord)
 	rg.GET("/:id/daily-records/:date", h.GetDailyRecord)
 	rg.POST("/:id/daily-records/:date/vitals", permCreate, h.AddVitalRecord)
-	rg.POST("/:id/daily-records/:date/care-logs", permCreate, h.AddCareLogRecord)
-	rg.POST("/:id/daily-records/:date/staff-notes", permCreate, h.AddStaffNoteRecord)
+	rg.POST("/:id/daily-records/:date/care-logs", permCreate, h.AddCareLog)
+	rg.POST("/:id/daily-records/:date/staff-notes", permCreate, h.AddStaffNote)
 }

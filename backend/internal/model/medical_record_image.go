@@ -18,8 +18,8 @@ const (
 	MedicalImageTypeOther      MedicalImageType = "other"
 )
 
-// RecordImage は診療画像（v7.0追加）
-type RecordImage struct {
+// MedicalRecordImage は診療画像（v7.0追加）
+type MedicalRecordImage struct {
 	ID              uint64           `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID uint64           `gorm:"not null"                                       json:"medical_record_id"`
 	ImageURL        string           `gorm:"not null;default:''"                            json:"image_url"`
@@ -42,4 +42,4 @@ type RecordImage struct {
 	Staff         *Staff         `gorm:"foreignKey:StaffID"         json:"staff,omitempty"`
 }
 
-func (RecordImage) TableName() string { return "medical_record_images" }
+func (MedicalRecordImage) TableName() string { return "medical_record_images" }

@@ -43,14 +43,14 @@ type Services struct {
 	InquiryTemplate          InquiryTemplateService
 	Company                  CompanyService
 	PermissionGroup          PermissionGroupService
-	BillingReview            BillingReviewService
+	BillingConfirmation            BillingConfirmationService
 	CarePlanItem             CarePlanItemService
 	ShiftEntry               ShiftEntryService
 	TreatmentPlan            TreatmentPlanService
 	Vital                    VitalService
 	Treatment                TreatmentService
 	DailyRecord              DailyRecordService
-	RecordImage              RecordImageService
+	MedicalRecordImage              MedicalRecordImageService
 	ClinicalPlan             ClinicalPlanService
 	Checkup                  CheckupService
 	Estimate                 EstimateService
@@ -58,18 +58,18 @@ type Services struct {
 	BillingItem              BillingItemService
 	Refund                   RefundService
 	// LINE予約
-	ReservationSetting  ReservationSettingService
+	LineReservationSetting  LineReservationSettingService
 	ReservationCourse   ReservationCourseService
 	ReservationStaff    ReservationStaffService
 	ReservationSchedule ReservationScheduleService
 	ReservationAdmin    ReservationAdminService
-	ReservationCustomer ReservationCustomerService
+	LineCustomer LineCustomerService
 	Liff                LiffService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
 func NewServices(repos *repository.Repositories, notifCfg ReservationNotificationConfig) *Services {
-	notifier := NewReservationNotificationService(notifCfg, repos.ReservationSetting)
+	notifier := NewReservationNotificationService(notifCfg, repos.LineReservationSetting)
 	auditSvc := NewAuditService(repos.Audit)
 
 	return &Services{
@@ -110,33 +110,33 @@ func NewServices(repos *repository.Repositories, notifCfg ReservationNotificatio
 		InquiryTemplate:          NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                  NewCompanyService(repos.Company),
 		PermissionGroup:          NewPermissionGroupService(repos.PermissionGroup),
-		BillingReview:            NewBillingReviewService(repos.BillingReview),
+		BillingConfirmation:            NewBillingConfirmationService(repos.BillingConfirmation),
 		CarePlanItem:             NewCarePlanItemService(repos.CarePlanItem),
 		ShiftEntry:               NewShiftEntryService(repos.ShiftEntry),
 		TreatmentPlan:            NewTreatmentPlanService(repos.TreatmentPlan),
 		Vital:                    NewVitalService(repos.Vital),
 		Treatment:                NewTreatmentService(repos),
 		DailyRecord:              NewDailyRecordService(repos.DailyRecord),
-		RecordImage:              NewRecordImageService(repos.RecordImage),
+		MedicalRecordImage:              NewMedicalRecordImageService(repos.MedicalRecordImage),
 		ClinicalPlan:             NewClinicalPlanService(repos.ClinicalPlan),
 		Checkup:                  NewCheckupService(repos.Checkup),
 		Estimate:                 NewEstimateService(repos.Estimate),
 		MerchandiseItem:          NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:              NewBillingItemService(repos.BillingItem),
 		Refund:                   NewRefundService(repos.Refund, repos.Accounting),
-		ReservationSetting:       NewReservationSettingService(repos.ReservationSetting),
+		LineReservationSetting:       NewLineReservationSettingService(repos.LineReservationSetting),
 		ReservationCourse:        NewReservationCourseService(repos.ReservationCourse, repos.ReservationAdmin, repos.Reservation),
 		ReservationStaff:         NewReservationStaffService(repos.ReservationStaff),
 		ReservationSchedule:      NewReservationScheduleService(repos.ReservationSchedule),
 		ReservationAdmin:         NewReservationAdminService(repos.ReservationAdmin, repos.DB()),
-		ReservationCustomer:      NewReservationCustomerService(repos.ReservationCustomerMgr),
+		LineCustomer:      NewLineCustomerService(repos.LineCustomerMgr),
 		Liff: NewLiffService(
-			repos.ReservationSetting,
+			repos.LineReservationSetting,
 			repos.ReservationCourse,
 			repos.ReservationStaff,
 			repos.ReservationSchedule,
 			repos.ReservationAdmin,
-			repos.ReservationCustomerMgr,
+			repos.LineCustomerMgr,
 			repos.Owner,
 			repos.DB(),
 			notifier,

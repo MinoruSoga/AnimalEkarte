@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { RecordImage } from "@/types/generated/models";
+import type { MedicalRecordImage } from "@/types/generated/models";
 
 export interface ImageGalleryItem {
   id: number;
@@ -24,7 +24,7 @@ function formatGroupDate(iso: string): string {
   return d.replace(/-/g, "/");
 }
 
-function groupImagesByDate(images: RecordImage[]): ImageGalleryGroup[] {
+function groupImagesByDate(images: MedicalRecordImage[]): ImageGalleryGroup[] {
   const groupMap = new Map<string, { groupId: number; date: string; images: ImageGalleryItem[] }>();
 
   images.forEach((img) => {
@@ -55,7 +55,7 @@ function groupImagesByDate(images: RecordImage[]): ImageGalleryGroup[] {
 const getRecordImages = async (
   medicalRecordId: string,
 ): Promise<ImageGalleryGroup[]> => {
-  const { data } = await axios.get<RecordImage[]>(
+  const { data } = await axios.get<MedicalRecordImage[]>(
     `/v1/medical-records/${medicalRecordId}/images`,
   );
   return groupImagesByDate(data ?? []);

@@ -14,24 +14,24 @@ import (
 
 // LiffService はLIFF公開APIのビジネスロジックインターフェース
 type LiffService interface {
-	GetSettings(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error)
-	GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.ReservationCustomer, error)
+	GetSettings(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error)
 	GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationCategory, error)
 	GetStaffs(ctx context.Context, clinicID, courseID uint64) ([]model.Staff, error)
 	GetAvailableDates(ctx context.Context, clinicID, courseID, staffID uint64) ([]AvailableDateResult, BookingWindow, error)
 	GetAvailableTimes(ctx context.Context, clinicID, courseID, staffID uint64, date time.Time) ([]TimeSlot, error)
-	CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.ReservationAppointment, error)
-	GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.ReservationAppointment, error)
+	CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Appointment, error)
+	GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error)
 	CancelReservation(ctx context.Context, clinicID, customerID, reservationID uint64) error
 }
 
 type liffService struct {
-	settingRepo  repository.ReservationSettingRepository
+	settingRepo  repository.LineReservationSettingRepository
 	courseRepo   repository.ReservationCourseRepository
 	staffRepo    repository.ReservationStaffRepository
 	scheduleRepo repository.ReservationScheduleRepository
 	adminRepo    repository.ReservationAdminRepository
-	customerRepo repository.ReservationCustomerRepository
+	customerRepo repository.LineCustomerRepository
 	ownerRepo    repository.OwnerRepository
 	validators   ReservationValidators
 	notifier     ReservationNotifier
@@ -39,12 +39,12 @@ type liffService struct {
 
 // NewLiffService はLIFFサービスを初期化して返す。
 func NewLiffService(
-	settingRepo repository.ReservationSettingRepository,
+	settingRepo repository.LineReservationSettingRepository,
 	courseRepo repository.ReservationCourseRepository,
 	staffRepo repository.ReservationStaffRepository,
 	scheduleRepo repository.ReservationScheduleRepository,
 	adminRepo repository.ReservationAdminRepository,
-	customerRepo repository.ReservationCustomerRepository,
+	customerRepo repository.LineCustomerRepository,
 	ownerRepo repository.OwnerRepository,
 	db *gorm.DB,
 	notifier ReservationNotifier,
@@ -63,7 +63,7 @@ func NewLiffService(
 }
 
 // GetSettings はLIFF公開設定を返す（機密フィールドは除外）。
-func (s *liffService) GetSettings(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error) {
+func (s *liffService) GetSettings(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
@@ -72,7 +72,7 @@ func (s *liffService) GetSettings(ctx context.Context, clinicID uint64) (*model.
 }
 
 // GetProfile は顧客プロフィールを返す。
-func (s *liffService) GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.ReservationCustomer, error) {
+func (s *liffService) GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error) {
 	c, err := s.customerRepo.FindByID(ctx, clinicID, customerID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get customer profile")
@@ -209,7 +209,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, courseID,
 }
 
 // CreateReservation は予約を確定する。staffID=0 の場合は no_staff_mode に従って自動割当する。
-func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.ReservationAppointment, error) {
+func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Appointment, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
@@ -259,7 +259,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 }
 
 // GetMyReservations は顧客自身の予約一覧を返す。
-func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.ReservationAppointment, error) {
+func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error) {
 	items, err := s.adminRepo.FindByCustomerID(ctx, clinicID, customerID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get my reservations")
@@ -270,7 +270,7 @@ func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerI
 // CancelReservation は予約をキャンセルする。
 func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerID, reservationID uint64) error {
 	// Phase 6: キャンセル通知のために事前にアポを取得する
-	var apptForNotify *model.ReservationAppointment
+	var apptForNotify *model.Appointment
 	if s.notifier != nil {
 		var err error
 		apptForNotify, err = s.adminRepo.FindByIDForNotify(ctx, clinicID, reservationID)
@@ -377,7 +377,7 @@ func (s *liffService) buildStaffSlotInputs(ctx context.Context, clinicID uint64,
 }
 
 // parseBusinessHours は設定JSONから営業時間・休憩時間を解析する。
-func (s *liffService) parseBusinessHours(setting *model.ReservationSetting) (BusinessHours, []BreakPeriod) {
+func (s *liffService) parseBusinessHours(setting *model.LineReservationSetting) (BusinessHours, []BreakPeriod) {
 	var bh BusinessHours
 	if err := json.Unmarshal(setting.BusinessHours, &bh); err != nil {
 		bh = BusinessHours{Start: "0900", End: "1900"}
@@ -426,7 +426,7 @@ func (s *liffService) delegateStaff(ctx context.Context, clinicID, courseID uint
 }
 
 // isStaffAvailable はスタッフが指定時間枠で空いているか確認する。
-func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.ReservationAppointment) bool {
+func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.Appointment) bool {
 	for _, r := range dayResv {
 		if r.Status == model.ReservationStatusCancelled {
 			continue

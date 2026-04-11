@@ -1,6 +1,6 @@
 package handler
 
-type upsertReservationSettingRequest struct {
+type upsertLineReservationSettingRequest struct {
 	Status                  string         `json:"status"`
 	HeaderText              string         `json:"header_text"`
 	ReservationNotice       string         `json:"reservation_notice"`

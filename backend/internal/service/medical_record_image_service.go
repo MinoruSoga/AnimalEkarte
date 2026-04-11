@@ -10,8 +10,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// CreateRecordImageInput は診療画像作成の Input DTO
-type CreateRecordImageInput struct {
+// CreateMedicalRecordImageInput は診療画像作成の Input DTO
+type CreateMedicalRecordImageInput struct {
 	ImageURL     string
 	ThumbnailURL string
 	FileName     string
@@ -25,23 +25,23 @@ type CreateRecordImageInput struct {
 	SortOrder    int
 }
 
-// RecordImageService は診療画像のビジネスロジック
-type RecordImageService interface {
-	List(ctx context.Context, medicalRecordID uint64) ([]model.RecordImage, error)
-	Create(ctx context.Context, medicalRecordID uint64, input *CreateRecordImageInput) (*model.RecordImage, error)
+// MedicalRecordImageService は診療画像のビジネスロジック
+type MedicalRecordImageService interface {
+	List(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
+	Create(ctx context.Context, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error)
 	Delete(ctx context.Context, medicalRecordID, imageID uint64) error
 }
 
 type recordImageService struct {
-	repo repository.RecordImageRepository
+	repo repository.MedicalRecordImageRepository
 }
 
-// NewRecordImageService は RecordImageService を初期化して返す
-func NewRecordImageService(repo repository.RecordImageRepository) RecordImageService {
+// NewMedicalRecordImageService は MedicalRecordImageService を初期化して返す
+func NewMedicalRecordImageService(repo repository.MedicalRecordImageRepository) MedicalRecordImageService {
 	return &recordImageService{repo: repo}
 }
 
-func (s *recordImageService) List(ctx context.Context, medicalRecordID uint64) ([]model.RecordImage, error) {
+func (s *recordImageService) List(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
 	result, err := s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list record images")
@@ -49,7 +49,7 @@ func (s *recordImageService) List(ctx context.Context, medicalRecordID uint64) (
 	return result, nil
 }
 
-func (s *recordImageService) Create(ctx context.Context, medicalRecordID uint64, input *CreateRecordImageInput) (*model.RecordImage, error) {
+func (s *recordImageService) Create(ctx context.Context, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
 	if err := validateMedicalImageType(string(input.ImageType)); err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (s *recordImageService) Create(ctx context.Context, medicalRecordID uint64,
 		imageType = model.MedicalImageTypeOther
 	}
 
-	image := &model.RecordImage{
+	image := &model.MedicalRecordImage{
 		MedicalRecordID: medicalRecordID,
 		ImageURL:        input.ImageURL,
 		ThumbnailURL:    input.ThumbnailURL,

@@ -48,14 +48,14 @@ type Repositories struct {
 	InquiryTemplate          InquiryTemplateRepository
 	Company                  CompanyRepository
 	PermissionGroup          PermissionGroupRepository
-	BillingReview            BillingReviewRepository
+	BillingConfirmation            BillingConfirmationRepository
 	CarePlanItem             CarePlanItemRepository
 	ShiftEntry               ShiftEntryRepository
 	TreatmentPlan            TreatmentPlanRepository
 	Vital                    VitalRepository
 	Treatment                TreatmentRepository
 	DailyRecord              DailyRecordRepository
-	RecordImage              RecordImageRepository
+	MedicalRecordImage              MedicalRecordImageRepository
 	ClinicalPlan             ClinicalPlanRepository
 	Checkup                  CheckupRepository
 	Estimate                 EstimateRepository
@@ -64,12 +64,12 @@ type Repositories struct {
 	Refund                   RefundRepository
 	Audit                    AuditRepository
 	// LINE予約
-	ReservationSetting     ReservationSettingRepository
+	LineReservationSetting     LineReservationSettingRepository
 	ReservationCourse      ReservationCourseRepository
 	ReservationStaff       ReservationStaffRepository
 	ReservationSchedule    ReservationScheduleRepository
 	ReservationAdmin       ReservationAdminRepository
-	ReservationCustomerMgr ReservationCustomerRepository
+	LineCustomerMgr LineCustomerRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -112,14 +112,14 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		InquiryTemplate:          NewInquiryTemplateRepository(db),
 		Company:                  NewCompanyRepository(db),
 		PermissionGroup:          NewPermissionGroupRepository(db),
-		BillingReview:            NewBillingReviewRepository(db),
+		BillingConfirmation:            NewBillingConfirmationRepository(db),
 		CarePlanItem:             NewCarePlanItemRepository(db),
 		ShiftEntry:               NewShiftEntryRepository(db),
 		TreatmentPlan:            NewTreatmentPlanRepository(db),
 		Vital:                    NewVitalRepository(db),
 		Treatment:                NewTreatmentRepository(db),
 		DailyRecord:              NewDailyRecordRepository(db),
-		RecordImage:              NewRecordImageRepository(db),
+		MedicalRecordImage:              NewMedicalRecordImageRepository(db),
 		ClinicalPlan:             NewClinicalPlanRepository(db),
 		Checkup:                  NewCheckupRepository(db),
 		Estimate:                 NewEstimateRepository(db),
@@ -127,12 +127,12 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		BillingItem:              NewBillingItemRepository(db),
 		Refund:                   NewRefundRepository(db),
 		Audit:                    NewAuditRepository(db),
-		ReservationSetting:       NewReservationSettingRepository(db),
+		LineReservationSetting:       NewLineReservationSettingRepository(db),
 		ReservationCourse:        NewReservationCourseRepository(db),
 		ReservationStaff:         NewReservationStaffRepository(db),
 		ReservationSchedule:      NewReservationScheduleRepository(db),
 		ReservationAdmin:         NewReservationAdminRepository(db),
-		ReservationCustomerMgr:   NewReservationCustomerRepository(db),
+		LineCustomerMgr:   NewLineCustomerRepository(db),
 	}
 }
 

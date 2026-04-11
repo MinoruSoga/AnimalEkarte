@@ -10,9 +10,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// GetBillingReview は指定カルテIDの会計医師確認を取得または初期化して返す
+// GetBillingConfirmation は指定カルテIDの会計医師確認を取得または初期化して返す
 // GET /medical-records/:id/billing-review
-func (h *Handler) GetBillingReview(c *gin.Context) {
+func (h *Handler) GetBillingConfirmation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -23,17 +23,17 @@ func (h *Handler) GetBillingReview(c *gin.Context) {
 		return
 	}
 
-	review, err := h.svc.BillingReview.GetOrCreate(c.Request.Context(), clinicID, medicalRecordID)
+	review, err := h.svc.BillingConfirmation.GetOrCreate(c.Request.Context(), clinicID, medicalRecordID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toBillingReviewResponse(review))
+	c.JSON(http.StatusOK, toBillingConfirmationResponse(review))
 }
 
-// ConfirmBillingReview は会計を医師確認済みにする
+// ConfirmBillingConfirmation は会計を医師確認済みにする
 // POST /medical-records/:id/billing-review/confirm
-func (h *Handler) ConfirmBillingReview(c *gin.Context) {
+func (h *Handler) ConfirmBillingConfirmation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -44,28 +44,28 @@ func (h *Handler) ConfirmBillingReview(c *gin.Context) {
 		return
 	}
 
-	var req confirmBillingReviewRequest
+	var req confirmBillingConfirmationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	input := &service.ConfirmBillingReviewInput{
+	input := &service.ConfirmBillingConfirmationInput{
 		ConfirmedBy: req.ConfirmedBy,
 		Memo:        req.Memo,
 	}
 
-	review, err := h.svc.BillingReview.Confirm(c.Request.Context(), clinicID, medicalRecordID, input)
+	review, err := h.svc.BillingConfirmation.Confirm(c.Request.Context(), clinicID, medicalRecordID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toBillingReviewResponse(review))
+	c.JSON(http.StatusOK, toBillingConfirmationResponse(review))
 }
 
-// ReturnBillingReview は会計を差し戻す
+// ReturnBillingConfirmation は会計を差し戻す
 // POST /medical-records/:id/billing-review/return
-func (h *Handler) ReturnBillingReview(c *gin.Context) {
+func (h *Handler) ReturnBillingConfirmation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -76,30 +76,30 @@ func (h *Handler) ReturnBillingReview(c *gin.Context) {
 		return
 	}
 
-	var req returnBillingReviewRequest
+	var req returnBillingConfirmationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	input := &service.ReturnBillingReviewInput{
+	input := &service.ReturnBillingConfirmationInput{
 		ReturnedBy:   req.ReturnedBy,
 		ReturnReason: req.ReturnReason,
 		Memo:         req.Memo,
 	}
 
-	review, err := h.svc.BillingReview.Return(c.Request.Context(), clinicID, medicalRecordID, input)
+	review, err := h.svc.BillingConfirmation.Return(c.Request.Context(), clinicID, medicalRecordID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toBillingReviewResponse(review))
+	c.JSON(http.StatusOK, toBillingConfirmationResponse(review))
 }
 
-// RegisterBillingReviewRoutes は会計医師確認関連のルートをmedical-recordsグループに登録する
-func (h *Handler) RegisterBillingReviewRoutes(rg *gin.RouterGroup) {
+// RegisterBillingConfirmationRoutes は会計医師確認関連のルートをmedical-recordsグループに登録する
+func (h *Handler) RegisterBillingConfirmationRoutes(rg *gin.RouterGroup) {
 	permEdit := h.RequirePermission(string(model.ResourceAccounting), "edit")
-	rg.GET("/:id/billing-review", h.GetBillingReview)
-	rg.POST("/:id/billing-review/confirm", permEdit, h.ConfirmBillingReview)
-	rg.POST("/:id/billing-review/return", permEdit, h.ReturnBillingReview)
+	rg.GET("/:id/billing-review", h.GetBillingConfirmation)
+	rg.POST("/:id/billing-review/confirm", permEdit, h.ConfirmBillingConfirmation)
+	rg.POST("/:id/billing-review/return", permEdit, h.ReturnBillingConfirmation)
 }

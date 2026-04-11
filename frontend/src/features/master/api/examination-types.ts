@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { ExaminationType, ExaminationTypeItem } from "@/types/generated/models";
+import type { ExaminationType, ExamTypeField } from "@/types/generated/models";
 
-export type { ExaminationType, ExaminationTypeItem };
+export type { ExaminationType, ExamTypeField };
 
 export interface ExamTypeItemInput {
   name: string;

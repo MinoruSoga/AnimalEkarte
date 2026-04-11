@@ -40,9 +40,9 @@ func (h *Handler) verifyMedicalRecordOwnership(c *gin.Context, clinicID, medical
 	return mr, true
 }
 
-// ListRecordImages godoc
+// ListMedicalRecordImages godoc
 // GET /medical-records/:id/images
-func (h *Handler) ListRecordImages(c *gin.Context) {
+func (h *Handler) ListMedicalRecordImages(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -56,7 +56,7 @@ func (h *Handler) ListRecordImages(c *gin.Context) {
 		return
 	}
 
-	images, err := h.svc.RecordImage.List(c.Request.Context(), medicalRecordID)
+	images, err := h.svc.MedicalRecordImage.List(c.Request.Context(), medicalRecordID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -64,14 +64,14 @@ func (h *Handler) ListRecordImages(c *gin.Context) {
 
 	items := make([]recordImageResponse, 0, len(images))
 	for i := range images {
-		items = append(items, toRecordImageResponse(&images[i]))
+		items = append(items, toMedicalRecordImageResponse(&images[i]))
 	}
 	c.JSON(http.StatusOK, items)
 }
 
-// CreateRecordImage godoc
+// CreateMedicalRecordImage godoc
 // POST /medical-records/:id/images
-func (h *Handler) CreateRecordImage(c *gin.Context) {
+func (h *Handler) CreateMedicalRecordImage(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -85,7 +85,7 @@ func (h *Handler) CreateRecordImage(c *gin.Context) {
 		return
 	}
 
-	var req createRecordImageRequest
+	var req createMedicalRecordImageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -96,7 +96,7 @@ func (h *Handler) CreateRecordImage(c *gin.Context) {
 		imageType = model.MedicalImageTypeOther
 	}
 
-	input := &service.CreateRecordImageInput{
+	input := &service.CreateMedicalRecordImageInput{
 		ImageURL:     req.ImageURL,
 		ThumbnailURL: req.ThumbnailURL,
 		FileName:     req.FileName,
@@ -110,17 +110,17 @@ func (h *Handler) CreateRecordImage(c *gin.Context) {
 		SortOrder:    req.SortOrder,
 	}
 
-	image, err := h.svc.RecordImage.Create(c.Request.Context(), medicalRecordID, input)
+	image, err := h.svc.MedicalRecordImage.Create(c.Request.Context(), medicalRecordID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, toRecordImageResponse(image))
+	c.JSON(http.StatusCreated, toMedicalRecordImageResponse(image))
 }
 
-// DeleteRecordImage godoc
+// DeleteMedicalRecordImage godoc
 // DELETE /medical-records/:id/images/:imageId
-func (h *Handler) DeleteRecordImage(c *gin.Context) {
+func (h *Handler) DeleteMedicalRecordImage(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -140,17 +140,17 @@ func (h *Handler) DeleteRecordImage(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.RecordImage.Delete(c.Request.Context(), medicalRecordID, imageID); err != nil {
+	if err := h.svc.MedicalRecordImage.Delete(c.Request.Context(), medicalRecordID, imageID); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
 }
 
-// UploadRecordImage godoc
+// UploadMedicalRecordImage godoc
 // POST /medical-records/:id/images/upload
 // Accepts multipart/form-data with field name "file".
-func (h *Handler) UploadRecordImage(c *gin.Context) {
+func (h *Handler) UploadMedicalRecordImage(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -218,7 +218,7 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 	}
 
 	now := time.Now()
-	input := &service.CreateRecordImageInput{
+	input := &service.CreateMedicalRecordImageInput{
 		ImageURL:  imageURL,
 		FileName:  fileHeader.Filename,
 		FileSize:  fileHeader.Size,
@@ -227,7 +227,7 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 		TakenAt:   &now,
 	}
 
-	image, err := h.svc.RecordImage.Create(c.Request.Context(), medicalRecordID, input)
+	image, err := h.svc.MedicalRecordImage.Create(c.Request.Context(), medicalRecordID, input)
 	if err != nil {
 		// Clean up uploaded file on service error (non-fatal)
 		if removeErr := h.uploader.Delete(c.Request.Context(), key); removeErr != nil {
@@ -236,13 +236,13 @@ func (h *Handler) UploadRecordImage(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, toRecordImageResponse(image))
+	c.JSON(http.StatusCreated, toMedicalRecordImageResponse(image))
 }
 
-// RegisterRecordImageRoutes は診療画像関連のルートをmedical-recordsグループに登録する
-func (h *Handler) RegisterRecordImageRoutes(rg *gin.RouterGroup) {
-	rg.GET("/:id/images", h.ListRecordImages)
-	rg.POST("/:id/images", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateRecordImage)
-	rg.POST("/:id/images/upload", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.UploadRecordImage)
-	rg.DELETE("/:id/images/:imageId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteRecordImage)
+// RegisterMedicalRecordImageRoutes は診療画像関連のルートをmedical-recordsグループに登録する
+func (h *Handler) RegisterMedicalRecordImageRoutes(rg *gin.RouterGroup) {
+	rg.GET("/:id/images", h.ListMedicalRecordImages)
+	rg.POST("/:id/images", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateMedicalRecordImage)
+	rg.POST("/:id/images/upload", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.UploadMedicalRecordImage)
+	rg.DELETE("/:id/images/:imageId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteMedicalRecordImage)
 }

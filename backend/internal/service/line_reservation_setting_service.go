@@ -9,14 +9,14 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ReservationSettingService は予約基本設定のビジネスロジックインターフェース
-type ReservationSettingService interface {
-	Get(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error)
-	Upsert(ctx context.Context, clinicID uint64, input *UpsertReservationSettingInput) (*model.ReservationSetting, error)
+// LineReservationSettingService は予約基本設定のビジネスロジックインターフェース
+type LineReservationSettingService interface {
+	Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	Upsert(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, error)
 }
 
-// UpsertReservationSettingInput は予約設定 upsert のための入力データ
-type UpsertReservationSettingInput struct {
+// UpsertLineReservationSettingInput は予約設定 upsert のための入力データ
+type UpsertLineReservationSettingInput struct {
 	Status                  string
 	HeaderText              string
 	ReservationNotice       string
@@ -48,14 +48,14 @@ type UpsertReservationSettingInput struct {
 }
 
 type reservationSettingService struct {
-	repo repository.ReservationSettingRepository
+	repo repository.LineReservationSettingRepository
 }
 
-func NewReservationSettingService(repo repository.ReservationSettingRepository) ReservationSettingService {
+func NewLineReservationSettingService(repo repository.LineReservationSettingRepository) LineReservationSettingService {
 	return &reservationSettingService{repo: repo}
 }
 
-func (s *reservationSettingService) Get(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error) {
+func (s *reservationSettingService) Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 	setting, err := s.repo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		if apperrors.IsNotFound(err) {
@@ -66,8 +66,8 @@ func (s *reservationSettingService) Get(ctx context.Context, clinicID uint64) (*
 	return setting, nil
 }
 
-func (s *reservationSettingService) Upsert(ctx context.Context, clinicID uint64, input *UpsertReservationSettingInput) (*model.ReservationSetting, error) {
-	setting := &model.ReservationSetting{
+func (s *reservationSettingService) Upsert(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, error) {
+	setting := &model.LineReservationSetting{
 		ClinicID:                clinicID,
 		Status:                  input.Status,
 		HeaderText:              input.HeaderText,

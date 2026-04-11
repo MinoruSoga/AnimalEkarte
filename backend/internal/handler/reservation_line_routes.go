@@ -11,8 +11,8 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics/:id")
 
 	// TASK-RES-010: 基本設定
-	clinics.GET("/reservation-settings", h.GetReservationSetting)
-	clinics.PUT("/reservation-settings", h.UpsertReservationSetting)
+	clinics.GET("/reservation-settings", h.GetLineReservationSetting)
+	clinics.PUT("/reservation-settings", h.UpsertLineReservationSetting)
 
 	// TASK-RES-011: 予約区分（LINE管理用）
 	types := clinics.Group("/reservation-types")
@@ -48,13 +48,13 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 
 	// TASK-RES-015: 顧客管理
 	customers := clinics.Group("/line-customers")
-	customers.GET("", h.ListReservationCustomers)
-	customers.PATCH("/:id/link-owner", h.LinkOwnerToReservationCustomer)
+	customers.GET("", h.ListLineCustomers)
+	customers.PATCH("/:id/link-owner", h.LinkOwnerToLineCustomer)
 }
 
 // RegisterLiffRoutes はLIFF公開APIのルートを登録する（LINE IDトークン認証）。
 func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
-	liffAuth := middleware.LiffAuth(h.repos.ReservationCustomerMgr, h.repos.ReservationSetting)
+	liffAuth := middleware.LiffAuth(h.repos.LineCustomerMgr, h.repos.LineReservationSetting)
 
 	liff := r.Group("/api/liff/:clinicId")
 

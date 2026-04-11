@@ -4,9 +4,9 @@ import { axios } from "@/lib/axios";
 export interface UpdateClinicalPlanRequest {
   treatment_policy?: string;
   diagnosis_details?: string;
-  diagnosis_category_id?: number | null;
+  diagnosis_type_id?: number | null;
   diagnosis_name_id?: number | null;
-  diagnosis_2_category_id?: number | null;
+  diagnosis_2_type_id?: number | null;
   diagnosis_2_name_id?: number | null;
 }
 

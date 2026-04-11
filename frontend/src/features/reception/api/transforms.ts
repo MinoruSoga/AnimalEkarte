@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import type { ReservationStatus } from "@/types";
-import type { ReservationAppointment as BackendReceptionReservation } from "@/types/generated/models";
+import type { Appointment as BackendReceptionReservation } from "@/types/generated/models";
 import type { ReceptionAppointment, ReceptionColumn } from "./types";
 
 /** Backend status 値 → カンバンカラム ID のマッピング */
@@ -84,7 +84,7 @@ export function transformReservationToReceptionAppointment(
     petType,
     petName,
     visitType: visitTypeToJapanese(reservation.visit_type),
-    reservationCategory: reservation.reservation_category?.name ?? "",
+    reservationCategory: reservation.reservation_type?.name ?? "",
     isDesignated: reservation.is_designated,
     doctor: reservation.doctor?.name ?? (reservation.doctor_id ? String(reservation.doctor_id) : undefined),
     petId: String(reservation.pet_id ?? 0),

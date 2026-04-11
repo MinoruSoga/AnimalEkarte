@@ -15,20 +15,20 @@ export interface ClinicalPlan {
   id: string;
   medical_record_id: string;
   physical_exam: string;
-  diagnosis_category_id?: string | null;
+  diagnosis_type_id?: string | null;
   diagnosis_name_id?: string | null;
   diagnosis_details: string;
   treatment_policy: string;
   created_at: string;
   updated_at: string;
   // nested relations
-  diagnosis_category?: { id: string; name: string } | null;
+  diagnosis_type?: { id: string; name: string } | null;
   diagnosis_name?: { id: string; name: string } | null;
 }
 
 export interface UpdateClinicalPlanInput {
   physical_exam?: string;
-  diagnosis_category_id?: number | null;
+  diagnosis_type_id?: number | null;
   diagnosis_name_id?: number | null;
   diagnosis_details?: string;
   treatment_policy?: string;

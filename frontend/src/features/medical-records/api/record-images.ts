@@ -6,17 +6,17 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
-import type { RecordImage } from "@/types/generated/models";
+import type { MedicalRecordImage } from "@/types/generated/models";
 
 // ── Upload ────────────────────────────────────────────────────────────
 
 const uploadImage = async (
   medicalRecordId: string,
   file: File,
-): Promise<RecordImage> => {
+): Promise<MedicalRecordImage> => {
   const formData = new FormData();
   formData.append("file", file);
-  const { data } = await axios.post<RecordImage>(
+  const { data } = await axios.post<MedicalRecordImage>(
     `/v1/medical-records/${medicalRecordId}/images/upload`,
     formData,
     { headers: { "Content-Type": "multipart/form-data" } },

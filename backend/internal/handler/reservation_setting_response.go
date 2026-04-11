@@ -41,7 +41,7 @@ type reservationSettingResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func toReservationSettingResponse(s *model.ReservationSetting) reservationSettingResponse {
+func toLineReservationSettingResponse(s *model.LineReservationSetting) reservationSettingResponse {
 	return reservationSettingResponse{
 		ID:                      s.ID,
 		ClinicID:                s.ClinicID,

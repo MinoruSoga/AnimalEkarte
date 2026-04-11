@@ -21,7 +21,7 @@ type liffSettingsResponse struct {
 	BookingWindowMaxDays int    `json:"booking_window"`
 }
 
-func toLiffSettingsResponse(s *model.ReservationSetting) liffSettingsResponse {
+func toLiffSettingsResponse(s *model.LineReservationSetting) liffSettingsResponse {
 	return liffSettingsResponse{
 		Status:               s.Status,
 		HeaderText:           s.HeaderText,
@@ -129,7 +129,7 @@ type liffReservationResponse struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-func toLiffReservationResponse(r model.ReservationAppointment) liffReservationResponse {
+func toLiffReservationResponse(r model.Appointment) liffReservationResponse {
 	res := liffReservationResponse{
 		ID:        r.ID,
 		Date:      r.StartTime.Format("2006-01-02"),

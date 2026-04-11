@@ -68,7 +68,7 @@ type ExaminationItem struct {
 	UpdatedAt       time.Time               `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	ExaminationTypeItem *ExaminationTypeItem `gorm:"foreignKey:ExamTypeItemID" json:"exam_type_item,omitempty"`
+	ExamTypeField *ExamTypeField `gorm:"foreignKey:ExamTypeItemID" json:"exam_type_item,omitempty"`
 }
 
 func (ExaminationItem) TableName() string { return "exam_results" }

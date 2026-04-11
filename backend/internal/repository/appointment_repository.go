@@ -12,10 +12,10 @@ import (
 )
 
 type ReservationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
-	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
-	Create(ctx context.Context, reservation *model.ReservationAppointment) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
+	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Appointment, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error)
+	Create(ctx context.Context, reservation *model.Appointment) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ExistsByReservationCategoryID(ctx context.Context, reservationCategoryID uint64) (bool, error)
 	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
@@ -30,11 +30,11 @@ func NewReservationRepository(db *gorm.DB) ReservationRepository {
 	return &reservationRepository{db: db}
 }
 
-func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
-	reservations := make([]model.ReservationAppointment, 0)
+func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Appointment, int64, error) {
+	reservations := make([]model.Appointment, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.ReservationAppointment{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.Appointment{}).Where("clinic_id = ?", clinicID)
 	if date != nil {
 		start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 		end := start.Add(24 * time.Hour)
@@ -62,8 +62,8 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 	return reservations, total, nil
 }
 
-func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error) {
-	var reservation model.ReservationAppointment
+func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
+	var reservation model.Appointment
 	err := r.db.WithContext(ctx).
 		Preload("Pet").
 		Preload("Pet.Owner").
@@ -77,7 +77,7 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint6
 	return &reservation, nil
 }
 
-func (r *reservationRepository) Create(ctx context.Context, reservation *model.ReservationAppointment) error {
+func (r *reservationRepository) Create(ctx context.Context, reservation *model.Appointment) error {
 	if err := r.db.WithContext(ctx).Create(reservation).Error; err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("reservation", reservation.StartTime.String())
@@ -87,9 +87,9 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.R
 	return nil
 }
 
-func (r *reservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error) {
+func (r *reservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error) {
 	result := r.db.WithContext(ctx).
-		Model(&model.ReservationAppointment{}).
+		Model(&model.Appointment{}).
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
@@ -102,7 +102,7 @@ func (r *reservationRepository) UpdateFields(ctx context.Context, clinicID, id u
 }
 
 func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.ReservationAppointment{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Delete(&model.Appointment{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", id))
 	}
@@ -114,7 +114,7 @@ func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64)
 
 func (r *reservationRepository) ExistsByReservationCategoryID(ctx context.Context, reservationCategoryID uint64) (bool, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&model.ReservationAppointment{}).
+	err := r.db.WithContext(ctx).Model(&model.Appointment{}).
 		Where("reservation_category_id = ?", reservationCategoryID).
 		Count(&count).Error
 	if err != nil {
@@ -125,7 +125,7 @@ func (r *reservationRepository) ExistsByReservationCategoryID(ctx context.Contex
 
 func (r *reservationRepository) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&model.ReservationAppointment{}).
+	err := r.db.WithContext(ctx).Model(&model.Appointment{}).
 		Where("doctor_id = ?", staffID).
 		Count(&count).Error
 	if err != nil {

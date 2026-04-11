@@ -8,21 +8,21 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ReservationCustomerService は予約顧客のビジネスロジックインターフェース
-type ReservationCustomerService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.ReservationCustomer, error)
-	LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.ReservationCustomer, error)
+// LineCustomerService は予約顧客のビジネスロジックインターフェース
+type LineCustomerService interface {
+	List(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error)
+	LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error)
 }
 
 type reservationCustomerService struct {
-	repo repository.ReservationCustomerRepository
+	repo repository.LineCustomerRepository
 }
 
-func NewReservationCustomerService(repo repository.ReservationCustomerRepository) ReservationCustomerService {
+func NewLineCustomerService(repo repository.LineCustomerRepository) LineCustomerService {
 	return &reservationCustomerService{repo: repo}
 }
 
-func (s *reservationCustomerService) List(ctx context.Context, clinicID uint64) ([]model.ReservationCustomer, error) {
+func (s *reservationCustomerService) List(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list reservation customers")
@@ -30,7 +30,7 @@ func (s *reservationCustomerService) List(ctx context.Context, clinicID uint64) 
 	return items, nil
 }
 
-func (s *reservationCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.ReservationCustomer, error) {
+func (s *reservationCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error) {
 	if err := s.repo.UpdateOwnerLink(ctx, clinicID, id, ownerID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to link owner to reservation customer")
 	}

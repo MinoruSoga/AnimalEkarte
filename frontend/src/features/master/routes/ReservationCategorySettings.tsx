@@ -113,7 +113,7 @@ function GroupedTable({
                 <th className="w-8" />
                 <th className={`text-left ${STYLE.tableHeaderCell} px-3`}>名称</th>
                 <th className={`text-left ${STYLE.tableHeaderCell} px-3 w-56`}>備考</th>
-                <th className={`text-center ${STYLE.tableHeaderCell} px-3 w-24`}>ステータス</th>
+                <th className={`text-center ${STYLE.tableHeaderCell} px-3 w-24 whitespace-nowrap`}>ステータス</th>
                 <th className="w-20" />
               </tr>
             </thead>
@@ -125,9 +125,9 @@ function GroupedTable({
                 return (
                   <Fragment key={group.id}>
                     {/* グループヘッダー行 */}
-                    <tr className={`border-b ${C.borderLight} ${C.bgPage} group/grouprow`}>
+                    <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
                       <td colSpan={5} className="px-2 py-0">
-                        <div className="flex items-center gap-1 h-8">
+                        <div className="flex items-center gap-1 h-11">
                           <button type="button" onClick={() => toggleCollapse(group.id)}
                             className={`size-5 flex items-center justify-center rounded ${C.text35} ${C.hoverBgMedium} transition-colors shrink-0`}>
                             <ChevronDown className="size-3.5 transition-transform duration-150"
@@ -142,14 +142,14 @@ function GroupedTable({
                           {canEdit ? (
                             <div className="ml-auto flex items-center gap-1">
                               <button type="button" onClick={() => onGroupEdit(group)}
-                                className={`flex items-center gap-1 text-xs ${C.text45} opacity-0 group-hover/grouprow:opacity-100
-                                  px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-all`}>
-                                <Pencil className="size-3" />編集
+                                className={`flex items-center gap-1 text-xs ${C.text45}
+                                  px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-colors`}>
+                                <Pencil className={ICON.action} />編集
                               </button>
                               <button type="button" onClick={() => onCategoryAddInGroup(group.id)}
-                                className={`flex items-center gap-1 text-xs ${C.text45} opacity-0 group-hover/grouprow:opacity-100
-                                  px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-all`}>
-                                <Plus className="size-3" />追加
+                                className={`flex items-center gap-1 text-xs ${C.text45}
+                                  px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-colors`}>
+                                <Plus className={ICON.action} />追加
                               </button>
                             </div>
                           ) : null}
@@ -190,9 +190,9 @@ function GroupedTable({
               {/* 未分類セクション */}
               {uncatCats.length > 0 || groups.length === 0 ? (
                 <Fragment key={UNCATEGORIZED_ID}>
-                  <tr className={`border-b ${C.borderLight} ${C.bgPage} group/grouprow`}>
+                  <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
                     <td colSpan={5} className="px-2 py-0">
-                      <div className="flex items-center gap-1 h-8">
+                      <div className="flex items-center gap-1 h-11">
                         <button type="button" onClick={() => toggleCollapse(UNCATEGORIZED_ID)}
                           className={`size-5 flex items-center justify-center rounded ${C.text35} ${C.hoverBgMedium} transition-colors shrink-0`}>
                           <ChevronDown className="size-3.5 transition-transform duration-150"
@@ -203,9 +203,9 @@ function GroupedTable({
                         <span className={`text-xs ${C.text35} tabular-nums`}>{uncatCats.length}</span>
                         {canEdit ? (
                           <button type="button" onClick={() => onCategoryAddInGroup(undefined)}
-                            className={`ml-auto flex items-center gap-1 text-xs ${C.text45} opacity-0 group-hover/grouprow:opacity-100
-                              px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-all`}>
-                            <Plus className="size-3" />追加
+                            className={`ml-auto flex items-center gap-1 text-xs ${C.text45}
+                              px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-colors`}>
+                            <Plus className={ICON.action} />追加
                           </button>
                         ) : null}
                       </div>
@@ -451,7 +451,7 @@ export function ReservationCategorySettings() {
                 <button type="button" onClick={handleGroupAdd}
                   className={`flex items-center gap-1.5 text-sm ${C.text45} ${C.hoverText} ${C.hoverBgLight}
                     px-2 py-1.5 rounded-[3px] transition-colors w-fit`}>
-                  <Plus className="size-3.5" />
+                  <Plus className={ICON.action} />
                   グループを追加
                 </button>
               ) : null}

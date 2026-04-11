@@ -9,13 +9,13 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// GetReservationSetting godoc
-func (h *Handler) GetReservationSetting(c *gin.Context) {
+// GetLineReservationSetting godoc
+func (h *Handler) GetLineReservationSetting(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	setting, err := h.svc.ReservationSetting.Get(c.Request.Context(), clinicID)
+	setting, err := h.svc.LineReservationSetting.Get(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -24,21 +24,21 @@ func (h *Handler) GetReservationSetting(c *gin.Context) {
 		c.Status(http.StatusNoContent)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationSettingResponse(setting))
+	c.JSON(http.StatusOK, toLineReservationSettingResponse(setting))
 }
 
-// UpsertReservationSetting godoc
-func (h *Handler) UpsertReservationSetting(c *gin.Context) {
+// UpsertLineReservationSetting godoc
+func (h *Handler) UpsertLineReservationSetting(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	var req upsertReservationSettingRequest
+	var req upsertLineReservationSettingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	setting, err := h.svc.ReservationSetting.Upsert(c.Request.Context(), clinicID, &service.UpsertReservationSettingInput{
+	setting, err := h.svc.LineReservationSetting.Upsert(c.Request.Context(), clinicID, &service.UpsertLineReservationSettingInput{
 		Status:                  req.Status,
 		HeaderText:              req.HeaderText,
 		ReservationNotice:       req.ReservationNotice,
@@ -72,5 +72,5 @@ func (h *Handler) UpsertReservationSetting(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationSettingResponse(setting))
+	c.JSON(http.StatusOK, toLineReservationSettingResponse(setting))
 }

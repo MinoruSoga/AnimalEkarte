@@ -26,8 +26,8 @@ type recordImageResponse struct {
 	Staff           *staffSummaryResponse `json:"staff,omitempty"`
 }
 
-// toRecordImageResponse は model.RecordImage を recordImageResponse に変換する
-func toRecordImageResponse(img *model.RecordImage) recordImageResponse {
+// toMedicalRecordImageResponse は model.MedicalRecordImage を recordImageResponse に変換する
+func toMedicalRecordImageResponse(img *model.MedicalRecordImage) recordImageResponse {
 	r := recordImageResponse{
 		ID:              img.ID,
 		MedicalRecordID: img.MedicalRecordID,

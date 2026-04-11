@@ -2,8 +2,8 @@ package handler
 
 import "time"
 
-// createRecordImageRequest は診療画像作成のバインド struct
-type createRecordImageRequest struct {
+// createMedicalRecordImageRequest は診療画像作成のバインド struct
+type createMedicalRecordImageRequest struct {
 	ImageURL     string     `json:"image_url"     binding:"required"`
 	ThumbnailURL string     `json:"thumbnail_url"`
 	FileName     string     `json:"file_name"`

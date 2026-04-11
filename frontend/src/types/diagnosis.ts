@@ -23,8 +23,8 @@ export type UpdateDiagnosisCategoryRequest =
 // ─────────────────────────────────────────────────
 
 export type CreateDiagnosisNameRequest =
-  Required<Pick<ModelDiagnosisName, "name" | "diagnosis_category_id">> &
-  Partial<Omit<ModelDiagnosisName, NameServerFields | "name" | "diagnosis_category_id">>;
+  Required<Pick<ModelDiagnosisName, "name" | "diagnosis_type_id">> &
+  Partial<Omit<ModelDiagnosisName, NameServerFields | "name" | "diagnosis_type_id">>;
 
 export type UpdateDiagnosisNameRequest =
   Partial<Omit<ModelDiagnosisName, NameServerFields>>;

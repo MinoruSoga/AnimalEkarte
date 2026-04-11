@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import type { ReservationAppointment } from "@/types";
 import { transformReservation } from "./transforms";
-import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
+import type { Appointment as BackendReservation } from "@/types/generated/models";
 import type { CreateReservationRequest } from "./types";
 
 export const createReservation = async (

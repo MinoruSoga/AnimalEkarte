@@ -21,7 +21,7 @@ type billingReviewResponse struct {
 	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
-func toBillingReviewResponse(r *model.BillingReview) billingReviewResponse {
+func toBillingConfirmationResponse(r *model.BillingConfirmation) billingReviewResponse {
 	resp := billingReviewResponse{
 		ID:              strconv.FormatUint(r.ID, 10),
 		MedicalRecordID: strconv.FormatUint(r.MedicalRecordID, 10),

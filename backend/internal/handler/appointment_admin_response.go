@@ -44,7 +44,7 @@ type reservationDetailResponse struct {
 	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
-func toReservationSummaryResponse(ra *model.ReservationAppointment) reservationSummaryResponse {
+func toReservationSummaryResponse(ra *model.Appointment) reservationSummaryResponse {
 	customerName := ""
 	if ra.LineCustomer != nil {
 		customerName = ra.LineCustomer.DisplayName
@@ -81,7 +81,7 @@ func toReservationSummaryResponse(ra *model.ReservationAppointment) reservationS
 	}
 }
 
-func toReservationDetailResponse(ra *model.ReservationAppointment) reservationDetailResponse {
+func toReservationDetailResponse(ra *model.Appointment) reservationDetailResponse {
 	customerName := ""
 	if ra.LineCustomer != nil {
 		customerName = ra.LineCustomer.DisplayName

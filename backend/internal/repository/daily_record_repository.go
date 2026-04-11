@@ -17,8 +17,8 @@ type DailyRecordRepository interface {
 	FindByHospitalizationIDAndDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
 	GetOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
 	CreateVitalRecord(ctx context.Context, vr *model.VitalRecord) error
-	CreateCareLogRecord(ctx context.Context, cr *model.CareLogRecord) error
-	CreateStaffNoteRecord(ctx context.Context, sn *model.StaffNoteRecord) error
+	CreateCareLog(ctx context.Context, cr *model.CareLog) error
+	CreateStaffNote(ctx context.Context, sn *model.StaffNote) error
 }
 
 type dailyRecordRepository struct {
@@ -36,8 +36,8 @@ func (r *dailyRecordRepository) ListByHospitalizationID(ctx context.Context, cli
 		Where("clinic_id = ? AND hospitalization_id = ?", clinicID, hospitalizationID).
 		Order("date DESC").
 		Preload("VitalRecords").
-		Preload("CareLogRecords").
-		Preload("StaffNoteRecords").
+		Preload("CareLogs").
+		Preload("StaffNotes").
 		Find(&records).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "daily_record", "")
@@ -50,8 +50,8 @@ func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Conte
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ? AND hospitalization_id = ? AND date = ?", clinicID, hospitalizationID, date).
 		Preload("VitalRecords").
-		Preload("CareLogRecords").
-		Preload("StaffNoteRecords").
+		Preload("CareLogs").
+		Preload("StaffNotes").
 		First(&record).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("%d/%s", hospitalizationID, date.Format("2006-01-02")))
@@ -82,7 +82,7 @@ func (r *dailyRecordRepository) CreateVitalRecord(ctx context.Context, vr *model
 	return nil
 }
 
-func (r *dailyRecordRepository) CreateCareLogRecord(ctx context.Context, cr *model.CareLogRecord) error {
+func (r *dailyRecordRepository) CreateCareLog(ctx context.Context, cr *model.CareLog) error {
 	err := r.db.WithContext(ctx).Create(cr).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "care_log_record", "")
@@ -90,7 +90,7 @@ func (r *dailyRecordRepository) CreateCareLogRecord(ctx context.Context, cr *mod
 	return nil
 }
 
-func (r *dailyRecordRepository) CreateStaffNoteRecord(ctx context.Context, sn *model.StaffNoteRecord) error {
+func (r *dailyRecordRepository) CreateStaffNote(ctx context.Context, sn *model.StaffNote) error {
 	err := r.db.WithContext(ctx).Create(sn).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "staff_note_record", "")

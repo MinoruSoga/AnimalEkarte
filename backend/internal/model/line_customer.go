@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-type ReservationCustomer struct {
+type LineCustomer struct {
 	ID               uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID         uint64    `gorm:"not null"                                       json:"clinic_id"`
 	LineUserID       string    `gorm:"not null"                                       json:"line_user_id"`
@@ -17,4 +17,4 @@ type ReservationCustomer struct {
 	Owner *Owner `gorm:"foreignKey:OwnerID" json:"owner,omitempty"`
 }
 
-func (ReservationCustomer) TableName() string { return "line_customers" }
+func (LineCustomer) TableName() string { return "line_customers" }

@@ -48,8 +48,8 @@ type dailyRecordResponse struct {
 	CreatedAt         time.Time                 `json:"created_at"`
 	UpdatedAt         time.Time                 `json:"updated_at"`
 	VitalRecords      []vitalRecordResponse     `json:"vital_records"`
-	CareLogRecords    []careLogRecordResponse   `json:"care_logs"`
-	StaffNoteRecords  []staffNoteRecordResponse `json:"staff_notes"`
+	CareLogs    []careLogRecordResponse   `json:"care_logs"`
+	StaffNotes  []staffNoteRecordResponse `json:"staff_notes"`
 }
 
 func toVitalRecordResponse(vr *model.VitalRecord) vitalRecordResponse {
@@ -75,7 +75,7 @@ func toVitalRecordResponse(vr *model.VitalRecord) vitalRecordResponse {
 	return r
 }
 
-func toCareLogRecordResponse(cr *model.CareLogRecord) careLogRecordResponse {
+func toCareLogResponse(cr *model.CareLog) careLogRecordResponse {
 	r := careLogRecordResponse{
 		ID:            strconv.FormatUint(cr.ID, 10),
 		DailyRecordID: strconv.FormatUint(cr.DailyRecordID, 10),
@@ -93,7 +93,7 @@ func toCareLogRecordResponse(cr *model.CareLogRecord) careLogRecordResponse {
 	return r
 }
 
-func toStaffNoteRecordResponse(sn *model.StaffNoteRecord) staffNoteRecordResponse {
+func toStaffNoteResponse(sn *model.StaffNote) staffNoteRecordResponse {
 	r := staffNoteRecordResponse{
 		ID:            strconv.FormatUint(sn.ID, 10),
 		DailyRecordID: strconv.FormatUint(sn.DailyRecordID, 10),
@@ -114,14 +114,14 @@ func toDailyRecordResponse(dr *model.DailyRecord) dailyRecordResponse {
 		vitals = append(vitals, toVitalRecordResponse(&dr.VitalRecords[i]))
 	}
 
-	careLogs := make([]careLogRecordResponse, 0, len(dr.CareLogRecords))
-	for i := range dr.CareLogRecords {
-		careLogs = append(careLogs, toCareLogRecordResponse(&dr.CareLogRecords[i]))
+	careLogs := make([]careLogRecordResponse, 0, len(dr.CareLogs))
+	for i := range dr.CareLogs {
+		careLogs = append(careLogs, toCareLogResponse(&dr.CareLogs[i]))
 	}
 
-	staffNotes := make([]staffNoteRecordResponse, 0, len(dr.StaffNoteRecords))
-	for i := range dr.StaffNoteRecords {
-		staffNotes = append(staffNotes, toStaffNoteRecordResponse(&dr.StaffNoteRecords[i]))
+	staffNotes := make([]staffNoteRecordResponse, 0, len(dr.StaffNotes))
+	for i := range dr.StaffNotes {
+		staffNotes = append(staffNotes, toStaffNoteResponse(&dr.StaffNotes[i]))
 	}
 
 	return dailyRecordResponse{
@@ -131,7 +131,7 @@ func toDailyRecordResponse(dr *model.DailyRecord) dailyRecordResponse {
 		CreatedAt:         dr.CreatedAt,
 		UpdatedAt:         dr.UpdatedAt,
 		VitalRecords:      vitals,
-		CareLogRecords:    careLogs,
-		StaffNoteRecords:  staffNotes,
+		CareLogs:    careLogs,
+		StaffNotes:  staffNotes,
 	}
 }

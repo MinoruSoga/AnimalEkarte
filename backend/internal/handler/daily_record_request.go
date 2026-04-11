@@ -11,8 +11,8 @@ type addVitalRecordRequest struct {
 	StaffID         *uint64  `json:"staff_id"`
 }
 
-// addCareLogRecordRequest はケアログ記録追加のバインド struct
-type addCareLogRecordRequest struct {
+// addCareLogRequest はケアログ記録追加のバインド struct
+type addCareLogRequest struct {
 	Time    string  `json:"time"    binding:"required"`
 	Type    string  `json:"type"    binding:"required"`
 	Status  string  `json:"status"`
@@ -21,8 +21,8 @@ type addCareLogRecordRequest struct {
 	Notes   string  `json:"notes"`
 }
 
-// addStaffNoteRecordRequest はスタッフメモ記録追加のバインド struct
-type addStaffNoteRecordRequest struct {
+// addStaffNoteRequest はスタッフメモ記録追加のバインド struct
+type addStaffNoteRequest struct {
 	Time    string  `json:"time"    binding:"required"`
 	Content string  `json:"content" binding:"required"`
 	StaffID *uint64 `json:"staff_id"`

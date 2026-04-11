@@ -106,7 +106,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 	if input.Source == string(model.ReservationSourceLine) {
 		source = model.ReservationSourceLine
 	}
-	reservation := &model.ReservationAppointment{
+	reservation := &model.Appointment{
 		ClinicID:      clinicID,
 		StartTime:     input.StartTime,
 		EndTime:       input.EndTime,

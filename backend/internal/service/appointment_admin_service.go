@@ -14,9 +14,9 @@ import (
 
 // ReservationAdminService は管理者向け予約管理のビジネスロジックインターフェース
 type ReservationAdminService interface {
-	ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ReservationAppointment, error)
-	ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.ReservationAppointment, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.ReservationAppointment, error)
+	ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Appointment, error)
+	ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Appointment, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -45,7 +45,7 @@ func NewReservationAdminService(repo repository.ReservationAdminRepository, db *
 	return &reservationAdminService{repo: repo, db: db}
 }
 
-func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ReservationAppointment, error) {
+func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Appointment, error) {
 	t, err := time.Parse("2006-01", yearMonth)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM format for month view")
@@ -57,7 +57,7 @@ func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint
 	return items, nil
 }
 
-func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.ReservationAppointment, error) {
+func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error) {
 	items, err := s.repo.FindByDay(ctx, clinicID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list reservations by day")
@@ -65,7 +65,7 @@ func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64
 	return items, nil
 }
 
-func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.ReservationAppointment, error) {
+func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Appointment, error) {
 	if !input.EndTime.After(input.StartTime) {
 		return nil, apperrors.WrapInvalidInput("end_time must be after start_time")
 	}
@@ -79,10 +79,10 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 		customerFields = []byte("{}")
 	}
 
-	var result *model.ReservationAppointment
+	var result *model.Appointment
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// SELECT FOR UPDATE で該当時間枠の既存予約を行ロック
-		var existing []model.ReservationAppointment
+		var existing []model.Appointment
 		lockQuery := tx.Raw(`
 			SELECT * FROM reservation_appointments
 			WHERE clinic_id = ?
@@ -104,7 +104,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 			return apperrors.WrapConflict("この時間枠は既に予約が入っています")
 		}
 
-		ra := &model.ReservationAppointment{
+		ra := &model.Appointment{
 			ClinicID:         clinicID,
 			StartTime:        input.StartTime,
 			EndTime:          input.EndTime,

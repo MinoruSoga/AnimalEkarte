@@ -38,7 +38,7 @@ function transformDiagnosisName(data: ModelDiagnosisName) {
     name: data.name,
     isActive: data.is_active,
     description: data.description,
-    diagnosisCategoryId: String(data.diagnosis_category_id ?? 0),
+    diagnosisCategoryId: String(data.diagnosis_type_id ?? 0),
     sortOrder: data.sort_order,
     createdAt: data.created_at,
     updatedAt: data.updated_at,

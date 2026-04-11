@@ -175,7 +175,7 @@ export function useMedicalRecordForm(recordId?: string) {
           case "問診":
             await updateInquiryMutation.mutateAsync({
               chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
-              chief_complaint_category_id: chiefComplaintCategoryId,
+              chief_complaint_type_id: chiefComplaintCategoryId,
               notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
             });
             break;
@@ -192,9 +192,9 @@ export function useMedicalRecordForm(recordId?: string) {
             const treatmentPlanPayload = {
               treatment_policy: plan,
               diagnosis_details: assessment,
-              diagnosis_category_id: diagnosis1CategoryId ?? undefined,
+              diagnosis_type_id: diagnosis1CategoryId ?? undefined,
               diagnosis_name_id: diagnosis1NameId ?? undefined,
-              diagnosis_2_category_id: diagnosis2CategoryId ?? undefined,
+              diagnosis_2_type_id: diagnosis2CategoryId ?? undefined,
               diagnosis_2_name_id: diagnosis2NameId ?? undefined,
             };
             await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);

@@ -9,22 +9,22 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
-// ListReservationCustomers godoc
-func (h *Handler) ListReservationCustomers(c *gin.Context) {
+// ListLineCustomers godoc
+func (h *Handler) ListLineCustomers(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	items, err := h.svc.ReservationCustomer.List(c.Request.Context(), clinicID)
+	items, err := h.svc.LineCustomer.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationCustomerResponseList(items))
+	c.JSON(http.StatusOK, toLineCustomerResponseList(items))
 }
 
-// LinkOwnerToReservationCustomer godoc
-func (h *Handler) LinkOwnerToReservationCustomer(c *gin.Context) {
+// LinkOwnerToLineCustomer godoc
+func (h *Handler) LinkOwnerToLineCustomer(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -39,10 +39,10 @@ func (h *Handler) LinkOwnerToReservationCustomer(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	customer, err := h.svc.ReservationCustomer.LinkOwner(c.Request.Context(), clinicID, id, req.OwnerID)
+	customer, err := h.svc.LineCustomer.LinkOwner(c.Request.Context(), clinicID, id, req.OwnerID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationCustomerResponse(customer))
+	c.JSON(http.StatusOK, toLineCustomerResponse(customer))
 }

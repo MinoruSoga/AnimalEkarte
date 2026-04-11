@@ -114,8 +114,8 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 
 	h.RegisterVitalRoutes(records)
 	h.RegisterTreatmentRoutes(records)
-	h.RegisterBillingReviewRoutes(records)
-	h.RegisterRecordImageRoutes(records)
+	h.RegisterBillingConfirmationRoutes(records)
+	h.RegisterMedicalRecordImageRoutes(records)
 	h.RegisterTreatmentPlanMedicalRecordRoutes(records)
 	h.RegisterClinicalPlanRoutes(records)
 	h.RegisterCheckupRoutes(records)

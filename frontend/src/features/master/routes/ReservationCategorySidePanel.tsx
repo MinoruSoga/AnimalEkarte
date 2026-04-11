@@ -3,7 +3,7 @@ import { Activity, MessageCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
-import { LAYOUT, PALETTE } from "@/lib/design-tokens";
+import { C, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
 import type { ReservationCategory } from "@/features/master/api/reservation-categories";
 
 // ── 静的 SelectItem JSX (rendering-hoist-jsx) ──────────────────
@@ -102,7 +102,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
           value={f.groupId ?? "none"}
           onValueChange={(v) => { setF((p) => ({ ...p, groupId: v === "none" ? undefined : v })); setIsDirty(true); }}
         >
-          <SelectTrigger className="h-8 text-sm">
+          <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="グループを選択" />
           </SelectTrigger>
           <SelectContent>
@@ -142,7 +142,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
         </PropertyRow>
         <PropertyRow label="所要時間（分）">
           <input type="number" min={5} max={480}
-            className="w-20 rounded border px-2 py-1 text-sm"
+            className={`w-20 rounded-[3px] border ${C.borderMedium} px-2 py-1 text-base ${C.text}`}
             value={f.durationMinutes}
             onChange={(e) => { setF((p) => ({ ...p, durationMinutes: Number(e.target.value) || 15 })); setIsDirty(true); }} />
         </PropertyRow>
@@ -163,7 +163,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
         <PropertyRow label="予約可能曜日">
           <Select value={f.reservationDayOption}
             onValueChange={(v) => { setF((p) => ({ ...p, reservationDayOption: v })); setIsDirty(true); }}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+            <SelectTrigger className={STYLE.selectCompact}><SelectValue /></SelectTrigger>
             <SelectContent>{RESERVATION_DAY_OPTION_ITEMS}</SelectContent>
           </Select>
         </PropertyRow>

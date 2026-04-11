@@ -35,19 +35,19 @@ type lineVerifyResponse struct {
 	ErrorDesc string `json:"error_description"`
 }
 
-// ReservationCustomerLookup はLINE顧客を特定・作成するためのインターフェース。
-type ReservationCustomerLookup interface {
-	FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.ReservationCustomer, error)
+// LineCustomerLookup はLINE顧客を特定・作成するためのインターフェース。
+type LineCustomerLookup interface {
+	FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.LineCustomer, error)
 }
 
-// ReservationSettingLookup はLIFF認証でクリニックの設定を取得するインターフェース。
-type ReservationSettingLookup interface {
-	FindByClinicID(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error)
+// LineReservationSettingLookup はLIFF認証でクリニックの設定を取得するインターフェース。
+type LineReservationSettingLookup interface {
+	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 }
 
 // LiffAuth はLIFF ID Tokenを検証してcontext に顧客情報をセットするミドルウェア。
 // settingLookup でクリニックの LiffID を取得し、LINE API の client_id 照合に使用する。
-func LiffAuth(lookup ReservationCustomerLookup, settingLookup ReservationSettingLookup) gin.HandlerFunc {
+func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// ローカル開発用: LIFF_MOCK=true で認証バイパス
 		if os.Getenv("LIFF_MOCK") == "true" {

@@ -142,7 +142,7 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 	if err != nil {
 		return nil, err
 	}
-	reservationAppointmentID, err := parseOptionalID(input.ReservationAppointmentID, "reservation_appointment_id")
+	reservationAppointmentID, err := parseOptionalID(input.AppointmentID, "reservation_appointment_id")
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 		OwnerID:                  ownerID,
 		PetID:                    petID,
 		DoctorID:                 doctorID,
-		ReservationAppointmentID: reservationAppointmentID,
+		AppointmentID: reservationAppointmentID,
 	}
 	if input.Status != "" {
 		status, err := validateEnum(input.Status,
@@ -239,7 +239,7 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		OwnerID:                  input.OwnerID,
 		PetID:                    input.PetID,
 		DoctorID:                 input.DoctorID,
-		ReservationAppointmentID: input.ReservationAppointmentID,
+		AppointmentID: input.AppointmentID,
 		Status:                   status,
 		Version:                  input.Version,
 	}

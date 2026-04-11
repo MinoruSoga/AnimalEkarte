@@ -48,7 +48,7 @@ type MedicalRecordService interface {
 	// 失敗しても呼び出し元のカルテ作成は完了済みのためエラーは握りつぶす（slog.Warn のみ）。
 	CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput)
 	// AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。
-	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.ReservationAppointment)
+	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Appointment)
 }
 
 // CreateSubRecordsInput はカルテ作成時の inquiry / clinical_plan サブレコード作成 DTO
@@ -192,7 +192,7 @@ type UpdateMedicalRecordInput struct {
 	OwnerID                  *uint64
 	PetID                    *uint64
 	DoctorID                 *uint64
-	ReservationAppointmentID *uint64
+	AppointmentID *uint64
 	Status                   *model.MedicalRecordStatus
 	Version                  *int // 楽観的ロック用: nil の場合はチェックをスキップ
 }
@@ -211,8 +211,8 @@ func buildMedicalRecordUpdateFields(input UpdateMedicalRecordInput) map[string]a
 	if input.DoctorID != nil {
 		fields["doctor_id"] = *input.DoctorID
 	}
-	if input.ReservationAppointmentID != nil {
-		fields["reservation_appointment_id"] = *input.ReservationAppointmentID
+	if input.AppointmentID != nil {
+		fields["reservation_appointment_id"] = *input.AppointmentID
 	}
 	if input.Status != nil {
 		fields["status"] = *input.Status
@@ -290,7 +290,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 // AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。
 // 同日同ペットのカルテが既に存在する場合はスキップする（重複防止）。
 // 失敗してもメイン処理（予約更新）には影響しない。
-func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.ReservationAppointment) {
+func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Appointment) {
 	if reservation.PetID == nil || reservation.OwnerID == nil {
 		slog.WarnContext(ctx, "autoCreateFromReservation: skipped — reservation has no pet_id or owner_id",
 			slog.Uint64("reservation_id", reservation.ID))
@@ -318,7 +318,7 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 		Date:                     reservation.StartTime,
 		OwnerID:                  reservation.OwnerID,
 		PetID:                    reservation.PetID,
-		ReservationAppointmentID: &reservation.ID,
+		AppointmentID: &reservation.ID,
 		Status:                   model.MedicalRecordStatusDraft,
 	}
 	if reservation.DoctorID != nil {

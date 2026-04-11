@@ -42,7 +42,7 @@ type AvailableDatesSettings struct {
 	ReservationDayOption  string // "none" | "saturday" | "weekday" | "anyday"
 }
 
-// ParseAvailableDatesSettings は ReservationSetting の JSONB フィールドから設定を解析する。
+// ParseAvailableDatesSettings は LineReservationSetting の JSONB フィールドから設定を解析する。
 func ParseAvailableDatesSettings(
 	closedWeekdaysJSON []byte,
 	closedDatesJSON []byte,

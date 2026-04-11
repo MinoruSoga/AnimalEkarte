@@ -71,16 +71,16 @@ type mockReservationForReservationCategory struct {
 	existsByStaffIDFn       func(ctx context.Context, staffID uint64) (bool, error)
 }
 
-func (m *mockReservationForReservationCategory) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
+func (m *mockReservationForReservationCategory) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Appointment, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockReservationForReservationCategory) FindByID(_ context.Context, _, _ uint64) (*model.ReservationAppointment, error) {
+func (m *mockReservationForReservationCategory) FindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
 	return nil, nil
 }
-func (m *mockReservationForReservationCategory) Create(_ context.Context, _ *model.ReservationAppointment) error {
+func (m *mockReservationForReservationCategory) Create(_ context.Context, _ *model.Appointment) error {
 	return nil
 }
-func (m *mockReservationForReservationCategory) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationAppointment, error) {
+func (m *mockReservationForReservationCategory) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Appointment, error) {
 	return nil, nil
 }
 func (m *mockReservationForReservationCategory) Delete(_ context.Context, _, _ uint64) error {

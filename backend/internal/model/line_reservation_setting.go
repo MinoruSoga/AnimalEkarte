@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-type ReservationSetting struct {
+type LineReservationSetting struct {
 	ID                      uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID                uint64    `gorm:"not null;uniqueIndex"                           json:"clinic_id"`
 	Status                  string    `gorm:"not null;default:'stopped'"                     json:"status"`
@@ -37,4 +37,4 @@ type ReservationSetting struct {
 	UpdatedAt               time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
 
-func (ReservationSetting) TableName() string { return "line_reservation_settings" }
+func (LineReservationSetting) TableName() string { return "line_reservation_settings" }

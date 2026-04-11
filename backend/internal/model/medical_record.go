@@ -21,7 +21,7 @@ type MedicalRecord struct {
 	OwnerID                  *uint64             `                                                      json:"owner_id,omitempty"`
 	PetID                    *uint64             `                                                      json:"pet_id,omitempty"`
 	DoctorID                 *uint64             `                                                      json:"doctor_id,omitempty"`
-	ReservationAppointmentID *uint64             `gorm:"column:appointment_id"                          json:"appointment_id,omitempty"`
+	AppointmentID *uint64             `gorm:"column:appointment_id"                          json:"appointment_id,omitempty"`
 	Status                   MedicalRecordStatus `gorm:"type:medical_record_status;default:'draft'"      json:"status"`
 	Version                  int                 `gorm:"default:1"                                       json:"version"`
 	CreatedAt                time.Time           `gorm:"autoCreateTime"                                 json:"created_at"`
@@ -41,7 +41,7 @@ type MedicalRecord struct {
 	Vaccinations  []Vaccination  `gorm:"foreignKey:MedicalRecordID"  json:"vaccinations,omitempty"`
 	Checkups      []Checkup      `gorm:"foreignKey:MedicalRecordID"  json:"checkups,omitempty"`
 	Estimates     []Estimate     `gorm:"foreignKey:MedicalRecordID"  json:"estimates,omitempty"`
-	BillingReview *BillingReview `gorm:"foreignKey:MedicalRecordID"  json:"billing_review,omitempty"`
+	BillingConfirmation *BillingConfirmation `gorm:"foreignKey:MedicalRecordID"  json:"billing_review,omitempty"`
 	Billing       *Billing       `gorm:"foreignKey:MedicalRecordID"  json:"billing,omitempty"`
 }
 

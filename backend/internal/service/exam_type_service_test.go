@@ -41,7 +41,7 @@ func (m *mockExamTypeRepository) Delete(ctx context.Context, clinicID, id uint64
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockExamTypeRepository) ReplaceItems(ctx context.Context, examTypeID uint64, items []model.ExaminationTypeItem) error {
+func (m *mockExamTypeRepository) ReplaceItems(ctx context.Context, examTypeID uint64, items []model.ExamTypeField) error {
 	return nil
 }
 
@@ -126,7 +126,7 @@ func TestExamTypeService_GetByID(t *testing.T) {
 			repoExamType: &model.ExaminationType{
 				ID:   1,
 				Name: "血液検査",
-				Items: []model.ExaminationTypeItem{
+				Items: []model.ExamTypeField{
 					{ID: 1, ExamTypeID: 1, Name: "白血球数"},
 					{ID: 2, ExamTypeID: 1, Name: "赤血球数"},
 				},
@@ -199,7 +199,7 @@ func TestExamTypeService_Create(t *testing.T) {
 			exType: &model.ExaminationType{
 				Name:     "血液検査",
 				ClinicID: 1,
-				Items: []model.ExaminationTypeItem{
+				Items: []model.ExamTypeField{
 					{Name: "白血球数", NormalValue: "5000-10000"},
 				},
 			},

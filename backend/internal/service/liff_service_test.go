@@ -25,7 +25,7 @@ func TestLiffService_GetSettings(t *testing.T) {
 		want := liffDefaultSetting()
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{
-				findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.ReservationSetting, error) {
+				findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 					assert.Equal(t, uint64(3), clinicID)
 					return want, nil
 				},
@@ -47,7 +47,7 @@ func TestLiffService_GetSettings(t *testing.T) {
 	t.Run("リポジトリエラー → エラー伝播", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{
-				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ReservationSetting, error) {
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 					return nil, apperrors.ErrNotFound
 				},
 			},
@@ -73,7 +73,7 @@ func TestLiffService_GetProfile(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: 顧客プロフィールを返す", func(t *testing.T) {
-		want := &model.ReservationCustomer{ID: 1, ClinicID: 3, DisplayName: "テストユーザー"}
+		want := &model.LineCustomer{ID: 1, ClinicID: 3, DisplayName: "テストユーザー"}
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffCourseRepository{},
@@ -81,7 +81,7 @@ func TestLiffService_GetProfile(t *testing.T) {
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
 			&mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationCustomer, error) {
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.LineCustomer, error) {
 					assert.Equal(t, uint64(3), clinicID)
 					assert.Equal(t, uint64(1), id)
 					return want, nil
@@ -104,7 +104,7 @@ func TestLiffService_GetProfile(t *testing.T) {
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
 			&mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationCustomer, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
 					return nil, apperrors.ErrNotFound
 				},
 			},
@@ -309,7 +309,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 		var capturedStaffID uint64
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{
-				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ReservationSetting, error) {
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 					return liffDefaultSetting(), nil
 				},
 			},
@@ -318,14 +318,14 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
 			&mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationCustomer, error) {
-					return &model.ReservationCustomer{ID: 1}, nil
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					return &model.LineCustomer{ID: 1}, nil
 				},
 			},
 			&mockLiffValidators{
-				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.ReservationAppointment, error) {
+				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Appointment, error) {
 					capturedStaffID = input.StaffID
-					return &model.ReservationAppointment{ID: 99, ClinicID: 3}, nil
+					return &model.Appointment{ID: 99, ClinicID: 3}, nil
 				},
 			},
 			&mockLiffNotifier{},
@@ -341,7 +341,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 		var assignedStaffID uint64
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{
-				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ReservationSetting, error) {
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 					s := liffDefaultSetting()
 					s.NoStaffMode = "top_priority"
 					return s, nil
@@ -362,14 +362,14 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
 			&mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationCustomer, error) {
-					return &model.ReservationCustomer{ID: 1}, nil
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					return &model.LineCustomer{ID: 1}, nil
 				},
 			},
 			&mockLiffValidators{
-				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.ReservationAppointment, error) {
+				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Appointment, error) {
 					assignedStaffID = input.StaffID
-					return &model.ReservationAppointment{ID: 1}, nil
+					return &model.Appointment{ID: 1}, nil
 				},
 			},
 			&mockLiffNotifier{},
@@ -389,7 +389,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{
-				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ReservationSetting, error) {
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 					s := liffDefaultSetting()
 					s.NoStaffMode = "first_available"
 					return s, nil
@@ -409,9 +409,9 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByDayFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.ReservationAppointment, error) {
+				findByDayFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.Appointment, error) {
 					// ID=5（林先生）は 10:00-10:15 に既存予約あり
-					return []model.ReservationAppointment{
+					return []model.Appointment{
 						{
 							DoctorID:  &doctorID5,
 							StartTime: date.Add(10 * time.Hour),
@@ -422,14 +422,14 @@ func TestLiffService_CreateReservation(t *testing.T) {
 				},
 			},
 			&mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationCustomer, error) {
-					return &model.ReservationCustomer{ID: 1}, nil
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					return &model.LineCustomer{ID: 1}, nil
 				},
 			},
 			&mockLiffValidators{
-				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.ReservationAppointment, error) {
+				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Appointment, error) {
 					assignedStaffID = input.StaffID
-					return &model.ReservationAppointment{ID: 1}, nil
+					return &model.Appointment{ID: 1}, nil
 				},
 			},
 			&mockLiffNotifier{},
@@ -448,7 +448,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 		fields := json.RawMessage(`{"phone":"090-1234-5678"}`)
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{
-				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ReservationSetting, error) {
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 					return liffDefaultSetting(), nil
 				},
 			},
@@ -457,8 +457,8 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
 			&mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationCustomer, error) {
-					return &model.ReservationCustomer{ID: 1}, nil
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					return &model.LineCustomer{ID: 1}, nil
 				},
 				updateAdditionalFieldsFn: func(_ context.Context, clinicID, id uint64, f []byte) error {
 					updateCalled = true
@@ -483,7 +483,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 		var updateCalled bool
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{
-				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ReservationSetting, error) {
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 					return liffDefaultSetting(), nil
 				},
 			},
@@ -492,8 +492,8 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
 			&mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationCustomer, error) {
-					return &model.ReservationCustomer{ID: 1}, nil
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					return &model.LineCustomer{ID: 1}, nil
 				},
 				updateAdditionalFieldsFn: func(_ context.Context, _, _ uint64, _ []byte) error {
 					updateCalled = true
@@ -515,7 +515,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 		notifyCh := make(chan struct{}, 1)
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{
-				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ReservationSetting, error) {
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 					return liffDefaultSetting(), nil
 				},
 			},
@@ -524,13 +524,13 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
 			&mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationCustomer, error) {
-					return &model.ReservationCustomer{ID: 1, LineUserID: "U001"}, nil
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					return &model.LineCustomer{ID: 1, LineUserID: "U001"}, nil
 				},
 			},
 			&mockLiffValidators{},
 			&mockLiffNotifier{
-				notifyCreatedFn: func(_ context.Context, _ *model.ReservationAppointment, _ *model.ReservationCustomer) {
+				notifyCreatedFn: func(_ context.Context, _ *model.Appointment, _ *model.LineCustomer) {
 					notifyCh <- struct{}{}
 				},
 			},
@@ -551,7 +551,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 		limitErr := &ReservationLimitError{Code: "SLOT_TAKEN", Message: "予約済み", RedirectStep: 5}
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{
-				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ReservationSetting, error) {
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 					return liffDefaultSetting(), nil
 				},
 			},
@@ -561,7 +561,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			&mockLiffAdminRepository{},
 			&mockLiffCustomerRepository{},
 			&mockLiffValidators{
-				validateAndCreateFn: func(_ context.Context, _ *CreateReservationInput) (*model.ReservationAppointment, error) {
+				validateAndCreateFn: func(_ context.Context, _ *CreateReservationInput) (*model.Appointment, error) {
 					return nil, limitErr
 				},
 			},
@@ -585,14 +585,14 @@ func TestLiffService_GetMyReservations(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: 顧客の予約一覧を返す", func(t *testing.T) {
-		want := []model.ReservationAppointment{{ID: 1, ClinicID: 3}, {ID: 2, ClinicID: 3}}
+		want := []model.Appointment{{ID: 1, ClinicID: 3}, {ID: 2, ClinicID: 3}}
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffCourseRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByCustomerIDFn: func(_ context.Context, clinicID, customerID uint64) ([]model.ReservationAppointment, error) {
+				findByCustomerIDFn: func(_ context.Context, clinicID, customerID uint64) ([]model.Appointment, error) {
 					assert.Equal(t, uint64(3), clinicID)
 					assert.Equal(t, uint64(1), customerID)
 					return want, nil
@@ -615,7 +615,7 @@ func TestLiffService_GetMyReservations(t *testing.T) {
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByCustomerIDFn: func(_ context.Context, _, _ uint64) ([]model.ReservationAppointment, error) {
+				findByCustomerIDFn: func(_ context.Context, _, _ uint64) ([]model.Appointment, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -644,8 +644,8 @@ func TestLiffService_CancelReservation(t *testing.T) {
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.ReservationAppointment, error) {
-					return &model.ReservationAppointment{ID: 10, ClinicID: 3}, nil
+				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+					return &model.Appointment{ID: 10, ClinicID: 3}, nil
 				},
 				cancelByIDFn: func(_ context.Context, clinicID, customerID, id uint64) error {
 					cancelCalled = true
@@ -656,13 +656,13 @@ func TestLiffService_CancelReservation(t *testing.T) {
 				},
 			},
 			&mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationCustomer, error) {
-					return &model.ReservationCustomer{ID: 1}, nil
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					return &model.LineCustomer{ID: 1}, nil
 				},
 			},
 			&mockLiffValidators{},
 			&mockLiffNotifier{
-				notifyCancelledFn: func(_ context.Context, _ *model.ReservationAppointment, _ *model.ReservationCustomer) {},
+				notifyCancelledFn: func(_ context.Context, _ *model.Appointment, _ *model.LineCustomer) {},
 			},
 		)
 
@@ -678,7 +678,7 @@ func TestLiffService_CancelReservation(t *testing.T) {
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.ReservationAppointment, error) {
+				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Appointment, error) {
 					return nil, apperrors.ErrNotFound
 				},
 				cancelByIDFn: func(_ context.Context, _, _, _ uint64) error {
@@ -703,19 +703,19 @@ func TestLiffService_CancelReservation(t *testing.T) {
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
-				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.ReservationAppointment, error) {
-					return &model.ReservationAppointment{ID: 10}, nil
+				findByIDForNotifyFn: func(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+					return &model.Appointment{ID: 10}, nil
 				},
 				cancelByIDFn: func(_ context.Context, _, _, _ uint64) error { return nil },
 			},
 			&mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationCustomer, error) {
-					return &model.ReservationCustomer{ID: 1}, nil
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					return &model.LineCustomer{ID: 1}, nil
 				},
 			},
 			&mockLiffValidators{},
 			&mockLiffNotifier{
-				notifyCancelledFn: func(_ context.Context, _ *model.ReservationAppointment, _ *model.ReservationCustomer) {
+				notifyCancelledFn: func(_ context.Context, _ *model.Appointment, _ *model.LineCustomer) {
 					notifyCh <- struct{}{}
 				},
 			},
@@ -747,7 +747,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		staffID   uint64
 		startMin  int
 		endMin    int
-		dayResv   []model.ReservationAppointment
+		dayResv   []model.Appointment
 		wantAvail bool
 	}{
 		{
@@ -759,7 +759,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		{
 			name:    "完全に重複する予約あり → 埋まり",
 			staffID: 1, startMin: 600, endMin: 615,
-			dayResv: []model.ReservationAppointment{
+			dayResv: []model.Appointment{
 				{DoctorID: &doctorID, StartTime: base.Add(10 * time.Hour), EndTime: base.Add(10*time.Hour + 15*time.Minute), Status: model.ReservationStatusConfirmed},
 			},
 			wantAvail: false,
@@ -767,7 +767,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		{
 			name:    "キャンセル済みの予約は無視",
 			staffID: 1, startMin: 600, endMin: 615,
-			dayResv: []model.ReservationAppointment{
+			dayResv: []model.Appointment{
 				{DoctorID: &doctorID, StartTime: base.Add(10 * time.Hour), EndTime: base.Add(10*time.Hour + 15*time.Minute), Status: model.ReservationStatusCancelled},
 			},
 			wantAvail: true,
@@ -775,7 +775,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		{
 			name:    "別スタッフの予約は無視",
 			staffID: 1, startMin: 600, endMin: 615,
-			dayResv: []model.ReservationAppointment{
+			dayResv: []model.Appointment{
 				{DoctorID: &otherDoctorID, StartTime: base.Add(10 * time.Hour), EndTime: base.Add(10*time.Hour + 15*time.Minute), Status: model.ReservationStatusConfirmed},
 			},
 			wantAvail: true,
@@ -783,7 +783,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		{
 			name:    "直前に終わる予約は重複しない",
 			staffID: 1, startMin: 615, endMin: 630,
-			dayResv: []model.ReservationAppointment{
+			dayResv: []model.Appointment{
 				{DoctorID: &doctorID, StartTime: base.Add(10 * time.Hour), EndTime: base.Add(10*time.Hour + 15*time.Minute), Status: model.ReservationStatusConfirmed},
 			},
 			wantAvail: true,
@@ -791,7 +791,7 @@ func TestIsStaffAvailable(t *testing.T) {
 		{
 			name:    "直後から始まる予約は重複しない",
 			staffID: 1, startMin: 575, endMin: 600,
-			dayResv: []model.ReservationAppointment{
+			dayResv: []model.Appointment{
 				{DoctorID: &doctorID, StartTime: base.Add(10 * time.Hour), EndTime: base.Add(10*time.Hour + 15*time.Minute), Status: model.ReservationStatusConfirmed},
 			},
 			wantAvail: true,

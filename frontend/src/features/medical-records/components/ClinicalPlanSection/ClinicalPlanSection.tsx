@@ -25,7 +25,7 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
   const updateMutation = useUpdateClinicalPlan(medicalRecordId);
 
   const [physicalExam, setPhysicalExam] = useState("");
-  const [diagnosisCategoryId, setDiagnosisCategoryId] = useState("");
+  const [diagnosisTypeId, setDiagnosisTypeId] = useState("");
   const [diagnosisNameId, setDiagnosisNameId] = useState("");
   const [diagnosisDetails, setDiagnosisDetails] = useState("");
   const [treatmentPolicy, setTreatmentPolicy] = useState("");
@@ -35,7 +35,7 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
     if (data) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期サーバーデータでフォームを初期化するパターン。React 18 が自動バッチするため実害なし
       setPhysicalExam(data.physical_exam ?? "");
-      setDiagnosisCategoryId(data.diagnosis_category_id ?? "");
+      setDiagnosisTypeId(data.diagnosis_type_id ?? "");
       setDiagnosisNameId(data.diagnosis_name_id ?? "");
       setDiagnosisDetails(data.diagnosis_details ?? "");
       setTreatmentPolicy(data.treatment_policy ?? "");
@@ -47,13 +47,13 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
     if (!canEdit) return;
     const input: UpdateClinicalPlanInput = {
       physical_exam: physicalExam,
-      diagnosis_category_id: diagnosisCategoryId ? Number(diagnosisCategoryId) : null,
+      diagnosis_type_id: diagnosisTypeId ? Number(diagnosisTypeId) : null,
       diagnosis_name_id: diagnosisNameId ? Number(diagnosisNameId) : null,
       diagnosis_details: diagnosisDetails,
       treatment_policy: treatmentPolicy,
     };
     await updateClinicalPlanAsync(input);
-  }, [canEdit, physicalExam, diagnosisCategoryId, diagnosisNameId, diagnosisDetails, treatmentPolicy, updateClinicalPlanAsync]);
+  }, [canEdit, physicalExam, diagnosisTypeId, diagnosisNameId, diagnosisDetails, treatmentPolicy, updateClinicalPlanAsync]);
 
   // Register save function with parent
   useEffect(() => {
@@ -88,11 +88,11 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
           <input
             type="text"
             value={
-              data?.diagnosis_category
-                ? data.diagnosis_category.name
-                : diagnosisCategoryId
+              data?.diagnosis_type
+                ? data.diagnosis_type.name
+                : diagnosisTypeId
             }
-            onChange={(e) => setDiagnosisCategoryId(e.target.value)}
+            onChange={(e) => setDiagnosisTypeId(e.target.value)}
             placeholder="カテゴリを選択"
             className={`${STYLE.formInput} border rounded-[4px] px-3 outline-none focus:ring-0`}
             disabled={!canEdit}

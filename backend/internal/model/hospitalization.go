@@ -138,8 +138,8 @@ type DailyRecord struct {
 
 	// Relations
 	VitalRecords     []VitalRecord     `gorm:"foreignKey:DailyRecordID" json:"vital_records,omitempty"`
-	CareLogRecords   []CareLogRecord   `gorm:"foreignKey:DailyRecordID" json:"care_logs,omitempty"`
-	StaffNoteRecords []StaffNoteRecord `gorm:"foreignKey:DailyRecordID" json:"staff_notes,omitempty"`
+	CareLogs   []CareLog   `gorm:"foreignKey:DailyRecordID" json:"care_logs,omitempty"`
+	StaffNotes []StaffNote `gorm:"foreignKey:DailyRecordID" json:"staff_notes,omitempty"`
 }
 
 func (DailyRecord) TableName() string { return "daily_records" }
@@ -162,7 +162,7 @@ const (
 	CareLogStatusSkipped   CareLogStatus = "skipped"
 )
 
-type CareLogRecord struct {
+type CareLog struct {
 	ID            uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	DailyRecordID uint64        `gorm:"not null"                                       json:"daily_record_id"`
 	Time          time.Time     `gorm:"type:time;not null"                             json:"time"`
@@ -178,9 +178,9 @@ type CareLogRecord struct {
 	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
 }
 
-func (CareLogRecord) TableName() string { return "care_logs" }
+func (CareLog) TableName() string { return "care_logs" }
 
-type StaffNoteRecord struct {
+type StaffNote struct {
 	ID            uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	DailyRecordID uint64    `gorm:"not null"                                       json:"daily_record_id"`
 	Time          time.Time `gorm:"type:time;not null"                             json:"time"`
@@ -193,4 +193,4 @@ type StaffNoteRecord struct {
 	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
 }
 
-func (StaffNoteRecord) TableName() string { return "staff_notes" }
+func (StaffNote) TableName() string { return "staff_notes" }

@@ -13,10 +13,10 @@ import (
 )
 
 type ReservationService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
-	GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
-	Create(ctx context.Context, reservation *model.ReservationAppointment) error
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.ReservationAppointment, error)
+	List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Appointment, int64, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error)
+	Create(ctx context.Context, reservation *model.Appointment) error
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Appointment, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -29,7 +29,7 @@ func NewReservationService(repo repository.ReservationRepository, db *gorm.DB) R
 	return &reservationService{repo: repo, db: db}
 }
 
-func (s *reservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
+func (s *reservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Appointment, int64, error) {
 	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit, date, status, source, petID, ownerID)
 	if err != nil {
 		return nil, 0, apperrors.Wrap(err, "failed to list reservations")
@@ -37,7 +37,7 @@ func (s *reservationService) List(ctx context.Context, clinicID uint64, page, li
 	return items, total, nil
 }
 
-func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error) {
+func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get reservation")
@@ -45,7 +45,7 @@ func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (
 	return result, nil
 }
 
-func (s *reservationService) Create(ctx context.Context, reservation *model.ReservationAppointment) error {
+func (s *reservationService) Create(ctx context.Context, reservation *model.Appointment) error {
 	// BUG-034: end_time <= start_time の場合は 400 Bad Request
 	if !reservation.EndTime.After(reservation.StartTime) {
 		return apperrors.Wrap(apperrors.ErrInvalidInput, "end_time must be after start_time")
@@ -56,7 +56,7 @@ func (s *reservationService) Create(ctx context.Context, reservation *model.Rese
 	// アプリケーションレベルでの排他制御が必要
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 該当時間枠の既存予約を行ロックで取得
-		var existing []model.ReservationAppointment
+		var existing []model.Appointment
 		lockQuery := tx.Raw(`
 			SELECT * FROM reservation_appointments
 			WHERE clinic_id = ?
@@ -102,7 +102,7 @@ func ptrToUint64(p *uint64) uint64 {
 	return *p
 }
 
-func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.ReservationAppointment, error) {
+func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Appointment, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}

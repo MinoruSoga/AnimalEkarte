@@ -13,15 +13,15 @@ import (
 
 // ReservationAdminRepository は管理者向け予約管理のデータアクセスインターフェース
 type ReservationAdminRepository interface {
-	FindByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.ReservationAppointment, error)
-	FindByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.ReservationAppointment, error)
-	Create(ctx context.Context, r *model.ReservationAppointment) error
+	FindByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Appointment, error)
+	FindByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error)
+	Create(ctx context.Context, r *model.Appointment) error
 	SoftDelete(ctx context.Context, clinicID, id uint64) error
 	// LIFF用
-	FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.ReservationAppointment, error)
+	FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error)
 	CancelByID(ctx context.Context, clinicID, customerID, id uint64) error
 	// 通知用（キャンセル前に関連エンティティを含めて取得）
-	FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
+	FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Appointment, error)
 }
 
 type reservationAdminRepository struct{ db *gorm.DB }
@@ -30,11 +30,11 @@ func NewReservationAdminRepository(db *gorm.DB) ReservationAdminRepository {
 	return &reservationAdminRepository{db: db}
 }
 
-func (r *reservationAdminRepository) FindByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.ReservationAppointment, error) {
+func (r *reservationAdminRepository) FindByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Appointment, error) {
 	start := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 1, 0)
 
-	items := make([]model.ReservationAppointment, 0)
+	items := make([]model.Appointment, 0)
 	err := r.db.WithContext(ctx).
 		Preload("ReservationCategory").
 		Preload("Doctor").
@@ -48,11 +48,11 @@ func (r *reservationAdminRepository) FindByMonth(ctx context.Context, clinicID u
 	return items, nil
 }
 
-func (r *reservationAdminRepository) FindByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.ReservationAppointment, error) {
+func (r *reservationAdminRepository) FindByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error) {
 	start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	end := start.Add(24 * time.Hour)
 
-	items := make([]model.ReservationAppointment, 0)
+	items := make([]model.Appointment, 0)
 	err := r.db.WithContext(ctx).
 		Preload("ReservationCategory").
 		Preload("Doctor").
@@ -68,7 +68,7 @@ func (r *reservationAdminRepository) FindByDay(ctx context.Context, clinicID uin
 	return items, nil
 }
 
-func (r *reservationAdminRepository) Create(ctx context.Context, ra *model.ReservationAppointment) error {
+func (r *reservationAdminRepository) Create(ctx context.Context, ra *model.Appointment) error {
 	if err := r.db.WithContext(ctx).Create(ra).Error; err != nil {
 		return apperrors.FromGORM(err, "reservation_appointment", "")
 	}
@@ -77,7 +77,7 @@ func (r *reservationAdminRepository) Create(ctx context.Context, ra *model.Reser
 
 func (r *reservationAdminRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Delete(&model.ReservationAppointment{}, "id = ? AND clinic_id = ?", id, clinicID)
+		Delete(&model.Appointment{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation_appointment", fmt.Sprintf("%d", id))
 	}
@@ -87,8 +87,8 @@ func (r *reservationAdminRepository) SoftDelete(ctx context.Context, clinicID, i
 	return nil
 }
 
-func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.ReservationAppointment, error) {
-	items := make([]model.ReservationAppointment, 0)
+func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error) {
+	items := make([]model.Appointment, 0)
 	err := r.db.WithContext(ctx).
 		Preload("ReservationCategory").
 		Preload("Doctor").
@@ -101,8 +101,8 @@ func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clini
 	return items, nil
 }
 
-func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error) {
-	var appt model.ReservationAppointment
+func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
+	var appt model.Appointment
 	err := r.db.WithContext(ctx).
 		Preload("ReservationCategory").
 		Preload("Doctor").
@@ -117,7 +117,7 @@ func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clin
 
 func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Model(&model.ReservationAppointment{}).
+		Model(&model.Appointment{}).
 		Where("id = ? AND clinic_id = ? AND line_customer_id = ? AND status != ?",
 			id, clinicID, customerID, model.ReservationStatusCancelled).
 		Update("status", model.ReservationStatusCancelled)

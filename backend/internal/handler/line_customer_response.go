@@ -20,7 +20,7 @@ type reservationCustomerResponse struct {
 	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
-func toReservationCustomerResponse(rc *model.ReservationCustomer) reservationCustomerResponse {
+func toLineCustomerResponse(rc *model.LineCustomer) reservationCustomerResponse {
 	ownerName := ""
 	if rc.Owner != nil {
 		ownerName = rc.Owner.Name
@@ -39,10 +39,10 @@ func toReservationCustomerResponse(rc *model.ReservationCustomer) reservationCus
 	}
 }
 
-func toReservationCustomerResponseList(items []model.ReservationCustomer) []reservationCustomerResponse {
+func toLineCustomerResponseList(items []model.LineCustomer) []reservationCustomerResponse {
 	list := make([]reservationCustomerResponse, 0, len(items))
 	for i := range items {
-		list = append(list, toReservationCustomerResponse(&items[i]))
+		list = append(list, toLineCustomerResponse(&items[i]))
 	}
 	return list
 }

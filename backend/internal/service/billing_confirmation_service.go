@@ -10,45 +10,45 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ConfirmBillingReviewInput は会計医師確認の入力DTO
-type ConfirmBillingReviewInput struct {
+// ConfirmBillingConfirmationInput は会計医師確認の入力DTO
+type ConfirmBillingConfirmationInput struct {
 	ConfirmedBy uint64
 	Memo        string
 }
 
-// ReturnBillingReviewInput は会計差し戻しの入力DTO
-type ReturnBillingReviewInput struct {
+// ReturnBillingConfirmationInput は会計差し戻しの入力DTO
+type ReturnBillingConfirmationInput struct {
 	ReturnedBy   uint64
 	ReturnReason string
 	Memo         string
 }
 
-// BillingReviewService は会計医師確認のビジネスロジックインターフェース
-type BillingReviewService interface {
-	GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error)
-	Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingReviewInput) (*model.BillingReview, error)
-	Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingReviewInput) (*model.BillingReview, error)
+// BillingConfirmationService は会計医師確認のビジネスロジックインターフェース
+type BillingConfirmationService interface {
+	GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error)
+	Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error)
+	Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingConfirmationInput) (*model.BillingConfirmation, error)
 }
 
 type billingReviewService struct {
-	repo repository.BillingReviewRepository
+	repo repository.BillingConfirmationRepository
 }
 
-// NewBillingReviewService はBillingReviewServiceを初期化して返す
-func NewBillingReviewService(repo repository.BillingReviewRepository) BillingReviewService {
+// NewBillingConfirmationService はBillingConfirmationServiceを初期化して返す
+func NewBillingConfirmationService(repo repository.BillingConfirmationRepository) BillingConfirmationService {
 	return &billingReviewService{repo: repo}
 }
 
-func (s *billingReviewService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingReview, error) {
+func (s *billingReviewService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
 	review, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
 			return nil, apperrors.Wrap(err, "failed to get billing review")
 		}
 		// 存在しない場合はpendingで新規作成
-		review = &model.BillingReview{
+		review = &model.BillingConfirmation{
 			MedicalRecordID: medicalRecordID,
-			Status:          model.BillingReviewStatusPending,
+			Status:          model.ConfirmationStatusPending,
 		}
 		if err := s.repo.Create(ctx, review); err != nil {
 			return nil, apperrors.Wrap(err, "failed to create billing review")
@@ -61,18 +61,18 @@ func (s *billingReviewService) GetOrCreate(ctx context.Context, clinicID, medica
 	return review, nil
 }
 
-func (s *billingReviewService) Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingReviewInput) (*model.BillingReview, error) {
+func (s *billingReviewService) Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
 	review, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create billing review")
 	}
-	if review.Status == model.BillingReviewStatusConfirmed {
+	if review.Status == model.ConfirmationStatusConfirmed {
 		return nil, apperrors.WrapInvalidInput("billing review is already confirmed")
 	}
 
 	now := time.Now()
 	fields := map[string]any{
-		"status":       model.BillingReviewStatusConfirmed,
+		"status":       model.ConfirmationStatusConfirmed,
 		"confirmed_by": input.ConfirmedBy,
 		"confirmed_at": now,
 		"memo":         input.Memo,
@@ -92,7 +92,7 @@ func (s *billingReviewService) Confirm(ctx context.Context, clinicID, medicalRec
 	return confirmed, nil
 }
 
-func (s *billingReviewService) Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingReviewInput) (*model.BillingReview, error) {
+func (s *billingReviewService) Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
 	review, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create billing review")
@@ -100,7 +100,7 @@ func (s *billingReviewService) Return(ctx context.Context, clinicID, medicalReco
 
 	now := time.Now()
 	fields := map[string]any{
-		"status":        model.BillingReviewStatusReturned,
+		"status":        model.ConfirmationStatusReturned,
 		"returned_by":   input.ReturnedBy,
 		"returned_at":   now,
 		"return_reason": input.ReturnReason,

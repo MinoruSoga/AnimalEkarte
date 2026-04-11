@@ -29,7 +29,7 @@ type examTypeResponse struct {
 	UpdatedAt   time.Time              `json:"updated_at"`
 }
 
-func toExamTypeItemResponse(item *model.ExaminationTypeItem) examTypeItemResponse {
+func toExamTypeItemResponse(item *model.ExamTypeField) examTypeItemResponse {
 	return examTypeItemResponse{
 		ID:              item.ID,
 		ExamTypeID:      item.ExamTypeID,

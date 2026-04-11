@@ -14,7 +14,7 @@ type medicalRecordResponse struct {
 	OwnerID                  *uint64                 `json:"owner_id,omitempty"`
 	PetID                    *uint64                 `json:"pet_id,omitempty"`
 	DoctorID                 *uint64                 `json:"doctor_id,omitempty"`
-	ReservationAppointmentID *uint64                 `json:"reservation_appointment_id,omitempty"`
+	AppointmentID *uint64                 `json:"reservation_appointment_id,omitempty"`
 	Status                   string                  `json:"status"`
 	AccountingID             *uint64                 `json:"accounting_id,omitempty"`
 	VisitCount               int64                   `json:"visit_count"`
@@ -53,7 +53,7 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 		OwnerID:                  r.OwnerID,
 		PetID:                    r.PetID,
 		DoctorID:                 r.DoctorID,
-		ReservationAppointmentID: r.ReservationAppointmentID,
+		AppointmentID: r.AppointmentID,
 		Status:                   string(r.Status),
 		VisitCount:               visitCount,
 		CreatedAt:                r.CreatedAt,

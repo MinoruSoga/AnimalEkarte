@@ -1,5 +1,5 @@
 // Types
-export type { ReservationSetting, ReservationCustomer } from "./api/types";
+export type { LineReservationSetting, LineCustomer, ReservationSetting, ReservationCustomer } from "./api/types";
 
 // Components
 export { LinkedLineCustomers } from "./components/LinkedLineCustomers";

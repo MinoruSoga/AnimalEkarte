@@ -10,20 +10,20 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ReservationSettingRepository は予約基本設定のデータアクセスインターフェース
-type ReservationSettingRepository interface {
-	FindByClinicID(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error)
-	Upsert(ctx context.Context, setting *model.ReservationSetting) error
+// LineReservationSettingRepository は予約基本設定のデータアクセスインターフェース
+type LineReservationSettingRepository interface {
+	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	Upsert(ctx context.Context, setting *model.LineReservationSetting) error
 }
 
 type reservationSettingRepository struct{ db *gorm.DB }
 
-func NewReservationSettingRepository(db *gorm.DB) ReservationSettingRepository {
+func NewLineReservationSettingRepository(db *gorm.DB) LineReservationSettingRepository {
 	return &reservationSettingRepository{db: db}
 }
 
-func (r *reservationSettingRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error) {
-	var setting model.ReservationSetting
+func (r *reservationSettingRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+	var setting model.LineReservationSetting
 	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).First(&setting).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_setting", "clinic")
@@ -31,7 +31,7 @@ func (r *reservationSettingRepository) FindByClinicID(ctx context.Context, clini
 	return &setting, nil
 }
 
-func (r *reservationSettingRepository) Upsert(ctx context.Context, setting *model.ReservationSetting) error {
+func (r *reservationSettingRepository) Upsert(ctx context.Context, setting *model.LineReservationSetting) error {
 	err := r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}},

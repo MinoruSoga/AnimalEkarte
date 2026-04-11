@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 
 export interface UpdateInquiryRequest {
   chief_complaint?: string;
-  chief_complaint_category_id?: number | null;
+  chief_complaint_type_id?: number | null;
   notes?: string;
 }
 

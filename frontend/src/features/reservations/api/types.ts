@@ -2,10 +2,10 @@
  * Backend API response types
  * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
-import type { ReservationAppointment } from "@/types/generated/models";
+import type { Appointment } from "@/types/generated/models";
 
 // Backend 型エイリアス
-export type BackendReservationAppointment = ReservationAppointment;
+export type BackendReservationAppointment = Appointment;
 
 /**
  * 予約作成リクエスト

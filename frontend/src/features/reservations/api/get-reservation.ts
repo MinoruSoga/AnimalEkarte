@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ReservationAppointment } from "@/types";
 import { transformReservation } from "./transforms";
-import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
+import type { Appointment as BackendReservation } from "@/types/generated/models";
 
 export const getReservation = async (
   id: string

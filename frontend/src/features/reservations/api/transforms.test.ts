@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { transformReservation, transformToCreateRequest } from "./transforms";
-import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
+import type { Appointment as BackendReservation } from "@/types/generated/models";
 import type { ReservationAppointment } from "@/types";
 
 /** BackendReservation の最小スタブ */
@@ -10,6 +10,7 @@ const minimalBackend: BackendReservation = {
   start_time: "2026-03-25T10:00:00Z",
   end_time: "2026-03-25T10:30:00Z",
   visit_type: "first",
+  reservation_type_id: 1,
   status: "confirmed",
   is_designated: false,
   created_at: "2026-03-25T00:00:00Z",
@@ -103,10 +104,10 @@ describe("transformReservation", () => {
     expect(result.petName).toBe("ポチ");
   });
 
-  it("reservation_category.name を type にマップする", () => {
+  it("reservation_type.name を type にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,
-      reservation_category: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["reservation_category"],
+      reservation_type: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["reservation_type"],
     });
     expect(result.type).toBe("診療");
   });

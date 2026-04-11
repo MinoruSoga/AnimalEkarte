@@ -578,7 +578,7 @@ export function DiagnosisSettings() {
         if (nameEditTarget !== null && nameEditTarget !== "new") {
           const req: UpdateDiagnosisNameRequest = {
             name: data.name,
-            diagnosis_category_id: Number(data.diagnosisCategoryId),
+            diagnosis_type_id: Number(data.diagnosisCategoryId),
             description: data.description || undefined,
             is_active: data.isActive,
           };
@@ -592,7 +592,7 @@ export function DiagnosisSettings() {
         } else {
           const req: CreateDiagnosisNameRequest = {
             name: data.name,
-            diagnosis_category_id: Number(data.diagnosisCategoryId),
+            diagnosis_type_id: Number(data.diagnosisCategoryId),
             description: data.description || undefined,
             is_active: true,
           };

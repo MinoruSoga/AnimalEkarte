@@ -11,23 +11,23 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ReservationCustomerRepository は予約顧客のデータアクセスインターフェース
-type ReservationCustomerRepository interface {
-	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationCustomer, error)
-	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationCustomer, error)
+// LineCustomerRepository は予約顧客のデータアクセスインターフェース
+type LineCustomerRepository interface {
+	FindAll(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error)
 	UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error
-	FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.ReservationCustomer, error)
+	FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.LineCustomer, error)
 	UpdateAdditionalFields(ctx context.Context, clinicID, id uint64, fields []byte) error
 }
 
 type reservationCustomerRepository struct{ db *gorm.DB }
 
-func NewReservationCustomerRepository(db *gorm.DB) ReservationCustomerRepository {
+func NewLineCustomerRepository(db *gorm.DB) LineCustomerRepository {
 	return &reservationCustomerRepository{db: db}
 }
 
-func (r *reservationCustomerRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationCustomer, error) {
-	items := make([]model.ReservationCustomer, 0)
+func (r *reservationCustomerRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
+	items := make([]model.LineCustomer, 0)
 	err := r.db.WithContext(ctx).
 		Preload("Owner").
 		Where("clinic_id = ?", clinicID).
@@ -39,8 +39,8 @@ func (r *reservationCustomerRepository) FindAll(ctx context.Context, clinicID ui
 	return items, nil
 }
 
-func (r *reservationCustomerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationCustomer, error) {
-	var c model.ReservationCustomer
+func (r *reservationCustomerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error) {
+	var c model.LineCustomer
 	err := r.db.WithContext(ctx).
 		Preload("Owner").
 		Preload("Owner.Pets").
@@ -52,13 +52,13 @@ func (r *reservationCustomerRepository) FindByID(ctx context.Context, clinicID, 
 	return &c, nil
 }
 
-func (r *reservationCustomerRepository) FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.ReservationCustomer, error) {
-	var c model.ReservationCustomer
+func (r *reservationCustomerRepository) FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.LineCustomer, error) {
+	var c model.LineCustomer
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ? AND line_user_id = ?", clinicID, lineUserID).
 		First(&c).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		c = model.ReservationCustomer{
+		c = model.LineCustomer{
 			ClinicID:    clinicID,
 			LineUserID:  lineUserID,
 			DisplayName: displayName,
@@ -76,7 +76,7 @@ func (r *reservationCustomerRepository) FindOrCreateByLineUserID(ctx context.Con
 
 func (r *reservationCustomerRepository) UpdateAdditionalFields(ctx context.Context, clinicID, id uint64, fields []byte) error {
 	result := r.db.WithContext(ctx).
-		Model(&model.ReservationCustomer{}).
+		Model(&model.LineCustomer{}).
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Update("additional_fields", fields)
 	if result.Error != nil {
@@ -87,7 +87,7 @@ func (r *reservationCustomerRepository) UpdateAdditionalFields(ctx context.Conte
 
 func (r *reservationCustomerRepository) UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error {
 	result := r.db.WithContext(ctx).
-		Model(&model.ReservationCustomer{}).
+		Model(&model.LineCustomer{}).
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Update("owner_id", ownerID)
 	if result.Error != nil {

@@ -2,7 +2,7 @@
  * Medical records feature types (UI-facing: string IDs)
  * Backend types: {@link import("@/types/generated/models").Treatment},
  * {@link import("@/types/generated/models").Vital},
- * {@link import("@/types/generated/models").BillingReview} from models.ts
+ * {@link import("@/types/generated/models").BillingConfirmation} from models.ts
  */
 
 /** Interview (問診) history list item */
@@ -84,7 +84,7 @@ export interface BulkReorderTreatmentsInput {
 
 // ── BillingReview (会計医師確認) ──────────────────────────────────────
 
-/** 会計医師確認ステータス @see {@link import("@/types/generated/models").BillingReviewStatus} */
+/** 会計医師確認ステータス @see {@link import("@/types/generated/models").ConfirmationStatus} */
 export type BillingReviewStatus = 'pending' | 'confirmed' | 'returned';
 
 /** 会計医師確認レコード */
