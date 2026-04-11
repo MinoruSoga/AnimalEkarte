@@ -129,7 +129,7 @@ function GroupedTable({
                       <td colSpan={5} className="px-2 py-0">
                         <div className="flex items-center gap-1 h-11">
                           <button type="button" onClick={() => toggleCollapse(group.id)}
-                            className={`size-5 flex items-center justify-center rounded ${C.text35} ${C.hoverBgMedium} transition-colors shrink-0`}>
+                            className={`${STYLE.iconBtn20} ${C.text35} ${C.hoverBgMedium} shrink-0`}>
                             <ChevronDown className={`${ICON.smXs} transition-transform duration-150`}
                               style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }} />
                           </button>
@@ -194,7 +194,7 @@ function GroupedTable({
                     <td colSpan={5} className="px-2 py-0">
                       <div className="flex items-center gap-1 h-11">
                         <button type="button" onClick={() => toggleCollapse(UNCATEGORIZED_ID)}
-                          className={`size-5 flex items-center justify-center rounded ${C.text35} ${C.hoverBgMedium} transition-colors shrink-0`}>
+                          className={`${STYLE.iconBtn20} ${C.text35} ${C.hoverBgMedium} shrink-0`}>
                           <ChevronDown className={`${ICON.smXs} transition-transform duration-150`}
                             style={{ transform: uncatCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }} />
                         </button>

@@ -848,6 +848,8 @@ export const STYLE = {
   iconBtn32: `size-8 flex items-center justify-center rounded-[3px] transition-colors`,
   /** 28px アイコンボタン基底クラス (サイドバー・TreatmentRow) */
   iconBtn28: `size-7 flex items-center justify-center rounded-[3px] transition-colors`,
+  /** 20px アイコンボタン基底クラス (折りたたみトグル等) */
+  iconBtn20: `size-5 flex items-center justify-center rounded-[3px] transition-colors`,
   sidePeekBody:
     "flex-1 overflow-y-auto",
   sidePeekFooter:

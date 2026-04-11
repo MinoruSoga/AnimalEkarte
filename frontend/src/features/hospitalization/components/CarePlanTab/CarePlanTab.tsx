@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON, C, BADGE } from "@/lib/design-tokens";
+import { ICON, C, BADGE, STYLE } from "@/lib/design-tokens";
 import { useState, useCallback, useMemo, memo } from "react";
 
 // External
@@ -210,7 +210,7 @@ function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
                     <DeleteIconButton
                         onClick={() => onDelete(item.id)}
                         disabled={isDeleting}
-                        className="size-7"
+                        className={STYLE.iconBtn28}
                     />
                 ) : null}
             </div>
