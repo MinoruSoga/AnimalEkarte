@@ -60,7 +60,7 @@ export function EstimateDetail() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(paths.estimates.edit.getHref(id))}
+              onClick={() => id ? navigate(paths.estimates.edit.getHref(id)) : null}
               className="h-9 gap-1.5 text-sm"
             >
               <Pencil className={ICON.action} />

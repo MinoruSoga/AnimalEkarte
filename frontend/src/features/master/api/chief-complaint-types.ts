@@ -30,7 +30,7 @@ function transformChiefComplaintType(data: ModelChiefComplaintType) {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
     name: data.name,
-    description: data.description,
+    description: data.Description,
     isActive: data.is_active,
     sortOrder: data.sort_order,
     createdAt: data.created_at,

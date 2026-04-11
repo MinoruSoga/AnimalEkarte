@@ -236,28 +236,12 @@ function SettingsForm({ setting, clinicId }: SettingsFormProps) {
             placeholder="LINE チャネルID"
           />
         </FieldRow>
-        <FieldRow label="チャネルシークレット">
-          <Input
-            name="line_channel_secret"
-            defaultValue={setting.line_channel_secret}
-            className="max-w-[320px]"
-            placeholder="LINE チャネルシークレット"
-          />
-        </FieldRow>
         <FieldRow label="LIFF ID">
           <Input
             name="liff_id"
             defaultValue={setting.liff_id}
             className="max-w-[320px]"
             placeholder="LIFF ID"
-          />
-        </FieldRow>
-        <FieldRow label="アクセストークン">
-          <Input
-            name="line_access_token"
-            defaultValue={setting.line_access_token}
-            className="max-w-[320px]"
-            placeholder="LINE Channel Access Token"
           />
         </FieldRow>
       </Section>
