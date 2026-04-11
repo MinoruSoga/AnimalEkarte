@@ -217,8 +217,8 @@ const (
 
 ```
 # 同じ reservation_types テーブルに対して:
-/v1/masters/reservation-types          ← 管理用（reservation_category_handler.go）
-/api/clinics/{id}/reservation-types    ← LINE予約用（reservation_course_handler.go）
+/v1/masters/reservation-types          ← 管理用（reservation_type_handler.go）
+/api/clinics/{id}/reservation-types    ← LINE予約用（reservation_type_liff_handler.go）
 ```
 
 ---

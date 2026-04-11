@@ -817,7 +817,7 @@ export const STYLE = {
   sidebarItemIdle:
     `${C.text65} ${C.hoverBgPrimary4} ${C.hoverText}`,
   sidebarToggle:
-    `h-7 w-7 p-0 ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-[3px]`,
+    `size-7 flex items-center justify-center ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-[3px] transition-colors`,
 
   /* ── Notion Property Row ── */
   propertyRow:

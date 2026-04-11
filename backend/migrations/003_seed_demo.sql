@@ -438,14 +438,14 @@ INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 8a. reservation_category_groups（予約区分グループ）
+-- 8a. reservation_type_groups（予約区分グループ）
 -- 八王子院 (clinic_id=3): 7グループ (ID 1-7)
 -- 城東医院 (clinic_id=4): 7グループ (ID 8-14)
 -- 敷島医院 (clinic_id=5): 6グループ (ID 15-20)
 -- -----------------------------------------------------------------------------
 
 -- 八王子院 (clinic_id=3)
-INSERT INTO reservation_category_groups (id, clinic_id, name, color, sort_order, is_active) VALUES
+INSERT INTO reservation_type_groups (id, clinic_id, name, color, sort_order, is_active) VALUES
     (1,  3, '診療系',           '#3B82F6', 1, true),
     (2,  3, '予防・ワクチン',   '#10B981', 2, true),
     (3,  3, '健康診断・検査',   '#8B5CF6', 3, true),
@@ -457,7 +457,7 @@ ON CONFLICT (id) DO UPDATE
     SET name=EXCLUDED.name, color=EXCLUDED.color, sort_order=EXCLUDED.sort_order, is_active=EXCLUDED.is_active;
 
 -- 城東医院 (clinic_id=4)
-INSERT INTO reservation_category_groups (id, clinic_id, name, color, sort_order, is_active) VALUES
+INSERT INTO reservation_type_groups (id, clinic_id, name, color, sort_order, is_active) VALUES
     (8,  4, '診療系',           '#3B82F6', 1, true),
     (9,  4, '予防・ワクチン',   '#10B981', 2, true),
     (10, 4, '健康診断・検査',   '#8B5CF6', 3, true),
@@ -469,7 +469,7 @@ ON CONFLICT (id) DO UPDATE
     SET name=EXCLUDED.name, color=EXCLUDED.color, sort_order=EXCLUDED.sort_order, is_active=EXCLUDED.is_active;
 
 -- 敷島医院 (clinic_id=5)
-INSERT INTO reservation_category_groups (id, clinic_id, name, color, sort_order, is_active) VALUES
+INSERT INTO reservation_type_groups (id, clinic_id, name, color, sort_order, is_active) VALUES
     (15, 5, '診療系',           '#3B82F6', 1, true),
     (16, 5, '予防・ワクチン',   '#10B981', 2, true),
     (17, 5, '健康診断・検査',   '#8B5CF6', 3, true),
@@ -479,17 +479,17 @@ INSERT INTO reservation_category_groups (id, clinic_id, name, color, sort_order,
 ON CONFLICT (id) DO UPDATE
     SET name=EXCLUDED.name, color=EXCLUDED.color, sort_order=EXCLUDED.sort_order, is_active=EXCLUDED.is_active;
 
-SELECT setval(pg_get_serial_sequence('reservation_category_groups','id'), (SELECT MAX(id) FROM reservation_category_groups));
+SELECT setval(pg_get_serial_sequence('reservation_type_groups','id'), (SELECT MAX(id) FROM reservation_type_groups));
 
 -- -----------------------------------------------------------------------------
--- 8b. reservation_categories（予約区分）
+-- 8b. reservation_types（予約区分）
 -- 八王子院 (clinic_id=3): 25件 (ID 1-25)
 -- 城東医院 (clinic_id=4): 19件 (ID 26-44)
 -- 敷島医院 (clinic_id=5): 14件 (ID 45-58)
 -- -----------------------------------------------------------------------------
 
 -- 八王子院 (clinic_id=3) 公開コース (is_internal=false, reservation_visible=true)
-INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (1,  3, '一般診察',               '診察',     true, '内科・外科・皮膚科などの一般的な診察',         '#3B82F6', 1,  15, true,  '', false),
     (2,  3, '一般診察(再診)',          '再診',     true, '継続通院の一般診察',                           '#3B82F6', 2,  15, true,  '', false),
     (3,  3, 'ワクチン接種',            'ワクチン', true, '各種ワクチン接種（予防接種）',                 '#10B981', 3,  15, true,  '', false),
@@ -506,7 +506,7 @@ INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, 
 ON CONFLICT DO NOTHING;
 
 -- 八王子院 (clinic_id=3) スタッフ専用コース (is_internal=true, reservation_visible=false)
-INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (14, 3, '手術60',                 '手術60',   true, '手術枠（60分）',                               '#EF4444', 14, 60, false, '', true),
     (15, 3, 'ホテルお迎え',           'お迎え',   true, 'ホテルお迎え対応',                             '#6B7280', 15, 15, false, '', true),
     (16, 3, 'ホテル預かり',           '預かり',   true, 'ペットホテル預かり',                           '#6B7280', 16, 15, false, '', true),
@@ -521,16 +521,16 @@ INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, 
     (25, 3, '予約不可30',             '不可30',   true, '予約不可ブロック（30分）',                     '#6B7280', 25, 30, false, '', true)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('reservation_categories', 'id'), (SELECT MAX(id) FROM reservation_categories));
+SELECT setval(pg_get_serial_sequence('reservation_types', 'id'), (SELECT MAX(id) FROM reservation_types));
 
 -- 八王子院 (clinic_id=3) グループ紐付け
-UPDATE reservation_categories SET group_id=1 WHERE clinic_id=3 AND id IN (1,2);
-UPDATE reservation_categories SET group_id=2 WHERE clinic_id=3 AND id IN (3,5,6);
-UPDATE reservation_categories SET group_id=3 WHERE clinic_id=3 AND id IN (7,8,24);
-UPDATE reservation_categories SET group_id=4 WHERE clinic_id=3 AND id IN (4,9,10,11,12);
-UPDATE reservation_categories SET group_id=5 WHERE clinic_id=3 AND id IN (14,19);
-UPDATE reservation_categories SET group_id=6 WHERE clinic_id=3 AND id IN (13,15,16,17);
-UPDATE reservation_categories SET group_id=7, is_internal=true WHERE clinic_id=3 AND id IN (18,20,21,22,23,25);
+UPDATE reservation_types SET group_id=1 WHERE clinic_id=3 AND id IN (1,2);
+UPDATE reservation_types SET group_id=2 WHERE clinic_id=3 AND id IN (3,5,6);
+UPDATE reservation_types SET group_id=3 WHERE clinic_id=3 AND id IN (7,8,24);
+UPDATE reservation_types SET group_id=4 WHERE clinic_id=3 AND id IN (4,9,10,11,12);
+UPDATE reservation_types SET group_id=5 WHERE clinic_id=3 AND id IN (14,19);
+UPDATE reservation_types SET group_id=6 WHERE clinic_id=3 AND id IN (13,15,16,17);
+UPDATE reservation_types SET group_id=7, is_internal=true WHERE clinic_id=3 AND id IN (18,20,21,22,23,25);
 
 -- -----------------------------------------------------------------------------
 -- 9. cages（ケージ: 8件）
@@ -1217,11 +1217,11 @@ SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) F
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 城東医院 reservation_categories（サービス種別: 19件、ID 26-44）
+-- 城東医院 reservation_types（サービス種別: 19件、ID 26-44）
 -- -----------------------------------------------------------------------------
 
 -- 城東医院 公開コース
-INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (26, 4, '一般診察',               '診察',     true, '内科・外科・皮膚科などの一般的な診察',         '#3B82F6', 1,  15, true,  '', false),
     (27, 4, '一般診察(再診)',          '再診',     true, '継続通院の一般診察',                           '#3B82F6', 2,  15, true,  '', false),
     (28, 4, 'ワクチン接種',            'ワクチン', true, '各種ワクチン接種（予防接種）',                 '#10B981', 3,  15, true,  '', false),
@@ -1235,7 +1235,7 @@ INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, 
 ON CONFLICT DO NOTHING;
 
 -- 城東医院 スタッフ専用コース
-INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (36, 4, '手術60',                 '手術60',   true, '手術枠（60分）',                               '#EF4444', 11, 60, false, '', true),
     (37, 4, '手術30',                 '手術30',   true, '手術枠（30分）',                               '#EF4444', 12, 30, false, '', true),
     (38, 4, 'ホテルお迎え',           'お迎え',   true, 'ホテルお迎え対応',                             '#6B7280', 13, 15, false, '', true),
@@ -1247,16 +1247,16 @@ INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, 
     (44, 4, 'エコー枠',               'エコー',   true, '超音波検査専用枠',                             '#8B5CF6', 19, 30, false, '', true)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('reservation_categories', 'id'), (SELECT MAX(id) FROM reservation_categories));
+SELECT setval(pg_get_serial_sequence('reservation_types', 'id'), (SELECT MAX(id) FROM reservation_types));
 
 -- 城東医院 (clinic_id=4) グループ紐付け
-UPDATE reservation_categories SET group_id=8  WHERE clinic_id=4 AND id IN (26,27);
-UPDATE reservation_categories SET group_id=9  WHERE clinic_id=4 AND id IN (28,29,30);
-UPDATE reservation_categories SET group_id=10 WHERE clinic_id=4 AND id IN (31,32,44);
-UPDATE reservation_categories SET group_id=11 WHERE clinic_id=4 AND id IN (33,34,35);
-UPDATE reservation_categories SET group_id=12 WHERE clinic_id=4 AND id IN (36,37);
-UPDATE reservation_categories SET group_id=13 WHERE clinic_id=4 AND id IN (38,39);
-UPDATE reservation_categories SET group_id=14, is_internal=true WHERE clinic_id=4 AND id IN (40,41,42,43);
+UPDATE reservation_types SET group_id=8  WHERE clinic_id=4 AND id IN (26,27);
+UPDATE reservation_types SET group_id=9  WHERE clinic_id=4 AND id IN (28,29,30);
+UPDATE reservation_types SET group_id=10 WHERE clinic_id=4 AND id IN (31,32,44);
+UPDATE reservation_types SET group_id=11 WHERE clinic_id=4 AND id IN (33,34,35);
+UPDATE reservation_types SET group_id=12 WHERE clinic_id=4 AND id IN (36,37);
+UPDATE reservation_types SET group_id=13 WHERE clinic_id=4 AND id IN (38,39);
+UPDATE reservation_types SET group_id=14, is_internal=true WHERE clinic_id=4 AND id IN (40,41,42,43);
 
 -- -----------------------------------------------------------------------------
 -- 城東医院 cages（ケージ: 4件）
@@ -1515,11 +1515,11 @@ SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 敷島医院 reservation_categories（サービス種別: 14件、ID 45-58）
+-- 敷島医院 reservation_types（サービス種別: 14件、ID 45-58）
 -- -----------------------------------------------------------------------------
 
 -- 敷島医院 公開コース
-INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (45, 5, '一般診察',               '診察',     true, '内科・外科・皮膚科などの一般的な診察',         '#3B82F6', 1,  15, true,  '', false),
     (46, 5, '一般診察(再診)',          '再診',     true, '継続通院の一般診察',                           '#3B82F6', 2,  15, true,  '', false),
     (47, 5, 'ワクチン接種',            'ワクチン', true, '各種ワクチン接種（予防接種）',                 '#10B981', 3,  15, true,  '', false),
@@ -1531,7 +1531,7 @@ INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, 
 ON CONFLICT DO NOTHING;
 
 -- 敷島医院 スタッフ専用コース
-INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
+INSERT INTO reservation_types (id, clinic_id, name, short_name, is_active, description, color, sort_order, duration_minutes, reservation_visible, reservation_comment, is_internal) VALUES
     (53, 5, '手術60',                 '手術60',   true, '手術枠（60分）',                               '#EF4444', 9,  60, false, '', true),
     (54, 5, '手術30',                 '手術30',   true, '手術枠（30分）',                               '#EF4444', 10, 30, false, '', true),
     (55, 5, '休憩枠',                 '休憩',     true, '休憩・ブロック枠',                             '#6B7280', 11, 60, false, '', true),
@@ -1540,15 +1540,15 @@ INSERT INTO reservation_categories (id, clinic_id, name, short_name, is_active, 
     (58, 5, '予約不可30',             '不可30',   true, '予約不可ブロック（30分）',                     '#6B7280', 14, 30, false, '', true)
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('reservation_categories', 'id'), (SELECT MAX(id) FROM reservation_categories));
+SELECT setval(pg_get_serial_sequence('reservation_types', 'id'), (SELECT MAX(id) FROM reservation_types));
 
 -- 敷島医院 (clinic_id=5) グループ紐付け
-UPDATE reservation_categories SET group_id=15 WHERE clinic_id=5 AND id IN (45,46);
-UPDATE reservation_categories SET group_id=16 WHERE clinic_id=5 AND id IN (47,48,49);
-UPDATE reservation_categories SET group_id=17 WHERE clinic_id=5 AND id IN (50,51);
-UPDATE reservation_categories SET group_id=18 WHERE clinic_id=5 AND id IN (52);
-UPDATE reservation_categories SET group_id=19 WHERE clinic_id=5 AND id IN (53,54);
-UPDATE reservation_categories SET group_id=20, is_internal=true WHERE clinic_id=5 AND id IN (55,56,57,58);
+UPDATE reservation_types SET group_id=15 WHERE clinic_id=5 AND id IN (45,46);
+UPDATE reservation_types SET group_id=16 WHERE clinic_id=5 AND id IN (47,48,49);
+UPDATE reservation_types SET group_id=17 WHERE clinic_id=5 AND id IN (50,51);
+UPDATE reservation_types SET group_id=18 WHERE clinic_id=5 AND id IN (52);
+UPDATE reservation_types SET group_id=19 WHERE clinic_id=5 AND id IN (53,54);
+UPDATE reservation_types SET group_id=20, is_internal=true WHERE clinic_id=5 AND id IN (55,56,57,58);
 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 cages（ケージ: 4件）
@@ -1887,7 +1887,7 @@ ON CONFLICT DO NOTHING;
 -- LINE予約システム シードデータ
 -- =============================================================================
 
--- A. reservation_categories の予約用カラムはすべて INSERT 時に設定済み（更新不要）
+-- A. reservation_types の予約用カラムはすべて INSERT 時に設定済み（更新不要）
 -- B. staffs の予約用カラムはすべて INSERT 時に設定済み（更新不要）
 
 -- C. line_reservation_settings 初期データ
@@ -1939,7 +1939,7 @@ INSERT INTO staff_reservation_exclusions (staff_id, reservation_type_id)
 SELECT s.id, st.id
 FROM staffs s
 JOIN staff_clinic_assignments sca ON sca.staff_id = s.id
-JOIN reservation_categories st ON sca.clinic_id = st.clinic_id
+JOIN reservation_types st ON sca.clinic_id = st.clinic_id
 WHERE s.staff_type = 'doctor'
   AND st.name IN (
       'トリミングコース', 'トリミング部分カットコース', 'トリミングシャンプーコース',
