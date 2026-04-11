@@ -463,7 +463,7 @@ describe("useMedicalRecordForm", () => {
     });
 
     it("recordId あり & 問診タブ → updateInquiryMutation.mutateAsync を呼ぶ", async () => {
-      const { useUpdateInquiry } = await import("../api/inquiries");
+      const { useUpdateInquiry: _useUpdateInquiry } = await import("../api/inquiries");
       const mockMutateAsync = vi.fn().mockResolvedValue({});
       vi.doMock("../api/inquiries", () => ({
         useUpdateInquiry: () => ({ mutateAsync: mockMutateAsync, isPending: false }),

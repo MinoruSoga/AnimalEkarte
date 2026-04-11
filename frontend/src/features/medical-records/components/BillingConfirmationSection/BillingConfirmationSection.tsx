@@ -50,7 +50,6 @@ export const BillingConfirmationSection = memo(function BillingConfirmationSecti
   const userId = Number(user?.id ?? 0);
   // rerender-defer-reads: userIdRef でコールバック用の最新 userId を保持（JSX では未使用）
   const userIdRef = useRef<number>(userId);
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- userIdRef の更新（副作用なし、ref への書き込みのみ）
   useEffect(() => { userIdRef.current = userId; }, [userId]);
 
   const { data: review, isLoading } = useGetBillingConfirmation(medicalRecordId);
