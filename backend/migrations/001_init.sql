@@ -914,7 +914,7 @@ CREATE TABLE treatment_plans (
     hospitalization_id bigint               REFERENCES hospitalizations(id) ON DELETE CASCADE,
     treatment_content  text        NOT NULL DEFAULT '',
     memo               text        NOT NULL DEFAULT '',
-    insurance          boolean              DEFAULT false,
+    is_insurance       boolean              DEFAULT false,
     unit_price         bigint               DEFAULT 0,
     quantity           numeric(10,1)        DEFAULT 1,
     discount_rate      numeric(5,2)         DEFAULT 0,
