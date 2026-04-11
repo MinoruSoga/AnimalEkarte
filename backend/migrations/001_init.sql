@@ -1732,7 +1732,7 @@ CREATE TABLE shift_entry_breaks (
 CREATE INDEX idx_shift_entry_breaks_entry ON shift_entry_breaks(shift_entry_id);
 
 -- ------------------------------------
--- reservation_appointments に line_customer_id FK を追加
+-- appointments に line_customer_id FK を追加
 -- （line_customers テーブル作成後に実行）
 -- ------------------------------------
 ALTER TABLE appointments
