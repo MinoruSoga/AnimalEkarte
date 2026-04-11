@@ -391,5 +391,5 @@ export interface MasterItem {
   duration?: number | null;
 }
 
-export type MasterCategory = "vaccine" | "reservationType" | "consultation" | "procedure" | "hospitalization" | "diagnosis_category" | "diagnosis_name" | "checkup";
+export type MasterCategory = "vaccine" | "reservationType" | "consultation" | "procedure" | "hospitalization" | "diagnosis_type" | "diagnosis_name" | "checkup";
 

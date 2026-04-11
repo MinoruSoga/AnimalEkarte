@@ -47,7 +47,7 @@ func (h *Handler) UpdateClinicalPlan(c *gin.Context) {
 	}
 	input := &service.UpdateClinicalPlanInput{
 		PhysicalExam:         req.PhysicalExam,
-		DiagnosisCategoryID:  req.DiagnosisCategoryID,
+		DiagnosisTypeID:  req.DiagnosisTypeID,
 		DiagnosisNameID:      req.DiagnosisNameID,
 		DiagnosisDetails:     req.DiagnosisDetails,
 		TreatmentPolicy:      req.TreatmentPolicy,

@@ -1,5 +1,5 @@
 import type {
-  DiagnosisCategory as ModelDiagnosisCategory,
+  DiagnosisType as ModelDiagnosisType,
   DiagnosisName as ModelDiagnosisName,
 } from "@/types/generated/models";
 
@@ -8,15 +8,15 @@ type CategoryServerFields = "id" | "clinic_id" | "created_at" | "updated_at" | "
 type NameServerFields = "id" | "clinic_id" | "created_at" | "updated_at" | "category";
 
 // ─────────────────────────────────────────────────
-// DiagnosisCategory request types (models.ts から導出)
+// DiagnosisType request types (models.ts から導出)
 // ─────────────────────────────────────────────────
 
-export type CreateDiagnosisCategoryRequest =
-  Required<Pick<ModelDiagnosisCategory, "name">> &
-  Partial<Omit<ModelDiagnosisCategory, CategoryServerFields | "name">>;
+export type CreateDiagnosisTypeRequest =
+  Required<Pick<ModelDiagnosisType, "name">> &
+  Partial<Omit<ModelDiagnosisType, CategoryServerFields | "name">>;
 
-export type UpdateDiagnosisCategoryRequest =
-  Partial<Omit<ModelDiagnosisCategory, CategoryServerFields>>;
+export type UpdateDiagnosisTypeRequest =
+  Partial<Omit<ModelDiagnosisType, CategoryServerFields>>;
 
 // ─────────────────────────────────────────────────
 // DiagnosisName request types (models.ts から導出)
@@ -33,7 +33,7 @@ export type UpdateDiagnosisNameRequest =
 // Reorder request types (models.ts に対応フィールドなし → 手書き)
 // ─────────────────────────────────────────────────
 
-export interface ReorderDiagnosisCategoryRequest {
+export interface ReorderDiagnosisTypeRequest {
   ids: number[];
 }
 

@@ -123,7 +123,7 @@ func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 
 func TestClinicalPlanService_Update(t *testing.T) {
 	physicalExam := "Abnormal findings"
-	diagnosisCategoryID := uint64(1)
+	diagnosisTypeID := uint64(1)
 	diagnosisNameID := uint64(5)
 	diagnosisDetails := "Suspected infection"
 	treatmentPolicy := "Prescribe antibiotics"
@@ -143,7 +143,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			medicalRecordID: 1,
 			input: &UpdateClinicalPlanInput{
 				PhysicalExam:        &physicalExam,
-				DiagnosisCategoryID: &diagnosisCategoryID,
+				DiagnosisTypeID: &diagnosisTypeID,
 			},
 			repoFindPlan: &model.ClinicalPlan{
 				ID:              1,
@@ -155,7 +155,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 				ID:                  1,
 				MedicalRecordID:     1,
 				PhysicalExam:        physicalExam,
-				DiagnosisCategoryID: &diagnosisCategoryID,
+				DiagnosisTypeID: &diagnosisTypeID,
 			},
 			wantErr: false,
 		},
@@ -194,7 +194,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			medicalRecordID: 1,
 			input: &UpdateClinicalPlanInput{
 				PhysicalExam:        &physicalExam,
-				DiagnosisCategoryID: &diagnosisCategoryID,
+				DiagnosisTypeID: &diagnosisTypeID,
 				DiagnosisNameID:     &diagnosisNameID,
 				DiagnosisDetails:    &diagnosisDetails,
 				TreatmentPolicy:     &treatmentPolicy,
@@ -209,7 +209,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 				ID:                  1,
 				MedicalRecordID:     1,
 				PhysicalExam:        physicalExam,
-				DiagnosisCategoryID: &diagnosisCategoryID,
+				DiagnosisTypeID: &diagnosisTypeID,
 				DiagnosisNameID:     &diagnosisNameID,
 				DiagnosisDetails:    diagnosisDetails,
 				TreatmentPolicy:     treatmentPolicy,

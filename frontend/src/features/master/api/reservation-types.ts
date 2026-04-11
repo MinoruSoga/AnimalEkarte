@@ -57,7 +57,7 @@ export const SERVICE_TYPES_QUERY_KEY = ["masters", "reservation-types"] as const
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listReservationCategories(): Promise<ReservationType[]> {
+export async function listReservationTypes(): Promise<ReservationType[]> {
   const { data } = await axios.get<ModelReservationType[]>("/v1/masters/reservation-types");
   return data.map(transformReservationType);
 }
@@ -84,7 +84,7 @@ export async function deleteReservationType(id: string): Promise<void> {
   await axios.delete(`/v1/masters/reservation-types/${id}`);
 }
 
-export async function reorderReservationCategories(
+export async function reorderReservationTypes(
   req: ReorderReservationTypeRequest,
 ): Promise<void> {
   await axios.patch("/v1/masters/reservation-types/reorder", req);
@@ -94,10 +94,10 @@ export async function reorderReservationCategories(
 // TanStack Query hooks
 // ─────────────────────────────────────────────────
 
-export function useGetReservationCategories() {
+export function useGetReservationTypes() {
   return useQuery({
     queryKey: SERVICE_TYPES_QUERY_KEY,
-    queryFn: listReservationCategories,
+    queryFn: listReservationTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });
@@ -134,10 +134,10 @@ export function useDeleteReservationType() {
   });
 }
 
-export function useReorderReservationCategories() {
+export function useReorderReservationTypes() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: reorderReservationCategories,
+    mutationFn: reorderReservationTypes,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
     },

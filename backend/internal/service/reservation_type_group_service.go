@@ -32,23 +32,23 @@ type ReservationTypeGroupService interface {
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-type reservationCategoryGroupService struct {
+type reservationTypeGroupService struct {
 	repo repository.ReservationTypeGroupRepository
 }
 
 func NewReservationTypeGroupService(repo repository.ReservationTypeGroupRepository) ReservationTypeGroupService {
-	return &reservationCategoryGroupService{repo: repo}
+	return &reservationTypeGroupService{repo: repo}
 }
 
-func (s *reservationCategoryGroupService) List(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error) {
+func (s *reservationTypeGroupService) List(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error) {
 	return s.repo.FindAll(ctx, clinicID)
 }
 
-func (s *reservationCategoryGroupService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error) {
+func (s *reservationTypeGroupService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error) {
 	return s.repo.FindByID(ctx, clinicID, id)
 }
 
-func (s *reservationCategoryGroupService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeGroupInput) (*model.ReservationTypeGroup, error) {
+func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeGroupInput) (*model.ReservationTypeGroup, error) {
 	color := input.Color
 	if color == "" {
 		color = "#3B82F6"
@@ -67,7 +67,7 @@ func (s *reservationCategoryGroupService) Create(ctx context.Context, clinicID u
 	return g, nil
 }
 
-func (s *reservationCategoryGroupService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeGroupInput) (*model.ReservationTypeGroup, error) {
+func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeGroupInput) (*model.ReservationTypeGroup, error) {
 	fields := map[string]any{}
 	if input.Name != nil {
 		fields["name"] = *input.Name
@@ -90,7 +90,7 @@ func (s *reservationCategoryGroupService) Update(ctx context.Context, clinicID, 
 	return s.repo.FindByID(ctx, clinicID, id)
 }
 
-func (s *reservationCategoryGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountCategories(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to count categories in group")
@@ -101,6 +101,6 @@ func (s *reservationCategoryGroupService) Delete(ctx context.Context, clinicID, 
 	return s.repo.Delete(ctx, clinicID, id)
 }
 
-func (s *reservationCategoryGroupService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+func (s *reservationTypeGroupService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return s.repo.Reorder(ctx, clinicID, ids)
 }

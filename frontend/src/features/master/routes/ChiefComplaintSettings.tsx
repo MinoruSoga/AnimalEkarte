@@ -10,12 +10,12 @@ import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/cons
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
 import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import { useGetChiefComplaintCategories, useCreateChiefComplaintCategory, useUpdateChiefComplaintCategory, useDeleteChiefComplaintCategory } from "@/features/master/api/chief-complaint-categories";
+import { useGetChiefComplaintTypes, useCreateChiefComplaintType, useUpdateChiefComplaintType, useDeleteChiefComplaintType } from "@/features/master/api/chief-complaint-types";
 import type {
-  ChiefComplaintCategory,
-  CreateChiefComplaintCategoryRequest,
-  UpdateChiefComplaintCategoryRequest,
-} from "@/features/master/api/chief-complaint-categories";
+  ChiefComplaintType,
+  CreateChiefComplaintTypeRequest,
+  UpdateChiefComplaintTypeRequest,
+} from "@/features/master/api/chief-complaint-types";
 import { ResourceMasterMedical } from "@/types/generated/models";
 
 const COLUMNS = [
@@ -29,7 +29,7 @@ interface FormData { name: string; description: string; isActive: boolean; }
 
 const SidePanel = memo(function SidePanel({
   item, onClose, onSave, onDeleteRequest, readOnly,
-}: { item: ChiefComplaintCategory | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: ChiefComplaintCategory) => void; readOnly?: boolean; }) {
+}: { item: ChiefComplaintType | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: ChiefComplaintType) => void; readOnly?: boolean; }) {
   const [f, setF] = useState<FormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "", isActive: item?.isActive ?? true,
   }));
@@ -87,12 +87,12 @@ const SidePanel = memo(function SidePanel({
 });
 
 export function ChiefComplaintSettings() {
-  const { data } = useGetChiefComplaintCategories();
-  const createMutation = useCreateChiefComplaintCategory();
-  const updateMutation = useUpdateChiefComplaintCategory();
-  const deleteMutation = useDeleteChiefComplaintCategory();
-  const crud = useMasterCRUD<ChiefComplaintCategory>({ data, deleteMutation, entityLabel: "主訴マスタ" });
-  const { handleSave } = useMasterSave<ChiefComplaintCategory, FormData, CreateChiefComplaintCategoryRequest, UpdateChiefComplaintCategoryRequest>({
+  const { data } = useGetChiefComplaintTypes();
+  const createMutation = useCreateChiefComplaintType();
+  const updateMutation = useUpdateChiefComplaintType();
+  const deleteMutation = useDeleteChiefComplaintType();
+  const crud = useMasterCRUD<ChiefComplaintType>({ data, deleteMutation, entityLabel: "主訴マスタ" });
+  const { handleSave } = useMasterSave<ChiefComplaintType, FormData, CreateChiefComplaintTypeRequest, UpdateChiefComplaintTypeRequest>({
     crud, createMutation, updateMutation,
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: (d) => ({ name: d.name, description: d.description || undefined }),

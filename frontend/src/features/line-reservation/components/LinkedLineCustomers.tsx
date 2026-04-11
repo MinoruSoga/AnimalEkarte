@@ -8,7 +8,7 @@ import { useState, useCallback, useMemo, memo } from "react";
 import { Link2, Link2Off, Search, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { C, PALETTE } from "@/lib/design-tokens";
+import { C, ICON, PALETTE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -65,7 +65,7 @@ export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId,
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className={`text-sm font-semibold ${C.text} flex items-center gap-1.5`}>
-          <MessageCircle className="size-4" style={{ color: PALETTE.lineGreen }} />
+          <MessageCircle className={ICON.sm} style={{ color: PALETTE.lineGreen }} />
           LINE連携
         </h3>
         <Button
@@ -75,7 +75,7 @@ export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId,
           onClick={() => setShowLinkDialog(true)}
           disabled={unlinked.length === 0}
         >
-          <Link2 className="size-3.5 mr-1" />
+          <Link2 className={`${ICON.smXs} mr-1`} />
           LINEアカウントを紐付け
         </Button>
       </div>
@@ -96,7 +96,7 @@ export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId,
                   className="size-8 rounded-full flex items-center justify-center"
                   style={{ backgroundColor: PALETTE.lineGreen }}
                 >
-                  <MessageCircle className="size-4 text-white" />
+                  <MessageCircle className={`${ICON.sm} text-white`} />
                 </div>
                 <div>
                   <p className={`text-sm font-medium ${C.text}`}>
@@ -118,7 +118,7 @@ export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId,
                 disabled={linkMutation.isPending}
                 className={C.danger}
               >
-                <Link2Off className="size-3.5 mr-1" />
+                <Link2Off className={`${ICON.smXs} mr-1`} />
                 解除
               </Button>
             </div>
@@ -173,7 +173,7 @@ function LinkSearchDialog({ unlinked, onLink, onClose, isPending }: LinkSearchDi
 
         <div className="space-y-3 py-2">
           <div className="relative">
-            <Search className={`absolute left-2.5 top-2.5 size-4 ${C.textMuted}`} />
+            <Search className={`absolute left-2.5 top-2.5 ${ICON.sm} ${C.textMuted}`} />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -200,7 +200,7 @@ function LinkSearchDialog({ unlinked, onLink, onClose, isPending }: LinkSearchDi
                     className="size-8 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: PALETTE.lineGreen }}
                   >
-                    <MessageCircle className="size-4 text-white" />
+                    <MessageCircle className={`${ICON.sm} text-white`} />
                   </div>
                   <div className="min-w-0">
                     <p className={`text-sm font-medium ${C.text} truncate`}>

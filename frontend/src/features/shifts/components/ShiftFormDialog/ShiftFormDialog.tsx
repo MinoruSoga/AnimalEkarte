@@ -250,7 +250,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                   className="h-7 px-2 text-xs"
                   onClick={() => setBreaks((prev) => [...prev, { break_start: "12:00", break_end: "13:00" }])}
                 >
-                  <Plus className="size-3 mr-1" />
+                  <Plus className={`${ICON.xxs} mr-1`} />
                   追加
                 </Button>
               </div>
@@ -276,7 +276,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                     className="h-8 w-8 p-0"
                     onClick={() => setBreaks((prev) => prev.filter((_, j) => j !== i))}
                   >
-                    <X className="size-3.5" />
+                    <X className={ICON.smXs} />
                   </Button>
                 </div>
               ))}

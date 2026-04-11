@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from "react";
 import type React from "react";
-import { useGetReservationCategories } from "@/features/master/api/reservation-types";
+import { useGetReservationTypes } from "@/features/master/api/reservation-types";
 import { useGetReservationTypeGroups } from "@/features/master/api/reservation-type-groups";
 import { PALETTE } from "@/lib/design-tokens";
 
@@ -67,7 +67,7 @@ function hexToStyle(hex: string): ReservationTypeColor {
  * グループ未設定のカテゴリはカテゴリ固有色を使用。
  */
 export function useReservationTypeColorMap() {
-  const { data: categories = [] } = useGetReservationCategories();
+  const { data: categories = [] } = useGetReservationTypes();
   const { data: groups = [] } = useGetReservationTypeGroups();
 
   /** グループが登録されているか */

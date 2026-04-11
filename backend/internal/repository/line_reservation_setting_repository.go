@@ -16,35 +16,35 @@ type LineReservationSettingRepository interface {
 	Upsert(ctx context.Context, setting *model.LineReservationSetting) error
 }
 
-type reservationSettingRepository struct{ db *gorm.DB }
+type lineReservationSettingRepository struct{ db *gorm.DB }
 
 func NewLineReservationSettingRepository(db *gorm.DB) LineReservationSettingRepository {
-	return &reservationSettingRepository{db: db}
+	return &lineReservationSettingRepository{db: db}
 }
 
-func (r *reservationSettingRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+func (r *lineReservationSettingRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 	var setting model.LineReservationSetting
 	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).First(&setting).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_setting", "clinic")
+		return nil, apperrors.FromGORM(err, "line_reservation_setting", "clinic")
 	}
 	return &setting, nil
 }
 
-func (r *reservationSettingRepository) Upsert(ctx context.Context, setting *model.LineReservationSetting) error {
+func (r *lineReservationSettingRepository) Upsert(ctx context.Context, setting *model.LineReservationSetting) error {
 	err := r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}},
-			DoUpdates: clause.AssignmentColumns(reservationSettingUpdatableColumns()),
+			DoUpdates: clause.AssignmentColumns(lineReservationSettingUpdatableColumns()),
 		}).
 		Create(setting).Error
 	if err != nil {
-		return apperrors.FromGORM(err, "reservation_setting", "")
+		return apperrors.FromGORM(err, "line_reservation_setting", "")
 	}
 	return nil
 }
 
-func reservationSettingUpdatableColumns() []string {
+func lineReservationSettingUpdatableColumns() []string {
 	return []string{
 		"status",
 		"header_text",

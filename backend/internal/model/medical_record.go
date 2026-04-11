@@ -41,7 +41,7 @@ type MedicalRecord struct {
 	Vaccinations  []Vaccination  `gorm:"foreignKey:MedicalRecordID"  json:"vaccinations,omitempty"`
 	Checkups      []Checkup      `gorm:"foreignKey:MedicalRecordID"  json:"checkups,omitempty"`
 	Estimates     []Estimate     `gorm:"foreignKey:MedicalRecordID"  json:"estimates,omitempty"`
-	BillingConfirmation *BillingConfirmation `gorm:"foreignKey:MedicalRecordID"  json:"billing_review,omitempty"`
+	BillingConfirmation *BillingConfirmation `gorm:"foreignKey:MedicalRecordID"  json:"billing_confirmation,omitempty"`
 	Billing       *Billing       `gorm:"foreignKey:MedicalRecordID"  json:"billing,omitempty"`
 }
 

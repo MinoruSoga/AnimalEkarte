@@ -53,7 +53,7 @@ type MedicalRecordService interface {
 
 // CreateSubRecordsInput はカルテ作成時の inquiry / clinical_plan サブレコード作成 DTO
 type CreateSubRecordsInput struct {
-	ChiefComplaintCategoryID *uint64
+	ChiefComplaintTypeID *uint64
 	ChiefComplaint           *string
 	Notes                    *string
 	Plan                     *string // → ClinicalPlan.TreatmentPolicy
@@ -212,7 +212,7 @@ func buildMedicalRecordUpdateFields(input UpdateMedicalRecordInput) map[string]a
 		fields["doctor_id"] = *input.DoctorID
 	}
 	if input.AppointmentID != nil {
-		fields["reservation_appointment_id"] = *input.AppointmentID
+		fields["appointment_id"] = *input.AppointmentID
 	}
 	if input.Status != nil {
 		fields["status"] = *input.Status
@@ -227,8 +227,8 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 	inquiry := &model.Inquiry{
 		MedicalRecordID: recordID,
 	}
-	if input.ChiefComplaintCategoryID != nil {
-		inquiry.ChiefComplaintTypeID = input.ChiefComplaintCategoryID
+	if input.ChiefComplaintTypeID != nil {
+		inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
 	}
 	if input.ChiefComplaint != nil {
 		inquiry.ChiefComplaint = *input.ChiefComplaint
@@ -268,7 +268,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 			fields["diagnosis_details"] = *input.Assessment
 		}
 		if input.Diagnosis1CategoryID != nil {
-			fields["diagnosis_category_id"] = *input.Diagnosis1CategoryID
+			fields["diagnosis_type_id"] = *input.Diagnosis1CategoryID
 		}
 		if input.Diagnosis1NameID != nil {
 			fields["diagnosis_name_id"] = *input.Diagnosis1NameID

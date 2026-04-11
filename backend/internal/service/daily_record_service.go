@@ -150,7 +150,7 @@ func (s *dailyRecordService) AddCareLog(ctx context.Context, clinicID, hospitali
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("daily_record_id", daily.ID),
-		slog.Uint64("care_log_record_id", cr.ID))
+		slog.Uint64("care_log_id", cr.ID))
 
 	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {
@@ -179,7 +179,7 @@ func (s *dailyRecordService) AddStaffNote(ctx context.Context, clinicID, hospita
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("daily_record_id", daily.ID),
-		slog.Uint64("staff_note_record_id", sn.ID))
+		slog.Uint64("staff_note_id", sn.ID))
 
 	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {

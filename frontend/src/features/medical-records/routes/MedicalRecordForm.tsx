@@ -76,8 +76,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setTreatmentPlanItems: _setTreatmentPlanItems,
     chiefComplaint,
     setChiefComplaint,
-    chiefComplaintCategoryId,
-    setChiefComplaintCategoryId,
+    chiefComplaintTypeId,
+    setChiefComplaintTypeId,
     treatmentPolicy,
     setTreatmentPolicy,
     plan,
@@ -201,10 +201,10 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setChiefComplaint(val);
   }, [markDirty, setChiefComplaint]);
 
-  const handleSetChiefComplaintCategoryId = useCallback((id: number | null) => {
+  const handleSetChiefComplaintTypeId = useCallback((id: number | null) => {
     markDirty();
-    setChiefComplaintCategoryId(id);
-  }, [markDirty, setChiefComplaintCategoryId]);
+    setChiefComplaintTypeId(id);
+  }, [markDirty, setChiefComplaintTypeId]);
 
   const handleSetTreatmentPolicy = useCallback((val: string) => {
     markDirty();
@@ -327,8 +327,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}
               setChiefComplaint={handleSetChiefComplaint}
-              chiefComplaintCategoryId={chiefComplaintCategoryId}
-              setChiefComplaintCategoryId={handleSetChiefComplaintCategoryId}
+              chiefComplaintTypeId={chiefComplaintTypeId}
+              setChiefComplaintTypeId={handleSetChiefComplaintTypeId}
               treatmentPolicy={treatmentPolicy}
               setTreatmentPolicy={handleSetTreatmentPolicy}
               historyItems={historyItems}

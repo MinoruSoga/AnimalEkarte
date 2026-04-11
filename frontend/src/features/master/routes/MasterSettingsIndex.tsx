@@ -68,7 +68,7 @@ const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     IconComponent: FolderTree,
     path: "/settings/diagnosis",
     resource: ResourceMasterMedical,
-    countCategories: ["diagnosis_category", "diagnosis_name"],
+    countCategories: ["diagnosis_type", "diagnosis_name"],
   },
   trimmingGroup: {
     label: "トリミングマスタ",

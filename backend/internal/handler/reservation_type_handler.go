@@ -32,18 +32,18 @@ func (h *Handler) GetReservationType(c *gin.Context) {
 	c.JSON(http.StatusOK, toReservationTypeResponse(st))
 }
 
-// ListReservationCategories godoc
-func (h *Handler) ListReservationCategories(c *gin.Context) {
+// ListReservationTypes godoc
+func (h *Handler) ListReservationTypes(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	reservationCategories, err := h.svc.ReservationType.List(c.Request.Context(), clinicID)
+	reservationTypes, err := h.svc.ReservationType.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationTypeResponseList(reservationCategories))
+	c.JSON(http.StatusOK, toReservationTypeResponseList(reservationTypes))
 }
 
 // CreateReservationType godoc
@@ -147,8 +147,8 @@ func (h *Handler) DeleteReservationType(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// ReorderReservationCategories godoc
-func (h *Handler) ReorderReservationCategories(c *gin.Context) {
+// ReorderReservationTypes godoc
+func (h *Handler) ReorderReservationTypes(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return

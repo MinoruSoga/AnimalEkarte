@@ -31,14 +31,14 @@ type Services struct {
 	TrimmingCourse           TrimmingCourseService
 	TrimmingOption           TrimmingOptionService
 	ExaminationType          ExamTypeService
-	DiagnosisCategory        DiagnosisCategoryService
+	DiagnosisType        DiagnosisTypeService
 	DiagnosisName            DiagnosisNameService
 	CheckupType              CheckupTypeService
 	Clinic                   ClinicService
 	Examination              ExaminationService
 	Vaccination              VaccinationService
 	Occupation               OccupationService
-	ChiefComplaintCategory   ChiefComplaintCategoryService
+	ChiefComplaintType   ChiefComplaintTypeService
 	Inquiry                  InquiryService
 	InquiryTemplate          InquiryTemplateService
 	Company                  CompanyService
@@ -98,14 +98,14 @@ func NewServices(repos *repository.Repositories, notifCfg ReservationNotificatio
 		TrimmingCourse:           NewTrimmingCourseService(repos.TrimmingCourse),
 		TrimmingOption:           NewTrimmingOptionService(repos.TrimmingOption),
 		ExaminationType:          NewExamTypeService(repos.ExaminationType),
-		DiagnosisCategory:        NewDiagnosisCategoryService(repos.DiagnosisCategory),
-		DiagnosisName:            NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisCategory),
+		DiagnosisType:        NewDiagnosisTypeService(repos.DiagnosisType),
+		DiagnosisName:            NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisType),
 		CheckupType:              NewCheckupTypeService(repos.CheckupType),
 		Clinic:                   NewClinicService(repos.Clinic),
 		Examination:              NewExaminationService(repos.Examination),
 		Vaccination:              NewVaccinationService(repos.Vaccination),
 		Occupation:               NewOccupationService(repos.Occupation),
-		ChiefComplaintCategory:   NewChiefComplaintCategoryService(repos.ChiefComplaintCategory, repos.Inquiry),
+		ChiefComplaintType:   NewChiefComplaintTypeService(repos.ChiefComplaintType, repos.Inquiry),
 		Inquiry:                  NewInquiryService(repos.Inquiry),
 		InquiryTemplate:          NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                  NewCompanyService(repos.Company),

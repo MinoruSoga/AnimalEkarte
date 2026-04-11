@@ -36,14 +36,14 @@ type Repositories struct {
 	TrimmingCourse           TrimmingCourseRepository
 	TrimmingOption           TrimmingOptionRepository
 	ExaminationType          ExamTypeRepository
-	DiagnosisCategory        DiagnosisCategoryRepository
+	DiagnosisType        DiagnosisTypeRepository
 	DiagnosisName            DiagnosisNameRepository
 	CheckupType              CheckupTypeRepository
 	Clinic                   ClinicRepository
 	Examination              ExaminationRepository
 	Vaccination              VaccinationRepository
 	Occupation               OccupationRepository
-	ChiefComplaintCategory   ChiefComplaintCategoryRepository
+	ChiefComplaintType   ChiefComplaintTypeRepository
 	Inquiry                  InquiryRepository
 	InquiryTemplate          InquiryTemplateRepository
 	Company                  CompanyRepository
@@ -100,14 +100,14 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		TrimmingCourse:           NewTrimmingCourseRepository(db),
 		TrimmingOption:           NewTrimmingOptionRepository(db),
 		ExaminationType:          NewExamTypeRepository(db),
-		DiagnosisCategory:        NewDiagnosisCategoryRepository(db),
+		DiagnosisType:        NewDiagnosisTypeRepository(db),
 		DiagnosisName:            NewDiagnosisNameRepository(db),
 		CheckupType:              NewCheckupTypeRepository(db),
 		Clinic:                   NewClinicRepository(db),
 		Examination:              NewExaminationRepository(db),
 		Vaccination:              NewVaccinationRepository(db),
 		Occupation:               NewOccupationRepository(db),
-		ChiefComplaintCategory:   NewChiefComplaintCategoryRepository(db),
+		ChiefComplaintType:   NewChiefComplaintTypeRepository(db),
 		Inquiry:                  NewInquiryRepository(db),
 		InquiryTemplate:          NewInquiryTemplateRepository(db),
 		Company:                  NewCompanyRepository(db),

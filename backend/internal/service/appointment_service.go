@@ -58,7 +58,7 @@ func (s *reservationService) Create(ctx context.Context, reservation *model.Appo
 		// 該当時間枠の既存予約を行ロックで取得
 		var existing []model.Appointment
 		lockQuery := tx.Raw(`
-			SELECT * FROM reservation_appointments
+			SELECT * FROM appointments
 			WHERE clinic_id = ?
 			  AND deleted_at IS NULL
 			  AND status NOT IN ('cancelled')

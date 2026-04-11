@@ -489,9 +489,9 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.DELETE("/reservation-type-groups/:id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteReservationTypeGroup)
 
 	// Reservation Types
-	masters.GET("/reservation-types", h.ListReservationCategories)
+	masters.GET("/reservation-types", h.ListReservationTypes)
 	masters.POST("/reservation-types", perm(model.ResourceMasterReservationType, "create"), h.CreateReservationType)
-	masters.PATCH("/reservation-types/reorder", perm(model.ResourceMasterReservationType, "edit"), h.ReorderReservationCategories)
+	masters.PATCH("/reservation-types/reorder", perm(model.ResourceMasterReservationType, "edit"), h.ReorderReservationTypes)
 	masters.GET("/reservation-types/:id", h.GetReservationType)
 	masters.PATCH("/reservation-types/:id", perm(model.ResourceMasterReservationType, "edit"), h.UpdateReservationType)
 	masters.DELETE("/reservation-types/:id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteReservationType)
@@ -545,12 +545,12 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.DELETE("/examination-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteExaminationType)
 
 	// Diagnosis Categories
-	masters.GET("/diagnosis-categories", h.ListDiagnosisCategories)
-	masters.POST("/diagnosis-categories", perm(model.ResourceMasterMedical, "create"), h.CreateDiagnosisCategory)
-	masters.PATCH("/diagnosis-categories/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderDiagnosisCategories)
-	masters.GET("/diagnosis-categories/:id", h.GetDiagnosisCategory)
-	masters.PATCH("/diagnosis-categories/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateDiagnosisCategory)
-	masters.DELETE("/diagnosis-categories/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteDiagnosisCategory)
+	masters.GET("/diagnosis-types", h.ListDiagnosisTypes)
+	masters.POST("/diagnosis-types", perm(model.ResourceMasterMedical, "create"), h.CreateDiagnosisType)
+	masters.PATCH("/diagnosis-types/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderDiagnosisTypes)
+	masters.GET("/diagnosis-types/:id", h.GetDiagnosisType)
+	masters.PATCH("/diagnosis-types/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateDiagnosisType)
+	masters.DELETE("/diagnosis-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteDiagnosisType)
 
 	// Diagnosis Names
 	masters.GET("/diagnosis-names", h.ListDiagnosisNames)
@@ -586,11 +586,11 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PUT("/permission-groups/:id/rules", perm(model.ResourceMasterPermission, "edit"), h.SetPermissionGroupRules)
 
 	// Chief Complaint Categories
-	masters.GET("/chief-complaint-categories", h.ListChiefComplaints)
-	masters.POST("/chief-complaint-categories", perm(model.ResourceMasterMedical, "create"), h.CreateChiefComplaint)
-	masters.GET("/chief-complaint-categories/:id", h.GetChiefComplaint)
-	masters.PATCH("/chief-complaint-categories/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateChiefComplaint)
-	masters.DELETE("/chief-complaint-categories/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteChiefComplaint)
+	masters.GET("/chief-complaint-types", h.ListChiefComplaints)
+	masters.POST("/chief-complaint-types", perm(model.ResourceMasterMedical, "create"), h.CreateChiefComplaint)
+	masters.GET("/chief-complaint-types/:id", h.GetChiefComplaint)
+	masters.PATCH("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateChiefComplaint)
+	masters.DELETE("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteChiefComplaint)
 
 	// Inquiry Templates
 	masters.GET("/inquiry-templates", h.ListInquiryTemplates)

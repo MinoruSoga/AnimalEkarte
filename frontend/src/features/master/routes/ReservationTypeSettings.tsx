@@ -21,11 +21,11 @@ import { paths } from "@/config/paths";
 import { usePermission } from "@/features/auth";
 import { ResourceMasterReservationType } from "@/types/generated/models";
 import {
-  useGetReservationCategories,
+  useGetReservationTypes,
   useCreateReservationType,
   useUpdateReservationType,
   useDeleteReservationType,
-  useReorderReservationCategories,
+  useReorderReservationTypes,
 } from "@/features/master/api/reservation-types";
 import type { ReservationType } from "@/features/master/api/reservation-types";
 import {
@@ -62,7 +62,7 @@ function GroupedTable({
   groups, categories, onCategoryEdit, onGroupEdit, onCategoryAddInGroup, canEdit,
 }: GroupedTableProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const reorderMutation = useReorderReservationCategories();
+  const reorderMutation = useReorderReservationTypes();
   const resetOrderRef = useRef<() => void>(() => {});
 
   const handleReorder = useCallback((newIds: string[]) => {
@@ -130,7 +130,7 @@ function GroupedTable({
                         <div className="flex items-center gap-1 h-11">
                           <button type="button" onClick={() => toggleCollapse(group.id)}
                             className={`size-5 flex items-center justify-center rounded ${C.text35} ${C.hoverBgMedium} transition-colors shrink-0`}>
-                            <ChevronDown className="size-3.5 transition-transform duration-150"
+                            <ChevronDown className={`${ICON.smXs} transition-transform duration-150`}
                               style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }} />
                           </button>
                           <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
@@ -195,7 +195,7 @@ function GroupedTable({
                       <div className="flex items-center gap-1 h-11">
                         <button type="button" onClick={() => toggleCollapse(UNCATEGORIZED_ID)}
                           className={`size-5 flex items-center justify-center rounded ${C.text35} ${C.hoverBgMedium} transition-colors shrink-0`}>
-                          <ChevronDown className="size-3.5 transition-transform duration-150"
+                          <ChevronDown className={`${ICON.smXs} transition-transform duration-150`}
                             style={{ transform: uncatCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }} />
                         </button>
                         <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: PALETTE.grayMedium }} />
@@ -248,7 +248,7 @@ export function ReservationTypeSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterReservationType);
 
   const { data: groupsRaw = [] } = useGetReservationTypeGroups();
-  const { data: categoriesRaw = [] } = useGetReservationCategories();
+  const { data: categoriesRaw = [] } = useGetReservationTypes();
 
   // グループ選択肢（有効のみ）
   const activeGroups = useMemo(

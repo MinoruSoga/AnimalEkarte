@@ -11,33 +11,33 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ---- ChiefComplaintCategory モック ----
+// ---- ChiefComplaintType モック ----
 
-type mockChiefComplaintCategoryRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintCategory, error)
-	createFn   func(ctx context.Context, category *model.ChiefComplaintCategory) error
+type mockChiefComplaintTypeRepository struct {
+	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
+	createFn   func(ctx context.Context, category *model.ChiefComplaintType) error
 	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockChiefComplaintCategoryRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error) {
+func (m *mockChiefComplaintTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
 	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockChiefComplaintCategoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintCategory, error) {
+func (m *mockChiefComplaintTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockChiefComplaintCategoryRepository) Create(ctx context.Context, category *model.ChiefComplaintCategory) error {
+func (m *mockChiefComplaintTypeRepository) Create(ctx context.Context, category *model.ChiefComplaintType) error {
 	return m.createFn(ctx, category)
 }
 
-func (m *mockChiefComplaintCategoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (m *mockChiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	return m.updateFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockChiefComplaintCategoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+func (m *mockChiefComplaintTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
 }
 
@@ -58,11 +58,11 @@ func (m *mockInquiryRepository) CountByChiefComplaintTypeID(ctx context.Context,
 
 // ---- Tests ----
 
-func TestChiefComplaintCategoryService_List(t *testing.T) {
+func TestChiefComplaintTypeService_List(t *testing.T) {
 	tests := []struct {
 		name     string
 		clinicID uint64
-		repoData []model.ChiefComplaintCategory
+		repoData []model.ChiefComplaintType
 		repoErr  error
 		wantLen  int
 		wantErr  bool
@@ -70,7 +70,7 @@ func TestChiefComplaintCategoryService_List(t *testing.T) {
 		{
 			name:     "returns all categories for clinic",
 			clinicID: 1,
-			repoData: []model.ChiefComplaintCategory{
+			repoData: []model.ChiefComplaintType{
 				{ID: 1, ClinicID: 1, Name: "症状A", IsActive: true},
 				{ID: 2, ClinicID: 1, Name: "症状B", IsActive: true},
 			},
@@ -81,7 +81,7 @@ func TestChiefComplaintCategoryService_List(t *testing.T) {
 		{
 			name:     "returns empty list when no categories exist",
 			clinicID: 999,
-			repoData: []model.ChiefComplaintCategory{},
+			repoData: []model.ChiefComplaintType{},
 			repoErr:  nil,
 			wantLen:  0,
 			wantErr:  false,
@@ -97,13 +97,13 @@ func TestChiefComplaintCategoryService_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockChiefComplaintCategoryRepository{
-				findAllFn: func(_ context.Context, _ uint64) ([]model.ChiefComplaintCategory, error) {
+			repo := &mockChiefComplaintTypeRepository{
+				findAllFn: func(_ context.Context, _ uint64) ([]model.ChiefComplaintType, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
 			inquiryRepo := &mockInquiryRepository{}
-			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
+			svc := NewChiefComplaintTypeService(repo, inquiryRepo)
 
 			categories, err := svc.List(context.Background(), tt.clinicID)
 
@@ -117,18 +117,18 @@ func TestChiefComplaintCategoryService_List(t *testing.T) {
 	}
 }
 
-func TestChiefComplaintCategoryService_GetByID(t *testing.T) {
+func TestChiefComplaintTypeService_GetByID(t *testing.T) {
 	tests := []struct {
 		name     string
 		id       uint64
-		repoData *model.ChiefComplaintCategory
+		repoData *model.ChiefComplaintType
 		repoErr  error
 		wantErr  bool
 	}{
 		{
 			name: "returns category when found",
 			id:   1,
-			repoData: &model.ChiefComplaintCategory{
+			repoData: &model.ChiefComplaintType{
 				ID:       1,
 				ClinicID: 1,
 				Name:     "症状Category",
@@ -148,13 +148,13 @@ func TestChiefComplaintCategoryService_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockChiefComplaintCategoryRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ChiefComplaintCategory, error) {
+			repo := &mockChiefComplaintTypeRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ChiefComplaintType, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
 			inquiryRepo := &mockInquiryRepository{}
-			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
+			svc := NewChiefComplaintTypeService(repo, inquiryRepo)
 
 			category, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -170,16 +170,16 @@ func TestChiefComplaintCategoryService_GetByID(t *testing.T) {
 	}
 }
 
-func TestChiefComplaintCategoryService_Create(t *testing.T) {
+func TestChiefComplaintTypeService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.ChiefComplaintCategory
+		input   *model.ChiefComplaintType
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates category successfully",
-			input: &model.ChiefComplaintCategory{
+			input: &model.ChiefComplaintType{
 				ClinicID: 1,
 				Name:     "新症状",
 				IsActive: true,
@@ -189,7 +189,7 @@ func TestChiefComplaintCategoryService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when repository fails",
-			input: &model.ChiefComplaintCategory{
+			input: &model.ChiefComplaintType{
 				ClinicID: 1,
 				Name:     "失敗症状",
 			},
@@ -200,13 +200,13 @@ func TestChiefComplaintCategoryService_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockChiefComplaintCategoryRepository{
-				createFn: func(_ context.Context, _ *model.ChiefComplaintCategory) error {
+			repo := &mockChiefComplaintTypeRepository{
+				createFn: func(_ context.Context, _ *model.ChiefComplaintType) error {
 					return tt.repoErr
 				},
 			}
 			inquiryRepo := &mockInquiryRepository{}
-			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
+			svc := NewChiefComplaintTypeService(repo, inquiryRepo)
 
 			err := svc.Create(context.Background(), tt.input)
 
@@ -219,7 +219,7 @@ func TestChiefComplaintCategoryService_Create(t *testing.T) {
 	}
 }
 
-func TestChiefComplaintCategoryService_Update(t *testing.T) {
+func TestChiefComplaintTypeService_Update(t *testing.T) {
 	newName := "更新症状"
 	newSortOrder := 3
 	isActive := false
@@ -228,8 +228,8 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 		name       string
 		clinicID   uint64
 		categoryID uint64
-		input      *UpdateChiefComplaintCategoryInput
-		repoData   *model.ChiefComplaintCategory
+		input      *UpdateChiefComplaintTypeInput
+		repoData   *model.ChiefComplaintType
 		repoErr    error
 		wantErr    bool
 	}{
@@ -237,11 +237,11 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 			name:       "updates category successfully",
 			clinicID:   1,
 			categoryID: 1,
-			input: &UpdateChiefComplaintCategoryInput{
+			input: &UpdateChiefComplaintTypeInput{
 				Name:      &newName,
 				SortOrder: &newSortOrder,
 			},
-			repoData: &model.ChiefComplaintCategory{
+			repoData: &model.ChiefComplaintType{
 				ID:        1,
 				ClinicID:  1,
 				Name:      newName,
@@ -254,8 +254,8 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 			name:       "returns error when no fields provided",
 			clinicID:   1,
 			categoryID: 1,
-			input:      &UpdateChiefComplaintCategoryInput{},
-			repoData: &model.ChiefComplaintCategory{
+			input:      &UpdateChiefComplaintTypeInput{},
+			repoData: &model.ChiefComplaintType{
 				ID:       1,
 				ClinicID: 1,
 			},
@@ -266,10 +266,10 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 			name:       "returns error when update fails",
 			clinicID:   1,
 			categoryID: 1,
-			input: &UpdateChiefComplaintCategoryInput{
+			input: &UpdateChiefComplaintTypeInput{
 				IsActive: &isActive,
 			},
-			repoData: &model.ChiefComplaintCategory{
+			repoData: &model.ChiefComplaintType{
 				ID:       1,
 				ClinicID: 1,
 			},
@@ -280,16 +280,16 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockChiefComplaintCategoryRepository{
+			repo := &mockChiefComplaintTypeRepository{
 				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoErr
 				},
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ChiefComplaintCategory, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ChiefComplaintType, error) {
 					return tt.repoData, nil
 				},
 			}
 			inquiryRepo := &mockInquiryRepository{}
-			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
+			svc := NewChiefComplaintTypeService(repo, inquiryRepo)
 
 			category, err := svc.Update(context.Background(), tt.clinicID, tt.categoryID, tt.input)
 
@@ -303,7 +303,7 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 	}
 }
 
-func TestChiefComplaintCategoryService_Delete(t *testing.T) {
+func TestChiefComplaintTypeService_Delete(t *testing.T) {
 	tests := []struct {
 		name         string
 		id           uint64
@@ -350,7 +350,7 @@ func TestChiefComplaintCategoryService_Delete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockChiefComplaintCategoryRepository{
+			repo := &mockChiefComplaintTypeRepository{
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -360,7 +360,7 @@ func TestChiefComplaintCategoryService_Delete(t *testing.T) {
 					return tt.inquiryCount, tt.inquiryErr
 				},
 			}
-			svc := NewChiefComplaintCategoryService(repo, inquiryRepo)
+			svc := NewChiefComplaintTypeService(repo, inquiryRepo)
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 

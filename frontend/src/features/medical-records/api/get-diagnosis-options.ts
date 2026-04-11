@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { DiagnosisCategory, DiagnosisName } from "@/types/generated/models";
+import type { DiagnosisType, DiagnosisName } from "@/types/generated/models";
 
-export interface DiagnosisCategoryOption {
+export interface DiagnosisTypeOption {
   id: number;
   name: string;
 }
@@ -20,9 +20,9 @@ interface PaginatedResponse<T> {
   limit: number;
 }
 
-export const getDiagnosisCategories = async (): Promise<DiagnosisCategoryOption[]> => {
-  const { data } = await axios.get<DiagnosisCategory[] | PaginatedResponse<DiagnosisCategory>>(
-    "/v1/masters/diagnosis-categories",
+export const getDiagnosisTypes = async (): Promise<DiagnosisTypeOption[]> => {
+  const { data } = await axios.get<DiagnosisType[] | PaginatedResponse<DiagnosisType>>(
+    "/v1/masters/diagnosis-types",
     { params: { limit: 100 } },
   );
   const items = Array.isArray(data) ? data : (data.data ?? []);
@@ -46,10 +46,10 @@ export const getDiagnosisNames = async (categoryId?: number | null): Promise<Dia
   }));
 };
 
-export const useGetDiagnosisCategories = () =>
+export const useGetDiagnosisTypes = () =>
   useQuery({
     queryKey: ["masters", "diagnosis-categories"],
-    queryFn: getDiagnosisCategories,
+    queryFn: getDiagnosisTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

@@ -134,16 +134,16 @@ type ReservationTypeService interface { //nolint:revive // ReservationType is a 
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-type reservationCategoryService struct {
+type reservationTypeService struct {
 	repo            repository.ReservationTypeRepository
 	reservationRepo repository.ReservationRepository
 }
 
 func NewReservationTypeService(repo repository.ReservationTypeRepository, reservationRepo repository.ReservationRepository) ReservationTypeService {
-	return &reservationCategoryService{repo: repo, reservationRepo: reservationRepo}
+	return &reservationTypeService{repo: repo, reservationRepo: reservationRepo}
 }
 
-func (s *reservationCategoryService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
+func (s *reservationTypeService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list service types")
@@ -151,7 +151,7 @@ func (s *reservationCategoryService) List(ctx context.Context, clinicID uint64) 
 	return items, nil
 }
 
-func (s *reservationCategoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+func (s *reservationTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get service type")
@@ -159,7 +159,7 @@ func (s *reservationCategoryService) GetByID(ctx context.Context, clinicID, id u
 	return result, nil
 }
 
-func (s *reservationCategoryService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeInput) (*model.ReservationType, error) {
+func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeInput) (*model.ReservationType, error) {
 	reservationDayOption := model.ReservationDayOption(input.ReservationDayOption)
 	if reservationDayOption == "" {
 		reservationDayOption = model.DayOptionNone
@@ -190,7 +190,7 @@ func (s *reservationCategoryService) Create(ctx context.Context, clinicID uint64
 	return st, nil
 }
 
-func (s *reservationCategoryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeInput) (*model.ReservationType, error) {
+func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeInput) (*model.ReservationType, error) {
 	fields := buildReservationTypeUpdateFields(input)
 	if len(fields) == 0 {
 		result, err := s.repo.FindByID(ctx, clinicID, id)
@@ -210,7 +210,7 @@ func (s *reservationCategoryService) Update(ctx context.Context, clinicID, id ui
 	return result, nil
 }
 
-func (s *reservationCategoryService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
 	exists, err := s.reservationRepo.ExistsByReservationTypeID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check reservation dependency")
@@ -225,7 +225,7 @@ func (s *reservationCategoryService) Delete(ctx context.Context, clinicID, id ui
 	return nil
 }
 
-func (s *reservationCategoryService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+func (s *reservationTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}

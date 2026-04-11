@@ -280,7 +280,7 @@ export const paths = {
       path: "/settings/procedure",
       getHref: () => "/settings/procedure",
     },
-    diagnosisCategory: {
+    diagnosisType: {
       path: "/settings/diagnosis-category",
       getHref: () => "/settings/diagnosis-category",
     },

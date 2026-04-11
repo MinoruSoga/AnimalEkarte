@@ -85,7 +85,7 @@ func (r *dailyRecordRepository) CreateVitalRecord(ctx context.Context, vr *model
 func (r *dailyRecordRepository) CreateCareLog(ctx context.Context, cr *model.CareLog) error {
 	err := r.db.WithContext(ctx).Create(cr).Error
 	if err != nil {
-		return apperrors.FromGORM(err, "care_log_record", "")
+		return apperrors.FromGORM(err, "care_log", "")
 	}
 	return nil
 }
@@ -93,7 +93,7 @@ func (r *dailyRecordRepository) CreateCareLog(ctx context.Context, cr *model.Car
 func (r *dailyRecordRepository) CreateStaffNote(ctx context.Context, sn *model.StaffNote) error {
 	err := r.db.WithContext(ctx).Create(sn).Error
 	if err != nil {
-		return apperrors.FromGORM(err, "staff_note_record", "")
+		return apperrors.FromGORM(err, "staff_note", "")
 	}
 	return nil
 }

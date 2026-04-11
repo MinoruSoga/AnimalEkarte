@@ -274,7 +274,7 @@ const ItemListCard = memo(function ItemListCard({
                   {filteredMerchandise.length > 0 ? (
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b bg-muted/50 text-xs">
+                        <tr className={`border-b ${C.bgPage30} text-xs`}>
                           <th className="px-3 py-2 text-left font-medium">品目名</th>
                           <th className="px-3 py-2 text-left font-medium w-[70px]">区分</th>
                           <th className="px-3 py-2 text-right font-medium w-[90px]">単価</th>
@@ -725,7 +725,7 @@ const RefundSection = memo(function RefundSection({
         <CardContent className="p-0">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/30 text-xs">
+              <tr className={`border-b ${C.bgPage30} text-xs`}>
                 <th className="px-3 py-2 text-left font-medium">日時</th>
                 <th className="px-3 py-2 text-right font-medium">金額</th>
                 <th className="px-3 py-2 text-left font-medium">理由</th>

@@ -9,7 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ReservationTypeLiffService は予約コース（reservation_categories）のビジネスロジックインターフェース
+// ReservationTypeLiffService は予約コース（reservation_types）のビジネスロジックインターフェース
 type ReservationTypeLiffService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeLiffInput) (*model.ReservationType, error)

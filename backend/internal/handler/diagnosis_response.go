@@ -6,7 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type diagnosisCategoryResponse struct {
+type diagnosisTypeResponse struct {
 	ID          uint64    `json:"id"`
 	ClinicID    uint64    `json:"clinic_id"`
 	Name        string    `json:"name"`
@@ -17,8 +17,8 @@ type diagnosisCategoryResponse struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func toDiagnosisCategoryResponse(c *model.DiagnosisCategory) diagnosisCategoryResponse {
-	return diagnosisCategoryResponse{
+func toDiagnosisTypeResponse(c *model.DiagnosisType) diagnosisTypeResponse {
+	return diagnosisTypeResponse{
 		ID:          c.ID,
 		ClinicID:    c.ClinicID,
 		Name:        c.Name,
@@ -30,10 +30,10 @@ func toDiagnosisCategoryResponse(c *model.DiagnosisCategory) diagnosisCategoryRe
 	}
 }
 
-func toDiagnosisCategoryResponseList(categories []model.DiagnosisCategory) []diagnosisCategoryResponse {
-	list := make([]diagnosisCategoryResponse, 0, len(categories))
+func toDiagnosisTypeResponseList(categories []model.DiagnosisType) []diagnosisTypeResponse {
+	list := make([]diagnosisTypeResponse, 0, len(categories))
 	for i := range categories {
-		list = append(list, toDiagnosisCategoryResponse(&categories[i]))
+		list = append(list, toDiagnosisTypeResponse(&categories[i]))
 	}
 	return list
 }
@@ -44,7 +44,7 @@ type diagnosisNameResponse struct {
 	Name                string    `json:"name"`
 	IsActive            bool      `json:"is_active"`
 	Description         string    `json:"description"`
-	DiagnosisCategoryID uint64    `json:"diagnosis_category_id"`
+	DiagnosisTypeID uint64    `json:"diagnosis_type_id"`
 	SortOrder           int       `json:"sort_order"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
@@ -57,7 +57,7 @@ func toDiagnosisNameResponse(n *model.DiagnosisName) diagnosisNameResponse {
 		Name:                n.Name,
 		IsActive:            n.IsActive,
 		Description:         n.Description,
-		DiagnosisCategoryID: n.DiagnosisCategoryID,
+		DiagnosisTypeID: n.DiagnosisTypeID,
 		SortOrder:           n.SortOrder,
 		CreatedAt:           n.CreatedAt,
 		UpdatedAt:           n.UpdatedAt,

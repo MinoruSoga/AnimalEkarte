@@ -7,7 +7,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type reservationCustomerResponse struct {
+type lineCustomerResponse struct {
 	ID               uint64          `json:"id"`
 	ClinicID         uint64          `json:"clinic_id"`
 	LineUserID       string          `json:"line_user_id"`
@@ -20,12 +20,12 @@ type reservationCustomerResponse struct {
 	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
-func toLineCustomerResponse(rc *model.LineCustomer) reservationCustomerResponse {
+func toLineCustomerResponse(rc *model.LineCustomer) lineCustomerResponse {
 	ownerName := ""
 	if rc.Owner != nil {
 		ownerName = rc.Owner.Name
 	}
-	return reservationCustomerResponse{
+	return lineCustomerResponse{
 		ID:               rc.ID,
 		ClinicID:         rc.ClinicID,
 		LineUserID:       rc.LineUserID,
@@ -39,8 +39,8 @@ func toLineCustomerResponse(rc *model.LineCustomer) reservationCustomerResponse 
 	}
 }
 
-func toLineCustomerResponseList(items []model.LineCustomer) []reservationCustomerResponse {
-	list := make([]reservationCustomerResponse, 0, len(items))
+func toLineCustomerResponseList(items []model.LineCustomer) []lineCustomerResponse {
+	list := make([]lineCustomerResponse, 0, len(items))
 	for i := range items {
 		list = append(list, toLineCustomerResponse(&items[i]))
 	}

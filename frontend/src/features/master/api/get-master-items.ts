@@ -33,7 +33,7 @@ export const MASTER_CATEGORY_ENDPOINT: Record<string, string> = {
   staff: "/v1/masters/staffs",
   trimmingCourse: "/v1/masters/trimming-courses",
   trimmingOption: "/v1/masters/trimming-options",
-  diagnosisCategory: "/v1/masters/diagnosis-categories",
+  diagnosisType: "/v1/masters/diagnosis-types",
   diagnosisName: "/v1/masters/diagnosis-names",
   checkup: "/v1/masters/checkup-types",
   occupations: "/v1/masters/occupations",

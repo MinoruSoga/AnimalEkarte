@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Relative
-import { useGetDiagnosisCategories, useGetDiagnosisNames } from "../api/get-diagnosis-options";
+import { useGetDiagnosisTypes, useGetDiagnosisNames } from "../api/get-diagnosis-options";
 
 interface DiagnosisHeaderDiagnosisProps {
   diagnosisDetails: string;
@@ -41,7 +41,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
   setDiagnosis2NameId,
   canEdit,
 }: DiagnosisHeaderDiagnosisProps) {
-  const { data: categories = [], isLoading: isCategoriesLoading } = useGetDiagnosisCategories();
+  const { data: categories = [], isLoading: isTypesLoading } = useGetDiagnosisTypes();
   const { data: names1 = [], isLoading: isNames1Loading } = useGetDiagnosisNames(diagnosis1CategoryId);
   const { data: names2 = [], isLoading: isNames2Loading } = useGetDiagnosisNames(diagnosis2CategoryId);
 
@@ -86,10 +86,10 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                   setDiagnosis1CategoryId?.(value ? Number(value) : null);
                   setDiagnosis1NameId?.(null);
                 }}
-                disabled={isCategoriesLoading || !canEdit}
+                disabled={isTypesLoading || !canEdit}
               >
                 <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
-                  <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
+                  <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
                   {categorySelectItems}
@@ -119,10 +119,10 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                   setDiagnosis2CategoryId?.(value ? Number(value) : null);
                   setDiagnosis2NameId?.(null);
                 }}
-                disabled={isCategoriesLoading || !canEdit}
+                disabled={isTypesLoading || !canEdit}
               >
                 <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
-                  <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
+                  <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
                   {categorySelectItems}

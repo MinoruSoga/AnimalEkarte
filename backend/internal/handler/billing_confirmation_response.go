@@ -7,7 +7,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type billingReviewResponse struct {
+type billingConfirmationResponse struct {
 	ID              string     `json:"id"`
 	MedicalRecordID string     `json:"medical_record_id"`
 	Status          string     `json:"status"`
@@ -21,8 +21,8 @@ type billingReviewResponse struct {
 	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
-func toBillingConfirmationResponse(r *model.BillingConfirmation) billingReviewResponse {
-	resp := billingReviewResponse{
+func toBillingConfirmationResponse(r *model.BillingConfirmation) billingConfirmationResponse {
+	resp := billingConfirmationResponse{
 		ID:              strconv.FormatUint(r.ID, 10),
 		MedicalRecordID: strconv.FormatUint(r.MedicalRecordID, 10),
 		Status:          string(r.Status),

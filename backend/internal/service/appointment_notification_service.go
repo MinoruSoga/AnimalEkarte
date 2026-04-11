@@ -144,7 +144,7 @@ func (s *reservationNotificationService) NotifyCancelled(
 
 // ---- ヘルパー: LINE表示名フォールバック ----
 
-func reservationCategoryDisplayName(st *model.ReservationType) string {
+func reservationTypeDisplayName(st *model.ReservationType) string {
 	if st == nil {
 		return ""
 	}
@@ -174,7 +174,7 @@ func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.App
 	sb.WriteString("ご予約を承りました。\n\n")
 	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
 	sb.WriteString(fmt.Sprintf("■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime)))
-	if name := reservationCategoryDisplayName(appt.ReservationType); name != "" {
+	if name := reservationTypeDisplayName(appt.ReservationType); name != "" {
 		sb.WriteString(fmt.Sprintf("■ メニュー: %s\n", name))
 	}
 	if name := staffDisplayName(appt.Doctor); name != "" {
@@ -192,7 +192,7 @@ func (s *reservationNotificationService) buildCancelledLineMessage(appt *model.A
 	sb.WriteString("以下のご予約をキャンセルしました。\n\n")
 	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
 	sb.WriteString(fmt.Sprintf("■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime)))
-	if name := reservationCategoryDisplayName(appt.ReservationType); name != "" {
+	if name := reservationTypeDisplayName(appt.ReservationType); name != "" {
 		sb.WriteString(fmt.Sprintf("■ メニュー: %s\n", name))
 	}
 	sb.WriteString("\n再度のご予約はLINEメニューの\n「予約する」から行えます。")

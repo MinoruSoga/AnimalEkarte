@@ -18,7 +18,7 @@ type chiefComplaintResponse struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func toChiefComplaintResponse(cc *model.ChiefComplaintCategory) chiefComplaintResponse {
+func toChiefComplaintResponse(cc *model.ChiefComplaintType) chiefComplaintResponse {
 	return chiefComplaintResponse{
 		ID:          strconv.FormatUint(cc.ID, 10),
 		ClinicID:    strconv.FormatUint(cc.ClinicID, 10),
@@ -31,7 +31,7 @@ func toChiefComplaintResponse(cc *model.ChiefComplaintCategory) chiefComplaintRe
 	}
 }
 
-func toChiefComplaintResponseList(items []model.ChiefComplaintCategory) []chiefComplaintResponse {
+func toChiefComplaintResponseList(items []model.ChiefComplaintType) []chiefComplaintResponse {
 	list := make([]chiefComplaintResponse, 0, len(items))
 	for i := range items {
 		list = append(list, toChiefComplaintResponse(&items[i]))

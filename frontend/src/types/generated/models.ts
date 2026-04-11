@@ -304,12 +304,12 @@ export interface CheckupType {
 }
 
 //////////
-// source: chief_complaint_category.go
+// source: chief_complaint_type.go
 
 /**
- * ChiefComplaintCategory は主訴区分マスタ（v11.0追加）
+ * ChiefComplaintType は主訴区分マスタ（v11.0追加）
  */
-export interface ChiefComplaintCategory {
+export interface ChiefComplaintType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
@@ -365,9 +365,9 @@ export interface ClinicalPlan {
    * Relations
    */
   medical_record?: MedicalRecord;
-  diagnosis_type?: DiagnosisCategory;
+  diagnosis_type?: DiagnosisType;
   diagnosis_name?: DiagnosisName;
-  diagnosis_2_type?: DiagnosisCategory;
+  diagnosis_2_type?: DiagnosisType;
   diagnosis_2_name?: DiagnosisName;
 }
 
@@ -417,7 +417,7 @@ export interface Consultation {
 //////////
 // source: diagnosis.go
 
-export interface DiagnosisCategory {
+export interface DiagnosisType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
@@ -444,7 +444,7 @@ export interface DiagnosisName {
   /**
    * Relations
    */
-  category?: DiagnosisCategory;
+  category?: DiagnosisType;
 }
 
 //////////
@@ -827,7 +827,7 @@ export interface Inquiry {
    * Relations
    */
   medical_record?: MedicalRecord;
-  chief_complaint_type?: ChiefComplaintCategory;
+  chief_complaint_type?: ChiefComplaintType;
   staff?: Staff;
 }
 

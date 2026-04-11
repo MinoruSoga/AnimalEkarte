@@ -18,7 +18,7 @@ type createMedicalRecordRequest struct {
 
 	// ClinicalPlan関連フィールド（原子的作成用）
 	ChiefComplaint           *string `json:"chief_complaint"`
-	ChiefComplaintCategoryID *uint64 `json:"chief_complaint_category_id"`
+	ChiefComplaintTypeID *uint64 `json:"chief_complaint_type_id"`
 	Plan                     *string `json:"plan"`       // ClinicalPlan.TreatmentPolicyへ
 	Assessment               *string `json:"assessment"` // ClinicalPlan.DiagnosisDetailsへ
 	Notes                    *string `json:"notes"`

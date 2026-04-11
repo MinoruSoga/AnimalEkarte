@@ -30,16 +30,16 @@ type BillingConfirmationService interface {
 	Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingConfirmationInput) (*model.BillingConfirmation, error)
 }
 
-type billingReviewService struct {
+type billingConfirmationService struct {
 	repo repository.BillingConfirmationRepository
 }
 
 // NewBillingConfirmationService はBillingConfirmationServiceを初期化して返す
 func NewBillingConfirmationService(repo repository.BillingConfirmationRepository) BillingConfirmationService {
-	return &billingReviewService{repo: repo}
+	return &billingConfirmationService{repo: repo}
 }
 
-func (s *billingReviewService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
+func (s *billingConfirmationService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
 	review, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
@@ -53,15 +53,15 @@ func (s *billingReviewService) GetOrCreate(ctx context.Context, clinicID, medica
 		if err := s.repo.Create(ctx, review); err != nil {
 			return nil, apperrors.Wrap(err, "failed to create billing review")
 		}
-		slog.InfoContext(ctx, "billing_review created",
+		slog.InfoContext(ctx, "billing_confirmation created",
 			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("billing_review_id", review.ID),
+			slog.Uint64("billing_confirmation_id", review.ID),
 			slog.Uint64("medical_record_id", medicalRecordID))
 	}
 	return review, nil
 }
 
-func (s *billingReviewService) Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
+func (s *billingConfirmationService) Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
 	review, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create billing review")
@@ -80,9 +80,9 @@ func (s *billingReviewService) Confirm(ctx context.Context, clinicID, medicalRec
 	if err := s.repo.Update(ctx, clinicID, review.ID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update billing review")
 	}
-	slog.InfoContext(ctx, "billing_review confirmed",
+	slog.InfoContext(ctx, "billing_confirmation confirmed",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("billing_review_id", review.ID),
+		slog.Uint64("billing_confirmation_id", review.ID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Uint64("confirmed_by", input.ConfirmedBy))
 	confirmed, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
@@ -92,7 +92,7 @@ func (s *billingReviewService) Confirm(ctx context.Context, clinicID, medicalRec
 	return confirmed, nil
 }
 
-func (s *billingReviewService) Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
+func (s *billingConfirmationService) Return(ctx context.Context, clinicID, medicalRecordID uint64, input *ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
 	review, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create billing review")
@@ -109,9 +109,9 @@ func (s *billingReviewService) Return(ctx context.Context, clinicID, medicalReco
 	if err := s.repo.Update(ctx, clinicID, review.ID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update billing review")
 	}
-	slog.InfoContext(ctx, "billing_review returned",
+	slog.InfoContext(ctx, "billing_confirmation returned",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("billing_review_id", review.ID),
+		slog.Uint64("billing_confirmation_id", review.ID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Uint64("returned_by", input.ReturnedBy))
 	returned, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)

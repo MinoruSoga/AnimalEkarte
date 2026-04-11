@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for ChiefComplaintCategory entity.
+// Package handler provides HTTP handler implementations for ChiefComplaintType entity.
 package handler
 
 import (
@@ -11,7 +11,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// ---- ChiefComplaintCategory ----
+// ---- ChiefComplaintType ----
 
 // GetChiefComplaint godoc
 func (h *Handler) GetChiefComplaint(c *gin.Context) {
@@ -23,7 +23,7 @@ func (h *Handler) GetChiefComplaint(c *gin.Context) {
 	if !ok {
 		return
 	}
-	category, err := h.svc.ChiefComplaintCategory.GetByID(c.Request.Context(), clinicID, id)
+	category, err := h.svc.ChiefComplaintType.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -37,7 +37,7 @@ func (h *Handler) ListChiefComplaints(c *gin.Context) {
 	if !ok {
 		return
 	}
-	categories, err := h.svc.ChiefComplaintCategory.List(c.Request.Context(), clinicID)
+	categories, err := h.svc.ChiefComplaintType.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -58,14 +58,14 @@ func (h *Handler) CreateChiefComplaint(c *gin.Context) {
 		return
 	}
 
-	category := &model.ChiefComplaintCategory{
+	category := &model.ChiefComplaintType{
 		ClinicID:  clinicID,
 		Name:      req.Name,
 		IsActive:  req.IsActive,
 		SortOrder: req.SortOrder,
 	}
 
-	if err := h.svc.ChiefComplaintCategory.Create(c.Request.Context(), category); err != nil {
+	if err := h.svc.ChiefComplaintType.Create(c.Request.Context(), category); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -89,14 +89,14 @@ func (h *Handler) UpdateChiefComplaint(c *gin.Context) {
 		return
 	}
 
-	input := &service.UpdateChiefComplaintCategoryInput{
+	input := &service.UpdateChiefComplaintTypeInput{
 		Name:        req.Name,
 		Description: req.Description,
 		SortOrder:   req.SortOrder,
 		IsActive:    req.IsActive,
 	}
 
-	updated, err := h.svc.ChiefComplaintCategory.Update(c.Request.Context(), clinicID, id, input)
+	updated, err := h.svc.ChiefComplaintType.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -114,7 +114,7 @@ func (h *Handler) DeleteChiefComplaint(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.svc.ChiefComplaintCategory.Delete(c.Request.Context(), clinicID, id); err != nil {
+	if err := h.svc.ChiefComplaintType.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

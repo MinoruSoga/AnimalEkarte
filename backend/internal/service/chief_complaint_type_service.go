@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for ChiefComplaintCategory entity.
+// Package service provides business logic implementations for ChiefComplaintType entity.
 package service
 
 import (
@@ -10,35 +10,35 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- ChiefComplaintCategoryService ----
+// ---- ChiefComplaintTypeService ----
 
-// UpdateChiefComplaintCategoryInput holds the fields that can be updated via PATCH.
+// UpdateChiefComplaintTypeInput holds the fields that can be updated via PATCH.
 // All fields are pointers: nil means "not provided / skip".
-type UpdateChiefComplaintCategoryInput struct {
+type UpdateChiefComplaintTypeInput struct {
 	Name        *string
 	Description *string
 	SortOrder   *int
 	IsActive    *bool
 }
 
-type ChiefComplaintCategoryService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error)
-	GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintCategory, error)
-	Create(ctx context.Context, category *model.ChiefComplaintCategory) error
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintCategoryInput) (*model.ChiefComplaintCategory, error)
+type ChiefComplaintTypeService interface {
+	List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
+	Create(ctx context.Context, category *model.ChiefComplaintType) error
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type chiefComplaintCategoryService struct {
-	repo        repository.ChiefComplaintCategoryRepository
+	repo        repository.ChiefComplaintTypeRepository
 	inquiryRepo repository.InquiryRepository
 }
 
-func NewChiefComplaintCategoryService(repo repository.ChiefComplaintCategoryRepository, inquiryRepo repository.InquiryRepository) ChiefComplaintCategoryService {
+func NewChiefComplaintTypeService(repo repository.ChiefComplaintTypeRepository, inquiryRepo repository.InquiryRepository) ChiefComplaintTypeService {
 	return &chiefComplaintCategoryService{repo: repo, inquiryRepo: inquiryRepo}
 }
 
-func (s *chiefComplaintCategoryService) List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error) {
+func (s *chiefComplaintCategoryService) List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list chief complaint categories")
@@ -46,7 +46,7 @@ func (s *chiefComplaintCategoryService) List(ctx context.Context, clinicID uint6
 	return items, nil
 }
 
-func (s *chiefComplaintCategoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintCategory, error) {
+func (s *chiefComplaintCategoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get chief complaint category")
@@ -54,7 +54,7 @@ func (s *chiefComplaintCategoryService) GetByID(ctx context.Context, clinicID, i
 	return result, nil
 }
 
-func (s *chiefComplaintCategoryService) Create(ctx context.Context, category *model.ChiefComplaintCategory) error {
+func (s *chiefComplaintCategoryService) Create(ctx context.Context, category *model.ChiefComplaintType) error {
 	if err := s.repo.Create(ctx, category); err != nil {
 		return apperrors.Wrap(err, "failed to create chief complaint category")
 	}
@@ -64,8 +64,8 @@ func (s *chiefComplaintCategoryService) Create(ctx context.Context, category *mo
 	return nil
 }
 
-func (s *chiefComplaintCategoryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintCategoryInput) (*model.ChiefComplaintCategory, error) {
-	fields := buildChiefComplaintCategoryUpdateFields(input)
+func (s *chiefComplaintCategoryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+	fields := buildChiefComplaintTypeUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -99,7 +99,7 @@ func (s *chiefComplaintCategoryService) Delete(ctx context.Context, clinicID, id
 	return nil
 }
 
-func buildChiefComplaintCategoryUpdateFields(input *UpdateChiefComplaintCategoryInput) map[string]any {
+func buildChiefComplaintTypeUpdateFields(input *UpdateChiefComplaintTypeInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
 		fields["name"] = *input.Name

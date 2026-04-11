@@ -10,7 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ReservationTypeLiffRepository は予約コース（reservation_categories の予約用ラッパー）のデータアクセスインターフェース
+// ReservationTypeLiffRepository は予約コース（reservation_types の予約用ラッパー）のデータアクセスインターフェース
 type ReservationTypeLiffRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
@@ -35,7 +35,7 @@ func (r *reservationTypeLiffRepository) FindAll(ctx context.Context, clinicID ui
 		Order("sort_order ASC, id ASC").
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_course", "")
+		return nil, apperrors.FromGORM(err, "reservation_type_liff", "")
 	}
 	return items, nil
 }
@@ -44,7 +44,7 @@ func (r *reservationTypeLiffRepository) FindByID(ctx context.Context, clinicID, 
 	var st model.ReservationType
 	err := r.db.WithContext(ctx).First(&st, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_course", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))
 	}
 	return &st, nil
 }
@@ -54,7 +54,7 @@ func (r *reservationTypeLiffRepository) Create(ctx context.Context, st *model.Re
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.FromGORM(err, "reservation_course", "")
+		return apperrors.FromGORM(err, "reservation_type_liff", "")
 	}
 	return nil
 }
@@ -65,10 +65,10 @@ func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "reservation_course", fmt.Sprintf("%d", id))
+		return apperrors.FromGORM(result.Error, "reservation_type_liff", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_course", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("reservation_type_liff", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
@@ -79,10 +79,10 @@ func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id
 		if isFKConstraintErr(result.Error) {
 			return apperrors.WrapConflict("このコースは予約に使用されているため削除できません")
 		}
-		return apperrors.FromGORM(result.Error, "reservation_course", fmt.Sprintf("%d", id))
+		return apperrors.FromGORM(result.Error, "reservation_type_liff", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_course", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("reservation_type_liff", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
@@ -91,7 +91,7 @@ func (r *reservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clini
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var target model.ReservationType
 		if err := tx.First(&target, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-			return apperrors.FromGORM(err, "reservation_course", fmt.Sprintf("%d", id))
+			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))
 		}
 
 		var neighbor model.ReservationType
@@ -110,10 +110,10 @@ func (r *reservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clini
 		neighborOrder := neighbor.SortOrder
 
 		if err := tx.Model(&model.ReservationType{}).Where("id = ?", target.ID).Update("sort_order", neighborOrder).Error; err != nil {
-			return apperrors.FromGORM(err, "reservation_course", fmt.Sprintf("%d", target.ID))
+			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", target.ID))
 		}
 		if err := tx.Model(&model.ReservationType{}).Where("id = ?", neighbor.ID).Update("sort_order", targetOrder).Error; err != nil {
-			return apperrors.FromGORM(err, "reservation_course", fmt.Sprintf("%d", neighbor.ID))
+			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", neighbor.ID))
 		}
 		return nil
 	})

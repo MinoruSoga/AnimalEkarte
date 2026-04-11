@@ -6,7 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type reservationCourseResponse struct {
+type reservationTypeLiffResponse struct {
 	ID                   uint64    `json:"id"`
 	ClinicID             uint64    `json:"clinic_id"`
 	Name                 string    `json:"name"`
@@ -26,8 +26,8 @@ type reservationCourseResponse struct {
 	UpdatedAt            time.Time `json:"updated_at"`
 }
 
-func toReservationTypeLiffResponse(st *model.ReservationType) reservationCourseResponse {
-	return reservationCourseResponse{
+func toReservationTypeLiffResponse(st *model.ReservationType) reservationTypeLiffResponse {
+	return reservationTypeLiffResponse{
 		ID:                   st.ID,
 		ClinicID:             st.ClinicID,
 		Name:                 st.Name,
@@ -48,8 +48,8 @@ func toReservationTypeLiffResponse(st *model.ReservationType) reservationCourseR
 	}
 }
 
-func toReservationTypeLiffResponseList(items []model.ReservationType) []reservationCourseResponse {
-	list := make([]reservationCourseResponse, 0, len(items))
+func toReservationTypeLiffResponseList(items []model.ReservationType) []reservationTypeLiffResponse {
+	list := make([]reservationTypeLiffResponse, 0, len(items))
 	for i := range items {
 		list = append(list, toReservationTypeLiffResponse(&items[i]))
 	}

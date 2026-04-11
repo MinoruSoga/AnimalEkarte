@@ -7,7 +7,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type reservationSettingResponse struct {
+type lineReservationSettingResponse struct {
 	ID                      uint64          `json:"id"`
 	ClinicID                uint64          `json:"clinic_id"`
 	Status                  string          `json:"status"`
@@ -41,8 +41,8 @@ type reservationSettingResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func toLineReservationSettingResponse(s *model.LineReservationSetting) reservationSettingResponse {
-	return reservationSettingResponse{
+func toLineReservationSettingResponse(s *model.LineReservationSetting) lineReservationSettingResponse {
+	return lineReservationSettingResponse{
 		ID:                      s.ID,
 		ClinicID:                s.ClinicID,
 		Status:                  s.Status,

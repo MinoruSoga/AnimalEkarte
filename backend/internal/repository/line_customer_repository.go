@@ -20,13 +20,13 @@ type LineCustomerRepository interface {
 	UpdateAdditionalFields(ctx context.Context, clinicID, id uint64, fields []byte) error
 }
 
-type reservationCustomerRepository struct{ db *gorm.DB }
+type lineCustomerRepository struct{ db *gorm.DB }
 
 func NewLineCustomerRepository(db *gorm.DB) LineCustomerRepository {
-	return &reservationCustomerRepository{db: db}
+	return &lineCustomerRepository{db: db}
 }
 
-func (r *reservationCustomerRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
+func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
 	items := make([]model.LineCustomer, 0)
 	err := r.db.WithContext(ctx).
 		Preload("Owner").
@@ -34,12 +34,12 @@ func (r *reservationCustomerRepository) FindAll(ctx context.Context, clinicID ui
 		Order("created_at DESC").
 		Find(&items).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_customer", "")
+		return nil, apperrors.FromGORM(err, "line_customer", "")
 	}
 	return items, nil
 }
 
-func (r *reservationCustomerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error) {
+func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error) {
 	var c model.LineCustomer
 	err := r.db.WithContext(ctx).
 		Preload("Owner").
@@ -47,12 +47,12 @@ func (r *reservationCustomerRepository) FindByID(ctx context.Context, clinicID, 
 		Preload("Owner.Pets.AnimalSpecies").
 		First(&c, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_customer", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(err, "line_customer", fmt.Sprintf("%d", id))
 	}
 	return &c, nil
 }
 
-func (r *reservationCustomerRepository) FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.LineCustomer, error) {
+func (r *lineCustomerRepository) FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.LineCustomer, error) {
 	var c model.LineCustomer
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ? AND line_user_id = ?", clinicID, lineUserID).
@@ -64,37 +64,37 @@ func (r *reservationCustomerRepository) FindOrCreateByLineUserID(ctx context.Con
 			DisplayName: displayName,
 		}
 		if err2 := r.db.WithContext(ctx).Create(&c).Error; err2 != nil {
-			return nil, apperrors.FromGORM(err2, "reservation_customer", "")
+			return nil, apperrors.FromGORM(err2, "line_customer", "")
 		}
 		return &c, nil
 	}
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_customer", lineUserID)
+		return nil, apperrors.FromGORM(err, "line_customer", lineUserID)
 	}
 	return &c, nil
 }
 
-func (r *reservationCustomerRepository) UpdateAdditionalFields(ctx context.Context, clinicID, id uint64, fields []byte) error {
+func (r *lineCustomerRepository) UpdateAdditionalFields(ctx context.Context, clinicID, id uint64, fields []byte) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.LineCustomer{}).
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Update("additional_fields", fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "reservation_customer", fmt.Sprintf("%d", id))
+		return apperrors.FromGORM(result.Error, "line_customer", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
 
-func (r *reservationCustomerRepository) UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error {
+func (r *lineCustomerRepository) UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.LineCustomer{}).
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Update("owner_id", ownerID)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "reservation_customer", fmt.Sprintf("%d", id))
+		return apperrors.FromGORM(result.Error, "line_customer", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_customer", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("line_customer", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

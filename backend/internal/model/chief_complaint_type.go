@@ -17,6 +17,3 @@ type ChiefComplaintType struct {
 }
 
 func (ChiefComplaintType) TableName() string { return "chief_complaint_types" }
-
-// ChiefComplaintCategory は ChiefComplaintType の後方互換エイリアス。
-type ChiefComplaintCategory = ChiefComplaintType

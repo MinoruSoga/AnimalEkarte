@@ -32,16 +32,16 @@ type MedicalRecordImageService interface {
 	Delete(ctx context.Context, medicalRecordID, imageID uint64) error
 }
 
-type recordImageService struct {
+type medicalRecordImageService struct {
 	repo repository.MedicalRecordImageRepository
 }
 
 // NewMedicalRecordImageService は MedicalRecordImageService を初期化して返す
 func NewMedicalRecordImageService(repo repository.MedicalRecordImageRepository) MedicalRecordImageService {
-	return &recordImageService{repo: repo}
+	return &medicalRecordImageService{repo: repo}
 }
 
-func (s *recordImageService) List(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+func (s *medicalRecordImageService) List(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
 	result, err := s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list record images")
@@ -49,7 +49,7 @@ func (s *recordImageService) List(ctx context.Context, medicalRecordID uint64) (
 	return result, nil
 }
 
-func (s *recordImageService) Create(ctx context.Context, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+func (s *medicalRecordImageService) Create(ctx context.Context, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
 	if err := validateMedicalImageType(string(input.ImageType)); err != nil {
 		return nil, err
 	}
@@ -81,13 +81,13 @@ func (s *recordImageService) Create(ctx context.Context, medicalRecordID uint64,
 	return image, nil
 }
 
-func (s *recordImageService) Delete(ctx context.Context, medicalRecordID, imageID uint64) error {
+func (s *medicalRecordImageService) Delete(ctx context.Context, medicalRecordID, imageID uint64) error {
 	image, err := s.repo.FindByID(ctx, imageID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get record image")
 	}
 	if image.MedicalRecordID != medicalRecordID {
-		return apperrors.WrapNotFound("record_image", "not found in this medical record")
+		return apperrors.WrapNotFound("medical_record_image", "not found in this medical record")
 	}
 	if err := s.repo.Delete(ctx, imageID); err != nil {
 		return apperrors.Wrap(err, "failed to delete record image")

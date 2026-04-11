@@ -17,7 +17,7 @@ type ReservationRepository interface {
 	Create(ctx context.Context, reservation *model.Appointment) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	ExistsByReservationTypeID(ctx context.Context, reservationCategoryID uint64) (bool, error)
+	ExistsByReservationTypeID(ctx context.Context, reservationTypeID uint64) (bool, error)
 	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
 	CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error)
 }
@@ -112,10 +112,10 @@ func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64)
 	return nil
 }
 
-func (r *reservationRepository) ExistsByReservationTypeID(ctx context.Context, reservationCategoryID uint64) (bool, error) {
+func (r *reservationRepository) ExistsByReservationTypeID(ctx context.Context, reservationTypeID uint64) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&model.Appointment{}).
-		Where("reservation_type_id = ?", reservationCategoryID).
+		Where("reservation_type_id = ?", reservationTypeID).
 		Count(&count).Error
 	if err != nil {
 		return false, apperrors.FromGORM(err, "reservation", "")
@@ -139,7 +139,7 @@ func (r *reservationRepository) CountMedicalRecordsByReservationID(ctx context.C
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
-		Where("reservation_appointment_id = ? AND deleted_at IS NULL", reservationID).
+		Where("appointment_id = ? AND deleted_at IS NULL", reservationID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", "")
 	}

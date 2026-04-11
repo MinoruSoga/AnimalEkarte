@@ -37,4 +37,4 @@ type LineReservationSetting struct {
 	UpdatedAt               time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
 
-func (LineReservationSetting) TableName() string { return "line_reservation_settings" }
+func (LineReservationSetting) TableName() string { return "line_line_reservation_settings" }

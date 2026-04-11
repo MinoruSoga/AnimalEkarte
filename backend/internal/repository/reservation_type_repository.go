@@ -16,31 +16,31 @@ import (
 type ReservationTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
-	Create(ctx context.Context, reservationCategory *model.ReservationType) error
+	Create(ctx context.Context, reservationType *model.ReservationType) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-type reservationCategoryRepository struct{ db *gorm.DB }
+type reservationTypeRepository struct{ db *gorm.DB }
 
 func NewReservationTypeRepository(db *gorm.DB) ReservationTypeRepository {
-	return &reservationCategoryRepository{db: db}
+	return &reservationTypeRepository{db: db}
 }
 
-func (r *reservationCategoryRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
-	reservationCategories := make([]model.ReservationType, 0)
+func (r *reservationTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
+	reservationTypes := make([]model.ReservationType, 0)
 	if err := r.db.WithContext(ctx).
 		Preload("Group").
 		Where("clinic_id = ?", clinicID).
 		Order("sort_order ASC, name ASC").
-		Find(&reservationCategories).Error; err != nil {
+		Find(&reservationTypes).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_type", "")
 	}
-	return reservationCategories, nil
+	return reservationTypes, nil
 }
 
-func (r *reservationCategoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+func (r *reservationTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	var st model.ReservationType
 	err := r.db.WithContext(ctx).Preload("Group").First(&st, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
@@ -49,8 +49,8 @@ func (r *reservationCategoryRepository) FindByID(ctx context.Context, clinicID, 
 	return &st, nil
 }
 
-func (r *reservationCategoryRepository) Create(ctx context.Context, reservationCategory *model.ReservationType) error {
-	if err := r.db.WithContext(ctx).Create(reservationCategory).Error; err != nil {
+func (r *reservationTypeRepository) Create(ctx context.Context, reservationType *model.ReservationType) error {
+	if err := r.db.WithContext(ctx).Create(reservationType).Error; err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
@@ -59,7 +59,7 @@ func (r *reservationCategoryRepository) Create(ctx context.Context, reservationC
 	return nil
 }
 
-func (r *reservationCategoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *reservationTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ReservationType{}).
 		Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -81,7 +81,7 @@ func (r *reservationCategoryRepository) Update(ctx context.Context, clinicID, id
 	return nil
 }
 
-func (r *reservationCategoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+func (r *reservationTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.ReservationType{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		// BUG-030: ON DELETE RESTRICT の FK 制約違反は 409 Conflict に変換する
@@ -97,6 +97,6 @@ func (r *reservationCategoryRepository) Delete(ctx context.Context, clinicID, id
 }
 
 // Reorder はトランザクション内で予約区分の sort_order を ids の順序で更新する
-func (r *reservationCategoryRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+func (r *reservationTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return reorderByClinicID(r.db, ctx, &model.ReservationType{}, "reservation_type", clinicID, ids)
 }

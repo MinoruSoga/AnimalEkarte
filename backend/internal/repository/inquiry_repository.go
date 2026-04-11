@@ -99,7 +99,7 @@ func (r *inquiryRepository) CountByChiefComplaintTypeID(ctx context.Context, cat
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Inquiry{}).
-		Where("chief_complaint_category_id = ?", categoryID).
+		Where("chief_complaint_type_id = ?", categoryID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "inquiry", "")

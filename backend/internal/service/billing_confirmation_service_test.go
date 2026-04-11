@@ -59,7 +59,7 @@ func TestBillingConfirmationService_GetOrCreate(t *testing.T) {
 		{
 			name:              "creates review when not found",
 			medicalRecordID:   1,
-			findByRecordIDErr: apperrors.WrapNotFound("billing_review", "1"),
+			findByRecordIDErr: apperrors.WrapNotFound("billing_confirmation", "1"),
 			createErr:         nil,
 			wantErr:           false,
 			wantCreate:        true,
@@ -75,7 +75,7 @@ func TestBillingConfirmationService_GetOrCreate(t *testing.T) {
 		{
 			name:              "returns error when create fails",
 			medicalRecordID:   1,
-			findByRecordIDErr: apperrors.WrapNotFound("billing_review", "1"),
+			findByRecordIDErr: apperrors.WrapNotFound("billing_confirmation", "1"),
 			createErr:         errors.New("db create error"),
 			wantErr:           true,
 			wantCreate:        true,

@@ -18,7 +18,7 @@ export type MasterLinkCategory =
   | "hospitalization"
   | "insurance"
   | "staff"
-  | "diagnosis_category"
+  | "diagnosis_type"
   | "diagnosis_name"
   | "chief_complaint"
   | "interview_template";
@@ -36,7 +36,7 @@ const CATEGORY_PATH_MAP: Record<MasterLinkCategory, string> = {
   hospitalization: paths.settings.hospitalization.getHref(),
   insurance: paths.settings.insurance.getHref(),
   staff: paths.settings.staff.getHref(),
-  diagnosis_category: paths.settings.diagnosisCategory.getHref(),
+  diagnosis_type: paths.settings.diagnosisType.getHref(),
   diagnosis_name: paths.settings.diagnosisName.getHref(),
   chief_complaint: paths.settings.interview.chiefComplaint.getHref(),
   interview_template: paths.settings.interview.interviewTemplate.getHref(),

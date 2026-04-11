@@ -47,15 +47,15 @@ type UpsertLineReservationSettingInput struct {
 	LineAccessToken         string
 }
 
-type reservationSettingService struct {
+type lineReservationSettingService struct {
 	repo repository.LineReservationSettingRepository
 }
 
 func NewLineReservationSettingService(repo repository.LineReservationSettingRepository) LineReservationSettingService {
-	return &reservationSettingService{repo: repo}
+	return &lineReservationSettingService{repo: repo}
 }
 
-func (s *reservationSettingService) Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+func (s *lineReservationSettingService) Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 	setting, err := s.repo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		if apperrors.IsNotFound(err) {
@@ -66,7 +66,7 @@ func (s *reservationSettingService) Get(ctx context.Context, clinicID uint64) (*
 	return setting, nil
 }
 
-func (s *reservationSettingService) Upsert(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, error) {
+func (s *lineReservationSettingService) Upsert(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, error) {
 	setting := &model.LineReservationSetting{
 		ClinicID:                clinicID,
 		Status:                  input.Status,

@@ -15,14 +15,14 @@ import { C, LAYOUT, ICON, STYLE } from "@/lib/design-tokens";
 import { usePermission } from "@/features/auth";
 
 // Relative
-import { useGetChiefComplaintCategories } from "../api/get-chief-complaint-categories";
+import { useGetChiefComplaintTypes } from "../api/get-chief-complaint-types";
 
 interface InterviewChiefComplaintProps {
   className?: string;
   chiefComplaint: string;
   setChiefComplaint: (value: string) => void;
-  chiefComplaintCategoryId: number | null;
-  setChiefComplaintCategoryId: (id: number | null) => void;
+  chiefComplaintTypeId: number | null;
+  setChiefComplaintTypeId: (id: number | null) => void;
   templates: { label: string; text: string }[];
   onInsertTemplate: (text: string) => void;
 }
@@ -31,14 +31,14 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   className,
   chiefComplaint,
   setChiefComplaint,
-  chiefComplaintCategoryId,
-  setChiefComplaintCategoryId,
+  chiefComplaintTypeId,
+  setChiefComplaintTypeId,
   templates,
   onInsertTemplate,
 }: InterviewChiefComplaintProps) {
   const navigate = useNavigate();
   const { canEdit } = usePermission("medical-records");
-  const { data: categories = [], isLoading } = useGetChiefComplaintCategories();
+  const { data: categories = [], isLoading } = useGetChiefComplaintTypes();
 
   // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
   const categorySelectItems = useMemo(
@@ -87,8 +87,8 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             ) : null}
           </div>
           <Select
-            value={chiefComplaintCategoryId ? String(chiefComplaintCategoryId) : ""}
-            onValueChange={(value) => setChiefComplaintCategoryId(value ? Number(value) : null)}
+            value={chiefComplaintTypeId ? String(chiefComplaintTypeId) : ""}
+            onValueChange={(value) => setChiefComplaintTypeId(value ? Number(value) : null)}
             disabled={isLoading || !canEdit}
           >
             <SelectTrigger className={`w-full ${LAYOUT.touch.md} bg-white ${C.borderMedium} text-sm ${C.text}`}>

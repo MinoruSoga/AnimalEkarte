@@ -308,7 +308,7 @@ export function useSetStaffClinics() {
 const STAFF_EXCLUDED_ST_KEY = (staffId: string) =>
   [...STAFFS_QUERY_KEY, staffId, "excluded-reservation-types"] as const;
 
-export function useGetStaffExcludedReservationCategories(staffId: string | null) {
+export function useGetStaffExcludedReservationTypes(staffId: string | null) {
   return useQuery({
     queryKey: STAFF_EXCLUDED_ST_KEY(staffId ?? ""),
     queryFn: async (): Promise<string[]> => {
@@ -323,7 +323,7 @@ export function useGetStaffExcludedReservationCategories(staffId: string | null)
   });
 }
 
-export function useSetStaffExcludedReservationCategories() {
+export function useSetStaffExcludedReservationTypes() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({

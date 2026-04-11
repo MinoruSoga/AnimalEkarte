@@ -30,7 +30,7 @@ func NewClinicalPlanRepository(db *gorm.DB) ClinicalPlanRepository {
 func (r *clinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
 	var plan model.ClinicalPlan
 	err := r.db.WithContext(ctx).
-		Preload("DiagnosisCategory").
+		Preload("DiagnosisType").
 		Preload("DiagnosisName").
 		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id").
 		Where("medical_records.clinic_id = ? AND clinical_plans.medical_record_id = ?", clinicID, medicalRecordID).

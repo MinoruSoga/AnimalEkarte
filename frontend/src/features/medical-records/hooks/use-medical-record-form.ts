@@ -70,7 +70,7 @@ export function useMedicalRecordForm(recordId?: string) {
 
   // 問診タブの状態
   const [chiefComplaint, setChiefComplaint] = useState(DEFAULT_CHIEF_COMPLAINT);
-  const [chiefComplaintCategoryId, setChiefComplaintCategoryId] = useState<number | null>(null);
+  const [chiefComplaintTypeId, setChiefComplaintTypeId] = useState<number | null>(null);
   const [treatmentPolicy, setTreatmentPolicy] = useState(DEFAULT_TREATMENT_POLICY);
 
   // 診察/治療プランタブの状態（SOAPS）
@@ -175,7 +175,7 @@ export function useMedicalRecordForm(recordId?: string) {
           case "問診":
             await updateInquiryMutation.mutateAsync({
               chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
-              chief_complaint_type_id: chiefComplaintCategoryId,
+              chief_complaint_type_id: chiefComplaintTypeId,
               notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
             });
             break;
@@ -321,8 +321,8 @@ export function useMedicalRecordForm(recordId?: string) {
     // 問診タブ
     chiefComplaint,
     setChiefComplaint,
-    chiefComplaintCategoryId,
-    setChiefComplaintCategoryId,
+    chiefComplaintTypeId,
+    setChiefComplaintTypeId,
     treatmentPolicy,
     setTreatmentPolicy,
     // 診察/治療プランタブ（SOAPS）

@@ -63,7 +63,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   validationErrors,
   onClearError: _onClearError,
 }: ReservationFormFieldsProps) {
-  const { data: reservationCategories } = useMasterItems("reservationType");
+  const { data: reservationTypes } = useMasterItems("reservationType");
   const { data: staffItems } = useMasterItems("staff");
   const activeStaff = staffItems.filter((s) => s.status === "active");
 
@@ -196,7 +196,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent>
-              {reservationCategories.map((item) => (
+              {reservationTypes.map((item) => (
                 <SelectItem key={item.id} value={String(item.id)}>
                   {item.name}
                 </SelectItem>

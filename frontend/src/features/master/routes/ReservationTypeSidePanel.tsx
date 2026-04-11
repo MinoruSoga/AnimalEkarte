@@ -3,7 +3,7 @@ import { Activity, MessageCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
-import { C, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
 import type { ReservationType } from "@/features/master/api/reservation-types";
 
 // ── 静的 SelectItem JSX (rendering-hoist-jsx) ──────────────────
@@ -124,7 +124,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
 
       <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
         <div className="flex items-center gap-1.5 mb-3">
-          <MessageCircle className="size-3.5" style={{ color: PALETTE.lineGreen }} />
+          <MessageCircle className={ICON.smXs} style={{ color: PALETTE.lineGreen }} />
           <p className={`text-xs font-medium ${C.text50}`}>LINE予約設定</p>
         </div>
         <PropertyRow label="LINE表示名">

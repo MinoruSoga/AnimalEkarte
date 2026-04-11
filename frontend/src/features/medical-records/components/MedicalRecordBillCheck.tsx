@@ -157,7 +157,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
           <h2 className={`text-sm font-bold ${C.text}`}>会計確認 (医師)</h2>
           {isConfirmed ? (
             <div className={`px-2 py-1 rounded ${C.bgStatusGreen} ${C.textStatusGreen} text-xs font-bold flex items-center gap-1`}>
-              <CheckCircle2 className="size-3" />
+              <CheckCircle2 className={ICON.xxs} />
               確認済み
             </div>
           ) : (

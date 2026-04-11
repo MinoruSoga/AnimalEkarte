@@ -195,7 +195,7 @@ export const NotionFilter = memo(function NotionFilter({
               className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-sm ${C.text40} hover:${C.text80} ${C.hoverBgMedium} transition-colors`}
               aria-label="検索をクリア"
             >
-              <X className="size-3.5" />
+              <X className={ICON.smXs} />
             </button>
           ) : null}
         </div>

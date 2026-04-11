@@ -142,7 +142,7 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 	if err != nil {
 		return nil, err
 	}
-	reservationAppointmentID, err := parseOptionalID(input.AppointmentID, "reservation_appointment_id")
+	appointmentID, err := parseOptionalID(input.AppointmentID, "appointment_id")
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 		OwnerID:                  ownerID,
 		PetID:                    petID,
 		DoctorID:                 doctorID,
-		AppointmentID: reservationAppointmentID,
+		AppointmentID: appointmentID,
 	}
 	if input.Status != "" {
 		status, err := validateEnum(input.Status,
@@ -192,7 +192,7 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		return
 	}
 	h.svc.MedicalRecord.CreateSubRecords(ctx, clinicID, record.ID, service.CreateSubRecordsInput{
-		ChiefComplaintCategoryID: input.ChiefComplaintCategoryID,
+		ChiefComplaintTypeID: input.ChiefComplaintTypeID,
 		ChiefComplaint:           input.ChiefComplaint,
 		Notes:                    input.Notes,
 		Plan:                     input.Plan,

@@ -86,7 +86,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		// 既存予約をロックしながら取得（楽観ロック）
 		var existing []model.Appointment
 		query := tx.Raw(`
-			SELECT * FROM reservation_appointments
+			SELECT * FROM appointments
 			WHERE clinic_id = ?
 			  AND deleted_at IS NULL
 			  AND status NOT IN ('cancelled')
