@@ -54,7 +54,7 @@ func (h *Handler) CreateReservationStaff(c *gin.Context) {
 		ReservationVisible: req.ReservationVisible,
 		ReservationComment: req.ReservationComment,
 		SortOrder:          req.SortOrder,
-		ExcludedCourseIDs:  req.ExcludedCourseIDs,
+		ExcludedTypeIDs:  req.ExcludedTypeIDs,
 	})
 	if err != nil {
 		RespondError(c, err)
@@ -90,7 +90,7 @@ func (h *Handler) UpdateReservationStaff(c *gin.Context) {
 		ReservationVisible: req.ReservationVisible,
 		ReservationComment: req.ReservationComment,
 		SortOrder:          req.SortOrder,
-		ExcludedCourseIDs:  req.ExcludedCourseIDs,
+		ExcludedTypeIDs:  req.ExcludedTypeIDs,
 	})
 	if err != nil {
 		RespondError(c, err)

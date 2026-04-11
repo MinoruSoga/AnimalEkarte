@@ -233,7 +233,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 	})
 
 	t.Run("指定コースが除外リストにあるスタッフは除外", func(t *testing.T) {
-		const courseID = uint64(5) // 手術コース
+		const typeID = uint64(5) // 手術コース
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
 			&mockLiffTypeRepository{},
@@ -246,7 +246,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 				},
 				findExcludedReservationTypesFn: func(_ context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
 					if staffID == 2 {
-						return []model.StaffReservationExclusion{{StaffID: 2, ReservationTypeID: courseID}}, nil
+						return []model.StaffReservationExclusion{{StaffID: 2, ReservationTypeID: typeID}}, nil
 					}
 					return nil, nil
 				},
@@ -258,7 +258,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 			nil,
 		)
 
-		got, err := svc.GetStaffs(ctx, 3, courseID)
+		got, err := svc.GetStaffs(ctx, 3, typeID)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, uint64(1), got[0].ID)

@@ -25,9 +25,9 @@ type BookingWindow struct {
 // AvailableDatesInput は空き日付計算の入力。
 type AvailableDatesInput struct {
 	Settings       AvailableDatesSettings
-	CourseID       uint64
+	TypeID       uint64
 	StaffID        uint64 // 0 = 指名なし
-	StaffInputsFn  func(ctx context.Context, date time.Time, courseID, staffID uint64) ([]StaffSlotInput, error)
+	StaffInputsFn  func(ctx context.Context, date time.Time, typeID, staffID uint64) ([]StaffSlotInput, error)
 	SlotSettingsFn func() TimeSlotsInput
 }
 
@@ -152,7 +152,7 @@ func CalcAvailableDates(ctx context.Context, input AvailableDatesInput) ([]Avail
 
 		// スタッフ個人設定・時間枠チェック
 		if input.StaffInputsFn != nil && input.SlotSettingsFn != nil {
-			staffInputs, err := input.StaffInputsFn(ctx, d, input.CourseID, input.StaffID)
+			staffInputs, err := input.StaffInputsFn(ctx, d, input.TypeID, input.StaffID)
 			if err != nil {
 				return nil, window, err
 			}

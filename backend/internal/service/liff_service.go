@@ -17,9 +17,9 @@ type LiffService interface {
 	GetSettings(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 	GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error)
 	GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
-	GetStaffs(ctx context.Context, clinicID, courseID uint64) ([]model.Staff, error)
-	GetAvailableDates(ctx context.Context, clinicID, courseID, staffID uint64) ([]AvailableDateResult, BookingWindow, error)
-	GetAvailableTimes(ctx context.Context, clinicID, courseID, staffID uint64, date time.Time) ([]TimeSlot, error)
+	GetStaffs(ctx context.Context, clinicID, typeID uint64) ([]model.Staff, error)
+	GetAvailableDates(ctx context.Context, clinicID, typeID, staffID uint64) ([]AvailableDateResult, BookingWindow, error)
+	GetAvailableTimes(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error)
 	CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Appointment, error)
 	GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error)
 	CancelReservation(ctx context.Context, clinicID, customerID, reservationID uint64) error
@@ -27,7 +27,7 @@ type LiffService interface {
 
 type liffService struct {
 	settingRepo  repository.LineReservationSettingRepository
-	courseRepo   repository.ReservationTypeLiffRepository
+	typeLiffRepo   repository.ReservationTypeLiffRepository
 	staffRepo    repository.ReservationStaffRepository
 	scheduleRepo repository.ReservationScheduleRepository
 	adminRepo    repository.ReservationAdminRepository
@@ -40,7 +40,7 @@ type liffService struct {
 // NewLiffService はLIFFサービスを初期化して返す。
 func NewLiffService(
 	settingRepo repository.LineReservationSettingRepository,
-	courseRepo repository.ReservationTypeLiffRepository,
+	typeLiffRepo repository.ReservationTypeLiffRepository,
 	staffRepo repository.ReservationStaffRepository,
 	scheduleRepo repository.ReservationScheduleRepository,
 	adminRepo repository.ReservationAdminRepository,
@@ -51,7 +51,7 @@ func NewLiffService(
 ) LiffService {
 	return &liffService{
 		settingRepo:  settingRepo,
-		courseRepo:   courseRepo,
+		typeLiffRepo:   typeLiffRepo,
 		staffRepo:    staffRepo,
 		scheduleRepo: scheduleRepo,
 		adminRepo:    adminRepo,
@@ -82,7 +82,7 @@ func (s *liffService) GetProfile(ctx context.Context, clinicID, customerID uint6
 
 // GetCourses はLIFF向け公開コース一覧を返す（is_internal=false && reservation_visible=true）。
 func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
-	all, err := s.courseRepo.FindAll(ctx, clinicID)
+	all, err := s.typeLiffRepo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get courses")
 	}
@@ -95,8 +95,8 @@ func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.
 	return result, nil
 }
 
-// GetStaffs はコース対応スタッフ一覧を返す（reservation_visible=true && courseIDを除外していない）。
-func (s *liffService) GetStaffs(ctx context.Context, clinicID, courseID uint64) ([]model.Staff, error) {
+// GetStaffs は予約区分対応スタッフ一覧を返す（reservation_visible=true && typeIDを除外していない）。
+func (s *liffService) GetStaffs(ctx context.Context, clinicID, typeID uint64) ([]model.Staff, error) {
 	all, err := s.staffRepo.FindAllByClinicID(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get staffs")
@@ -110,7 +110,7 @@ func (s *liffService) GetStaffs(ctx context.Context, clinicID, courseID uint64) 
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to get excluded service types")
 		}
-		if isExcluded(excluded, courseID) {
+		if isExcluded(excluded, typeID) {
 			continue
 		}
 		result = append(result, st)
@@ -119,18 +119,18 @@ func (s *liffService) GetStaffs(ctx context.Context, clinicID, courseID uint64) 
 }
 
 // GetAvailableDates は予約可能な日付一覧を返す。
-func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, courseID, staffID uint64) ([]AvailableDateResult, BookingWindow, error) {
+func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, staffID uint64) ([]AvailableDateResult, BookingWindow, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get reservation setting")
 	}
-	course, err := s.courseRepo.FindByID(ctx, clinicID, courseID)
+	course, err := s.typeLiffRepo.FindByID(ctx, clinicID, typeID)
 	if err != nil {
 		return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get course")
 	}
 
 	// スタッフを事前取得（クロージャで再利用）
-	visibleStaffs, err := s.resolveTargetStaffs(ctx, clinicID, courseID, staffID)
+	visibleStaffs, err := s.resolveTargetStaffs(ctx, clinicID, typeID, staffID)
 	if err != nil {
 		return nil, BookingWindow{}, err
 	}
@@ -163,7 +163,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, courseID,
 
 	return CalcAvailableDates(ctx, AvailableDatesInput{
 		Settings:       datesSettings,
-		CourseID:       courseID,
+		TypeID:       typeID,
 		StaffID:        staffID,
 		StaffInputsFn:  staffInputsFn,
 		SlotSettingsFn: slotSettingsFn,
@@ -171,17 +171,17 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, courseID,
 }
 
 // GetAvailableTimes は指定日の予約可能な時間枠一覧を返す。
-func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, courseID, staffID uint64, date time.Time) ([]TimeSlot, error) {
+func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
-	course, err := s.courseRepo.FindByID(ctx, clinicID, courseID)
+	course, err := s.typeLiffRepo.FindByID(ctx, clinicID, typeID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get course")
 	}
 
-	visibleStaffs, err := s.resolveTargetStaffs(ctx, clinicID, courseID, staffID)
+	visibleStaffs, err := s.resolveTargetStaffs(ctx, clinicID, typeID, staffID)
 	if err != nil {
 		return nil, err
 	}
@@ -294,8 +294,8 @@ func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerI
 
 // ---- 内部ヘルパー ----
 
-// resolveTargetStaffs はcourseID・staffIDに基づいて対象スタッフを返す。
-func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, courseID, staffID uint64) ([]model.Staff, error) {
+// resolveTargetStaffs はtypeID・staffIDに基づいて対象スタッフを返す。
+func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, typeID, staffID uint64) ([]model.Staff, error) {
 	if staffID != 0 {
 		staff, err := s.staffRepo.FindByID(ctx, staffID)
 		if err != nil {
@@ -320,7 +320,7 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, courseI
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to get excluded service types")
 		}
-		if !isExcluded(excluded, courseID) {
+		if !isExcluded(excluded, typeID) {
 			result = append(result, st)
 		}
 	}
@@ -391,8 +391,8 @@ func (s *liffService) parseBusinessHours(setting *model.LineReservationSetting) 
 
 // delegateStaff は指名なし時に no_staff_mode に従ってスタッフを自動割当する。
 // 割当できない場合は 0 を返す（エラーではない）。
-func (s *liffService) delegateStaff(ctx context.Context, clinicID, courseID uint64, mode string, date time.Time, startTime, endTime string) (uint64, error) {
-	staffs, err := s.resolveTargetStaffs(ctx, clinicID, courseID, 0)
+func (s *liffService) delegateStaff(ctx context.Context, clinicID, typeID uint64, mode string, date time.Time, startTime, endTime string) (uint64, error) {
+	staffs, err := s.resolveTargetStaffs(ctx, clinicID, typeID, 0)
 	if err != nil || len(staffs) == 0 {
 		return 0, err
 	}
@@ -445,9 +445,9 @@ func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.Appo
 }
 
 // isExcluded は指定コースIDがスタッフの除外リストに含まれるか確認する。
-func isExcluded(excluded []model.StaffReservationExclusion, courseID uint64) bool {
+func isExcluded(excluded []model.StaffReservationExclusion, typeID uint64) bool {
 	for _, ex := range excluded {
-		if ex.ReservationTypeID == courseID {
+		if ex.ReservationTypeID == typeID {
 			return true
 		}
 	}

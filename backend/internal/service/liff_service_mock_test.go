@@ -277,7 +277,7 @@ func newLiffSvc(
 ) *liffService {
 	return &liffService{
 		settingRepo:  setting,
-		courseRepo:   course,
+		typeLiffRepo:   course,
 		staffRepo:    staff,
 		scheduleRepo: schedule,
 		adminRepo:    admin,

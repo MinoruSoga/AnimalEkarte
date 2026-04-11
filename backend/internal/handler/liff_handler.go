@@ -67,19 +67,19 @@ func (h *Handler) GetLiffTypes(c *gin.Context) {
 }
 
 // GetLiffStaffs はコース対応スタッフ一覧を返す。
-// GET /api/liff/:clinicId/staffs?courseId=:id
+// GET /api/liff/:clinicId/staffs?typeId=:id
 func (h *Handler) GetLiffStaffs(c *gin.Context) {
 	clinicID, ok := extractClinicIDFromParam(c)
 	if !ok {
 		return
 	}
-	courseIDStr := c.Query("courseId")
-	courseID, err := strconv.ParseUint(courseIDStr, 10, 64)
-	if err != nil || courseID == 0 {
-		RespondError(c, apperrors.WrapInvalidInput("invalid courseId"))
+	typeIDStr := c.Query("typeId")
+	typeID, err := strconv.ParseUint(typeIDStr, 10, 64)
+	if err != nil || typeID == 0 {
+		RespondError(c, apperrors.WrapInvalidInput("invalid typeId"))
 		return
 	}
-	staffs, err := h.svc.Liff.GetStaffs(c.Request.Context(), clinicID, courseID)
+	staffs, err := h.svc.Liff.GetStaffs(c.Request.Context(), clinicID, typeID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -92,20 +92,20 @@ func (h *Handler) GetLiffStaffs(c *gin.Context) {
 }
 
 // GetLiffAvailableDates は予約可能日付一覧を返す。
-// GET /api/liff/:clinicId/available-dates?courseId=:id&staffId=:id
+// GET /api/liff/:clinicId/available-dates?typeId=:id&staffId=:id
 func (h *Handler) GetLiffAvailableDates(c *gin.Context) {
 	clinicID, ok := extractClinicIDFromParam(c)
 	if !ok {
 		return
 	}
-	courseID, err := strconv.ParseUint(c.Query("courseId"), 10, 64)
-	if err != nil || courseID == 0 {
-		RespondError(c, apperrors.WrapInvalidInput("invalid courseId"))
+	typeID, err := strconv.ParseUint(c.Query("typeId"), 10, 64)
+	if err != nil || typeID == 0 {
+		RespondError(c, apperrors.WrapInvalidInput("invalid typeId"))
 		return
 	}
 	staffID, _ := strconv.ParseUint(c.Query("staffId"), 10, 64) // 0 = 指名なし
 
-	dates, window, err := h.svc.Liff.GetAvailableDates(c.Request.Context(), clinicID, courseID, staffID)
+	dates, window, err := h.svc.Liff.GetAvailableDates(c.Request.Context(), clinicID, typeID, staffID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -126,15 +126,15 @@ func (h *Handler) GetLiffAvailableDates(c *gin.Context) {
 }
 
 // GetLiffAvailableTimes は指定日の予約可能時間枠を返す。
-// GET /api/liff/:clinicId/available-times?courseId=:id&staffId=:id&date=YYYY-MM-DD
+// GET /api/liff/:clinicId/available-times?typeId=:id&staffId=:id&date=YYYY-MM-DD
 func (h *Handler) GetLiffAvailableTimes(c *gin.Context) {
 	clinicID, ok := extractClinicIDFromParam(c)
 	if !ok {
 		return
 	}
-	courseID, err := strconv.ParseUint(c.Query("courseId"), 10, 64)
-	if err != nil || courseID == 0 {
-		RespondError(c, apperrors.WrapInvalidInput("invalid courseId"))
+	typeID, err := strconv.ParseUint(c.Query("typeId"), 10, 64)
+	if err != nil || typeID == 0 {
+		RespondError(c, apperrors.WrapInvalidInput("invalid typeId"))
 		return
 	}
 	staffID, _ := strconv.ParseUint(c.Query("staffId"), 10, 64)
@@ -146,7 +146,7 @@ func (h *Handler) GetLiffAvailableTimes(c *gin.Context) {
 		return
 	}
 
-	slots, err := h.svc.Liff.GetAvailableTimes(c.Request.Context(), clinicID, courseID, staffID, date)
+	slots, err := h.svc.Liff.GetAvailableTimes(c.Request.Context(), clinicID, typeID, staffID, date)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -184,7 +184,7 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 	}
 
 	input := &service.CreateReservationInput{
-		ReservationTypeID: req.CourseID,
+		ReservationTypeID: req.TypeID,
 		StaffID:           req.StaffID,
 		Date:              date,
 		StartTime:         req.StartTime,

@@ -6,7 +6,7 @@ type createReservationStaffRequest struct {
 	ReservationVisible bool     `json:"reservation_visible"`
 	ReservationComment string   `json:"reservation_comment"`
 	SortOrder          int      `json:"sort_order"`
-	ExcludedCourseIDs  []uint64 `json:"excluded_course_ids"`
+	ExcludedTypeIDs  []uint64 `json:"excluded_type_ids"`
 }
 
 type updateReservationStaffRequest struct {
@@ -15,7 +15,7 @@ type updateReservationStaffRequest struct {
 	ReservationVisible *bool     `json:"reservation_visible"`
 	ReservationComment *string   `json:"reservation_comment"`
 	SortOrder          *int      `json:"sort_order"`
-	ExcludedCourseIDs  *[]uint64 `json:"excluded_course_ids"`
+	ExcludedTypeIDs  *[]uint64 `json:"excluded_type_ids"`
 }
 
 type patchReservationStaffStatusRequest struct {

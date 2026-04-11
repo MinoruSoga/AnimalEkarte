@@ -46,7 +46,7 @@ func (m *mockTrimmingCourseRepository) Reorder(_ context.Context, _ uint64, _ []
 	return m.reorderErr
 }
 
-func (m *mockTrimmingCourseRepository) CountRecordsByCourseID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockTrimmingCourseRepository) CountRecordsByTypeID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }
 

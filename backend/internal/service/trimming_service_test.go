@@ -243,7 +243,7 @@ func TestTrimmingService_Create(t *testing.T) {
 			input: CreateTrimmingInput{
 				Date:     time.Now(),
 				StaffID:  ptrUint64(1),
-				CourseID: ptrUint64(1),
+				TypeID: ptrUint64(1),
 			},
 			repoErr: nil,
 			wantErr: false,
@@ -254,7 +254,7 @@ func TestTrimmingService_Create(t *testing.T) {
 			input: CreateTrimmingInput{
 				Date:      time.Now(),
 				StaffID:   ptrUint64(1),
-				CourseID:  ptrUint64(1),
+				TypeID:  ptrUint64(1),
 				OptionIDs: []uint64{10, 20},
 			},
 			repoErr: nil,
@@ -266,7 +266,7 @@ func TestTrimmingService_Create(t *testing.T) {
 			input: CreateTrimmingInput{
 				Date:     time.Now(),
 				StaffID:  ptrUint64(1),
-				CourseID: ptrUint64(1),
+				TypeID: ptrUint64(1),
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -277,7 +277,7 @@ func TestTrimmingService_Create(t *testing.T) {
 			input: CreateTrimmingInput{
 				Date:      time.Now(),
 				StaffID:   ptrUint64(1),
-				CourseID:  ptrUint64(1),
+				TypeID:  ptrUint64(1),
 				OptionIDs: []uint64{10},
 			},
 			repoErr:       nil,
@@ -317,7 +317,7 @@ func TestTrimmingService_Create(t *testing.T) {
 
 func TestTrimmingService_Update(t *testing.T) {
 	staffID := uint64(2)
-	courseID := uint64(1)
+	typeID := uint64(1)
 	optionIDs := []uint64{10, 20}
 	emptyOptions := []uint64{}
 
@@ -337,7 +337,7 @@ func TestTrimmingService_Update(t *testing.T) {
 			id:       1,
 			input: UpdateTrimmingInput{
 				StaffID:  &staffID,
-				CourseID: &courseID,
+				TypeID: &typeID,
 			},
 			repoErr: nil,
 			wantErr: false,

@@ -31,7 +31,7 @@ type CreateReservationStaffInput struct {
 	ReservationVisible bool
 	ReservationComment string
 	SortOrder          int
-	ExcludedCourseIDs  []uint64
+	ExcludedTypeIDs  []uint64
 }
 
 // UpdateReservationStaffInput は予約スタッフ更新の入力データ（ポインタ型でゼロ値を区別）
@@ -41,7 +41,7 @@ type UpdateReservationStaffInput struct {
 	ReservationVisible *bool
 	ReservationComment *string
 	SortOrder          *int
-	ExcludedCourseIDs  *[]uint64
+	ExcludedTypeIDs  *[]uint64
 }
 
 type reservationStaffService struct {
@@ -91,8 +91,8 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 	if err := s.repo.Create(ctx, staff, clinicID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create reservation staff")
 	}
-	if len(input.ExcludedCourseIDs) > 0 {
-		if err := s.repo.ReplaceExcludedReservationTypes(ctx, staff.ID, input.ExcludedCourseIDs); err != nil {
+	if len(input.ExcludedTypeIDs) > 0 {
+		if err := s.repo.ReplaceExcludedReservationTypes(ctx, staff.ID, input.ExcludedTypeIDs); err != nil {
 			return nil, apperrors.Wrap(err, "failed to set excluded courses")
 		}
 	}
@@ -114,8 +114,8 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 			return nil, apperrors.Wrap(err, "failed to update reservation staff")
 		}
 	}
-	if input.ExcludedCourseIDs != nil {
-		if err := s.repo.ReplaceExcludedReservationTypes(ctx, id, *input.ExcludedCourseIDs); err != nil {
+	if input.ExcludedTypeIDs != nil {
+		if err := s.repo.ReplaceExcludedReservationTypes(ctx, id, *input.ExcludedTypeIDs); err != nil {
 			return nil, apperrors.Wrap(err, "failed to update excluded courses")
 		}
 	}
