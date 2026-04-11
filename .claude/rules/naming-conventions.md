@@ -49,14 +49,16 @@ reservation_type_groups  -- 予約種別のグルーピング
 
 ### テーブル名 → Go struct 名 → API パスの対応
 
-| テーブル名 | Go struct | API パス |
-|-----------|-----------|---------|
-| `appointments` | `Appointment` | `/api/clinics/{id}/appointments` |
-| `medical_records` | `MedicalRecord` | `/api/clinics/{id}/medical-records` |
-| `billing_items` | `BillingItem` | `/api/billings/{id}/items` |
-| `line_customers` | `LineCustomer` | `/api/clinics/{id}/line-customers` |
+原則: struct 名はテーブル名の単数形 PascalCase。ただし既存コードでドメイン概念名を採用している場合はそのまま維持する。
 
-**1テーブル = 1 API パス**。同じテーブルに複数の API パスを設けない。
+| テーブル名 | Go struct（実装） | API パス | 備考 |
+|-----------|------------------|---------|------|
+| `appointments` | `ReservationAppointment` | `/reservations` | ドメイン概念名 |
+| `medical_records` | `MedicalRecord` | `/medical-records` | — |
+| `billing_items` | `BillingItem` | `/billings/{id}/items` | — |
+| `line_customers` | `ReservationCustomer` | `/line-customers` | ドメイン概念名 |
+| `exam_results` | `ExaminationItem` | （exams の子リソース） | ドメイン概念名 |
+| `billing_confirmations` | `BillingReview` | （medical-records の子リソース） | ドメイン概念名 |
 
 ---
 
@@ -77,8 +79,10 @@ reservation_type_groups  -- 予約種別のグルーピング
 |------|---------|---------|
 | マスタの説明文 | `description` | `consultations.description`, `procedures.description` |
 | 運用時のフリーテキスト | `memo` | `hospitalizations.memo`, `billings.memo` |
+| 補足・備考 | `notes` | `appointments.notes`, `vital_records.notes`（既存で広く使用） |
+| 飼主・ペットの備考 | `remarks` | `owners.remarks`, `pets.remarks`（既存で広く使用） |
 
-`notes`, `remarks`, `comment` は使わない。`memo` に統一。
+新規テーブルでは `memo` を推奨。既存の `notes` / `remarks` は維持可（変更コスト対効果が低い）。
 
 ### FK カラム名
 
@@ -124,14 +128,15 @@ reservation_type_groups  -- 予約種別のグルーピング
 {テーブル名の単数形}_{カラム名}
 ```
 
-| テーブル | カラム | ENUM 型名 |
-|---------|--------|----------|
-| `appointments` | `status` | `appointment_status` |
-| `exams` | `status` | `exam_status` |
-| `exam_results` | `status` | `exam_result_status` |
-| `billings` | `status` | `billing_status` |
-| `pets` | `gender` | `pet_gender` |
-| `medicines` | `dosage_form` | `dosage_form`（共通概念のため接頭辞不要） |
+| テーブル | カラム | ENUM 型名（実装） | 備考 |
+|---------|--------|----------|------|
+| `appointments` | `status` | `reservation_status` | ドメイン概念名を採用 |
+| `exams` | `status` | `exam_status` | — |
+| `exam_results` | `status` | `exam_result_status` | — |
+| `billings` | `status` | `billing_status` | — |
+| `billing_confirmations` | `status` | `confirmation_status` | — |
+| `pets` | `gender` | `pet_gender` | — |
+| `medicines` | `dosage_form` | `dosage_form` | 共通概念のため接頭辞不要 |
 
 **禁止**: テーブル名と ENUM 型名を完全同一にしない。
 
@@ -165,30 +170,31 @@ CREATE TYPE exam_status AS ENUM (
 
 ### Model (struct)
 
-| DB テーブル | Go struct | Go ファイル |
-|-----------|-----------|------------|
-| `appointments` | `Appointment` | `appointment.go` |
-| `medical_records` | `MedicalRecord` | `medical_record.go` |
-| `line_customers` | `LineCustomer` | `line_customer.go` |
-| `exam_results` | `ExamResult` | `exam_result.go` |
+原則: テーブル名の**単数形 PascalCase**。既存コードでドメイン概念名を採用している場合はそのまま維持。
 
-struct 名はテーブル名の**単数形 PascalCase**。
+| DB テーブル | Go struct（実装） | Go ファイル | 備考 |
+|-----------|------------------|------------|------|
+| `appointments` | `ReservationAppointment` | `reservation.go` | ドメイン概念名 |
+| `medical_records` | `MedicalRecord` | `medical_record.go` | — |
+| `line_customers` | `ReservationCustomer` | `reservation_customer.go` | ドメイン概念名 |
+| `exam_results` | `ExaminationItem` | `examination_record.go` | ドメイン概念名 |
+| `billing_confirmations` | `BillingReview` | `billing_review.go` | ドメイン概念名 |
 
 ### ENUM 定数
 
 ```go
-type ExamStatus string
+type ExaminationStatus string  // SQL: exam_status
 
 const (
-    ExamStatusPending      ExamStatus = "pending"
-    ExamStatusInProgress   ExamStatus = "in_progress"
-    ExamStatusResultEntered ExamStatus = "result_entered"
-    ExamStatusCompleted    ExamStatus = "completed"
-    ExamStatusConfirmed    ExamStatus = "confirmed"
+    ExaminationStatusPending       ExaminationStatus = "pending"
+    ExaminationStatusInProgress    ExaminationStatus = "in_progress"
+    ExaminationStatusResultEntered ExaminationStatus = "result_entered"
+    ExaminationStatusCompleted     ExaminationStatus = "completed"
+    ExaminationStatusConfirmed     ExaminationStatus = "confirmed"
 )
 ```
 
-パターン: `{StructName}{PascalCaseValue}`
+パターン: `{GoStructName}{PascalCaseValue}`。Go 型名と SQL ENUM 名は一致しなくてもよい（GORM タグで橋渡し）。
 
 ### Repository / Service / Handler
 
