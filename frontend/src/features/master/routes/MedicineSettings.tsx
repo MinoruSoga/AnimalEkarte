@@ -148,7 +148,7 @@ function SortableMedicineRow({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
+                  className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverBgMedium} ${C.hoverText}`}
                 >
                   <MoreHorizontal className={ICON.action} />
                 </button>
@@ -160,7 +160,7 @@ function SortableMedicineRow({
             <button
               type="button"
               onClick={() => onEdit(medicine)}
-              className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
+              className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverBgMedium} ${C.hoverText}`}
             >
               <Maximize2 className={`${ICON.xs}`} />
             </button>
@@ -825,7 +825,7 @@ export function MedicineSettings() {
                           <DropdownMenuTrigger asChild>
                             <button
                               type="button"
-                              className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
+                              className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100`}
                             >
                               <MoreHorizontal className={ICON.action} />
                             </button>

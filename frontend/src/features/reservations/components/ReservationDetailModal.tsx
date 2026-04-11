@@ -92,7 +92,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
         <DialogHeader className="px-5 pt-4 pb-0 pr-12">
           <div className="flex items-center gap-2.5">
             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm ${visitAccent.bg} ${visitAccent.text} ${visitAccent.border} border`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${visitAccent.dot}`} />
+              <span className={`${ICON.dotSm} rounded-full ${visitAccent.dot}`} />
               {appointment.visitType === "first" ? "初診" : "再診"}
             </div>
             <DialogTitle className={`text-sm ${C.text}`}>

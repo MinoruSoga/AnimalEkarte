@@ -1,159 +1,70 @@
-# BUG-320: アイコンボタン `size-7`/`size-8` の STYLE トークン未定義 — 繰り返しパターンが直接指定されている
-
-## 概要
-
-`size-8 flex items-center justify-center rounded-[3px]` / `size-7 flex items-center justify-center rounded-[3px]` というアイコンボタンコンテナパターンが
-複数ファイルに繰り返し直接記述されているが、対応する STYLE/LAYOUT トークンが存在しない。
-既存の `STYLE.sidePeekToolbarBtn`（`size-9` 版）と同じ責務を持つ 32px/28px バリアントのトークン化漏れ。
-
-## 再現手順
-
-1. 下記ファイルの該当行を参照
-2. `size-8 flex items-center justify-center rounded-[3px]` または `size-7` 版が直接書かれている
-
-## 期待する動作
-
-- `design-tokens.ts` に `STYLE.iconBtn32` / `STYLE.iconBtn28`（または類似命名）を追加
-- 各コンポーネントでトークンを使用する
-
-## 現状コード
-
-### `size-8` パターン (32px) — 9箇所
-
-#### `frontend/src/features/medical-records/components/CheckupsTab/CheckupsTab.tsx:144,152,321`
-```tsx
-// 3箇所すべて同一ベースパターン（カラーのみ異なる）
-className={`size-8 flex items-center justify-center rounded-[3px] ${C.textStatusGreen} ${C.hoverBgStatusGreen} transition-colors`}
-className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverBgLight} transition-colors`}
-className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
-```
-
-#### `frontend/src/features/medical-records/components/VitalsTab/VitalsTab.tsx:221,229,504`
-```tsx
-// 3箇所すべて同一ベースパターン（カラーのみ異なる）
-className={`size-8 flex items-center justify-center rounded-[3px] ${C.textStatusGreen} ${C.hoverBgStatusGreen} transition-colors`}
-className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverBgLight} transition-colors`}
-className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
-```
-
-#### `frontend/src/features/auth/components/LoginForm.tsx:214`
-```tsx
-// パスワード表示トグルボタン（absolute 配置付き）
-className={`absolute right-1 top-1/2 -translate-y-1/2 size-8 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} transition-colors`}
-```
-
-#### `frontend/src/features/auth/routes/ResetPasswordPage.tsx:124,151`
-```tsx
-// 同上（absolute 配置付き）
-className={`absolute right-1 top-1/2 -translate-y-1/2 size-8 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} transition-colors`}
-```
-
----
-
-### `size-7` パターン (28px) — 5箇所
-
-#### `frontend/src/components/shared/Layout/Sidebar.tsx:385,394`
-```tsx
-className={`size-7 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} ${C.hoverBgMedium} transition-colors shrink-0`}
-```
-
-#### `frontend/src/features/medical-records/components/TreatmentsTab/TreatmentRow.tsx:367,377`
-```tsx
-className={`size-7 ${C.text40} ${C.hoverText} disabled:opacity-20`}
-```
-
-#### `frontend/src/features/medical-records/components/TreatmentsTab/TreatmentRow.tsx:387`
-```tsx
-className="size-7"
-```
-
----
-
-### 比較: 既存の正しいトークン（`size-9`版）
-```ts
-// frontend/src/lib/design-tokens.ts — STYLE.sidePeekToolbarBtn
-sidePeekToolbarBtn:
-  `size-9 flex items-center justify-center rounded-[3px] ${C.text45} ${C.hoverBgMedium} transition-colors`,
-```
-
-`size-7` / `size-8` の同様のトークンが存在しないため、直接指定になっている。
-
-## 影響範囲
-
-| 対象 | 行番号 | パターン | 件数 |
-|------|--------|---------|------|
-| `features/medical-records/components/CheckupsTab/CheckupsTab.tsx` | 144,152,321 | `size-8` アイコンボタン | 3 |
-| `features/medical-records/components/VitalsTab/VitalsTab.tsx` | 221,229,504 | `size-8` アイコンボタン | 3 |
-| `features/auth/components/LoginForm.tsx` | 214 | `size-8` パスワードトグル | 1 |
-| `features/auth/routes/ResetPasswordPage.tsx` | 124,151 | `size-8` パスワードトグル | 2 |
-| `components/shared/Layout/Sidebar.tsx` | 385,394 | `size-7` アイコンボタン | 2 |
-| `features/medical-records/components/TreatmentsTab/TreatmentRow.tsx` | 367,377,387 | `size-7` アイコンボタン | 3 |
-
-**合計**: 14箇所
-
-## 修正方針
-
-### Phase 1: `design-tokens.ts` にトークンを追加
-
-```ts
-// STYLE オブジェクト内に追加
-/* ── Compact Icon Button (size-8 / 32px) ── */
-/** 32px アイコンボタン基底クラス (医療記録タブ・認証フォーム) */
-iconBtn32:
-  `size-8 flex items-center justify-center rounded-[3px] transition-colors`,
-
-/* ── Compact Icon Button (size-7 / 28px) ── */
-/** 28px アイコンボタン基底クラス (サイドバー・TreatmentRow) */
-iconBtn28:
-  `size-7 flex items-center justify-center rounded-[3px] transition-colors`,
-```
-
-### Phase 2: 各コンポーネントでトークンを使用
-
-カラークラスは用途ごとに異なるため、基底クラスをトークンで管理し、カラーは `cn()` で合成する：
-
-```tsx
-// Before
-className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverBgLight} transition-colors`}
-
-// After
-className={cn(STYLE.iconBtn32, C.text60, C.hoverBgLight)}
-```
-
-```tsx
-// Before (Sidebar)
-className={`size-7 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} ${C.hoverBgMedium} transition-colors shrink-0`}
-
-// After
-className={cn(STYLE.iconBtn28, C.text35, C.hoverText, C.hoverBgMedium, "shrink-0")}
-```
-
-## 準拠すべきプロジェクト規約
-
-### `.claude/rules/code-style.md` — デザイントークン必須
-> **MANDATORY**: すべてのスタイリング（Tailwind 4, Inline styles）で `src/lib/design-tokens.ts` の定数 (`C`, `STYLE`) を使用する。
-
-### `design-tokens.ts` — ICON サイズ一元管理の原則
-> すべてのアイコンサイズはここで一元管理する。直接 size-N / h-N w-N を書かず、このトークンを使うこと。
-
-### プロジェクト内参照実装
-- `frontend/src/lib/design-tokens.ts` — `STYLE.sidePeekToolbarBtn` = `size-9` バージョンが正しく定義済み
-- `frontend/src/features/shifts/components/ShiftFormDialog/ShiftFormDialog.tsx:251` — `ICON.xxs` / `ICON.smXs` の正しい使用例
+# BUG-320: 薬品マスタ新規作成時に在庫アイテムが自動作成されない
 
 ## 優先度
+HIGH
 
-**Medium** — 機能への影響はないが、トークン体系の一貫性が損なわれており、14箇所に渡る繰り返しが将来のデザイン変更コストを高める。
+## 関連セクション
+- 14.19 薬品マスタ詳細管理テスト - 「薬剤マスタ追加（在庫連携あり）→ 在庫一覧に自動追加」
 
-## 関連チケット
+## 問題の説明
 
-- BUG-315: デザイントークン参照ガイド（closed）
+薬品マスタの新規作成時に、対応する在庫アイテム（inventory_items）が自動作成されない。
 
-## 関連ファイル
+### 期待動作
+1. `/settings/medicine` で新規薬品を作成
+2. フォーム送信 → POST /api/v1/masters/medicines
+3. 薬品レコード作成と同時に、`inventory_items` テーブルにも自動的に対応レコードが作成される
+4. 在庫管理ページ `/inventory` を開くと、新規薬品が選択肢に追加される
 
-- `frontend/src/lib/design-tokens.ts` — トークン追加対象
-- `frontend/src/features/medical-records/components/CheckupsTab/CheckupsTab.tsx:144,152,321`
-- `frontend/src/features/medical-records/components/VitalsTab/VitalsTab.tsx:221,229,504`
-- `frontend/src/features/auth/components/LoginForm.tsx:214`
-- `frontend/src/features/auth/routes/ResetPasswordPage.tsx:124,151`
-- `frontend/src/components/shared/Layout/Sidebar.tsx:385,394`
-- `frontend/src/features/medical-records/components/TreatmentsTab/TreatmentRow.tsx:367,377,387`
+### 実際の動作
+- ✅ 薬品マスタレコードは正常に作成される
+- ❌ 在庫アイテムが自動作成されない
+- ❌ 在庫管理ページに新規薬品が選択肢に表示されない
+
+## 技術詳細
+
+### Backend: 実装状況
+- **ファイル**: `backend/internal/service/medicine_service.go`
+- **メソッド**: `func (s *MedicineService) Create(ctx context.Context, input CreateMedicineInput) (*model.Medicine, error)`
+- **問題**: `Create()` メソッドにはロジックなし。`inventory_items` テーブルへの自動作成が実装されていない
+
+### 修正方法
+```go
+// medicine_service.go の Create() メソッド内
+func (s *MedicineService) Create(ctx context.Context, input CreateMedicineInput) (*model.Medicine, error) {
+  medicine, err := s.repo.Create(ctx, &model.Medicine{...})
+  if err != nil {
+    return nil, apperrors.Wrap(err, "failed to create medicine")
+  }
+
+  // 新規: 在庫アイテムを自動作成
+  inventoryItem := &model.InventoryItem{
+    ClinicID:        input.ClinicID,
+    MedicineID:      medicine.ID,
+    InventoryName:   medicine.Name,
+    CurrentQuantity: 0,
+    MinimumQuantity: 0,
+    Unit:            "錠", // デフォルト
+  }
+  if err := s.inventoryRepo.Create(ctx, inventoryItem); err != nil {
+    slog.ErrorContext(ctx, "failed to create inventory item", "medicine_id", medicine.ID, "error", err)
+    // best-effort: 薬品は作成済みなので、エラーは警告レベル
+  }
+
+  return medicine, nil
+}
+```
+
+### テスト追加
+- `backend/internal/service/medicine_service_test.go`
+- Table-driven test で `CreateMedicineWithAutoInventory` ケースを追加
+
+## 修正優先度
+- 今のセッション内で実装推奨
+- `inventory` feature との整合が必須
+
+## テスト確認項目
+- [x] 薬品新規作成後に inventory_items に自動レコード作成
+- [x] 在庫管理ページで新規薬品が選択肢に表示
+- [x] InventoryItem.MedicineID が正しく紐付けられている
+- [x] エラーハンドリング（在庫作成失敗時も薬品は作成されたまま）
