@@ -262,7 +262,7 @@ export const Sidebar = memo(function Sidebar() {
               type="button"
               onClick={() => setCollapsed(true)}
               aria-label="サイドバーを折りたたむ"
-              className={`size-7 flex items-center justify-center ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-[3px] transition-colors`}
+              className={STYLE.sidebarToggle}
             >
               <PanelLeftClose className={ICON.page} />
             </button>
