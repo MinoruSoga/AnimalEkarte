@@ -417,15 +417,17 @@
 
 ### デモアカウント（シードデータ）
 
-| メールアドレス | パスワード | ユーザー種別 | 権限グループ | 説明 |
-|---|---|---|---|---|
-| `admin@example.com` | `password` | `clinic_admin` | （暗黙的に全権限） | 医院管理者 |
-| `manager@example.com` | `password` | `staff` | 管理者 | 院長補佐（全リソースフルアクセス） |
-| `exec@example.com` | `password` | `staff` | 執行 | 部長（業務全般閲覧＋権限管理） |
-| `vet@example.com` | `password` | `staff` | 一般 | 勤務医 |
-| `nurse@example.com` | `password` | `staff` | 一般 | 動物看護師 |
-| `reception@example.com` | `password` | `staff` | 一般 | 受付担当 |
-| `trimmer@example.com` | `password` | `staff` | 一般 | トリマー |
+| メールアドレス | パスワード | スタッフ名 | 職種 | 権限グループ | 所属医院 |
+|---|---|---|---|---|---|
+| `hayashi@noah-vet.co.jp` | `password` | 林 文明 | 獣医師 | 執行 | 全医院（システム管理者） |
+| `admin@noavet.jp` | `password` | ノア | 獣医師 | 執行 | 全医院（システム管理者） |
+| `admin@example.com` | `password` | 安田 希恵 | 看護師 | 一般 | 八王子院 |
+| `vet@example.com` | `password` | 倉田 春香 | 看護師 | 一般 | 八王子院 |
+| `nurse@example.com` | `password` | 梶原 梨夢 | 看護師 | 一般 | 八王子院 |
+| `reception@example.com` | `password` | 髙木 賀央里 | 看護師 | 一般 | 八王子院 |
+| `trimmer@example.com` | `password` | さくら | トリマー | 一般 | 八王子院 |
+| `joto-vet@example.com` | `password` | 城東 獣医 | 獣医師 | 執行 | 城東医院 |
+| `shiki-vet@example.com` | `password` | 敷島 獣医 | 獣医師 | 執行 | 敷島医院 |
 
 ---
 

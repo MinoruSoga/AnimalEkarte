@@ -54,7 +54,7 @@ INSERT INTO staffs (id, account_id, name, is_active, license_number, occupation_
     (1,  NULL, '林 文明',              true, 'V-10001', 1, 1,  'doctor',   true),
     (2,  NULL, '山﨑 晶子',           true, 'V-10002', 1, 2,  'doctor',   true),
     (3,  NULL, '三井 隆之',           true, 'V-10003', 1, 3,  'doctor',   true),
-    (4,  NULL, '菊島 弘貴',           true, 'V-10004', 1, 4,  'doctor',   true),
+    (4,  NULL, 'ノア',                 true, 'V-10004', 1, 4,  'doctor',   true),
     (5,  NULL, '加藤 茉里',           true, '',        2, 5,  'nurse',    false),
     (6,  NULL, '金谷 亜美',           true, '',        2, 6,  'nurse',    false),
     (7,  NULL, '稲村 一真',           true, '',        2, 7,  'nurse',    false),
@@ -90,7 +90,7 @@ INSERT INTO accounts (id, email, password_hash, is_active, is_system_admin) VALU
     -- システム管理者（全院アクセス）
     (1, 'admin@noavet.jp',           '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, true),
     -- 八王子院スタッフ（実名メール）
-    (2, 'hayashi@noah-vet.co.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
+    (2, 'hayashi@noah-vet.co.jp',    '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, true),  -- システム管理者（林 文明）
     (3, 'yamazaki@noah-vet.co.jp',   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     (4, 'mitsui@noah-vet.co.jp',     '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6', true, false),
     -- デモアカウント（八王子院・frontend mock-data.ts 対応）
@@ -179,7 +179,7 @@ INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
     (1,  3, true),   -- 林 文明 (hayashi@noah-vet.co.jp)
     (2,  3, true),   -- 山﨑 晶子 (yamazaki@noah-vet.co.jp)
     (3,  3, true),   -- 三井 隆之 (mitsui@noah-vet.co.jp)
-    (4,  3, true),   -- 菊島 弘貴
+    (4,  3, true),   -- ノア (admin@noavet.jp)
     (5,  3, true),   -- 加藤 茉里
     (6,  3, true),   -- 金谷 亜美
     (7,  3, true),   -- 稲村 一真
@@ -191,7 +191,7 @@ INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
     (13, 3, true),   -- 健診・ワクチン・狂犬病 (resource)
     (14, 3, true),   -- ドッグラン(アジリティ解放) (resource)
     (15, 3, true),   -- クイックシャンプー (resource)
-    -- システム管理者 admin@noavet.jp は全院アクセス (staff_id=4 = 三井 隆之)
+    -- システム管理者 admin@noavet.jp は全院アクセス (staff_id=4 = ノア)
     (4,  4, false),  -- 三井 隆之 — 城東医院（管理目的）
     (4,  5, false),  -- 三井 隆之 — 敷島医院（管理目的）
     -- 城東医院 (clinic_id=4)
@@ -394,10 +394,10 @@ ON CONFLICT DO NOTHING;
 -- -----------------------------------------------------------------------------
 INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
     -- 八王子院 執行グループ (group_id=1)
+    (1,  1),  -- 林 文明     (hayashi@noah-vet.co.jp / システム管理者)
     (3,  1),  -- 三井 隆之   (mitsui@noah-vet.co.jp / admin@noavet.jp マッピング)
-    (4,  1),  -- 菊島 弘貴   (執行権限保持)
+    (4,  1),  -- ノア        (admin@noavet.jp / 執行権限保持)
     -- 八王子院 一般グループ (group_id=2)
-    (1,  2),  -- 林 文明     (hayashi@noah-vet.co.jp)
     (2,  2),  -- 山﨑 晶子   (yamazaki@noah-vet.co.jp)
     (5,  2),  -- 加藤 茉里
     (6,  2),  -- 金谷 亜美
