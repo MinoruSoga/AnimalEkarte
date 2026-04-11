@@ -49,16 +49,18 @@ reservation_type_groups  -- 予約種別のグルーピング
 
 ### テーブル名 → Go struct 名 → API パスの対応
 
-原則: struct 名はテーブル名の単数形 PascalCase。ただし既存コードでドメイン概念名を採用している場合はそのまま維持する。
+struct 名はテーブル名の**単数形 PascalCase**。
 
-| テーブル名 | Go struct（実装） | API パス | 備考 |
-|-----------|------------------|---------|------|
-| `appointments` | `ReservationAppointment` | `/reservations` | ドメイン概念名 |
-| `medical_records` | `MedicalRecord` | `/medical-records` | — |
-| `billing_items` | `BillingItem` | `/billings/{id}/items` | — |
-| `line_customers` | `ReservationCustomer` | `/line-customers` | ドメイン概念名 |
-| `exam_results` | `ExaminationItem` | （exams の子リソース） | ドメイン概念名 |
-| `billing_confirmations` | `BillingReview` | （medical-records の子リソース） | ドメイン概念名 |
+| テーブル名 | Go struct | API パス |
+|-----------|-----------|---------|
+| `appointments` | `Appointment` | `/reservations` |
+| `medical_records` | `MedicalRecord` | `/medical-records` |
+| `billing_items` | `BillingItem` | `/billings/{id}/items` |
+| `line_customers` | `LineCustomer` | `/line-customers` |
+| `exam_results` | `ExamResult` | （exams の子リソース） |
+| `billing_confirmations` | `BillingConfirmation` | （medical-records の子リソース） |
+| `reservation_types` | `ReservationType` | `/reservation-types` |
+| `care_logs` | `CareLog` | （daily-records の子リソース） |
 
 ---
 
@@ -170,15 +172,18 @@ CREATE TYPE exam_status AS ENUM (
 
 ### Model (struct)
 
-原則: テーブル名の**単数形 PascalCase**。既存コードでドメイン概念名を採用している場合はそのまま維持。
+テーブル名の**単数形 PascalCase**。
 
-| DB テーブル | Go struct（実装） | Go ファイル | 備考 |
-|-----------|------------------|------------|------|
-| `appointments` | `ReservationAppointment` | `reservation.go` | ドメイン概念名 |
-| `medical_records` | `MedicalRecord` | `medical_record.go` | — |
-| `line_customers` | `ReservationCustomer` | `reservation_customer.go` | ドメイン概念名 |
-| `exam_results` | `ExaminationItem` | `examination_record.go` | ドメイン概念名 |
-| `billing_confirmations` | `BillingReview` | `billing_review.go` | ドメイン概念名 |
+| DB テーブル | Go struct | Go ファイル |
+|-----------|-----------|------------|
+| `appointments` | `Appointment` | `reservation.go` |
+| `medical_records` | `MedicalRecord` | `medical_record.go` |
+| `line_customers` | `LineCustomer` | `line_customer.go` |
+| `exam_results` | `ExamResult` | `examination_record.go` |
+| `billing_confirmations` | `BillingConfirmation` | `billing_confirmation.go` |
+| `reservation_types` | `ReservationType` | `reservation_type.go` |
+| `care_logs` | `CareLog` | `hospitalization.go` |
+| `staff_notes` | `StaffNote` | `hospitalization.go` |
 
 ### ENUM 定数
 
