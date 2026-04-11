@@ -2,7 +2,7 @@
 
 - **対象**: `backend/migrations/001_init.sql` 全64テーブル + カラム + ENUM + Go/API層
 - **作成日**: 2026-04-11
-- **ステータス**: OPEN
+- **ステータス**: Phase 1-3 完了 / Phase 4 (INFO) は対応任意
 
 ---
 
