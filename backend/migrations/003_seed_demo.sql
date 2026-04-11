@@ -850,7 +850,7 @@ SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id)
 -- -----------------------------------------------------------------------------
 -- 1. owners（飼主: 22件）
 -- -----------------------------------------------------------------------------
-INSERT INTO owners (id, clinic_id, owner_name, owner_name_kana, birth_date, company, postal_code, address1, address2, phone, company_phone, email, remarks, is_dangerous, discount_rate, membership_type) VALUES
+INSERT INTO owners (id, clinic_id, name, name_kana, birth_date, company, postal_code, address1, address2, phone, company_phone, email, remarks, is_dangerous, discount_rate, membership_type) VALUES
     (1,  3, '林 文明', 'ハヤシ フミアキ', '1980-05-15', 'サンプル株式会社', '150-0001', '東京都渋谷区神宮前1-2-3', '', '090-1111-2222', '03-1234-5678', 'hayashi@example.com', '定期検診を希望', false, 10, 'member'),
     (2,  3, '田中 花子', 'タナカ ハナコ', '1985-03-20', '', '160-0022', '東京都新宿区新宿1-1-1', '', '080-3333-4444', '', 'tanaka@example.com', '', false, 0, 'non_member'),
     (3,  3, '鈴木 一郎', 'スズキ イチロウ', '1978-11-03', '', '170-0001', '東京都豊島区西巣鴨1-3-5', '', '070-5555-6666', '', 'suzuki@example.com', '', false, 0, 'member'),
@@ -874,8 +874,8 @@ INSERT INTO owners (id, clinic_id, owner_name, owner_name_kana, birth_date, comp
     (21, 3, '石川 大輔', 'イシカワ ダイスケ', '1989-04-02', '', '167-0041', '東京都杉並区善福寺3-2-6', '', '080-4444-4444', '', 'daisuke.ishikawa@example.com', '', false, 0, 'non_member'),
     (22, 3, '村田 奈々', 'ムラタ ナナ', '1996-09-19', '', '182-0021', '東京都調布市調布ヶ丘1-4-7', '', '090-5555-5555', '', 'nana.murata@example.com', '', false, 0, 'non_member')
 ON CONFLICT (id) DO UPDATE SET
-    owner_name      = EXCLUDED.owner_name,
-    owner_name_kana = EXCLUDED.owner_name_kana,
+    name      = EXCLUDED.name,
+    name_kana = EXCLUDED.name_kana,
     updated_at      = now();
 
 SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
@@ -883,7 +883,7 @@ SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owner
 -- -----------------------------------------------------------------------------
 -- 2. pets（ペット: 28件）
 -- -----------------------------------------------------------------------------
-INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, pet_name_kana, animal_species_id, gender, status, birth_date, breed, color, weight, insurance_id, last_visit) VALUES
+INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, name_kana, animal_species_id, gender, status, birth_date, breed, color, weight, insurance_id, last_visit) VALUES
     (1,  3, 1,  '1-1', 'Iris(イリス)', 'イリス', 1, 'male',   'alive', '2015-04-14', 'ゴールデンレトリーバー',     '茶色',           26.5,  1, '2015-08-28'),
     (2,  3, 1,  '1-2', 'Max(マックス)', 'マックス', 1, 'male', 'alive', '2018-06-20', 'ラブラドール',               'ゴールデン',     15.2,  NULL, '2024-11-15'),
     (3,  3, 2,  '2-1', 'ミケ',         'ミケ',     2, 'female','alive', '2020-03-10', '三毛猫',                     '三毛',            4.20, 2, '2024-11-18'),
@@ -918,9 +918,9 @@ ON CONFLICT (id) DO UPDATE SET
 SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 
 -- -----------------------------------------------------------------------------
--- 3. reservation_appointments（予約: 10件）
+-- 3. appointments（予約: 10件）
 -- -----------------------------------------------------------------------------
-INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_category_id, doctor_id, is_designated, status, notes) VALUES
+INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_category_id, doctor_id, is_designated, status, notes) VALUES
     (1,  3, '2026-03-12 09:00:00+09', '2026-03-12 09:15:00+09', 1,  1,  'revisit', 1, 1, true,  'completed',       '皮膚の経過観察'),
     (2,  3, '2026-03-12 09:15:00+09', '2026-03-12 09:30:00+09', 2,  3,  'revisit', 7, 2, false, 'accounting',      '猫の定期健診'),
     (3,  3, '2026-03-12 10:00:00+09', '2026-03-12 10:15:00+09', 3,  4,  'revisit', 1, 1, true,  'in_consultation', '足を引きずっている'),
@@ -934,7 +934,7 @@ INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('reservation_appointments', 'id'), (SELECT MAX(id) FROM reservation_appointments));
+SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
 
 -- -----------------------------------------------------------------------------
 -- 4. medical_records（カルテ: 20件）
@@ -1413,7 +1413,7 @@ SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id)
 -- -----------------------------------------------------------------------------
 -- 城東医院 owners（飼主: 8件、ID 23〜30）
 -- -----------------------------------------------------------------------------
-INSERT INTO owners (id, clinic_id, owner_name, owner_name_kana, birth_date, company, postal_code, address1, address2, phone, company_phone, email, remarks, is_dangerous, discount_rate, membership_type) VALUES
+INSERT INTO owners (id, clinic_id, name, name_kana, birth_date, company, postal_code, address1, address2, phone, company_phone, email, remarks, is_dangerous, discount_rate, membership_type) VALUES
     (23, 4, '大野 健司',   'オオノ ケンジ',   '1979-06-10', '',           '136-0071', '東京都江東区亀戸3-5-8',         '', '090-6601-2233', '', 'kenji.ono@example.com',      '定期通院',   false, 10, 'member'),
     (24, 4, '松田 香織',   'マツダ カオリ',   '1988-02-14', '',           '135-0044', '東京都江東区越中島2-1-4',       '', '080-7702-3344', '', 'kaori.matsuda@example.com',  '',           false, 0,  'non_member'),
     (25, 4, '渡辺 直樹',   'ワタナベ ナオキ', '1972-10-28', '渡辺商事',   '132-0025', '東京都江戸川区松江3-7-2',       '', '090-8803-4455', '', 'naoki.watanabe@example.com', '',           false, 5,  'member'),
@@ -1423,8 +1423,8 @@ INSERT INTO owners (id, clinic_id, owner_name, owner_name_kana, birth_date, comp
     (29, 4, '岡田 俊雄',   'オカダ トシオ',   '1983-03-30', 'オカダ工業', '132-0034', '東京都江戸川区小松川1-8-5',     '', '090-3307-8899', '', 'toshio.okada@example.com',   '',           false, 0,  'non_member'),
     (30, 4, '藤田 彩',     'フジタ アヤ',     '1997-11-11', '',           '136-0076', '東京都江東区南砂3-9-1',         '', '080-4408-9900', '', 'aya.fujita@example.com',     '',           false, 0,  'non_member')
 ON CONFLICT (id) DO UPDATE SET
-    owner_name      = EXCLUDED.owner_name,
-    owner_name_kana = EXCLUDED.owner_name_kana,
+    name      = EXCLUDED.name,
+    name_kana = EXCLUDED.name_kana,
     updated_at      = now();
 
 SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
@@ -1432,7 +1432,7 @@ SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owner
 -- -----------------------------------------------------------------------------
 -- 城東医院 pets（ペット: 10件、ID 29〜38）
 -- -----------------------------------------------------------------------------
-INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, pet_name_kana, animal_species_id, gender, status, birth_date, breed, color, weight, insurance_id, last_visit) VALUES
+INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, name_kana, animal_species_id, gender, status, birth_date, breed, color, weight, insurance_id, last_visit) VALUES
     (29, 4, 23, '23-1', 'クロ',   'クロ',   1, 'male',   'alive', '2019-03-20', 'ラブラドール',             'ブラック',   28.0,  6,    '2025-11-10'),
     (30, 4, 23, '23-2', 'シナモン', 'シナモン', 2, 'female','alive', '2021-07-15', 'アビシニアン',           'レッド',      4.1,  NULL, NULL),
     (31, 4, 24, '24-1', 'ポポ',   'ポポ',   2, 'female', 'alive', '2020-05-10', 'ロシアンブルー',           'グレー',      3.8,  7,    '2025-10-20'),
@@ -1696,7 +1696,7 @@ SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id)
 -- -----------------------------------------------------------------------------
 -- 敷島医院 owners（飼主: 8件、ID 31〜38）
 -- -----------------------------------------------------------------------------
-INSERT INTO owners (id, clinic_id, owner_name, owner_name_kana, birth_date, company, postal_code, address1, address2, phone, company_phone, email, remarks, is_dangerous, discount_rate, membership_type) VALUES
+INSERT INTO owners (id, clinic_id, name, name_kana, birth_date, company, postal_code, address1, address2, phone, company_phone, email, remarks, is_dangerous, discount_rate, membership_type) VALUES
     (31, 5, '村上 俊平',   'ムラカミ シュンペイ', '1976-04-12', '',           '400-0031', '山梨県甲府市丸の内2-3-4',     '', '090-5501-1122', '', 'shunpei.murakami@example.com', '',           false, 10, 'member'),
     (32, 5, '長谷川 恵子', 'ハセガワ ケイコ',     '1989-09-07', '',           '400-0032', '山梨県甲府市中央3-5-6',       '', '080-6602-2233', '', 'keiko.hasegawa@example.com',   '',           false, 0,  'non_member'),
     (33, 5, '野口 正樹',   'ノグチ マサキ',       '1971-01-25', '野口設計',   '400-0035', '山梨県甲府市丸の内3-7-8',     '', '090-7703-3344', '', 'masaki.noguchi@example.com',   '',           false, 5,  'member'),
@@ -1706,8 +1706,8 @@ INSERT INTO owners (id, clinic_id, owner_name, owner_name_kana, birth_date, comp
     (37, 5, '清水 和彦',   'シミズ カズヒコ',     '1980-03-28', '清水工務店', '400-0034', '山梨県甲府市北口1-6-2',       '', '090-2207-7788', '', 'kazuhiko.shimizu@example.com', '',           false, 0,  'non_member'),
     (38, 5, '岩崎 美穂',   'イワサキ ミホ',       '1998-12-05', '',           '400-0803', '山梨県甲府市横根町2-8-9',     '', '080-3308-8899', '', 'miho.iwasaki@example.com',     '',           false, 0,  'non_member')
 ON CONFLICT (id) DO UPDATE SET
-    owner_name      = EXCLUDED.owner_name,
-    owner_name_kana = EXCLUDED.owner_name_kana,
+    name      = EXCLUDED.name,
+    name_kana = EXCLUDED.name_kana,
     updated_at      = now();
 
 SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
@@ -1715,7 +1715,7 @@ SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owner
 -- -----------------------------------------------------------------------------
 -- 敷島医院 pets（ペット: 10件、ID 39〜48）
 -- -----------------------------------------------------------------------------
-INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, pet_name_kana, animal_species_id, gender, status, birth_date, breed, color, weight, insurance_id, last_visit) VALUES
+INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, name_kana, animal_species_id, gender, status, birth_date, breed, color, weight, insurance_id, last_visit) VALUES
     (39, 5, 31, '31-1', 'フク',   'フク',   1, 'male',   'alive', '2018-05-05', 'シベリアンハスキー',       'グレーホワイト', 24.0, 9,    '2025-10-05'),
     (40, 5, 32, '32-1', 'アズキ', 'アズキ', 2, 'female', 'alive', '2021-11-20', 'ノルウェージャンフォレストキャット', 'ブラウンタビー', 4.8, NULL, '2025-12-18'),
     (41, 5, 33, '33-1', 'カイ',   'カイ',   1, 'male',   'alive', '2016-07-10', 'ゴールデンレトリーバー',   'ゴールデン',     31.2, NULL, '2026-01-08'),
@@ -1863,9 +1863,9 @@ UPDATE reservation_settings SET
     line_access_token   = 'CUAtYMry8doD9ALCF/6Y0JocVqRrxC8IbOCMyRyxwDw5EJhyujJ4lQ8mVGrt7WawTi+voAxZ79mKAg+4qlsUPBVU6VMZdk7wEA42NZXQAl8gBr2tSYmZpbRzAiLfuGhxuba+koBHVk8yTuaCCjLBzAdB04t89/1O/w1cDnyilFU='
 WHERE clinic_id = 4;
 
--- D. staff_excluded_reservation_categories 初期データ
+-- D. staff_reservation_exclusions 初期データ
 -- 獣医スタッフはトリミング系コースを非対応とする（同一クリニック内のみ）
-INSERT INTO staff_excluded_reservation_categories (staff_id, reservation_category_id)
+INSERT INTO staff_reservation_exclusions (staff_id, reservation_category_id)
 SELECT s.id, st.id
 FROM staffs s
 JOIN staff_clinic_assignments sca ON sca.staff_id = s.id
@@ -1887,11 +1887,11 @@ ON CONFLICT DO NOTHING;
 
 -- F. 城東医院 (clinic_id=4) テスト予約 3件
 -- ※ owners/pets が先に挿入されている必要がある
-INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_category_id, doctor_id, is_designated, status, notes) VALUES
+INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_category_id, doctor_id, is_designated, status, notes) VALUES
     (11, 4, '2026-03-12 10:00:00+09', '2026-03-12 10:15:00+09', 23, 29, 'revisit', 26, 16, true,  'confirmed', 'クロの定期診察'),
     (12, 4, '2026-03-13 14:00:00+09', '2026-03-13 14:15:00+09', 24, 31, 'first',   28, 16, false, 'confirmed', 'ポポのワクチン接種'),
     (13, 4, '2026-03-14 11:00:00+09', '2026-03-14 11:15:00+09', 25, 32, 'revisit', 31, 16, false, 'confirmed', 'ダンの健康診断')
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
-SELECT setval(pg_get_serial_sequence('reservation_appointments', 'id'), (SELECT MAX(id) FROM reservation_appointments));
+SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));

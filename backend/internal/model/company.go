@@ -20,4 +20,4 @@ type Company struct {
 	UpdatedAt                 time.Time `gorm:"autoUpdateTime"            json:"updated_at"`
 }
 
-func (Company) TableName() string { return "company" }
+func (Company) TableName() string { return "companies" }

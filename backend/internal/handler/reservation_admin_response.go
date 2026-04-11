@@ -52,7 +52,7 @@ func toReservationSummaryResponse(ra *model.ReservationAppointment) reservationS
 			customerName = ra.LineCustomer.RealName
 		}
 	} else if ra.Owner != nil {
-		customerName = ra.Owner.OwnerName
+		customerName = ra.Owner.Name
 	}
 
 	courseShortName := ""
@@ -89,7 +89,7 @@ func toReservationDetailResponse(ra *model.ReservationAppointment) reservationDe
 			customerName = ra.LineCustomer.RealName
 		}
 	} else if ra.Owner != nil {
-		customerName = ra.Owner.OwnerName
+		customerName = ra.Owner.Name
 	}
 
 	courseShortName := ""

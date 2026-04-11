@@ -21,8 +21,8 @@ const transformPetInOwner = (pet: BackendPet, ownerName: string) => ({
 
 export const transformOwner = (owner: BackendOwner): Owner => ({
   id: String(owner.id ?? 0),
-  ownerName: owner.owner_name ?? "",
-  ownerNameKana: owner.owner_name_kana,
+  ownerName: owner.name ?? "",
+  ownerNameKana: owner.name_kana,
   company: owner.company ?? "",
   postalCode: owner.postal_code ?? "",
   address1: owner.address1 ?? "",
@@ -40,5 +40,5 @@ export const transformOwner = (owner: BackendOwner): Owner => ({
   membershipType: MEMBERSHIP_TYPE_FROM_API[owner.membership_type ?? ""] ?? owner.membership_type ?? "",
   createdAt: owner.created_at ?? "",
   updatedAt: owner.updated_at ?? "",
-  pets: owner.pets?.map((pet) => transformPetInOwner(pet, owner.owner_name ?? "")),
+  pets: owner.pets?.map((pet) => transformPetInOwner(pet, owner.name ?? "")),
 });

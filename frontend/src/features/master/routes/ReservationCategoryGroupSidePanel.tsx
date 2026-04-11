@@ -1,7 +1,7 @@
 import { memo, useState, useCallback } from "react";
 import { Layers } from "lucide-react";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
-import { LAYOUT, PALETTE } from "@/lib/design-tokens";
+import { C, LAYOUT, PALETTE } from "@/lib/design-tokens";
 import type { ReservationCategoryGroup } from "@/features/master/api/reservation-category-groups";
 
 export interface GroupFormData {
@@ -67,10 +67,15 @@ export const GroupSidePanel = memo(function GroupSidePanel({
       isDirty={isDirty} titleError={nameError} titleMaxLength={100} readOnly={readOnly}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カラー">
-        <div className="flex items-center gap-2">
-          <input type="color" value={f.color} onChange={handleColorPickerChange}
-            className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0" />
-          <PropertyInput value={f.color} onChange={handleColorInputChange} placeholder="#3B82F6" />
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <input type="color" value={f.color} onChange={handleColorPickerChange}
+              className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0" />
+            <PropertyInput value={f.color} onChange={handleColorInputChange} placeholder="#3B82F6" />
+          </div>
+          <p className={`text-xs ${C.text40}`}>
+            予約管理カレンダーでこのグループに属する区分の予約枠を色別表示します。
+          </p>
         </div>
       </PropertyRow>
     </MasterSidePanel>

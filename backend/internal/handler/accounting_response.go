@@ -166,7 +166,7 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 	if b.Owner != nil {
 		owner = &accountingOwnerSummary{
 			ID:        b.Owner.ID,
-			OwnerName: b.Owner.OwnerName,
+			OwnerName: b.Owner.Name,
 		}
 	}
 

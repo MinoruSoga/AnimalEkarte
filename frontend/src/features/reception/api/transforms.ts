@@ -73,7 +73,7 @@ export function transformReservationToReceptionAppointment(
   const petType = reservation.pet?.animal_species?.name
     ?? (reservation.pet?.animal_species_id ? ANIMAL_SPECIES_MAP[reservation.pet.animal_species_id] : "犬")
     ?? "犬";
-  const ownerName = reservation.owner?.owner_name ?? "";
+  const ownerName = reservation.owner?.name ?? "";
 
   const status = STATUS_TO_COLUMN_ID[reservation.status] ?? "pending";
 

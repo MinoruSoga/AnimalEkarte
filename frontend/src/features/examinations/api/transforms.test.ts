@@ -81,12 +81,12 @@ describe("transformExamination", () => {
     expect(result.items![0].referenceRange).toBe("4.0-10.0");
   });
 
-  it("pet.owner.owner_name を ownerName にマップする", () => {
+  it("pet.owner.name を ownerName にマップする", () => {
     const result = transformExamination({
       ...minimal,
       pet: {
         id: 1, clinic_id: 1,
-        owner: { id: 1, clinic_id: 1, owner_name: "田中太郎" } as BackendExamination["pet"]["owner"],
+        owner: { id: 1, clinic_id: 1, name: "田中太郎" } as BackendExamination["pet"]["owner"],
       } as BackendExamination["pet"],
     });
     expect(result.ownerName).toBe("田中太郎");

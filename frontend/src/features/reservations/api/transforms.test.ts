@@ -69,22 +69,22 @@ describe("transformReservation", () => {
     expect(result.status).toBe("pending");
   });
 
-  it("owner.owner_name を ownerName にマップする", () => {
+  it("owner.name を ownerName にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,
-      owner: { id: 1, clinic_id: 1, owner_name: "田中太郎" } as BackendReservation["owner"],
+      owner: { id: 1, clinic_id: 1, name: "田中太郎" } as BackendReservation["owner"],
     });
     expect(result.ownerName).toBe("田中太郎");
   });
 
-  it("owner が未設定でも pet.owner.owner_name を ownerName にマップする", () => {
+  it("owner が未設定でも pet.owner.name を ownerName にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,
       owner: undefined,
       pet: {
         id: 1,
         clinic_id: 1,
-        owner: { id: 1, clinic_id: 1, owner_name: "佐藤花子" } as BackendReservation["pet"]["owner"],
+        owner: { id: 1, clinic_id: 1, name: "佐藤花子" } as BackendReservation["pet"]["owner"],
       } as BackendReservation["pet"],
     });
     expect(result.ownerName).toBe("佐藤花子");

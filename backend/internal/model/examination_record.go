@@ -34,7 +34,7 @@ type Examination struct {
 	Date            time.Time         `gorm:"type:date;not null"                             json:"date"`
 	ResultSummary   string            `gorm:"default:''"                                     json:"result_summary"`
 	Machine         string            `gorm:"default:''"                                     json:"machine"`
-	Status          ExaminationStatus `gorm:"type:examination_status;default:'pending'"        json:"status"`
+	Status          ExaminationStatus `gorm:"type:exam_status;default:'pending'"                json:"status"`
 	DeletedAt       gorm.DeletedAt    `                                                      json:"-"`
 	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
@@ -62,7 +62,7 @@ type ExaminationItem struct {
 	RefMin          *float64                `gorm:"column:ref_min;type:decimal(10,4)"              json:"ref_min,omitempty"`
 	RefMax          *float64                `gorm:"column:ref_max;type:decimal(10,4)"              json:"ref_max,omitempty"`
 	IsAbnormal      bool                    `gorm:"column:is_abnormal;default:false"               json:"is_abnormal"`
-	Status          ExaminationResultStatus `gorm:"type:examination_result_status;default:'normal'" json:"status"`
+	Status          ExaminationResultStatus `gorm:"type:exam_result_status;default:'normal'"        json:"status"`
 	SortOrder       int                     `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt       time.Time               `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time               `gorm:"autoUpdateTime"                                 json:"updated_at"`

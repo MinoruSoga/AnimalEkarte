@@ -159,7 +159,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
         {
           id: String(hospitalizationData.pet_id),
           ownerId: String(hospitalizationData.owner_id),
-          ownerName: hospitalizationData.owner?.owner_name ?? "",
+          ownerName: hospitalizationData.owner?.name ?? "",
           name: hospitalizationData.pet.name,
           species: hospitalizationData.pet.animal_species?.name ?? "",
           breed: hospitalizationData.pet.breed,

@@ -155,8 +155,8 @@ export function useOwnerForm(
 
       try {
         const ownerRequestPayload = {
-          owner_name: ownerData.ownerName,
-          owner_name_kana: ownerData.ownerNameKana || undefined,
+          name: ownerData.ownerName,
+          name_kana: ownerData.ownerNameKana || undefined,
           company: ownerData.company,
           postal_code: ownerData.postalCode,
           address1: ownerData.address1,
@@ -182,7 +182,7 @@ export function useOwnerForm(
         } else {
           const createData: CreateOwnerRequest = {
             ...ownerRequestPayload,
-            owner_name: ownerData.ownerName,
+            name: ownerData.ownerName,
           };
           const newOwner = await createOwner(createData);
           await queryClient.invalidateQueries({ queryKey: ["owners"] });

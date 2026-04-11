@@ -24,8 +24,8 @@ export const transformReservation = (
   // LINE予約でオーナー未紐付けの場合、customer_fields をフォールバックとして使用
   const cf = parseCustomerFields(reservation.customer_fields);
   const ownerName =
-    reservation.owner?.owner_name ??
-    reservation.pet?.owner?.owner_name ??
+    reservation.owner?.name ??
+    reservation.pet?.owner?.name ??
     cf.owner_name ??
     cf.customer_name ??
     "";

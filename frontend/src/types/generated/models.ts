@@ -1017,8 +1017,8 @@ export const MembershipTypeTransferred: MembershipType = "transferred";
 export interface Owner {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
-  owner_name: string;
-  owner_name_kana: string;
+  name: string;
+  name_kana: string;
   birth_date?: string;
   company: string;
   postal_code: string;
@@ -1156,7 +1156,7 @@ export interface Pet {
   animal_species_id: number /* uint64 */;
   pet_number: string;
   name: string;
-  pet_name_kana: string;
+  name_kana: string;
   gender: PetGender;
   status: PetStatus;
   birth_date?: string;

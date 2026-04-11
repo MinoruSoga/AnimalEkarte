@@ -63,10 +63,10 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(transformReservationToReceptionAppointment({ ...minimal, status: "completed" }).status).toBe("completed");
   });
 
-  it("owner.owner_name を ownerName にマップする", () => {
+  it("owner.name を ownerName にマップする", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
-      owner: { id: 20, clinic_id: 1, owner_name: "田中太郎" } as BackendReservation["owner"],
+      owner: { id: 20, clinic_id: 1, name: "田中太郎" } as BackendReservation["owner"],
     });
     expect(result.ownerName).toBe("田中太郎");
   });

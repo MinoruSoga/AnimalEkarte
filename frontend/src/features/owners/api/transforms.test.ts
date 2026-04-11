@@ -6,7 +6,7 @@ import type { Owner as BackendOwner } from "@/types/generated/models";
 const minimalBackend: BackendOwner = {
   id: 1,
   clinic_id: 1,
-  owner_name: "田中太郎",
+  name: "田中太郎",
   membership_type: "non_member",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
@@ -23,13 +23,13 @@ describe("transformOwner", () => {
     expect(result.id).toBe("0");
   });
 
-  it("owner_name を ownerName にマップする", () => {
-    const result = transformOwner({ ...minimalBackend, owner_name: "佐藤花子" });
+  it("name を ownerName にマップする", () => {
+    const result = transformOwner({ ...minimalBackend, name: "佐藤花子" });
     expect(result.ownerName).toBe("佐藤花子");
   });
 
-  it("owner_name が未設定のとき空文字を返す", () => {
-    const result = transformOwner({ ...minimalBackend, owner_name: undefined });
+  it("name が未設定のとき空文字を返す", () => {
+    const result = transformOwner({ ...minimalBackend, name: undefined });
     expect(result.ownerName).toBe("");
   });
 

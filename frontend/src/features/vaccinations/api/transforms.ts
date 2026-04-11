@@ -7,7 +7,7 @@ export function transformVaccination(
   return {
     id: String(data.id ?? 0),
     petId: data.pet_id ? String(data.pet_id) : undefined,
-    ownerName: data.pet?.owner?.owner_name ?? "",
+    ownerName: data.pet?.owner?.name ?? "",
     petName: data.pet?.name ?? "",
     vaccineId: String(data.vaccine_id ?? 0),
     vaccineName: data.vaccine?.name ?? "",

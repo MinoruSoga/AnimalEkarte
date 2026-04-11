@@ -232,7 +232,7 @@ func (s *reservationNotificationService) buildCreatedEmail(
 		}
 	}
 	if appt.Owner != nil {
-		sb.WriteString(fmt.Sprintf("■ 飼い主名: %s\n", appt.Owner.OwnerName))
+		sb.WriteString(fmt.Sprintf("■ 飼い主名: %s\n", appt.Owner.Name))
 	}
 	if petNames := extractPetNamesFromCustomerFields(appt); petNames != "" {
 		sb.WriteString(fmt.Sprintf("■ ペット: %s\n", petNames))

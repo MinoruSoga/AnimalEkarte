@@ -61,7 +61,7 @@ describe("transformTrimming", () => {
         id: 10,
         name: "ポチ",
         pet_number: "P-001",
-        owner: { id: 20, owner_name: "田中太郎" } as BackendTrimming["pet"]["owner"],
+        owner: { id: 20, name: "田中太郎" } as BackendTrimming["pet"]["owner"],
       } as BackendTrimming["pet"],
     });
     expect(result.petId).toBe("10");

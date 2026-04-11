@@ -15,8 +15,8 @@ import (
 // --- Owner DB column constants ---
 
 const (
-	colOwnerName      = "owner_name"
-	colOwnerNameKana  = "owner_name_kana"
+	colOwnerName      = "name"
+	colOwnerNameKana  = "name_kana"
 	colBirthDate      = "birth_date"
 	colCompany        = "company"
 	colPostalCode     = "postal_code"
@@ -211,8 +211,8 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 
 	owner := &model.Owner{
 		ClinicID:       clinicID,
-		OwnerName:      input.OwnerName,
-		OwnerNameKana:  input.OwnerNameKana,
+		Name:           input.OwnerName,
+		NameKana:       input.OwnerNameKana,
 		BirthDate:      input.BirthDate,
 		Company:        input.Company,
 		PostalCode:     input.PostalCode,
@@ -236,7 +236,7 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 		pet := model.Pet{
 			Name:            p.Name,
 			AnimalSpeciesID: p.AnimalSpeciesID,
-			PetNameKana:     p.PetNameKana,
+			NameKana:        p.PetNameKana,
 			Breed:           p.Breed,
 			Color:           p.Color,
 			BirthDate:       p.BirthDate,

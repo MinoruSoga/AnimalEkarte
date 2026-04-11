@@ -96,8 +96,8 @@ func TestOwnerService_List(t *testing.T) {
 			limit:    20,
 			search:   "",
 			repoOwners: []model.Owner{
-				{ID: 1, ClinicID: 1, OwnerName: "山田 太郎"},
-				{ID: 2, ClinicID: 1, OwnerName: "鈴木 花子"},
+				{ID: 1, ClinicID: 1, Name: "山田 太郎"},
+				{ID: 2, ClinicID: 1, Name: "鈴木 花子"},
 			},
 			repoTotal: 2,
 			repoErr:   nil,
@@ -124,7 +124,7 @@ func TestOwnerService_List(t *testing.T) {
 			page:       1,
 			limit:      20,
 			search:     "山田",
-			repoOwners: []model.Owner{{ID: 1, ClinicID: 1, OwnerName: "山田 太郎"}},
+			repoOwners: []model.Owner{{ID: 1, ClinicID: 1, Name: "山田 太郎"}},
 			repoTotal:  1,
 			repoErr:    nil,
 			wantLen:    1,
@@ -182,9 +182,9 @@ func TestOwnerService_GetByID(t *testing.T) {
 			name:      "returns owner when found",
 			clinicID:  1,
 			id:        10,
-			repoOwner: &model.Owner{ID: 10, ClinicID: 1, OwnerName: "山田 太郎"},
+			repoOwner: &model.Owner{ID: 10, ClinicID: 1, Name: "山田 太郎"},
 			repoErr:   nil,
-			wantOwner: &model.Owner{ID: 10, ClinicID: 1, OwnerName: "山田 太郎"},
+			wantOwner: &model.Owner{ID: 10, ClinicID: 1, Name: "山田 太郎"},
 			wantErr:   nil,
 		},
 		{
@@ -344,7 +344,7 @@ func TestOwnerService_CreateWithPets(t *testing.T) {
 				if tt.wantOwner {
 					assert.NotNil(t, owner)
 					assert.Equal(t, tt.clinicID, owner.ClinicID)
-					assert.Equal(t, tt.input.OwnerName, owner.OwnerName)
+					assert.Equal(t, tt.input.OwnerName, owner.Name)
 				}
 			}
 		})
@@ -352,7 +352,7 @@ func TestOwnerService_CreateWithPets(t *testing.T) {
 }
 
 func TestOwnerService_Update(t *testing.T) {
-	updatedOwner := &model.Owner{ID: 1, ClinicID: 1, OwnerName: "更新後 氏名"}
+	updatedOwner := &model.Owner{ID: 1, ClinicID: 1, Name: "更新後 氏名"}
 
 	tests := []struct {
 		name       string

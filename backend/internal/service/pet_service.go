@@ -18,7 +18,7 @@ const (
 	colPetOwnerID         = "owner_id"
 	colPetAnimalSpeciesID = "animal_species_id"
 	colPetName            = "name"
-	colPetNameKana        = "pet_name_kana"
+	colPetNameKana        = "name_kana"
 	colPetGender          = "gender"
 	colPetBirthDate       = "birth_date"
 	colPetBreed           = "breed"
@@ -179,7 +179,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 		AnimalSpeciesID: input.AnimalSpeciesID,
 		PetNumber:       petNumber,
 		Name:            input.Name,
-		PetNameKana:     input.PetNameKana,
+		NameKana:        input.PetNameKana,
 		BirthDate:       input.BirthDate,
 		Breed:           input.Breed,
 		Color:           input.Color,

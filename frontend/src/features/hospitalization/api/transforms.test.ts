@@ -70,10 +70,10 @@ describe("transformHospitalization", () => {
     expect(result.petName).toBe("ポチ");
   });
 
-  it("owner.owner_name を ownerName にマップする", () => {
+  it("owner.name を ownerName にマップする", () => {
     const result = transformHospitalization({
       ...minimal,
-      owner: { id: 20, clinic_id: 1, owner_name: "田中" } as BackendHospitalization["owner"],
+      owner: { id: 20, clinic_id: 1, name: "田中" } as BackendHospitalization["owner"],
     });
     expect(result.ownerName).toBe("田中");
   });

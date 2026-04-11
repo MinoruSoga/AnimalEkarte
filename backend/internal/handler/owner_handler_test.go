@@ -80,7 +80,7 @@ func TestListOwners(t *testing.T) {
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				listFn: func(_ context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
-					return []model.Owner{{ID: 1, OwnerName: "田中太郎"}}, 1, nil
+					return []model.Owner{{ID: 1, Name: "田中太郎"}}, 1, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -177,7 +177,7 @@ func TestGetOwner(t *testing.T) {
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Owner, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(42), id)
-					return &model.Owner{ID: 42, OwnerName: "佐藤花子"}, nil
+					return &model.Owner{ID: 42, Name: "佐藤花子"}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -260,7 +260,7 @@ func TestCreateOwner(t *testing.T) {
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				createWithPetsFn: func(_ context.Context, _ uint64, input *service.CreateOwnerInput) (*model.Owner, error) {
-					return &model.Owner{ID: 1, OwnerName: input.OwnerName}, nil
+					return &model.Owner{ID: 1, Name: input.OwnerName}, nil
 				},
 			},
 			wantStatus: http.StatusCreated,
@@ -339,7 +339,7 @@ func TestUpdateOwner(t *testing.T) {
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateOwnerInput) (*model.Owner, error) {
-					return &model.Owner{ID: 1, OwnerName: *input.OwnerName}, nil
+					return &model.Owner{ID: 1, Name: *input.OwnerName}, nil
 				},
 			},
 			wantStatus: http.StatusOK,

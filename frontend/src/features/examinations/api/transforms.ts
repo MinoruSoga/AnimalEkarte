@@ -28,7 +28,7 @@ export function transformExamination(
   return {
     id: String(data.id ?? 0),
     date: data.date ? data.date.split("T")[0] : "",
-    ownerName: data.pet?.owner?.owner_name ?? "",
+    ownerName: data.pet?.owner?.name ?? "",
     petName: data.pet?.name ?? "",
     petId: data.pet_id ? String(data.pet_id) : undefined,
     testType: data.exam_type?.name ?? "",

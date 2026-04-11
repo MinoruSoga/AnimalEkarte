@@ -46,12 +46,12 @@ describe("transformVaccination", () => {
     expect(transformVaccination({ ...minimal, next_date: undefined as unknown as string }).nextDate).toBe("");
   });
 
-  it("pet.owner.owner_name を ownerName にマップする", () => {
+  it("pet.owner.name を ownerName にマップする", () => {
     const result = transformVaccination({
       ...minimal,
       pet: {
         id: 1, clinic_id: 1,
-        owner: { id: 1, clinic_id: 1, owner_name: "田中太郎" } as BackendVaccination["pet"]["owner"],
+        owner: { id: 1, clinic_id: 1, name: "田中太郎" } as BackendVaccination["pet"]["owner"],
       } as BackendVaccination["pet"],
     });
     expect(result.ownerName).toBe("田中太郎");

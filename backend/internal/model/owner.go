@@ -18,8 +18,8 @@ const (
 type Owner struct {
 	ID             uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID       uint64         `gorm:"not null"                                       json:"clinic_id"`
-	OwnerName      string         `gorm:"not null"                                       json:"owner_name"`
-	OwnerNameKana  string         `gorm:"default:''"                                     json:"owner_name_kana"`
+	Name           string         `gorm:"column:name;not null"                           json:"name"`
+	NameKana       string         `gorm:"column:name_kana;default:''"                    json:"name_kana"`
 	BirthDate      *time.Time     `gorm:"type:date"                                      json:"birth_date,omitempty"`
 	Company        string         `gorm:"default:''"                                     json:"company"`
 	PostalCode     string         `gorm:"default:''"                                     json:"postal_code"`

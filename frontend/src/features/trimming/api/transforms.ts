@@ -15,7 +15,7 @@ export function transformTrimming(data: BackendTrimming): TrimmingUI {
     ownerId: data.pet?.owner?.id != null ? String(data.pet.owner.id) : undefined,
     petNumber: data.pet?.pet_number ?? "",
     petName: data.pet?.name ?? "",
-    ownerName: data.pet?.owner?.owner_name ?? "",
+    ownerName: data.pet?.owner?.name ?? "",
     species: data.pet?.animal_species?.name ?? "",
     weight: data.pet?.weight != null ? String(data.pet.weight) : "",
     styleRequest: data.style_request ?? "",

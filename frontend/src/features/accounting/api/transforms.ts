@@ -58,7 +58,7 @@ export function transformToAccounting(data: BackendAccounting): Accounting {
     id: String(data.id ?? 0),
     medicalRecordId: data.medical_record_id ? String(data.medical_record_id) : undefined,
     ownerId: String(data.owner_id ?? 0),
-    ownerName: data.owner?.owner_name ?? "",
+    ownerName: data.owner?.name ?? "",
     petId: String(data.pet_id ?? 0),
     petName: data.pet?.name ?? "",
     petSpecies: data.pet?.animal_species?.name,

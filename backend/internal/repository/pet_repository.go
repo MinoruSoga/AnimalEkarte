@@ -42,7 +42,7 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 			pattern := "%" + escaped + "%"
 			q = q.Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.deleted_at IS NULL").
 				Where(
-					`(pets.name ILIKE ? ESCAPE '\' OR pets.pet_name_kana ILIKE ? ESCAPE '\' OR owners.owner_name ILIKE ? ESCAPE '\')`,
+					`(pets.name ILIKE ? ESCAPE '\' OR pets.name_kana ILIKE ? ESCAPE '\' OR owners.owner_name ILIKE ? ESCAPE '\')`,
 					pattern, pattern, pattern,
 				)
 		}

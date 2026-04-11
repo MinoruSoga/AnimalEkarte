@@ -16,7 +16,7 @@ export const transformMedicalRecord = (
     recordNo: record.record_no,
     date: formatDate(record.date),
     ownerId: record.owner_id ? String(record.owner_id) : undefined,
-    ownerName: record.owner?.owner_name ?? "",
+    ownerName: record.owner?.name ?? "",
     petId: record.pet_id ? String(record.pet_id) : undefined,
     petName: record.pet?.name ?? "",
     species: record.pet?.animal_species?.name ?? "",

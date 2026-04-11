@@ -27,7 +27,7 @@ export function transformEstimate(data: BackendEstimate): Estimate {
     medicalRecordId: data.medical_record_id != null ? String(data.medical_record_id) : null,
     title: data.title ?? '',
     ownerId: data.owner_id != null ? String(data.owner_id) : null,
-    ownerName: data.owner?.owner_name ?? undefined,
+    ownerName: data.owner?.name ?? undefined,
     status: (data.status ?? 'draft') as EstimateStatus,
     subtotal: data.subtotal ?? 0,
     taxTotal: data.tax_total ?? 0,

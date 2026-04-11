@@ -19,7 +19,7 @@ func toOwnerSummary(o *model.Owner) *ownerSummaryResponse {
 	}
 	return &ownerSummaryResponse{
 		ID:        o.ID,
-		OwnerName: o.OwnerName,
+		OwnerName: o.Name,
 	}
 }
 
@@ -81,7 +81,7 @@ func toPetInOwnerResponse(p *model.Pet) petInOwnerResponse {
 		AnimalSpeciesID: p.AnimalSpeciesID,
 		PetNumber:       p.PetNumber,
 		Name:            p.Name,
-		PetNameKana:     p.PetNameKana,
+		PetNameKana:     p.NameKana,
 		Gender:          string(p.Gender),
 		Status:          string(p.Status),
 		BirthDate:       p.BirthDate,
@@ -127,8 +127,8 @@ func toOwnerResponse(o *model.Owner) ownerResponse {
 	}
 	return ownerResponse{
 		ID:             o.ID,
-		OwnerName:      o.OwnerName,
-		OwnerNameKana:  o.OwnerNameKana,
+		OwnerName:      o.Name,
+		OwnerNameKana:  o.NameKana,
 		BirthDate:      o.BirthDate,
 		Company:        o.Company,
 		PostalCode:     o.PostalCode,

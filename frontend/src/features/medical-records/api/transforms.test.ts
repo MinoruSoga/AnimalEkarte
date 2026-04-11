@@ -40,10 +40,10 @@ describe("transformMedicalRecord", () => {
     expect(transformMedicalRecord({ ...minimal, status: "unknown" as "draft" }).status).toBe("作成中");
   });
 
-  it("owner.owner_name を ownerName にマップする", () => {
+  it("owner.name を ownerName にマップする", () => {
     const result = transformMedicalRecord({
       ...minimal,
-      owner: { id: 20, clinic_id: 1, owner_name: "田中太郎" } as BackendMedicalRecord["owner"],
+      owner: { id: 20, clinic_id: 1, name: "田中太郎" } as BackendMedicalRecord["owner"],
     });
     expect(result.ownerName).toBe("田中太郎");
   });

@@ -40,8 +40,8 @@ CREATE TYPE vaccine_species AS ENUM ('dog', 'cat', 'both');
 CREATE TYPE medical_record_status AS ENUM ('draft', 'finalized');
 CREATE TYPE treatment_item_type AS ENUM ('consultation', 'procedure', 'medicine', 'other');
 CREATE TYPE treatment_status AS ENUM ('pending', 'completed', 'not_applicable');
-CREATE TYPE examination_status AS ENUM ('pending', 'in_progress', 'result_entered', 'completed', 'confirmed');
-CREATE TYPE examination_result_status AS ENUM ('normal', 'high', 'low');
+CREATE TYPE exam_status AS ENUM ('pending', 'in_progress', 'result_entered', 'completed', 'confirmed');
+CREATE TYPE exam_result_status AS ENUM ('normal', 'high', 'low');
 CREATE TYPE next_schedule_type AS ENUM ('3weeks', '4weeks', '1year', 'other');
 CREATE TYPE appetite_level AS ENUM ('normal', 'increased', 'decreased', 'none');
 CREATE TYPE water_intake_level AS ENUM ('normal', 'increased', 'decreased', 'none');
@@ -84,9 +84,9 @@ CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt'); -- 内税, 外�
 -- ==========================================================================
 
 -- ------------------------------------
--- 1. company（シングルトン: 本部情報）
+-- 1. companies（シングルトン: 本部情報）
 -- ------------------------------------
-CREATE TABLE company (
+CREATE TABLE companies (
     id                  BIGSERIAL   PRIMARY KEY,
     name                text        NOT NULL,
     postal_code         text        NOT NULL DEFAULT '',
@@ -108,7 +108,7 @@ CREATE TABLE company (
 -- ------------------------------------
 CREATE TABLE clinics (
     id                  BIGSERIAL   PRIMARY KEY,
-    company_id          bigint      NOT NULL REFERENCES company(id),
+    company_id          bigint      NOT NULL REFERENCES companies(id),
     name                text        NOT NULL,
     postal_code         text        NOT NULL DEFAULT '',
     address             text        NOT NULL DEFAULT '',
@@ -202,8 +202,8 @@ CREATE INDEX idx_staffs_account ON staffs(account_id);
 CREATE TABLE owners (
     id               BIGSERIAL       PRIMARY KEY,
     clinic_id        bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    owner_name       text            NOT NULL,
-    owner_name_kana  text            NOT NULL DEFAULT '',
+    name             text            NOT NULL,
+    name_kana        text            NOT NULL DEFAULT '',
     birth_date       date,
     company          text            NOT NULL DEFAULT '',
     postal_code      text            NOT NULL DEFAULT '',
@@ -576,7 +576,7 @@ CREATE TABLE pets (
     owner_id          bigint          NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
     pet_number        text            NOT NULL DEFAULT '',
     name              text            NOT NULL,
-    pet_name_kana     text            NOT NULL DEFAULT '',
+    name_kana         text            NOT NULL DEFAULT '',
     animal_species_id bigint          NOT NULL REFERENCES animal_species(id) ON DELETE RESTRICT,
     gender            pet_gender      NOT NULL DEFAULT 'unknown',
     status            pet_status      NOT NULL DEFAULT 'alive',
@@ -672,9 +672,9 @@ CREATE INDEX idx_staff_permission_groups_group ON staff_permission_groups(group_
 -- ==========================================================================
 
 -- ------------------------------------
--- 29. reservation_appointments（予約）
+-- 29. appointments（予約）
 -- ------------------------------------
-CREATE TABLE reservation_appointments (
+CREATE TABLE appointments (
     id                 BIGSERIAL            PRIMARY KEY,
     clinic_id          bigint               NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     start_time         timestamptz          NOT NULL,
@@ -755,7 +755,7 @@ CREATE TABLE medical_records (
     owner_id                   bigint                         REFERENCES owners(id) ON DELETE RESTRICT,
     pet_id                     bigint                         REFERENCES pets(id) ON DELETE RESTRICT,
     doctor_id                  bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
-    reservation_appointment_id bigint                         REFERENCES reservation_appointments(id) ON DELETE SET NULL,
+    reservation_appointment_id bigint                         REFERENCES appointments(id) ON DELETE SET NULL,
     status                     medical_record_status          DEFAULT 'draft',
     version                    INTEGER               NOT NULL DEFAULT 1,
     created_at                 timestamptz           NOT NULL DEFAULT now(),
@@ -816,7 +816,7 @@ CREATE TABLE exams (
     date              date               NOT NULL,
     exam_type_id      bigint             NOT NULL REFERENCES exam_types(id) ON DELETE RESTRICT,
     doctor_id         bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
-    status            examination_status          DEFAULT 'pending',
+    status            exam_status                 DEFAULT 'pending',
     result_summary    text               NOT NULL DEFAULT '',
     machine           text               NOT NULL DEFAULT '',
     created_at        timestamptz        NOT NULL DEFAULT now(),
@@ -1009,7 +1009,7 @@ CREATE TABLE exam_items (
     ref_min           decimal(10,4),
     ref_max           decimal(10,4),
     is_abnormal       boolean                             DEFAULT false,
-    status            examination_result_status           DEFAULT 'normal',
+    status            exam_result_status                  DEFAULT 'normal',
     sort_order        integer                             DEFAULT 0,
     created_at        timestamptz                NOT NULL DEFAULT now(),
     updated_at        timestamptz                NOT NULL DEFAULT now()
@@ -1360,7 +1360,7 @@ CREATE INDEX idx_pets_clinic_id ON pets(clinic_id);
 
 -- 診療テーブル clinic_id
 CREATE INDEX idx_medical_records_clinic_id ON medical_records(clinic_id);
-CREATE INDEX idx_reservation_appointments_clinic_id ON reservation_appointments(clinic_id);
+CREATE INDEX idx_appointments_clinic_id ON appointments(clinic_id);
 CREATE INDEX idx_hospitalizations_clinic_id ON hospitalizations(clinic_id);
 CREATE INDEX idx_trimming_records_clinic_id ON trimming_records(clinic_id);
 CREATE INDEX idx_billings_clinic_id ON billings(clinic_id);
@@ -1373,10 +1373,10 @@ CREATE INDEX idx_merchandise_items_category ON merchandise_items(clinic_id, cate
 CREATE INDEX idx_merchandise_items_sort ON merchandise_items(clinic_id, sort_order);
 
 -- 予約 FK インデックス
-CREATE INDEX idx_reservation_appointments_owner_id ON reservation_appointments(owner_id);
-CREATE INDEX idx_reservation_appointments_pet_id ON reservation_appointments(pet_id);
-CREATE INDEX idx_reservation_appointments_reservation_category_id ON reservation_appointments(reservation_category_id);
-CREATE INDEX idx_reservation_appointments_doctor_id ON reservation_appointments(doctor_id);
+CREATE INDEX idx_appointments_owner_id ON appointments(owner_id);
+CREATE INDEX idx_appointments_pet_id ON appointments(pet_id);
+CREATE INDEX idx_appointments_reservation_category_id ON appointments(reservation_category_id);
+CREATE INDEX idx_appointments_doctor_id ON appointments(doctor_id);
 
 -- medical_records 子テーブル FK インデックス
 CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
@@ -1436,8 +1436,8 @@ CREATE INDEX idx_billing_reviews_status ON billing_reviews(status);
 -- -----------------------------------------------------------------------------
 -- 4.5 全文検索インデックス（pg_trgm GIN）
 -- -----------------------------------------------------------------------------
-CREATE INDEX idx_owners_name_trgm ON owners USING gin (owner_name gin_trgm_ops) WHERE deleted_at IS NULL;
-CREATE INDEX idx_owners_name_kana_trgm ON owners USING gin (owner_name_kana gin_trgm_ops) WHERE deleted_at IS NULL;
+CREATE INDEX idx_owners_name_trgm ON owners USING gin (name gin_trgm_ops) WHERE deleted_at IS NULL;
+CREATE INDEX idx_owners_name_kana_trgm ON owners USING gin (name_kana gin_trgm_ops) WHERE deleted_at IS NULL;
 CREATE INDEX idx_pets_name_trgm ON pets USING gin (name gin_trgm_ops) WHERE deleted_at IS NULL;
 
 -- -----------------------------------------------------------------------------
@@ -1445,16 +1445,16 @@ CREATE INDEX idx_pets_name_trgm ON pets USING gin (name gin_trgm_ops) WHERE dele
 -- -----------------------------------------------------------------------------
 
 -- ダッシュボード・カレンダー（最高頻度）
-CREATE INDEX idx_reservation_appointments_clinic_date
-  ON reservation_appointments(clinic_id, start_time)
+CREATE INDEX idx_appointments_clinic_date
+  ON appointments(clinic_id, start_time)
   WHERE deleted_at IS NULL;
 
-CREATE INDEX idx_reservation_appointments_clinic_status
-  ON reservation_appointments(clinic_id, status)
+CREATE INDEX idx_appointments_clinic_status
+  ON appointments(clinic_id, status)
   WHERE deleted_at IS NULL;
 
-CREATE INDEX idx_reservation_appointments_pet_date
-  ON reservation_appointments(pet_id, start_time)
+CREATE INDEX idx_appointments_pet_date
+  ON appointments(pet_id, start_time)
   WHERE deleted_at IS NULL;
 
 -- カルテ一覧・検索
@@ -1556,7 +1556,7 @@ CREATE UNIQUE INDEX idx_merchandise_items_clinic_name ON merchandise_items(clini
 -- 5. テーブルコメント
 -- =============================================================================
 
-COMMENT ON TABLE company IS '法人情報（シングルトン）';
+COMMENT ON TABLE companies IS '法人情報（シングルトン）';
 COMMENT ON TABLE clinics IS '医院情報';
 COMMENT ON TABLE animal_species IS 'ペット種類マスタ（システム共通）';
 COMMENT ON TABLE accounts IS '認証用アカウント';
@@ -1583,7 +1583,7 @@ COMMENT ON TABLE chief_complaint_categories IS '主訴区分マスタ';
 COMMENT ON TABLE inquiry_templates IS '問診定型文マスタ';
 COMMENT ON TABLE pets IS 'ペット情報';
 -- Deleted: COMMENT ON TABLE user_clinic_memberships, permission_groups, permission_group_rules, user_permission_groups
-COMMENT ON TABLE reservation_appointments IS '予約';
+COMMENT ON TABLE appointments IS '予約';
 COMMENT ON TABLE hospitalizations IS '入院・ホテル管理';
 COMMENT ON TABLE trimming_records IS 'トリミング記録';
 COMMENT ON TABLE medical_records IS '電子カルテ（診療記録）';
@@ -1711,9 +1711,9 @@ CREATE INDEX idx_res_customers_owner
     ON reservation_customers(owner_id) WHERE owner_id IS NOT NULL;
 
 -- ------------------------------------
--- 65. staff_excluded_reservation_categories（スタッフ × 非対応予約区分 M:N）
+-- 65. staff_reservation_exclusions（スタッフ × 非対応予約区分 M:N）
 -- ------------------------------------
-CREATE TABLE staff_excluded_reservation_categories (
+CREATE TABLE staff_reservation_exclusions (
     id              BIGSERIAL PRIMARY KEY,
     staff_id        bigint    NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
     reservation_category_id bigint    NOT NULL REFERENCES reservation_categories(id) ON DELETE CASCADE,
@@ -1735,16 +1735,16 @@ CREATE INDEX idx_shift_entry_breaks_entry ON shift_entry_breaks(shift_entry_id);
 -- reservation_appointments に line_customer_id FK を追加
 -- （reservation_customers テーブル作成後に実行）
 -- ------------------------------------
-ALTER TABLE reservation_appointments
+ALTER TABLE appointments
     ADD COLUMN line_customer_id bigint REFERENCES reservation_customers(id) ON DELETE SET NULL;
 
-CREATE INDEX idx_res_appt_line_customer ON reservation_appointments(line_customer_id)
+CREATE INDEX idx_appointments_line_customer ON appointments(line_customer_id)
     WHERE line_customer_id IS NOT NULL AND deleted_at IS NULL;
 
 -- ------------------------------------
 -- 予約時間枠の重複防止（部分ユニークインデックス）
 -- ------------------------------------
 CREATE UNIQUE INDEX uk_appointment_staff_time
-    ON reservation_appointments (clinic_id, doctor_id, start_time)
+    ON appointments (clinic_id, doctor_id, start_time)
     WHERE deleted_at IS NULL AND status != 'cancelled';
 

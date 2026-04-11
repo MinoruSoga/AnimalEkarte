@@ -45,7 +45,7 @@ type Pet struct {
 	AnimalSpeciesID uint64           `gorm:"not null"                                       json:"animal_species_id"`
 	PetNumber       string           `gorm:"default:''"                                     json:"pet_number"`
 	Name            string           `gorm:"not null"                                       json:"name"`
-	PetNameKana     string           `gorm:"default:''"                                     json:"pet_name_kana"`
+	NameKana        string           `gorm:"column:name_kana;default:''"                    json:"name_kana"`
 	Gender          PetGender        `gorm:"type:pet_gender;default:'unknown'"               json:"gender"`
 	Status          PetStatus        `gorm:"type:pet_status;default:'alive'"                 json:"status"`
 	BirthDate       *time.Time       `gorm:"type:date"                                      json:"birth_date,omitempty"`

@@ -80,7 +80,7 @@ func toPetListResponse(p *model.Pet) petListResponse {
 		AnimalSpeciesID: p.AnimalSpeciesID,
 		PetNumber:       p.PetNumber,
 		Name:            p.Name,
-		PetNameKana:     p.PetNameKana,
+		PetNameKana:     p.NameKana,
 		Gender:          string(p.Gender),
 		Status:          string(p.Status),
 		BirthDate:       p.BirthDate,
@@ -91,7 +91,7 @@ func toPetListResponse(p *model.Pet) petListResponse {
 	if p.Owner != nil {
 		resp.Owner = &petOwnerNested{
 			ID:        p.Owner.ID,
-			OwnerName: p.Owner.OwnerName,
+			OwnerName: p.Owner.Name,
 			Phone:     p.Owner.Phone,
 		}
 	}
@@ -149,7 +149,7 @@ func toPetResponse(p *model.Pet) petResponse {
 		AnimalSpeciesID: p.AnimalSpeciesID,
 		PetNumber:       p.PetNumber,
 		Name:            p.Name,
-		PetNameKana:     p.PetNameKana,
+		PetNameKana:     p.NameKana,
 		Gender:          string(p.Gender),
 		Status:          string(p.Status),
 		BirthDate:       p.BirthDate,
@@ -171,7 +171,7 @@ func toPetResponse(p *model.Pet) petResponse {
 	if p.Owner != nil {
 		resp.Owner = &petOwnerNested{
 			ID:        p.Owner.ID,
-			OwnerName: p.Owner.OwnerName,
+			OwnerName: p.Owner.Name,
 			Phone:     p.Owner.Phone,
 		}
 	}

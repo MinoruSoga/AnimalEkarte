@@ -23,7 +23,7 @@ type reservationCustomerResponse struct {
 func toReservationCustomerResponse(rc *model.ReservationCustomer) reservationCustomerResponse {
 	ownerName := ""
 	if rc.Owner != nil {
-		ownerName = rc.Owner.OwnerName
+		ownerName = rc.Owner.Name
 	}
 	return reservationCustomerResponse{
 		ID:               rc.ID,

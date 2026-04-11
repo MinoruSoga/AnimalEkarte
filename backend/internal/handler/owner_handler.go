@@ -72,7 +72,7 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 		pets = append(pets, service.CreatePetForOwnerInput{
 			Name:            p.Name,
 			AnimalSpeciesID: p.AnimalSpeciesID,
-			PetNameKana:     p.PetNameKana,
+			PetNameKana:     p.NameKana,
 			Breed:           p.Breed,
 			Color:           p.Color,
 			Gender:          p.Gender,

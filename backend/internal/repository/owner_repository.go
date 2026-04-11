@@ -41,7 +41,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		if search != "" {
 			pattern := "%" + escapeLike(search) + "%"
 			q = q.Where(
-				`(owner_name ILIKE ? ESCAPE '\' OR phone ILIKE ? ESCAPE '\' OR email ILIKE ? ESCAPE '\')`,
+				`(name ILIKE ? ESCAPE '\' OR phone ILIKE ? ESCAPE '\' OR email ILIKE ? ESCAPE '\')`,
 				pattern, pattern, pattern,
 			)
 		}
@@ -104,7 +104,7 @@ func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint6
 	}
 	var owners []model.Owner
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND owner_name = ? AND phone = ? AND deleted_at IS NULL", clinicID, name, phone).
+		Where("clinic_id = ? AND name = ? AND phone = ? AND deleted_at IS NULL", clinicID, name, phone).
 		Limit(2). // 2件以上あるかだけ判定すればよい
 		Find(&owners).Error
 	if err != nil {

@@ -32,7 +32,7 @@ interface OwnerSearchModalProps {
 function transformOwner(o: BackendOwner): OwnerSummary {
   return {
     id: String(o.id ?? 0),
-    name: o.owner_name ?? "",
+    name: o.name ?? "",
     phone: o.phone ?? "",
     address: [o.address1, o.address2].filter(Boolean).join(" "),
   };

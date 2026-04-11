@@ -102,7 +102,7 @@ func toCheckupGlobalResponse(c *model.Checkup) checkupGlobalResponse {
 	if c.MedicalRecord != nil && c.MedicalRecord.Pet != nil {
 		r.PetName = c.MedicalRecord.Pet.Name
 		if c.MedicalRecord.Pet.Owner != nil {
-			r.OwnerName = c.MedicalRecord.Pet.Owner.OwnerName
+			r.OwnerName = c.MedicalRecord.Pet.Owner.Name
 			s := strconv.FormatUint(c.MedicalRecord.Pet.Owner.ID, 10)
 			r.OwnerID = &s
 		}

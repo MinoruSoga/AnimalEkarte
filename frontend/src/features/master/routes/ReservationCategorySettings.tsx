@@ -14,7 +14,7 @@ import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, ICON, PALETTE } from "@/lib/design-tokens";
+import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { paths } from "@/config/paths";
@@ -106,14 +106,14 @@ function GroupedTable({
     <DndContext sensors={sensors} collisionDetection={closestCenter}
       onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
       <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-        <div className={`rounded-[4px] border ${C.borderLight} overflow-hidden`}>
+        <div className={`rounded-[4px] border ${C.borderLight} overflow-hidden bg-white`}>
           <table className="w-full border-collapse">
             <thead>
-              <tr className={`border-b ${C.borderLight} ${C.bgPage30}`}>
+              <tr className={STYLE.tableHeaderRow}>
                 <th className="w-8" />
-                <th className={`text-left text-xs font-semibold ${C.text40} px-3 py-2 uppercase tracking-wide`}>名称</th>
-                <th className={`text-left text-xs font-semibold ${C.text40} px-3 py-2 w-56 uppercase tracking-wide`}>備考</th>
-                <th className={`text-center text-xs font-semibold ${C.text40} px-3 py-2 w-24 uppercase tracking-wide`}>ステータス</th>
+                <th className={`text-left ${STYLE.tableHeaderCell} px-3`}>名称</th>
+                <th className={`text-left ${STYLE.tableHeaderCell} px-3 w-56`}>備考</th>
+                <th className={`text-center ${STYLE.tableHeaderCell} px-3 w-24`}>ステータス</th>
                 <th className="w-20" />
               </tr>
             </thead>
@@ -155,10 +155,7 @@ function GroupedTable({
                         groupCats.map((cat) => (
                           <SortableDataTableRow key={cat.id} id={cat.id} onClick={() => onCategoryEdit(cat)}>
                             <TableCell className={`font-medium text-sm ${C.text} pl-7`}>
-                              <div className="flex items-center gap-2">
-                                <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
-                                {cat.name}
-                              </div>
+                              {cat.name}
                             </TableCell>
                             <TableCell className={`text-sm ${C.text60} max-w-[220px] truncate`}>
                               {cat.description || "—"}
@@ -211,10 +208,7 @@ function GroupedTable({
                     uncatCats.map((cat) => (
                       <SortableDataTableRow key={cat.id} id={cat.id} onClick={() => onCategoryEdit(cat)}>
                         <TableCell className={`font-medium text-sm ${C.text} pl-7`}>
-                          <div className="flex items-center gap-2">
-                            <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: PALETTE.grayMedium }} />
-                            {cat.name}
-                          </div>
+                          {cat.name}
                         </TableCell>
                         <TableCell className={`text-sm ${C.text60} max-w-[220px] truncate`}>
                           {cat.description || "—"}

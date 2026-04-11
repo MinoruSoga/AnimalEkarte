@@ -37,7 +37,7 @@ export interface Owner {
 export type CreateOwnerRequest = Partial<
   Omit<BackendOwner, 'id' | 'clinic_id' | 'created_at' | 'updated_at' | 'pets' | 'birth_date'>
 > & {
-  owner_name: string;
+  name: string;
   birth_date?: string;
 };
 
