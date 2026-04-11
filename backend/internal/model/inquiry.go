@@ -28,7 +28,7 @@ const (
 type Inquiry struct {
 	ID                       uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID          uint64            `gorm:"not null"                                       json:"medical_record_id"`
-	ChiefComplaintCategoryID *uint64           `                                                      json:"chief_complaint_category_id,omitempty"`
+	ChiefComplaintTypeID *uint64           `                                                      json:"chief_complaint_type_id,omitempty"`
 	ChiefComplaint           string            `gorm:"default:''"                                     json:"chief_complaint"`
 	History                  string            `gorm:"default:''"                                     json:"history"`
 	CurrentMedications       string            `gorm:"default:''"                                     json:"current_medications"`
@@ -46,7 +46,7 @@ type Inquiry struct {
 
 	// Relations
 	MedicalRecord          *MedicalRecord          `gorm:"foreignKey:MedicalRecordID"          json:"medical_record,omitempty"`
-	ChiefComplaintCategory *ChiefComplaintCategory `gorm:"foreignKey:ChiefComplaintCategoryID" json:"chief_complaint_category,omitempty"`
+	ChiefComplaintType *ChiefComplaintType `gorm:"foreignKey:ChiefComplaintTypeID" json:"chief_complaint_type,omitempty"`
 	Staff                  *Staff                  `gorm:"foreignKey:StaffID"                  json:"staff,omitempty"`
 }
 

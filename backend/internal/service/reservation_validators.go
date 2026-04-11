@@ -186,7 +186,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			ClinicID:         input.ClinicID,
 			StartTime:        startDT,
 			EndTime:          endDT,
-			ReservationCategoryID:    input.ReservationCategoryID,
+			ReservationTypeID:    input.ReservationCategoryID,
 			DoctorID:         doctorID,
 			Status:           model.ReservationStatusConfirmed,
 			Source:           model.ReservationSourceLine,

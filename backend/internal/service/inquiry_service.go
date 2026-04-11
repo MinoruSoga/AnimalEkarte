@@ -13,7 +13,7 @@ import (
 type UpsertInquiryInput struct {
 	ClinicID                 uint64
 	MedicalRecordID          uint64
-	ChiefComplaintCategoryID *uint64
+	ChiefComplaintTypeID *uint64
 	ChiefComplaint           *string
 	Notes                    *string
 }
@@ -37,8 +37,8 @@ func (s *inquiryService) Upsert(ctx context.Context, input UpsertInquiryInput) (
 	inquiry := &model.Inquiry{
 		MedicalRecordID: input.MedicalRecordID,
 	}
-	if input.ChiefComplaintCategoryID != nil {
-		inquiry.ChiefComplaintCategoryID = input.ChiefComplaintCategoryID
+	if input.ChiefComplaintTypeID != nil {
+		inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
 	}
 	if input.ChiefComplaint != nil {
 		inquiry.ChiefComplaint = *input.ChiefComplaint

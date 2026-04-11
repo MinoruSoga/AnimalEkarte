@@ -394,7 +394,7 @@ func (s *staffService) GetExcludedReservationCategoryIDs(ctx context.Context, st
 	}
 	ids := make([]uint64, 0, len(items))
 	for _, item := range items {
-		ids = append(ids, item.ReservationCategoryID)
+		ids = append(ids, item.ReservationTypeID)
 	}
 	return ids, nil
 }

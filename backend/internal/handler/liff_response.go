@@ -139,13 +139,13 @@ func toLiffReservationResponse(r model.ReservationAppointment) liffReservationRe
 		Notes:     r.Notes,
 		CreatedAt: r.CreatedAt,
 	}
-	if r.ReservationCategory != nil {
-		res.CourseName = r.ReservationCategory.ReservationDisplayName
+	if r.ReservationType != nil {
+		res.CourseName = r.ReservationType.ReservationDisplayName
 		if res.CourseName == "" {
-			if r.ReservationCategory.ShowShortName && r.ReservationCategory.ShortName != "" {
-				res.CourseName = r.ReservationCategory.ShortName
+			if r.ReservationType.ShowShortName && r.ReservationType.ShortName != "" {
+				res.CourseName = r.ReservationType.ShortName
 			} else {
-				res.CourseName = r.ReservationCategory.Name
+				res.CourseName = r.ReservationType.Name
 			}
 		}
 	}

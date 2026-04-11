@@ -83,7 +83,7 @@ func (s *chiefComplaintCategoryService) Update(ctx context.Context, clinicID, id
 }
 
 func (s *chiefComplaintCategoryService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.inquiryRepo.CountByChiefComplaintCategoryID(ctx, id)
+	count, err := s.inquiryRepo.CountByChiefComplaintTypeID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check inquiry dependency")
 	}

@@ -2,8 +2,8 @@ package model
 
 import "time"
 
-// ReservationCategoryGroup は予約区分のグループ（カレンダー凡例用）
-type ReservationCategoryGroup struct {
+// ReservationTypeGroup は予約区分のグループ（カレンダー凡例用）
+type ReservationTypeGroup struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	ClinicID  uint64    `gorm:"not null"                 json:"clinic_id"`
 	Name      string    `gorm:"not null"                 json:"name"`
@@ -14,4 +14,7 @@ type ReservationCategoryGroup struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime"           json:"updated_at"`
 }
 
-func (ReservationCategoryGroup) TableName() string { return "reservation_category_groups" }
+func (ReservationTypeGroup) TableName() string { return "reservation_category_groups" }
+
+// ReservationCategoryGroup は ReservationTypeGroup の後方互換エイリアス。
+type ReservationCategoryGroup = ReservationTypeGroup

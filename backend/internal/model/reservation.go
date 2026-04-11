@@ -41,7 +41,7 @@ type ReservationAppointment struct {
 	OwnerID               *uint64           `                                                      json:"owner_id,omitempty"`
 	PetID                 *uint64           `                                                      json:"pet_id,omitempty"`
 	VisitType             VisitType         `gorm:"type:visit_type;not null;default:'revisit'"     json:"visit_type"`
-	ReservationCategoryID uint64            `gorm:"not null"                                       json:"reservation_category_id"`
+	ReservationTypeID uint64            `gorm:"not null"                                       json:"reservation_type_id"`
 	DoctorID              *uint64           `                                                      json:"doctor_id,omitempty"`
 	IsDesignated          bool              `gorm:"default:false"                                  json:"is_designated"`
 	Status                ReservationStatus `gorm:"type:reservation_status;default:'pending'"      json:"status"`
@@ -59,7 +59,7 @@ type ReservationAppointment struct {
 	// Relations
 	Owner               *Owner               `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`
 	Pet                 *Pet                 `gorm:"foreignKey:PetID"            json:"pet,omitempty"`
-	ReservationCategory *ReservationCategory `gorm:"foreignKey:ReservationCategoryID"    json:"reservation_category,omitempty"`
+	ReservationType *ReservationType `gorm:"foreignKey:ReservationTypeID"    json:"reservation_type,omitempty"`
 	Doctor              *Staff               `gorm:"foreignKey:DoctorID"         json:"doctor,omitempty"`
 	LineCustomer        *ReservationCustomer `gorm:"foreignKey:LineCustomerID"   json:"line_customer,omitempty"`
 }

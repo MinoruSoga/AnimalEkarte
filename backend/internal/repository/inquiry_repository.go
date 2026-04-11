@@ -13,7 +13,7 @@ import (
 // InquiryRepository は医療記録問診の永続化インターフェース
 type InquiryRepository interface {
 	UpsertByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
-	CountByChiefComplaintCategoryID(ctx context.Context, categoryID uint64) (int64, error)
+	CountByChiefComplaintTypeID(ctx context.Context, categoryID uint64) (int64, error)
 }
 
 type inquiryRepository struct {
@@ -64,7 +64,7 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicI
 		"last_defecation":             inquiry.LastDefecation,
 		"last_urination":              inquiry.LastUrination,
 		"owner_observations":          inquiry.OwnerObservations,
-		"chief_complaint_category_id": inquiry.ChiefComplaintCategoryID,
+		"chief_complaint_type_id": inquiry.ChiefComplaintTypeID,
 		"appetite":                    inquiry.Appetite,
 		"water_intake":                inquiry.WaterIntake,
 		"staff_id":                    inquiry.StaffID,
@@ -85,7 +85,7 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicI
 	existing.LastDefecation = inquiry.LastDefecation
 	existing.LastUrination = inquiry.LastUrination
 	existing.OwnerObservations = inquiry.OwnerObservations
-	existing.ChiefComplaintCategoryID = inquiry.ChiefComplaintCategoryID
+	existing.ChiefComplaintTypeID = inquiry.ChiefComplaintTypeID
 	existing.Appetite = inquiry.Appetite
 	existing.WaterIntake = inquiry.WaterIntake
 	existing.StaffID = inquiry.StaffID
@@ -93,9 +93,9 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicI
 	return &existing, nil
 }
 
-// CountByChiefComplaintCategoryID は指定カテゴリIDを参照するInquiryの件数を返す。
+// CountByChiefComplaintTypeID は指定カテゴリIDを参照するInquiryの件数を返す。
 // Delete の FK チェックに使用する。
-func (r *inquiryRepository) CountByChiefComplaintCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
+func (r *inquiryRepository) CountByChiefComplaintTypeID(ctx context.Context, categoryID uint64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Inquiry{}).

@@ -228,7 +228,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 		MedicalRecordID: recordID,
 	}
 	if input.ChiefComplaintCategoryID != nil {
-		inquiry.ChiefComplaintCategoryID = input.ChiefComplaintCategoryID
+		inquiry.ChiefComplaintTypeID = input.ChiefComplaintCategoryID
 	}
 	if input.ChiefComplaint != nil {
 		inquiry.ChiefComplaint = *input.ChiefComplaint

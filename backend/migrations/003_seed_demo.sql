@@ -762,7 +762,7 @@ SELECT setval(pg_get_serial_sequence('diagnosis_types', 'id'), (SELECT MAX(id) F
 -- -----------------------------------------------------------------------------
 -- 20. diagnosis_names（診断名: 各カテゴリ2-3件、計20件）
 -- -----------------------------------------------------------------------------
-INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagnosis_category_id, sort_order) VALUES
+INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagnosis_type_id, sort_order) VALUES
     -- 消化器系
     (1,  3, '胃腸炎',             true, '胃・腸の炎症（嘔吐・下痢）',         1, 1),
     (2,  3, '膵炎',               true, '膵臓の炎症',                         1, 2),
@@ -973,7 +973,7 @@ SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 -- -----------------------------------------------------------------------------
 -- 3. appointments（予約: 10件）
 -- -----------------------------------------------------------------------------
-INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_category_id, doctor_id, is_designated, status, notes) VALUES
+INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_type_id, doctor_id, is_designated, status, notes) VALUES
     (1,  3, '2026-03-12 09:00:00+09', '2026-03-12 09:15:00+09', 1,  1,  'revisit', 1, 1, true,  'completed',       '皮膚の経過観察'),
     (2,  3, '2026-03-12 09:15:00+09', '2026-03-12 09:30:00+09', 2,  3,  'revisit', 7, 2, false, 'accounting',      '猫の定期健診'),
     (3,  3, '2026-03-12 10:00:00+09', '2026-03-12 10:15:00+09', 3,  4,  'revisit', 1, 1, true,  'in_consultation', '足を引きずっている'),
@@ -1021,7 +1021,7 @@ SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) F
 -- -----------------------------------------------------------------------------
 -- 5. inquiries（問診: 20件）
 -- -----------------------------------------------------------------------------
-INSERT INTO inquiries (id, medical_record_id, chief_complaint_category_id, chief_complaint, notes, staff_id) VALUES
+INSERT INTO inquiries (id, medical_record_id, chief_complaint_type_id, chief_complaint, notes, staff_id) VALUES
     (1,  1,  NULL, '狂犬病ワクチン接種',         '体調良好。', 1),
     (2,  2,  NULL, '定期健診',                   '特に異常なし。', 2),
     (3,  3,  6,    '右足の跛行',                 '膝蓋骨脱臼を確認。', 1),
@@ -1051,7 +1051,7 @@ SELECT setval(pg_get_serial_sequence('inquiries', 'id'), (SELECT MAX(id) FROM in
 -- -----------------------------------------------------------------------------
 -- 5b. clinical_plans（診察/治療プラン: 20件）
 -- -----------------------------------------------------------------------------
-INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_category_id, diagnosis_name_id, diagnosis_details, treatment_policy) VALUES
+INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_type_id, diagnosis_name_id, diagnosis_details, treatment_policy) VALUES
     (1,  1, '体温38.5℃。心肺音正常。', NULL, NULL, '健康状態良好。ワクチン接種可。', '5種混合ワクチン接種実施。'),
     (2,  2, '体重増加あり。他異常なし。', NULL, NULL, '維持状態良好。', '定期検診継続。'),
     (3,  3, '右後肢跛行。パテラG2。', 8, 42, '膝蓋骨脱臼。', '消炎剤処方。体重管理指導。'),
@@ -1418,7 +1418,7 @@ SELECT setval(pg_get_serial_sequence('diagnosis_types', 'id'), (SELECT MAX(id) F
 -- -----------------------------------------------------------------------------
 -- 城東医院 diagnosis_names（診断名: 10件）
 -- -----------------------------------------------------------------------------
-INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagnosis_category_id, sort_order) VALUES
+INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagnosis_type_id, sort_order) VALUES
     (21, 4, '胃腸炎',             true, '胃・腸の炎症（嘔吐・下痢）',         9,  1),
     (22, 4, '膵炎',               true, '膵臓の炎症',                         9,  2),
     (23, 4, '気管支炎',           true, '気管支の炎症',                       10, 1),
@@ -1709,7 +1709,7 @@ SELECT setval(pg_get_serial_sequence('diagnosis_types', 'id'), (SELECT MAX(id) F
 -- -----------------------------------------------------------------------------
 -- 敷島医院 diagnosis_names（診断名: 10件）
 -- -----------------------------------------------------------------------------
-INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagnosis_category_id, sort_order) VALUES
+INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagnosis_type_id, sort_order) VALUES
     (31, 5, '胃腸炎',             true, '胃・腸の炎症（嘔吐・下痢）',         14, 1),
     (32, 5, '肝疾患',             true, '肝炎・肝不全・脂肪肝など',           14, 2),
     (33, 5, 'アトピー性皮膚炎',   true, 'アレルゲンによるアレルギー性皮膚炎', 15, 1),
@@ -1825,7 +1825,7 @@ ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
 
-INSERT INTO exam_results (id, exam_id, exam_type_item_id, inspection_value, status) VALUES
+INSERT INTO exam_results (id, exam_id, exam_type_field_id, inspection_value, status) VALUES
     -- Exam 1 (CBC for MR2)
     (34, 1, 1, '9.8',  'normal'),
     (35, 1, 2, '7.2',  'normal'),
@@ -1935,7 +1935,7 @@ WHERE clinic_id = 4;
 
 -- D. staff_reservation_exclusions 初期データ
 -- 獣医スタッフはトリミング系コースを非対応とする（同一クリニック内のみ）
-INSERT INTO staff_reservation_exclusions (staff_id, reservation_category_id)
+INSERT INTO staff_reservation_exclusions (staff_id, reservation_type_id)
 SELECT s.id, st.id
 FROM staffs s
 JOIN staff_clinic_assignments sca ON sca.staff_id = s.id
@@ -1945,7 +1945,7 @@ WHERE s.staff_type = 'doctor'
       'トリミングコース', 'トリミング部分カットコース', 'トリミングシャンプーコース',
       'クイックシャンプー', 'お手入れ', '室内ドッグラン'
   )
-ON CONFLICT (staff_id, reservation_category_id) DO NOTHING;
+ON CONFLICT (staff_id, reservation_type_id) DO NOTHING;
 
 -- E. line_customers テスト用 LINE 顧客データ
 INSERT INTO line_customers (clinic_id, line_user_id, display_name, real_name, additional_fields, owner_id)
@@ -1957,7 +1957,7 @@ ON CONFLICT DO NOTHING;
 
 -- F. 城東医院 (clinic_id=4) テスト予約 3件
 -- ※ owners/pets が先に挿入されている必要がある
-INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_category_id, doctor_id, is_designated, status, notes) VALUES
+INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_type_id, doctor_id, is_designated, status, notes) VALUES
     (11, 4, '2026-03-12 10:00:00+09', '2026-03-12 10:15:00+09', 23, 29, 'revisit', 26, 16, true,  'confirmed', 'クロの定期診察'),
     (12, 4, '2026-03-13 14:00:00+09', '2026-03-13 14:15:00+09', 24, 31, 'first',   28, 16, false, 'confirmed', 'ポポのワクチン接種'),
     (13, 4, '2026-03-14 11:00:00+09', '2026-03-14 11:15:00+09', 25, 32, 'revisit', 31, 16, false, 'confirmed', 'ダンの健康診断')

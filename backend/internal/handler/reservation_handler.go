@@ -112,7 +112,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		EndTime:       input.EndTime,
 		OwnerID:       input.OwnerID,
 		PetID:         input.PetID,
-		ReservationCategoryID: input.ReservationCategoryID,
+		ReservationTypeID:     input.ReservationCategoryID,
 		DoctorID:      input.DoctorID,
 		IsDesignated:  input.IsDesignated,
 		Notes:         input.Notes,

@@ -447,7 +447,7 @@ func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.Rese
 // isExcluded は指定コースIDがスタッフの除外リストに含まれるか確認する。
 func isExcluded(excluded []model.StaffExcludedReservationCategory, courseID uint64) bool {
 	for _, ex := range excluded {
-		if ex.ReservationCategoryID == courseID {
+		if ex.ReservationTypeID == courseID {
 			return true
 		}
 	}

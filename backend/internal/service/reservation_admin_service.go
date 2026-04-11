@@ -111,7 +111,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 			OwnerID:          input.OwnerID,
 			PetID:            input.PetID,
 			VisitType:        visitType,
-			ReservationCategoryID:    input.ReservationCategoryID,
+			ReservationTypeID:    input.ReservationCategoryID,
 			DoctorID:         input.DoctorID,
 			IsDesignated:     input.IsDesignated,
 			Notes:            input.Notes,
