@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -159,14 +159,14 @@ export function ExaminationsList() {
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((r: ExaminationRecord) => (
     <DataTableRow key={r.id} onClick={canEdit ? () => handleEdit(r.id) : undefined}>
-      <TableCell className={`font-mono text-base ${C.text} py-2.5`}>{r.date}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2.5`}>{r.ownerName}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2.5`}>{r.petName}</TableCell>
-      <TableCell className={`text-base font-medium ${C.text} py-2.5`}>{r.testType}</TableCell>
+      <TableCell className={STYLE.tableCellMono}>{r.date}</TableCell>
+      <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
+      <TableCell className={STYLE.tableCell}>{r.petName}</TableCell>
+      <TableCell className={`${STYLE.tableCell} font-medium`}>{r.testType}</TableCell>
       <TableCell className={`text-base ${C.text60} truncate max-w-[200px] py-2.5 hidden lg:table-cell`}>
         {r.resultSummary || "-"}
       </TableCell>
-      <TableCell className={`text-base ${C.text} py-2.5`}>{r.doctor}</TableCell>
+      <TableCell className={STYLE.tableCell}>{r.doctor}</TableCell>
       <TableCell className="py-2.5">
         <StatusBadge colorClass={getExaminationStatusColor(r.status)}>
           {r.status}

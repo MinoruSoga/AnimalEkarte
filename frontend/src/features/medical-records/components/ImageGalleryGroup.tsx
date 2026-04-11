@@ -95,7 +95,7 @@ export const ImageGalleryGroup = memo(function ImageGalleryGroup({
                     disabled={isDeleting}
                     className={`absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm border ${C.borderDanger20} ${C.hoverBgDanger5} disabled:opacity-50`}
                   >
-                    <Trash2 className={`h-3.5 w-3.5 ${C.danger}`} />
+                    <Trash2 className={`${ICON.smXs} ${C.danger}`} />
                   </button>
                 ) : null}
 

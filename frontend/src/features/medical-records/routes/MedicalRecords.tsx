@@ -242,7 +242,7 @@ export function MedicalRecords() {
                 <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
                 <TableCell className={STYLE.tableCell}>{r.petName}</TableCell>
                 <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{r.species}</TableCell>
-                <TableCell className={`text-base ${C.text} max-w-[200px] truncate py-2.5`} title={r.chiefComplaint}>
+                <TableCell className={`${STYLE.tableCell} max-w-[200px] truncate`} title={r.chiefComplaint}>
                   {r.chiefComplaint}
                 </TableCell>
                 <TableCell className="py-2.5 hidden lg:table-cell">
