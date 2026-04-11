@@ -70,7 +70,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { data: meData } = useGetMe(user !== null);
   useEffect(() => {
     if (meData) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: sync polled /me data into auth state for permission refresh
       setUser(meData);
     }
   }, [meData]);

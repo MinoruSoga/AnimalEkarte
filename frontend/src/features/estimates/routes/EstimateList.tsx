@@ -174,18 +174,20 @@ export function EstimateList() {
 
   // rerender-dependencies: deleteModal オブジェクトでなく primitive/安定参照を deps に
   const deleteItemId = deleteModal.item;
+  const closeDeleteModal = deleteModal.close;
   const handleDeleteConfirm = useCallback(() => {
     if (deleteItemId == null) return;
     startDeleteTransition(() => {
       deleteEstimate(deleteItemId);
-      deleteModal.close();
+      closeDeleteModal();
     });
-  }, [deleteItemId, deleteModal.close, deleteEstimate]);
+  }, [deleteItemId, closeDeleteModal, deleteEstimate]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
     setActiveSorts(sorts);
   }, []);
 
+  const openDeleteModal = deleteModal.open;
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((estimate: Estimate) => (
     <DataTableRow key={estimate.id} onClick={() => navigate(paths.estimates.detail.getHref(estimate.id))}>
@@ -219,14 +221,14 @@ export function EstimateList() {
                 label: "削除",
                 icon: Trash2,
                 variant: "destructive" as const,
-                onClick: () => deleteModal.open(estimate.id),
+                onClick: () => openDeleteModal(estimate.id),
               }] : []),
             ]}
           />
         ) : null}
       </TableCell>
     </DataTableRow>
-  ), [navigate, canEdit, canDelete, deleteModal.open]);
+  ), [navigate, canEdit, canDelete, openDeleteModal]);
 
   if (isLoading) {
     return <LoadingFallback />;
