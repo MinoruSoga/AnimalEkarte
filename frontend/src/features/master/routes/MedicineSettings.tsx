@@ -764,7 +764,7 @@ export function MedicineSettings() {
                         type="button"
                         tabIndex={-1}
                         onClick={(e) => e.stopPropagation()}
-                        className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text20} ${C.hoverBgMedium} ${C.hoverText60} transition-colors cursor-grab`}
+                        className={`${STYLE.iconBtn32} ${C.text20} ${C.hoverBgMedium} ${C.hoverText60} cursor-grab`}
                       >
                         <GripVertical className={ICON.action} />
                       </button>
@@ -799,7 +799,7 @@ export function MedicineSettings() {
                               e.stopPropagation();
                               handleCreate(parentId);
                             }}
-                            className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
+                            className={`${STYLE.iconBtn32} ${C.text40} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100`}
                           >
                             <Plus className={`${ICON.xs}`} />
                           </button>
