@@ -361,13 +361,13 @@ export function ReservationTypeSettings() {
     startTransition(() => {
       if (categoryEditTarget !== null && categoryEditTarget !== "new") {
         const req: UpdateReservationTypeRequest = {
-          name: data.name, description: data.description || undefined,
+          name: data.name, Description: data.description || undefined,
           is_active: data.isActive, group_id: data.groupId ? Number(data.groupId) : undefined,
-          reservation_display_name: data.reservationDisplayName || undefined,
-          duration_minutes: data.durationMinutes, short_name: data.shortName || undefined,
+          ReservationDisplayName: data.reservationDisplayName || undefined,
+          duration_minutes: data.durationMinutes, ShortName: data.shortName || undefined,
           reservation_visible: data.reservationVisible,
-          reservation_comment: data.reservationComment || undefined,
-          reservation_image_url: data.reservationImageUrl || undefined,
+          ReservationComment: data.reservationComment || undefined,
+          ReservationImageURL: data.reservationImageUrl || undefined,
           show_short_name: data.showShortName,
           reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
           is_internal: data.isInternal,
@@ -378,13 +378,13 @@ export function ReservationTypeSettings() {
         });
       } else {
         const req: CreateReservationTypeRequest = {
-          name: data.name, description: data.description || undefined,
+          name: data.name, Description: data.description || undefined,
           is_active: true, group_id: data.groupId ? Number(data.groupId) : undefined,
-          reservation_display_name: data.reservationDisplayName || undefined,
-          duration_minutes: data.durationMinutes, short_name: data.shortName || undefined,
+          ReservationDisplayName: data.reservationDisplayName || undefined,
+          duration_minutes: data.durationMinutes, ShortName: data.shortName || undefined,
           reservation_visible: data.reservationVisible,
-          reservation_comment: data.reservationComment || undefined,
-          reservation_image_url: data.reservationImageUrl || undefined,
+          ReservationComment: data.reservationComment || undefined,
+          ReservationImageURL: data.reservationImageUrl || undefined,
           show_short_name: data.showShortName,
           reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
           is_internal: data.isInternal,
