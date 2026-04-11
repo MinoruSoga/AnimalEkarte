@@ -32,7 +32,7 @@ Notion スタイルプロパティ行のラベル幅として `"w-[140px]"` が�
 
 ---
 
-## Part 2: 意味的ミスマッチ要確認（5件）— テーブルカラム・SelectTrigger 用途
+## Part 2: 意味的ミスマッチ要確認（5件）— テーブルカラム・SelectTrigger 用途（w-[140px]）
 
 以下はすべて `w-[140px]` を使用しているが、`LAYOUT.propertyRow.labelW`（プロパティ行ラベル）とは
 **異なる UI 文脈**で使用されている。そのまま `LAYOUT.propertyRow.labelW` に置換すると
@@ -52,6 +52,22 @@ Notion スタイルプロパティ行のラベル幅として `"w-[140px]"` が�
 
 ---
 
+## Part 3: 意味的ミスマッチ要確認（2件）— w-[220px] 非サイドバー用途
+
+以下は `LAYOUT.sidebar.expanded = "w-[220px]"` と同値だが、**サイドバー幅とは異なる UI 文脈**で使用されている。
+そのまま `LAYOUT.sidebar.expanded` に置換すると意味的に誤ったトークン名になる。
+
+| ファイル | 行 | 用途 |
+|---------|-----|------|
+| `features/estimates/routes/EstimateForm.tsx` | 104 | DatePicker コンポーネントの固定幅 |
+| `components/shared/NotionFilter/FilterAddPopover.tsx` | 275 | フィルター追加ポップオーバーの幅 |
+
+### 選択肢
+**案 A**: `LAYOUT.sidebar.expanded` はサイドバー専用とし、上記2件は意図的ハードコードとして承認する
+**案 B**: `LAYOUT.datepicker.w = "w-[220px]"` 等の新トークンを追加して置換する
+
+---
+
 ## 影響範囲
 
 | 対象 | ファイル | 行 | 状態 |
@@ -62,6 +78,8 @@ Notion スタイルプロパティ行のラベル幅として `"w-[140px]"` が�
 | 保険設定カラム | `features/master/routes/InsuranceSettings.tsx` | 20 | 要確認（Part 2） |
 | ワクチン一覧カラム | `features/vaccinations/routes/VaccinationList.tsx` | 199 | 要確認（Part 2） |
 | 予約管理 SelectTrigger × 2 | `features/reservations/routes/ReservationManagement.tsx` | 224, 245 | 要確認（Part 2） |
+| 見積フォーム DatePicker | `features/estimates/routes/EstimateForm.tsx` | 104 | 要確認（Part 3） |
+| フィルターポップオーバー | `components/shared/NotionFilter/FilterAddPopover.tsx` | 275 | 要確認（Part 3） |
 
 ## 修正方針
 
