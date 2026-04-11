@@ -714,8 +714,8 @@ export interface DailyRecord {
    * Relations
    */
   vital_records?: VitalRecord[];
-  care_log_records?: CareLogRecord[];
-  staff_note_records?: StaffNoteRecord[];
+  care_logs?: CareLogRecord[];
+  staff_notes?: StaffNoteRecord[];
 }
 export type CareLogType = string;
 export const CareLogTypeFood: CareLogType = "food";

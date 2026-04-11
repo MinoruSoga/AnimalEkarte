@@ -48,8 +48,8 @@ type dailyRecordResponse struct {
 	CreatedAt         time.Time                 `json:"created_at"`
 	UpdatedAt         time.Time                 `json:"updated_at"`
 	VitalRecords      []vitalRecordResponse     `json:"vital_records"`
-	CareLogRecords    []careLogRecordResponse   `json:"care_log_records"`
-	StaffNoteRecords  []staffNoteRecordResponse `json:"staff_note_records"`
+	CareLogRecords    []careLogRecordResponse   `json:"care_logs"`
+	StaffNoteRecords  []staffNoteRecordResponse `json:"staff_notes"`
 }
 
 func toVitalRecordResponse(vr *model.VitalRecord) vitalRecordResponse {

@@ -108,8 +108,8 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
     );
 
     const vitals = record?.vital_records ?? [];
-    const careLogs = record?.care_log_records ?? [];
-    const staffNotes = record?.staff_note_records ?? [];
+    const careLogs = record?.care_logs ?? [];
+    const staffNotes = record?.staff_notes ?? [];
 
     return (
         <div className="flex flex-col gap-4">

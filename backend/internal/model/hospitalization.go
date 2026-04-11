@@ -138,8 +138,8 @@ type DailyRecord struct {
 
 	// Relations
 	VitalRecords     []VitalRecord     `gorm:"foreignKey:DailyRecordID" json:"vital_records,omitempty"`
-	CareLogRecords   []CareLogRecord   `gorm:"foreignKey:DailyRecordID" json:"care_log_records,omitempty"`
-	StaffNoteRecords []StaffNoteRecord `gorm:"foreignKey:DailyRecordID" json:"staff_note_records,omitempty"`
+	CareLogRecords   []CareLogRecord   `gorm:"foreignKey:DailyRecordID" json:"care_logs,omitempty"`
+	StaffNoteRecords []StaffNoteRecord `gorm:"foreignKey:DailyRecordID" json:"staff_notes,omitempty"`
 }
 
 func (DailyRecord) TableName() string { return "daily_records" }

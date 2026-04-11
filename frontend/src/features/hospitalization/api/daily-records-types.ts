@@ -41,8 +41,8 @@ export interface ApiDailyRecord {
     created_at: string;
     updated_at: string;
     vital_records: ApiVitalRecord[];
-    care_log_records: ApiCareLogRecord[];
-    staff_note_records: ApiStaffNoteRecord[];
+    care_logs: ApiCareLogRecord[];
+    staff_notes: ApiStaffNoteRecord[];
 }
 
 // Request types
