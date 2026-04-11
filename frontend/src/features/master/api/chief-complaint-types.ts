@@ -44,7 +44,7 @@ export type ChiefComplaintType = ReturnType<typeof transformChiefComplaintType>;
 // Query keys
 // ─────────────────────────────────────────────────
 
-const QUERY_KEY = ["masters", "chief-complaint-categories"] as const;
+const QUERY_KEY = ["masters", "chief-complaint-types"] as const;
 
 // ─────────────────────────────────────────────────
 // API functions

@@ -8,7 +8,7 @@ import { axios } from "@/lib/axios";
 import type { BillingConfirmation, ReturnBillingConfirmationInput } from "../types";
 
 const billingConfirmationQueryKey = (medicalRecordId: string) =>
-  ["medical-record", medicalRecordId, "billing-review"] as const;
+  ["medical-record", medicalRecordId, "billing-confirmation"] as const;
 
 // GET /v1/medical-records/:id/billing-confirmation
 const getBillingConfirmation = async (medicalRecordId: string): Promise<BillingConfirmation> => {
@@ -37,7 +37,7 @@ export function useConfirmBillingConfirmation(medicalRecordId: string) {
         input
       ),
     onSuccess: () => {
-      // Invalidate billing-review cache for current medical record
+      // Invalidate billing-confirmation cache for current medical record
       void queryClient.invalidateQueries({
         queryKey: billingConfirmationQueryKey(medicalRecordId),
       });
@@ -64,7 +64,7 @@ export function useReturnBillingConfirmation(medicalRecordId: string, userId: nu
         }
       ),
     onSuccess: () => {
-      // Invalidate billing-review cache for current medical record
+      // Invalidate billing-confirmation cache for current medical record
       void queryClient.invalidateQueries({
         queryKey: billingConfirmationQueryKey(medicalRecordId),
       });
