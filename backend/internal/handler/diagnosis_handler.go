@@ -177,10 +177,10 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 	}
 
 	var resp any
-	if catIDStr := c.Query("category_id"); catIDStr != "" {
-		catID, parseErr := strconv.ParseUint(catIDStr, 10, 64)
+	if typeIDStr := c.Query("type_id"); typeIDStr != "" {
+		catID, parseErr := strconv.ParseUint(typeIDStr, 10, 64)
 		if parseErr != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid category_id"))
+			RespondError(c, apperrors.WrapInvalidInput("invalid type_id"))
 			return
 		}
 		names, _, svcErr := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)

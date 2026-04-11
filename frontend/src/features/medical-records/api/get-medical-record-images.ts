@@ -52,7 +52,7 @@ function groupImagesByDate(images: MedicalRecordImage[]): ImageGalleryGroup[] {
   }));
 }
 
-const getRecordImages = async (
+const getMedicalRecordImages = async (
   medicalRecordId: string,
 ): Promise<ImageGalleryGroup[]> => {
   const { data } = await axios.get<MedicalRecordImage[]>(
@@ -61,10 +61,10 @@ const getRecordImages = async (
   return groupImagesByDate(data ?? []);
 };
 
-export const useGetRecordImages = (medicalRecordId?: string) => {
+export const useGetMedicalRecordImages = (medicalRecordId?: string) => {
   return useQuery({
     queryKey: ["record-images", medicalRecordId],
-    queryFn: () => getRecordImages(medicalRecordId!),
+    queryFn: () => getMedicalRecordImages(medicalRecordId!),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

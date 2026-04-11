@@ -32,9 +32,9 @@ export const getDiagnosisTypes = async (): Promise<DiagnosisTypeOption[]> => {
   }));
 };
 
-export const getDiagnosisNames = async (categoryId?: number | null): Promise<DiagnosisNameOption[]> => {
+export const getDiagnosisNames = async (typeId?: number | null): Promise<DiagnosisNameOption[]> => {
   const params: Record<string, unknown> = { limit: 100 };
-  if (categoryId) params.category_id = categoryId;
+  if (typeId) params.type_id = typeId;
   const { data } = await axios.get<DiagnosisName[] | PaginatedResponse<DiagnosisName>>(
     "/v1/masters/diagnosis-names",
     { params },
@@ -54,10 +54,10 @@ export const useGetDiagnosisTypes = () =>
     gcTime: QUERY_GC_TIMES.LONG,
   });
 
-export const useGetDiagnosisNames = (categoryId?: number | null) =>
+export const useGetDiagnosisNames = (typeId?: number | null) =>
   useQuery({
-    queryKey: ["masters", "diagnosis-names", categoryId ?? null],
-    queryFn: () => getDiagnosisNames(categoryId),
+    queryKey: ["masters", "diagnosis-names", typeId ?? null],
+    queryFn: () => getDiagnosisNames(typeId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });
