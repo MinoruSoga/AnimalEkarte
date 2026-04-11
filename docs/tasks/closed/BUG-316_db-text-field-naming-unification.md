@@ -1,5 +1,7 @@
 # BUG-316: テキストカラム命名の統一 — memo/notes/remarks/comment 混在
 
+## ステータス: CLOSED — 現状許容（命名規則ドキュメントで明文化済み）
+
 ## 概要
 
 フリーテキスト記述に4種類のカラム名（`memo`/`notes`/`remarks`/`comment`）が混在している。
