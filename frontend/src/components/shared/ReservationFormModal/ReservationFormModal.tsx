@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useState, useEffect, useCallback, memo } from "react";
 
 // External
@@ -173,7 +173,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[98%] sm:max-w-[1200px] h-[90vh] flex flex-col p-0 gap-0 bg-white overflow-hidden rounded-xl">
+      <DialogContent className={`${LAYOUT.modal.full} flex flex-col p-0 gap-0 bg-white overflow-hidden rounded-xl`}>
         <DialogHeader className="p-4 border-b shrink-0 h-auto flex flex-col gap-3 space-y-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

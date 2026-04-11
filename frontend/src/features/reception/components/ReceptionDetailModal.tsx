@@ -21,7 +21,7 @@ import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { RECEPTION_STATUS_COLORS, RECEPTION_STATUS_COLOR_FALLBACK } from "@/utils/constants/status-colors";
 
 // Types
@@ -365,7 +365,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[480px] p-0 gap-0 overflow-hidden bg-white">
+      <DialogContent className={`${LAYOUT.modal.sm} p-0 gap-0 overflow-hidden bg-white`}>
         {/* Header */}
         <DialogHeader className={`p-5 pb-4 border-b ${C.borderLight} pr-12`}>
           <div className="flex items-center justify-between gap-4">

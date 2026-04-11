@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON, C } from "@/lib/design-tokens";
+import { ICON, C, LAYOUT } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, memo, useTransition, useDeferredValue, useActionState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
@@ -220,7 +220,7 @@ const ItemListCard = memo(function ItemListCard({
               物販・その他追加
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg max-h-[70vh] flex flex-col">
+          <DialogContent className={`${LAYOUT.modal.md} max-h-[70vh] flex flex-col`}>
             <DialogHeader>
               <DialogTitle>物販・その他追加</DialogTitle>
               <DialogDescription>マスタから選択するか、手動入力で追加できます。</DialogDescription>
