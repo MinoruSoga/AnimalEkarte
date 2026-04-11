@@ -47,9 +47,9 @@ func (h *Handler) GetLiffProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, profile)
 }
 
-// GetLiffCourses はLIFF向け公開コース一覧を返す。
+// GetLiffTypes はLIFF向け公開コース一覧を返す。
 // GET /api/liff/:clinicId/courses
-func (h *Handler) GetLiffCourses(c *gin.Context) {
+func (h *Handler) GetLiffTypes(c *gin.Context) {
 	clinicID, ok := extractClinicIDFromParam(c)
 	if !ok {
 		return

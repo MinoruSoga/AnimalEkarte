@@ -29,16 +29,16 @@ type ChiefComplaintTypeService interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
-type chiefComplaintCategoryService struct {
+type chiefComplaintTypeService struct {
 	repo        repository.ChiefComplaintTypeRepository
 	inquiryRepo repository.InquiryRepository
 }
 
 func NewChiefComplaintTypeService(repo repository.ChiefComplaintTypeRepository, inquiryRepo repository.InquiryRepository) ChiefComplaintTypeService {
-	return &chiefComplaintCategoryService{repo: repo, inquiryRepo: inquiryRepo}
+	return &chiefComplaintTypeService{repo: repo, inquiryRepo: inquiryRepo}
 }
 
-func (s *chiefComplaintCategoryService) List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
+func (s *chiefComplaintTypeService) List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list chief complaint categories")
@@ -46,7 +46,7 @@ func (s *chiefComplaintCategoryService) List(ctx context.Context, clinicID uint6
 	return items, nil
 }
 
-func (s *chiefComplaintCategoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
+func (s *chiefComplaintTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get chief complaint category")
@@ -54,7 +54,7 @@ func (s *chiefComplaintCategoryService) GetByID(ctx context.Context, clinicID, i
 	return result, nil
 }
 
-func (s *chiefComplaintCategoryService) Create(ctx context.Context, category *model.ChiefComplaintType) error {
+func (s *chiefComplaintTypeService) Create(ctx context.Context, category *model.ChiefComplaintType) error {
 	if err := s.repo.Create(ctx, category); err != nil {
 		return apperrors.Wrap(err, "failed to create chief complaint category")
 	}
@@ -64,7 +64,7 @@ func (s *chiefComplaintCategoryService) Create(ctx context.Context, category *mo
 	return nil
 }
 
-func (s *chiefComplaintCategoryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+func (s *chiefComplaintTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
 	fields := buildChiefComplaintTypeUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -82,7 +82,7 @@ func (s *chiefComplaintCategoryService) Update(ctx context.Context, clinicID, id
 	return result, nil
 }
 
-func (s *chiefComplaintCategoryService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (s *chiefComplaintTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.inquiryRepo.CountByChiefComplaintTypeID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check inquiry dependency")

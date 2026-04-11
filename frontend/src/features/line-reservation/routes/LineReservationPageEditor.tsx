@@ -7,8 +7,8 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useGetReservationSetting } from "../api/get-line-reservation-setting";
-import { updateReservationSetting } from "../api/update-line-reservation-setting";
+import { useGetLineReservationSetting } from "../api/get-line-reservation-setting";
+import { updateLineReservationSetting } from "../api/update-line-reservation-setting";
 import type { ReservationSetting } from "../api/types";
 
 // ── Page Editor Form ──
@@ -66,7 +66,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
     async (_prev: null) => {
       const merged = { ...setting, ...fieldValues };
       try {
-        await updateReservationSetting(clinicId, {
+        await updateLineReservationSetting(clinicId, {
           status: merged.status,
           header_text: merged.header_text,
           reservation_notice: merged.reservation_notice,
@@ -134,7 +134,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
 
 export function LineReservationPageEditor() {
   const { currentClinicId } = useAuth();
-  const { data: setting, isLoading } = useGetReservationSetting(currentClinicId);
+  const { data: setting, isLoading } = useGetLineReservationSetting(currentClinicId);
 
   return (
     <PageLayout title="ページ編集">

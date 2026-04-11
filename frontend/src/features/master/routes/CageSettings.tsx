@@ -227,7 +227,7 @@ export function CageSettings() {
         </div>
         {canCreate ? (
           <button type="button" onClick={crud.handleNew}
-            className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}>
+            className={STYLE.inlineAddBtn}>
             <Plus className={`${ICON.xs}`} />新しいケージを追加...
           </button>
         ) : null}

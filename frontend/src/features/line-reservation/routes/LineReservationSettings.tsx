@@ -15,8 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useGetReservationSetting } from "../api/get-line-reservation-setting";
-import { updateReservationSetting } from "../api/update-line-reservation-setting";
+import { useGetLineReservationSetting } from "../api/get-line-reservation-setting";
+import { updateLineReservationSetting } from "../api/update-line-reservation-setting";
 import type { ReservationSetting } from "../api/types";
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
@@ -112,7 +112,7 @@ function SettingsForm({ setting, clinicId }: SettingsFormProps) {
         line_access_token: formData.get("line_access_token") as string,
       };
       try {
-        await updateReservationSetting(clinicId, payload);
+        await updateLineReservationSetting(clinicId, payload);
         toast.success("設定を保存しました");
       } catch (err) {
         handleApiError(err, "設定保存");
@@ -274,7 +274,7 @@ function SettingsForm({ setting, clinicId }: SettingsFormProps) {
 
 export function LineReservationSettings() {
   const { currentClinicId } = useAuth();
-  const { data: setting, isLoading } = useGetReservationSetting(currentClinicId);
+  const { data: setting, isLoading } = useGetLineReservationSetting(currentClinicId);
 
   return (
     <PageLayout title="基本設定">

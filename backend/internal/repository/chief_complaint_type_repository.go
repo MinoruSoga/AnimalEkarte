@@ -21,13 +21,13 @@ type ChiefComplaintTypeRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
-type chiefComplaintCategoryRepository struct{ db *gorm.DB }
+type chiefComplaintTypeRepository struct{ db *gorm.DB }
 
 func NewChiefComplaintTypeRepository(db *gorm.DB) ChiefComplaintTypeRepository {
-	return &chiefComplaintCategoryRepository{db: db}
+	return &chiefComplaintTypeRepository{db: db}
 }
 
-func (r *chiefComplaintCategoryRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
+func (r *chiefComplaintTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
 	categories := make([]model.ChiefComplaintType, 0)
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ?", clinicID).
@@ -39,7 +39,7 @@ func (r *chiefComplaintCategoryRepository) FindAll(ctx context.Context, clinicID
 	return categories, nil
 }
 
-func (r *chiefComplaintCategoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
+func (r *chiefComplaintTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
 	var category model.ChiefComplaintType
 	err := r.db.WithContext(ctx).First(&category, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
@@ -48,7 +48,7 @@ func (r *chiefComplaintCategoryRepository) FindByID(ctx context.Context, clinicI
 	return &category, nil
 }
 
-func (r *chiefComplaintCategoryRepository) Create(ctx context.Context, category *model.ChiefComplaintType) error {
+func (r *chiefComplaintTypeRepository) Create(ctx context.Context, category *model.ChiefComplaintType) error {
 	err := r.db.WithContext(ctx).Create(category).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
@@ -59,7 +59,7 @@ func (r *chiefComplaintCategoryRepository) Create(ctx context.Context, category 
 	return nil
 }
 
-func (r *chiefComplaintCategoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *chiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ChiefComplaintType{}).
 		Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -73,7 +73,7 @@ func (r *chiefComplaintCategoryRepository) Update(ctx context.Context, clinicID,
 	return nil
 }
 
-func (r *chiefComplaintCategoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+func (r *chiefComplaintTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.ChiefComplaintType{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "chief_complaint_type", fmt.Sprintf("%d", id))

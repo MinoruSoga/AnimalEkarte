@@ -7,7 +7,7 @@ export type { LineCustomerModel as LineCustomer };
 export type ReservationSetting = LineReservationSetting;
 
 // ── API Request types ──
-export type UpdateReservationSettingRequest = Omit<LineReservationSetting, "id" | "clinic_id" | "created_at" | "updated_at">;
+export type UpdateLineReservationSettingRequest = Omit<LineReservationSetting, "id" | "clinic_id" | "created_at" | "updated_at">;
 
 export interface LinkOwnerRequest {
   owner_id: number;

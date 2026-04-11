@@ -31,36 +31,36 @@ func (m *mockLiffSettingRepository) Upsert(_ context.Context, _ *model.LineReser
 	return nil
 }
 
-// --- mockLiffCourseRepository ---
+// --- mockLiffTypeRepository ---
 
-type mockLiffCourseRepository struct {
+type mockLiffTypeRepository struct {
 	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 }
 
-func (m *mockLiffCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
+func (m *mockLiffTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	if m.findAllFn != nil {
 		return m.findAllFn(ctx, clinicID)
 	}
 	return nil, nil
 }
 
-func (m *mockLiffCourseRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+func (m *mockLiffTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return nil, apperrors.ErrNotFound
 }
 
-func (m *mockLiffCourseRepository) Create(_ context.Context, _ *model.ReservationType) error { return nil }
+func (m *mockLiffTypeRepository) Create(_ context.Context, _ *model.ReservationType) error { return nil }
 
-func (m *mockLiffCourseRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *mockLiffTypeRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
 	return nil
 }
 
-func (m *mockLiffCourseRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *mockLiffTypeRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
 
-func (m *mockLiffCourseRepository) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
+func (m *mockLiffTypeRepository) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
 
@@ -267,7 +267,7 @@ func (m *mockLiffNotifier) NotifyCancelled(ctx context.Context, appt *model.Appo
 // newLiffSvc はテスト用の liffService を直接生成する。
 func newLiffSvc(
 	setting *mockLiffSettingRepository,
-	course *mockLiffCourseRepository,
+	course *mockLiffTypeRepository,
 	staff *mockLiffStaffRepository,
 	schedule *mockLiffScheduleRepository,
 	admin *mockLiffAdminRepository,

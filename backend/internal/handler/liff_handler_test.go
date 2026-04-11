@@ -129,7 +129,7 @@ func newLiffRouter(h *Handler, withCustomer bool) *gin.Engine {
 	liff.Use(authMW)
 	liff.GET("/settings", h.GetLiffSettings)
 	liff.GET("/profile", h.GetLiffProfile)
-	liff.GET("/courses", h.GetLiffCourses)
+	liff.GET("/courses", h.GetLiffTypes)
 	liff.GET("/staffs", h.GetLiffStaffs)
 	liff.GET("/available-dates", h.GetLiffAvailableDates)
 	liff.GET("/available-times", h.GetLiffAvailableTimes)
@@ -233,10 +233,10 @@ func TestGetLiffProfile(t *testing.T) {
 }
 
 // ================================================================
-// GetLiffCourses テスト
+// GetLiffTypes テスト
 // ================================================================
 
-func TestGetLiffCourses(t *testing.T) {
+func TestGetLiffTypes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("正常系: コース一覧を返す", func(t *testing.T) {

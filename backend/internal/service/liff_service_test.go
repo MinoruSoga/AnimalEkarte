@@ -30,7 +30,7 @@ func TestLiffService_GetSettings(t *testing.T) {
 					return want, nil
 				},
 			},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
@@ -51,7 +51,7 @@ func TestLiffService_GetSettings(t *testing.T) {
 					return nil, apperrors.ErrNotFound
 				},
 			},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
@@ -76,7 +76,7 @@ func TestLiffService_GetProfile(t *testing.T) {
 		want := &model.LineCustomer{ID: 1, ClinicID: 3, DisplayName: "テストユーザー"}
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
@@ -99,7 +99,7 @@ func TestLiffService_GetProfile(t *testing.T) {
 	t.Run("顧客が存在しない → NotFound エラー伝播", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
@@ -135,7 +135,7 @@ func TestLiffService_GetCourses(t *testing.T) {
 	t.Run("is_internal=false && reservation_visible=true のみを返す", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{
+			&mockLiffTypeRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
 					return allCourses, nil
 				},
@@ -158,7 +158,7 @@ func TestLiffService_GetCourses(t *testing.T) {
 	t.Run("全件が内部メニューのとき空スライスを返す", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{
+			&mockLiffTypeRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
 					return []model.ReservationType{{ID: 1, IsInternal: true, ReservationVisible: false}}, nil
 				},
@@ -179,7 +179,7 @@ func TestLiffService_GetCourses(t *testing.T) {
 	t.Run("リポジトリエラー → エラー伝播", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{
+			&mockLiffTypeRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
 					return nil, errors.New("db error")
 				},
@@ -207,7 +207,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 	t.Run("reservation_visible=false のスタッフは除外", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
 				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
@@ -236,7 +236,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 		const courseID = uint64(5) // 手術コース
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
 				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
@@ -267,7 +267,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 	t.Run("FindExcludedReservationTypes がエラーを返す → エラー伝播", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
 				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
@@ -313,7 +313,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 					return liffDefaultSetting(), nil
 				},
 			},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
@@ -347,7 +347,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 					return s, nil
 				},
 			},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
 				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
@@ -395,7 +395,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 					return s, nil
 				},
 			},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{
 				findAllByClinicIDFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
@@ -452,7 +452,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 					return liffDefaultSetting(), nil
 				},
 			},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
@@ -487,7 +487,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 					return liffDefaultSetting(), nil
 				},
 			},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
@@ -519,7 +519,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 					return liffDefaultSetting(), nil
 				},
 			},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
@@ -555,7 +555,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 					return liffDefaultSetting(), nil
 				},
 			},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{},
@@ -588,7 +588,7 @@ func TestLiffService_GetMyReservations(t *testing.T) {
 		want := []model.Appointment{{ID: 1, ClinicID: 3}, {ID: 2, ClinicID: 3}}
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
@@ -611,7 +611,7 @@ func TestLiffService_GetMyReservations(t *testing.T) {
 	t.Run("リポジトリエラー → エラー伝播", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
@@ -640,7 +640,7 @@ func TestLiffService_CancelReservation(t *testing.T) {
 		var cancelCalled bool
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
@@ -674,7 +674,7 @@ func TestLiffService_CancelReservation(t *testing.T) {
 	t.Run("CancelByID がエラーを返す → エラー伝播", func(t *testing.T) {
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{
@@ -699,7 +699,7 @@ func TestLiffService_CancelReservation(t *testing.T) {
 		notifyCh := make(chan struct{}, 1)
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{},
-			&mockLiffCourseRepository{},
+			&mockLiffTypeRepository{},
 			&mockLiffStaffRepository{},
 			&mockLiffScheduleRepository{},
 			&mockLiffAdminRepository{

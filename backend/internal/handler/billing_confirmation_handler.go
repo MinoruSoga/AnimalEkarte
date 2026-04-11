@@ -11,7 +11,7 @@ import (
 )
 
 // GetBillingConfirmation は指定カルテIDの会計医師確認を取得または初期化して返す
-// GET /medical-records/:id/billing-review
+// GET /medical-records/:id/billing-confirmation
 func (h *Handler) GetBillingConfirmation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -32,7 +32,7 @@ func (h *Handler) GetBillingConfirmation(c *gin.Context) {
 }
 
 // ConfirmBillingConfirmation は会計を医師確認済みにする
-// POST /medical-records/:id/billing-review/confirm
+// POST /medical-records/:id/billing-confirmation/confirm
 func (h *Handler) ConfirmBillingConfirmation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -64,7 +64,7 @@ func (h *Handler) ConfirmBillingConfirmation(c *gin.Context) {
 }
 
 // ReturnBillingConfirmation は会計を差し戻す
-// POST /medical-records/:id/billing-review/return
+// POST /medical-records/:id/billing-confirmation/return
 func (h *Handler) ReturnBillingConfirmation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -99,7 +99,7 @@ func (h *Handler) ReturnBillingConfirmation(c *gin.Context) {
 // RegisterBillingConfirmationRoutes は会計医師確認関連のルートをmedical-recordsグループに登録する
 func (h *Handler) RegisterBillingConfirmationRoutes(rg *gin.RouterGroup) {
 	permEdit := h.RequirePermission(string(model.ResourceAccounting), "edit")
-	rg.GET("/:id/billing-review", h.GetBillingConfirmation)
-	rg.POST("/:id/billing-review/confirm", permEdit, h.ConfirmBillingConfirmation)
-	rg.POST("/:id/billing-review/return", permEdit, h.ReturnBillingConfirmation)
+	rg.GET("/:id/billing-confirmation", h.GetBillingConfirmation)
+	rg.POST("/:id/billing-confirmation/confirm", permEdit, h.ConfirmBillingConfirmation)
+	rg.POST("/:id/billing-confirmation/return", permEdit, h.ReturnBillingConfirmation)
 }

@@ -10,10 +10,10 @@ import type { BillingConfirmation, ReturnBillingConfirmationInput } from "../typ
 const billingConfirmationQueryKey = (medicalRecordId: string) =>
   ["medical-record", medicalRecordId, "billing-review"] as const;
 
-// GET /v1/medical-records/:id/billing-review
+// GET /v1/medical-records/:id/billing-confirmation
 const getBillingConfirmation = async (medicalRecordId: string): Promise<BillingConfirmation> => {
   const { data } = await axios.get<BillingConfirmation>(
-    `/v1/medical-records/${medicalRecordId}/billing-review`
+    `/v1/medical-records/${medicalRecordId}/billing-confirmation`
   );
   return data;
 };
@@ -26,14 +26,14 @@ export function useGetBillingConfirmation(medicalRecordId: string) {
   });
 }
 
-// POST /v1/medical-records/:id/billing-review/confirm
+// POST /v1/medical-records/:id/billing-confirmation/confirm
 export function useConfirmBillingConfirmation(medicalRecordId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: { confirmed_by: number; memo?: string }) =>
       axios.post<BillingConfirmation>(
-        `/v1/medical-records/${medicalRecordId}/billing-review/confirm`,
+        `/v1/medical-records/${medicalRecordId}/billing-confirmation/confirm`,
         input
       ),
     onSuccess: () => {
@@ -49,7 +49,7 @@ export function useConfirmBillingConfirmation(medicalRecordId: string) {
   });
 }
 
-// POST /v1/medical-records/:id/billing-review/return
+// POST /v1/medical-records/:id/billing-confirmation/return
 // rerender-defer-reads: userId は呼び出し側で useAuth から取得して渡す（hook 内の useAuth 依存を排除）
 export function useReturnBillingConfirmation(medicalRecordId: string, userId: number) {
   const queryClient = useQueryClient();
@@ -57,7 +57,7 @@ export function useReturnBillingConfirmation(medicalRecordId: string, userId: nu
   return useMutation({
     mutationFn: (input: ReturnBillingConfirmationInput) =>
       axios.post<BillingConfirmation>(
-        `/v1/medical-records/${medicalRecordId}/billing-review/return`,
+        `/v1/medical-records/${medicalRecordId}/billing-confirmation/return`,
         {
           returned_by: userId,
           return_reason: input.return_reason,

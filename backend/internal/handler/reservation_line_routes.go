@@ -11,8 +11,8 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics/:id")
 
 	// TASK-RES-010: 基本設定
-	clinics.GET("/reservation-settings", h.GetLineReservationSetting)
-	clinics.PUT("/reservation-settings", h.UpsertLineReservationSetting)
+	clinics.GET("/line-reservation-settings", h.GetLineReservationSetting)
+	clinics.PUT("/line-reservation-settings", h.UpsertLineReservationSetting)
 
 	// TASK-RES-011: 予約区分（LINE管理用）
 	types := clinics.Group("/reservation-types")
@@ -66,7 +66,7 @@ func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
 	authed.Use(liffAuth)
 
 	authed.GET("/profile", h.GetLiffProfile)
-	authed.GET("/types", h.GetLiffCourses)
+	authed.GET("/types", h.GetLiffTypes)
 	authed.GET("/staffs", h.GetLiffStaffs)
 	authed.GET("/available-dates", h.GetLiffAvailableDates)
 	authed.GET("/available-times", h.GetLiffAvailableTimes)

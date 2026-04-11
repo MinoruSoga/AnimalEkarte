@@ -892,7 +892,7 @@ export function MedicineSettings() {
         <button
           type="button"
           onClick={() => handleCreate()}
-          className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}
+          className={STYLE.inlineAddBtn}
         >
           <Plus className={`${ICON.xs}`} />
           新しい薬剤を追加...
