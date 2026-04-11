@@ -49,20 +49,20 @@
 
 ---
 
-## TASK-RES-072: デプロイ 🔲
+## TASK-RES-072: デプロイ ✅（コード実装完了 / 手動オペレーション残）
 
-**PR**: MinoruSoga/AnimalEkarte#27（main → staging）
+**PR**: MinoruSoga/AnimalEkarte#27（main → staging）— **MERGED**
 
 **手順**:
 1. [x] PR #27 作成済み（2026-04-09）
-2. [ ] PR レビュー・マージ
-3. [ ] DBマイグレーション実行（**db_reset=true** 必須 — 001_init.sql に LINE予約テーブル統合済み）
-4. [ ] バックエンド・管理画面フロントエンドは CI/CD で自動デプロイ
-5. [ ] LIFF Appデプロイ（reserve.noah-karte.com）— 別途 CI/CD 設定または手動
+2. [x] PR レビュー・マージ（MERGED 確認済み）
+3. [ ] DBマイグレーション実行（**db_reset=true** 必須 — 001_init.sql に LINE予約テーブル統合済み）← **手動オペレーション**
+4. [x] バックエンド・管理画面フロントエンドは CI/CD で自動デプロイ（PR merge 後に自動実行済み）
+5. [ ] LIFF Appデプロイ（reserve.noah-karte.com）— **手動オペレーション**
 6. [ ] LINE Developers Console: LIFF URL を `https://reserve.noah-karte.com/{clinicId}` に変更（手動）
 7. [ ] リッチメニュー作成: 「予約する / 予約確認 / 電話する」（手動）
 
 **完了条件**:
-- [ ] staging環境で全フロー動作確認
+- [ ] staging環境で全フロー動作確認（DB migration 後）
 - [ ] LINE公式アカウントからLIFF Appにアクセス可能
 - [ ] リッチメニューが表示される
