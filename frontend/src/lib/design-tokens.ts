@@ -843,11 +843,13 @@ export const STYLE = {
   sidePeekToolbarBtn:
     `size-9 flex items-center justify-center rounded-[3px] ${C.text45} ${C.hoverBgMedium} transition-colors`,
 
-  /* ── Compact Icon Buttons (size-8=32px / size-7=28px) ── */
+  /* ── Compact Icon Buttons (size-8=32px / size-7=28px / size-6=24px) ── */
   /** 32px アイコンボタン基底クラス (医療記録タブ・認証フォーム) */
   iconBtn32: `size-8 flex items-center justify-center rounded-[3px] transition-colors`,
   /** 28px アイコンボタン基底クラス (サイドバー・TreatmentRow) */
   iconBtn28: `size-7 flex items-center justify-center rounded-[3px] transition-colors`,
+  /** 24px アイコンボタン基底クラス (BUG-322) */
+  iconBtn24: `size-6 flex items-center justify-center rounded-[3px] transition-colors`,
   /** 20px アイコンボタン基底クラス (折りたたみトグル等) */
   iconBtn20: `size-5 flex items-center justify-center rounded-[3px] transition-colors`,
   sidePeekBody:

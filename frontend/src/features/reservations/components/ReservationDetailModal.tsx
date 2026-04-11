@@ -48,7 +48,8 @@ const DEFAULT_ACTION_CONFIG: ActionConfig = {
 const RESERVATION_STATUS_SELECT_ITEMS = (Object.entries(RESERVATION_STATUS_COLORS) as [ReservationStatus, typeof RESERVATION_STATUS_COLORS[ReservationStatus]][]).map(([value, colors]) => (
   <SelectItem key={value} value={value} className="text-sm">
     <div className="flex items-center gap-2">
-      <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
+      {/* BUG-323: Status Dot Icon Token 使用統一 */}
+      <span className={`${ICON.dot} rounded-full ${colors.dot}`} />
       {colors.label}
     </div>
   </SelectItem>
@@ -108,7 +109,8 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           {onStatusChange ? (
             <div className={`flex items-center justify-between rounded-lg border px-3 py-2 ${currentStatus.bg} ${currentStatus.text} border-transparent`}>
               <div className="flex items-center gap-2 text-sm">
-                <span className={`w-2 h-2 rounded-full ${currentStatus.dot}`} />
+                {/* BUG-323: Status Dot Icon Token 使用統一 */}
+                <span className={`${ICON.dot} rounded-full ${currentStatus.dot}`} />
                 <span>{getReservationStatusLabel(appointment.status)}</span>
               </div>
               <Select
@@ -186,7 +188,8 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               </InfoRow>
               <InfoRow label="予約区分">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={appointment ? getColor(appointment.type).dotStyle : undefined} />
+                  {/* BUG-323: Status Dot Icon Token 使用統一 */}
+                  <span className={`${ICON.dot} rounded-full shrink-0`} style={appointment ? getColor(appointment.type).dotStyle : undefined} />
                   <Tag className={`${ICON.xs} ${C.text40}`} />
                   {getReservationTypeName(appointment.type)}
                 </div>

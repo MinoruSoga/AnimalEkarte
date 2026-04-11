@@ -256,8 +256,9 @@ export function ReservationManagement() {
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           {activeEntries.map((entry) => (
             <div key={entry.name} className="flex items-center gap-1.5">
+              {/* BUG-323: Status Dot Icon Token 使用統一 */}
               <span
-                className="w-2.5 h-2.5 rounded-full"
+                className={`${ICON.dotMd} rounded-full`}
                 style={entry.color.dotStyle}
               />
               <span className={`text-base ${C.text60}`}>{entry.name}</span>

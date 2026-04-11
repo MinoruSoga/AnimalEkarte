@@ -511,8 +511,9 @@ const StaffSidePanel = memo(function StaffSidePanel({
                     handleGroupToggle(group.id, checked === true)
                   }
                 />
+                {/* BUG-323: Status Dot Icon Token 使用統一 */}
                 <div
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  className={`${ICON.dotMd} rounded-full flex-shrink-0`}
                   style={{ backgroundColor: group.color ?? PALETTE.defaultGray }}
                 />
                 <span className="text-sm">{group.name}</span>

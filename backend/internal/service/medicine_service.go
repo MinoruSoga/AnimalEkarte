@@ -128,11 +128,12 @@ type MedicineService interface {
 }
 
 type medicineService struct {
-	repo repository.MedicineRepository
+	repo          repository.MedicineRepository
+	inventoryRepo repository.InventoryRepository
 }
 
-func NewMedicineService(repo repository.MedicineRepository) MedicineService {
-	return &medicineService{repo: repo}
+func NewMedicineService(repo repository.MedicineRepository, inventoryRepo repository.InventoryRepository) MedicineService {
+	return &medicineService{repo: repo, inventoryRepo: inventoryRepo}
 }
 
 func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
@@ -188,6 +189,24 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 
 	if err := s.repo.Create(ctx, medicine); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create medicine")
+	}
+
+	// BUG-320: 薬品作成時に在庫アイテムを自動作成
+	inventoryItem := &model.InventoryItem{
+		ClinicID:      clinicID,
+		Name:          medicine.Name,
+		Category:      model.InventoryCategoryMedicine,
+		Quantity:      0,
+		Unit:          "錠", // デフォルト
+		MinStockLevel: 0,
+		Status:        model.InventoryStatusSufficient,
+	}
+	if err := s.inventoryRepo.Create(ctx, clinicID, inventoryItem); err != nil {
+		slog.ErrorContext(ctx, "failed to create inventory item",
+			slog.Uint64("medicine_id", medicine.ID),
+			slog.String("name", medicine.Name),
+			slog.String("error", err.Error()))
+		// best-effort: 薬品は作成済みなので、エラーは警告レベル
 	}
 
 	slog.InfoContext(ctx, "medicine created",

@@ -77,7 +77,8 @@ export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onD
             </div>
 
             <div className="flex items-center gap-2 ml-2 shrink-0">
-                <div className={`w-2 h-2 rounded-full ${plan.status === 'active' ? C.bgStatusGreenDot : C.bgInactive}`} />
+                {/* BUG-323: Status Dot Icon Token 使用統一 */}
+                <div className={`${ICON.dot} rounded-full ${plan.status === 'active' ? C.bgStatusGreenDot : C.bgInactive}`} />
                 <div className="flex gap-1">
                     <Button variant="ghost" size="sm" onClick={() => onEdit(plan)} className={`h-9 w-9 p-0 ${C.bgPage} ${C.hoverBgPage}`}>
                         <Edit2 className={`${ICON.action} ${C.text60} ${C.hoverText}`} />

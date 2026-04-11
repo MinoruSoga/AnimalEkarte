@@ -12,7 +12,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { PET_GENDER_VALUES, ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES, PetFormData } from "../types";
-import { useGetAnimalSpecies } from "../api/get-animal-species";
+import { useAnimalSpecies } from "../hooks/use-animal-species";
 import { useGetInsurances } from "../api/get-insurances";
 import { usePermission } from "@/features/auth";
 
@@ -79,7 +79,11 @@ export const PetEditModal = memo(function PetEditModal({
   onChangeOwner,
 }: PetEditModalProps) {
   const { canEdit } = usePermission("owners");
-  const { data: animalSpeciesList = [], isLoading: isLoadingSpecies } = useGetAnimalSpecies();
+  // BUG-321: 編集モード時に削除済み種類も含めて取得
+  const { allSpecies, activeSpecies, isLoading: isLoadingSpecies } = useAnimalSpecies({
+    includeInactive: !!petData?.id, // 編集モード時に削除済み種類を含める
+  });
+  const animalSpeciesList = petData?.id ? allSpecies : activeSpecies;
   const { data: insuranceList = [], isLoading: isLoadingInsurances } = useGetInsurances();
 
   const [formData, setFormData] = useState<PetFormData>(() => ({
@@ -152,9 +156,16 @@ export const PetEditModal = memo(function PetEditModal({
   // animalSpeciesList / insuranceList は React Query でキャッシュされた API マスタデータ。
   // formData のキー入力ごとにモーダルが再レンダーされるが、リストが変わらない限り
   // useMemo で JSX ノードの再生成を防ぐ。
+  // BUG-321: 削除済み種類は label に "(利用不可)" を付与して表示
   const animalSpeciesSelectItems = useMemo(() =>
     animalSpeciesList.map((s) => (
-      <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+      <SelectItem
+        key={s.id}
+        value={String(s.id)}
+        disabled={s.isInactive}
+      >
+        {s.label || s.name}
+      </SelectItem>
     )),
     [animalSpeciesList]
   );

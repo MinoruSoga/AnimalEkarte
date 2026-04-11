@@ -61,7 +61,13 @@ func (m *mockMedicineRepository) Reorder(ctx context.Context, clinicID uint64, i
 }
 
 func newTestMedicineService(repo *mockMedicineRepository) MedicineService {
-	return NewMedicineService(repo)
+	// mockInventoryRepository は inventory_service_test.go で定義済み（パッケージスコープ共有）
+	inventoryRepo := &mockInventoryRepository{
+		createFn: func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
+			return nil // デフォルト: 在庫作成成功
+		},
+	}
+	return NewMedicineService(repo, inventoryRepo)
 }
 
 func TestMedicineService_List(t *testing.T) {
