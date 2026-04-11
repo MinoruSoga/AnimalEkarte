@@ -282,7 +282,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: Checku
           <tbody>
             {checkupList.length === 0 ? (
               <tr>
-                <td colSpan={6} className={`text-center py-12 text-sm ${C.text40}`}>
+                <td colSpan={6} className={STYLE.tableEmptySm}>
                   健診記録がありません。下の「記録を追加」ボタンから追加してください。
                 </td>
               </tr>

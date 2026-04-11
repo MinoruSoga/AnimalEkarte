@@ -788,6 +788,8 @@ export const STYLE = {
     `text-base ${C.text70} py-2.5`,
   tableEmpty:
     `text-center py-12 ${C.text70} text-base`,
+  tableEmptySm:
+    `text-center py-12 ${C.text40} text-sm`,
   tableActionBtn:
     `h-11 w-11 ${C.text60} ${C.hoverText}`,
 

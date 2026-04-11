@@ -267,7 +267,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
               <tr>
                 <td
                   colSpan={10}
-                  className={`text-center py-12 text-sm ${C.text40}`}
+                  className={STYLE.tableEmptySm}
                 >
                   治療明細がありません。下の「明細を追加」ボタンから追加してください。
                 </td>

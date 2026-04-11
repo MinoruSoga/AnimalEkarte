@@ -57,7 +57,7 @@ const PropertyRow = memo(function PropertyRow({
 }) {
   return (
     <div className={STYLE.propertyRow}>
-      <div className={`w-[140px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
+      <div className={`${LAYOUT.propertyRow.labelW} shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
         {label}
       </div>
       <div className="flex-1 flex items-center">{children}</div>

@@ -458,7 +458,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
           <tbody>
             {sortedVitals.length === 0 ? (
               <tr>
-                <td colSpan={7} className={`text-center py-12 text-sm ${C.text40}`}>
+                <td colSpan={7} className={STYLE.tableEmptySm}>
                   バイタル記録がありません。下の「記録を追加」ボタンから追加してください。
                 </td>
               </tr>
