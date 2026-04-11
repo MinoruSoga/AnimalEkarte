@@ -126,7 +126,12 @@ if err := g.Wait(); err != nil {
 
 ### 6. ログ（slog構造化ログ）
 
-service層のみ。handler・repositoryには記述しない。
+原則 service 層のみ。handler・repository には記述しない。
+
+**例外（handler 層で許容）:**
+- `response.go` の `RespondError` 内部サーバーエラーログ（HTTP インフラ関心事）
+- 監査ログ書き込み失敗時の best-effort エラーログ（`auth_handler.go`, `permission_group_handler.go`）
+- ファイルクリーンアップ失敗時の警告ログ（`medical_record_image_handler.go`）
 
 ```go
 import "log/slog"
