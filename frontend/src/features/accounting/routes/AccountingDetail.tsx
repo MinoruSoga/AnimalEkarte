@@ -170,7 +170,7 @@ const ItemListCard = memo(function ItemListCard({
                 onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
               />
             ) : (
-              <span className="text-sm text-muted-foreground">
+              <span className={`text-sm ${C.text50}`}>
                 {item.taxType === "excluded" ? "外税" : item.taxType === "included" ? "内税" : "非課税"}
               </span>
             )}
@@ -182,7 +182,7 @@ const ItemListCard = memo(function ItemListCard({
                 onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
               />
             ) : (
-              <span className="text-sm text-muted-foreground">{Math.round(item.taxRate * 100)}%</span>
+              <span className={`text-sm ${C.text50}`}>{Math.round(item.taxRate * 100)}%</span>
             )}
           </TableCell>
           <TableCell className="text-right font-mono text-sm">
@@ -233,7 +233,7 @@ const ItemListCard = memo(function ItemListCard({
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   addMode === "master"
                     ? `${C.borderBrand} ${C.textBrand}`
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : `border-transparent ${C.text50} ${C.hoverText}`
                 }`}
               >
                 マスタから選択
@@ -244,7 +244,7 @@ const ItemListCard = memo(function ItemListCard({
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   addMode === "manual"
                     ? `${C.borderBrand} ${C.textBrand}`
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : `border-transparent ${C.text50} ${C.hoverText}`
                 }`}
               >
                 手動入力
@@ -286,16 +286,16 @@ const ItemListCard = memo(function ItemListCard({
                           <tr
                             key={item.id}
                             onClick={() => handleSelectMerchandise(item)}
-                            className="border-b cursor-pointer hover:bg-muted/30 transition-colors"
+                            className={`border-b cursor-pointer ${C.hoverBgLight} transition-colors`}
                           >
                             <td className="px-3 py-2 text-sm font-medium">{item.name}</td>
-                            <td className="px-3 py-2 text-sm text-muted-foreground">
+                            <td className={`px-3 py-2 text-sm ${C.text50}`}>
                               {CATEGORY_LABELS[item.category as ItemCategory] ?? item.category}
                             </td>
                             <td className="px-3 py-2 text-sm text-right font-mono">
                               ¥{item.unitPrice.toLocaleString()}
                             </td>
-                            <td className="px-3 py-2 text-sm text-right text-muted-foreground">
+                            <td className={`px-3 py-2 text-sm text-right ${C.text50}`}>
                               {item.taxRate === 0.1 ? "10%" : item.taxRate === 0.08 ? "8%" : `${item.taxRate * 100}%`}
                             </td>
                           </tr>
@@ -303,7 +303,7 @@ const ItemListCard = memo(function ItemListCard({
                       </tbody>
                     </table>
                   ) : (
-                    <div className="flex items-center justify-center h-full text-sm text-muted-foreground py-8">
+                    <div className={`flex items-center justify-center h-full text-sm ${C.text50} py-8`}>
                       該当する品目がありません
                     </div>
                   )}
@@ -655,7 +655,7 @@ const RefundSection = memo(function RefundSection({
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <RotateCcw className={`${ICON.action} ${C.textDiscount}`} />
             返金管理
-            <span className="text-xs font-normal text-muted-foreground">
+            <span className={`text-xs font-normal ${C.text50}`}>
               残額 ¥{refundableAmount.toLocaleString()}
             </span>
             {totalRefunded > 0 ? (
@@ -734,13 +734,13 @@ const RefundSection = memo(function RefundSection({
             <tbody>
               {refunds.map((r) => (
                 <tr key={r.id} className="border-b last:border-0">
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                  <td className={`px-3 py-2 font-mono text-xs ${C.text50}`}>
                     {new Date(r.refundedAt).toLocaleDateString("ja-JP")}
                   </td>
                   <td className={`px-3 py-2 text-right font-medium ${C.textDiscount}`}>
                     ¥{r.amount.toLocaleString()}
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground truncate max-w-[120px]">
+                  <td className={`px-3 py-2 ${C.text50} truncate max-w-[120px]`}>
                     {r.reason || "-"}
                   </td>
                 </tr>
@@ -749,7 +749,7 @@ const RefundSection = memo(function RefundSection({
           </table>
         </CardContent>
       ) : (
-        <CardContent className="p-4 text-center text-sm text-muted-foreground">
+        <CardContent className={`p-4 text-center text-sm ${C.text50}`}>
           返金記録はありません
         </CardContent>
       )}

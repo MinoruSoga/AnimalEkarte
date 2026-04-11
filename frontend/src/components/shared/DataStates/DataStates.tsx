@@ -41,7 +41,7 @@ export function EmptyStateFallback({
   className?: string;
 }) {
   return (
-    <div className={`flex flex-col items-center gap-2 p-8 text-muted-foreground ${className ?? ""}`}>
+    <div className={`flex flex-col items-center gap-2 p-8 ${C.text50} ${className ?? ""}`}>
       {icon ? <div className="opacity-40">{icon}</div> : null}
       <span className="text-sm">{message}</span>
     </div>

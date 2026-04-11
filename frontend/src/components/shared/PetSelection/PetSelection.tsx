@@ -36,7 +36,7 @@ export const PetSelection = memo(function PetSelection({
       <div>
         <Label className={cn("mb-1 block text-sm font-bold", C.text)}>ペット選択</Label>
         <div className="relative">
-          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} text-muted-foreground`} />
+          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text35}`} />
           <Input
             placeholder="飼主名、ペット名で検索..."
             className={cn("pl-9 bg-white h-11 text-sm", C.borderMedium)}
@@ -48,7 +48,7 @@ export const PetSelection = memo(function PetSelection({
 
       <div className={cn("flex-1 overflow-y-auto bg-white rounded-md border min-h-[300px]", listClassName)}>
         {filteredPets.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
+            <div className={`p-4 text-center text-sm ${C.text50}`}>
                 該当するペットが見つかりません
             </div>
         ) : (
@@ -67,13 +67,13 @@ export const PetSelection = memo(function PetSelection({
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                         <span className={cn("font-medium text-sm", C.text)}>{pet.ownerName}</span>
-                        <span className="text-sm text-muted-foreground font-mono">
+                        <span className={`text-sm ${C.text50} font-mono`}>
                             ID:{pet.ownerId}
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className={cn("text-sm font-bold", C.text)}>{pet.name}</span>
-                        <span className={cn("text-sm text-muted-foreground border rounded px-1.5 bg-white", C.borderMedium)}>
+                        <span className={cn(`text-sm ${C.text50} border rounded px-1.5 bg-white`, C.borderMedium)}>
                             {pet.species}
                         </span>
                     </div>

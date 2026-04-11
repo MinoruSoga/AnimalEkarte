@@ -216,7 +216,7 @@ export const TreatmentTable = memo(function TreatmentTable({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-10 text-sm gap-2 text-muted-foreground hover:text-primary"
+            className={`h-10 text-sm gap-2 ${C.text50} hover:text-primary`}
             onClick={onOpenSearch || onAddRow}
           >
             <PlusCircle className={ICON.action} />

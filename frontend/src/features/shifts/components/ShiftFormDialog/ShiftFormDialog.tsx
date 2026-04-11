@@ -12,6 +12,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { Shift, ShiftType, ShiftBreakInput, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
 import { SHIFT_TYPE_LABELS } from "@/features/shifts/types";
 import { ShiftTypeOff } from "@/types/generated/models";
+import { C } from "@/lib/design-tokens";
 import { createShift } from "@/features/shifts/api/create-shift";
 import { updateShift } from "@/features/shifts/api/update-shift";
 import { useDeleteShift } from "@/features/shifts/api/delete-shift";
@@ -177,7 +178,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
           <DialogTitle>
             {isEdit ? "シフト編集" : "シフト追加"}
           </DialogTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className={`text-sm ${C.text50}`}>
             {staffName} — {formattedDate}
           </p>
         </DialogHeader>
@@ -261,7 +262,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                     onChange={(e) => setBreaks((prev) => prev.map((br, j) => j === i ? { ...br, break_start: e.target.value } : br))}
                     className="flex-1"
                   />
-                  <span className="text-xs text-muted-foreground">〜</span>
+                  <span className={`text-xs ${C.text50}`}>〜</span>
                   <Input
                     type="time"
                     value={b.break_end}

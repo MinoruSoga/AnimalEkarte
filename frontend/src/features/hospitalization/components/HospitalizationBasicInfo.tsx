@@ -99,7 +99,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
               <SelectContent>
                   {cageItems.map((cage) => (
                       <SelectItem key={cage.id} value={String(cage.id)}>
-                          {cage.name} <span className={`${H_STYLES.text.xs} text-muted-foreground ml-1`}>({cage.description})</span>
+                          {cage.name} <span className={`${H_STYLES.text.xs} ${C.text50} ml-1`}>({cage.description})</span>
                       </SelectItem>
                   ))}
               </SelectContent>

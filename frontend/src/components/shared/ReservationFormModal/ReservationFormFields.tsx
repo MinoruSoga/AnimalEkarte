@@ -79,7 +79,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                 type="button"
                 className={cn(
                   `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
-                  !formData.start && "text-muted-foreground"
+                  !formData.start && C.text40
                 )}
               >
                 <span className="flex items-center">

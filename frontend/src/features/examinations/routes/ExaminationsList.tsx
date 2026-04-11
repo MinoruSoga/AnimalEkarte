@@ -163,7 +163,7 @@ export function ExaminationsList() {
       <TableCell className={`text-base ${C.text} py-2.5`}>{r.ownerName}</TableCell>
       <TableCell className={`text-base ${C.text} py-2.5`}>{r.petName}</TableCell>
       <TableCell className={`text-base font-medium ${C.text} py-2.5`}>{r.testType}</TableCell>
-      <TableCell className="text-base text-muted-foreground truncate max-w-[200px] py-2.5 hidden lg:table-cell">
+      <TableCell className={`text-base ${C.text60} truncate max-w-[200px] py-2.5 hidden lg:table-cell`}>
         {r.resultSummary || "-"}
       </TableCell>
       <TableCell className={`text-base ${C.text} py-2.5`}>{r.doctor}</TableCell>

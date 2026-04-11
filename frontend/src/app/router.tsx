@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { createBrowserRouter, Outlet } from "react-router";
 
+import { C } from "@/lib/design-tokens";
 import { Layout } from "@/components/shared/Layout/Layout";
 import { RootErrorBoundary, RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
 import { RequirePermission } from "@/components/shared/RequirePermission";
@@ -901,7 +902,7 @@ export const router = createBrowserRouter([
         path: "*",
         element: (
           <div className="flex-1 p-5 flex items-center justify-center">
-            <p className="text-muted-foreground">ページが見つかりません</p>
+            <p className={C.text50}>ページが見つかりません</p>
           </div>
         ),
       },
