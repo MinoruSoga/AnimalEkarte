@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, use } from "react";
 import type { ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "../types";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
@@ -73,6 +75,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [meData]);
 
+  const queryClient = useQueryClient();
+
   const login = useCallback(async (email: string, password: string) => {
     const result = await loginApi(email, password);
     setUser(result.user);
@@ -81,11 +85,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const logout = useCallback(async () => {
-    await logoutApi();
-    setUser(null);
-    setCurrentClinicId(null);
-    removeClinicFromStorage();
-  }, []);
+    try {
+      await logoutApi();
+    } catch {
+      // Cookie はサーバー側で未クリアの可能性があるため警告する。
+      // ローカル状態は finally で必ずクリアするため UI は /login へ遷移する。
+      toast.warning("ログアウト中にサーバーエラーが発生しました。ブラウザを閉じてセッションを終了することを推奨します。");
+    } finally {
+      setUser(null);
+      setCurrentClinicId(null);
+      removeClinicFromStorage();
+      queryClient.clear();
+    }
+  }, [queryClient]);
 
   const switchClinic = useCallback(
     (clinicId: string) => {

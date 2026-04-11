@@ -110,9 +110,12 @@ export const LoginForm = memo(function LoginForm() {
 
         // 1. location.state から取得 (内部遷移)
         // 2. URL クエリパラメータから取得 (Axios インターセプター等からの強制遷移)
-        const searchParams = new URLSearchParams(window.location.search);
-        const queryFrom = searchParams.get("from");
-        const from = (location.state as { from?: string })?.from || queryFrom || "/";
+        // オープンリダイレクト対策: "/" 始まりかつ "//" 始まりでないパスのみ許可
+        const isSafePath = (s: string | null | undefined): s is string =>
+          typeof s === "string" && s.startsWith("/") && !s.startsWith("//");
+        const stateFrom = (location.state as { from?: string })?.from;
+        const queryFrom = new URLSearchParams(window.location.search).get("from");
+        const from = isSafePath(stateFrom) ? stateFrom : isSafePath(queryFrom) ? queryFrom : "/";
 
         navigate(from, { replace: true });
         return { success: true, error: null, timestamp: Date.now() };
