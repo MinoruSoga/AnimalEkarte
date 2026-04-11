@@ -41,4 +41,4 @@ type ReservationCategory struct {
 	Group   *ReservationCategoryGroup `gorm:"foreignKey:GroupID" json:"group,omitempty"`
 }
 
-func (ReservationCategory) TableName() string { return "reservation_types" }
+func (ReservationCategory) TableName() string { return "reservation_categories" }
