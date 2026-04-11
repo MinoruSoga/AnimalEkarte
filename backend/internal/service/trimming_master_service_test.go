@@ -50,6 +50,10 @@ func (m *mockTrimmingCourseRepository) CountRecordsByTypeID(_ context.Context, _
 	return 0, nil
 }
 
+func (m *mockTrimmingCourseRepository) CountRecordsByCourseID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- TrimmingOption モック ----
 
 type mockTrimmingOptionRepository struct {

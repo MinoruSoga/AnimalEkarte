@@ -184,7 +184,7 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 				TreatmentContent: "Office visit",
 				UnitPrice:        100,
 				Quantity:         1,
-				Insurance:        true,
+				IsInsurance:      true,
 			},
 			repoErr: nil,
 			wantErr: false,

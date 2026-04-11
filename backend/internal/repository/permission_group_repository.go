@@ -15,10 +15,10 @@ import (
 
 type PermissionGroupRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
-	FindByID(ctx context.Context, id uint64) (*model.PermissionGroup, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
 	Create(ctx context.Context, group *model.PermissionGroup) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
 	CountStaffsByGroupID(ctx context.Context, groupID uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -50,11 +50,11 @@ func (r *permissionGroupRepository) FindAll(ctx context.Context, clinicID uint64
 	return groups, nil
 }
 
-func (r *permissionGroupRepository) FindByID(ctx context.Context, id uint64) (*model.PermissionGroup, error) {
+func (r *permissionGroupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
 	var group model.PermissionGroup
 	err := r.db.WithContext(ctx).
 		Preload("Rules").
-		First(&group, "id = ? AND deleted_at IS NULL", id).Error
+		First(&group, "id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
 	}
@@ -89,10 +89,10 @@ func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uin
 	return nil
 }
 
-func (r *permissionGroupRepository) Delete(ctx context.Context, id uint64) error {
+func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.PermissionGroup{}).
-		Where("id = ?", id).
+		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Update("deleted_at", gorm.Expr("now()"))
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))

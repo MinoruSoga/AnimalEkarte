@@ -189,7 +189,7 @@ type mockPermissionGroupForStaff struct{}
 func (m *mockPermissionGroupForStaff) FindAll(_ context.Context, _ uint64) ([]model.PermissionGroup, error) {
 	return nil, nil
 }
-func (m *mockPermissionGroupForStaff) FindByID(_ context.Context, _ uint64) (*model.PermissionGroup, error) {
+func (m *mockPermissionGroupForStaff) FindByID(_ context.Context, _, _ uint64) (*model.PermissionGroup, error) {
 	return nil, nil
 }
 func (m *mockPermissionGroupForStaff) Create(_ context.Context, _ *model.PermissionGroup) error {
@@ -198,7 +198,7 @@ func (m *mockPermissionGroupForStaff) Create(_ context.Context, _ *model.Permiss
 func (m *mockPermissionGroupForStaff) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
 	return nil
 }
-func (m *mockPermissionGroupForStaff) Delete(_ context.Context, _ uint64) error { return nil }
+func (m *mockPermissionGroupForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
 func (m *mockPermissionGroupForStaff) SetRules(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
 	return nil
 }

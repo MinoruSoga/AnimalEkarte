@@ -134,7 +134,7 @@ func TestTreatmentService_Create(t *testing.T) {
 				ProcedureID:  &procedureID,
 				UnitPrice:    unitPrice,
 				Quantity:     quantity,
-				Selected:     true,
+				IsSelected:   true,
 				DiscountRate: discountRate,
 			},
 			repoErr: nil,

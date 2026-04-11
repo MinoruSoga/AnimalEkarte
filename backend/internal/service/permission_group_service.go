@@ -24,10 +24,10 @@ type UpdatePermissionGroupInput struct {
 
 type PermissionGroupService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
-	GetByID(ctx context.Context, id uint64) (*model.PermissionGroup, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
 	Create(ctx context.Context, group *model.PermissionGroup) error
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePermissionGroupInput) (*model.PermissionGroup, error)
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -48,8 +48,8 @@ func (s *permissionGroupService) List(ctx context.Context, clinicID uint64) ([]m
 	return items, nil
 }
 
-func (s *permissionGroupService) GetByID(ctx context.Context, id uint64) (*model.PermissionGroup, error) {
-	result, err := s.repo.FindByID(ctx, id)
+func (s *permissionGroupService) GetByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
+	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get permission group")
 	}
@@ -78,14 +78,14 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 	slog.InfoContext(ctx, "permission group updated",
 		slog.Uint64("group_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	result, err := s.repo.FindByID(ctx, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get permission group after update")
 	}
 	return result, nil
 }
 
-func (s *permissionGroupService) Delete(ctx context.Context, id uint64) error {
+func (s *permissionGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountStaffsByGroupID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check permission group dependencies")
@@ -93,11 +93,12 @@ func (s *permissionGroupService) Delete(ctx context.Context, id uint64) error {
 	if count > 0 {
 		return apperrors.WrapConflict("この権限グループはスタッフに割り当てられているため削除できません")
 	}
-	if err := s.repo.Delete(ctx, id); err != nil {
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete permission group")
 	}
 	slog.InfoContext(ctx, "permission group deleted",
-		slog.Uint64("group_id", id))
+		slog.Uint64("group_id", id),
+		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 

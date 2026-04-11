@@ -429,7 +429,7 @@ func TestCreateLiffReservation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	validBody := map[string]any{
-		"course_id":  1,
+		"type_id":    1,
 		"staff_id":   10,
 		"date":       "2026-05-01",
 		"start_time": "1000",
@@ -470,7 +470,7 @@ func TestCreateLiffReservation(t *testing.T) {
 
 	t.Run("date が不正フォーマット → 400", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{})
-		body := map[string]any{"course_id": 1, "date": "20260501", "start_time": "1000", "end_time": "1015"}
+		body := map[string]any{"type_id": 1, "date": "20260501", "start_time": "1000", "end_time": "1015"}
 		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodPost, "/api/liff/3/reservations", body)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})

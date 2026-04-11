@@ -18,11 +18,15 @@ import (
 
 // GetPermissionGroup godoc
 func (h *Handler) GetPermissionGroup(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
 	}
-	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), id)
+	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -143,14 +147,18 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 
 // DeletePermissionGroup godoc
 func (h *Handler) DeletePermissionGroup(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
 	}
 	// 削除前に old value を取得（監査ログ用）
-	oldPG, _ := h.svc.PermissionGroup.GetByID(c.Request.Context(), id)
+	oldPG, _ := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id)
 
-	if err := h.svc.PermissionGroup.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.PermissionGroup.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -273,7 +281,8 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	}
 
 	// Return updated group with rules
-	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), id)
+	setClinicID, _ := extractClinicID(c)
+	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), setClinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
