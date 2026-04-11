@@ -273,11 +273,23 @@ func (h *Handler) Login(c *gin.Context) {
 func (h *Handler) Logout(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// 監査ログ: ログアウト（ベストエフォート — JWT Cookie から staffID/clinicID を取得）
-	if staffID, ok := extractStaffID(c); ok {
-		if clinicID, clOK := extractClinicID(c); clOK {
-			if auditErr := h.svc.Audit.LogAuthLogin(ctx, &clinicID, &staffID, model.AuditActionAuthLogout, c.ClientIP(), c.Request.Header.Get("User-Agent")); auditErr != nil {
-				slog.ErrorContext(ctx, "failed to log logout", slog.String("error", auditErr.Error()))
+	// 監査ログ: ログアウト（ベストエフォート）
+	// extractStaffID/extractClinicID は Auth middleware が設定する user_id/clinic_id を前提とし、
+	// 存在しない場合に 401 レスポンスを書き込む副作用がある。
+	// /logout は保護グループ外（Auth middleware なし）なのでこれらの関数は使用しない。
+	// 代わりに c.Get() で直接チェックし、存在する場合のみ監査ログを記録する。
+	userIDVal, hasUser := c.Get("user_id")
+	clinicIDVal, hasClinic := c.Get("clinic_id")
+	if hasUser && hasClinic {
+		if userIDStr, ok := userIDVal.(string); ok {
+			if clinicIDStr, ok := clinicIDVal.(string); ok {
+				if staffID, err := strconv.ParseUint(userIDStr, 10, 64); err == nil {
+					if clinicID, err := strconv.ParseUint(clinicIDStr, 10, 64); err == nil {
+						if auditErr := h.svc.Audit.LogAuthLogin(ctx, &clinicID, &staffID, model.AuditActionAuthLogout, c.ClientIP(), c.Request.Header.Get("User-Agent")); auditErr != nil {
+							slog.ErrorContext(ctx, "failed to log logout", slog.String("error", auditErr.Error()))
+						}
+					}
+				}
 			}
 		}
 	}
