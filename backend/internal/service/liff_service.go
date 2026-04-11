@@ -222,7 +222,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 	if input.StaffID == 0 {
 		date, err := toDateTime(input.Date, input.StartTime)
 		if err == nil {
-			assignedID, err := s.delegateStaff(ctx, clinicID, input.ReservationCategoryID, setting.NoStaffMode, date, input.StartTime, input.EndTime)
+			assignedID, err := s.delegateStaff(ctx, clinicID, input.ReservationTypeID, setting.NoStaffMode, date, input.StartTime, input.EndTime)
 			if err == nil && assignedID != 0 {
 				input.StaffID = assignedID
 			}

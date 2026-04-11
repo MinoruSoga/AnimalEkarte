@@ -21,7 +21,7 @@ type MedicalRecord struct {
 	OwnerID                  *uint64             `                                                      json:"owner_id,omitempty"`
 	PetID                    *uint64             `                                                      json:"pet_id,omitempty"`
 	DoctorID                 *uint64             `                                                      json:"doctor_id,omitempty"`
-	ReservationAppointmentID *uint64             `                                                      json:"reservation_appointment_id,omitempty"`
+	ReservationAppointmentID *uint64             `gorm:"column:appointment_id"                          json:"appointment_id,omitempty"`
 	Status                   MedicalRecordStatus `gorm:"type:medical_record_status;default:'draft'"      json:"status"`
 	Version                  int                 `gorm:"default:1"                                       json:"version"`
 	CreatedAt                time.Time           `gorm:"autoCreateTime"                                 json:"created_at"`

@@ -52,7 +52,7 @@ func (m *mockInquiryRepository) UpsertByMedicalRecordID(ctx context.Context, cli
 	return m.upsertFn(ctx, clinicID, inquiry)
 }
 
-func (m *mockInquiryRepository) CountByChiefComplaintCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
+func (m *mockInquiryRepository) CountByChiefComplaintTypeID(ctx context.Context, categoryID uint64) (int64, error) {
 	return m.countFn(ctx, categoryID)
 }
 

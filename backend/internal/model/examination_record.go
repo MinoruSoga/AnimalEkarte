@@ -52,7 +52,7 @@ func (Examination) TableName() string { return "exams" }
 type ExaminationItem struct {
 	ID              uint64                  `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ExamID          uint64                  `gorm:"not null"                                       json:"exam_id"`
-	ExamTypeItemID  *uint64                 `                                                      json:"exam_type_item_id,omitempty"`
+	ExamTypeItemID  *uint64                 `gorm:"column:exam_type_field_id"                      json:"exam_type_field_id,omitempty"`
 	Name            string                  `gorm:"not null;default:''"                            json:"name"`
 	InspectionValue string                  `gorm:"default:''"                                     json:"inspection_value"`
 	NormalValue     string                  `gorm:"default:''"                                     json:"normal_value"`

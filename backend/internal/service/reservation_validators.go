@@ -41,7 +41,7 @@ type ReservationValidators interface {
 type CreateReservationInput struct {
 	ClinicID       uint64
 	CustomerID     uint64
-	ReservationCategoryID  uint64
+	ReservationTypeID  uint64
 	StaffID        uint64 // 0 = 指名なし
 	Date           time.Time
 	StartTime      string // "HHMM"
@@ -186,7 +186,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			ClinicID:         input.ClinicID,
 			StartTime:        startDT,
 			EndTime:          endDT,
-			ReservationTypeID:    input.ReservationCategoryID,
+			ReservationTypeID:    input.ReservationTypeID,
 			DoctorID:         doctorID,
 			Status:           model.ReservationStatusConfirmed,
 			Source:           model.ReservationSourceLine,

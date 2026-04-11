@@ -246,7 +246,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 				},
 				findExcludedReservationCategoriesFn: func(_ context.Context, staffID uint64) ([]model.StaffExcludedReservationCategory, error) {
 					if staffID == 2 {
-						return []model.StaffExcludedReservationCategory{{StaffID: 2, ReservationCategoryID: courseID}}, nil
+						return []model.StaffExcludedReservationCategory{{StaffID: 2, ReservationTypeID: courseID}}, nil
 					}
 					return nil, nil
 				},
@@ -297,7 +297,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 
 	baseInput := func() *CreateReservationInput {
 		return &CreateReservationInput{
-			ReservationCategoryID: 1,
+			ReservationTypeID: 1,
 			StaffID:       10,
 			Date:          time.Date(2026, 5, 1, 0, 0, 0, 0, time.Local),
 			StartTime:     "1000",
@@ -812,8 +812,8 @@ func TestIsStaffAvailable(t *testing.T) {
 
 func TestIsExcluded(t *testing.T) {
 	excluded := []model.StaffExcludedReservationCategory{
-		{StaffID: 1, ReservationCategoryID: 5},
-		{StaffID: 1, ReservationCategoryID: 8},
+		{StaffID: 1, ReservationTypeID: 5},
+		{StaffID: 1, ReservationTypeID: 8},
 	}
 
 	t.Run("除外リストにあるコースIDはtrue", func(t *testing.T) {

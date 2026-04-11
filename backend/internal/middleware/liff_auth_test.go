@@ -244,6 +244,9 @@ func TestLiffAuth(t *testing.T) {
 		},
 	}
 
+	// LIFF_MOCK=true はローカル開発用バイパスで、テスト中は無効にする
+	t.Setenv("LIFF_MOCK", "false")
+
 	originalURL := lineVerifyURL
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -339,6 +342,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 // channelID が正しく取り出されることを検証する（LiffAuth 内のロジック）。
 func TestLiffChannelIDExtraction(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("LIFF_MOCK", "false")
 	originalURL := lineVerifyURL
 	t.Cleanup(func() { lineVerifyURL = originalURL })
 

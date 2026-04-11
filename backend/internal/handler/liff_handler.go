@@ -184,13 +184,13 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 	}
 
 	input := &service.CreateReservationInput{
-		ReservationCategoryID:  req.CourseID,
-		StaffID:        req.StaffID,
-		Date:           date,
-		StartTime:      req.StartTime,
-		EndTime:        req.EndTime,
-		CustomerFields: req.CustomerFields,
-		RequestText:    req.RequestText,
+		ReservationTypeID: req.CourseID,
+		StaffID:           req.StaffID,
+		Date:              date,
+		StartTime:         req.StartTime,
+		EndTime:           req.EndTime,
+		CustomerFields:    req.CustomerFields,
+		RequestText:       req.RequestText,
 	}
 
 	appt, err := h.svc.Liff.CreateReservation(c.Request.Context(), clinicID, customerID, input)
