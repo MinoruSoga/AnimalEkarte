@@ -1068,7 +1068,7 @@ export const ResourceHospitalSettings: Resource = "hospital-settings";
  */
 export const ResourceMasterAnimalSpecies: Resource = "master-animal-species";
 export const ResourceMasterMedical: Resource = "master-medical";
-export const ResourceMasterReservationType: Resource = "master-reservation-category";
+export const ResourceMasterReservationType: Resource = "master-reservation-type";
 export const ResourceMasterHospitalization: Resource = "master-hospitalization";
 export const ResourceMasterTrimming: Resource = "master-trimming";
 export const ResourceMasterPermission: Resource = "master-permission";

@@ -66,7 +66,7 @@ export type {
 // Query keys
 // ─────────────────────────────────────────────────
 
-const DIAGNOSIS_CATEGORIES_KEY = ["masters", "diagnosis-categories"] as const;
+const DIAGNOSIS_TYPES_KEY = ["masters", "diagnosis-types"] as const;
 const DIAGNOSIS_NAMES_KEY = ["masters", "diagnosis-names"] as const;
 
 // ─────────────────────────────────────────────────
@@ -159,7 +159,7 @@ export async function reorderDiagnosisNames(
 
 export function useGetDiagnosisTypes() {
   return useQuery({
-    queryKey: DIAGNOSIS_CATEGORIES_KEY,
+    queryKey: DIAGNOSIS_TYPES_KEY,
     queryFn: listDiagnosisTypes,
     staleTime: QUERY_STALE_TIMES.STATIC, // マスタデータ: 30分キャッシュ
     gcTime: QUERY_GC_TIMES.LONG,
@@ -171,7 +171,7 @@ export function useCreateDiagnosisType() {
   return useMutation({
     mutationFn: createDiagnosisType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_CATEGORIES_KEY });
+      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
   });
 }
@@ -182,7 +182,7 @@ export function useUpdateDiagnosisType() {
     mutationFn: ({ id, req }: { id: string; req: UpdateDiagnosisTypeRequest }) =>
       updateDiagnosisType(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_CATEGORIES_KEY });
+      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
   });
 }
@@ -192,7 +192,7 @@ export function useDeleteDiagnosisType() {
   return useMutation({
     mutationFn: deleteDiagnosisType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_CATEGORIES_KEY });
+      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
   });
 }
@@ -202,7 +202,7 @@ export function useReorderDiagnosisTypes() {
   return useMutation({
     mutationFn: reorderDiagnosisTypes,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_CATEGORIES_KEY });
+      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
   });
 }

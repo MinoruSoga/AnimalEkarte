@@ -26,7 +26,7 @@ const RESOURCE_LABELS: Record<string, string> = {
   "hospital-settings": "医院",
   "master-animal-species": "動物種類",
   "master-medical": "カルテ関連",
-  "master-reservation-category": "予約区分",
+  "master-reservation-type": "予約区分",
   "master-hospitalization": "入院・ケージ",
   "master-trimming": "トリミングマスタ",
   "master-permission": "権限グループ",

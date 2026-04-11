@@ -281,8 +281,8 @@ export const paths = {
       getHref: () => "/settings/procedure",
     },
     diagnosisType: {
-      path: "/settings/diagnosis-category",
-      getHref: () => "/settings/diagnosis-category",
+      path: "/settings/diagnosis-type",
+      getHref: () => "/settings/diagnosis-type",
     },
     diagnosisName: {
       path: "/settings/diagnosis-name",

@@ -731,7 +731,7 @@ export const router = createBrowserRouter([
             }],
           },
           {
-            path: "reservation-category",
+            path: "reservation-type",
             element: <RequirePermission resource={ResourceMasterReservationType}><Outlet /></RequirePermission>,
             children: [{
               index: true,

@@ -184,7 +184,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   diagnosis_type: {
     label: "診断カテゴリマスタ",
     description: "消化器疾患、呼吸器疾患などの診断カテゴリを管理します",
-    settingsPath: "/settings/diagnosis-category",
+    settingsPath: "/settings/diagnosis-type",
     IconComponent: FolderTree,
     resource: ResourceMasterMedical,
     labels: { code: "コード", name: "カテゴリ名", category: "分類" },
