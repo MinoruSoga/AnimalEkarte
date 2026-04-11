@@ -678,9 +678,9 @@ SELECT setval(pg_get_serial_sequence('trimming_courses', 'id'), (SELECT MAX(id) 
 
 -- -----------------------------------------------------------------------------
 -- 18. trimming_options（トリミングオプション: 5件）
--- ※ combinable は boolean, duration は integer（分単位）
+-- ※ is_combinable は boolean, duration は integer（分単位）
 -- -----------------------------------------------------------------------------
-INSERT INTO trimming_options (id, clinic_id, name, price, is_active, description, duration, combinable, sort_order) VALUES
+INSERT INTO trimming_options (id, clinic_id, name, price, is_active, description, duration, is_combinable, sort_order) VALUES
     (1, 3, '爪切り',     300, true, '爪のカット・やすりがけ',       10, true, 1),
     (2, 3, '耳掃除',     500, true, '外耳道の洗浄・清掃',           10, true, 2),
     (3, 3, '歯磨き',     500, true, '歯ブラシによるデンタルケア',   15, true, 3),
@@ -1041,7 +1041,7 @@ SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FRO
 -- -----------------------------------------------------------------------------
 -- 7. treatments（治療明細: 8件）
 -- -----------------------------------------------------------------------------
-INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, procedure_id, medicine_id, inventory_id, selected, status, content, unit_price, quantity, sort_order) VALUES
+INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, procedure_id, medicine_id, inventory_id, is_selected, status, content, unit_price, quantity, sort_order) VALUES
     (1, 3, 'consultation', 2,    NULL, NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
     (2, 1, 'medicine',     NULL, NULL, 1,    NULL, true, 'completed', 'アモキシシリン 50mg x 7日分', 500,  7, 2),
     (3, 2, 'consultation', 2,    NULL, NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
@@ -1058,7 +1058,7 @@ SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM t
 -- -----------------------------------------------------------------------------
 -- 8. trimming_records（トリミング: 8件）
 -- -----------------------------------------------------------------------------
-INSERT INTO trimming_records (id, clinic_id, date, pet_id, bw, bw_unit, style_request, staff_id, status, course_id) VALUES
+INSERT INTO trimming_records (id, clinic_id, date, pet_id, body_weight, bw_unit, style_request, staff_id, status, course_id) VALUES
     (1, 3, '2025-10-10', 1,  26.5,  'Kg', 'サマーカット希望',        6,  'completed',   5),
     (2, 3, '2025-10-15', 2,  15.2,  'Kg', 'ふんわりカット',          12, 'reserved',    4),
     (3, 3, '2025-10-12', 3,  4.2,   'Kg', '毛玉カット',              6,  'in_progress', 1),
@@ -1332,7 +1332,7 @@ SELECT setval(pg_get_serial_sequence('trimming_courses', 'id'), (SELECT MAX(id) 
 -- -----------------------------------------------------------------------------
 -- 城東医院 trimming_options（トリミングオプション: 3件）
 -- -----------------------------------------------------------------------------
-INSERT INTO trimming_options (id, clinic_id, name, price, is_active, description, duration, combinable, sort_order) VALUES
+INSERT INTO trimming_options (id, clinic_id, name, price, is_active, description, duration, is_combinable, sort_order) VALUES
     (6, 4, '爪切り',     320, true, '爪のカット・やすりがけ',    10, true, 1),
     (7, 4, '耳掃除',     520, true, '外耳道の洗浄・清掃',        10, true, 2),
     (8, 4, '肛門腺絞り', 320, true, '肛門嚢の分泌液除去',         5, true, 3)
@@ -1615,7 +1615,7 @@ SELECT setval(pg_get_serial_sequence('trimming_courses', 'id'), (SELECT MAX(id) 
 -- -----------------------------------------------------------------------------
 -- 敷島医院 trimming_options（トリミングオプション: 3件）
 -- -----------------------------------------------------------------------------
-INSERT INTO trimming_options (id, clinic_id, name, price, is_active, description, duration, combinable, sort_order) VALUES
+INSERT INTO trimming_options (id, clinic_id, name, price, is_active, description, duration, is_combinable, sort_order) VALUES
     (9,  5, '爪切り',   300, true, '爪のカット・やすりがけ',    10, true, 1),
     (10, 5, '耳掃除',   500, true, '外耳道の洗浄・清掃',        10, true, 2),
     (11, 5, '歯磨き',   500, true, '歯ブラシによるデンタルケア', 15, true, 3)
