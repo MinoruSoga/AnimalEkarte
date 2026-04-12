@@ -201,7 +201,7 @@ func TestTreatmentService_Create(t *testing.T) {
 				Treatment: repo,
 				Inventory: invRepo,
 			}
-			repos.TransactionFn = func(fn func(*repository.Repositories) error) error {
+			repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
 				return fn(repos)
 			}
 			svc := NewTreatmentService(repos)

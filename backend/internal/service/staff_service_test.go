@@ -124,7 +124,7 @@ type mockAccountForStaff struct {
 	findByEmailFn func(ctx context.Context, email string) (*model.Account, error)
 	getByIDFn     func(ctx context.Context, id uint64) (*model.Account, error)
 	createFn      func(ctx context.Context, account *model.Account) error
-	updateFn      func(ctx context.Context, account *model.Account) error
+	updateFn      func(ctx context.Context, id uint64, fields map[string]any) error
 }
 
 func (m *mockAccountForStaff) FindByID(ctx context.Context, id uint64) (*model.Account, error) {
@@ -146,9 +146,9 @@ func (m *mockAccountForStaff) Create(ctx context.Context, account *model.Account
 	account.ID = 1
 	return nil
 }
-func (m *mockAccountForStaff) Update(ctx context.Context, account *model.Account) error {
+func (m *mockAccountForStaff) Update(ctx context.Context, id uint64, fields map[string]any) error {
 	if m.updateFn != nil {
-		return m.updateFn(ctx, account)
+		return m.updateFn(ctx, id, fields)
 	}
 	return nil
 }

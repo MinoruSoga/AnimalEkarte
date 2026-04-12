@@ -16,7 +16,7 @@ type AccountRepository interface {
 	FindByID(ctx context.Context, id uint64) (*model.Account, error)
 	FindByEmail(ctx context.Context, email string) (*model.Account, error)
 	Create(ctx context.Context, account *model.Account) error
-	Update(ctx context.Context, account *model.Account) error
+	Update(ctx context.Context, id uint64, fields map[string]any) error
 }
 
 // accountRepository は AccountRepository の実装
@@ -61,10 +61,17 @@ func (r *accountRepository) Create(ctx context.Context, account *model.Account) 
 	return nil
 }
 
-// Update はアカウント情報を更新する
-func (r *accountRepository) Update(ctx context.Context, account *model.Account) error {
-	if err := r.db.WithContext(ctx).Save(account).Error; err != nil {
-		return apperrors.FromGORM(err, "account", fmt.Sprintf("%d", account.ID))
+// Update はアカウントの指定フィールドのみを更新する（Save() による全フィールド上書き防止）。
+func (r *accountRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.Account{}).
+		Where("id = ?", id).
+		Updates(fields)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "account", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("account", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

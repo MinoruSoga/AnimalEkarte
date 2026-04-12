@@ -21,12 +21,12 @@ type CreateTreatmentInput struct {
 	InventoryID    *uint64
 	UnitPrice      int64
 	Quantity       float64
-	IsSelected      bool
+	IsSelected     bool
 	Status         string
 	Content        string
 	Memo           string
 	AdminRoute     string
-	IsInsurance     bool
+	IsInsurance    bool
 	DiscountRate   float64
 	DiscountAmount int64
 	SortOrder      int
@@ -41,12 +41,12 @@ type UpdateTreatmentInput struct {
 	InventoryID    *uint64
 	UnitPrice      *int64
 	Quantity       *float64
-	IsSelected      *bool
+	IsSelected     *bool
 	Status         *string
 	Content        *string
 	Memo           *string
 	AdminRoute     *string
-	IsInsurance     *bool
+	IsInsurance    *bool
 	DiscountRate   *float64
 	DiscountAmount *int64
 	SortOrder      *int
@@ -121,7 +121,7 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	var treatment *model.Treatment
 
 	// ─── Transaction ───
-	err := s.repos.Transaction(func(txRepos *repository.Repositories) error {
+	err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
 		treatment = &model.Treatment{
 			MedicalRecordID: medicalRecordID,
 			ItemType:        input.ItemType,

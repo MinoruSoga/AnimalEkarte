@@ -241,21 +241,13 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 
 // UpdatePassword はスタッフに紐づくアカウントのパスワードを更新する。
 func (s *staffService) UpdatePassword(ctx context.Context, accountID uint64, newPassword string) error {
-	account, err := s.accountRepo.FindByID(ctx, accountID)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return apperrors.Wrap(err, "failed to get account")
+		return apperrors.Wrap(err, "failed to hash password")
 	}
-
-	hashed, hashErr := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-	if hashErr != nil {
-		return apperrors.Wrap(hashErr, "failed to hash password")
-	}
-
-	account.PasswordHash = string(hashed)
-	if err := s.accountRepo.Update(ctx, account); err != nil {
+	if err := s.accountRepo.Update(ctx, accountID, map[string]any{"password_hash": string(hashed)}); err != nil {
 		return apperrors.Wrap(err, "failed to update account password")
 	}
-
 	slog.InfoContext(ctx, "password updated", slog.Uint64("account_id", accountID))
 	return nil
 }

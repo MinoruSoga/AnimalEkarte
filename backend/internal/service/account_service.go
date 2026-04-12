@@ -42,12 +42,7 @@ func (s *accountService) GetByID(ctx context.Context, id uint64) (*model.Account
 }
 
 func (s *accountService) UpdatePasswordHash(ctx context.Context, accountID uint64, newHash string) error {
-	account, err := s.repo.FindByID(ctx, accountID)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to get account for password update")
-	}
-	account.PasswordHash = newHash
-	if err := s.repo.Update(ctx, account); err != nil {
+	if err := s.repo.Update(ctx, accountID, map[string]any{"password_hash": newHash}); err != nil {
 		return apperrors.Wrap(err, "failed to update password hash")
 	}
 	slog.InfoContext(ctx, "password hash updated",

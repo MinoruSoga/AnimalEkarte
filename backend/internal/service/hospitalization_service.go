@@ -175,7 +175,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		Status:            string(model.HospitalizationStatusDischarged),
 	}
 
-	err = s.repos.Transaction(func(txRepos *repository.Repositories) error {
+	err = s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
 		// 1. 退院ステータスに更新
 		dischargedStatus := model.HospitalizationStatusDischarged
 		dischargeFields := map[string]any{
