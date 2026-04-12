@@ -13,6 +13,10 @@
 ### 2. 月次ナビゲーション
 - **動的表示**: 前月・翌月ボタンにより表示期間を切り替え、その都度該当月のシフトデータを API から取得する。
 
+### 3. 休診日管理
+- **日付ヘッダークリック**: カレンダーの日付ヘッダーをクリックすることで、その日の休診設定（`ClinicHolidayModal`）を行える。
+- **休診日表示**: 設定された休診日はカレンダー上で背景色が変わり、「休診」ラベルが表示される。
+
 ## 表示項目
 - スタッフ名
 - 勤務日、勤務区分
@@ -40,7 +44,9 @@
 | `ShiftCalendar` | `[C]` | カレンダー本体（ツールバー、グリッド、スタッフ列） |
 | `ShiftCell` | `[C]` | 1日分のシフト表示セル（クリックで追加・編集） |
 | `ShiftFormDialog` | `[C][M]` | シフト登録・編集ダイアログ |
+| `ClinicHolidayModal` | `[C][M]` | 医院単位の休診日設定ダイアログ |
 | `useGetShifts` / `useStaffsForShift` | `[H]` | データ取得・フィルタリング |
+| `useGetClinicHolidays` | `[H]` | 休診日データ取得 |
 
 ## API連携
 | メソッド | エンドポイント | 用途 | 状態 |
@@ -50,3 +56,6 @@
 | PATCH | `/api/v1/shifts/:id` | シフト更新（breaks 含む） | 実装済 |
 | DELETE | `/api/v1/shifts/:id` | シフト削除（breaks は CASCADE） | 実装済 |
 | GET | `/api/v1/staffs` | スタッフ一覧（フィルタ用） | 実装済 |
+| GET | `/api/v1/clinics/:id/holidays` | 休診日取得 | 実装済 |
+| POST | `/api/v1/clinics/:id/holidays` | 休診日設定 | 実装済 |
+| DELETE | `/api/v1/clinics/:id/holidays/:id` | 休診日解除 | 実装済 |

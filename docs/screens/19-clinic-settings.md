@@ -34,6 +34,13 @@
 | 院長名 | `director_name` | `PropInput` | - | |
 | メールアドレス | `email` | `PropInput` | - | |
 | Webサイト | `website` | `PropInput` | - | |
+| 通常税率 | `standard_tax_rate`| `Input(number)` | - | デフォルト 10% |
+| 軽減税率 | `reduced_tax_rate` | `Input(number)` | - | デフォルト 8% |
+
+## 特徴的なUI・機能
+- **NotionスタイルUI**: `PropertyRow` と `NotionStatusPill` を使用したクリーンな属性表示。
+- **インライン編集**: サイドパネル内での直接編集と、`useActionState` による非同期保存。
+- **ナビゲーション保護**: 編集パネルが開いている間は、`NavigationBlocker` により不意の離脱を防止。
 
 ## API連携
 | メソッド | エンドポイント | 用途 | 状態 |

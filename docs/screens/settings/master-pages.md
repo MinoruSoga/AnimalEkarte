@@ -22,7 +22,7 @@
 
 ## 1. 医院マスタ (`/settings/clinic`)
 
-**コンポーネント:** `CompanySettings.tsx`
+**コンポーネント:** `ClinicMasterSettings.tsx`
 **API:** `/api/v1/clinics`
 
 テーブルなし。Notionプロパティ形式のフォーム入力。
@@ -44,6 +44,15 @@
 **API:** `/api/v1/admin/users`
 
 ユーザーのメールアドレス、表示名、所属クリニック、職種、および権限グループの割当を管理する。
+
+---
+
+## 1d. LINE予約設定 (`/line-reservation/settings` / `/line-reservation/page-editor`)
+
+**コンポーネント:** `LineReservationSettings.tsx`, `LineReservationPageEditor.tsx`
+**API:** `/api/v1/clinics/:id/line-reservation-setting`
+
+LINE公式アカウント連携および予約ページの表示内容・営業ルールを管理する。
 
 ---
 
