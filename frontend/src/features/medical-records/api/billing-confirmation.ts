@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Internal
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
 import type { BillingConfirmation, ReturnBillingConfirmationInput } from "../types";
@@ -46,6 +47,7 @@ export function useConfirmBillingConfirmation(medicalRecordId: string) {
         queryKey: ["accountings"],
       });
     },
+    onError: (error) => handleApiError(error, "会計確認"),
   });
 }
 
@@ -73,5 +75,6 @@ export function useReturnBillingConfirmation(medicalRecordId: string, userId: nu
         queryKey: ["accountings"],
       });
     },
+    onError: (error) => handleApiError(error, "会計差戻"),
   });
 }

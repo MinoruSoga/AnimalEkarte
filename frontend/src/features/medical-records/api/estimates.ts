@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 
 export interface CreateEstimateRequest {
   medical_record_id?: string;
@@ -17,5 +18,6 @@ export const useCreateEstimate = (recordId: string) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["medical-record", recordId] });
     },
+    onError: (error) => handleApiError(error, "見積作成"),
   });
 };

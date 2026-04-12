@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Internal
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Types
 import type {
@@ -119,6 +120,7 @@ export function useCreateDailyRecord(hospitalizationId: string) {
                 queryKey: dailyRecordKeys.all(hospitalizationId),
             });
         },
+        onError: (error) => handleApiError(error, "日次記録の追加"),
     });
 }
 
@@ -136,6 +138,7 @@ export function useCreateDailyVital(hospitalizationId: string, date: string) {
                 queryKey: dailyRecordKeys.all(hospitalizationId),
             });
         },
+        onError: (error) => handleApiError(error, "バイタル追加"),
     });
 }
 
@@ -153,6 +156,7 @@ export function useCreateCareLog(hospitalizationId: string, date: string) {
                 queryKey: dailyRecordKeys.all(hospitalizationId),
             });
         },
+        onError: (error) => handleApiError(error, "ケアログ追加"),
     });
 }
 
@@ -170,6 +174,7 @@ export function useCreateStaffNote(hospitalizationId: string, date: string) {
                 queryKey: dailyRecordKeys.all(hospitalizationId),
             });
         },
+        onError: (error) => handleApiError(error, "スタッフノート追加"),
     });
 }
 

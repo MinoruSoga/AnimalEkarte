@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { Estimate } from "@/types/generated/models";
 
 export interface SaveEstimatePayload {
@@ -38,6 +39,7 @@ export const useCreateEstimateRecord = (medicalRecordId: string) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["estimate", "record", medicalRecordId] });
     },
+    onError: (error) => handleApiError(error, "見積登録"),
   });
 };
 
@@ -49,5 +51,6 @@ export const useUpdateEstimateRecord = (estimateId: number, medicalRecordId: str
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["estimate", "record", medicalRecordId] });
     },
+    onError: (error) => handleApiError(error, "見積更新"),
   });
 };

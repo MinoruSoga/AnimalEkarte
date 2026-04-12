@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { MedicalRecord } from "@/types";
 import { transformMedicalRecord } from "./transforms";
 import type { BackendMedicalRecord, CreateMedicalRecordRequest } from "./types";
@@ -22,5 +23,6 @@ export const useCreateMedicalRecord = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["medical-records"] });
     },
+    onError: (error) => handleApiError(error, "カルテ作成"),
   });
 };

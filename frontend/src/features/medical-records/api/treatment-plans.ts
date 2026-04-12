@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 
 export interface UpdateClinicalPlanRequest {
   treatment_policy?: string;
@@ -18,5 +19,6 @@ export const useUpdateTreatmentPlan = (recordId: string) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["medical-record", recordId] });
     },
+    onError: (error) => handleApiError(error, "治療プラン更新"),
   });
 };
