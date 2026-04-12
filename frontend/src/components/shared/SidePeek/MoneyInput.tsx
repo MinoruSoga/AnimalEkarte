@@ -17,6 +17,7 @@ export function MoneyInput({ label = "単価(税込)", value, onChange, placehol
         <input
           type="number"
           min={0}
+          aria-label={label}
           className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
           value={value === 0 ? "" : value}
           onChange={(e) => onChange(e.target.valueAsNumber || 0)}

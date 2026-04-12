@@ -22,6 +22,7 @@ export const SidePeekToolbar = memo(function SidePeekToolbar({ isNew, onClose, o
           <button
             type="button"
             onClick={onDelete}
+            aria-label="削除"
             className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${C.danger} ${C.hoverBgDanger5}`}
           >
             <Trash2 className={ICON.toolbar} />

@@ -64,9 +64,10 @@ export const HistoryFilterPanel = memo(function HistoryFilterPanel({
         </div>
       ) : null}
       <div className="flex flex-col gap-1.5">
-        <Label className={`text-sm ${C.text60}`}>検索単語</Label>
+        <Label htmlFor="history-filter-search" className={`text-sm ${C.text60}`}>検索単語</Label>
         <div className="flex gap-2">
           <Input
+            id="history-filter-search"
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
             className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
@@ -84,7 +85,7 @@ export const HistoryFilterPanel = memo(function HistoryFilterPanel({
               onSortOrderChange(val);
             }
           }}>
-            <SelectTrigger className={`w-[80px] h-10 text-sm bg-white ${C.borderMedium} ${C.text}`}>
+            <SelectTrigger aria-label="並び順" className={`w-[80px] h-10 text-sm bg-white ${C.borderMedium} ${C.text}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
