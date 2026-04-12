@@ -4,6 +4,15 @@ run:
   timeout: 5m
   modules-download-mode: readonly
 
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/animal-ekarte/backend
+
 linters:
   default: none
   enable:
@@ -15,8 +24,6 @@ linters:
     - staticcheck
     - unused
     # 追加推奨
-    - gofmt
-    - goimports
     - gocritic
     - gosec
     - misspell
@@ -30,9 +37,6 @@ linters:
     - wrapcheck      # エラーラッピングチェック
 
   settings:
-    goimports:
-      local-prefixes: github.com/animal-ekarte/backend
-
     gocritic:
       enabled-tags:
         - diagnostic
@@ -64,11 +68,11 @@ linters:
         - G104  # エラー無視（errcheckでカバー）
 
     wrapcheck:
-      ignoreSigs:
+      ignore-sigs:
         - .Errorf(
         - errors.New(
         - errors.Unwrap(
-      ignorePackageGlobs:
+      ignore-package-globs:
         - github.com/animal-ekarte/backend/internal/*
 
   exclusions:
