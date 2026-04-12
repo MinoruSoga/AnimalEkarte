@@ -18,7 +18,7 @@ export const getChiefComplaintTypes = async (): Promise<ChiefComplaintType[]> =>
 
 export const useGetChiefComplaintTypes = () =>
   useQuery({
-    queryKey: ["masters", "chief-complaints"],
+    queryKey: ["masters", "chief-complaint-types"],
     queryFn: getChiefComplaintTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

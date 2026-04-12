@@ -7,7 +7,7 @@ import { dischargeWithBilling } from "../api/discharge-with-billing";
 export const useHospitalizationDetail = (hospitalizationId?: string) => {
   const id = hospitalizationId ?? "";
 
-  const { data: hospitalization, isLoading } = useGetHospitalization(id);
+  const { data: hospitalization, isLoading, isError } = useGetHospitalization(id);
   const { mutateAsync: updateHosp } = useUpdateHospitalization();
 
   const dischargeHospitalization = async (createAccounting = false): Promise<{ success: boolean; accountingId?: number }> => {
@@ -41,6 +41,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
   return {
     hospitalization: hospitalization ?? null,
     isLoading,
+    isError,
     dischargeHospitalization,
   };
 };

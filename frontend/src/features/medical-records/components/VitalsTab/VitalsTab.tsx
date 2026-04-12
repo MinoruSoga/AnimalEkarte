@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
+import { ErrorFallback } from "@/components/shared/DataStates";
 
 // rendering-hoist-jsx: design token は定数なので module-level に巻き上げ
 const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`;
@@ -287,7 +288,7 @@ interface VitalsTabProps {
 
 export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
-  const { data: vitals, isLoading } = useGetVitals(medicalRecordId);
+  const { data: vitals, isLoading, isError } = useGetVitals(medicalRecordId);
   const createMutation = useCreateVital(medicalRecordId);
   const { mutate: createVitalFn } = createMutation;
   const updateMutation = useUpdateVital(medicalRecordId);
@@ -414,6 +415,8 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
       </div>
     );
   }
+
+  if (isError) return <ErrorFallback />;
 
   return (
     <div className="flex flex-col gap-3 pb-24">
