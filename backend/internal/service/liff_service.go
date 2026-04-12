@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strconv"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -27,7 +28,7 @@ type LiffService interface {
 
 type liffService struct {
 	settingRepo  repository.LineReservationSettingRepository
-	typeLiffRepo   repository.ReservationTypeLiffRepository
+	typeLiffRepo repository.ReservationTypeLiffRepository
 	staffRepo    repository.ReservationStaffRepository
 	scheduleRepo repository.ReservationScheduleRepository
 	adminRepo    repository.ReservationAdminRepository
@@ -51,7 +52,7 @@ func NewLiffService(
 ) LiffService {
 	return &liffService{
 		settingRepo:  settingRepo,
-		typeLiffRepo:   typeLiffRepo,
+		typeLiffRepo: typeLiffRepo,
 		staffRepo:    staffRepo,
 		scheduleRepo: scheduleRepo,
 		adminRepo:    adminRepo,
@@ -135,12 +136,11 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		return nil, BookingWindow{}, err
 	}
 
-	bh, defaultBreaks := s.parseBusinessHours(setting)
-
 	staffInputsFn := func(ctx context.Context, date time.Time, _ uint64, _ uint64) ([]StaffSlotInput, error) {
 		return s.buildStaffSlotInputs(ctx, clinicID, visibleStaffs, date)
 	}
-	slotSettingsFn := func() TimeSlotsInput {
+	slotSettingsFn := func(date time.Time) TimeSlotsInput {
+		bh, defaultBreaks := s.parseBusinessHoursForDate(setting, date)
 		return TimeSlotsInput{
 			BusinessHours:     bh,
 			DefaultBreaks:     defaultBreaks,
@@ -163,7 +163,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 
 	return CalcAvailableDates(ctx, AvailableDatesInput{
 		Settings:       datesSettings,
-		TypeID:       typeID,
+		TypeID:         typeID,
 		StaffID:        staffID,
 		StaffInputsFn:  staffInputsFn,
 		SlotSettingsFn: slotSettingsFn,
@@ -181,6 +181,37 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		return nil, apperrors.Wrap(err, "failed to get course")
 	}
 
+	// 定休日チェック（GetAvailableDates で除外済みのはずだが多重防御）
+	datesSettings, _ := ParseAvailableDatesSettings(
+		setting.ClosedWeekdays,
+		setting.ClosedDates,
+		setting.NationalHolidayClosed,
+		setting.BookingWindowMinDays,
+		setting.BookingWindowMaxDays,
+		setting.CalendarMonths,
+		string(course.ReservationDayOption),
+	)
+	dateJST := date.In(jstLocation())
+	dateStr := dateJST.Format("2006-01-02")
+	wd := int(dateJST.Weekday())
+	closedWeekdaySet := make(map[int]struct{}, len(datesSettings.ClosedWeekdays))
+	for _, w := range datesSettings.ClosedWeekdays {
+		closedWeekdaySet[w] = struct{}{}
+	}
+	closedDateSet := make(map[string]struct{}, len(datesSettings.ClosedDates))
+	for _, d := range datesSettings.ClosedDates {
+		closedDateSet[d] = struct{}{}
+	}
+	if _, closed := closedWeekdaySet[wd]; closed {
+		return []TimeSlot{}, nil
+	}
+	if _, closed := closedDateSet[dateStr]; closed {
+		return []TimeSlot{}, nil
+	}
+	if datesSettings.NationalHolidayClosed && isJapaneseHoliday(dateJST) {
+		return []TimeSlot{}, nil
+	}
+
 	visibleStaffs, err := s.resolveTargetStaffs(ctx, clinicID, typeID, staffID)
 	if err != nil {
 		return nil, err
@@ -191,7 +222,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		return nil, err
 	}
 
-	bh, defaultBreaks := s.parseBusinessHours(setting)
+	bh, defaultBreaks := s.parseBusinessHoursForDate(setting, date)
 	input := TimeSlotsInput{
 		BusinessHours:     bh,
 		DefaultBreaks:     defaultBreaks,
@@ -376,8 +407,9 @@ func (s *liffService) buildStaffSlotInputs(ctx context.Context, clinicID uint64,
 	return inputs, nil
 }
 
-// parseBusinessHours は設定JSONから営業時間・休憩時間を解析する。
-func (s *liffService) parseBusinessHours(setting *model.LineReservationSetting) (BusinessHours, []BreakPeriod) {
+// parseBusinessHoursForDate は指定日の営業時間・休憩時間を解析する。
+// BusinessHoursByWeekday に該当曜日の設定があればそれを優先する。
+func (s *liffService) parseBusinessHoursForDate(setting *model.LineReservationSetting, date time.Time) (BusinessHours, []BreakPeriod) {
 	var bh BusinessHours
 	if err := json.Unmarshal(setting.BusinessHours, &bh); err != nil {
 		bh = BusinessHours{Start: "0900", End: "1900"}
@@ -386,6 +418,18 @@ func (s *liffService) parseBusinessHours(setting *model.LineReservationSetting) 
 	if err := json.Unmarshal(setting.BreakHours, &breaks); err != nil {
 		breaks = nil
 	}
+
+	// 曜日別営業時間があれば上書き（例: 土曜だけ短縮営業）
+	if len(setting.BusinessHoursByWeekday) > 0 {
+		var byWeekday map[string]BusinessHours
+		if err := json.Unmarshal(setting.BusinessHoursByWeekday, &byWeekday); err == nil {
+			key := strconv.Itoa(int(date.In(jstLocation()).Weekday()))
+			if wdBH, ok := byWeekday[key]; ok {
+				bh = wdBH
+			}
+		}
+	}
+
 	return bh, breaks
 }
 
