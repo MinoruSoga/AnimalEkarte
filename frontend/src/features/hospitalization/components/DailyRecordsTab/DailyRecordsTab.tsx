@@ -87,43 +87,45 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
         });
     }, [createDailyRecord, selectedDate]);
 
+    const staffDisplayName = user?.displayName ?? "";
+
     const handleAddVital = useCallback(
         (payload: CreateVitalRecordRequest) => {
             startVitalTransition(async () => {
                 try {
-                    await createVital.mutateAsync({ ...payload, staff_id: currentUserId });
+                    await createVital.mutateAsync({ ...payload, staff_id: currentUserId, staff: staffDisplayName });
                 } catch (error) {
                     handleApiError(error, "バイタル追加");
                 }
             });
         },
-        [createVital, currentUserId]
+        [createVital, currentUserId, staffDisplayName]
     );
 
     const handleAddCareLog = useCallback(
         (payload: CreateCareLogRequest) => {
             startCareLogTransition(async () => {
                 try {
-                    await createCareLog.mutateAsync({ ...payload, staff_id: currentUserId });
+                    await createCareLog.mutateAsync({ ...payload, staff_id: currentUserId, staff: staffDisplayName });
                 } catch (error) {
                     handleApiError(error, "ケアログ追加");
                 }
             });
         },
-        [createCareLog, currentUserId]
+        [createCareLog, currentUserId, staffDisplayName]
     );
 
     const handleAddStaffNote = useCallback(
         (payload: CreateStaffNoteRequest) => {
             startStaffNoteTransition(async () => {
                 try {
-                    await createStaffNote.mutateAsync({ ...payload, staff_id: currentUserId });
+                    await createStaffNote.mutateAsync({ ...payload, staff_id: currentUserId, staff: staffDisplayName });
                 } catch (error) {
                     handleApiError(error, "スタッフメモ追加");
                 }
             });
         },
-        [createStaffNote, currentUserId]
+        [createStaffNote, currentUserId, staffDisplayName]
     );
 
     const vitals = record?.vital_records ?? [];

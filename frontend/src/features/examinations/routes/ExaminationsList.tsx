@@ -12,6 +12,7 @@ import { Plus, TestTube, Calendar, CircleDot, FlaskConical, User } from "lucide-
 // Internal
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -93,7 +94,7 @@ export function ExaminationsList() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords, allExaminations, isLoading } = useFilterExaminationRecords(deferredSearch, filters, activeFilters);
+  const { data: filteredRecords, allExaminations, isLoading, error } = useFilterExaminationRecords(deferredSearch, filters, activeFilters);
 
   // js-cache-function-results: ロード済みデータから検査種別・担当医の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
@@ -239,6 +240,9 @@ export function ExaminationsList() {
     },
     { header: "操作", className: "w-[80px]", align: "right" as const },
   ], [directionFor, toggleSort]);
+
+  if (isLoading) return <LoadingFallback />;
+  if (error) return <ErrorFallback />;
 
   return (
     <PageLayout
