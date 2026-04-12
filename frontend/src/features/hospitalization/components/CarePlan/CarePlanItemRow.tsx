@@ -80,7 +80,7 @@ export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onD
                 {/* BUG-323: Status Dot Icon Token 使用統一 */}
                 <div className={`${ICON.dot} rounded-full ${plan.status === 'active' ? C.bgStatusGreenDot : C.bgInactive}`} />
                 <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => onEdit(plan)} className={`h-9 w-9 p-0 ${C.bgPage} ${C.hoverBgPage}`}>
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(plan)} className={`h-9 w-9 p-0 ${C.bgPage} ${C.hoverBgPage}`} aria-label={`${plan.name}を編集`}>
                         <Edit2 className={`${ICON.action} ${C.text60} ${C.hoverText}`} />
                     </Button>
                     {onDelete !== undefined ? (

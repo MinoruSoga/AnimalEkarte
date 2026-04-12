@@ -19,13 +19,13 @@ interface DailyRecordDateNavProps {
 export function DailyRecordDateNav({ date, onPrev, onNext }: DailyRecordDateNavProps) {
     return (
         <div className={`flex items-center justify-between bg-white ${H_STYLES.padding.box} rounded-lg border ${C.borderMedium} shadow-sm`}>
-            <Button variant="ghost" size="icon" onClick={onPrev} className="h-11 w-11">
+            <Button variant="ghost" size="icon" onClick={onPrev} className="h-11 w-11" aria-label="前の日付">
                 <ChevronLeft className={ICON.lg} />
             </Button>
             <div className={`font-bold ${C.text} ${H_STYLES.text.lg}`}>
                 {format(date, "yyyy年 M月 d日 (EEE)", { locale: ja })}
             </div>
-            <Button variant="ghost" size="icon" onClick={onNext} className="h-11 w-11">
+            <Button variant="ghost" size="icon" onClick={onNext} className="h-11 w-11" aria-label="次の日付">
                 <ChevronRight className={ICON.lg} />
             </Button>
         </div>

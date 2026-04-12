@@ -101,10 +101,11 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
       {/* Filters */}
       <div className={`flex items-end gap-4 flex-wrap bg-white p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>
         <div className="flex flex-col gap-1.5 w-[300px]">
-          <Label className={`text-sm font-medium ${C.text60}`}>
+          <Label htmlFor="image-gallery-search" className={`text-sm font-medium ${C.text60}`}>
             検索単語
           </Label>
           <Input
+            id="image-gallery-search"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             className={`bg-white ${C.borderMedium} h-10 text-sm`}
