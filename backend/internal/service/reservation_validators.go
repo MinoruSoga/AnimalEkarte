@@ -26,8 +26,10 @@ func (e *ReservationLimitError) Error() string {
 }
 
 // IsReservationLimitError は err が ReservationLimitError かどうかを返す。
+// エラーチェーンを辿るため errors.As を使用する。
 func IsReservationLimitError(err error) (*ReservationLimitError, bool) {
-	if e, ok := err.(*ReservationLimitError); ok {
+	var e *ReservationLimitError
+	if errors.As(err, &e) {
 		return e, true
 	}
 	return nil, false
