@@ -545,6 +545,7 @@ const PaymentCard = memo(function PaymentCard({
               />
               <div className="flex gap-2 justify-end">
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => onReceivedAmountChange(billingAmount.toString())}
@@ -552,6 +553,7 @@ const PaymentCard = memo(function PaymentCard({
                   丁度
                 </Button>
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={() =>
@@ -563,6 +565,7 @@ const PaymentCard = memo(function PaymentCard({
                   千円単位
                 </Button>
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={() =>
