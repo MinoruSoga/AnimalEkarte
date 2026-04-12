@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // rendering-hoist-jsx: design token は定数なので module-level に巻き上げ
 const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`;
@@ -359,6 +360,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
         setIsAdding(false);
         toast.success("バイタルを追加しました");
       },
+      onError: (error) => handleApiError(error, "バイタル追加"),
     });
   }, [canCreate, addForm, createVitalFn]);
 
@@ -377,6 +379,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
             setEditingId(null);
             toast.success("バイタルを更新しました");
           },
+          onError: (error) => handleApiError(error, "バイタル更新"),
         }
       );
     },
@@ -394,6 +397,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
         setDeletingId(null);
         toast.success("バイタルを削除しました");
       },
+      onError: (error) => handleApiError(error, "バイタル削除"),
     });
   }, [canDelete, deletingId, deleteVitalFn]);
 
