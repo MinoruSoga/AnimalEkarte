@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 
 export const deletePet = async (id: string): Promise<void> => {
   await axios.delete(`/v1/pets/${id}`);
@@ -13,5 +14,6 @@ export const useDeletePet = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pets"] });
     },
+    onError: (error) => handleApiError(error, "ペット削除"),
   });
 };

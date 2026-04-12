@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { transformClinic } from "./transforms";
 
 // Types
@@ -92,6 +93,7 @@ export function useCreateClinic() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CLINICS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "クリニック作成"),
   });
 }
 
@@ -103,6 +105,7 @@ export function useUpdateClinic() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CLINICS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "クリニック更新"),
   });
 }
 
@@ -113,5 +116,6 @@ export function useDeleteClinic() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CLINICS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "クリニック削除"),
   });
 }
