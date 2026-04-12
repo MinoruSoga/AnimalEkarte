@@ -16,9 +16,8 @@ formatters:
 linters:
   default: none
   enable:
-    # デフォルト
+    # デフォルト（gosimple は v2 で staticcheck に統合済み）
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
