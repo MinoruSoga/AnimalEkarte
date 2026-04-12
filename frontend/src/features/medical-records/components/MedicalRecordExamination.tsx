@@ -1,27 +1,31 @@
 // React/Framework
-import { memo, useDeferredValue, useMemo, useState } from "react";
+import { memo, useDeferredValue, useMemo, useState, useCallback } from "react";
 
 // Relative
 import { useGetRecordExaminations } from "../api/get-record-examinations";
 import { ExaminationFilter } from "./ExaminationFilter";
 import { ExaminationGroup } from "./ExaminationGroup";
+import { ExaminationImportDialog } from "./ExaminationImportDialog";
 import { C } from "@/lib/design-tokens";
 
 interface MedicalRecordExaminationProps {
   isNewRecord?: boolean;
   petId?: string;
+  medicalRecordId?: string;
 }
 
 export const MedicalRecordExamination = memo(function MedicalRecordExamination({
   isNewRecord = false,
   petId,
+  medicalRecordId,
 }: MedicalRecordExaminationProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
-  const { data: apiExamGroups = [], isLoading } = useGetRecordExaminations(
+  const { data: apiExamGroups = [], isLoading, refetch } = useGetRecordExaminations(
     isNewRecord ? undefined : petId,
   );
 
@@ -35,6 +39,14 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
     [apiExamGroups, deferredSearch],
   );
 
+  const handleImportClick = useCallback(() => {
+    setIsImportDialogOpen(true);
+  }, []);
+
+  const handleImported = useCallback(() => {
+    void refetch();
+  }, [refetch]);
+
   return (
     <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-20 pr-1">
       {/* Search & Actions Header */}
@@ -45,6 +57,7 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
         onDateStartChange={setDateStart}
         dateEnd={dateEnd}
         onDateEndChange={setDateEnd}
+        onImport={isNewRecord ? undefined : handleImportClick}
       />
 
       {/* Results Title */}
@@ -69,6 +82,17 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
             ))
           : null}
       </div>
+
+      {/* Examination Import Dialog */}
+      {isImportDialogOpen ? (
+        <ExaminationImportDialog
+          open={isImportDialogOpen}
+          onOpenChange={setIsImportDialogOpen}
+          petId={petId}
+          medicalRecordId={medicalRecordId}
+          onImported={handleImported}
+        />
+      ) : null}
     </div>
   );
 });

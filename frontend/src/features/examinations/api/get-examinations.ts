@@ -15,6 +15,7 @@ interface ExaminationsListResponse {
 export interface ExaminationFilters {
   startDate?: string; // YYYY-MM-DD
   endDate?: string; // YYYY-MM-DD
+  petId?: string;
 }
 
 export const getExaminations = async (
@@ -23,6 +24,7 @@ export const getExaminations = async (
   const params: Record<string, string> = {};
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
+  if (filters?.petId) params.pet_id = filters.petId;
   const { data } = await axios.get<ExaminationsListResponse>("/v1/examinations", { params });
   return data.data.map(transformExamination);
 };

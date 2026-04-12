@@ -384,7 +384,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         ) : null}
         {mountedTabs.has("検査") ? (
           <div className={`${LAYOUT.fullHeight} ${activeTab === "検査" ? "" : "hidden"}`}>
-            <MedicalRecordExamination isNewRecord={isNewRecord} petId={selectedPet?.id} />
+            <MedicalRecordExamination isNewRecord={isNewRecord} petId={selectedPet?.id} medicalRecordId={recordId} />
           </div>
         ) : null}
         {mountedTabs.has("画像") ? (

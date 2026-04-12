@@ -18,6 +18,7 @@ export interface CreateExaminationRequest {
 }
 
 export interface UpdateExaminationRequest {
+  medical_record_id?: number | null;
   status?: "pending" | "in_progress" | "result_entered" | "completed" | "confirmed";
   result_summary?: string;
   machine?: string;

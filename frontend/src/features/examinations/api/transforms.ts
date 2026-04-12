@@ -31,6 +31,7 @@ export function transformExamination(
     ownerName: data.pet?.owner?.name ?? "",
     petName: data.pet?.name ?? "",
     petId: data.pet_id ? String(data.pet_id) : undefined,
+    medicalRecordId: data.medical_record_id ? String(data.medical_record_id) : undefined,
     testType: data.exam_type?.name ?? "",
     testTypeId: String(data.exam_type_id ?? ""),
     doctor: data.doctor?.name ?? String(data.doctor_id ?? ""),

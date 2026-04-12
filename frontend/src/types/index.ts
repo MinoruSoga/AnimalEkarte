@@ -283,6 +283,7 @@ export interface ExaminationRecord {
   ownerName: string;
   petName: string;
   petId?: string;
+  medicalRecordId?: string;
   testType: string;
   testTypeId: string;
   doctor: string;

@@ -19,6 +19,7 @@ interface ExaminationFilterProps {
   onDateStartChange: (value: string) => void;
   dateEnd: string;
   onDateEndChange: (value: string) => void;
+  onImport?: () => void;
 }
 
 export const ExaminationFilter = memo(function ExaminationFilter({
@@ -28,6 +29,7 @@ export const ExaminationFilter = memo(function ExaminationFilter({
   onDateStartChange,
   dateEnd,
   onDateEndChange,
+  onImport,
 }: ExaminationFilterProps) {
   const { canCreate } = usePermission("medical-records");
   return (
@@ -35,7 +37,9 @@ export const ExaminationFilter = memo(function ExaminationFilter({
       <div className="flex justify-end">
         {canCreate ? (
           <Button
+            type="button"
             size="sm"
+            onClick={onImport}
             className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
           >
             <FileText className={ICON.action} />
