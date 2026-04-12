@@ -32,7 +32,7 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 	records := make([]model.MedicalRecord, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Scopes(clinicScope(clinicID))
 	if petID != nil {
 		q = q.Where("pet_id = ?", *petID)
 	}
@@ -112,7 +112,8 @@ func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, pe
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
-		Where("clinic_id = ? AND pet_id = ?", clinicID, petID).
+		Scopes(clinicScope(clinicID)).
+		Where("pet_id = ?", petID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", "")

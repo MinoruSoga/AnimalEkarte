@@ -32,7 +32,7 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 	hospitalizations := make([]model.Hospitalization, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Hospitalization{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.Hospitalization{}).Scopes(clinicScope(clinicID))
 	if petID != nil {
 		q = q.Where("pet_id = ?", *petID)
 	}

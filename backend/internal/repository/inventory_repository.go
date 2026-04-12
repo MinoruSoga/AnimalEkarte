@@ -32,7 +32,7 @@ func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, cate
 	items := make([]model.InventoryItem, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.InventoryItem{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.InventoryItem{}).Scopes(clinicScope(clinicID))
 	if category != nil {
 		q = q.Where("category = ?", *category)
 	}

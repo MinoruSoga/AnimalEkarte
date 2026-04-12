@@ -29,7 +29,7 @@ func NewInsuranceRepository(db *gorm.DB) InsuranceRepository { return &insurance
 
 func (r *insuranceRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Insurance, error) {
 	insurances := make([]model.Insurance, 0)
-	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&insurances).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&insurances).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "insurance", "")
 	}

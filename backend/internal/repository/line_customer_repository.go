@@ -30,7 +30,7 @@ func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) (
 	items := make([]model.LineCustomer, 0)
 	err := r.db.WithContext(ctx).
 		Preload("Owner").
-		Where("clinic_id = ?", clinicID).
+		Scopes(clinicScope(clinicID)).
 		Order("created_at DESC").
 		Find(&items).Error
 	if err != nil {
@@ -55,7 +55,8 @@ func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint
 func (r *lineCustomerRepository) FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.LineCustomer, error) {
 	var c model.LineCustomer
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND line_user_id = ?", clinicID, lineUserID).
+		Scopes(clinicScope(clinicID)).
+		Where("line_user_id = ?", lineUserID).
 		First(&c).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c = model.LineCustomer{

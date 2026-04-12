@@ -32,7 +32,7 @@ func NewReservationTypeLiffRepository(db *gorm.DB) ReservationTypeLiffRepository
 func (r *reservationTypeLiffRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	items := make([]model.ReservationType, 0)
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ?", clinicID).
+		Scopes(clinicScope(clinicID)).
 		Order("sort_order ASC, id ASC").
 		Find(&items).Error
 	if err != nil {
@@ -96,7 +96,7 @@ func (r *reservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clini
 		}
 
 		var neighbor model.ReservationType
-		q := tx.Where("clinic_id = ?", clinicID)
+		q := tx.Scopes(clinicScope(clinicID))
 		if direction == "up" {
 			q = q.Where("sort_order < ?", target.SortOrder).Order("sort_order DESC")
 		} else {

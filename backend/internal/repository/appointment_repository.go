@@ -34,7 +34,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 	reservations := make([]model.Appointment, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Appointment{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.Appointment{}).Scopes(clinicScope(clinicID))
 	if date != nil {
 		start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 		end := start.Add(24 * time.Hour)

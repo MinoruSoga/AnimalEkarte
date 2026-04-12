@@ -30,7 +30,7 @@ func NewChiefComplaintTypeRepository(db *gorm.DB) ChiefComplaintTypeRepository {
 func (r *chiefComplaintTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
 	categories := make([]model.ChiefComplaintType, 0)
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ?", clinicID).
+		Scopes(clinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error
 	if err != nil {

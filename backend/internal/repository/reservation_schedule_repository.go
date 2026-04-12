@@ -38,8 +38,9 @@ func (r *reservationScheduleRepository) FindByMonth(ctx context.Context, clinicI
 
 	entries := make([]model.ShiftEntry, 0)
 	err = r.db.WithContext(ctx).
-		Where("clinic_id = ? AND staff_id = ? AND date >= ? AND date < ?",
-			clinicID, staffID, start.Format("2006-01-02"), end.Format("2006-01-02")).
+		Scopes(clinicScope(clinicID)).
+		Where("staff_id = ? AND date >= ? AND date < ?",
+			staffID, start.Format("2006-01-02"), end.Format("2006-01-02")).
 		Order("date ASC").
 		Find(&entries).Error
 	if err != nil {
@@ -75,8 +76,9 @@ func (r *reservationScheduleRepository) FindBreaksByEntryID(ctx context.Context,
 func (r *reservationScheduleRepository) FindByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error) {
 	var entry model.ShiftEntry
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND staff_id = ? AND date = ?",
-			clinicID, staffID, date.Format("2006-01-02")).
+		Scopes(clinicScope(clinicID)).
+		Where("staff_id = ? AND date = ?",
+			staffID, date.Format("2006-01-02")).
 		First(&entry).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))
@@ -89,8 +91,9 @@ func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存エントリを検索
 		var existing model.ShiftEntry
-		err := tx.Where("clinic_id = ? AND staff_id = ? AND date = ?",
-			entry.ClinicID, entry.StaffID, entry.Date.Format("2006-01-02")).
+		err := tx.Scopes(clinicScope(entry.ClinicID)).
+			Where("staff_id = ? AND date = ?",
+				entry.StaffID, entry.Date.Format("2006-01-02")).
 			First(&existing).Error
 
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -138,8 +141,9 @@ func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model
 
 func (r *reservationScheduleRepository) DeleteByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
 	result := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND staff_id = ? AND date = ?",
-			clinicID, staffID, date.Format("2006-01-02")).
+		Scopes(clinicScope(clinicID)).
+		Where("staff_id = ? AND date = ?",
+			staffID, date.Format("2006-01-02")).
 		Delete(&model.ShiftEntry{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "schedule_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))

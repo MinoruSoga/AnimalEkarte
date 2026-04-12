@@ -31,7 +31,7 @@ func NewTrimmingCourseRepository(db *gorm.DB) TrimmingCourseRepository {
 
 func (r *trimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
 	courses := make([]model.TrimmingCourse, 0)
-	if err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&courses).Error; err != nil {
+	if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&courses).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "trimming_course", "")
 	}
 	return courses, nil
@@ -117,7 +117,7 @@ func NewTrimmingOptionRepository(db *gorm.DB) TrimmingOptionRepository {
 
 func (r *trimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
 	options := make([]model.TrimmingOption, 0)
-	if err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&options).Error; err != nil {
+	if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&options).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "trimming_option", "")
 	}
 	return options, nil

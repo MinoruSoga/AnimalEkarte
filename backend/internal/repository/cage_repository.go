@@ -28,7 +28,7 @@ func NewCageRepository(db *gorm.DB) CageRepository { return &cageRepository{db: 
 
 func (r *cageRepository) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
 	cages := make([]model.Cage, 0)
-	q := r.db.WithContext(ctx).Model(&model.Cage{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.Cage{}).Scopes(clinicScope(clinicID))
 	if cageType != nil {
 		q = q.Where("cage_type = ?", *cageType)
 	}

@@ -24,7 +24,7 @@ func NewLineReservationSettingRepository(db *gorm.DB) LineReservationSettingRepo
 
 func (r *lineReservationSettingRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 	var setting model.LineReservationSetting
-	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).First(&setting).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).First(&setting).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "line_reservation_setting", "clinic")
 	}

@@ -34,7 +34,7 @@ func (r *diagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, 
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		return r.db.WithContext(ctx).Model(&model.DiagnosisType{}).Where("clinic_id = ?", clinicID)
+		return r.db.WithContext(ctx).Model(&model.DiagnosisType{}).Scopes(clinicScope(clinicID))
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
@@ -139,7 +139,7 @@ func (r *diagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, 
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Where("clinic_id = ?", clinicID)
+		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(clinicScope(clinicID))
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
@@ -160,7 +160,8 @@ func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID
 
 	buildBase := func() *gorm.DB {
 		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).
-			Where("clinic_id = ? AND diagnosis_type_id = ?", clinicID, categoryID)
+			Scopes(clinicScope(clinicID)).
+			Where("diagnosis_type_id = ?", categoryID)
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {

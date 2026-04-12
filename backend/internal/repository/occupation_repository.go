@@ -32,7 +32,7 @@ func NewOccupationRepository(db *gorm.DB) OccupationRepository {
 func (r *occupationRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Occupation, error) {
 	occupations := make([]model.Occupation, 0)
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ?", clinicID).
+		Scopes(clinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&occupations).Error
 	if err != nil {

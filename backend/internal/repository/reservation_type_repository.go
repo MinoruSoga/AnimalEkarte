@@ -32,7 +32,7 @@ func (r *reservationTypeRepository) FindAll(ctx context.Context, clinicID uint64
 	reservationTypes := make([]model.ReservationType, 0)
 	if err := r.db.WithContext(ctx).
 		Preload("Group").
-		Where("clinic_id = ?", clinicID).
+		Scopes(clinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&reservationTypes).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_type", "")
@@ -62,7 +62,8 @@ func (r *reservationTypeRepository) Create(ctx context.Context, reservationType 
 func (r *reservationTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ReservationType{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation_type", fmt.Sprintf("%d", id))
@@ -70,7 +71,8 @@ func (r *reservationTypeRepository) Update(ctx context.Context, clinicID, id uin
 	if result.RowsAffected == 0 {
 		var count int64
 		if err := r.db.WithContext(ctx).Model(&model.ReservationType{}).
-			Where("id = ? AND clinic_id = ?", id, clinicID).
+			Scopes(clinicScope(clinicID)).
+			Where("id = ?", id).
 			Count(&count).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", id))
 		}

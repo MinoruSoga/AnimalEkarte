@@ -28,7 +28,7 @@ func NewClinicHolidayRepository(db *gorm.DB) ClinicHolidayRepository {
 func (r *clinicHolidayRepository) FindByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
 	var holidays []model.ClinicHoliday
 	q := r.db.WithContext(ctx).
-		Where("clinic_id = ?", clinicID).
+		Scopes(clinicScope(clinicID)).
 		Order("date ASC")
 
 	if yearMonth != "" {
@@ -45,7 +45,8 @@ func (r *clinicHolidayRepository) FindByYearMonth(ctx context.Context, clinicID 
 func (r *clinicHolidayRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
 	var holiday model.ClinicHoliday
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND date = ?", clinicID, date.Format("2006-01-02")).
+		Scopes(clinicScope(clinicID)).
+		Where("date = ?", date.Format("2006-01-02")).
 		First(&holiday).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "clinic_holiday", date.Format("2006-01-02"))
@@ -66,7 +67,8 @@ func (r *clinicHolidayRepository) Upsert(ctx context.Context, holiday *model.Cli
 
 func (r *clinicHolidayRepository) Delete(ctx context.Context, clinicID uint64, date time.Time) error {
 	result := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND date = ?", clinicID, date.Format("2006-01-02")).
+		Scopes(clinicScope(clinicID)).
+		Where("date = ?", date.Format("2006-01-02")).
 		Delete(&model.ClinicHoliday{})
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "failed to delete clinic holiday")

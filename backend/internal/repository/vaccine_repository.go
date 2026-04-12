@@ -29,7 +29,7 @@ func NewVaccineRepository(db *gorm.DB) VaccineRepository { return &vaccineReposi
 
 func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
 	vaccines := make([]model.Vaccine, 0)
-	q := r.db.WithContext(ctx).Model(&model.Vaccine{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.Vaccine{}).Scopes(clinicScope(clinicID))
 	if species != nil {
 		q = q.Where("species = ?", *species)
 	}

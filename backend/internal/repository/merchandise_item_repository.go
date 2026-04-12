@@ -36,7 +36,7 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.MerchandiseItem{}).Where("clinic_id = ?", clinicID)
+		q := r.db.WithContext(ctx).Model(&model.MerchandiseItem{}).Scopes(clinicScope(clinicID))
 		if category != "" {
 			q = q.Where("category = ?", category)
 		}
@@ -78,7 +78,8 @@ func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.Merc
 func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.MerchandiseItem{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
@@ -86,7 +87,8 @@ func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uin
 	if result.RowsAffected == 0 {
 		var count int64
 		if err := r.db.WithContext(ctx).Model(&model.MerchandiseItem{}).
-			Where("id = ? AND clinic_id = ?", id, clinicID).
+			Scopes(clinicScope(clinicID)).
+			Where("id = ?", id).
 			Count(&count).Error; err != nil {
 			return apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
 		}

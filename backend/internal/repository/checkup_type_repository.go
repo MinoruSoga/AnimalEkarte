@@ -31,7 +31,7 @@ func NewCheckupTypeRepository(db *gorm.DB) CheckupTypeRepository {
 
 func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
 	checkupTypes := make([]model.CheckupType, 0)
-	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&checkupTypes).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&checkupTypes).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup_type", "")
 	}

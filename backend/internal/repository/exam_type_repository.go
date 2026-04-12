@@ -31,7 +31,7 @@ func NewExamTypeRepository(db *gorm.DB) ExamTypeRepository {
 
 func (r *examTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
 	exTypes := make([]model.ExaminationType, 0)
-	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Preload("Items").Order("sort_order ASC, name ASC").Find(&exTypes).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Preload("Items").Order("sort_order ASC, name ASC").Find(&exTypes).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "examination_type", "")
 	}

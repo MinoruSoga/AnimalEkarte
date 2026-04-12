@@ -33,7 +33,7 @@ func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64, page,
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		return r.db.WithContext(ctx).Model(&model.Medicine{}).Where("clinic_id = ?", clinicID)
+		return r.db.WithContext(ctx).Model(&model.Medicine{}).Scopes(clinicScope(clinicID))
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
@@ -80,7 +80,8 @@ func (r *medicineRepository) CountChildren(ctx context.Context, clinicID, parent
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Medicine{}).
-		Where("clinic_id = ? AND parent_id = ?", clinicID, parentID).
+		Scopes(clinicScope(clinicID)).
+		Where("parent_id = ?", parentID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "medicine", "")
 	}
@@ -101,7 +102,8 @@ func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicin
 func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Medicine{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
@@ -109,7 +111,8 @@ func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fi
 	if result.RowsAffected == 0 {
 		var count int64
 		if err := r.db.WithContext(ctx).Model(&model.Medicine{}).
-			Where("id = ? AND clinic_id = ?", id, clinicID).
+			Scopes(clinicScope(clinicID)).
+			Where("id = ?", id).
 			Count(&count).Error; err != nil {
 			return apperrors.FromGORM(err, "medicine", fmt.Sprintf("%d", id))
 		}

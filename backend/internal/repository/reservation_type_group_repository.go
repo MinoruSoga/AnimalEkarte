@@ -29,7 +29,7 @@ func NewReservationTypeGroupRepository(db *gorm.DB) ReservationTypeGroupReposito
 func (r *reservationTypeGroupRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error) {
 	var list []model.ReservationTypeGroup
 	if err := r.db.WithContext(ctx).
-		Where("clinic_id = ?", clinicID).
+		Scopes(clinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&list).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_type_group", "")

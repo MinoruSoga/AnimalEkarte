@@ -31,7 +31,7 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 	billings := make([]model.Billing, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Billing{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(clinicScope(clinicID))
 	if petID != nil {
 		q = q.Where("pet_id = ?", *petID)
 	}
@@ -122,7 +122,8 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
-		Where("clinic_id = ? AND id = ?", clinicID, billingID).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", billingID).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
@@ -133,7 +134,8 @@ func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billi
 	var billing model.Billing
 	if err := r.db.WithContext(ctx).
 		Preload("Items").Preload("Payments").Preload("Refunds").Preload("Owner").Preload("Pet").
-		First(&billing, "clinic_id = ? AND id = ?", clinicID, billingID).Error; err != nil {
+		Scopes(clinicScope(clinicID)).
+		First(&billing, "id = ?", billingID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
 	}
 	return &billing, nil

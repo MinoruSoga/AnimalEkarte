@@ -40,7 +40,7 @@ func (r *shiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, fil
 	q := r.db.WithContext(ctx).
 		Preload("Staff").
 		Preload("Breaks").
-		Where("clinic_id = ?", clinicID).
+		Scopes(clinicScope(clinicID)).
 		Order("date ASC, staff_id ASC")
 
 	if filter.YearMonth != "" {

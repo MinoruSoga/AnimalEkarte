@@ -39,7 +39,8 @@ func (r *reservationAdminRepository) FindByMonth(ctx context.Context, clinicID u
 		Preload("ReservationType").
 		Preload("Doctor").
 		Preload("LineCustomer").
-		Where("clinic_id = ? AND start_time >= ? AND start_time < ?", clinicID, start, end).
+		Scopes(clinicScope(clinicID)).
+		Where("start_time >= ? AND start_time < ?", start, end).
 		Order("start_time ASC").
 		Find(&items).Error
 	if err != nil {
@@ -59,7 +60,8 @@ func (r *reservationAdminRepository) FindByDay(ctx context.Context, clinicID uin
 		Preload("LineCustomer").
 		Preload("Owner").
 		Preload("Pet").
-		Where("clinic_id = ? AND start_time >= ? AND start_time < ?", clinicID, start, end).
+		Scopes(clinicScope(clinicID)).
+		Where("start_time >= ? AND start_time < ?", start, end).
 		Order("start_time ASC").
 		Find(&items).Error
 	if err != nil {
@@ -92,7 +94,8 @@ func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clini
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType").
 		Preload("Doctor").
-		Where("clinic_id = ? AND line_customer_id = ? AND deleted_at IS NULL", clinicID, customerID).
+		Scopes(clinicScope(clinicID)).
+		Where("line_customer_id = ? AND deleted_at IS NULL", customerID).
 		Order("start_time DESC").
 		Find(&items).Error
 	if err != nil {
@@ -118,8 +121,9 @@ func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clin
 func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Appointment{}).
-		Where("id = ? AND clinic_id = ? AND line_customer_id = ? AND status != ?",
-			id, clinicID, customerID, model.ReservationStatusCancelled).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ? AND line_customer_id = ? AND status != ?",
+			id, customerID, model.ReservationStatusCancelled).
 		Update("status", model.ReservationStatusCancelled)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "appointment", fmt.Sprintf("%d", id))

@@ -37,7 +37,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.Owner{}).Where("clinic_id = ?", clinicID)
+		q := r.db.WithContext(ctx).Model(&model.Owner{}).Scopes(clinicScope(clinicID))
 		if search != "" {
 			pattern := "%" + escapeLike(search) + "%"
 			q = q.Where(
@@ -71,7 +71,7 @@ func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*m
 
 func (r *ownerRepository) FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).First(&owner, "clinic_id = ? AND email = ?", clinicID, email).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).First(&owner, "email = ?", email).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -84,7 +84,7 @@ func (r *ownerRepository) FindByEmail(ctx context.Context, clinicID uint64, emai
 // FindByPhone は clinic_id + phone に一致するオーナーを返す。見つからない場合は nil を返す。
 func (r *ownerRepository) FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).First(&owner, "clinic_id = ? AND phone = ?", clinicID, phone).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).First(&owner, "phone = ?", phone).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -104,7 +104,8 @@ func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint6
 	}
 	var owners []model.Owner
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND name = ? AND phone = ? AND deleted_at IS NULL", clinicID, name, phone).
+		Scopes(clinicScope(clinicID)).
+		Where("name = ? AND phone = ? AND deleted_at IS NULL", name, phone).
 		Limit(2). // 2件以上あるかだけ判定すればよい
 		Find(&owners).Error
 	if err != nil {
@@ -184,7 +185,8 @@ func (r *ownerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, owne
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Pet{}).
-		Where("clinic_id = ? AND owner_id = ?", clinicID, ownerID).
+		Scopes(clinicScope(clinicID)).
+		Where("owner_id = ?", ownerID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")

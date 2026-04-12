@@ -33,7 +33,7 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 	estimates := make([]model.Estimate, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Estimate{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.Estimate{}).Scopes(clinicScope(clinicID))
 	if ownerID != nil {
 		q = q.Where("owner_id = ?", *ownerID)
 	}
