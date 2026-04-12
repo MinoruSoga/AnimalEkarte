@@ -66,7 +66,8 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     }, {
       onSuccess: () => {
         toast.success("会計確認を差し戻しました");
-      }
+      },
+      onError: (error) => handleApiError(error, "会計確認の差し戻し"),
     });
   }, [canEdit, returnBillingFn]);
 
