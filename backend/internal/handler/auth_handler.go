@@ -93,115 +93,81 @@ func buildMeResponse(staff *model.Staff, account *model.Account, mainClinicID st
 	}
 }
 
-// Login godoc
-// Login はメール/パスワードで認証してJWTトークンを返す。
-// accounts.password_hash を bcrypt で検証する。
-func (h *Handler) Login(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var input LoginInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-		return
-	}
-
-	// accounts テーブルからアカウントを取得
-	account, err := h.svc.Account.FindByEmail(ctx, input.Email)
+// authenticateUser はメール/パスワードを検証してアカウントとスタッフを返す。
+// 認証失敗・アカウント無効・スタッフ無効の場合は apperrors.ErrUnauthorized ラップエラーを返す。
+func (h *Handler) authenticateUser(ctx context.Context, email, password, clientIP, userAgent string) (*model.Account, *model.Staff, error) {
+	account, err := h.svc.Account.FindByEmail(ctx, email)
 	if err != nil {
 		if apperrors.IsNotFound(err) {
 			// 監査ログ: ログイン失敗（アカウント不存在）
-			if auditErr := h.svc.Audit.LogAuthLogin(ctx, nil, nil, model.AuditActionAuthLoginFailure, c.ClientIP(), c.Request.Header.Get("User-Agent")); auditErr != nil {
+			if auditErr := h.svc.Audit.LogAuthLogin(ctx, nil, nil, model.AuditActionAuthLoginFailure, clientIP, userAgent); auditErr != nil {
 				slog.ErrorContext(ctx, "failed to log login failure", slog.String("error", auditErr.Error()))
 			}
-			RespondError(c, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません"))
-			return
+			return nil, nil, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません")
 		}
-		RespondError(c, err)
-		return
+		return nil, nil, err
 	}
-
-	// アカウント状態チェック
 	if !account.IsActive {
-		RespondError(c, apperrors.WrapUnauthorized("アカウントが無効です"))
-		return
+		return nil, nil, apperrors.WrapUnauthorized("アカウントが無効です")
 	}
-
-	// パスワード検証
-	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(input.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(password)); err != nil {
 		// 監査ログ: ログイン失敗（パスワード不正）
-		if auditErr := h.svc.Audit.LogAuthLogin(ctx, nil, &account.ID, model.AuditActionAuthLoginFailure, c.ClientIP(), c.Request.Header.Get("User-Agent")); auditErr != nil {
+		if auditErr := h.svc.Audit.LogAuthLogin(ctx, nil, &account.ID, model.AuditActionAuthLoginFailure, clientIP, userAgent); auditErr != nil {
 			slog.ErrorContext(ctx, "failed to log login failure", slog.String("error", auditErr.Error()))
 		}
-		RespondError(c, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません"))
-		return
+		return nil, nil, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません")
 	}
-
-	// staff を取得
 	staff, err := h.svc.Staff.FindByAccountID(ctx, account.ID)
 	if err != nil {
-		RespondError(c, apperrors.Wrap(err, "スタッフ情報の取得に失敗しました"))
-		return
+		return nil, nil, apperrors.Wrap(err, "スタッフ情報の取得に失敗しました")
 	}
-
 	// BUG-134: スタッフの有効性チェック（退職者・一時停止アカウント防止）
 	if !staff.IsActive {
-		RespondError(c, apperrors.WrapUnauthorized("このアカウントは無効です"))
-		return
+		return nil, nil, apperrors.WrapUnauthorized("このアカウントは無効です")
 	}
+	return account, staff, nil
+}
 
-	// clinic assignments を取得
-	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
-	if err != nil {
-		RespondError(c, apperrors.Wrap(err, "所属クリニック情報の取得に失敗しました"))
-		return
-	}
-	staff.ClinicAssignments = assignments
-
-	// メインクリニックを決定
-	mainClinicID := ""
+// resolveClinicInfo はスタッフのクリニック割り当てからメインクリニックIDと所属ID一覧を返す。
+// メインクリニックが未設定の場合は最初の割り当てを使用する。
+func resolveClinicInfo(assignments []model.StaffClinicAssignment) (mainClinicID string, clinicIDs []uint64) {
+	clinicIDs = make([]uint64, 0, len(assignments))
 	for _, asg := range assignments {
-		if asg.IsMain {
+		if asg.IsMain && mainClinicID == "" {
 			mainClinicID = strconv.FormatUint(asg.ClinicID, 10)
-			break
 		}
+		clinicIDs = append(clinicIDs, asg.ClinicID)
 	}
 	if mainClinicID == "" && len(assignments) > 0 {
 		mainClinicID = strconv.FormatUint(assignments[0].ClinicID, 10)
 	}
+	return mainClinicID, clinicIDs
+}
 
-	// 所属クリニックIDの一覧を収集（BUG-128: JWT claims に含めて X-Clinic-ID 検証に使用）
-	clinicIDs := make([]uint64, 0, len(assignments))
-	for _, asg := range assignments {
-		clinicIDs = append(clinicIDs, asg.ClinicID)
-	}
+// issueAuthCookies は JWT アクセストークン（15分）とリフレッシュトークン（7日）を生成して Cookie にセットする。
+// クロスオリジン対応のため SameSite=None + Secure=true を使用する。
+func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID string, isSystemAdmin bool, clinicIDs []uint64) error {
+	// SameSite=None 使用時は Secure=true が必須（ブラウザ仕様）
+	// localhost での Secure Cookie はブラウザが許可しているため開発環境でも Secure=true を設定可
+	const sameSite = http.SameSiteNoneMode
+	const secure = true
 
-	// アクセストークン生成（15分）
 	expiresAt := time.Now().Add(15 * time.Minute)
 	claims := &middleware.JWTClaims{
-		UserID:        strconv.FormatUint(staff.ID, 10),
+		UserID:        strconv.FormatUint(staffID, 10),
 		ClinicID:      mainClinicID,
-		IsSystemAdmin: account.IsSystemAdmin,
+		IsSystemAdmin: isSystemAdmin,
 		ClinicIDs:     clinicIDs,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
-
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	accessTokenStr, err := accessToken.SignedString([]byte(h.cfg.JWTSecret))
 	if err != nil {
-		RespondError(c, apperrors.Wrap(err, "failed to sign jwt"))
-		return
+		return apperrors.Wrap(err, "failed to sign jwt")
 	}
-
-	// Cookie 設定
-	// クロスオリジン（localhost:3003 ← localhost:8080）でも Cookie が送信されるように
-	// SameSite=None 使用時は Secure=true が必須（ブラウザ仕様）
-	// localhost での Secure Cookie はブラウザが許可しているため、開発環境でも Secure=true を設定可
-	sameSite := http.SameSiteNoneMode
-	secure := true // SameSite=None の場合は常に true（localhost での Secure Cookie はブラウザが許可）
-
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     accessTokenCookieName,
 		Value:    accessTokenStr,
@@ -215,9 +181,9 @@ func (h *Handler) Login(c *gin.Context) {
 	// Refresh Token 発行（7日間有効、token rotation で毎回更新）
 	refreshExpiresAt := time.Now().Add(7 * 24 * time.Hour)
 	refreshClaims := &middleware.JWTClaims{
-		UserID:        strconv.FormatUint(staff.ID, 10),
+		UserID:        strconv.FormatUint(staffID, 10),
 		ClinicID:      mainClinicID,
-		IsSystemAdmin: account.IsSystemAdmin,
+		IsSystemAdmin: isSystemAdmin,
 		ClinicIDs:     clinicIDs,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(refreshExpiresAt),
@@ -228,8 +194,7 @@ func (h *Handler) Login(c *gin.Context) {
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	refreshTokenStr, err := refreshToken.SignedString([]byte(h.cfg.JWTSecret))
 	if err != nil {
-		RespondError(c, apperrors.Wrap(err, "failed to sign refresh token"))
-		return
+		return apperrors.Wrap(err, "failed to sign refresh token")
 	}
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     refreshTokenCookieName,
@@ -240,6 +205,40 @@ func (h *Handler) Login(c *gin.Context) {
 		Secure:   secure,
 		SameSite: sameSite,
 	})
+	return nil
+}
+
+// Login godoc
+// Login はメール/パスワードで認証してJWTトークンを返す。
+// accounts.password_hash を bcrypt で検証する。
+func (h *Handler) Login(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var input LoginInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	account, staff, err := h.authenticateUser(ctx, input.Email, input.Password, c.ClientIP(), c.Request.Header.Get("User-Agent"))
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(ctx, staff.ID)
+	if err != nil {
+		RespondError(c, apperrors.Wrap(err, "所属クリニック情報の取得に失敗しました"))
+		return
+	}
+	staff.ClinicAssignments = assignments
+
+	mainClinicID, clinicIDs := resolveClinicInfo(assignments)
+
+	if err := h.issueAuthCookies(c, staff.ID, mainClinicID, account.IsSystemAdmin, clinicIDs); err != nil {
+		RespondError(c, err)
+		return
+	}
 
 	// クリニック一覧を取得してレスポンス構築
 	allClinics, err := h.svc.Clinic.ListClinics(ctx)
@@ -252,7 +251,6 @@ func (h *Handler) Login(c *gin.Context) {
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
 
-	// 実効権限を計算
 	permMap := h.calculateEffectivePermissions(ctx, account.IsSystemAdmin, staff.ID)
 
 	// 監査ログ: ログイン成功
