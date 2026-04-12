@@ -67,7 +67,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending, canCreate = 
         if (!form.time) return;
 
         const payload: CreateVitalRecordRequest = {
-            time: form.time,
+            time: form.time.length === 5 ? `${form.time}:00` : form.time,
         };
         if (form.temperature) payload.temperature = parseFloat(form.temperature);
         if (form.heart_rate) payload.heart_rate = parseInt(form.heart_rate, 10);

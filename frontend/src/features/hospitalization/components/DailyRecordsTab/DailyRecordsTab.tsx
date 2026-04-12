@@ -8,6 +8,7 @@ import { Loader2, PlusCircle } from "lucide-react";
 // Internal
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
 import { DailyDateNav } from "@/features/hospitalization/components/DailyRecordsTab/DailyDateNav";
@@ -83,7 +84,11 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
     const handleAddVital = useCallback(
         (payload: CreateVitalRecordRequest) => {
             startVitalTransition(async () => {
-                await createVital.mutateAsync(payload);
+                try {
+                    await createVital.mutateAsync(payload);
+                } catch (error) {
+                    handleApiError(error, "バイタル追加");
+                }
             });
         },
         [createVital]
@@ -92,7 +97,11 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
     const handleAddCareLog = useCallback(
         (payload: CreateCareLogRequest) => {
             startCareLogTransition(async () => {
-                await createCareLog.mutateAsync(payload);
+                try {
+                    await createCareLog.mutateAsync(payload);
+                } catch (error) {
+                    handleApiError(error, "ケアログ追加");
+                }
             });
         },
         [createCareLog]
@@ -101,7 +110,11 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
     const handleAddStaffNote = useCallback(
         (payload: CreateStaffNoteRequest) => {
             startStaffNoteTransition(async () => {
-                await createStaffNote.mutateAsync(payload);
+                try {
+                    await createStaffNote.mutateAsync(payload);
+                } catch (error) {
+                    handleApiError(error, "スタッフメモ追加");
+                }
             });
         },
         [createStaffNote]
