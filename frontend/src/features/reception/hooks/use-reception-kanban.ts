@@ -28,7 +28,7 @@ function toColumnData(col: ReceptionColumn, staffMap: Map<string, string>): Colu
 
 export function useReceptionKanban() {
   const today = useMemo(() => todayISO(), []);
-  const { data: apiColumns, isLoading } = useGetReception(today);
+  const { data: apiColumns, isLoading, isError } = useGetReception(today);
   const { data: staffs } = useGetStaffs();
   const updateStatusMutation = useUpdateAppointmentStatus();
   // rerender-transitions: API mutation の pending 管理に useTransition を使用
@@ -323,6 +323,7 @@ export function useReceptionKanban() {
     columns,  // ローカル状態（ポーリング影響を避けるためドラッグハンドラで使用）
     filteredColumns,
     isLoading,
+    isError,
     isUpdatingStatus,
     staffs: staffs ?? [],
     moveCard,

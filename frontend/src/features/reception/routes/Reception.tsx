@@ -23,6 +23,7 @@ import { usePermission } from "@/features/auth";
 
 // Shared
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Lazy-loaded modals — only loaded when first opened (bundle splitting)
 const ReceptionDetailModal = lazy(() =>
@@ -51,6 +52,8 @@ export function Reception() {
         columns,
         filteredColumns,
         isUpdatingStatus,
+        isLoading,
+        isError,
         staffs,
         moveCard,
         advanceStatus,
@@ -326,6 +329,14 @@ export function Reception() {
         }
         return map;
     }, [filteredColumns]);
+
+    if (isLoading) {
+        return <LoadingFallback />;
+    }
+
+    if (isError) {
+        return <ErrorFallback message="受付データの取得に失敗しました" />;
+    }
 
     return (
         <div className={`flex-1 flex flex-col h-full ${C.bgPage}`}>
