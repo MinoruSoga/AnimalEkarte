@@ -77,7 +77,11 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
 
     const handleCreateDailyRecord = useCallback(() => {
         startCreateRecordTransition(async () => {
-            await createDailyRecord.mutateAsync(selectedDate);
+            try {
+                await createDailyRecord.mutateAsync(selectedDate);
+            } catch (error) {
+                handleApiError(error, "日次記録の作成");
+            }
         });
     }, [createDailyRecord, selectedDate]);
 

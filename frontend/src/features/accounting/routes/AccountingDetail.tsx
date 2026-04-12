@@ -1045,8 +1045,12 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     (itemId: string, taxType: TaxType, taxRate: number) => {
       if (!id) return;
       startTaxUpdateTransition(async () => {
-        await updateBillingItem(itemId, { tax_type: taxType, tax_rate: taxRate });
-        queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(id) });
+        try {
+          await updateBillingItem(itemId, { tax_type: taxType, tax_rate: taxRate });
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(id) });
+        } catch (error) {
+          handleApiError(error, "税区分の更新");
+        }
       });
     },
     [id, queryClient],

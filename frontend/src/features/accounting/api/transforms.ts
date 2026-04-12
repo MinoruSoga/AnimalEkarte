@@ -63,7 +63,7 @@ export function transformToAccounting(data: BackendAccounting): Accounting {
     petName: data.pet?.name ?? "",
     petSpecies: data.pet?.animal_species?.name,
     status: data.status as Accounting["status"],
-    scheduledDate: data.scheduled_date.slice(0, 10),
+    scheduledDate: data.scheduled_date ? data.scheduled_date.slice(0, 10) : "",
     completedAt: data.completed_at ?? undefined,
     items: (data.items ?? []).map(transformAccountingItem),
     payment: buildPaymentInfo(data),
