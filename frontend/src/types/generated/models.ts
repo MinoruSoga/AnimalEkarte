@@ -1488,6 +1488,17 @@ export interface ShiftEntry {
   staff?: Staff;
   breaks?: ShiftEntryBreak[];
 }
+/**
+ * ClinicHoliday は病院が設定した個別休診日を表す
+ */
+export interface ClinicHoliday {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  date: string;
+  reason: string;
+  created_at: string;
+  updated_at: string;
+}
 
 //////////
 // source: staff_reservation_exclusion.go

@@ -2,15 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import type { ClinicHoliday } from "@/types/generated/models";
 
-export interface ClinicHoliday {
-  id: number;
-  clinic_id: number;
-  date: string; // YYYY-MM-DD
-  reason: string;
-  created_at: string;
-  updated_at: string;
-}
+export type { ClinicHoliday };
 
 export interface SetClinicHolidayInput {
   date: string;   // YYYY-MM-DD
