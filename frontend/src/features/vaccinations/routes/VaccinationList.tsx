@@ -29,6 +29,8 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useFilterVaccinations } from "../hooks/use-vaccinations";
 import { useDeleteVaccination } from "../api/delete-vaccination";
 import { usePermission } from "@/features/auth";
+import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Types
 import type { VaccinationRecord } from "@/types";
@@ -145,7 +147,13 @@ export function VaccinationList() {
     if (!pendingDeleteId) return;
     startDeleteTransition(() => {
       deleteVaccinationFn(pendingDeleteId, {
-        onSuccess: () => setPendingDeleteId(null),
+        onSuccess: () => {
+          toast.success("予防接種記録を削除しました");
+          setPendingDeleteId(null);
+        },
+        onError: (error) => {
+          handleApiError(error, "削除");
+        },
       });
     });
   }, [pendingDeleteId, deleteVaccinationFn]);

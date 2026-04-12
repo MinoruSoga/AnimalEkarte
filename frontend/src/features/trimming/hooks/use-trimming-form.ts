@@ -256,6 +256,9 @@ export function useTrimmingForm(id?: string) {
           toast.success("トリミング情報を削除しました");
           onSuccess?.();
         },
+        onError: (error) => {
+          handleApiError(error, "削除");
+        },
       });
     });
   }, [isEdit, id, deleteMutation, startDeleteTransition]);
