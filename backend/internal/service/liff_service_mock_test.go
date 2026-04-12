@@ -52,7 +52,9 @@ func (m *mockLiffTypeRepository) FindByID(ctx context.Context, clinicID, id uint
 	return nil, apperrors.ErrNotFound
 }
 
-func (m *mockLiffTypeRepository) Create(_ context.Context, _ *model.ReservationType) error { return nil }
+func (m *mockLiffTypeRepository) Create(_ context.Context, _ *model.ReservationType) error {
+	return nil
+}
 
 func (m *mockLiffTypeRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
 	return nil
@@ -67,8 +69,8 @@ func (m *mockLiffTypeRepository) SwapSortOrder(_ context.Context, _, _ uint64, _
 // --- mockLiffStaffRepository ---
 
 type mockLiffStaffRepository struct {
-	findAllByClinicIDFn        func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
-	findByIDFn                 func(ctx context.Context, id uint64) (*model.Staff, error)
+	findAllByClinicIDFn            func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
+	findByIDFn                     func(ctx context.Context, id uint64) (*model.Staff, error)
 	findExcludedReservationTypesFn func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 }
 
@@ -83,6 +85,10 @@ func (m *mockLiffStaffRepository) FindByID(ctx context.Context, id uint64) (*mod
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, id)
 	}
+	return nil, apperrors.ErrNotFound
+}
+
+func (m *mockLiffStaffRepository) FindByIDAndClinicID(_ context.Context, _, _ uint64) (*model.Staff, error) {
 	return nil, apperrors.ErrNotFound
 }
 
@@ -277,7 +283,7 @@ func newLiffSvc(
 ) *liffService {
 	return &liffService{
 		settingRepo:  setting,
-		typeLiffRepo:   course,
+		typeLiffRepo: course,
 		staffRepo:    staff,
 		scheduleRepo: schedule,
 		adminRepo:    admin,

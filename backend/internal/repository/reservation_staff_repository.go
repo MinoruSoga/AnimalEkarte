@@ -15,6 +15,7 @@ import (
 type ReservationStaffRepository interface {
 	FindAllByClinicID(ctx context.Context, clinicID uint64) ([]model.Staff, error)
 	FindByID(ctx context.Context, id uint64) (*model.Staff, error)
+	FindByIDAndClinicID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	Create(ctx context.Context, staff *model.Staff, clinicID uint64) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 	SoftDelete(ctx context.Context, id uint64) error
@@ -47,6 +48,19 @@ func (r *reservationStaffRepository) FindAllByClinicID(ctx context.Context, clin
 func (r *reservationStaffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	var staff model.Staff
 	err := r.db.WithContext(ctx).First(&staff, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", id))
+	}
+	return &staff, nil
+}
+
+// FindByIDAndClinicID はクリニック所属チェック込みでスタッフ 1 件を取得する（マルチテナント安全）。
+func (r *reservationStaffRepository) FindByIDAndClinicID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
+	var staff model.Staff
+	err := r.db.WithContext(ctx).
+		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
+		Where("staffs.id = ? AND staffs.deleted_at IS NULL", id).
+		First(&staff).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", id))
 	}

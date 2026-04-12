@@ -3,6 +3,8 @@ package service
 import (
 	"fmt"
 	"sort"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 // ---- 時間表現ヘルパー ----
@@ -10,12 +12,12 @@ import (
 // minutesSinceMidnight は "HHMM" 形式の文字列を午前0時からの分数に変換する。
 func minutesSinceMidnight(hhmm string) (int, error) {
 	if len(hhmm) != 4 {
-		return 0, fmt.Errorf("invalid time format %q: must be HHMM", hhmm)
+		return 0, apperrors.WrapInvalidInput(fmt.Sprintf("invalid time format %q: must be HHMM", hhmm))
 	}
 	h := int(hhmm[0]-'0')*10 + int(hhmm[1]-'0')
 	m := int(hhmm[2]-'0')*10 + int(hhmm[3]-'0')
 	if h < 0 || h > 23 || m < 0 || m > 59 {
-		return 0, fmt.Errorf("invalid time value %q", hhmm)
+		return 0, apperrors.WrapInvalidInput(fmt.Sprintf("invalid time value %q", hhmm))
 	}
 	return h*60 + m, nil
 }
@@ -213,8 +215,15 @@ func resolveWorkIntervals(input TimeSlotsInput, staffInput StaffSlotInput) ([]in
 	// 基本の休憩時間（最初のブレーク）
 	var defaultBreakStart, defaultBreakEnd int
 	if len(input.DefaultBreaks) > 0 {
-		defaultBreakStart, _ = minutesSinceMidnight(input.DefaultBreaks[0].Start)
-		defaultBreakEnd, _ = minutesSinceMidnight(input.DefaultBreaks[0].End)
+		var errBreak error
+		defaultBreakStart, errBreak = minutesSinceMidnight(input.DefaultBreaks[0].Start)
+		if errBreak != nil {
+			return nil, apperrors.Wrap(errBreak, "default_breaks.start")
+		}
+		defaultBreakEnd, errBreak = minutesSinceMidnight(input.DefaultBreaks[0].End)
+		if errBreak != nil {
+			return nil, apperrors.Wrap(errBreak, "default_breaks.end")
+		}
 	} else {
 		defaultBreakStart = bsEnd
 		defaultBreakEnd = bsEnd

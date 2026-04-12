@@ -31,7 +31,7 @@ type CreateReservationStaffInput struct {
 	ReservationVisible bool
 	ReservationComment string
 	SortOrder          int
-	ExcludedTypeIDs  []uint64
+	ExcludedTypeIDs    []uint64
 }
 
 // UpdateReservationStaffInput は予約スタッフ更新の入力データ（ポインタ型でゼロ値を区別）
@@ -41,7 +41,7 @@ type UpdateReservationStaffInput struct {
 	ReservationVisible *bool
 	ReservationComment *string
 	SortOrder          *int
-	ExcludedTypeIDs  *[]uint64
+	ExcludedTypeIDs    *[]uint64
 }
 
 type reservationStaffService struct {
@@ -61,18 +61,11 @@ func (s *reservationStaffService) List(ctx context.Context, clinicID uint64) ([]
 }
 
 func (s *reservationStaffService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
-	// clinicID はセキュリティ確認用：FindAllByClinicID でフィルタ済みのものと突き合わせる代わりに
-	// 一覧に存在するか検証する
-	staffs, err := s.repo.FindAllByClinicID(ctx, clinicID)
+	staff, err := s.repo.FindByIDAndClinicID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get reservation staff")
 	}
-	for i := range staffs {
-		if staffs[i].ID == id {
-			return &staffs[i], nil
-		}
-	}
-	return nil, apperrors.WrapNotFound("reservation_staff", "id")
+	return staff, nil
 }
 
 func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, error) {
