@@ -16,7 +16,7 @@ import { DailyVitalsSection } from "@/features/hospitalization/components/DailyR
 import { DailyCareLogsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyCareLogsSection";
 import { DailyStaffNotesSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyStaffNotesSection";
 import { useDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "@/features/hospitalization/api/daily-records";
-import { usePermission } from "@/features/auth";
+import { usePermission, useAuth } from "@/features/auth";
 
 // Types
 import type { CreateVitalRecordRequest, CreateCareLogRequest, CreateStaffNoteRequest } from "@/features/hospitalization/api/daily-records-types";
@@ -43,6 +43,8 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
     dischargeDate,
 }: DailyRecordsTabProps) {
     const { canCreate } = usePermission("hospitalization");
+    const { user } = useAuth();
+    const currentUserId = Number(user?.id ?? 0);
     // rerender-simple-expression-in-memo: string primitive は値比較のため useMemo 不要
     const today = getTodayStr();
     const effectiveMax = useMemo(
@@ -89,39 +91,39 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
         (payload: CreateVitalRecordRequest) => {
             startVitalTransition(async () => {
                 try {
-                    await createVital.mutateAsync(payload);
+                    await createVital.mutateAsync({ ...payload, staff_id: currentUserId });
                 } catch (error) {
                     handleApiError(error, "バイタル追加");
                 }
             });
         },
-        [createVital]
+        [createVital, currentUserId]
     );
 
     const handleAddCareLog = useCallback(
         (payload: CreateCareLogRequest) => {
             startCareLogTransition(async () => {
                 try {
-                    await createCareLog.mutateAsync(payload);
+                    await createCareLog.mutateAsync({ ...payload, staff_id: currentUserId });
                 } catch (error) {
                     handleApiError(error, "ケアログ追加");
                 }
             });
         },
-        [createCareLog]
+        [createCareLog, currentUserId]
     );
 
     const handleAddStaffNote = useCallback(
         (payload: CreateStaffNoteRequest) => {
             startStaffNoteTransition(async () => {
                 try {
-                    await createStaffNote.mutateAsync(payload);
+                    await createStaffNote.mutateAsync({ ...payload, staff_id: currentUserId });
                 } catch (error) {
                     handleApiError(error, "スタッフメモ追加");
                 }
             });
         },
-        [createStaffNote]
+        [createStaffNote, currentUserId]
     );
 
     const vitals = record?.vital_records ?? [];
