@@ -53,9 +53,9 @@ export const useHospitalizationList = () => {
     }
   }, [queryClient]);
 
-  const handleNavigateToForm = (id?: string) => {
+  const handleNavigateToForm = useCallback((id?: string) => {
     navigate(id ? `/hospitalization/${id}` : "/hospitalization/select-pet");
-  };
+  }, [navigate]);
 
   return {
     searchTerm,

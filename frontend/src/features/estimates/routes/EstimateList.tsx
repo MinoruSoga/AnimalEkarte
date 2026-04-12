@@ -153,8 +153,8 @@ export function EstimateList() {
           if (sort.key === "totalAmount") {
             cmp = a.totalAmount - b.totalAmount;
           } else {
-            const aVal = String((a as unknown as Record<string, unknown>)[sort.key] ?? "");
-            const bVal = String((b as unknown as Record<string, unknown>)[sort.key] ?? "");
+            const aVal = String(a[sort.key as keyof Estimate] ?? "");
+            const bVal = String(b[sort.key as keyof Estimate] ?? "");
             cmp = aVal.localeCompare(bVal, "ja");
           }
           if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
