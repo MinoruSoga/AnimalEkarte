@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { ReservationSetting, UpdateLineReservationSettingRequest } from "./types";
 
 export async function updateLineReservationSetting(
@@ -21,5 +22,6 @@ export function useUpdateLineReservationSetting(clinicId: string | null) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["reservation-settings", clinicId] });
     },
+    onError: (error) => handleApiError(error, "LINE予約設定の更新"),
   });
 }

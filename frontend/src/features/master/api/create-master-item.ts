@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { MasterItem } from "@/types";
 import { MASTER_CATEGORY_ENDPOINT, transformGenericMasterItem, type GenericMasterBackendItem } from "./get-master-items";
 import type { CreateMasterItemRequest } from "./types";
@@ -37,5 +38,6 @@ export const useCreateMasterItem = ({ category }: UseCreateMasterItemParams) => 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category(category) });
     },
+    onError: (error) => handleApiError(error, "マスタの作成"),
   });
 };
