@@ -26,28 +26,28 @@ const (
 
 // Inquiry は問診情報（カルテ問診タブ, v7.0追加）
 type Inquiry struct {
-	ID                       uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	MedicalRecordID          uint64            `gorm:"not null"                                       json:"medical_record_id"`
+	ID                   uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	MedicalRecordID      uint64            `gorm:"not null"                                       json:"medical_record_id"`
 	ChiefComplaintTypeID *uint64           `                                                      json:"chief_complaint_type_id,omitempty"`
-	ChiefComplaint           string            `gorm:"default:''"                                     json:"chief_complaint"`
-	History                  string            `gorm:"default:''"                                     json:"history"`
-	CurrentMedications       string            `gorm:"default:''"                                     json:"current_medications"`
-	AllergyInfo              string            `gorm:"default:''"                                     json:"allergy_info"`
-	LastMeal                 string            `gorm:"default:''"                                     json:"last_meal"`
-	LastDefecation           string            `gorm:"default:''"                                     json:"last_defecation"`
-	LastUrination            string            `gorm:"default:''"                                     json:"last_urination"`
-	Appetite                 *AppetiteLevel    `gorm:"type:appetite_level"                            json:"appetite,omitempty"`
-	WaterIntake              *WaterIntakeLevel `gorm:"type:water_intake_level"                       json:"water_intake,omitempty"`
-	OwnerObservations        string            `gorm:"default:''"                                     json:"owner_observations"`
-	Notes                    string            `gorm:"default:''"                                     json:"notes"`
-	StaffID                  *uint64           `                                                      json:"staff_id,omitempty"`
-	CreatedAt                time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt                time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ChiefComplaint       string            `gorm:"default:''"                                     json:"chief_complaint"`
+	History              string            `gorm:"default:''"                                     json:"history"`
+	CurrentMedications   string            `gorm:"default:''"                                     json:"current_medications"`
+	AllergyInfo          string            `gorm:"default:''"                                     json:"allergy_info"`
+	LastMeal             string            `gorm:"default:''"                                     json:"last_meal"`
+	LastDefecation       string            `gorm:"default:''"                                     json:"last_defecation"`
+	LastUrination        string            `gorm:"default:''"                                     json:"last_urination"`
+	Appetite             *AppetiteLevel    `gorm:"type:appetite_level"                            json:"appetite,omitempty"`
+	WaterIntake          *WaterIntakeLevel `gorm:"type:water_intake_level"                       json:"water_intake,omitempty"`
+	OwnerObservations    string            `gorm:"default:''"                                     json:"owner_observations"`
+	Notes                string            `gorm:"default:''"                                     json:"notes"`
+	StaffID              *uint64           `                                                      json:"staff_id,omitempty"`
+	CreatedAt            time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt            time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	MedicalRecord          *MedicalRecord          `gorm:"foreignKey:MedicalRecordID"          json:"medical_record,omitempty"`
+	MedicalRecord      *MedicalRecord      `gorm:"foreignKey:MedicalRecordID"          json:"medical_record,omitempty"`
 	ChiefComplaintType *ChiefComplaintType `gorm:"foreignKey:ChiefComplaintTypeID" json:"chief_complaint_type,omitempty"`
-	Staff                  *Staff                  `gorm:"foreignKey:StaffID"                  json:"staff,omitempty"`
+	Staff              *Staff              `gorm:"foreignKey:StaffID"                  json:"staff,omitempty"`
 }
 
 func (Inquiry) TableName() string { return "inquiries" }

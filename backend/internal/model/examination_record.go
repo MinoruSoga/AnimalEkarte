@@ -40,11 +40,11 @@ type Examination struct {
 	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	MedicalRecord   *MedicalRecord    `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
-	Pet             *Pet              `gorm:"foreignKey:PetID"           json:"pet,omitempty"`
-	ExaminationType *ExaminationType  `gorm:"foreignKey:ExamTypeID"      json:"exam_type,omitempty"`
-	Doctor          *Staff            `gorm:"foreignKey:DoctorID"        json:"doctor,omitempty"`
-	Items           []ExamResult `gorm:"foreignKey:ExamID"          json:"items,omitempty"`
+	MedicalRecord   *MedicalRecord   `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
+	Pet             *Pet             `gorm:"foreignKey:PetID"           json:"pet,omitempty"`
+	ExaminationType *ExaminationType `gorm:"foreignKey:ExamTypeID"      json:"exam_type,omitempty"`
+	Doctor          *Staff           `gorm:"foreignKey:DoctorID"        json:"doctor,omitempty"`
+	Items           []ExamResult     `gorm:"foreignKey:ExamID"          json:"items,omitempty"`
 }
 
 func (Examination) TableName() string { return "exams" }

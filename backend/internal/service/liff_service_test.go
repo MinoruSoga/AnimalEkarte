@@ -298,10 +298,10 @@ func TestLiffService_CreateReservation(t *testing.T) {
 	baseInput := func() *CreateReservationInput {
 		return &CreateReservationInput{
 			ReservationTypeID: 1,
-			StaffID:       10,
-			Date:          time.Date(2026, 5, 1, 0, 0, 0, 0, time.Local),
-			StartTime:     "1000",
-			EndTime:       "1015",
+			StaffID:           10,
+			Date:              time.Date(2026, 5, 1, 0, 0, 0, 0, time.Local),
+			StartTime:         "1000",
+			EndTime:           "1015",
 		}
 	}
 

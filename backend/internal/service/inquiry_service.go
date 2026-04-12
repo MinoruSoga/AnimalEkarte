@@ -11,11 +11,11 @@ import (
 
 // UpsertInquiryInput は問診 upsert の入力 DTO（nil = 未送信フィールド）
 type UpsertInquiryInput struct {
-	ClinicID                 uint64
-	MedicalRecordID          uint64
+	ClinicID             uint64
+	MedicalRecordID      uint64
 	ChiefComplaintTypeID *uint64
-	ChiefComplaint           *string
-	Notes                    *string
+	ChiefComplaint       *string
+	Notes                *string
 }
 
 // InquiryService は医療記録問診のビジネスロジックインターフェース

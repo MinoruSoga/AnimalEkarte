@@ -68,7 +68,7 @@ func (m *mockReservationTypeRepository) Reorder(ctx context.Context, clinicID ui
 // mockReservationForReservationType は ReservationType テストで使用する ReservationRepository のスタブ
 type mockReservationForReservationType struct {
 	existsByReservationTypeIDFn func(ctx context.Context, reservationTypeID uint64) (bool, error)
-	existsByStaffIDFn       func(ctx context.Context, staffID uint64) (bool, error)
+	existsByStaffIDFn           func(ctx context.Context, staffID uint64) (bool, error)
 }
 
 func (m *mockReservationForReservationType) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Appointment, int64, error) {

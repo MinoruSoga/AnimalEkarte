@@ -18,8 +18,8 @@ type mockDailyRecordRepository struct {
 	getOrCreateByDateFn              func(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
 	findByHospitalizationIDAndDateFn func(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
 	createVitalRecordFn              func(ctx context.Context, vr *model.VitalRecord) error
-	createCareLogFn            func(ctx context.Context, cr *model.CareLog) error
-	createStaffNoteFn          func(ctx context.Context, sn *model.StaffNote) error
+	createCareLogFn                  func(ctx context.Context, cr *model.CareLog) error
+	createStaffNoteFn                func(ctx context.Context, sn *model.StaffNote) error
 }
 
 func (m *mockDailyRecordRepository) ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {

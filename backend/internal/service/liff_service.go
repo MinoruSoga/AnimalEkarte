@@ -7,10 +7,11 @@ import (
 	"strconv"
 	"time"
 
+	"gorm.io/gorm"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
-	"gorm.io/gorm"
 )
 
 // LiffService はLIFF公開APIのビジネスロジックインターフェース

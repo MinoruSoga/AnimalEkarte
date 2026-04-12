@@ -39,28 +39,28 @@ func toDiagnosisTypeResponseList(categories []model.DiagnosisType) []diagnosisTy
 }
 
 type diagnosisNameResponse struct {
-	ID                  uint64    `json:"id"`
-	ClinicID            uint64    `json:"clinic_id"`
-	Name                string    `json:"name"`
-	IsActive            bool      `json:"is_active"`
-	Description         string    `json:"description"`
+	ID              uint64    `json:"id"`
+	ClinicID        uint64    `json:"clinic_id"`
+	Name            string    `json:"name"`
+	IsActive        bool      `json:"is_active"`
+	Description     string    `json:"description"`
 	DiagnosisTypeID uint64    `json:"diagnosis_type_id"`
-	SortOrder           int       `json:"sort_order"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	SortOrder       int       `json:"sort_order"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 func toDiagnosisNameResponse(n *model.DiagnosisName) diagnosisNameResponse {
 	return diagnosisNameResponse{
-		ID:                  n.ID,
-		ClinicID:            n.ClinicID,
-		Name:                n.Name,
-		IsActive:            n.IsActive,
-		Description:         n.Description,
+		ID:              n.ID,
+		ClinicID:        n.ClinicID,
+		Name:            n.Name,
+		IsActive:        n.IsActive,
+		Description:     n.Description,
 		DiagnosisTypeID: n.DiagnosisTypeID,
-		SortOrder:           n.SortOrder,
-		CreatedAt:           n.CreatedAt,
-		UpdatedAt:           n.UpdatedAt,
+		SortOrder:       n.SortOrder,
+		CreatedAt:       n.CreatedAt,
+		UpdatedAt:       n.UpdatedAt,
 	}
 }
 

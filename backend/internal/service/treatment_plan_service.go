@@ -12,7 +12,7 @@ import (
 type CreateTreatmentPlanInput struct {
 	TreatmentContent string
 	Memo             string
-	IsInsurance       bool
+	IsInsurance      bool
 	UnitPrice        int64
 	Quantity         float64
 	DiscountRate     float64
@@ -24,7 +24,7 @@ type CreateTreatmentPlanInput struct {
 type UpdateTreatmentPlanInput struct {
 	TreatmentContent *string
 	Memo             *string
-	IsInsurance       *bool
+	IsInsurance      *bool
 	UnitPrice        *int64
 	Quantity         *float64
 	DiscountRate     *float64

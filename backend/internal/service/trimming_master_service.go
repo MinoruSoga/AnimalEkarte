@@ -199,13 +199,13 @@ func (s *trimmingOptionService) Reorder(ctx context.Context, clinicID uint64, id
 
 // UpdateTrimmingOptionInput はトリミングオプション更新のサービス入力 DTO
 type UpdateTrimmingOptionInput struct {
-	Name        *string
-	Price       *int64
-	IsActive    *bool
-	Description *string
-	Duration    *int
-	IsCombinable  *bool
-	SortOrder   *int
+	Name         *string
+	Price        *int64
+	IsActive     *bool
+	Description  *string
+	Duration     *int
+	IsCombinable *bool
+	SortOrder    *int
 }
 
 func buildTrimmingOptionUpdateFields(input UpdateTrimmingOptionInput) map[string]any {

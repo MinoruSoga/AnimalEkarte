@@ -15,19 +15,19 @@ type updateDiagnosisTypeRequest struct {
 }
 
 type createDiagnosisNameRequest struct {
-	Name                string `json:"name"                  binding:"required"`
+	Name            string `json:"name"                  binding:"required"`
 	DiagnosisTypeID uint64 `json:"diagnosis_type_id" binding:"required"`
-	IsActive            bool   `json:"is_active"`
-	Description         string `json:"description"`
-	SortOrder           int    `json:"sort_order"`
+	IsActive        bool   `json:"is_active"`
+	Description     string `json:"description"`
+	SortOrder       int    `json:"sort_order"`
 }
 
 type updateDiagnosisNameRequest struct {
-	Name                *string `json:"name"`
+	Name            *string `json:"name"`
 	DiagnosisTypeID *uint64 `json:"diagnosis_type_id"`
-	IsActive            *bool   `json:"is_active"`
-	Description         *string `json:"description"`
-	SortOrder           *int    `json:"sort_order"`
+	IsActive        *bool   `json:"is_active"`
+	Description     *string `json:"description"`
+	SortOrder       *int    `json:"sort_order"`
 }
 
 // reorderDiagnosisTypeRequest (#019)

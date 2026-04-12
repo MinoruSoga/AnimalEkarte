@@ -239,13 +239,13 @@ func (h *Handler) UpdateTrimmingOption(c *gin.Context) {
 	}
 
 	svcInput := service.UpdateTrimmingOptionInput{
-		Name:        req.Name,
-		Price:       req.Price,
-		IsActive:    req.IsActive,
-		Description: req.Description,
-		Duration:    req.Duration,
-		IsCombinable:  req.IsCombinable,
-		SortOrder:   req.SortOrder,
+		Name:         req.Name,
+		Price:        req.Price,
+		IsActive:     req.IsActive,
+		Description:  req.Description,
+		Duration:     req.Duration,
+		IsCombinable: req.IsCombinable,
+		SortOrder:    req.SortOrder,
 	}
 
 	option, err := h.svc.TrimmingOption.Update(c.Request.Context(), clinicID, id, svcInput)

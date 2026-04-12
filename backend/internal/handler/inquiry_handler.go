@@ -27,11 +27,11 @@ func (h *Handler) UpdateInquiry(c *gin.Context) {
 		return
 	}
 	inquiry, err := h.svc.Inquiry.Upsert(c.Request.Context(), service.UpsertInquiryInput{
-		ClinicID:                 clinicID,
-		MedicalRecordID:          medicalRecordID,
+		ClinicID:             clinicID,
+		MedicalRecordID:      medicalRecordID,
 		ChiefComplaintTypeID: req.ChiefComplaintTypeID,
-		ChiefComplaint:           req.ChiefComplaint,
-		Notes:                    req.Notes,
+		ChiefComplaint:       req.ChiefComplaint,
+		Notes:                req.Notes,
 	})
 	if err != nil {
 		RespondError(c, err)

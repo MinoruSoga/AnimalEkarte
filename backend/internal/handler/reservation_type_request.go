@@ -21,12 +21,12 @@ type createReservationTypeRequest struct {
 }
 
 type updateReservationTypeRequest struct {
-	Name        *string  `json:"name"`
-	Color       *string  `json:"color"`
-	IsActive    *bool    `json:"is_active"`
-	Description *string  `json:"description"`
-	SortOrder   *int     `json:"sort_order"`
-	GroupID     *uint64  `json:"group_id"`
+	Name        *string `json:"name"`
+	Color       *string `json:"color"`
+	IsActive    *bool   `json:"is_active"`
+	Description *string `json:"description"`
+	SortOrder   *int    `json:"sort_order"`
+	GroupID     *uint64 `json:"group_id"`
 
 	// LINE予約用フィールド
 	ReservationDisplayName *string `json:"reservation_display_name"`

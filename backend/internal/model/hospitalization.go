@@ -137,9 +137,9 @@ type DailyRecord struct {
 	UpdatedAt         time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	VitalRecords     []VitalRecord     `gorm:"foreignKey:DailyRecordID" json:"vital_records,omitempty"`
-	CareLogs   []CareLog   `gorm:"foreignKey:DailyRecordID" json:"care_logs,omitempty"`
-	StaffNotes []StaffNote `gorm:"foreignKey:DailyRecordID" json:"staff_notes,omitempty"`
+	VitalRecords []VitalRecord `gorm:"foreignKey:DailyRecordID" json:"vital_records,omitempty"`
+	CareLogs     []CareLog     `gorm:"foreignKey:DailyRecordID" json:"care_logs,omitempty"`
+	StaffNotes   []StaffNote   `gorm:"foreignKey:DailyRecordID" json:"staff_notes,omitempty"`
 }
 
 func (DailyRecord) TableName() string { return "daily_records" }

@@ -1003,10 +1003,10 @@ func TestBuildDiagnosisNameUpdateFields(t *testing.T) {
 
 	t.Run("includes only non-nil fields", func(t *testing.T) {
 		input := &UpdateDiagnosisNameInput{
-			Name:                &name,
-			IsActive:            &isActive,
+			Name:            &name,
+			IsActive:        &isActive,
 			DiagnosisTypeID: &catID,
-			SortOrder:           &sortOrder,
+			SortOrder:       &sortOrder,
 		}
 		fields := buildDiagnosisNameUpdateFields(input)
 		assert.Equal(t, name, fields[colDiagnosisNameName])

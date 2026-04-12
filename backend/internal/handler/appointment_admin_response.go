@@ -22,26 +22,26 @@ type reservationSummaryResponse struct {
 
 // reservationDetailResponse は日表示用詳細
 type reservationDetailResponse struct {
-	ID               uint64          `json:"id"`
-	StartTime        time.Time       `json:"start_time"`
-	EndTime          time.Time       `json:"end_time"`
-	OwnerID          *uint64         `json:"owner_id,omitempty"`
-	PetID            *uint64         `json:"pet_id,omitempty"`
-	VisitType        string          `json:"visit_type"`
-	ReservationTypeID    uint64          `json:"reservation_type_id"`
-	DoctorID         *uint64         `json:"doctor_id,omitempty"`
-	IsDesignated     bool            `json:"is_designated"`
-	IsStaffDelegated bool            `json:"is_staff_delegated"`
-	Source           string          `json:"source"`
-	Status           string          `json:"status"`
-	Notes            string          `json:"notes"`
-	CustomerFields   json.RawMessage `json:"customer_fields"`
-	LineCustomerID   *uint64         `json:"line_customer_id,omitempty"`
-	CustomerName     string          `json:"customer_name"`
-	CourseShortName  string          `json:"course_short_name"`
-	StaffName        string          `json:"staff_name"`
-	CreatedAt        time.Time       `json:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
+	ID                uint64          `json:"id"`
+	StartTime         time.Time       `json:"start_time"`
+	EndTime           time.Time       `json:"end_time"`
+	OwnerID           *uint64         `json:"owner_id,omitempty"`
+	PetID             *uint64         `json:"pet_id,omitempty"`
+	VisitType         string          `json:"visit_type"`
+	ReservationTypeID uint64          `json:"reservation_type_id"`
+	DoctorID          *uint64         `json:"doctor_id,omitempty"`
+	IsDesignated      bool            `json:"is_designated"`
+	IsStaffDelegated  bool            `json:"is_staff_delegated"`
+	Source            string          `json:"source"`
+	Status            string          `json:"status"`
+	Notes             string          `json:"notes"`
+	CustomerFields    json.RawMessage `json:"customer_fields"`
+	LineCustomerID    *uint64         `json:"line_customer_id,omitempty"`
+	CustomerName      string          `json:"customer_name"`
+	CourseShortName   string          `json:"course_short_name"`
+	StaffName         string          `json:"staff_name"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
 }
 
 func toReservationSummaryResponse(ra *model.Appointment) reservationSummaryResponse {
@@ -106,25 +106,25 @@ func toReservationDetailResponse(ra *model.Appointment) reservationDetailRespons
 	}
 
 	return reservationDetailResponse{
-		ID:               ra.ID,
-		StartTime:        ra.StartTime,
-		EndTime:          ra.EndTime,
-		OwnerID:          ra.OwnerID,
-		PetID:            ra.PetID,
-		VisitType:        string(ra.VisitType),
-		ReservationTypeID:    ra.ReservationTypeID,
-		DoctorID:         ra.DoctorID,
-		IsDesignated:     ra.IsDesignated,
-		IsStaffDelegated: ra.IsStaffDelegated,
-		Source:           string(ra.Source),
-		Status:           string(ra.Status),
-		Notes:            ra.Notes,
-		CustomerFields:   json.RawMessage(ra.CustomerFields),
-		LineCustomerID:   ra.LineCustomerID,
-		CustomerName:     customerName,
-		CourseShortName:  courseShortName,
-		StaffName:        staffName,
-		CreatedAt:        ra.CreatedAt,
-		UpdatedAt:        ra.UpdatedAt,
+		ID:                ra.ID,
+		StartTime:         ra.StartTime,
+		EndTime:           ra.EndTime,
+		OwnerID:           ra.OwnerID,
+		PetID:             ra.PetID,
+		VisitType:         string(ra.VisitType),
+		ReservationTypeID: ra.ReservationTypeID,
+		DoctorID:          ra.DoctorID,
+		IsDesignated:      ra.IsDesignated,
+		IsStaffDelegated:  ra.IsStaffDelegated,
+		Source:            string(ra.Source),
+		Status:            string(ra.Status),
+		Notes:             ra.Notes,
+		CustomerFields:    json.RawMessage(ra.CustomerFields),
+		LineCustomerID:    ra.LineCustomerID,
+		CustomerName:      customerName,
+		CourseShortName:   courseShortName,
+		StaffName:         staffName,
+		CreatedAt:         ra.CreatedAt,
+		UpdatedAt:         ra.UpdatedAt,
 	}
 }

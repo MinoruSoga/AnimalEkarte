@@ -8,12 +8,12 @@ type createTreatmentRequest struct {
 	InventoryID    *uint64 `json:"inventory_id"`
 	UnitPrice      int64   `json:"unit_price"`
 	Quantity       float64 `json:"quantity"`
-	IsSelected      bool    `json:"is_selected"`
+	IsSelected     bool    `json:"is_selected"`
 	Status         string  `json:"status"`
 	Content        string  `json:"content"`
 	Memo           string  `json:"memo"`
 	AdminRoute     string  `json:"admin_route"`
-	IsInsurance     bool    `json:"is_insurance"`
+	IsInsurance    bool    `json:"is_insurance"`
 	DiscountRate   float64 `json:"discount_rate"`
 	DiscountAmount int64   `json:"discount_amount"`
 	SortOrder      int     `json:"sort_order"`
@@ -27,12 +27,12 @@ type updateTreatmentRequest struct {
 	InventoryID    *uint64  `json:"inventory_id"`
 	UnitPrice      *int64   `json:"unit_price"`
 	Quantity       *float64 `json:"quantity"`
-	IsSelected      *bool    `json:"is_selected"`
+	IsSelected     *bool    `json:"is_selected"`
 	Status         *string  `json:"status"`
 	Content        *string  `json:"content"`
 	Memo           *string  `json:"memo"`
 	AdminRoute     *string  `json:"admin_route"`
-	IsInsurance     *bool    `json:"is_insurance"`
+	IsInsurance    *bool    `json:"is_insurance"`
 	DiscountRate   *float64 `json:"discount_rate"`
 	DiscountAmount *int64   `json:"discount_amount"`
 	SortOrder      *int     `json:"sort_order"`

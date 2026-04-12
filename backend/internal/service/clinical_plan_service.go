@@ -12,7 +12,7 @@ import (
 // UpdateClinicalPlanInput は診察所見・診断・治療方針更新の入力DTO（nil = 未送信フィールド）
 type UpdateClinicalPlanInput struct {
 	PhysicalExam         *string
-	DiagnosisTypeID  *uint64
+	DiagnosisTypeID      *uint64
 	DiagnosisNameID      *uint64
 	Diagnosis2CategoryID *uint64
 	Diagnosis2NameID     *uint64

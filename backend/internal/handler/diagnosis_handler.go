@@ -215,11 +215,11 @@ func (h *Handler) CreateDiagnosisName(c *gin.Context) {
 	}
 
 	diagnosisName, err := h.svc.DiagnosisName.Create(c.Request.Context(), clinicID, &service.CreateDiagnosisNameInput{
-		Name:                req.Name,
+		Name:            req.Name,
 		DiagnosisTypeID: req.DiagnosisTypeID,
-		IsActive:            req.IsActive,
-		Description:         req.Description,
-		SortOrder:           req.SortOrder,
+		IsActive:        req.IsActive,
+		Description:     req.Description,
+		SortOrder:       req.SortOrder,
 	})
 	if err != nil {
 		RespondError(c, err)
@@ -246,11 +246,11 @@ func (h *Handler) UpdateDiagnosisName(c *gin.Context) {
 	}
 
 	diagnosisName, err := h.svc.DiagnosisName.Update(c.Request.Context(), clinicID, id, &service.UpdateDiagnosisNameInput{
-		Name:                req.Name,
+		Name:            req.Name,
 		DiagnosisTypeID: req.DiagnosisTypeID,
-		IsActive:            req.IsActive,
-		Description:         req.Description,
-		SortOrder:           req.SortOrder,
+		IsActive:        req.IsActive,
+		Description:     req.Description,
+		SortOrder:       req.SortOrder,
 	})
 	if err != nil {
 		RespondError(c, err)

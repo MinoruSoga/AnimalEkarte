@@ -11,7 +11,7 @@ type createAccountingRequest struct {
 	Subtotal          int        `json:"subtotal"`
 	TaxTotal          int        `json:"tax_total"`
 	TotalAmount       int        `json:"total_amount"`
-	HasInsurance     bool       `json:"has_insurance"`
+	HasInsurance      bool       `json:"has_insurance"`
 	Status            string     `json:"status"`
 	ScheduledDate     time.Time  `json:"scheduled_date" binding:"required"`
 	CompletedAt       *time.Time `json:"completed_at"`
@@ -28,7 +28,7 @@ type updateAccountingRequest struct {
 	Subtotal          *int       `json:"subtotal"`
 	TaxTotal          *int       `json:"tax_total"`
 	TotalAmount       *int       `json:"total_amount"`
-	HasInsurance     *bool      `json:"has_insurance"`
+	HasInsurance      *bool      `json:"has_insurance"`
 	Status            *string    `json:"status"`
 	ScheduledDate     *time.Time `json:"scheduled_date"`
 	CompletedAt       *time.Time `json:"completed_at"`

@@ -95,7 +95,7 @@ type accountingResponse struct {
 	TaxTotal            int                     `json:"tax_total"`
 	TotalAmount         int                     `json:"total_amount"`
 	TotalRefundedAmount int64                   `json:"total_refunded_amount"`
-	HasInsurance       bool                    `json:"has_insurance"`
+	HasInsurance        bool                    `json:"has_insurance"`
 	Status              string                  `json:"status"`
 	ScheduledDate       time.Time               `json:"scheduled_date"`
 	CompletedAt         *time.Time              `json:"completed_at,omitempty"`

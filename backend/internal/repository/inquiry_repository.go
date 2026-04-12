@@ -55,19 +55,19 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicI
 
 	// Step 2: 更新フィールドを map[string]any で明示的に Updates（GORM ゼロ値問題を回避）
 	updates := map[string]any{
-		"chief_complaint":             inquiry.ChiefComplaint,
-		"notes":                       inquiry.Notes,
-		"history":                     inquiry.History,
-		"current_medications":         inquiry.CurrentMedications,
-		"allergy_info":                inquiry.AllergyInfo,
-		"last_meal":                   inquiry.LastMeal,
-		"last_defecation":             inquiry.LastDefecation,
-		"last_urination":              inquiry.LastUrination,
-		"owner_observations":          inquiry.OwnerObservations,
+		"chief_complaint":         inquiry.ChiefComplaint,
+		"notes":                   inquiry.Notes,
+		"history":                 inquiry.History,
+		"current_medications":     inquiry.CurrentMedications,
+		"allergy_info":            inquiry.AllergyInfo,
+		"last_meal":               inquiry.LastMeal,
+		"last_defecation":         inquiry.LastDefecation,
+		"last_urination":          inquiry.LastUrination,
+		"owner_observations":      inquiry.OwnerObservations,
 		"chief_complaint_type_id": inquiry.ChiefComplaintTypeID,
-		"appetite":                    inquiry.Appetite,
-		"water_intake":                inquiry.WaterIntake,
-		"staff_id":                    inquiry.StaffID,
+		"appetite":                inquiry.Appetite,
+		"water_intake":            inquiry.WaterIntake,
+		"staff_id":                inquiry.StaffID,
 	}
 	if err := r.db.WithContext(ctx).
 		Model(&existing).

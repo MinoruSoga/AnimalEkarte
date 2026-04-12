@@ -149,12 +149,12 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 
 	// 4. モデル組み立て（RecordNo は service 層で自動生成）
 	record := &model.MedicalRecord{
-		ClinicID:                 clinicID,
-		RecordNo:                 input.RecordNo,
-		Date:                     recordDate,
-		OwnerID:                  ownerID,
-		PetID:                    petID,
-		DoctorID:                 doctorID,
+		ClinicID:      clinicID,
+		RecordNo:      input.RecordNo,
+		Date:          recordDate,
+		OwnerID:       ownerID,
+		PetID:         petID,
+		DoctorID:      doctorID,
 		AppointmentID: appointmentID,
 	}
 	if input.Status != "" {
@@ -193,14 +193,14 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 	}
 	h.svc.MedicalRecord.CreateSubRecords(ctx, clinicID, record.ID, service.CreateSubRecordsInput{
 		ChiefComplaintTypeID: input.ChiefComplaintTypeID,
-		ChiefComplaint:           input.ChiefComplaint,
-		Notes:                    input.Notes,
-		Plan:                     input.Plan,
-		Assessment:               input.Assessment,
-		Diagnosis1CategoryID:     input.Diagnosis1CategoryID,
-		Diagnosis1NameID:         input.Diagnosis1NameID,
-		Diagnosis2CategoryID:     input.Diagnosis2CategoryID,
-		Diagnosis2NameID:         input.Diagnosis2NameID,
+		ChiefComplaint:       input.ChiefComplaint,
+		Notes:                input.Notes,
+		Plan:                 input.Plan,
+		Assessment:           input.Assessment,
+		Diagnosis1CategoryID: input.Diagnosis1CategoryID,
+		Diagnosis1NameID:     input.Diagnosis1NameID,
+		Diagnosis2CategoryID: input.Diagnosis2CategoryID,
+		Diagnosis2NameID:     input.Diagnosis2NameID,
 	})
 	c.JSON(http.StatusCreated, record)
 }
@@ -235,13 +235,13 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 	}
 
 	svcInput := service.UpdateMedicalRecordInput{
-		Date:                     input.Date,
-		OwnerID:                  input.OwnerID,
-		PetID:                    input.PetID,
-		DoctorID:                 input.DoctorID,
+		Date:          input.Date,
+		OwnerID:       input.OwnerID,
+		PetID:         input.PetID,
+		DoctorID:      input.DoctorID,
 		AppointmentID: input.AppointmentID,
-		Status:                   status,
-		Version:                  input.Version,
+		Status:        status,
+		Version:       input.Version,
 	}
 
 	ctx := c.Request.Context()

@@ -79,18 +79,18 @@ func (h *Handler) CreateReservationAdmin(c *gin.Context) {
 	}
 
 	ra, err := h.svc.ReservationAdmin.Create(c.Request.Context(), clinicID, &service.CreateReservationAdminInput{
-		StartTime:        req.StartTime,
-		EndTime:          req.EndTime,
-		OwnerID:          req.OwnerID,
-		PetID:            req.PetID,
-		VisitType:        req.VisitType,
-		ReservationTypeID:    req.ReservationTypeID,
-		DoctorID:         req.DoctorID,
-		IsDesignated:     req.IsDesignated,
-		Notes:            req.Notes,
-		LineCustomerID:   req.LineCustomerID,
-		IsStaffDelegated: req.IsStaffDelegated,
-		CustomerFields:   req.CustomerFields,
+		StartTime:         req.StartTime,
+		EndTime:           req.EndTime,
+		OwnerID:           req.OwnerID,
+		PetID:             req.PetID,
+		VisitType:         req.VisitType,
+		ReservationTypeID: req.ReservationTypeID,
+		DoctorID:          req.DoctorID,
+		IsDesignated:      req.IsDesignated,
+		Notes:             req.Notes,
+		LineCustomerID:    req.LineCustomerID,
+		IsStaffDelegated:  req.IsStaffDelegated,
+		CustomerFields:    req.CustomerFields,
 	})
 	if err != nil {
 		RespondError(c, err)

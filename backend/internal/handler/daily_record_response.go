@@ -42,14 +42,14 @@ type staffNoteResponse struct {
 }
 
 type dailyRecordResponse struct {
-	ID                string                    `json:"id"`
-	HospitalizationID string                    `json:"hospitalization_id"`
-	Date              time.Time                 `json:"date"`
-	CreatedAt         time.Time                 `json:"created_at"`
-	UpdatedAt         time.Time                 `json:"updated_at"`
-	VitalRecords      []vitalRecordResponse     `json:"vital_records"`
-	CareLogs    []careLogResponse   `json:"care_logs"`
-	StaffNotes  []staffNoteResponse `json:"staff_notes"`
+	ID                string                `json:"id"`
+	HospitalizationID string                `json:"hospitalization_id"`
+	Date              time.Time             `json:"date"`
+	CreatedAt         time.Time             `json:"created_at"`
+	UpdatedAt         time.Time             `json:"updated_at"`
+	VitalRecords      []vitalRecordResponse `json:"vital_records"`
+	CareLogs          []careLogResponse     `json:"care_logs"`
+	StaffNotes        []staffNoteResponse   `json:"staff_notes"`
 }
 
 func toVitalRecordResponse(vr *model.VitalRecord) vitalRecordResponse {
@@ -131,7 +131,7 @@ func toDailyRecordResponse(dr *model.DailyRecord) dailyRecordResponse {
 		CreatedAt:         dr.CreatedAt,
 		UpdatedAt:         dr.UpdatedAt,
 		VitalRecords:      vitals,
-		CareLogs:    careLogs,
-		StaffNotes:  staffNotes,
+		CareLogs:          careLogs,
+		StaffNotes:        staffNotes,
 	}
 }

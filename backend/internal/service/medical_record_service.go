@@ -54,14 +54,14 @@ type MedicalRecordService interface {
 // CreateSubRecordsInput はカルテ作成時の inquiry / clinical_plan サブレコード作成 DTO
 type CreateSubRecordsInput struct {
 	ChiefComplaintTypeID *uint64
-	ChiefComplaint           *string
-	Notes                    *string
-	Plan                     *string // → ClinicalPlan.TreatmentPolicy
-	Assessment               *string // → ClinicalPlan.DiagnosisDetails
-	Diagnosis1CategoryID     *uint64
-	Diagnosis1NameID         *uint64
-	Diagnosis2CategoryID     *uint64
-	Diagnosis2NameID         *uint64
+	ChiefComplaint       *string
+	Notes                *string
+	Plan                 *string // → ClinicalPlan.TreatmentPolicy
+	Assessment           *string // → ClinicalPlan.DiagnosisDetails
+	Diagnosis1CategoryID *uint64
+	Diagnosis1NameID     *uint64
+	Diagnosis2CategoryID *uint64
+	Diagnosis2NameID     *uint64
 }
 
 type medicalRecordService struct {
@@ -188,13 +188,13 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 
 // UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO
 type UpdateMedicalRecordInput struct {
-	Date                     *time.Time
-	OwnerID                  *uint64
-	PetID                    *uint64
-	DoctorID                 *uint64
+	Date          *time.Time
+	OwnerID       *uint64
+	PetID         *uint64
+	DoctorID      *uint64
 	AppointmentID *uint64
-	Status                   *model.MedicalRecordStatus
-	Version                  *int // 楽観的ロック用: nil の場合はチェックをスキップ
+	Status        *model.MedicalRecordStatus
+	Version       *int // 楽観的ロック用: nil の場合はチェックをスキップ
 }
 
 func buildMedicalRecordUpdateFields(input UpdateMedicalRecordInput) map[string]any {
@@ -314,12 +314,12 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 	}
 
 	record := &model.MedicalRecord{
-		ClinicID:                 clinicID,
-		Date:                     reservation.StartTime,
-		OwnerID:                  reservation.OwnerID,
-		PetID:                    reservation.PetID,
+		ClinicID:      clinicID,
+		Date:          reservation.StartTime,
+		OwnerID:       reservation.OwnerID,
+		PetID:         reservation.PetID,
 		AppointmentID: &reservation.ID,
-		Status:                   model.MedicalRecordStatusDraft,
+		Status:        model.MedicalRecordStatusDraft,
 	}
 	if reservation.DoctorID != nil {
 		record.DoctorID = reservation.DoctorID
