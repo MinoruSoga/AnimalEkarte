@@ -147,8 +147,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         } else if (currentTab === "見積書") {
           await (estimateSaveRef.current?.() ?? Promise.resolve());
         }
-      } catch {
-        // サブ保存失敗はページ表示に影響しない
+      } catch (error) {
+        // サブ保存失敗: メインカルテは保存済み。ユーザーに通知して再保存を促す
+        handleApiError(error, "データの保存");
       }
       markClean();
       // ナビゲーションなし: タブに留まる

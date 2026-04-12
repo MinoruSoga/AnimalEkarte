@@ -1009,7 +1009,6 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     // 既存の治療明細を失わないようにする
     setLocalItems((prev) => [...(prev ?? baseItems), newItem]);
     setNewItemOpen(false);
-    toast.success("明細を追加しました");
 
     // 既存の会計 (id あり) の場合は POST API を呼び出してサーバーに永続化
     if (id) {
@@ -1028,11 +1027,16 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
           });
           await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(id) });
           setLocalItems(null);
+          toast.success("明細を追加しました");
         } catch (error) {
+          // 楽観的更新をロールバック
           setLocalItems((prev) => (prev ?? []).filter((i) => i.id !== tempId));
           handleApiError(error, "明細の追加");
         }
       });
+    } else {
+      // 新規会計（id なし）はローカル追加のみで API 呼び出しなし
+      toast.success("明細を追加しました");
     }
   }, [id, queryClient, baseItems]);
 

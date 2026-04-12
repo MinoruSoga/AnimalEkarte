@@ -186,7 +186,8 @@ export function useGetAllStaffPermissionGroupMap(staffIds: string[]) {
               `/v1/masters/staffs/${id}/permission-groups`,
             );
             map.set(id, (data.group_ids ?? []).map(String));
-          } catch {
+          } catch (_err) {
+            // バッチ取得: 個別スタッフの失敗（404含む）はスキップして継続
             map.set(id, []);
           }
         }),
