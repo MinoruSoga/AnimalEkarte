@@ -86,7 +86,7 @@ func (r *examinationRepository) Create(ctx context.Context, exam *model.Examinat
 func (r *examinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Examination{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "exam", fmt.Sprintf("%d", id))
@@ -99,7 +99,7 @@ func (r *examinationRepository) UpdateFields(ctx context.Context, clinicID, id u
 
 func (r *examinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.Examination{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "exam", fmt.Sprintf("%d", id))

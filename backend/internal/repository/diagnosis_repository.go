@@ -53,7 +53,7 @@ func (r *diagnosisTypeRepository) FindByID(ctx context.Context, clinicID, id uin
 	var category model.DiagnosisType
 	err := r.db.WithContext(ctx).
 		Preload("Names").
-		First(&category, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&category).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "diagnosis_type", fmt.Sprintf("%d", id))
 	}
@@ -74,7 +74,7 @@ func (r *diagnosisTypeRepository) Create(ctx context.Context, category *model.Di
 func (r *diagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.DiagnosisType{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "diagnosis_type", fmt.Sprintf("%d", id))
@@ -87,7 +87,7 @@ func (r *diagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint6
 
 func (r *diagnosisTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.DiagnosisType{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "diagnosis_type", fmt.Sprintf("%d", id))
@@ -179,7 +179,7 @@ func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID
 func (r *diagnosisNameRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
 	var name model.DiagnosisName
 	err := r.db.WithContext(ctx).
-		First(&name, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&name).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "diagnosis_name", fmt.Sprintf("%d", id))
 	}
@@ -200,7 +200,7 @@ func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.Diagno
 func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.DiagnosisName{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))
@@ -213,7 +213,7 @@ func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint6
 
 func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.DiagnosisName{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))

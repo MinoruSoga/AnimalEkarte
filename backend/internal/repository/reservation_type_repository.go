@@ -42,7 +42,7 @@ func (r *reservationTypeRepository) FindAll(ctx context.Context, clinicID uint64
 
 func (r *reservationTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	var st model.ReservationType
-	err := r.db.WithContext(ctx).Preload("Group").First(&st, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Preload("Group").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&st).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", id))
 	}
@@ -84,7 +84,7 @@ func (r *reservationTypeRepository) Update(ctx context.Context, clinicID, id uin
 }
 
 func (r *reservationTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.ReservationType{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.ReservationType{})
 	if result.Error != nil {
 		// BUG-030: ON DELETE RESTRICT の FK 制約違反は 409 Conflict に変換する
 		if isFKConstraintErr(result.Error) {

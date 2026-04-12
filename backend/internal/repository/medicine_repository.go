@@ -51,7 +51,7 @@ func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64, page,
 func (r *medicineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
 	var medicine model.Medicine
 	err := r.db.WithContext(ctx).
-		First(&medicine, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&medicine).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medicine", fmt.Sprintf("%d", id))
 	}
@@ -128,7 +128,7 @@ func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 }
 
 func (r *medicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Medicine{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Medicine{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
 	}

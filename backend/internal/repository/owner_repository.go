@@ -62,7 +62,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 
 func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").First(&owner, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&owner).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}
@@ -158,7 +158,7 @@ func escapeLike(s string) string {
 func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Owner{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
@@ -170,7 +170,7 @@ func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, field
 }
 
 func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Owner{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Owner{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
 	}

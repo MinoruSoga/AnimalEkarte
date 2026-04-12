@@ -70,7 +70,7 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType").
 		Preload("Doctor").
-		First(&reservation, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&reservation).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}
@@ -90,7 +90,7 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.A
 func (r *reservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Appointment{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", id))
@@ -102,7 +102,7 @@ func (r *reservationRepository) UpdateFields(ctx context.Context, clinicID, id u
 }
 
 func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Appointment{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Appointment{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", id))
 	}

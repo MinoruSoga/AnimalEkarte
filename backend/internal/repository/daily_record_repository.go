@@ -33,7 +33,7 @@ func NewDailyRecordRepository(db *gorm.DB) DailyRecordRepository {
 func (r *dailyRecordRepository) ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
 	records := make([]model.DailyRecord, 0)
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND hospitalization_id = ?", clinicID, hospitalizationID).
+		Scopes(clinicScope(clinicID)).Where("hospitalization_id = ?", hospitalizationID).
 		Order("date DESC").
 		Preload("VitalRecords").
 		Preload("CareLogs").
@@ -48,7 +48,7 @@ func (r *dailyRecordRepository) ListByHospitalizationID(ctx context.Context, cli
 func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
 	var record model.DailyRecord
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND hospitalization_id = ? AND date = ?", clinicID, hospitalizationID, date).
+		Scopes(clinicScope(clinicID)).Where("hospitalization_id = ? AND date = ?", hospitalizationID, date).
 		Preload("VitalRecords").
 		Preload("CareLogs").
 		Preload("StaffNotes").

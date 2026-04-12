@@ -41,7 +41,7 @@ func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, specie
 
 func (r *vaccineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
 	var vaccine model.Vaccine
-	err := r.db.WithContext(ctx).First(&vaccine, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&vaccine).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", id))
 	}
@@ -61,7 +61,7 @@ func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) 
 func (r *vaccineRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccine{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "vaccine", fmt.Sprintf("%d", id))
@@ -73,7 +73,7 @@ func (r *vaccineRepository) UpdateFields(ctx context.Context, clinicID, id uint6
 }
 
 func (r *vaccineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Vaccine{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Vaccine{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "vaccine", fmt.Sprintf("%d", id))
 	}

@@ -60,7 +60,7 @@ func (r *estimateRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 		Preload("Owner").
 		Preload("Items").
 		Preload("CreatedStaff").
-		First(&estimate, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&estimate).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))
 	}
@@ -78,7 +78,7 @@ func (r *estimateRepository) Create(ctx context.Context, estimate *model.Estimat
 func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Estimate{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "estimate", fmt.Sprintf("%d", id))
@@ -90,7 +90,7 @@ func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, fi
 }
 
 func (r *estimateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Estimate{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Estimate{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "estimate", fmt.Sprintf("%d", id))
 	}

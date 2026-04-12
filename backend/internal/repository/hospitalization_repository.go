@@ -69,7 +69,7 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 		Preload("CarePlanItems").
 		Preload("DailyRecords").
 		Preload("TreatmentPlans").
-		First(&hospitalization, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&hospitalization).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization", fmt.Sprintf("%d", id))
 	}
@@ -90,7 +90,7 @@ func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization 
 func (r *hospitalizationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Hospitalization{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "hospitalization", fmt.Sprintf("%d", id))
@@ -102,7 +102,7 @@ func (r *hospitalizationRepository) UpdateFields(ctx context.Context, clinicID, 
 }
 
 func (r *hospitalizationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Hospitalization{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Hospitalization{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "hospitalization", fmt.Sprintf("%d", id))
 	}

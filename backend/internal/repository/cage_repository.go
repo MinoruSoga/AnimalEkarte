@@ -40,7 +40,7 @@ func (r *cageRepository) FindAll(ctx context.Context, clinicID uint64, cageType 
 
 func (r *cageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
 	var cage model.Cage
-	err := r.db.WithContext(ctx).First(&cage, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&cage).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "cage", fmt.Sprintf("%d", id))
 	}
@@ -60,7 +60,7 @@ func (r *cageRepository) Create(ctx context.Context, cage *model.Cage) error {
 func (r *cageRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Cage{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", id))
@@ -72,7 +72,7 @@ func (r *cageRepository) UpdateFields(ctx context.Context, clinicID, id uint64, 
 }
 
 func (r *cageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Cage{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Cage{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", id))
 	}

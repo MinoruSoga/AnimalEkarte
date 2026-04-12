@@ -107,7 +107,7 @@ func (r *clinicRepository) CountOwnersByClinicID(ctx context.Context, clinicID u
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Owner{}).
-		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Scopes(clinicScope(clinicID)).Where("deleted_at IS NULL").
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "owner", fmt.Sprintf("clinic_id=%d", clinicID))
@@ -119,7 +119,7 @@ func (r *clinicRepository) CountStaffByClinicID(ctx context.Context, clinicID ui
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Staff{}).
-		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Scopes(clinicScope(clinicID)).Where("deleted_at IS NULL").
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "staff", fmt.Sprintf("clinic_id=%d", clinicID))

@@ -15,7 +15,7 @@ func reorderByClinicID(ctx context.Context, db *gorm.DB, model any, resource str
 	if err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(model).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Scopes(clinicScope(clinicID)).Where("id = ?", id).
 				Update("sort_order", i+1)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, resource, fmt.Sprintf("%d", id))

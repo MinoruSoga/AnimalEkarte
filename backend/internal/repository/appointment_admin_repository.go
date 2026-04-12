@@ -79,7 +79,7 @@ func (r *reservationAdminRepository) Create(ctx context.Context, ra *model.Appoi
 
 func (r *reservationAdminRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Delete(&model.Appointment{}, "id = ? AND clinic_id = ?", id, clinicID)
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Appointment{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "appointment", fmt.Sprintf("%d", id))
 	}
@@ -111,7 +111,7 @@ func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clin
 		Preload("Doctor").
 		Preload("Owner").
 		Preload("Pet").
-		First(&appt, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&appt).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", id))
 	}

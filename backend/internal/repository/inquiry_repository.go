@@ -37,7 +37,7 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicI
 	var mrCount int64
 	if err := r.db.WithContext(ctx).
 		Table("medical_records").
-		Where("id = ? AND clinic_id = ?", inquiry.MedicalRecordID, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", inquiry.MedicalRecordID).
 		Count(&mrCount).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "inquiry", "")
 	}

@@ -40,7 +40,7 @@ func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([
 
 func (r *checkupTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
 	var checkupType model.CheckupType
-	err := r.db.WithContext(ctx).First(&checkupType, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&checkupType).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup_type", fmt.Sprintf("%d", id))
 	}
@@ -61,7 +61,7 @@ func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.C
 func (r *checkupTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.CheckupType{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
@@ -73,7 +73,7 @@ func (r *checkupTypeRepository) UpdateFields(ctx context.Context, clinicID, id u
 }
 
 func (r *checkupTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.CheckupType{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.CheckupType{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
 	}

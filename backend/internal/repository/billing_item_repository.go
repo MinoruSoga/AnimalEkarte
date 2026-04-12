@@ -95,7 +95,7 @@ func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64)
 func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
-		Where("clinic_id = ? AND id = ?", clinicID, billingID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", billingID).
 		Updates(map[string]any{
 			"subtotal":     subtotal,
 			"tax_total":    taxTotal,

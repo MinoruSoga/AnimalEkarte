@@ -69,7 +69,7 @@ func (r *trimmingRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 		Preload("Staff").
 		Preload("Course").
 		Preload("Options").
-		First(&trimming, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&trimming).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "trimming_record", fmt.Sprintf("%d", id))
 	}
@@ -91,7 +91,7 @@ func (r *trimmingRepository) Update(ctx context.Context, clinicID uint64, trimmi
 	trimming.ClinicID = clinicID
 	result := r.db.WithContext(ctx).
 		Model(&model.TrimmingRecord{}).
-		Where("id = ? AND clinic_id = ?", trimming.ID, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", trimming.ID).
 		Updates(trimming)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "trimming", fmt.Sprintf("%d", trimming.ID))
@@ -103,7 +103,7 @@ func (r *trimmingRepository) Update(ctx context.Context, clinicID uint64, trimmi
 }
 
 func (r *trimmingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.TrimmingRecord{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.TrimmingRecord{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "trimming", fmt.Sprintf("%d", id))
 	}

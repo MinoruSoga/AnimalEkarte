@@ -93,7 +93,7 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 		Preload("Refunds").
 		Preload("Owner").
 		Preload("Pet").
-		First(&billing, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&billing).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
 	}
@@ -142,7 +142,7 @@ func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billi
 }
 
 func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Billing{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Billing{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", id))
 	}

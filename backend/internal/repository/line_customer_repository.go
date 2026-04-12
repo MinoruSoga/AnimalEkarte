@@ -45,7 +45,7 @@ func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint
 		Preload("Owner").
 		Preload("Owner.Pets").
 		Preload("Owner.Pets.AnimalSpecies").
-		First(&c, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&c).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "line_customer", fmt.Sprintf("%d", id))
 	}
@@ -78,7 +78,7 @@ func (r *lineCustomerRepository) FindOrCreateByLineUserID(ctx context.Context, c
 func (r *lineCustomerRepository) UpdateAdditionalFields(ctx context.Context, clinicID, id uint64, fields []byte) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.LineCustomer{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Update("additional_fields", fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "line_customer", fmt.Sprintf("%d", id))
@@ -89,7 +89,7 @@ func (r *lineCustomerRepository) UpdateAdditionalFields(ctx context.Context, cli
 func (r *lineCustomerRepository) UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.LineCustomer{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Update("owner_id", ownerID)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "line_customer", fmt.Sprintf("%d", id))

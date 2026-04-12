@@ -38,7 +38,7 @@ func (r *insuranceRepository) FindAll(ctx context.Context, clinicID uint64) ([]m
 
 func (r *insuranceRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error) {
 	var insurance model.Insurance
-	err := r.db.WithContext(ctx).First(&insurance, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&insurance).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "insurance", fmt.Sprintf("%d", id))
 	}
@@ -59,7 +59,7 @@ func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insur
 func (r *insuranceRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Insurance{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "insurance", fmt.Sprintf("%d", id))
@@ -71,7 +71,7 @@ func (r *insuranceRepository) UpdateFields(ctx context.Context, clinicID, id uin
 }
 
 func (r *insuranceRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Insurance{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Insurance{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "insurance", fmt.Sprintf("%d", id))
 	}

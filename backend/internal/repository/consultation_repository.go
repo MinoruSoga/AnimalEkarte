@@ -40,7 +40,7 @@ func (r *consultationRepository) FindAll(ctx context.Context, clinicID uint64) (
 
 func (r *consultationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
 	var consultation model.Consultation
-	err := r.db.WithContext(ctx).First(&consultation, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&consultation).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "consultation", fmt.Sprintf("%d", id))
 	}
@@ -61,7 +61,7 @@ func (r *consultationRepository) Create(ctx context.Context, consultation *model
 func (r *consultationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Consultation{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "consultation", fmt.Sprintf("%d", id))
@@ -73,7 +73,7 @@ func (r *consultationRepository) UpdateFields(ctx context.Context, clinicID, id 
 }
 
 func (r *consultationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Consultation{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Consultation{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "consultation", fmt.Sprintf("%d", id))
 	}

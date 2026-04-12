@@ -43,7 +43,7 @@ func (r *reservationTypeLiffRepository) FindAll(ctx context.Context, clinicID ui
 
 func (r *reservationTypeLiffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	var st model.ReservationType
-	err := r.db.WithContext(ctx).First(&st, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&st).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))
 	}
@@ -63,7 +63,7 @@ func (r *reservationTypeLiffRepository) Create(ctx context.Context, st *model.Re
 func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ReservationType{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation_type_liff", fmt.Sprintf("%d", id))
@@ -75,7 +75,7 @@ func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id
 }
 
 func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.ReservationType{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.ReservationType{})
 	if result.Error != nil {
 		if isFKConstraintErr(result.Error) {
 			return apperrors.WrapConflict("このコースは予約に使用されているため削除できません")
@@ -91,7 +91,7 @@ func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id
 func (r *reservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var target model.ReservationType
-		if err := tx.First(&target, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
+		if err := tx.Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&target).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))
 		}
 

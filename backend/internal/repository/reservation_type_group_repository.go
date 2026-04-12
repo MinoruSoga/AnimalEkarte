@@ -39,7 +39,7 @@ func (r *reservationTypeGroupRepository) FindAll(ctx context.Context, clinicID u
 
 func (r *reservationTypeGroupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error) {
 	var g model.ReservationTypeGroup
-	if err := r.db.WithContext(ctx).First(&g, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
+	if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&g).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_type_group", fmt.Sprintf("%d", id))
 	}
 	return &g, nil
@@ -67,7 +67,7 @@ func (r *reservationTypeGroupRepository) Create(ctx context.Context, g *model.Re
 func (r *reservationTypeGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ReservationTypeGroup{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation_type_group", fmt.Sprintf("%d", id))
@@ -79,7 +79,7 @@ func (r *reservationTypeGroupRepository) Update(ctx context.Context, clinicID, i
 }
 
 func (r *reservationTypeGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.ReservationTypeGroup{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.ReservationTypeGroup{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation_type_group", fmt.Sprintf("%d", id))
 	}

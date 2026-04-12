@@ -68,7 +68,7 @@ func (r *shiftEntryRepository) FindByID(ctx context.Context, clinicID, id uint64
 	err := r.db.WithContext(ctx).
 		Preload("Staff").
 		Preload("Breaks").
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		First(&entry).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "shift_entry", strconv.FormatUint(id, 10))
@@ -91,7 +91,7 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ShiftEntry{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "shift_entry", strconv.FormatUint(id, 10))
@@ -104,7 +104,7 @@ func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, 
 
 func (r *shiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.ShiftEntry{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "shift_entry", strconv.FormatUint(id, 10))

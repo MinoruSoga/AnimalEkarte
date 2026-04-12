@@ -40,7 +40,7 @@ func (r *examTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]mo
 
 func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
 	var exType model.ExaminationType
-	err := r.db.WithContext(ctx).Preload("Items").First(&exType, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Preload("Items").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&exType).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "examination_type", fmt.Sprintf("%d", id))
 	}
@@ -61,7 +61,7 @@ func (r *examTypeRepository) Create(ctx context.Context, exType *model.Examinati
 func (r *examTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ExaminationType{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "examination_type", fmt.Sprintf("%d", id))
@@ -73,7 +73,7 @@ func (r *examTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint
 }
 
 func (r *examTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.ExaminationType{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.ExaminationType{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "examination_type", fmt.Sprintf("%d", id))
 	}

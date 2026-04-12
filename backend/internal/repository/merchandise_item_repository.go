@@ -58,7 +58,7 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
 	var item model.MerchandiseItem
 	err := r.db.WithContext(ctx).
-		First(&item, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&item).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
 	}
@@ -127,7 +127,7 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 }
 
 func (r *merchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.MerchandiseItem{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.MerchandiseItem{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
 	}

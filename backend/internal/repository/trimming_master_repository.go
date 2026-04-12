@@ -39,7 +39,7 @@ func (r *trimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64)
 
 func (r *trimmingCourseRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
 	var course model.TrimmingCourse
-	err := r.db.WithContext(ctx).First(&course, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&course).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", id))
 	}
@@ -59,7 +59,7 @@ func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.Tri
 func (r *trimmingCourseRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.TrimmingCourse{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "trimming_course", fmt.Sprintf("%d", id))
@@ -71,7 +71,7 @@ func (r *trimmingCourseRepository) UpdateFields(ctx context.Context, clinicID, i
 }
 
 func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.TrimmingCourse{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.TrimmingCourse{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "trimming_course", fmt.Sprintf("%d", id))
 	}
@@ -125,7 +125,7 @@ func (r *trimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64)
 
 func (r *trimmingOptionRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
 	var option model.TrimmingOption
-	err := r.db.WithContext(ctx).First(&option, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&option).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", id))
 	}
@@ -145,7 +145,7 @@ func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.Tri
 func (r *trimmingOptionRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.TrimmingOption{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "trimming_option", fmt.Sprintf("%d", id))
@@ -157,7 +157,7 @@ func (r *trimmingOptionRepository) UpdateFields(ctx context.Context, clinicID, i
 }
 
 func (r *trimmingOptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.TrimmingOption{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.TrimmingOption{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "trimming_option", fmt.Sprintf("%d", id))
 	}
