@@ -27,7 +27,6 @@ export function StaffSelectPage({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
     liffApi.getStaffs(clinicId, courseId, idToken)
       .then(data => {
         setStaffs(data);

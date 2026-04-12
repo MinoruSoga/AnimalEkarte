@@ -37,21 +37,9 @@ export function App() {
   const [liffId, setLiffId] = useState<string>('');
   const { idToken, isReady, initError } = useLiff(liffId);
 
-  // LIFF 初期化失敗時はエラーページへ
-  useEffect(() => {
-    if (initError) {
-      setErrorMessage('LINEアプリの初期化に失敗しました。LINEアプリから再度お試しください。');
-      setPage('error');
-    }
-  }, [initError]);
-
   // Step 1: settings 取得（認証不要）
   useEffect(() => {
-    if (!clinicId) {
-      setErrorMessage('クリニックIDが見つかりません');
-      setPage('error');
-      return;
-    }
+    if (!clinicId) return;
 
     liffApi.getSettings(clinicId)
       .then(s => {
@@ -118,6 +106,14 @@ export function App() {
   }, [resetFlow, goTo]);
 
   // ページのレンダリング
+  if (!clinicId) {
+    return <ErrorPage message='クリニックIDが見つかりません' />;
+  }
+
+  if (initError) {
+    return <ErrorPage message='LINEアプリの初期化に失敗しました。LINEアプリから再度お試しください。' />;
+  }
+
   if (page === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-noah-teal-light">

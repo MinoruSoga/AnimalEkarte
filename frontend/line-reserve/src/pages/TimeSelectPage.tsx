@@ -33,7 +33,6 @@ export function TimeSelectPage({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
     liffApi.getAvailableTimes(clinicId, courseId, staffId, date, idToken)
       .then(data => {
         setTimes(data);

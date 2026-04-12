@@ -18,7 +18,6 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
     liffApi.getCourses(clinicId, idToken)
       .then(data => {
         setCourses(data);
