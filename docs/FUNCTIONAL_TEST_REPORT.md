@@ -1,6 +1,6 @@
 # 機能テストレポート
 
-> **最終更新**: 2026-04-12 (Section 6〜9 機能テスト実施・BUG-332〜336 検出)
+> **最終更新**: 2026-04-12 (Section 4/6〜9 機能テスト実施・BUG-332〜337 検出・修正完了)
 > テスト環境: ローカル (localhost:3003, localhost:8080) / ステージング (stg.noah-karte.com)
 > テストアカウント: admin@example.com (安田 希恵 / 一般) / vet@example.com (倉田 春香 / 一般)
 > **テスト完成度**: 実装機能 5/5 PASS（2026-04-04）+ マスタ 16個 API テスト（2026-04-12）
@@ -1754,7 +1754,7 @@
 | can_view = false のカルテページへアクセス → 403 または非表示 | 未確認 | カルテ閲覧権限確認 |
 | can_create = false のスタッフは新規カルテ作成不可 | 未確認 | カルテ作成権限確認 |
 | can_edit = false のスタッフはカルテ編集不可 | 未確認 | カルテ編集権限確認 |
-| can_delete = false のスタッフはカルテ削除不可 | 未確認 | カルテ削除権限確認 |
+| can_delete = false のスタッフはカルテ削除不可 | 未確認 | カルテ削除権限確認（BUG-337: 削除API未接続のため全ユーザーで削除不可） |
 | 他クリニックのカルテへのアクセス → 403 | 未確認 | テナント分離確認 |
 
 ### 4.74 カルテ 画像・X線・超音波テスト
@@ -4409,11 +4409,12 @@
 
 | # | チケットID | タイトル | 重要度 | 状態 | チケット |
 |---|-----------|---------|--------|------|---------|
-| 1 | BUG-332 | 検査削除後にエラートーストが表示されページ遷移しない | 中 | **OPEN** — Network タブ確認待ち。API 204 返却確認済み | [BUG-332](./tasks/open/ux/BUG-332-examination-delete-error-toast-no-navigation.md) |
-| 2 | BUG-333 | 会計精算フォームの「丁度」「千円単位」「一万単位」ボタンが会計を即時確定する | 高 | **OPEN** — `<form action={formAction}>` 内ボタンに `type="button"` なし | [BUG-333](./tasks/open/ux/BUG-333-accounting-preset-buttons-submit-form.md) |
-| 3 | BUG-334 | 入院管理バイタル保存で400エラー後にErrorBoundaryクラッシュ | 高 | **OPEN** — ①時刻フォーマット HH:MM vs HH:MM:SS ②try-catch 欠如 | [BUG-334](./tasks/open/crash/BUG-334-hospitalization-vitals-time-format-and-error-boundary-crash.md) |
-| 4 | BUG-335 | 予防接種一覧の削除操作でユーザーフィードバックがない | 中 | **OPEN** — toast.success なし・onError なし | [BUG-335](./tasks/open/ux/BUG-335-vaccination-list-delete-no-feedback.md) |
-| 5 | BUG-336 | トリミング削除失敗時にエラートーストが表示されない | 中 | **OPEN** — handleDelete に onError なし | [BUG-336](./tasks/open/ux/BUG-336-trimming-delete-silent-error.md) |
+| 1 | BUG-332 | 検査削除後にエラートーストが表示されページ遷移しない | 中 | **CLOSED** — 修正済み | [BUG-332](./tasks/closed/BUG-332-examination-delete-error-toast-no-navigation.md) |
+| 2 | BUG-333 | 会計精算フォームの「丁度」「千円単位」「一万単位」ボタンが会計を即時確定する | 高 | **CLOSED** — 修正済み: 全ボタンに `type="button"` 追加 | [BUG-333](./tasks/closed/BUG-333-accounting-preset-buttons-submit-form.md) |
+| 3 | BUG-334 | 入院管理バイタル保存で400エラー後にErrorBoundaryクラッシュ | 高 | **CLOSED** — 修正済み: 時刻フォーマット正規化・try-catch 追加 | [BUG-334](./tasks/closed/BUG-334-hospitalization-vitals-time-format-and-error-boundary-crash.md) |
+| 4 | BUG-335 | 予防接種一覧の削除操作でユーザーフィードバックがない | 中 | **CLOSED** — 修正済み: toast.success・onError 追加 | [BUG-335](./tasks/closed/BUG-335-vaccination-list-delete-no-feedback.md) |
+| 5 | BUG-336 | トリミング削除失敗時にエラートーストが表示されない | 中 | **CLOSED** — 修正済み: handleDelete に onError 追加 | [BUG-336](./tasks/closed/BUG-336-trimming-delete-silent-error.md) |
+| 6 | BUG-337 | カルテフォームの削除確認ダイアログが実際に削除しない + ボタン `type="button"` 欠如 | **クリティカル** | **CLOSED** — 修正済み: `handleDeleteConfirm` に `deleteRecord` 接続・全ボタンに `type="button"` 追加 | [BUG-337](./tasks/closed/BUG-337-medical-record-form-delete-noop-and-type-button-missing.md) |
 
 ---
 
