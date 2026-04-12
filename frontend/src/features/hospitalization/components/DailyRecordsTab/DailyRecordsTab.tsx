@@ -87,45 +87,43 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
         });
     }, [createDailyRecord, selectedDate]);
 
-    const staffDisplayName = user?.displayName ?? "";
-
     const handleAddVital = useCallback(
         (payload: CreateVitalRecordRequest) => {
             startVitalTransition(async () => {
                 try {
-                    await createVital.mutateAsync({ ...payload, staff_id: currentUserId, staff: staffDisplayName });
+                    await createVital.mutateAsync({ ...payload, staff_id: currentUserId });
                 } catch (error) {
                     handleApiError(error, "バイタル追加");
                 }
             });
         },
-        [createVital, currentUserId, staffDisplayName]
+        [createVital, currentUserId]
     );
 
     const handleAddCareLog = useCallback(
         (payload: CreateCareLogRequest) => {
             startCareLogTransition(async () => {
                 try {
-                    await createCareLog.mutateAsync({ ...payload, staff_id: currentUserId, staff: staffDisplayName });
+                    await createCareLog.mutateAsync({ ...payload, staff_id: currentUserId });
                 } catch (error) {
                     handleApiError(error, "ケアログ追加");
                 }
             });
         },
-        [createCareLog, currentUserId, staffDisplayName]
+        [createCareLog, currentUserId]
     );
 
     const handleAddStaffNote = useCallback(
         (payload: CreateStaffNoteRequest) => {
             startStaffNoteTransition(async () => {
                 try {
-                    await createStaffNote.mutateAsync({ ...payload, staff_id: currentUserId, staff: staffDisplayName });
+                    await createStaffNote.mutateAsync({ ...payload, staff_id: currentUserId });
                 } catch (error) {
                     handleApiError(error, "スタッフメモ追加");
                 }
             });
         },
-        [createStaffNote, currentUserId, staffDisplayName]
+        [createStaffNote, currentUserId]
     );
 
     const vitals = record?.vital_records ?? [];

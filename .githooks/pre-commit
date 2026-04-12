@@ -1,14 +1,14 @@
 #!/bin/sh
-# Pre-push hook: フロントエンドの lint + 型チェックを実行
+# Pre-commit hook: フロントエンドの lint + 型チェックを実行
 # make setup-hooks でインストール
 
 set -e
 
-echo "Pre-push: フロントエンドチェック開始..."
+echo "Pre-commit: フロントエンドチェック開始..."
 
 # コンテナが起動していない場合はスキップ（CI で実行される）
 if ! docker compose exec -T frontend true 2>/dev/null; then
-  echo "Pre-push: frontendコンテナが未起動のためスキップします（make up で起動してください）"
+  echo "Pre-commit: frontendコンテナが未起動のためスキップします（make up で起動してください）"
   exit 0
 fi
 
@@ -18,4 +18,4 @@ docker compose exec -T frontend npm run lint
 echo "  [2/2] 型チェック (tsc --noEmit)..."
 docker compose exec -T frontend npx tsc --noEmit
 
-echo "Pre-push: すべて通過。push を続行します。"
+echo "Pre-commit: すべて通過。commit を続行します。"

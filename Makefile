@@ -122,7 +122,8 @@ mod-tidy:
 # git hooks セットアップ（初回・新メンバーオンボーディング時に実行）
 setup-hooks:
 	git config core.hooksPath .githooks
-	@echo "Git hooks を .githooks に設定しました"
+	chmod +x .githooks/pre-commit
+	@echo "Git hooks を .githooks に設定しました（pre-commit: lint + 型チェック）"
 
 # ヘルプ
 help:
