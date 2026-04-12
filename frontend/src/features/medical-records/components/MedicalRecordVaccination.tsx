@@ -1,8 +1,10 @@
 // React/Framework
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useState, useCallback, useTransition } from "react";
 
 // Internal
 import { useGetAllVaccinesMaster } from "@/features/master";
+import { useCreateVaccination } from "@/features/vaccinations";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
 import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
@@ -16,7 +18,7 @@ interface MedicalRecordVaccinationProps {
 export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   petId,
 }: MedicalRecordVaccinationProps) {
-  const [vaccineName, setVaccineName] = useState("esophagitis");
+  const [vaccineName, setVaccineName] = useState("");
   const [date, setDate] = useState("");
   const [supplemental, setSupplemental] = useState("");
   const [lot1, setLot1] = useState("");
@@ -27,8 +29,11 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   const [nextDate, setNextDate] = useState("");
   const [remarks, setRemarks] = useState("");
 
+  const [isSaving, startSaveTransition] = useTransition();
+
   const { data: historyItems = [], isLoading } = useGetPetVaccinations(petId);
   const { data: vaccinesMaster = [] } = useGetAllVaccinesMaster();
+  const { mutateAsync: createVaccination } = useCreateVaccination();
 
   const vaccineOptions = useMemo(
     () => vaccinesMaster.flatMap((v) =>
@@ -36,6 +41,38 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
     ),
     [vaccinesMaster]
   );
+
+  const handleSave = useCallback(() => {
+    if (!petId || !vaccineName || !date) return;
+    startSaveTransition(async () => {
+      try {
+        await createVaccination({
+          pet_id: Number(petId),
+          vaccine_id: Number(vaccineName),
+          date,
+          lot1: lot1 || undefined,
+          lot2: lot2 || undefined,
+          lot3: lot3 || undefined,
+          lot4: lot4 || undefined,
+          next_date: nextDate || null,
+          remarks: remarks || undefined,
+        });
+        // フォームをリセット
+        setVaccineName("");
+        setDate("");
+        setSupplemental("");
+        setLot1("");
+        setLot2("");
+        setLot3("");
+        setLot4("");
+        setNextScheduleType("4weeks");
+        setNextDate("");
+        setRemarks("");
+      } catch (err) {
+        handleApiError(err, "予防接種の登録");
+      }
+    });
+  }, [petId, vaccineName, date, lot1, lot2, lot3, lot4, nextDate, remarks, createVaccination]);
 
   return (
     <div className="grid grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1">
@@ -62,6 +99,8 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         setNextDate={setNextDate}
         remarks={remarks}
         setRemarks={setRemarks}
+        onSave={handleSave}
+        isSaving={isSaving}
       />
 
       {/* Right Column: History */}

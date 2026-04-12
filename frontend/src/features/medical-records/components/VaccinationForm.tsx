@@ -4,11 +4,12 @@ import { memo, useMemo } from "react";
 // Internal
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 
 interface VaccineOption {
   value: string;
@@ -37,6 +38,8 @@ interface VaccinationFormProps {
   setNextDate: (v: string) => void;
   remarks: string;
   setRemarks: (v: string) => void;
+  onSave?: () => void;
+  isSaving?: boolean;
 }
 
 export const VaccinationForm = memo(function VaccinationForm({
@@ -61,6 +64,8 @@ export const VaccinationForm = memo(function VaccinationForm({
   setNextDate,
   remarks,
   setRemarks,
+  onSave,
+  isSaving,
 }: VaccinationFormProps) {
   // js-cache-function-results: props 配列から生成する JSX リストを useMemo でキャッシュ
   const vaccineSelectItems = useMemo(
@@ -235,6 +240,20 @@ export const VaccinationForm = memo(function VaccinationForm({
           className={`flex-1 resize-none bg-white ${C.borderMedium} p-3 text-sm ${C.text} leading-relaxed`}
         />
       </div>
+
+      {/* Save Button */}
+      {onSave ? (
+        <div className="pt-2">
+          <Button
+            type="button"
+            onClick={onSave}
+            disabled={isSaving}
+            className={STYLE.btnPrimary}
+          >
+            {isSaving ? "登録中..." : "接種記録を追加"}
+          </Button>
+        </div>
+      ) : null}
 
     </div>
   );
