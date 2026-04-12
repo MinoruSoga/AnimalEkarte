@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -55,7 +56,7 @@ func (s *reservationService) Create(ctx context.Context, reservation *model.Appo
 	// LINE予約・電子カルテ予約・管理者手動予約すべてで同一テーブルを使用するため、
 	// アプリケーションレベルでの排他制御が必要
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := checkSlotConflict(ctx, tx, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime); err != nil {
+		if err := checkSlotConflict(ctx, tx, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime, nil); err != nil {
 			return err
 		}
 		if err := tx.Create(reservation).Error; err != nil {
@@ -94,8 +95,9 @@ func ptrToUint64(p *uint64) uint64 {
 //   - doctor_id 指定時 → 同一医師の重複のみチェック（別医師は許可）
 //   - doctor_id nil 時 → その日の出勤医師数を上限として全予約件数をチェック
 //
+// excludeID が非 nil の場合、その予約 ID を競合対象から除外する（Update 時の自己競合防止）。
 // 競合がある場合は apperrors.ErrConflict ラップエラーを返す。
-func checkSlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, doctorID *uint64, startTime, endTime time.Time) error {
+func checkSlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, doctorID *uint64, startTime, endTime time.Time, excludeID *uint64) error {
 	if doctorID != nil {
 		// 同一医師への重複チェック
 		var existing []model.Appointment
@@ -107,8 +109,10 @@ func checkSlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, doctor
 			  AND start_time < ?
 			  AND end_time > ?
 			  AND doctor_id = ?
+			  AND (? = 0 OR id != ?)
 			FOR UPDATE`,
 			clinicID, endTime, startTime, *doctorID,
+			ptrToUint64(excludeID), ptrToUint64(excludeID),
 		)
 		if q.Scan(&existing); q.Error != nil {
 			return apperrors.Wrap(q.Error, "lock reservations for conflict check")
@@ -145,8 +149,10 @@ func checkSlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, doctor
 		  AND status NOT IN ('cancelled')
 		  AND start_time < ?
 		  AND end_time > ?
+		  AND (? = 0 OR id != ?)
 		FOR UPDATE`,
 		clinicID, endTime, startTime,
+		ptrToUint64(excludeID), ptrToUint64(excludeID),
 	)
 	if q.Scan(&existing); q.Error != nil {
 		return apperrors.Wrap(q.Error, "lock reservations for capacity check")
@@ -166,14 +172,91 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	reservation, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+
+	// 時刻・医師の変更がある場合のみ競合チェックが必要
+	needsConflictCheck := input.StartTime != nil || input.EndTime != nil || input.DoctorID != nil
+
+	if !needsConflictCheck {
+		// 時刻・医師変更なし: トランザクション不要。リポジトリ経由で直接更新
+		updated, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to update reservation")
+		}
+		slog.InfoContext(ctx, "reservation updated",
+			slog.Uint64("reservation_id", id),
+			slog.Uint64("clinic_id", clinicID))
+		return updated, nil
+	}
+
+	// 時刻・医師変更あり: SELECT FOR UPDATE + トランザクションで競合を防止
+	var result *model.Appointment
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 現在の予約を行ロックで取得（競合チェックの基準値として使用）
+		var current model.Appointment
+		if err := tx.Raw(
+			`SELECT * FROM appointments WHERE clinic_id = ? AND id = ? AND deleted_at IS NULL FOR UPDATE`,
+			clinicID, id,
+		).Scan(&current).Error; err != nil {
+			return apperrors.Wrap(err, "lock current reservation")
+		}
+		if current.ID == 0 {
+			return apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
+		}
+
+		// 変更後の時刻・医師を確定（未指定フィールドは現在値を維持）
+		resolvedStart := current.StartTime
+		if input.StartTime != nil {
+			resolvedStart = *input.StartTime
+		}
+		resolvedEnd := current.EndTime
+		if input.EndTime != nil {
+			resolvedEnd = *input.EndTime
+		}
+		resolvedDoctorID := current.DoctorID
+		if input.DoctorID != nil {
+			resolvedDoctorID = input.DoctorID
+		}
+
+		// 時刻が変更される場合のみ時刻バリデーション
+		if input.StartTime != nil || input.EndTime != nil {
+			if err := validateTimeRange(resolvedStart, resolvedEnd); err != nil {
+				return err
+			}
+		}
+
+		// 自分自身を除外して競合チェック
+		if err := checkSlotConflict(ctx, tx, clinicID, resolvedDoctorID, resolvedStart, resolvedEnd, &id); err != nil {
+			return err
+		}
+
+		// フィールドを更新
+		res := tx.Model(&model.Appointment{}).
+			Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, id).
+			Updates(fields)
+		if res.Error != nil {
+			return apperrors.FromGORM(res.Error, "reservation", fmt.Sprintf("%d", id))
+		}
+		if res.RowsAffected == 0 {
+			return apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
+		}
+
+		// 更新後レコードを取得
+		var updated model.Appointment
+		if err := tx.Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, id).
+			First(&updated).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
+		}
+		result = &updated
+		return nil
+	})
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update reservation")
 	}
+
 	slog.InfoContext(ctx, "reservation updated",
 		slog.Uint64("reservation_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return reservation, nil
+	return result, nil
 }
 
 // UpdateReservationInput は予約更新のサービス入力 DTO

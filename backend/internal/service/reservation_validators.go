@@ -93,7 +93,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			id := input.StaffID
 			doctorIDPtr = &id
 		}
-		if err := checkSlotConflict(ctx, tx, input.ClinicID, doctorIDPtr, startDT, endDT); err != nil {
+		if err := checkSlotConflict(ctx, tx, input.ClinicID, doctorIDPtr, startDT, endDT, nil); err != nil {
 			if errors.Is(err, apperrors.ErrConflict) {
 				return &ReservationLimitError{
 					Code:         "SLOT_TAKEN",

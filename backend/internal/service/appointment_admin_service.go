@@ -81,7 +81,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	var result *model.Appointment
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := checkSlotConflict(ctx, tx, clinicID, input.DoctorID, input.StartTime, input.EndTime); err != nil {
+		if err := checkSlotConflict(ctx, tx, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
 			return err
 		}
 

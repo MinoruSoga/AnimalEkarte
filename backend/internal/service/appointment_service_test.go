@@ -318,9 +318,9 @@ func TestReservationService_Create(t *testing.T) {
 			// BUG-034: end_time == start_time は 400 Bad Request
 			name: "returns invalid input when end_time equals start_time",
 			reservation: &model.Appointment{
-				ClinicID:      1,
-				StartTime:     now,
-				EndTime:       now,
+				ClinicID:          1,
+				StartTime:         now,
+				EndTime:           now,
 				ReservationTypeID: 1,
 			},
 			wantErr:          true,
@@ -330,9 +330,9 @@ func TestReservationService_Create(t *testing.T) {
 			// BUG-034: end_time < start_time は 400 Bad Request
 			name: "returns invalid input when end_time is before start_time",
 			reservation: &model.Appointment{
-				ClinicID:      1,
-				StartTime:     now,
-				EndTime:       now.Add(-time.Minute),
+				ClinicID:          1,
+				StartTime:         now,
+				EndTime:           now.Add(-time.Minute),
 				ReservationTypeID: 1,
 			},
 			wantErr:          true,
@@ -360,7 +360,7 @@ func TestReservationService_Create(t *testing.T) {
 }
 
 func TestReservationService_Update(t *testing.T) {
-	now := time.Now()
+	_ = time.Now() // StartTime/EndTime/DoctorID を含むケースは統合テストで検証（s.db 必須）
 	statusConfirmed := model.ReservationStatusConfirmed
 	tests := []struct {
 		name    string
@@ -370,10 +370,10 @@ func TestReservationService_Update(t *testing.T) {
 		wantNF  bool
 	}{
 		{
-			name: "updates reservation successfully",
+			// StartTime/EndTime/DoctorID を含まないケース: s.db を使わないパス
+			name: "updates reservation successfully (status only, no conflict check)",
 			input: UpdateReservationInput{
-				Status:    &statusConfirmed,
-				StartTime: &now,
+				Status: &statusConfirmed,
 			},
 			repoErr: nil,
 			wantErr: false,
