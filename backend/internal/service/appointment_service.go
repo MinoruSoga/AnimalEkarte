@@ -82,6 +82,11 @@ func validateTimeRange(startTime, endTime time.Time) error {
 	return nil
 }
 
+// errNoDoctorsOnDuty は当日の出勤医師が 0 人のためスロット予約不可を示すセンチネルエラー。
+// apperrors.ErrConflict をラップしているため RespondError で 409 になる。
+// LINE パスでは reservation_validators.go が errors.Is でこれを識別し RedirectStep: 4 を返す。
+var errNoDoctorsOnDuty = fmt.Errorf("本日は医師が出勤していないため予約できません: %w", apperrors.ErrConflict)
+
 // ptrToUint64 は *uint64 を uint64 に変換する（nil の場合は 0）
 func ptrToUint64(p *uint64) uint64 {
 	if p == nil {
@@ -114,8 +119,8 @@ func checkSlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, doctor
 			clinicID, endTime, startTime, *doctorID,
 			ptrToUint64(excludeID), ptrToUint64(excludeID),
 		)
-		if q.Scan(&existing); q.Error != nil {
-			return apperrors.Wrap(q.Error, "lock reservations for conflict check")
+		if err := q.Scan(&existing).Error; err != nil {
+			return apperrors.Wrap(err, "lock reservations for conflict check")
 		}
 		if len(existing) > 0 {
 			return apperrors.WrapConflict("この時間枠は既に予約が入っています")
@@ -137,8 +142,13 @@ func checkSlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, doctor
 		  AND s.deleted_at IS NULL`,
 		clinicID, startTime,
 	)
-	if cntQ.Scan(&doctorCount); cntQ.Error != nil {
-		return apperrors.Wrap(cntQ.Error, "count on-duty doctors")
+	if err := cntQ.Scan(&doctorCount).Error; err != nil {
+		return apperrors.Wrap(err, "count on-duty doctors")
+	}
+
+	// 出勤医師が 0 人の場合は専用センチネルを返す（LINE パスで RedirectStep を分岐するため）
+	if doctorCount == 0 {
+		return errNoDoctorsOnDuty
 	}
 
 	var existing []model.Appointment
@@ -154,8 +164,8 @@ func checkSlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, doctor
 		clinicID, endTime, startTime,
 		ptrToUint64(excludeID), ptrToUint64(excludeID),
 	)
-	if q.Scan(&existing); q.Error != nil {
-		return apperrors.Wrap(q.Error, "lock reservations for capacity check")
+	if err := q.Scan(&existing).Error; err != nil {
+		return apperrors.Wrap(err, "lock reservations for capacity check")
 	}
 
 	if int64(len(existing)) >= doctorCount {
@@ -214,7 +224,11 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		}
 		resolvedDoctorID := current.DoctorID
 		if input.DoctorID != nil {
-			resolvedDoctorID = input.DoctorID
+			if *input.DoctorID == 0 {
+				resolvedDoctorID = nil // 0 は「医師未指定」として NULL 扱い
+			} else {
+				resolvedDoctorID = input.DoctorID
+			}
 		}
 
 		// 時刻が変更される場合のみ時刻バリデーション
@@ -294,7 +308,11 @@ func buildReservationUpdateFields(input *UpdateReservationInput) map[string]any 
 		fields["reservation_type_id"] = *input.ReservationTypeID
 	}
 	if input.DoctorID != nil {
-		fields["doctor_id"] = *input.DoctorID
+		if *input.DoctorID == 0 {
+			fields["doctor_id"] = nil // 0 は「医師未指定に変更」として NULL に設定
+		} else {
+			fields["doctor_id"] = *input.DoctorID
+		}
 	}
 	if input.IsDesignated != nil {
 		fields["is_designated"] = *input.IsDesignated

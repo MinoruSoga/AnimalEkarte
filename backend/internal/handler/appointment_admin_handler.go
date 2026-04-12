@@ -70,6 +70,14 @@ func (h *Handler) CreateReservationAdmin(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
+	// BUG-144: staff_id のクリニック所属チェック（クロスクリニック FK 防止）
+	if req.DoctorID != nil {
+		if err := h.checkDoctorClinicAssignment(c.Request.Context(), clinicID, *req.DoctorID); err != nil {
+			RespondError(c, err)
+			return
+		}
+	}
+
 	ra, err := h.svc.ReservationAdmin.Create(c.Request.Context(), clinicID, &service.CreateReservationAdminInput{
 		StartTime:        req.StartTime,
 		EndTime:          req.EndTime,

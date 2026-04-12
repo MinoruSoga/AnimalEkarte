@@ -94,6 +94,14 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			doctorIDPtr = &id
 		}
 		if err := checkSlotConflict(ctx, tx, input.ClinicID, doctorIDPtr, startDT, endDT, nil); err != nil {
+			// 出勤医師不在と通常の満員を区別する（RedirectStep: 4=日付選択, 5=時間選択）
+			if errors.Is(err, errNoDoctorsOnDuty) {
+				return &ReservationLimitError{
+					Code:         "SLOT_TAKEN",
+					Message:      "本日は医師が出勤していません。別の日をお選びください。",
+					RedirectStep: 4,
+				}
+			}
 			if errors.Is(err, apperrors.ErrConflict) {
 				return &ReservationLimitError{
 					Code:         "SLOT_TAKEN",
