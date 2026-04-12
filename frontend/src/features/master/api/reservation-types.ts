@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ReservationType as ModelReservationType } from "@/types/generated/models";
 import type {
@@ -110,6 +111,7 @@ export function useCreateReservationType() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
@@ -121,6 +123,7 @@ export function useUpdateReservationType() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
@@ -131,6 +134,7 @@ export function useDeleteReservationType() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }
 
@@ -141,5 +145,6 @@ export function useReorderReservationTypes() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 }

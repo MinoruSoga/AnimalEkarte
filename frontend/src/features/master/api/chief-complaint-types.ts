@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ChiefComplaintType as ModelChiefComplaintType } from "@/types/generated/models";
 
@@ -102,6 +103,7 @@ export function useCreateChiefComplaintType() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
@@ -113,6 +115,7 @@ export function useUpdateChiefComplaintType() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
@@ -123,5 +126,6 @@ export function useDeleteChiefComplaintType() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }

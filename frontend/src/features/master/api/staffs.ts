@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Staff as ModelStaff } from "@/types/generated/models";
 
@@ -135,6 +136,7 @@ export function useCreateStaff() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
@@ -146,6 +148,7 @@ export function useUpdateStaff() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
@@ -156,6 +159,7 @@ export function useDeleteStaff() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }
 
@@ -229,6 +233,7 @@ export function useSetStaffPermissionGroups() {
         queryKey: STAFF_PERM_GROUPS_KEY(variables.staffId),
       });
     },
+    onError: (error) => handleApiError(error, "設定"),
   });
 }
 
@@ -298,6 +303,7 @@ export function useSetStaffClinics() {
         queryKey: STAFF_CLINICS_KEY(variables.staffId),
       });
     },
+    onError: (error) => handleApiError(error, "設定"),
   });
 }
 
@@ -342,5 +348,6 @@ export function useSetStaffExcludedReservationTypes() {
         queryKey: STAFF_EXCLUDED_ST_KEY(variables.staffId),
       });
     },
+    onError: (error) => handleApiError(error, "設定"),
   });
 }

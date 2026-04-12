@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { ExaminationType, ExamTypeField } from "@/types/generated/models";
 
 export type { ExaminationType, ExamTypeField };
@@ -34,5 +35,6 @@ export const useReplaceExamTypeItems = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "examination-types"] });
     },
+    onError: (error) => handleApiError(error, "操作"),
   });
 };

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type {
   DiagnosisType as ModelDiagnosisType,
@@ -173,6 +174,7 @@ export function useCreateDiagnosisType() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
@@ -184,6 +186,7 @@ export function useUpdateDiagnosisType() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
@@ -194,6 +197,7 @@ export function useDeleteDiagnosisType() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }
 
@@ -204,6 +208,7 @@ export function useReorderDiagnosisTypes() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 }
 
@@ -227,6 +232,7 @@ export function useCreateDiagnosisName() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
@@ -238,6 +244,7 @@ export function useUpdateDiagnosisName() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
@@ -248,6 +255,7 @@ export function useDeleteDiagnosisName() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }
 
@@ -258,5 +266,6 @@ export function useReorderDiagnosisNames() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
     },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 }

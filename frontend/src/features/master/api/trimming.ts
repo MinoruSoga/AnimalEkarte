@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type {
   TrimmingCourse as ModelTrimmingCourse,
@@ -210,6 +211,7 @@ export function useCreateTrimmingCourse() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
@@ -221,6 +223,7 @@ export function useUpdateTrimmingCourse() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
@@ -231,6 +234,7 @@ export function useDeleteTrimmingCourse() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }
 
@@ -254,6 +258,7 @@ export function useCreateTrimmingOption() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
@@ -265,6 +270,7 @@ export function useUpdateTrimmingOption() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
@@ -275,5 +281,6 @@ export function useDeleteTrimmingOption() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }

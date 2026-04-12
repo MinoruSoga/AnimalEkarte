@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { PermissionGroup as ModelPermissionGroup } from "@/types/generated/models";
 
@@ -136,6 +137,7 @@ export function useCreatePermissionGroup() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PERMISSION_GROUPS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
@@ -147,6 +149,7 @@ export function useUpdatePermissionGroup() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PERMISSION_GROUPS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
@@ -157,6 +160,7 @@ export function useDeletePermissionGroup() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PERMISSION_GROUPS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }
 
@@ -168,6 +172,7 @@ export function useSetPermissionGroupRules() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PERMISSION_GROUPS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "設定"),
   });
 }
 
@@ -178,5 +183,6 @@ export function useReorderPermissionGroups() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PERMISSION_GROUPS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 }

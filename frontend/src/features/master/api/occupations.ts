@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Occupation as ModelOccupation } from "@/types/generated/models";
 
@@ -84,6 +85,7 @@ export const useCreateOccupation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 };
 
@@ -95,6 +97,7 @@ export const useUpdateOccupation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 };
 
@@ -105,6 +108,7 @@ export const useDeleteOccupation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 };
 
@@ -115,5 +119,6 @@ export const useReorderOccupations = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
     },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 };

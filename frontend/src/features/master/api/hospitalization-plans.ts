@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { BodySize, BillingUnit, HospitalizationPlan as ModelHospitalizationPlan, TaxType } from "@/types/generated/models";
 import {
@@ -147,6 +148,7 @@ export const useCreateHospitalizationPlan = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 };
 
@@ -163,6 +165,7 @@ export const useUpdateHospitalizationPlan = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 };
 
@@ -173,5 +176,6 @@ export const useDeleteHospitalizationPlan = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 };

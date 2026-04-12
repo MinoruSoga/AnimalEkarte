@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformConsultation } from "@/lib/transforms/treatment";
 import type { ConsultationItem } from "@/lib/transforms/treatment";
@@ -33,6 +34,7 @@ export const useCreateConsultation = () => {
       return transformConsultation(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
+    onError: (error) => handleApiError(error, "操作"),
   });
 };
 
@@ -53,6 +55,7 @@ export const useUpdateConsultation = () => {
       return transformConsultation(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
+    onError: (error) => handleApiError(error, "操作"),
   });
 };
 
@@ -61,6 +64,7 @@ export const useDeleteConsultation = () => {
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/consultations/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
+    onError: (error) => handleApiError(error, "操作"),
   });
 };
 
@@ -70,5 +74,6 @@ export const useReorderConsultations = () => {
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/consultations/reorder", req),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
+    onError: (error) => handleApiError(error, "操作"),
   });
 };
