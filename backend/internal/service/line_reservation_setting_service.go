@@ -67,6 +67,25 @@ func (s *lineReservationSettingService) Get(ctx context.Context, clinicID uint64
 }
 
 func (s *lineReservationSettingService) Upsert(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, error) {
+	// LineChannelSecret / LineAccessToken はレスポンスに含まれないため、
+	// フロントエンドは既存値を読み取れない。空文字が送られてきた場合は既存値を保持する。
+	channelSecret := input.LineChannelSecret
+	accessToken := input.LineAccessToken
+	if channelSecret == "" || accessToken == "" {
+		existing, err := s.repo.FindByClinicID(ctx, clinicID)
+		if err != nil && !apperrors.IsNotFound(err) {
+			return nil, apperrors.Wrap(err, "failed to get existing reservation setting")
+		}
+		if existing != nil {
+			if channelSecret == "" {
+				channelSecret = existing.LineChannelSecret
+			}
+			if accessToken == "" {
+				accessToken = existing.LineAccessToken
+			}
+		}
+	}
+
 	setting := &model.LineReservationSetting{
 		ClinicID:                clinicID,
 		Status:                  input.Status,
@@ -94,9 +113,9 @@ func (s *lineReservationSettingService) Upsert(ctx context.Context, clinicID uin
 		ShowNoStaffOption:       input.ShowNoStaffOption,
 		AdditionalFields:        input.AdditionalFields,
 		LineChannelID:           input.LineChannelID,
-		LineChannelSecret:       input.LineChannelSecret,
+		LineChannelSecret:       channelSecret,
 		LiffID:                  input.LiffID,
-		LineAccessToken:         input.LineAccessToken,
+		LineAccessToken:         accessToken,
 	}
 	if err := s.repo.Upsert(ctx, setting); err != nil {
 		return nil, apperrors.Wrap(err, "failed to upsert reservation setting")

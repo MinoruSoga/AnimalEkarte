@@ -76,6 +76,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
           closed_dates: merged.closed_dates,
           national_holiday_closed: merged.national_holiday_closed,
           business_hours: merged.business_hours,
+          business_hours_by_weekday: merged.business_hours_by_weekday,
           break_hours: merged.break_hours,
           daily_limit: merged.daily_limit,
           monthly_limit: merged.monthly_limit,
