@@ -397,12 +397,13 @@ INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
     (1,  1),  -- 林 文明     (hayashi@noah-vet.co.jp / システム管理者)
     (3,  1),  -- 三井 隆之   (mitsui@noah-vet.co.jp / admin@noavet.jp マッピング)
     (4,  1),  -- ノア        (admin@noavet.jp / 執行権限保持)
+    -- 八王子院 執行グループ (group_id=1) 追加: デモ admin アカウント
+    (8,  1),  -- 安田 希恵   (admin@example.com デモ) → 執行権限（削除操作を含む機能テスト用）
     -- 八王子院 一般グループ (group_id=2)
     (2,  2),  -- 山﨑 晶子   (yamazaki@noah-vet.co.jp)
     (5,  2),  -- 加藤 茉里
     (6,  2),  -- 金谷 亜美
     (7,  2),  -- 稲村 一真
-    (8,  2),  -- 安田 希恵   (admin@example.com デモ)
     (9,  2),  -- 倉田 春香   (vet@example.com デモ)
     (10, 2),  -- 梶原 梨夢   (nurse@example.com デモ)
     (11, 2),  -- 髙木 賀央里 (reception@example.com デモ)
