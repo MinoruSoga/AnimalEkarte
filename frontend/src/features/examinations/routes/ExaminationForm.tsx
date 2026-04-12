@@ -47,6 +47,7 @@ interface FormFieldsSectionProps {
   formData: Partial<ExaminationRecord>;
   examTypes: { id: string; name: string }[];
   staffList: { id: string; name: string }[];
+  masterLoading: boolean;
   isEdit: boolean;
   isSaving: boolean;
   isDeleting: boolean;
@@ -63,6 +64,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
   formData,
   examTypes,
   staffList,
+  masterLoading,
   isEdit,
   isDeleting,
   isConfirmed,
@@ -96,39 +98,47 @@ const FormFieldsSection = memo(function FormFieldsSection({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label className={`text-sm ${C.text60}`}>検査種別</Label>
-          <Select
-            value={formData.testTypeId ?? ""}
-            disabled={isConfirmed}
-            onValueChange={(v) => {
-              const item = examTypes.find((e) => e.id === v);
-              onSetFormData({ testTypeId: v, testType: item?.name ?? v });
-            }}
-          >
-            <SelectTrigger id="testTypeId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
-              <SelectValue placeholder="選択してください" />
-            </SelectTrigger>
-            <SelectContent>
-              {examTypeSelectItems}
-            </SelectContent>
-          </Select>
+          {masterLoading ? (
+            <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+          ) : (
+            <Select
+              value={formData.testTypeId ?? ""}
+              disabled={isConfirmed}
+              onValueChange={(v) => {
+                const item = examTypes.find((e) => e.id === v);
+                onSetFormData({ testTypeId: v, testType: item?.name ?? v });
+              }}
+            >
+              <SelectTrigger id="testTypeId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
+                <SelectValue placeholder="選択してください" />
+              </SelectTrigger>
+              <SelectContent>
+                {examTypeSelectItems}
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label className={`text-sm ${C.text60}`}>担当医</Label>
-          <Select
-            value={formData.doctorId ?? ""}
-            disabled={isConfirmed}
-            onValueChange={(v) => {
-              const staff = staffList.find((s) => String(s.id) === v);
-              onSetFormData({ doctorId: v, doctor: staff?.name ?? v });
-            }}
-          >
-            <SelectTrigger id="doctorId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
-              <SelectValue placeholder="選択してください" />
-            </SelectTrigger>
-            <SelectContent>
-              {staffSelectItems}
-            </SelectContent>
-          </Select>
+          {masterLoading ? (
+            <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+          ) : (
+            <Select
+              value={formData.doctorId ?? ""}
+              disabled={isConfirmed}
+              onValueChange={(v) => {
+                const staff = staffList.find((s) => String(s.id) === v);
+                onSetFormData({ doctorId: v, doctor: staff?.name ?? v });
+              }}
+            >
+              <SelectTrigger id="doctorId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
+                <SelectValue placeholder="選択してください" />
+              </SelectTrigger>
+              <SelectContent>
+                {staffSelectItems}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
@@ -208,8 +218,9 @@ export function ExaminationForm() {
   const medicalRecordId = searchParams.get("medicalRecordId");
   const { canEdit, canCreate, canDelete } = usePermission("examinations");
 
-  const { data: examTypesRaw } = useMasterItems("examination");
-  const { data: staffListRaw } = useMasterItems("staff");
+  const { data: examTypesRaw, isLoading: examTypesLoading } = useMasterItems("examination");
+  const { data: staffListRaw, isLoading: staffLoading } = useMasterItems("staff");
+  const masterLoading = examTypesLoading || staffLoading;
   const examTypes = useMemo(
     () => examTypesRaw.map((t) => ({ id: String(t.id), name: t.name })),
     [examTypesRaw],
@@ -383,6 +394,7 @@ export function ExaminationForm() {
                 formData={formData}
                 examTypes={examTypes}
                 staffList={staffList}
+                masterLoading={masterLoading}
                 isEdit={isEdit}
                 isSaving={isSaving}
                 isDeleting={isDeleting}
