@@ -37,7 +37,7 @@ export const useUpdateMasterItem = ({ category }: UseUpdateMasterItemParams) => 
     mutationFn: ({ id, req }: { id: string; req: UpdateMasterItemRequest }) =>
       updateMasterItem(category, id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category(category) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.masters.category(category) });
     },
     onError: (error) => handleApiError(error, "マスタの更新"),
   });

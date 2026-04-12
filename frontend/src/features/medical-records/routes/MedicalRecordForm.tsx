@@ -272,6 +272,21 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setIsStaffModalOpen(open);
   }, []);
 
+  const handleVisitTypeCycle = useCallback(() => {
+    setVisitType((prev) => {
+      const idx = VISIT_TYPE_OPTIONS.indexOf(prev as typeof VISIT_TYPE_OPTIONS[number]);
+      return VISIT_TYPE_OPTIONS[(idx + 1) % VISIT_TYPE_OPTIONS.length];
+    });
+  }, [setVisitType]);
+
+  const handleOpenStaffModal = useCallback(() => {
+    setIsStaffModalOpen(true);
+  }, []);
+
+  const handleOpenOwnerSearch = useCallback(() => {
+    setIsOwnerSearchOpen(true);
+  }, []);
+
   if (isPetLoading) {
     return <LoadingFallback />;
   }
@@ -303,12 +318,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           staffLabel="担当医: "
           reservationType={visitType}
           reservationTypeLabel="来院種別"
-          onReservationTypeClick={() => {
-            const idx = VISIT_TYPE_OPTIONS.indexOf(visitType as typeof VISIT_TYPE_OPTIONS[number]);
-            setVisitType(VISIT_TYPE_OPTIONS[(idx + 1) % VISIT_TYPE_OPTIONS.length]);
-          }}
-          onStaffClick={canEdit ? () => setIsStaffModalOpen(true) : undefined}
-          onOwnerClick={!isNewRecord ? () => setIsOwnerSearchOpen(true) : undefined}
+          onReservationTypeClick={handleVisitTypeCycle}
+          onStaffClick={canEdit ? handleOpenStaffModal : undefined}
+          onOwnerClick={!isNewRecord ? handleOpenOwnerSearch : undefined}
           petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
           insuranceName={selectedPet.insuranceName || "保険情報未登録"}
           insuranceDetails={selectedPet.insuranceDetails || "-"}

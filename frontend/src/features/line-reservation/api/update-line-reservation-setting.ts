@@ -17,8 +17,10 @@ export async function updateLineReservationSetting(
 export function useUpdateLineReservationSetting(clinicId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: UpdateLineReservationSettingRequest) =>
-      updateLineReservationSetting(clinicId!, payload),
+    mutationFn: (payload: UpdateLineReservationSettingRequest) => {
+      if (!clinicId) return Promise.reject(new Error("clinicId is required"));
+      return updateLineReservationSetting(clinicId, payload);
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["reservation-settings", clinicId] });
     },

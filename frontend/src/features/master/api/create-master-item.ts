@@ -36,7 +36,7 @@ export const useCreateMasterItem = ({ category }: UseCreateMasterItemParams) => 
   return useMutation({
     mutationFn: (req: CreateMasterItemRequest) => createMasterItem(category, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category(category) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.masters.category(category) });
     },
     onError: (error) => handleApiError(error, "マスタの作成"),
   });

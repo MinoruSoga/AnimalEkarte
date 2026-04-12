@@ -19,7 +19,7 @@ export const useDeleteMasterItem = ({ category }: UseDeleteMasterItemParams) => 
   return useMutation({
     mutationFn: (id: string) => deleteMasterItem(category, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category(category) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.masters.category(category) });
     },
     onError: (error) => handleApiError(error, "マスタの削除"),
   });
