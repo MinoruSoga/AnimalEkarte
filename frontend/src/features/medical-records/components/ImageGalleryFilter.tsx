@@ -3,6 +3,7 @@ import { useRef, memo } from "react";
 
 // External
 import { Upload } from "lucide-react";
+import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,9 @@ import { Label } from "@/components/ui/label";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
+
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
 const SORT_ORDER_SELECT_ITEMS = (
@@ -54,9 +58,16 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length > 0) {
-      onFilesSelected(files);
+    const allFiles = Array.from(e.target.files ?? []);
+    const oversized = allFiles.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
+    const valid = allFiles.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
+    if (oversized.length > 0) {
+      toast.error(
+        `ファイルサイズが上限（${MAX_FILE_SIZE_MB}MB）を超えています: ${oversized.map((f) => f.name).join(", ")}`
+      );
+    }
+    if (valid.length > 0) {
+      onFilesSelected(valid);
     }
     // Reset input so the same file can be re-selected
     e.target.value = "";
