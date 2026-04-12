@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -102,8 +103,11 @@ func (r *reservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clini
 			q = q.Where("sort_order > ?", target.SortOrder).Order("sort_order ASC")
 		}
 		if err := q.First(&neighbor).Error; err != nil {
-			// 隣接なし → 変更なし
-			return nil
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// 隣接なし → 変更なし
+				return nil
+			}
+			return apperrors.FromGORM(err, "reservation_type_liff", "neighbor")
 		}
 
 		targetOrder := target.SortOrder

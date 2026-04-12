@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -116,8 +117,11 @@ func (r *reservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID
 			q = q.Where("staffs.sort_order > ?", target.SortOrder).Order("staffs.sort_order ASC")
 		}
 		if err := q.First(&neighbor).Error; err != nil {
-			// 隣接なし → 変更なし
-			return nil
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// 隣接なし → 変更なし
+				return nil
+			}
+			return apperrors.FromGORM(err, "reservation_staff", "neighbor")
 		}
 
 		targetOrder := target.SortOrder
@@ -175,7 +179,7 @@ func (r *reservationStaffRepository) ReplaceExcludedReservationTypes(ctx context
 		items := make([]model.StaffReservationExclusion, 0, len(courseIDs))
 		for _, cid := range courseIDs {
 			items = append(items, model.StaffReservationExclusion{
-				StaffID:       staffID,
+				StaffID:           staffID,
 				ReservationTypeID: cid,
 			})
 		}

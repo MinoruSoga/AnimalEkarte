@@ -108,7 +108,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "create reservation appointment (transaction)")
 	}
 
 	slog.InfoContext(ctx, "admin reservation created",

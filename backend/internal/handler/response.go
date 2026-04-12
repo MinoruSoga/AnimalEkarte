@@ -72,6 +72,13 @@ func RespondError(c *gin.Context, err error) {
 	}
 }
 
+// RespondErrorAndAbort は RespondError を呼び出した後 c.Abort() する。
+// gin ミドルウェアで後続ハンドラを停止させる必要がある場合に使用する。
+func RespondErrorAndAbort(c *gin.Context, err error) {
+	RespondError(c, err)
+	c.Abort()
+}
+
 // isPgError はエラーチェーンに pgconn.PgError が含まれるか判定する
 func isPgError(err error) bool {
 	var pgErr *pgconn.PgError
@@ -226,8 +233,7 @@ func extractIsSystemAdmin(c *gin.Context) (isSystemAdmin, ok bool) {
 func (h *Handler) RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !h.hasPermission(c, resource, action) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
-			c.Abort()
+			RespondErrorAndAbort(c, apperrors.WrapForbidden("forbidden"))
 			return
 		}
 		c.Next()

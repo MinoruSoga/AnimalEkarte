@@ -214,12 +214,12 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 
 	visibleStaffs, err := s.resolveTargetStaffs(ctx, clinicID, typeID, staffID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to resolve target staffs")
 	}
 
 	staffInputs, err := s.buildStaffSlotInputs(ctx, clinicID, visibleStaffs, date)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to build staff slot inputs")
 	}
 
 	bh, defaultBreaks := s.parseBusinessHoursForDate(setting, date)
@@ -262,7 +262,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 
 	appt, err := s.validators.ValidateAndCreate(ctx, input)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to validate and create appointment")
 	}
 
 	// 顧客の追加フィールドを更新（プロフィール自動保存）
