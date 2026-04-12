@@ -107,16 +107,16 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		source = model.ReservationSourceLine
 	}
 	reservation := &model.Appointment{
-		ClinicID:      clinicID,
-		StartTime:     input.StartTime,
-		EndTime:       input.EndTime,
-		OwnerID:       input.OwnerID,
-		PetID:         input.PetID,
-		ReservationTypeID:     input.ReservationTypeID,
-		DoctorID:      input.DoctorID,
-		IsDesignated:  input.IsDesignated,
-		Notes:         input.Notes,
-		Source:        source,
+		ClinicID:          clinicID,
+		StartTime:         input.StartTime,
+		EndTime:           input.EndTime,
+		OwnerID:           input.OwnerID,
+		PetID:             input.PetID,
+		ReservationTypeID: input.ReservationTypeID,
+		DoctorID:          input.DoctorID,
+		IsDesignated:      input.IsDesignated,
+		Notes:             input.Notes,
+		Source:            source,
 	}
 	if input.VisitType != "" {
 		vt, err := validateEnum(input.VisitType,
@@ -150,20 +150,8 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 
 	// BUG-144: staff_id のクリニック所属チェック（クロスクリニック FK 防止）
 	if reservation.DoctorID != nil {
-		assignments, asgErr := h.svc.StaffClinicAssignment.FindByStaffID(ctx, *reservation.DoctorID)
-		if asgErr != nil {
-			RespondError(c, apperrors.Wrap(asgErr, "failed to verify staff assignment"))
-			return
-		}
-		assigned := false
-		for _, a := range assignments {
-			if a.ClinicID == clinicID {
-				assigned = true
-				break
-			}
-		}
-		if !assigned {
-			RespondError(c, apperrors.WrapInvalidInput("指定されたスタッフはこのクリニックに所属していません"))
+		if err := h.checkDoctorClinicAssignment(ctx, clinicID, *reservation.DoctorID); err != nil {
+			RespondError(c, err)
 			return
 		}
 	}
@@ -193,14 +181,14 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 	}
 
 	svcInput := service.UpdateReservationInput{
-		StartTime:     input.StartTime,
-		EndTime:       input.EndTime,
-		OwnerID:       input.OwnerID,
-		PetID:         input.PetID,
+		StartTime:         input.StartTime,
+		EndTime:           input.EndTime,
+		OwnerID:           input.OwnerID,
+		PetID:             input.PetID,
 		ReservationTypeID: input.ReservationTypeID,
-		DoctorID:      input.DoctorID,
-		IsDesignated:  input.IsDesignated,
-		Notes:         input.Notes,
+		DoctorID:          input.DoctorID,
+		IsDesignated:      input.IsDesignated,
+		Notes:             input.Notes,
 	}
 	if input.VisitType != nil {
 		vt, err := validateEnum(*input.VisitType,
@@ -234,20 +222,8 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 
 	// BUG-144: staff_id のクリニック所属チェック（Update時も）
 	if svcInput.DoctorID != nil {
-		assignments, asgErr := h.svc.StaffClinicAssignment.FindByStaffID(ctx, *svcInput.DoctorID)
-		if asgErr != nil {
-			RespondError(c, apperrors.Wrap(asgErr, "failed to verify staff assignment"))
-			return
-		}
-		assigned := false
-		for _, a := range assignments {
-			if a.ClinicID == clinicID {
-				assigned = true
-				break
-			}
-		}
-		if !assigned {
-			RespondError(c, apperrors.WrapInvalidInput("指定されたスタッフはこのクリニックに所属していません"))
+		if err := h.checkDoctorClinicAssignment(ctx, clinicID, *svcInput.DoctorID); err != nil {
+			RespondError(c, err)
 			return
 		}
 	}

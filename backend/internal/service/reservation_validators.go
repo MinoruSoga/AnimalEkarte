@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -39,16 +40,16 @@ type ReservationValidators interface {
 
 // CreateReservationInput は予約作成の入力。
 type CreateReservationInput struct {
-	ClinicID       uint64
-	CustomerID     uint64
-	ReservationTypeID  uint64
-	StaffID        uint64 // 0 = 指名なし
-	Date           time.Time
-	StartTime      string // "HHMM"
-	EndTime        string // "HHMM"
-	CustomerFields json.RawMessage
-	RequestText    string
-	Settings       *model.LineReservationSetting
+	ClinicID          uint64
+	CustomerID        uint64
+	ReservationTypeID uint64
+	StaffID           uint64 // 0 = 指名なし
+	Date              time.Time
+	StartTime         string // "HHMM"
+	EndTime           string // "HHMM"
+	CustomerFields    json.RawMessage
+	RequestText       string
+	Settings          *model.LineReservationSetting
 }
 
 type reservationValidators struct {
@@ -82,34 +83,25 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		if err != nil {
 			return apperrors.WrapInvalidInput(err.Error())
 		}
-
-		// 既存予約をロックしながら取得（楽観ロック）
-		var existing []model.Appointment
-		query := tx.Raw(`
-			SELECT * FROM appointments
-			WHERE clinic_id = ?
-			  AND deleted_at IS NULL
-			  AND status NOT IN ('cancelled')
-			  AND start_time < ?
-			  AND end_time > ?
-			  AND (? = 0 OR doctor_id = ?)
-			FOR UPDATE`,
-			input.ClinicID,
-			endDT,
-			startDT,
-			input.StaffID, input.StaffID,
-		).Scan(&existing)
-		if query.Error != nil {
-			return apperrors.Wrap(query.Error, "lock reservations")
+		if err := validateTimeRange(startDT, endDT); err != nil {
+			return err
 		}
 
-		// 時間枠の空きチェック
-		if len(existing) > 0 {
-			return &ReservationLimitError{
-				Code:         "SLOT_TAKEN",
-				Message:      "選択された時間枠は既に予約が入っています。別の時間をお選びください。",
-				RedirectStep: 5,
+		// 時間枠の空きチェック（医師指定時は同一医師の重複、未指定時は出勤医師数を上限）
+		var doctorIDPtr *uint64
+		if input.StaffID != 0 {
+			id := input.StaffID
+			doctorIDPtr = &id
+		}
+		if err := checkSlotConflict(ctx, tx, input.ClinicID, doctorIDPtr, startDT, endDT); err != nil {
+			if errors.Is(err, apperrors.ErrConflict) {
+				return &ReservationLimitError{
+					Code:         "SLOT_TAKEN",
+					Message:      "選択された時間枠は既に予約が入っています。別の時間をお選びください。",
+					RedirectStep: 5,
+				}
 			}
+			return err
 		}
 
 		// 同日予約制限チェック
@@ -183,18 +175,18 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		}
 
 		appt := &model.Appointment{
-			ClinicID:         input.ClinicID,
-			StartTime:        startDT,
-			EndTime:          endDT,
-			ReservationTypeID:    input.ReservationTypeID,
-			DoctorID:         doctorID,
-			Status:           model.ReservationStatusConfirmed,
-			Source:           model.ReservationSourceLine,
-			LineCustomerID:   &input.CustomerID,
-			IsStaffDelegated: input.StaffID == 0,
-			CustomerFields:   customerFields,
-			Notes:            notes,
-			VisitType:        model.VisitTypeRevisit,
+			ClinicID:          input.ClinicID,
+			StartTime:         startDT,
+			EndTime:           endDT,
+			ReservationTypeID: input.ReservationTypeID,
+			DoctorID:          doctorID,
+			Status:            model.ReservationStatusConfirmed,
+			Source:            model.ReservationSourceLine,
+			LineCustomerID:    &input.CustomerID,
+			IsStaffDelegated:  input.StaffID == 0,
+			CustomerFields:    customerFields,
+			Notes:             notes,
+			VisitType:         model.VisitTypeRevisit,
 		}
 		if err := tx.Create(appt).Error; err != nil {
 			return apperrors.Wrap(err, "failed to create reservation")

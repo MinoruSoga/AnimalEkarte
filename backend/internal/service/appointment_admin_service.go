@@ -22,18 +22,18 @@ type ReservationAdminService interface {
 
 // CreateReservationAdminInput は管理者手動予約の入力データ
 type CreateReservationAdminInput struct {
-	StartTime        time.Time
-	EndTime          time.Time
-	OwnerID          *uint64
-	PetID            *uint64
-	VisitType        string
-	ReservationTypeID    uint64
-	DoctorID         *uint64
-	IsDesignated     bool
-	Notes            string
-	LineCustomerID   *uint64
-	IsStaffDelegated bool
-	CustomerFields   []byte
+	StartTime         time.Time
+	EndTime           time.Time
+	OwnerID           *uint64
+	PetID             *uint64
+	VisitType         string
+	ReservationTypeID uint64
+	DoctorID          *uint64
+	IsDesignated      bool
+	Notes             string
+	LineCustomerID    *uint64
+	IsStaffDelegated  bool
+	CustomerFields    []byte
 }
 
 type reservationAdminService struct {
@@ -66,8 +66,8 @@ func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64
 }
 
 func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Appointment, error) {
-	if !input.EndTime.After(input.StartTime) {
-		return nil, apperrors.WrapInvalidInput("end_time must be after start_time")
+	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
+		return nil, err
 	}
 
 	visitType := model.VisitType(input.VisitType)
@@ -81,44 +81,25 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	var result *model.Appointment
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// SELECT FOR UPDATE で該当時間枠の既存予約を行ロック
-		var existing []model.Appointment
-		lockQuery := tx.Raw(`
-			SELECT * FROM appointments
-			WHERE clinic_id = ?
-			  AND deleted_at IS NULL
-			  AND status NOT IN ('cancelled')
-			  AND start_time < ?
-			  AND end_time > ?
-			  AND (? = 0 OR doctor_id = ?)
-			FOR UPDATE`,
-			clinicID,
-			input.EndTime,
-			input.StartTime,
-			ptrToUint64(input.DoctorID), ptrToUint64(input.DoctorID),
-		)
-		if lockQuery.Scan(&existing); lockQuery.Error != nil {
-			return apperrors.Wrap(lockQuery.Error, "lock reservations for conflict check")
-		}
-		if len(existing) > 0 {
-			return apperrors.WrapConflict("この時間枠は既に予約が入っています")
+		if err := checkSlotConflict(ctx, tx, clinicID, input.DoctorID, input.StartTime, input.EndTime); err != nil {
+			return err
 		}
 
 		ra := &model.Appointment{
-			ClinicID:         clinicID,
-			StartTime:        input.StartTime,
-			EndTime:          input.EndTime,
-			OwnerID:          input.OwnerID,
-			PetID:            input.PetID,
-			VisitType:        visitType,
-			ReservationTypeID:    input.ReservationTypeID,
-			DoctorID:         input.DoctorID,
-			IsDesignated:     input.IsDesignated,
-			Notes:            input.Notes,
-			Source:           model.ReservationSourceManual,
-			LineCustomerID:   input.LineCustomerID,
-			IsStaffDelegated: input.IsStaffDelegated,
-			CustomerFields:   customerFields,
+			ClinicID:          clinicID,
+			StartTime:         input.StartTime,
+			EndTime:           input.EndTime,
+			OwnerID:           input.OwnerID,
+			PetID:             input.PetID,
+			VisitType:         visitType,
+			ReservationTypeID: input.ReservationTypeID,
+			DoctorID:          input.DoctorID,
+			IsDesignated:      input.IsDesignated,
+			Notes:             input.Notes,
+			Source:            model.ReservationSourceManual,
+			LineCustomerID:    input.LineCustomerID,
+			IsStaffDelegated:  input.IsStaffDelegated,
+			CustomerFields:    customerFields,
 		}
 		if err := tx.Create(ra).Error; err != nil {
 			return apperrors.Wrap(err, "create reservation appointment")

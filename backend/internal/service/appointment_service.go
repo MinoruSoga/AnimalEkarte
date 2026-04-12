@@ -47,38 +47,17 @@ func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (
 
 func (s *reservationService) Create(ctx context.Context, reservation *model.Appointment) error {
 	// BUG-034: end_time <= start_time の場合は 400 Bad Request
-	if !reservation.EndTime.After(reservation.StartTime) {
-		return apperrors.Wrap(apperrors.ErrInvalidInput, "end_time must be after start_time")
+	if err := validateTimeRange(reservation.StartTime, reservation.EndTime); err != nil {
+		return err
 	}
 
 	// SELECT FOR UPDATE + トランザクションで競合を防止
 	// LINE予約・電子カルテ予約・管理者手動予約すべてで同一テーブルを使用するため、
 	// アプリケーションレベルでの排他制御が必要
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 該当時間枠の既存予約を行ロックで取得
-		var existing []model.Appointment
-		lockQuery := tx.Raw(`
-			SELECT * FROM appointments
-			WHERE clinic_id = ?
-			  AND deleted_at IS NULL
-			  AND status NOT IN ('cancelled')
-			  AND start_time < ?
-			  AND end_time > ?
-			  AND (? = 0 OR doctor_id = ?)
-			FOR UPDATE`,
-			reservation.ClinicID,
-			reservation.EndTime,
-			reservation.StartTime,
-			ptrToUint64(reservation.DoctorID), ptrToUint64(reservation.DoctorID),
-		)
-		if lockQuery.Scan(&existing); lockQuery.Error != nil {
-			return apperrors.Wrap(lockQuery.Error, "lock reservations for conflict check")
+		if err := checkSlotConflict(ctx, tx, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime); err != nil {
+			return err
 		}
-
-		if len(existing) > 0 {
-			return apperrors.WrapConflict("この時間枠は既に予約が入っています")
-		}
-
 		if err := tx.Create(reservation).Error; err != nil {
 			return apperrors.Wrap(err, "create reservation")
 		}
@@ -94,12 +73,89 @@ func (s *reservationService) Create(ctx context.Context, reservation *model.Appo
 	return nil
 }
 
+// validateTimeRange は end_time > start_time を確認する共通バリデーション。
+func validateTimeRange(startTime, endTime time.Time) error {
+	if !endTime.After(startTime) {
+		return apperrors.WrapInvalidInput("end_time must be after start_time")
+	}
+	return nil
+}
+
 // ptrToUint64 は *uint64 を uint64 に変換する（nil の場合は 0）
 func ptrToUint64(p *uint64) uint64 {
 	if p == nil {
 		return 0
 	}
 	return *p
+}
+
+// checkSlotConflict は時間枠の空き・重複をチェックする（SELECT FOR UPDATE）。
+//
+//   - doctor_id 指定時 → 同一医師の重複のみチェック（別医師は許可）
+//   - doctor_id nil 時 → その日の出勤医師数を上限として全予約件数をチェック
+//
+// 競合がある場合は apperrors.ErrConflict ラップエラーを返す。
+func checkSlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, doctorID *uint64, startTime, endTime time.Time) error {
+	if doctorID != nil {
+		// 同一医師への重複チェック
+		var existing []model.Appointment
+		q := tx.Raw(`
+			SELECT id FROM appointments
+			WHERE clinic_id = ?
+			  AND deleted_at IS NULL
+			  AND status NOT IN ('cancelled')
+			  AND start_time < ?
+			  AND end_time > ?
+			  AND doctor_id = ?
+			FOR UPDATE`,
+			clinicID, endTime, startTime, *doctorID,
+		)
+		if q.Scan(&existing); q.Error != nil {
+			return apperrors.Wrap(q.Error, "lock reservations for conflict check")
+		}
+		if len(existing) > 0 {
+			return apperrors.WrapConflict("この時間枠は既に予約が入っています")
+		}
+		return nil
+	}
+
+	// 医師未指定: その日の出勤医師数を上限として全予約件数をチェック
+	var doctorCount int64
+	cntQ := tx.Raw(`
+		SELECT COUNT(DISTINCT se.staff_id)
+		FROM shift_entries se
+		JOIN staffs s ON s.id = se.staff_id
+		WHERE se.clinic_id = ?
+		  AND se.date = DATE(? AT TIME ZONE 'Asia/Tokyo')
+		  AND se.shift_type NOT IN ('off', 'paid_leave')
+		  AND s.staff_type = 'doctor'
+		  AND s.is_active = true
+		  AND s.deleted_at IS NULL`,
+		clinicID, startTime,
+	)
+	if cntQ.Scan(&doctorCount); cntQ.Error != nil {
+		return apperrors.Wrap(cntQ.Error, "count on-duty doctors")
+	}
+
+	var existing []model.Appointment
+	q := tx.Raw(`
+		SELECT id FROM appointments
+		WHERE clinic_id = ?
+		  AND deleted_at IS NULL
+		  AND status NOT IN ('cancelled')
+		  AND start_time < ?
+		  AND end_time > ?
+		FOR UPDATE`,
+		clinicID, endTime, startTime,
+	)
+	if q.Scan(&existing); q.Error != nil {
+		return apperrors.Wrap(q.Error, "lock reservations for capacity check")
+	}
+
+	if int64(len(existing)) >= doctorCount {
+		return apperrors.WrapConflict("この時間枠は満員です（出勤医師数に達しています）")
+	}
+	return nil
 }
 
 func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Appointment, error) {
@@ -122,16 +178,16 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 
 // UpdateReservationInput は予約更新のサービス入力 DTO
 type UpdateReservationInput struct {
-	StartTime     *time.Time
-	EndTime       *time.Time
-	OwnerID       *uint64
-	PetID         *uint64
-	VisitType     *model.VisitType
+	StartTime         *time.Time
+	EndTime           *time.Time
+	OwnerID           *uint64
+	PetID             *uint64
+	VisitType         *model.VisitType
 	ReservationTypeID *uint64
-	DoctorID      *uint64
-	IsDesignated  *bool
-	Status        *model.ReservationStatus
-	Notes         *string
+	DoctorID          *uint64
+	IsDesignated      *bool
+	Status            *model.ReservationStatus
+	Notes             *string
 }
 
 func buildReservationUpdateFields(input *UpdateReservationInput) map[string]any {

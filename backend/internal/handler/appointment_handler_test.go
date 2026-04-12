@@ -59,11 +59,14 @@ func newHandlerWithReservationSvc(svc service.ReservationService) *Handler {
 	}}
 }
 
-// mockStaffClinicAssignmentService はテスト用モック。常にクリニックID=3に所属を返す。
+// mockStaffClinicAssignmentService はテスト用モック。テストで使われるクリニックID（1, 3）すべてに所属を返す。
 type mockStaffClinicAssignmentService struct{}
 
-func (m *mockStaffClinicAssignmentService) FindByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
-	return []model.StaffClinicAssignment{{StaffID: 1, ClinicID: 1}}, nil
+func (m *mockStaffClinicAssignmentService) FindByStaffID(_ context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
+	return []model.StaffClinicAssignment{
+		{StaffID: staffID, ClinicID: 1},
+		{StaffID: staffID, ClinicID: 3},
+	}, nil
 }
 func (m *mockStaffClinicAssignmentService) FindByClinicID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
 	return nil, nil
@@ -249,10 +252,10 @@ func TestCreateReservation(t *testing.T) {
 	now := time.Now()
 	validBody := func() map[string]any {
 		return map[string]any{
-			"start_time":      now.Format(time.RFC3339),
-			"end_time":        now.Add(30 * time.Minute).Format(time.RFC3339),
+			"start_time":          now.Format(time.RFC3339),
+			"end_time":            now.Add(30 * time.Minute).Format(time.RFC3339),
 			"reservation_type_id": 1,
-			"notes":           "健康診断",
+			"notes":               "健康診断",
 		}
 	}
 
