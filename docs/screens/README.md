@@ -38,6 +38,7 @@
 | 24 | シフト管理カレンダー | [24-shift-calendar.md](./24-shift-calendar.md) | スタッフ勤務シフトの可視化・管理 |
 | 25 | 定期健診一覧 | [25-checkups-list.md](./25-checkups-list.md) | 全ペットの定期健診記録の参照 |
 | 26 | 見積書詳細 | [26-estimate-detail.md](./26-estimate-detail.md) | 見積内容の確認と管理 |
+| 28 | LINE予約設定 | [28-line-reservation.md](./28-line-reservation.md) | LINE予約システムの設定・編集 |
 
 ## マスタ設定詳細
 

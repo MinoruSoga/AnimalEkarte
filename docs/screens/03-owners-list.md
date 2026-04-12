@@ -56,6 +56,7 @@
 | `PageLayout` | `[S]` | ページコンテナ |
 | `NotionFilter` | `[S]` | 高度な検索・フィルタ・ソートパネル |
 | `DataTable` | `[S]` | テーブルコンテナ |
+| `FilteringIndicator` | `[S]` | フィルタ計算中（非同期）に透過度を下げて視覚的にフィードバックする |
 | `DataTableRow` | `[S]` | クリックで飼主詳細（編集）画面へ遷移 |
 | `StatusBadge` | `[S]` | 生死ステータスバッジ |
 | `RowActionDropdown` | `[S]` | 編集・削除アクション |

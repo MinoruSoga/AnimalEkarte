@@ -98,7 +98,7 @@ func ptrToUint64(p *uint64) uint64 {
 // checkDoctorSlotConflict は特定医師の時間枠重複をチェックする（SELECT FOR UPDATE）。
 func checkDoctorSlotConflict(ctx context.Context, tx *gorm.DB, clinicID, doctorID uint64, startTime, endTime time.Time, excludeID *uint64) error {
 	var existing []model.Appointment
-	q := tx.Raw(`
+	q := tx.WithContext(ctx).Raw(`
 		SELECT id FROM appointments
 		WHERE clinic_id = ?
 		  AND deleted_at IS NULL
@@ -124,7 +124,7 @@ func checkDoctorSlotConflict(ctx context.Context, tx *gorm.DB, clinicID, doctorI
 // 出勤医師が 0 人の場合は errNoDoctorsOnDuty を返す（LINE パスで RedirectStep を分岐するため）。
 func checkCapacitySlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, startTime, endTime time.Time, excludeID *uint64) error {
 	var doctorCount int64
-	cntQ := tx.Raw(`
+	cntQ := tx.WithContext(ctx).Raw(`
 		SELECT COUNT(DISTINCT se.staff_id)
 		FROM shift_entries se
 		JOIN staffs s ON s.id = se.staff_id
@@ -144,7 +144,7 @@ func checkCapacitySlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64
 	}
 
 	var existing []model.Appointment
-	q := tx.Raw(`
+	q := tx.WithContext(ctx).Raw(`
 		SELECT id FROM appointments
 		WHERE clinic_id = ?
 		  AND deleted_at IS NULL

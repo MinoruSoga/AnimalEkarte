@@ -94,5 +94,5 @@ func (r *insuranceRepository) CountPetsByInsuranceID(ctx context.Context, insura
 }
 
 func (r *insuranceRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.Insurance{}, "insurance", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, ids)
 }

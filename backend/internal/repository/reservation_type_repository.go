@@ -98,5 +98,5 @@ func (r *reservationTypeRepository) Delete(ctx context.Context, clinicID, id uin
 
 // Reorder はトランザクション内で予約区分の sort_order を ids の順序で更新する
 func (r *reservationTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.ReservationType{}, "reservation_type", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.ReservationType{}, "reservation_type", clinicID, ids)
 }

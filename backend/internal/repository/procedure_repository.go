@@ -98,5 +98,5 @@ func (r *procedureRepository) CountUsageByProcedureID(ctx context.Context, proce
 }
 
 func (r *procedureRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.Procedure{}, "procedure", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, ids)
 }

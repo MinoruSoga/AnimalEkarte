@@ -121,7 +121,7 @@ func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fi
 }
 
 func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.Medicine{}, "medicine", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.Medicine{}, "medicine", clinicID, ids)
 }
 
 func (r *medicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {

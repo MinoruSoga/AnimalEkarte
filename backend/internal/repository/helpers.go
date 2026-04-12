@@ -11,7 +11,7 @@ import (
 
 // reorderByClinicID はマスタテーブルの並び順をトランザクション内で一括更新する汎用ヘルパー。
 // clinicID スコープ付きの Reorder 実装で使用する。
-func reorderByClinicID(db *gorm.DB, ctx context.Context, model any, resource string, clinicID uint64, ids []uint64) error {
+func reorderByClinicID(ctx context.Context, db *gorm.DB, model any, resource string, clinicID uint64, ids []uint64) error {
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(model).
@@ -30,7 +30,7 @@ func reorderByClinicID(db *gorm.DB, ctx context.Context, model any, resource str
 
 // reorderGlobal はクリニック横断マスタテーブルの並び順をトランザクション内で一括更新する汎用ヘルパー。
 // clinicID スコープなしの Reorder 実装で使用する（animal_species 等）。
-func reorderGlobal(db *gorm.DB, ctx context.Context, model any, resource string, ids []uint64) error {
+func reorderGlobal(ctx context.Context, db *gorm.DB, model any, resource string, ids []uint64) error {
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(model).

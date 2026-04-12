@@ -98,7 +98,7 @@ func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uin
 }
 
 func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.MerchandiseItem{}, "merchandise_item", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, ids)
 }
 
 // CountUsageByMerchandiseItemID は物販品目を参照している billing_items と estimate_items の件数の合計を返す（BUG-109）

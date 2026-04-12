@@ -83,5 +83,5 @@ func (r *cageRepository) Delete(ctx context.Context, clinicID, id uint64) error 
 }
 
 func (r *cageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.Cage{}, "cage", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.Cage{}, "cage", clinicID, ids)
 }

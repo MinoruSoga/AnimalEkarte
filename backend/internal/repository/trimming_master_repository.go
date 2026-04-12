@@ -94,7 +94,7 @@ func (r *trimmingCourseRepository) CountRecordsByCourseID(ctx context.Context, c
 }
 
 func (r *trimmingCourseRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.TrimmingCourse{}, "trimming_course", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.TrimmingCourse{}, "trimming_course", clinicID, ids)
 }
 
 // ---- TrimmingOption ----
@@ -168,7 +168,7 @@ func (r *trimmingOptionRepository) Delete(ctx context.Context, clinicID, id uint
 }
 
 func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.TrimmingOption{}, "trimming_option", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.TrimmingOption{}, "trimming_option", clinicID, ids)
 }
 
 // CountRecordsByOptionID は指定オプションを使用しているトリミング記録数を返す（BUG-201）

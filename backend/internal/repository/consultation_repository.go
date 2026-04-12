@@ -84,7 +84,7 @@ func (r *consultationRepository) Delete(ctx context.Context, clinicID, id uint64
 }
 
 func (r *consultationRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.Consultation{}, "consultation", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.Consultation{}, "consultation", clinicID, ids)
 }
 
 // CountUsageByConsultationID は診察マスタを参照している treatments の件数を返す（BUG-107）

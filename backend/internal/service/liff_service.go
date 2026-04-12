@@ -450,15 +450,15 @@ func (s *liffService) delegateStaff(ctx context.Context, clinicID, typeID uint64
 		// 空き枠があるスタッフを表示順に探す
 		dayResv, err := s.adminRepo.FindByDay(ctx, clinicID, date)
 		if err != nil {
-			return 0, nil // 失敗しても指名なしにフォールバック
+			return 0, nil //nolint:nilerr // 意図的フォールバック: 既存予約取得失敗時は空き確認をスキップして指名なしにする
 		}
 		startMin, err := minutesSinceMidnight(startTime)
 		if err != nil {
-			return 0, nil
+			return 0, nil //nolint:nilerr // 意図的フォールバック: 時刻フォーマット不正時は空き確認をスキップして指名なしにする
 		}
 		endMin, err := minutesSinceMidnight(endTime)
 		if err != nil {
-			return 0, nil
+			return 0, nil //nolint:nilerr // 意図的フォールバック: 時刻フォーマット不正時は空き確認をスキップして指名なしにする
 		}
 		for _, st := range staffs {
 			if isStaffAvailable(st.ID, startMin, endMin, dayResv) {

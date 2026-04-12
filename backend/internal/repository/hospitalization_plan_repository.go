@@ -96,5 +96,5 @@ func (r *hospitalizationPlanRepository) CountCarePlanItemsByPlanID(ctx context.C
 }
 
 func (r *hospitalizationPlanRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, ids)
 }

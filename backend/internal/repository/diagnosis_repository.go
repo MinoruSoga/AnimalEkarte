@@ -112,7 +112,7 @@ func (r *diagnosisTypeRepository) CountNamesByCategoryID(ctx context.Context, ca
 
 // Reorder はトランザクション内でカテゴリの sort_order を ids の順序で更新する (#019)
 func (r *diagnosisTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.DiagnosisType{}, "diagnosis_type", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.DiagnosisType{}, "diagnosis_type", clinicID, ids)
 }
 
 // ---- DiagnosisName ----
@@ -238,5 +238,5 @@ func (r *diagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(ctx contex
 
 // Reorder はトランザクション内で診断名の sort_order を ids の順序で更新する (#019)
 func (r *diagnosisNameRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.DiagnosisName{}, "diagnosis_name", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.DiagnosisName{}, "diagnosis_name", clinicID, ids)
 }

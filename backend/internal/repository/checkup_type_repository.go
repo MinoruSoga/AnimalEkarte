@@ -84,7 +84,7 @@ func (r *checkupTypeRepository) Delete(ctx context.Context, clinicID, id uint64)
 }
 
 func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(r.db, ctx, &model.CheckupType{}, "checkup_type", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, ids)
 }
 
 // CountUsageByCheckupTypeID は定期健診種別を参照している checkup_records の件数を返す（BUG-107）
