@@ -37,6 +37,9 @@ import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments } from "../api/treatments";
+import { useDeleteMedicalRecord } from "../api/delete-medical-record";
+import { handleApiError } from "@/lib/handle-api-error";
+import { toast } from "sonner";
 import { MedicalRecordPrintView } from "../components/MedicalRecordPrintView";
 import { useAuth, usePermission } from "@/features/auth";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
@@ -172,6 +175,22 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
+
+  const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord();
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (!recordId) return;
+    deleteRecord(recordId, {
+      onSuccess: () => {
+        toast.success("カルテを削除しました");
+        setIsDeleteConfirmOpen(false);
+        navigate(paths.medicalRecords.getHref());
+      },
+      onError: (error) => {
+        handleApiError(error, "カルテ削除");
+      },
+    });
+  }, [recordId, deleteRecord, navigate]);
 
   useEffect(() => {
     if (shouldRedirectToSelectPet) {
@@ -413,6 +432,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         <div className="fixed bottom-6 right-6 z-50 flex gap-2">
           {canDelete && !isNewRecord && activeTab === "問診" ? (
             <Button
+              type="button"
               variant="ghost-danger"
               onClick={() => setIsDeleteConfirmOpen(true)}
               className={`border ${C.borderDanger} h-10 text-sm px-4`}
@@ -423,6 +443,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           ) : null}
           {activeTab !== "見積書" && canEdit ? (
             <Button
+              type="button"
               variant="outline"
               onClick={() => setIsVitalsOpen(true)}
               disabled={isNewRecord}
@@ -435,6 +456,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           ) : null}
           {!isNewRecord ? (
             <Button
+              type="button"
               variant="outline"
               onClick={() => {
                 setIsPrinting(true);
@@ -476,14 +498,21 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               {selectedPet.name}のカルテデータを削除します。この操作は元に戻せません。
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                disabled={isDeleting}
+              >
                 キャンセル
               </Button>
               <Button
+                type="button"
                 className={`${STYLE.btnDanger}`}
-                onClick={() => setIsDeleteConfirmOpen(false)}
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
               >
-                削除
+                {isDeleting ? "削除中..." : "削除する"}
               </Button>
             </div>
           </div>
