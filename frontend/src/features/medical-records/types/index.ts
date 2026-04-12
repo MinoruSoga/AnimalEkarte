@@ -117,8 +117,8 @@ export interface Vital {
   recorded_at: string;
   temperature?: number | null;
   heart_rate?: number | null;
-  respiratory_rate?: number | null;
-  body_weight?: number | null;
+  respiration_rate?: number | null;
+  weight?: number | null;
   weight_unit: BodyWeightUnit;
   note?: string | null;
   created_at: string;
@@ -129,8 +129,8 @@ export interface CreateVitalInput {
   recorded_at: string;
   temperature?: number | null;
   heart_rate?: number | null;
-  respiratory_rate?: number | null;
-  body_weight?: number | null;
+  respiration_rate?: number | null;
+  weight?: number | null;
   weight_unit: BodyWeightUnit;
   note?: string | null;
 }
@@ -139,8 +139,8 @@ export interface UpdateVitalInput {
   recorded_at?: string;
   temperature?: number | null;
   heart_rate?: number | null;
-  respiratory_rate?: number | null;
-  body_weight?: number | null;
+  respiration_rate?: number | null;
+  weight?: number | null;
   weight_unit?: BodyWeightUnit;
   note?: string | null;
 }

@@ -62,8 +62,8 @@ interface AddFormState {
   recorded_at: string;
   temperature: string;
   heart_rate: string;
-  respiratory_rate: string;
-  body_weight: string;
+  respiration_rate: string;
+  weight: string;
   weight_unit: BodyWeightUnit;
   note: string;
 }
@@ -72,8 +72,8 @@ const EMPTY_ADD_FORM: AddFormState = {
   recorded_at: "",
   temperature: "",
   heart_rate: "",
-  respiratory_rate: "",
-  body_weight: "",
+  respiration_rate: "",
+  weight: "",
   weight_unit: "Kg",
   note: "",
 };
@@ -102,8 +102,8 @@ function buildEditRowForm(vital: Vital) {
       : "",
     temperature: vital.temperature != null ? String(vital.temperature) : "",
     heart_rate: vital.heart_rate != null ? String(vital.heart_rate) : "",
-    respiratory_rate: vital.respiratory_rate != null ? String(vital.respiratory_rate) : "",
-    body_weight: vital.body_weight != null ? String(vital.body_weight) : "",
+    respiration_rate: vital.respiration_rate != null ? String(vital.respiration_rate) : "",
+    weight: vital.weight != null ? String(vital.weight) : "",
     weight_unit: vital.weight_unit ?? "Kg",
     note: vital.note ?? "",
   };
@@ -141,8 +141,8 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
       recorded_at: recordedDate.toISOString(),
       temperature: temp,
       heart_rate: parseNumField(form.heart_rate),
-      respiratory_rate: parseNumField(form.respiratory_rate),
-      body_weight: parseNumField(form.body_weight),
+      respiration_rate: parseNumField(form.respiration_rate),
+      weight: parseNumField(form.weight),
       weight_unit: form.weight_unit as BodyWeightUnit,
       note: form.note.trim() || null,
     };
@@ -181,8 +181,8 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
       <td className="px-3 py-2">
         <input
           type="number"
-          value={form.respiratory_rate}
-          onChange={(e) => handleChange("respiratory_rate", e.target.value)}
+          value={form.respiration_rate}
+          onChange={(e) => handleChange("respiration_rate", e.target.value)}
           placeholder="-"
           className={EDIT_INPUT_CLASS}
         />
@@ -192,8 +192,8 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           <input
             type="number"
             step="0.01"
-            value={form.body_weight}
-            onChange={(e) => handleChange("body_weight", e.target.value)}
+            value={form.weight}
+            onChange={(e) => handleChange("weight", e.target.value)}
             placeholder="-"
             className={`${EDIT_INPUT_CLASS} text-right`}
           />
@@ -339,8 +339,8 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
 
     // BUG-044: 数値フィールドがすべて未入力の場合は保存しない（サーバー500回避）
     const heartRate = parseNumField(addForm.heart_rate);
-    const respiratoryRate = parseNumField(addForm.respiratory_rate);
-    const bodyWeight = parseNumField(addForm.body_weight);
+    const respiratoryRate = parseNumField(addForm.respiration_rate);
+    const bodyWeight = parseNumField(addForm.weight);
     if (temp === null && heartRate === null && respiratoryRate === null && bodyWeight === null) {
       toast.error("体温・心拍数・呼吸数・体重のいずれかを入力してください");
       return;
@@ -350,8 +350,8 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
       recorded_at: recordedDate.toISOString(),
       temperature: temp,
       heart_rate: heartRate,
-      respiratory_rate: respiratoryRate,
-      body_weight: bodyWeight,
+      respiration_rate: respiratoryRate,
+      weight: bodyWeight,
       weight_unit: addForm.weight_unit,
       note: addForm.note.trim() || null,
     };
@@ -494,10 +494,10 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
                       {displayNum(vital.heart_rate)}
                     </td>
                     <td className={`px-3 text-sm text-right ${C.text}`}>
-                      {displayNum(vital.respiratory_rate)}
+                      {displayNum(vital.respiration_rate)}
                     </td>
                     <td className={`px-3 text-sm text-right ${C.text}`}>
-                      {displayNum(vital.body_weight)}
+                      {displayNum(vital.weight)}
                       <span className={`ml-0.5 text-[10px] ${C.text40}`}>{vital.weight_unit}</span>
                     </td>
                     <td className={`px-3 text-sm ${C.text60}`}>
@@ -556,8 +556,8 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
             />
             <input
               type="number"
-              value={addForm.respiratory_rate}
-              onChange={(e) => handleAddFormChange("respiratory_rate", e.target.value)}
+              value={addForm.respiration_rate}
+              onChange={(e) => handleAddFormChange("respiration_rate", e.target.value)}
               placeholder="呼吸数"
               className={`${ADD_INPUT_CLASS} w-20`}
             />
@@ -565,8 +565,8 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
               <input
                 type="number"
                 step="0.01"
-                value={addForm.body_weight}
-                onChange={(e) => handleAddFormChange("body_weight", e.target.value)}
+                value={addForm.weight}
+                onChange={(e) => handleAddFormChange("weight", e.target.value)}
                 placeholder="体重"
                 className={`${ADD_INPUT_CLASS} w-20 text-right`}
               />
