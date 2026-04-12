@@ -89,9 +89,9 @@ func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.
 		return nil, apperrors.Wrap(err, "failed to get courses")
 	}
 	result := make([]model.ReservationType, 0, len(all))
-	for _, c := range all {
-		if !c.IsInternal && c.ReservationVisible {
-			result = append(result, c)
+	for i := range all {
+		if !all[i].IsInternal && all[i].ReservationVisible {
+			result = append(result, all[i])
 		}
 	}
 	return result, nil
@@ -104,18 +104,18 @@ func (s *liffService) GetStaffs(ctx context.Context, clinicID, typeID uint64) ([
 		return nil, apperrors.Wrap(err, "failed to get staffs")
 	}
 	result := make([]model.Staff, 0, len(all))
-	for _, st := range all {
-		if !st.ReservationVisible {
+	for i := range all {
+		if !all[i].ReservationVisible {
 			continue
 		}
-		excluded, err := s.staffRepo.FindExcludedReservationTypes(ctx, st.ID)
+		excluded, err := s.staffRepo.FindExcludedReservationTypes(ctx, all[i].ID)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to get excluded service types")
 		}
 		if isExcluded(excluded, typeID) {
 			continue
 		}
-		result = append(result, st)
+		result = append(result, all[i])
 	}
 	return result, nil
 }
@@ -162,7 +162,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		string(course.ReservationDayOption),
 	)
 
-	return CalcAvailableDates(ctx, AvailableDatesInput{
+	return CalcAvailableDates(ctx, &AvailableDatesInput{
 		Settings:       datesSettings,
 		TypeID:         typeID,
 		StaffID:        staffID,
@@ -224,7 +224,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 	}
 
 	bh, defaultBreaks := s.parseBusinessHoursForDate(setting, date)
-	input := TimeSlotsInput{
+	input := &TimeSlotsInput{
 		BusinessHours:     bh,
 		DefaultBreaks:     defaultBreaks,
 		CourseDuration:    course.DurationMinutes,
@@ -344,16 +344,16 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, typeID,
 		return nil, apperrors.Wrap(err, "failed to get staffs")
 	}
 	result := make([]model.Staff, 0, len(all))
-	for _, st := range all {
-		if !st.ReservationVisible {
+	for i := range all {
+		if !all[i].ReservationVisible {
 			continue
 		}
-		excluded, err := s.staffRepo.FindExcludedReservationTypes(ctx, st.ID)
+		excluded, err := s.staffRepo.FindExcludedReservationTypes(ctx, all[i].ID)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to get excluded service types")
 		}
 		if !isExcluded(excluded, typeID) {
-			result = append(result, st)
+			result = append(result, all[i])
 		}
 	}
 	return result, nil
@@ -368,11 +368,11 @@ func (s *liffService) buildStaffSlotInputs(ctx context.Context, clinicID uint64,
 	}
 
 	inputs := make([]StaffSlotInput, 0, len(staffs))
-	for _, staff := range staffs {
-		si := StaffSlotInput{StaffID: staff.ID}
+	for i := range staffs {
+		si := StaffSlotInput{StaffID: staffs[i].ID}
 
 		// シフトエントリを取得
-		entry, err := s.scheduleRepo.FindByDate(ctx, clinicID, staff.ID, date)
+		entry, err := s.scheduleRepo.FindByDate(ctx, clinicID, staffs[i].ID, date)
 		if err == nil && entry != nil {
 			breaks, _ := s.scheduleRepo.FindBreaksByEntryID(ctx, entry.ID)
 			override := &StaffScheduleOverride{
@@ -390,15 +390,15 @@ func (s *liffService) buildStaffSlotInputs(ctx context.Context, clinicID uint64,
 		}
 
 		// 当日の既存予約を絞り込み
-		for _, r := range dayResv {
-			if r.Status == model.ReservationStatusCancelled {
+		for j := range dayResv {
+			if dayResv[j].Status == model.ReservationStatusCancelled {
 				continue
 			}
-			if r.DoctorID != nil && *r.DoctorID == staff.ID {
+			if dayResv[j].DoctorID != nil && *dayResv[j].DoctorID == staffs[i].ID {
 				si.ExistingResvs = append(si.ExistingResvs, ExistingReservation{
-					StaffID:   staff.ID,
-					StartTime: r.StartTime.Format("1504"),
-					EndTime:   r.EndTime.Format("1504"),
+					StaffID:   staffs[i].ID,
+					StartTime: dayResv[j].StartTime.Format("1504"),
+					EndTime:   dayResv[j].EndTime.Format("1504"),
 				})
 			}
 		}
@@ -461,9 +461,9 @@ func (s *liffService) delegateStaff(ctx context.Context, clinicID, typeID uint64
 		if err != nil {
 			return 0, nil //nolint:nilerr // 意図的フォールバック: 時刻フォーマット不正時は空き確認をスキップして指名なしにする
 		}
-		for _, st := range staffs {
-			if isStaffAvailable(st.ID, startMin, endMin, dayResv) {
-				return st.ID, nil
+		for i := range staffs {
+			if isStaffAvailable(staffs[i].ID, startMin, endMin, dayResv) {
+				return staffs[i].ID, nil
 			}
 		}
 		return 0, nil
@@ -472,15 +472,15 @@ func (s *liffService) delegateStaff(ctx context.Context, clinicID, typeID uint64
 
 // isStaffAvailable はスタッフが指定時間枠で空いているか確認する。
 func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.Appointment) bool {
-	for _, r := range dayResv {
-		if r.Status == model.ReservationStatusCancelled {
+	for i := range dayResv {
+		if dayResv[i].Status == model.ReservationStatusCancelled {
 			continue
 		}
-		if r.DoctorID == nil || *r.DoctorID != staffID {
+		if dayResv[i].DoctorID == nil || *dayResv[i].DoctorID != staffID {
 			continue
 		}
-		rStart := r.StartTime.Hour()*60 + r.StartTime.Minute()
-		rEnd := r.EndTime.Hour()*60 + r.EndTime.Minute()
+		rStart := dayResv[i].StartTime.Hour()*60 + dayResv[i].StartTime.Minute()
+		rEnd := dayResv[i].EndTime.Hour()*60 + dayResv[i].EndTime.Minute()
 		// 重複チェック: 新枠が既存予約と重なる場合は NG
 		if startMin < rEnd && endMin > rStart {
 			return false

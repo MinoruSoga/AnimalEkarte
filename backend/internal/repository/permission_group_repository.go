@@ -123,7 +123,7 @@ func (r *permissionGroupRepository) SetRules(ctx context.Context, groupID uint64
 
 		return nil
 	}); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to set permission group rules")
 	}
 	return nil
 }
@@ -210,7 +210,7 @@ func (r *permissionGroupRepository) SetStaffGroups(ctx context.Context, staffID 
 		}
 		return nil
 	}); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to set staff permission groups")
 	}
 	return nil
 }
@@ -218,7 +218,7 @@ func (r *permissionGroupRepository) SetStaffGroups(ctx context.Context, staffID 
 // Reorder は指定されたIDリストの順序でソート順を更新する。
 // GORM の論理削除は Model 呼び出しで自動適用されないため、明示的に deleted_at IS NULL を指定する。
 func (r *permissionGroupRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.PermissionGroup{}).
 				Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
@@ -231,5 +231,8 @@ func (r *permissionGroupRepository) Reorder(ctx context.Context, clinicID uint64
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to reorder permission groups")
+	}
+	return nil
 }

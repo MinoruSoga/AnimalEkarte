@@ -75,7 +75,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 	}
 
 	var result *model.Appointment
-	err := v.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := v.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 時間枠を SELECT FOR UPDATE でロック
 		startDT, err := toDateTime(input.Date, input.StartTime)
 		if err != nil {
@@ -203,9 +203,8 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		}
 		result = appt
 		return nil
-	})
-	if err != nil {
-		return nil, err
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create line reservation")
 	}
 	return result, nil
 }

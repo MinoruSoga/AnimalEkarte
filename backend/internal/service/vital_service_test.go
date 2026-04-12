@@ -16,7 +16,7 @@ import (
 
 type mockVitalRepository struct {
 	listByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
-	findByIDFn              func(ctx context.Context, clinicID uint64, vitalID uint64) (*model.VitalRecord, error)
+	findByIDFn              func(ctx context.Context, clinicID, vitalID uint64) (*model.VitalRecord, error)
 	createFn                func(ctx context.Context, vital *model.VitalRecord) error
 	updateFn                func(ctx context.Context, clinicID, vitalID uint64, fields map[string]any) error
 	deleteFn                func(ctx context.Context, clinicID, vitalID uint64) error
@@ -26,7 +26,7 @@ func (m *mockVitalRepository) ListByMedicalRecordID(ctx context.Context, clinicI
 	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockVitalRepository) FindByID(ctx context.Context, clinicID uint64, vitalID uint64) (*model.VitalRecord, error) {
+func (m *mockVitalRepository) FindByID(ctx context.Context, clinicID, vitalID uint64) (*model.VitalRecord, error) {
 	return m.findByIDFn(ctx, clinicID, vitalID)
 }
 

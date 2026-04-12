@@ -41,9 +41,9 @@ type reservationNotificationService struct {
 // NewReservationNotificationService は通知サービスを初期化して返す。
 // SMTP設定が空の場合はメール送信をスキップする。
 // LINE アクセストークン・通知先メールは予約のクリニック設定（DB）から都度取得する。
-func NewReservationNotificationService(cfg ReservationNotificationConfig, settingRepo repository.LineReservationSettingRepository) ReservationNotifier {
+func NewReservationNotificationService(cfg *ReservationNotificationConfig, settingRepo repository.LineReservationSettingRepository) ReservationNotifier {
 	return &reservationNotificationService{
-		cfg:         cfg,
+		cfg:         *cfg,
 		settingRepo: settingRepo,
 	}
 }

@@ -27,7 +27,7 @@ func defaultInput(dur int) TimeSlotsInput {
 // TC1: 基本: 営業時間内（09:00-19:00）で15分枠を生成
 func TestGenerateTimeSlots_Basic(t *testing.T) {
 	input := defaultInput(15)
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	assert.NotEmpty(t, slots)
 	assert.Equal(t, "0900", slots[0].StartTime)
@@ -41,7 +41,7 @@ func TestGenerateTimeSlots_Basic(t *testing.T) {
 // TC2: 休憩時間をまたぐ枠が除外される（12:00-13:00 の休憩）
 func TestGenerateTimeSlots_BreakExclusion(t *testing.T) {
 	input := defaultInput(15)
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	for _, s := range slots {
 		// 休憩時間内（1200-1300）に開始する枠がないこと
@@ -59,7 +59,7 @@ func TestGenerateTimeSlots_ExistingReservationExclusion(t *testing.T) {
 	input.Staffs[0].ExistingResvs = []ExistingReservation{
 		{StaffID: 1, StartTime: "0900", EndTime: "0930"},
 	}
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	for _, s := range slots {
 		assert.False(t, s.StartTime >= "0900" && s.StartTime < "0930",
@@ -85,7 +85,7 @@ func TestGenerateTimeSlots_StaffScheduleOverride(t *testing.T) {
 		WorkStart: &workStart,
 		WorkEnd:   &workEnd,
 	}
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	assert.NotEmpty(t, slots)
 	assert.Equal(t, "1000", slots[0].StartTime)
@@ -104,7 +104,7 @@ func TestGenerateTimeSlots_StaffDayOff(t *testing.T) {
 	input.Staffs[0].ScheduleOverride = &StaffScheduleOverride{
 		ShiftType: "off",
 	}
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	assert.Empty(t, slots)
 }
@@ -115,7 +115,7 @@ func TestGenerateTimeSlots_PaidLeave(t *testing.T) {
 	input.Staffs[0].ScheduleOverride = &StaffScheduleOverride{
 		ShiftType: "paid_leave",
 	}
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	assert.Empty(t, slots)
 }
@@ -124,7 +124,7 @@ func TestGenerateTimeSlots_PaidLeave(t *testing.T) {
 func TestGenerateTimeSlots_AllowGapsMode(t *testing.T) {
 	input := defaultInput(15)
 	input.IntervalMinutes = 30 // 30分間隔で生成
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	// 間隔が30分になっていること
 	if len(slots) >= 2 {
@@ -145,7 +145,7 @@ func TestGenerateTimeSlots_MinimizeGapsMode(t *testing.T) {
 		MinCourseDuration: 15, // 最短コース15分 → 余り15分未満なら無視
 		Staffs:            []StaffSlotInput{{StaffID: 1}},
 	}
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	// 09:00-12:00 = 180分。60分コースなら最大3枠だが…
 	// minimize_gaps: 60分詰めて 09:00, 10:00, 11:00 → 3枠
@@ -188,7 +188,7 @@ func TestGenerateTimeSlots_MultipleStaffs(t *testing.T) {
 			},
 		},
 	}
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	// Staff1の枠と Staff2 の枠が統合されること
 	has0900 := false
@@ -208,7 +208,7 @@ func TestGenerateTimeSlots_MultipleStaffs(t *testing.T) {
 // TC10: 60分コース（手術）の枠生成
 func TestGenerateTimeSlots_60MinCourse(t *testing.T) {
 	input := defaultInput(60)
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	assert.NotEmpty(t, slots)
 	// 最初の枠は09:00-10:00
@@ -224,7 +224,7 @@ func TestGenerateTimeSlots_60MinCourse(t *testing.T) {
 // TC11: 15分コース（一般診察）の枠生成 — 計算件数確認
 func TestGenerateTimeSlots_15MinCourse_Count(t *testing.T) {
 	input := defaultInput(15)
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	// 09:00-12:00 = 180分 → 12枠
 	// 13:00-19:00 = 360分 → 24枠
@@ -238,7 +238,7 @@ func TestGenerateTimeSlots_MorningShift(t *testing.T) {
 	input.Staffs[0].ScheduleOverride = &StaffScheduleOverride{
 		ShiftType: "morning",
 	}
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	// 午前のみ（09:00-12:00）
 	assert.NotEmpty(t, slots)
@@ -253,7 +253,7 @@ func TestGenerateTimeSlots_AfternoonShift(t *testing.T) {
 	input.Staffs[0].ScheduleOverride = &StaffScheduleOverride{
 		ShiftType: "afternoon",
 	}
-	slots, err := GenerateTimeSlots(input)
+	slots, err := GenerateTimeSlots(&input)
 	require.NoError(t, err)
 	// 午後のみ（13:00-19:00）
 	assert.NotEmpty(t, slots)

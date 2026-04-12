@@ -30,8 +30,8 @@ func (h *Handler) ListReservationSchedules(c *gin.Context) {
 		return
 	}
 	list := make([]scheduleEntryResponse, 0, len(entries))
-	for _, e := range entries {
-		list = append(list, toScheduleEntryResponse(e))
+	for i := range entries {
+		list = append(list, toScheduleEntryResponse(&entries[i]))
 	}
 	c.JSON(http.StatusOK, list)
 }
@@ -74,7 +74,7 @@ func (h *Handler) UpsertReservationSchedule(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toScheduleEntryResponse(*entry))
+	c.JSON(http.StatusOK, toScheduleEntryResponse(entry))
 }
 
 // DeleteReservationSchedule godoc

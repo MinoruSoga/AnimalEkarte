@@ -54,8 +54,8 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 		return []ScheduleEntry{}, nil
 	}
 	entryIDs := make([]uint64, len(entries))
-	for i, e := range entries {
-		entryIDs[i] = e.ID
+	for i := range entries {
+		entryIDs[i] = entries[i].ID
 	}
 	breaksMap, err := s.repo.FindBreaksByEntryIDs(ctx, entryIDs)
 	if err != nil {

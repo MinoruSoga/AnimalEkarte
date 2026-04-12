@@ -181,7 +181,7 @@ func checkSlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, doctor
 
 // resolveUpdateParams は現在の予約と更新入力から、競合チェックに使用する時刻・医師 ID を確定する。
 // 未指定フィールドは現在値を維持する。DoctorID=0 は NULL（医師未指定）として扱う。
-func resolveUpdateParams(current model.Appointment, input *UpdateReservationInput) (start, end time.Time, doctorID *uint64) {
+func resolveUpdateParams(current *model.Appointment, input *UpdateReservationInput) (start, end time.Time, doctorID *uint64) {
 	start = current.StartTime
 	if input.StartTime != nil {
 		start = *input.StartTime
@@ -205,7 +205,7 @@ func resolveUpdateParams(current model.Appointment, input *UpdateReservationInpu
 // 時刻・医師変更がある場合にのみ呼び出す。
 func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput) (*model.Appointment, error) {
 	var result *model.Appointment
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 現在の予約を行ロックで取得（競合チェックの基準値として使用）
 		var current model.Appointment
 		if err := tx.Raw(
@@ -218,7 +218,7 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 			return apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
 		}
 
-		resolvedStart, resolvedEnd, resolvedDoctorID := resolveUpdateParams(current, input)
+		resolvedStart, resolvedEnd, resolvedDoctorID := resolveUpdateParams(&current, input)
 
 		if input.StartTime != nil || input.EndTime != nil {
 			if err := validateTimeRange(resolvedStart, resolvedEnd); err != nil {
@@ -247,8 +247,10 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		}
 		result = &updated
 		return nil
-	})
-	return result, err
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to update reservation with conflict check")
+	}
+	return result, nil
 }
 
 func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Appointment, error) {

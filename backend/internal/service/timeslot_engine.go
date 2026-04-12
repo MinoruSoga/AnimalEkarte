@@ -37,7 +37,7 @@ type interval struct {
 }
 
 // subtract は base から excl の時間区間を除外した区間リストを返す。
-func subtract(base []interval, excl []interval) []interval {
+func subtract(base, excl []interval) []interval {
 	result := make([]interval, len(base))
 	copy(result, base)
 	for _, ex := range excl {
@@ -120,11 +120,11 @@ type TimeSlot struct {
 
 // GenerateTimeSlots は入力に基づいて空き時間枠を計算して返す。
 // 複数スタッフが指定された場合は全スタッフの空き枠を統合して返す（UNION）。
-func GenerateTimeSlots(input TimeSlotsInput) ([]TimeSlot, error) {
+func GenerateTimeSlots(input *TimeSlotsInput) ([]TimeSlot, error) {
 	slotSet := make(map[string]struct{})
 
-	for _, staffInput := range input.Staffs {
-		slots, err := generateForStaff(input, staffInput)
+	for i := range input.Staffs {
+		slots, err := generateForStaff(input, &input.Staffs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -148,7 +148,7 @@ func GenerateTimeSlots(input TimeSlotsInput) ([]TimeSlot, error) {
 }
 
 // generateForStaff は1スタッフ分の空き時間枠を計算する。
-func generateForStaff(input TimeSlotsInput, staffInput StaffSlotInput) ([]TimeSlot, error) {
+func generateForStaff(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]TimeSlot, error) {
 	// 1. 勤務時間を決定
 	workIntervals, err := resolveWorkIntervals(input, staffInput)
 	if err != nil {
@@ -202,7 +202,7 @@ func generateForStaff(input TimeSlotsInput, staffInput StaffSlotInput) ([]TimeSl
 }
 
 // resolveWorkIntervals はスタッフの勤務時間区間を解決する。
-func resolveWorkIntervals(input TimeSlotsInput, staffInput StaffSlotInput) ([]interval, error) {
+func resolveWorkIntervals(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]interval, error) {
 	bsStart, err := minutesSinceMidnight(input.BusinessHours.Start)
 	if err != nil {
 		return nil, fmt.Errorf("business_hours.start: %w", err)
@@ -283,7 +283,7 @@ func resolveWorkIntervals(input TimeSlotsInput, staffInput StaffSlotInput) ([]in
 }
 
 // resolveBrakeIntervals はスタッフの休憩時間区間を解決する。
-func resolveBrakeIntervals(input TimeSlotsInput, staffInput StaffSlotInput) ([]interval, error) {
+func resolveBrakeIntervals(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]interval, error) {
 	var breaks []BreakPeriod
 	if staffInput.ScheduleOverride != nil && len(staffInput.ScheduleOverride.Breaks) > 0 {
 		breaks = staffInput.ScheduleOverride.Breaks

@@ -69,7 +69,7 @@ func (r *reservationStaffRepository) FindByIDAndClinicID(ctx context.Context, cl
 
 // Create はスタッフ + StaffClinicAssignment をトランザクションで作成する
 func (r *reservationStaffRepository) Create(ctx context.Context, staff *model.Staff, clinicID uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(staff).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_staff", "")
 		}
@@ -82,7 +82,10 @@ func (r *reservationStaffRepository) Create(ctx context.Context, staff *model.St
 			return apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff=%d", staff.ID))
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to create reservation staff")
+	}
+	return nil
 }
 
 func (r *reservationStaffRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
@@ -111,7 +114,7 @@ func (r *reservationStaffRepository) SoftDelete(ctx context.Context, id uint64) 
 }
 
 func (r *reservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var target model.Staff
 		err := tx.
 			Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
@@ -148,7 +151,10 @@ func (r *reservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID
 			return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", neighbor.ID))
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to swap sort order")
+	}
+	return nil
 }
 
 func (r *reservationStaffRepository) FindExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
@@ -181,7 +187,7 @@ func (r *reservationStaffRepository) FindExcludedReservationTypesByStaffIDs(ctx 
 
 // ReplaceExcludedReservationTypes は staffID の除外コースを courseIDs で完全置換する（差分更新）
 func (r *reservationStaffRepository) ReplaceExcludedReservationTypes(ctx context.Context, staffID uint64, courseIDs []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存を全削除
 		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffReservationExclusion{}).Error; err != nil {
 			return apperrors.FromGORM(err, "staff_reservation_exclusion", fmt.Sprintf("%d", staffID))
@@ -201,5 +207,8 @@ func (r *reservationStaffRepository) ReplaceExcludedReservationTypes(ctx context
 			return apperrors.FromGORM(err, "staff_reservation_exclusion", "")
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to replace excluded reservation types")
+	}
+	return nil
 }

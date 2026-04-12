@@ -13,11 +13,11 @@ import (
 
 // BillingItemRepository は billing_items テーブルの CRUD を担うインターフェース
 type BillingItemRepository interface {
-	FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error)
 	FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
 	Create(ctx context.Context, item *model.BillingItem) error
-	UpdateFields(ctx context.Context, clinicID uint64, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, clinicID uint64, id uint64) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 }
 
@@ -28,7 +28,7 @@ func NewBillingItemRepository(db *gorm.DB) BillingItemRepository {
 	return &billingItemRepository{db: db}
 }
 
-func (r *billingItemRepository) FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error) {
+func (r *billingItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error) {
 	var item model.BillingItem
 	err := r.db.WithContext(ctx).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ?", clinicID).
@@ -59,7 +59,7 @@ func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingI
 	return nil
 }
 
-func (r *billingItemRepository) UpdateFields(ctx context.Context, clinicID uint64, id uint64, fields map[string]any) error {
+func (r *billingItemRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	// Verify clinic ownership before mutating
 	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
 		return err
@@ -77,7 +77,7 @@ func (r *billingItemRepository) UpdateFields(ctx context.Context, clinicID uint6
 	return nil
 }
 
-func (r *billingItemRepository) Delete(ctx context.Context, clinicID uint64, id uint64) error {
+func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	// Verify clinic ownership before mutating
 	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
 		return err

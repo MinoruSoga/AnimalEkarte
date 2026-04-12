@@ -84,7 +84,7 @@ func closedDates0(b []byte) []byte {
 }
 
 // CalcAvailableDates は予約可能な日付一覧を計算して返す。
-func CalcAvailableDates(ctx context.Context, input AvailableDatesInput) ([]AvailableDateResult, BookingWindow, error) {
+func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]AvailableDateResult, BookingWindow, error) {
 	now := time.Now().In(jstLocation())
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jstLocation())
 
@@ -179,7 +179,7 @@ func CalcAvailableDates(ctx context.Context, input AvailableDatesInput) ([]Avail
 			// 時間枠が1つ以上あるかチェック
 			slotInput := input.SlotSettingsFn(d)
 			slotInput.Staffs = staffInputs
-			slots, err := GenerateTimeSlots(slotInput)
+			slots, err := GenerateTimeSlots(&slotInput)
 			if err != nil {
 				return nil, window, err
 			}

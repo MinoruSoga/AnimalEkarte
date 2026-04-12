@@ -53,7 +53,7 @@ func main() {
 	repos := repository.NewRepositories(db)
 
 	// サービス初期化
-	svcs := service.NewServices(repos, service.ReservationNotificationConfig{
+	svcs := service.NewServices(repos, &service.ReservationNotificationConfig{
 		SMTPHost: cfg.SMTPHost,
 		SMTPPort: cfg.SMTPPort,
 		SMTPUser: cfg.SMTPUser,

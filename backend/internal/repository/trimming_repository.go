@@ -131,7 +131,7 @@ func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, op
 		}
 		return nil
 	}); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to set trimming options")
 	}
 	return nil
 }

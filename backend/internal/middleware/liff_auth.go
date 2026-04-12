@@ -144,7 +144,7 @@ func verifyLiffIDToken(ctx context.Context, idToken, clientID string) (*lineVeri
 	params.Set("client_id", clientID)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, lineVerifyURL, strings.NewReader(params.Encode()))
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create http request")
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 

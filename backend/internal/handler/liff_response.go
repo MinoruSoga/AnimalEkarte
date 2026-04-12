@@ -48,7 +48,7 @@ type liffCourseResponse struct {
 	SortOrder           int    `json:"sort_order"`
 }
 
-func toLiffCourseResponse(st model.ReservationType) liffCourseResponse {
+func toLiffCourseResponse(st *model.ReservationType) liffCourseResponse {
 	// 名前のフォールバックチェーン:
 	// 1. ReservationDisplayName（LINE表示名）
 	// 2. ShortName（ShowShortName が true の場合）
@@ -82,7 +82,7 @@ type liffStaffResponse struct {
 	SortOrder           int    `json:"sort_order"`
 }
 
-func toLiffStaffResponse(st model.Staff) liffStaffResponse {
+func toLiffStaffResponse(st *model.Staff) liffStaffResponse {
 	name := st.ReservationDisplayName
 	if name == "" {
 		name = st.Name
@@ -129,7 +129,7 @@ type liffReservationResponse struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-func toLiffReservationResponse(r model.Appointment) liffReservationResponse {
+func toLiffReservationResponse(r *model.Appointment) liffReservationResponse {
 	res := liffReservationResponse{
 		ID:        r.ID,
 		Date:      r.StartTime.Format("2006-01-02"),

@@ -117,7 +117,7 @@ func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint6
 }
 
 func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. 飼主を作成
 		if err := tx.Create(owner).Error; err != nil {
 			if isUniqueConstraintErr(err) {
@@ -134,9 +134,8 @@ func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner
 			}
 		}
 		return nil
-	})
-	if err != nil {
-		return err
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to create owner with pets")
 	}
 	// トランザクションコミット後に全リレーションをロードして呼び出し元に反映
 	loaded, err := r.FindByID(ctx, owner.ClinicID, owner.ID)

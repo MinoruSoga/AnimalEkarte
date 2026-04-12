@@ -86,7 +86,7 @@ func (r *reservationScheduleRepository) FindByDate(ctx context.Context, clinicID
 
 // Upsert は ShiftEntry と ShiftEntryBreaks をトランザクションで upsert する
 func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存エントリを検索
 		var existing model.ShiftEntry
 		err := tx.Where("clinic_id = ? AND staff_id = ? AND date = ?",
@@ -130,7 +130,10 @@ func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to upsert shift entry")
+	}
+	return nil
 }
 
 func (r *reservationScheduleRepository) DeleteByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) error {

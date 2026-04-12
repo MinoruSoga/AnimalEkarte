@@ -60,8 +60,8 @@ func (h *Handler) GetLiffTypes(c *gin.Context) {
 		return
 	}
 	resp := make([]liffCourseResponse, 0, len(courses))
-	for _, co := range courses {
-		resp = append(resp, toLiffCourseResponse(co))
+	for i := range courses {
+		resp = append(resp, toLiffCourseResponse(&courses[i]))
 	}
 	c.JSON(http.StatusOK, resp)
 }
@@ -85,8 +85,8 @@ func (h *Handler) GetLiffStaffs(c *gin.Context) {
 		return
 	}
 	resp := make([]liffStaffResponse, 0, len(staffs))
-	for _, st := range staffs {
-		resp = append(resp, toLiffStaffResponse(st))
+	for i := range staffs {
+		resp = append(resp, toLiffStaffResponse(&staffs[i]))
 	}
 	c.JSON(http.StatusOK, resp)
 }
@@ -236,8 +236,8 @@ func (h *Handler) GetLiffMyReservations(c *gin.Context) {
 		return
 	}
 	resp := make([]liffReservationResponse, 0, len(items))
-	for _, r := range items {
-		resp = append(resp, toLiffReservationResponse(r))
+	for i := range items {
+		resp = append(resp, toLiffReservationResponse(&items[i]))
 	}
 	c.JSON(http.StatusOK, resp)
 }

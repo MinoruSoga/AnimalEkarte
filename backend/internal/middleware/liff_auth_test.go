@@ -56,14 +56,14 @@ func newLiffAuthRouter(lookup LineCustomerLookup, settingLookup LineReservationS
 }
 
 // startMockLINEServer は LINE ID Token 検証 API のモックサーバーを起動する。
-func startMockLINEServer(t *testing.T, statusCode int, resp lineVerifyResponse) *httptest.Server {
+func startMockLINEServer(t *testing.T, statusCode int, resp *lineVerifyResponse) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
 		assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(statusCode)
-		json.NewEncoder(w).Encode(resp) //nolint:errcheck
+		json.NewEncoder(w).Encode(resp) //nolint:errcheck // テスト用モックサーバーのレスポンス書き込みエラーは無視してよい
 	}))
 	t.Cleanup(func() { srv.Close() })
 	return srv
@@ -179,7 +179,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer invalidtoken",
 			clinicID:   "3",
 			setupLine: func(t *testing.T) {
-				srv := startMockLINEServer(t, http.StatusBadRequest, lineVerifyResponse{
+				srv := startMockLINEServer(t, http.StatusBadRequest, &lineVerifyResponse{
 					Error:     "invalid_token",
 					ErrorDesc: "The ID token is invalid",
 				})
@@ -195,7 +195,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer emptysub",
 			clinicID:   "3",
 			setupLine: func(t *testing.T) {
-				srv := startMockLINEServer(t, http.StatusOK, lineVerifyResponse{
+				srv := startMockLINEServer(t, http.StatusOK, &lineVerifyResponse{
 					Sub:  "", // empty
 					Name: "テスト",
 				})
@@ -211,7 +211,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer validtoken",
 			clinicID:   "3",
 			setupLine: func(t *testing.T) {
-				srv := startMockLINEServer(t, http.StatusOK, lineVerifyResponse{
+				srv := startMockLINEServer(t, http.StatusOK, &lineVerifyResponse{
 					Sub:  "U1234567890",
 					Name: "テストユーザー",
 				})
@@ -231,7 +231,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer validtoken",
 			clinicID:   "3",
 			setupLine: func(t *testing.T) {
-				srv := startMockLINEServer(t, http.StatusOK, lineVerifyResponse{
+				srv := startMockLINEServer(t, http.StatusOK, &lineVerifyResponse{
 					Sub:  "U1234567890",
 					Name: "テストユーザー",
 				})
@@ -257,7 +257,7 @@ func TestLiffAuth(t *testing.T) {
 			}
 
 			r := newLiffAuthRouter(tt.customer, tt.setting)
-			req := httptest.NewRequest(http.MethodGet, "/api/liff/"+tt.clinicID+"/test", nil)
+			req := httptest.NewRequest(http.MethodGet, "/api/liff/"+tt.clinicID+"/test", http.NoBody)
 			if tt.authHeader != "" {
 				req.Header.Set("Authorization", tt.authHeader)
 			}
@@ -277,7 +277,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 	t.Cleanup(func() { lineVerifyURL = originalURL })
 
 	t.Run("LINE APIが正常レスポンスを返す", func(t *testing.T) {
-		srv := startMockLINEServer(t, http.StatusOK, lineVerifyResponse{
+		srv := startMockLINEServer(t, http.StatusOK, &lineVerifyResponse{
 			Sub:      "U9999999",
 			Name:     "田中太郎",
 			ClientID: "2009755544",
@@ -291,7 +291,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 	})
 
 	t.Run("LINE APIがエラーフィールドを返す", func(t *testing.T) {
-		srv := startMockLINEServer(t, http.StatusBadRequest, lineVerifyResponse{
+		srv := startMockLINEServer(t, http.StatusBadRequest, &lineVerifyResponse{
 			Error:     "invalid_request",
 			ErrorDesc: "The id_token is expired",
 		})
@@ -303,7 +303,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 	})
 
 	t.Run("Subフィールドがemptyのとき InvalidInput", func(t *testing.T) {
-		srv := startMockLINEServer(t, http.StatusOK, lineVerifyResponse{
+		srv := startMockLINEServer(t, http.StatusOK, &lineVerifyResponse{
 			Sub:  "",
 			Name: "不明ユーザー",
 		})
@@ -317,7 +317,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 	t.Run("モックサーバーが不正なJSONを返す", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("NOT JSON")) //nolint:errcheck
+			w.Write([]byte("NOT JSON")) //nolint:errcheck // テスト用モックサーバーの書き込みエラーは無視してよい
 		}))
 		t.Cleanup(func() { srv.Close() })
 		lineVerifyURL = srv.URL
@@ -351,7 +351,7 @@ func TestLiffChannelIDExtraction(t *testing.T) {
 		require.NoError(t, r.ParseForm())
 		capturedClientID = r.FormValue("client_id")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(lineVerifyResponse{Sub: "U0001", Name: "ユーザー"}) //nolint:errcheck
+		json.NewEncoder(w).Encode(lineVerifyResponse{Sub: "U0001", Name: "ユーザー"}) //nolint:errcheck // テスト用モックサーバーのレスポンス書き込みエラーは無視してよい
 	}))
 	t.Cleanup(func() { srv.Close() })
 	lineVerifyURL = srv.URL
@@ -365,7 +365,7 @@ func TestLiffChannelIDExtraction(t *testing.T) {
 	customer := validCustomerLookup()
 
 	r := newLiffAuthRouter(customer, setting)
-	req := httptest.NewRequest(http.MethodGet, "/api/liff/3/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/liff/3/test", http.NoBody)
 	req.Header.Set("Authorization", "Bearer sometoken")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

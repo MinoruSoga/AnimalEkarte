@@ -116,7 +116,7 @@ func (r *shiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) 
 }
 
 func (r *shiftEntryRepository) ReplaceBreaks(ctx context.Context, shiftEntryID uint64, breaks []model.ShiftEntryBreak) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("shift_entry_id = ?", shiftEntryID).Delete(&model.ShiftEntryBreak{}).Error; err != nil {
 			return apperrors.FromGORM(err, "shift_entry_break", fmt.Sprintf("%d", shiftEntryID))
 		}
@@ -130,7 +130,10 @@ func (r *shiftEntryRepository) ReplaceBreaks(ctx context.Context, shiftEntryID u
 			return apperrors.FromGORM(err, "shift_entry_break", "")
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to replace shift entry breaks")
+	}
+	return nil
 }
 
 func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {

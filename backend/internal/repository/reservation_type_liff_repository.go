@@ -89,7 +89,7 @@ func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id
 }
 
 func (r *reservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var target model.ReservationType
 		if err := tx.First(&target, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))
@@ -120,5 +120,8 @@ func (r *reservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clini
 			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", neighbor.ID))
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to swap sort order")
+	}
+	return nil
 }
