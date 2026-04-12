@@ -32,7 +32,7 @@ func (r *clinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, clin
 	err := r.db.WithContext(ctx).
 		Preload("DiagnosisType").
 		Preload("DiagnosisName").
-		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id").
+		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND clinical_plans.medical_record_id = ?", clinicID, medicalRecordID).
 		First(&plan).Error
 	if err != nil {
@@ -65,7 +65,7 @@ func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64
 
 func (r *clinicalPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id").
+		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("clinical_plans.id = ? AND medical_records.clinic_id = ?", id, clinicID).
 		Delete(&model.ClinicalPlan{})
 	if result.Error != nil {

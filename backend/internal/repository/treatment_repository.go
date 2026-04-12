@@ -38,7 +38,7 @@ func NewTreatmentRepository(db *gorm.DB) TreatmentRepository {
 func (r *treatmentRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
 	treatments := make([]model.Treatment, 0)
 	if err := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id").
+		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND treatments.medical_record_id = ? AND treatments.deleted_at IS NULL", clinicID, medicalRecordID).
 		Preload("Consultation").
 		Preload("Procedure").
@@ -53,7 +53,7 @@ func (r *treatmentRepository) ListByMedicalRecordID(ctx context.Context, clinicI
 func (r *treatmentRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error) {
 	var treatment model.Treatment
 	err := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id").
+		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND treatments.id = ? AND treatments.deleted_at IS NULL", clinicID, id).
 		First(&treatment).Error
 	if err != nil {
@@ -72,7 +72,7 @@ func (r *treatmentRepository) Create(ctx context.Context, treatment *model.Treat
 func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Treatment{}).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id").
+		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND treatments.id = ? AND treatments.deleted_at IS NULL", clinicID, id).
 		Updates(fields)
 	if result.Error != nil {
@@ -86,7 +86,7 @@ func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, f
 
 func (r *treatmentRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id").
+		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND treatments.id = ? AND treatments.deleted_at IS NULL", clinicID, id).
 		Delete(&model.Treatment{})
 	if result.Error != nil {
@@ -110,7 +110,7 @@ func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates [
 		}
 		return nil
 	}); err != nil {
-		return err
+		return apperrors.Wrap(err, "bulk update sort order")
 	}
 	return nil
 }
