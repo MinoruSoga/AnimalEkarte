@@ -1,0 +1,57 @@
+package service
+
+import (
+	"context"
+	"time"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
+)
+
+// ClinicHolidayService は個別休診日管理のビジネスロジックインターフェース
+type ClinicHolidayService interface {
+	List(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
+	Set(ctx context.Context, clinicID uint64, date time.Time, reason string) (*model.ClinicHoliday, error)
+	Remove(ctx context.Context, clinicID uint64, date time.Time) error
+}
+
+type clinicHolidayService struct {
+	repo repository.ClinicHolidayRepository
+}
+
+// NewClinicHolidayService はClinicHolidayServiceを初期化して返す
+func NewClinicHolidayService(repo repository.ClinicHolidayRepository) ClinicHolidayService {
+	return &clinicHolidayService{repo: repo}
+}
+
+func (s *clinicHolidayService) List(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
+	holidays, err := s.repo.FindByYearMonth(ctx, clinicID, yearMonth)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list clinic holidays")
+	}
+	return holidays, nil
+}
+
+func (s *clinicHolidayService) Set(ctx context.Context, clinicID uint64, date time.Time, reason string) (*model.ClinicHoliday, error) {
+	holiday := &model.ClinicHoliday{
+		ClinicID: clinicID,
+		Date:     date,
+		Reason:   reason,
+	}
+	result, err := s.repo.Upsert(ctx, holiday)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to set clinic holiday")
+	}
+	return result, nil
+}
+
+func (s *clinicHolidayService) Remove(ctx context.Context, clinicID uint64, date time.Time) error {
+	if err := s.repo.Delete(ctx, clinicID, date); err != nil {
+		if apperrors.IsNotFound(err) {
+			return nil // 冪等: 存在しない場合も成功
+		}
+		return apperrors.Wrap(err, "failed to remove clinic holiday")
+	}
+	return nil
+}

@@ -1260,6 +1260,20 @@ CREATE TABLE shift_entries (
 );
 
 -- ------------------------------------
+-- 57a. clinic_holidays（個別休診日）
+-- ------------------------------------
+CREATE TABLE clinic_holidays (
+    id         BIGSERIAL   PRIMARY KEY,
+    clinic_id  bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    date       date        NOT NULL,
+    reason     text        NOT NULL DEFAULT '',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uk_clinic_holidays_clinic_date UNIQUE (clinic_id, date)
+);
+CREATE INDEX idx_clinic_holidays_clinic_date ON clinic_holidays(clinic_id, date);
+
+-- ------------------------------------
 -- 57. merchandise_items（物販・フード・その他マスタ）
 -- ------------------------------------
 CREATE TABLE merchandise_items (

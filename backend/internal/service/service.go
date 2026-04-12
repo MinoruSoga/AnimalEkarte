@@ -46,6 +46,7 @@ type Services struct {
 	BillingConfirmation   BillingConfirmationService
 	CarePlanItem          CarePlanItemService
 	ShiftEntry            ShiftEntryService
+	ClinicHoliday         ClinicHolidayService
 	TreatmentPlan         TreatmentPlanService
 	Vital                 VitalService
 	Treatment             TreatmentService
@@ -113,6 +114,7 @@ func NewServices(repos *repository.Repositories, notifCfg ReservationNotificatio
 		BillingConfirmation:    NewBillingConfirmationService(repos.BillingConfirmation),
 		CarePlanItem:           NewCarePlanItemService(repos.CarePlanItem),
 		ShiftEntry:             NewShiftEntryService(repos.ShiftEntry),
+		ClinicHoliday:          NewClinicHolidayService(repos.ClinicHoliday),
 		TreatmentPlan:          NewTreatmentPlanService(repos.TreatmentPlan),
 		Vital:                  NewVitalService(repos.Vital),
 		Treatment:              NewTreatmentService(repos),
