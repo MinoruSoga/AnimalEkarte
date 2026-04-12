@@ -204,7 +204,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   // rerender-functional-setstate: prev => 形式で treatmentPlans を deps から除外
   const addTreatmentPlan = useCallback(() => {
     const newPlan: TreatmentPlan = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       treatmentContent: "",
       memo: "",
       is_insurance: false,

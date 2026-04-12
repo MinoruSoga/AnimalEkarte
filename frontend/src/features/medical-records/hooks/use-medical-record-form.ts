@@ -103,7 +103,7 @@ export function useMedicalRecordForm(recordId?: string) {
         if (draft.diagnosis2CategoryId) setDiagnosis2CategoryId(draft.diagnosis2CategoryId);
         if (draft.diagnosis2NameId) setDiagnosis2NameId(draft.diagnosis2NameId);
         toast.info("未保存の下書きを復元しました", { duration: 2000 });
-      } catch (_err) {
+      } catch {
         // localStorage の下書きが破損している場合は静かにスキップ（復元失敗は非致命的）
         localStorage.removeItem(DRAFT_KEY);
       }

@@ -76,7 +76,7 @@ export function useTrimmingForm(id?: string) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: one-time draft restore on mount
         setLocalOverrides((prev) => ({ ...prev, ...draft }));
         toast.info("未保存の下書きを復元しました", { duration: 2000 });
-      } catch (_err) {
+      } catch {
         // localStorage の下書きが破損している場合は静かにスキップ（復元失敗は非致命的）
         localStorage.removeItem(DRAFT_KEY);
       }
