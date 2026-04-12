@@ -24,6 +24,9 @@ import { Badge } from "@/components/ui/badge";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { RECEPTION_STATUS_COLORS, RECEPTION_STATUS_COLOR_FALLBACK } from "@/utils/constants/status-colors";
 
+// Internal
+import { paths } from "@/config/paths";
+
 // Types
 import type { ReceptionAppointment as Appointment } from "../api/types";
 
@@ -330,21 +333,21 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
 
   const handleCreateMedicalRecord = useCallback((tab?: string) => {
     const base = petId
-      ? `/medical-records/new?petId=${petId}${tab ? `&tab=${tab}` : ""}`
-      : "/medical-records/select-pet";
+      ? `${paths.medicalRecords.new.getHref()}?petId=${petId}${tab ? `&tab=${tab}` : ""}`
+      : paths.medicalRecords.selectPet.getHref();
     navigateAndClose(base, { appointmentId });
   }, [petId, appointmentId, navigateAndClose]);
 
   const handleCreateTrimming = useCallback(() =>
-    navigateAndClose(petId ? `/trimming/new?petId=${petId}` : "/trimming/new"),
+    navigateAndClose(petId ? `${paths.trimming.new.getHref()}?petId=${petId}` : paths.trimming.new.getHref()),
   [petId, navigateAndClose]);
 
   const handleCreateHospitalization = useCallback(() =>
-    navigateAndClose(petId ? `/hospitalization/new?petId=${petId}` : "/hospitalization/new"),
+    navigateAndClose(petId ? `${paths.hospitalization.new.getHref()}?petId=${petId}` : paths.hospitalization.new.getHref()),
   [petId, navigateAndClose]);
 
   const handleCreateAccounting = useCallback(() =>
-    navigateAndClose(petId ? `/accounting/new?petId=${petId}` : "/accounting/new", {
+    navigateAndClose(petId ? `${paths.accounting.new.getHref()}?petId=${petId}` : paths.accounting.new.getHref(), {
       appointmentId,
     }),
   [petId, appointmentId, navigateAndClose]);

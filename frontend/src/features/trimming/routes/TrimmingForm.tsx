@@ -506,7 +506,7 @@ export function TrimmingForm() {
   // rerender-dependencies: location.state (object) から primitive を抽出して deps を安定化
   const fromPath = location.state?.from as string | undefined;
   const handleBack = useCallback(() => {
-    navigate(fromPath ?? "/trimming");
+    navigate(fromPath ?? paths.trimming.getHref());
   }, [fromPath, navigate]);
 
   const handleOpenCourseModal = useCallback(() => setCourseModalOpen(true), []);

@@ -34,7 +34,7 @@ export const DailyCareNoteForm = memo(function DailyCareNoteForm({ onSave }: Dai
             status: "completed",
             value: "経過記録",
             notes: note,
-            staff: "スタッフ"
+            staff: ""  // 呼び出し元(DailyRecordsTab)でログインユーザー名に上書きされる
         });
 
         setNote("");

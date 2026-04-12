@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router";
 import { addHours } from "date-fns";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { paths } from "@/config/paths";
 
 import { getReservationStatusLabel } from "@/utils/status-helpers";
 import type {
@@ -324,7 +325,7 @@ export function useReservationManagement() {
       }
 
       if (appointment.petId) {
-        navigate(`${targetPath}?${queryParams.toString()}`, { state: { from: "/reservations" } });
+        navigate(`${targetPath}?${queryParams.toString()}`, { state: { from: paths.reservations.getHref() } });
       } else {
         const selectPath = SELECT_PATH[appointment.type] || "/medical-records/select-pet";
         setPetSelectPath(selectPath);
@@ -336,7 +337,7 @@ export function useReservationManagement() {
 
   const handlePetSelectConfirm = useCallback(() => {
     setPetSelectConfirmOpen(false);
-    navigate(petSelectPath, { state: { from: "/reservations" } });
+    navigate(petSelectPath, { state: { from: paths.reservations.getHref() } });
   }, [navigate, petSelectPath]);
 
   const handleDeleteConfirmClose = useCallback(() => {

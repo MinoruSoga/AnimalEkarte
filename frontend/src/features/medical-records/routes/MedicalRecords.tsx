@@ -160,8 +160,8 @@ export function MedicalRecords() {
 
   const handleNavigateToForm = useCallback((recordId?: string) => {
     navigate(
-      recordId ? `/medical-records/${recordId}` : "/medical-records/select-pet",
-      { state: { from: "/medical-records" } },
+      recordId ? paths.medicalRecords.detail.getHref(recordId) : paths.medicalRecords.selectPet.getHref(),
+      { state: { from: paths.medicalRecords.getHref() } },
     );
   }, [navigate]);
 
