@@ -186,6 +186,12 @@
 
 **→ 全チケット CLOSED 確認。フロントエンド/バックエンドとも未修正 Open はゼロ。**
 
+## バックエンド Go 規約準拠監査（2026-04-12 第13回・第7回監査）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| ~~BUG-338~~ | BE 複数 | ✅ **CLOSED** — RequirePermission c.JSON直接使用 / nilerr 2箇所 / liff_service bare return / transaction bare return 全修正（2026-04-12） | High/Medium | closed/ |
+
 ### バックエンド残存課題（実コード検証済み）
 
 ~~**BUG-245**~~ CLOSED — 全 price フィールドが `*input.Price` でデリファレンス済み
