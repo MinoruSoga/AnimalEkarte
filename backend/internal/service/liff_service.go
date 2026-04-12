@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"gorm.io/gorm"
-
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -48,7 +46,8 @@ func NewLiffService(
 	adminRepo repository.ReservationAdminRepository,
 	customerRepo repository.LineCustomerRepository,
 	ownerRepo repository.OwnerRepository,
-	db *gorm.DB,
+	tx repository.Transactor,
+	reservationRepo repository.ReservationRepository,
 	notifier ReservationNotifier,
 ) LiffService {
 	return &liffService{
@@ -59,7 +58,7 @@ func NewLiffService(
 		adminRepo:    adminRepo,
 		customerRepo: customerRepo,
 		ownerRepo:    ownerRepo,
-		validators:   NewReservationValidators(db),
+		validators:   NewReservationValidators(tx, reservationRepo),
 		notifier:     notifier,
 	}
 }

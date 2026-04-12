@@ -72,6 +72,7 @@ type Services struct {
 func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig) *Services {
 	notifier := NewReservationNotificationService(notifCfg, repos.LineReservationSetting)
 	auditSvc := NewAuditService(repos.Audit)
+	tx := repository.NewTransactor(repos.DB())
 
 	return &Services{
 		Account:                NewAccountService(repos.Account),
@@ -80,7 +81,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
 		Owner:                  NewOwnerService(repos.Owner),
 		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
-		Reservation:            NewReservationService(repos.Reservation, repos.DB()),
+		Reservation:            NewReservationService(repos.Reservation, tx),
 		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan),
 		Hospitalization:        NewHospitalizationService(repos),
 		Accounting:             NewAccountingService(repos.Accounting),
@@ -130,7 +131,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ReservationTypeLiff:    NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),
 		ReservationStaff:       NewReservationStaffService(repos.ReservationStaff),
 		ReservationSchedule:    NewReservationScheduleService(repos.ReservationSchedule),
-		ReservationAdmin:       NewReservationAdminService(repos.ReservationAdmin, repos.DB()),
+		ReservationAdmin:       NewReservationAdminService(repos.ReservationAdmin, repos.Reservation, tx),
 		LineCustomer:           NewLineCustomerService(repos.LineCustomerMgr),
 		Liff: NewLiffService(
 			repos.LineReservationSetting,
@@ -140,7 +141,8 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			repos.ReservationAdmin,
 			repos.LineCustomerMgr,
 			repos.Owner,
-			repos.DB(),
+			tx,
+			repos.Reservation,
 			notifier,
 		),
 	}

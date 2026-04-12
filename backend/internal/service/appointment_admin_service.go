@@ -5,8 +5,6 @@ import (
 	"log/slog"
 	"time"
 
-	"gorm.io/gorm"
-
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -37,12 +35,13 @@ type CreateReservationAdminInput struct {
 }
 
 type reservationAdminService struct {
-	repo repository.ReservationAdminRepository
-	db   *gorm.DB
+	repo    repository.ReservationAdminRepository
+	resRepo repository.ReservationRepository
+	tx      repository.Transactor
 }
 
-func NewReservationAdminService(repo repository.ReservationAdminRepository, db *gorm.DB) ReservationAdminService {
-	return &reservationAdminService{repo: repo, db: db}
+func NewReservationAdminService(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, tx repository.Transactor) ReservationAdminService {
+	return &reservationAdminService{repo: repo, resRepo: resRepo, tx: tx}
 }
 
 func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Appointment, error) {
@@ -80,8 +79,8 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 	}
 
 	var result *model.Appointment
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := checkSlotConflict(ctx, tx, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
+	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		if err := checkSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
 			return err
 		}
 
@@ -101,7 +100,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 			IsStaffDelegated:  input.IsStaffDelegated,
 			CustomerFields:    customerFields,
 		}
-		if err := tx.Create(ra).Error; err != nil {
+		if err := s.resRepo.Create(ctx, ra); err != nil {
 			return apperrors.Wrap(err, "create reservation appointment")
 		}
 		result = ra

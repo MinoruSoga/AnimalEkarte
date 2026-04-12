@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"gorm.io/gorm"
-
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -23,11 +21,11 @@ type ReservationService interface {
 
 type reservationService struct {
 	repo repository.ReservationRepository
-	db   *gorm.DB
+	tx   repository.Transactor
 }
 
-func NewReservationService(repo repository.ReservationRepository, db *gorm.DB) ReservationService {
-	return &reservationService{repo: repo, db: db}
+func NewReservationService(repo repository.ReservationRepository, tx repository.Transactor) ReservationService {
+	return &reservationService{repo: repo, tx: tx}
 }
 
 func (s *reservationService) List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Appointment, int64, error) {
@@ -55,16 +53,12 @@ func (s *reservationService) Create(ctx context.Context, reservation *model.Appo
 	// SELECT FOR UPDATE + トランザクションで競合を防止
 	// LINE予約・電子カルテ予約・管理者手動予約すべてで同一テーブルを使用するため、
 	// アプリケーションレベルでの排他制御が必要
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := checkSlotConflict(ctx, tx, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime, nil); err != nil {
+	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		if err := checkSlotConflict(ctx, s.repo, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime, nil); err != nil {
 			return err
 		}
-		if err := tx.Create(reservation).Error; err != nil {
-			return apperrors.Wrap(err, "create reservation")
-		}
-		return nil
-	})
-	if err != nil {
+		return s.repo.Create(ctx, reservation)
+	}); err != nil {
 		return apperrors.Wrap(err, "failed to create reservation")
 	}
 
@@ -87,34 +81,13 @@ func validateTimeRange(startTime, endTime time.Time) error {
 // LINE パスでは reservation_validators.go が errors.Is でこれを識別し RedirectStep: 4 を返す。
 var errNoDoctorsOnDuty = fmt.Errorf("本日は医師が出勤していないため予約できません: %w", apperrors.ErrConflict)
 
-// ptrToUint64 は *uint64 を uint64 に変換する（nil の場合は 0）
-func ptrToUint64(p *uint64) uint64 {
-	if p == nil {
-		return 0
-	}
-	return *p
-}
-
 // checkDoctorSlotConflict は特定医師の時間枠重複をチェックする（SELECT FOR UPDATE）。
-func checkDoctorSlotConflict(ctx context.Context, tx *gorm.DB, clinicID, doctorID uint64, startTime, endTime time.Time, excludeID *uint64) error {
-	var existing []model.Appointment
-	q := tx.WithContext(ctx).Raw(`
-		SELECT id FROM appointments
-		WHERE clinic_id = ?
-		  AND deleted_at IS NULL
-		  AND status NOT IN ('cancelled')
-		  AND start_time < ?
-		  AND end_time > ?
-		  AND doctor_id = ?
-		  AND (? = 0 OR id != ?)
-		FOR UPDATE`,
-		clinicID, endTime, startTime, doctorID,
-		ptrToUint64(excludeID), ptrToUint64(excludeID),
-	)
-	if err := q.Scan(&existing).Error; err != nil {
-		return apperrors.Wrap(err, "lock reservations for conflict check")
+func checkDoctorSlotConflict(ctx context.Context, repo repository.ReservationRepository, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) error {
+	conflict, err := repo.HasDoctorConflict(ctx, clinicID, doctorID, start, end, excludeID)
+	if err != nil {
+		return apperrors.Wrap(err, "check doctor slot conflict")
 	}
-	if len(existing) > 0 {
+	if conflict {
 		return apperrors.WrapConflict("この時間枠は既に予約が入っています")
 	}
 	return nil
@@ -122,44 +95,20 @@ func checkDoctorSlotConflict(ctx context.Context, tx *gorm.DB, clinicID, doctorI
 
 // checkCapacitySlotConflict は出勤医師数を上限として時間枠の空き確認をする（SELECT FOR UPDATE）。
 // 出勤医師が 0 人の場合は errNoDoctorsOnDuty を返す（LINE パスで RedirectStep を分岐するため）。
-func checkCapacitySlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, startTime, endTime time.Time, excludeID *uint64) error {
-	var doctorCount int64
-	cntQ := tx.WithContext(ctx).Raw(`
-		SELECT COUNT(DISTINCT se.staff_id)
-		FROM shift_entries se
-		JOIN staffs s ON s.id = se.staff_id
-		WHERE se.clinic_id = ?
-		  AND se.date = DATE(? AT TIME ZONE 'Asia/Tokyo')
-		  AND se.shift_type NOT IN ('off', 'paid_leave')
-		  AND s.staff_type = 'doctor'
-		  AND s.is_active = true
-		  AND s.deleted_at IS NULL`,
-		clinicID, startTime,
-	)
-	if err := cntQ.Scan(&doctorCount).Error; err != nil {
+func checkCapacitySlotConflict(ctx context.Context, repo repository.ReservationRepository, clinicID uint64, start, end time.Time, excludeID *uint64) error {
+	doctorCount, err := repo.CountOnDutyDoctors(ctx, clinicID, start)
+	if err != nil {
 		return apperrors.Wrap(err, "count on-duty doctors")
 	}
 	if doctorCount == 0 {
 		return errNoDoctorsOnDuty
 	}
 
-	var existing []model.Appointment
-	q := tx.WithContext(ctx).Raw(`
-		SELECT id FROM appointments
-		WHERE clinic_id = ?
-		  AND deleted_at IS NULL
-		  AND status NOT IN ('cancelled')
-		  AND start_time < ?
-		  AND end_time > ?
-		  AND (? = 0 OR id != ?)
-		FOR UPDATE`,
-		clinicID, endTime, startTime,
-		ptrToUint64(excludeID), ptrToUint64(excludeID),
-	)
-	if err := q.Scan(&existing).Error; err != nil {
-		return apperrors.Wrap(err, "lock reservations for capacity check")
+	conflictCount, err := repo.CountConflicts(ctx, clinicID, start, end, excludeID)
+	if err != nil {
+		return apperrors.Wrap(err, "count conflicts")
 	}
-	if int64(len(existing)) >= doctorCount {
+	if conflictCount >= doctorCount {
 		return apperrors.WrapConflict("この時間枠は満員です（出勤医師数に達しています）")
 	}
 	return nil
@@ -172,11 +121,11 @@ func checkCapacitySlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64
 //
 // excludeID が非 nil の場合、その予約 ID を競合対象から除外する（Update 時の自己競合防止）。
 // 競合がある場合は apperrors.ErrConflict ラップエラーを返す。
-func checkSlotConflict(ctx context.Context, tx *gorm.DB, clinicID uint64, doctorID *uint64, startTime, endTime time.Time, excludeID *uint64) error {
+func checkSlotConflict(ctx context.Context, repo repository.ReservationRepository, clinicID uint64, doctorID *uint64, startTime, endTime time.Time, excludeID *uint64) error {
 	if doctorID != nil {
-		return checkDoctorSlotConflict(ctx, tx, clinicID, *doctorID, startTime, endTime, excludeID)
+		return checkDoctorSlotConflict(ctx, repo, clinicID, *doctorID, startTime, endTime, excludeID)
 	}
-	return checkCapacitySlotConflict(ctx, tx, clinicID, startTime, endTime, excludeID)
+	return checkCapacitySlotConflict(ctx, repo, clinicID, startTime, endTime, excludeID)
 }
 
 // resolveUpdateParams は現在の予約と更新入力から、競合チェックに使用する時刻・医師 ID を確定する。
@@ -205,20 +154,14 @@ func resolveUpdateParams(current *model.Appointment, input *UpdateReservationInp
 // 時刻・医師変更がある場合にのみ呼び出す。
 func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput) (*model.Appointment, error) {
 	var result *model.Appointment
-	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		// 現在の予約を行ロックで取得（競合チェックの基準値として使用）
-		var current model.Appointment
-		if err := tx.Raw(
-			`SELECT * FROM appointments WHERE clinic_id = ? AND id = ? AND deleted_at IS NULL FOR UPDATE`,
-			clinicID, id,
-		).Scan(&current).Error; err != nil {
-			return apperrors.Wrap(err, "lock current reservation")
-		}
-		if current.ID == 0 {
-			return apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
+		current, err := s.repo.LockAndFindByID(ctx, clinicID, id)
+		if err != nil {
+			return err
 		}
 
-		resolvedStart, resolvedEnd, resolvedDoctorID := resolveUpdateParams(&current, input)
+		resolvedStart, resolvedEnd, resolvedDoctorID := resolveUpdateParams(current, input)
 
 		if input.StartTime != nil || input.EndTime != nil {
 			if err := validateTimeRange(resolvedStart, resolvedEnd); err != nil {
@@ -226,26 +169,15 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 			}
 		}
 
-		if err := checkSlotConflict(ctx, tx, clinicID, resolvedDoctorID, resolvedStart, resolvedEnd, &id); err != nil {
+		if err := checkSlotConflict(ctx, s.repo, clinicID, resolvedDoctorID, resolvedStart, resolvedEnd, &id); err != nil {
 			return err
 		}
 
-		res := tx.Model(&model.Appointment{}).
-			Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, id).
-			Updates(fields)
-		if res.Error != nil {
-			return apperrors.FromGORM(res.Error, "reservation", fmt.Sprintf("%d", id))
+		updated, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+		if err != nil {
+			return err
 		}
-		if res.RowsAffected == 0 {
-			return apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
-		}
-
-		var updated model.Appointment
-		if err := tx.Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, id).
-			First(&updated).Error; err != nil {
-			return apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
-		}
-		result = &updated
+		result = updated
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update reservation with conflict check")

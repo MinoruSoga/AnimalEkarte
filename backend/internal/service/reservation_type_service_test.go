@@ -103,6 +103,30 @@ func (m *mockReservationForReservationType) CountMedicalRecordsByReservationID(_
 	return 0, nil
 }
 
+func (m *mockReservationForReservationType) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+	return nil, nil
+}
+
+func (m *mockReservationForReservationType) HasDoctorConflict(_ context.Context, _ uint64, _ uint64, _ time.Time, _ time.Time, _ *uint64) (bool, error) {
+	return false, nil
+}
+
+func (m *mockReservationForReservationType) CountOnDutyDoctors(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+	return 1, nil
+}
+
+func (m *mockReservationForReservationType) CountConflicts(_ context.Context, _ uint64, _ time.Time, _ time.Time, _ *uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockReservationForReservationType) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockReservationForReservationType) CountByDateAndSource(_ context.Context, _ uint64, _ time.Time, _ model.ReservationSource) (int64, error) {
+	return 0, nil
+}
+
 func newTestReservationTypeService(repo *mockReservationTypeRepository) ReservationTypeService {
 	return NewReservationTypeService(repo, &mockReservationForReservationType{})
 }
