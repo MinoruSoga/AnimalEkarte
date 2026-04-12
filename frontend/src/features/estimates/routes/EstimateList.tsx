@@ -178,8 +178,9 @@ export function EstimateList() {
   const handleDeleteConfirm = useCallback(() => {
     if (deleteItemId == null) return;
     startDeleteTransition(() => {
-      deleteEstimate(deleteItemId);
-      closeDeleteModal();
+      deleteEstimate(deleteItemId, {
+        onSuccess: () => closeDeleteModal(),
+      });
     });
   }, [deleteItemId, closeDeleteModal, deleteEstimate]);
 
