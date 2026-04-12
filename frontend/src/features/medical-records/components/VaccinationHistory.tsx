@@ -19,16 +19,27 @@ interface HistoryItem {
   name: string;
   date: string;
   next: string;
+  vaccineId: number;
+  lot1: string;
+  lot2: string;
+  lot3: string;
+  lot4: string;
+  nextDate: string;
+  remarks: string;
 }
 
 interface VaccinationHistoryProps {
   historyItems: HistoryItem[];
   isLoading?: boolean;
+  onDuplicate?: (item: HistoryItem) => void;
+  canCreate?: boolean;
 }
 
 export const VaccinationHistory = memo(function VaccinationHistory({
   historyItems,
   isLoading = false,
+  onDuplicate,
+  canCreate = false,
 }: VaccinationHistoryProps) {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
@@ -137,13 +148,16 @@ export const VaccinationHistory = memo(function VaccinationHistory({
                 {item.next}
               </div>
               <div className={`w-[70px] px-2 flex justify-center border-l ${C.borderMedium}`}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`h-10 w-[50px] text-sm ${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} border-transparent px-0`}
-                >
-                  複製
-                </Button>
+                {canCreate ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`h-10 w-[50px] text-sm ${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} border-transparent px-0`}
+                    onClick={() => onDuplicate?.(item)}
+                  >
+                    複製
+                  </Button>
+                ) : null}
               </div>
             </div>
           )) : null}

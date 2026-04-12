@@ -8,6 +8,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
 import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
+import type { PetVaccinationHistoryItem } from "../api/get-pet-vaccinations";
 import { VaccinationForm } from "./VaccinationForm";
 import { VaccinationHistory } from "./VaccinationHistory";
 
@@ -41,6 +42,17 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
     ),
     [vaccinesMaster]
   );
+
+  const handleDuplicate = useCallback((item: PetVaccinationHistoryItem) => {
+    setVaccineName(String(item.vaccineId));
+    setDate(""); // 実施日は新しく入力させる
+    setLot1(item.lot1);
+    setLot2(item.lot2);
+    setLot3(item.lot3);
+    setLot4(item.lot4);
+    setNextDate(item.nextDate);
+    setRemarks(item.remarks);
+  }, []);
 
   const handleSave = useCallback(() => {
     if (!petId || !vaccineName || !date) return;
@@ -104,7 +116,12 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
       />
 
       {/* Right Column: History */}
-      <VaccinationHistory historyItems={historyItems} isLoading={isLoading} />
+      <VaccinationHistory
+        historyItems={historyItems}
+        isLoading={isLoading}
+        onDuplicate={handleDuplicate}
+        canCreate={!!petId}
+      />
     </div>
   );
 });
