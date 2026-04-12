@@ -107,7 +107,7 @@ func (m *mockReservationForReservationType) LockAndFindByID(_ context.Context, _
 	return nil, nil
 }
 
-func (m *mockReservationForReservationType) HasDoctorConflict(_ context.Context, _ uint64, _ uint64, _ time.Time, _ time.Time, _ *uint64) (bool, error) {
+func (m *mockReservationForReservationType) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
 	return false, nil
 }
 
@@ -115,7 +115,7 @@ func (m *mockReservationForReservationType) CountOnDutyDoctors(_ context.Context
 	return 1, nil
 }
 
-func (m *mockReservationForReservationType) CountConflicts(_ context.Context, _ uint64, _ time.Time, _ time.Time, _ *uint64) (int64, error) {
+func (m *mockReservationForReservationType) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
 	return 0, nil
 }
 

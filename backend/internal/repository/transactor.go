@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"gorm.io/gorm"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 type txKey struct{}
@@ -24,9 +26,12 @@ func NewTransactor(db *gorm.DB) Transactor {
 }
 
 func (t *gormTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
-	return t.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := t.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return fn(context.WithValue(ctx, txKey{}, tx))
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "transaction failed")
+	}
+	return nil
 }
 
 // txFromContext はコンテキストからトランザクションを取り出す。
