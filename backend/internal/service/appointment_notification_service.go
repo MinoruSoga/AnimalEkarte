@@ -59,7 +59,7 @@ func (s *reservationNotificationService) NotifyCreated(
 	emailSubject, emailBody := s.buildCreatedEmail(appt, customer)
 	clinicID := appt.ClinicID
 
-	go func() {
+	go func() { //nolint:contextcheck // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
@@ -106,7 +106,7 @@ func (s *reservationNotificationService) NotifyCancelled(
 	emailSubject, emailBody := s.buildCancelledEmail(appt, customer)
 	clinicID := appt.ClinicID
 
-	go func() {
+	go func() { //nolint:contextcheck // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 

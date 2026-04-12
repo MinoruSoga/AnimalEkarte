@@ -82,5 +82,14 @@ issues:
       linters:
         - wrapcheck
 
+    # Gin handler/middleware 層: *gin.Context が context.Context を内包するため
+    # contextcheck は false positive を出す（c.Request.Context() で正しく伝播済み）
+    - path: internal/handler/
+      linters:
+        - contextcheck
+    - path: internal/middleware/
+      linters:
+        - contextcheck
+
   max-issues-per-linter: 50
   max-same-issues: 10
