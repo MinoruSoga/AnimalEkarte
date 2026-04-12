@@ -52,8 +52,7 @@ func (r *clinicalPlanRepository) Create(ctx context.Context, plan *model.Clinica
 func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ClinicalPlan{}).
-		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id").
-		Where("clinical_plans.id = ? AND medical_records.clinic_id = ?", id, clinicID).
+		Where("clinical_plans.id = ? AND clinical_plans.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "clinical_plan", fmt.Sprintf("%d", id))

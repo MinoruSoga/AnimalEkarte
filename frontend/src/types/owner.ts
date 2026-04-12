@@ -1,8 +1,8 @@
 /**
  * Owner UI types (camelCase, string IDs) + API Request types (snake_case)
- * Backend model: {@link import("./generated/models").Owner}
+ * NOTE: API request DTOs use owner_name / owner_name_kana (not name / name_kana from BackendOwner).
+ * See backend/internal/handler/owner_request.go for the authoritative field names.
  */
-import type { Owner as BackendOwner } from "./generated/models";
 import type { Pet } from "./index";
 
 /** UI-facing Owner type (camelCase, string IDs — post-transform) */
@@ -31,20 +31,50 @@ export interface Owner {
 }
 
 /**
- * 飼主作成リクエスト — models.ts Owner から導出（snake_case, API-facing）
- * @see {@link BackendOwner}
+ * 飼主作成リクエスト — createOwnerRequest Go struct に準拠（json:"owner_name"）
+ * NOTE: BackendOwner.name (json:"name") とは異なる。API DTO は owner_name を使用する。
+ * @see backend/internal/handler/owner_request.go createOwnerRequest
  */
-export type CreateOwnerRequest = Partial<
-  Omit<BackendOwner, 'id' | 'clinic_id' | 'created_at' | 'updated_at' | 'pets' | 'birth_date'>
-> & {
-  name: string;
+export interface CreateOwnerRequest {
+  owner_name: string;
+  owner_name_kana?: string;
   birth_date?: string;
-};
+  company?: string;
+  postal_code?: string;
+  address1?: string;
+  address2?: string;
+  home_postal_code?: string;
+  home_address1?: string;
+  home_address2?: string;
+  phone?: string;
+  company_phone?: string;
+  email?: string;
+  remarks?: string;
+  is_dangerous?: boolean;
+  discount_rate?: number;
+  membership_type?: string;
+}
 
 /**
- * 飼主更新リクエスト — CreateOwnerRequest の全フィールド optional
- * @see {@link BackendOwner}
+ * 飼主更新リクエスト — updateOwnerRequest Go struct に準拠（全フィールド optional）
+ * @see backend/internal/handler/owner_request.go updateOwnerRequest
  */
-export type UpdateOwnerRequest = Partial<
-  Omit<BackendOwner, 'id' | 'clinic_id' | 'created_at' | 'updated_at' | 'pets'>
->;
+export interface UpdateOwnerRequest {
+  owner_name?: string;
+  owner_name_kana?: string;
+  birth_date?: string;
+  company?: string;
+  postal_code?: string;
+  address1?: string;
+  address2?: string;
+  home_postal_code?: string;
+  home_address1?: string;
+  home_address2?: string;
+  phone?: string;
+  company_phone?: string;
+  email?: string;
+  remarks?: string;
+  is_dangerous?: boolean;
+  discount_rate?: number;
+  membership_type?: string;
+}

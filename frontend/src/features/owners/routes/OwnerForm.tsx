@@ -624,6 +624,7 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
           </h2>
           {canEdit ? (
             <Button
+              type="button"
               size="sm"
               onClick={handleAddPet}
               className={`${STYLE.confirmPrimary} gap-1.5 text-sm px-4`}
