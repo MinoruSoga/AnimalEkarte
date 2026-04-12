@@ -44,6 +44,7 @@ import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
 import type { TrimmingFilters } from "../api/get-trimmings";
 import { usePermission } from "@/features/auth";
 import { ResourceTrimming } from "@/types/generated/models";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // rerender-memo + js-cache-function-results: renderRow インライン closure を memo コンポーネントに抽出
 interface TrimmingTableRowProps {
@@ -250,9 +251,15 @@ export function TrimmingList() {
 
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTargetId && deleteTargetLabel) {
-      deleteRecord(deleteTargetId);
-      toast.success("削除しました", { description: deleteTargetLabel });
-      closeDeleteModal();
+      deleteRecord(deleteTargetId, {
+        onSuccess: () => {
+          toast.success("削除しました", { description: deleteTargetLabel });
+          closeDeleteModal();
+        },
+        onError: (error) => {
+          handleApiError(error, "トリミング削除");
+        },
+      });
     }
   }, [deleteTargetId, deleteTargetLabel, deleteRecord, closeDeleteModal]);
 

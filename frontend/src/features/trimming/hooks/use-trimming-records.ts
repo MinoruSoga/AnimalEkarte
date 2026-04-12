@@ -1,4 +1,5 @@
 import { useMemo, useCallback } from "react";
+import type { MutateOptions } from "@tanstack/react-query";
 import { useGetTrimmings } from "../api/get-trimmings";
 import { useDeleteTrimming } from "../api/delete-trimming";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
@@ -65,9 +66,12 @@ export function useFilterTrimmingRecords(
     );
   }, [trimmingRecords, searchTerm, activeFilters]);
 
-  const deleteRecord = useCallback((id: string) => {
-    deleteTrimmingFn(id);
-  }, [deleteTrimmingFn]);
+  const deleteRecord = useCallback(
+    (id: string, options?: MutateOptions<void, Error, string>) => {
+      deleteTrimmingFn(id, options);
+    },
+    [deleteTrimmingFn],
+  );
 
   return { data: filteredRecords, allTrimmings: trimmingRecords, isLoading, error, deleteRecord };
 }
