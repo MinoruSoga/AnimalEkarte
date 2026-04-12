@@ -68,6 +68,17 @@ jobs:
         working-directory: backend
         run: go build ./...
 
+      - name: Test
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: "5432"
+          DB_USER: ekarte_user
+          DB_PASSWORD: ekarte_password
+          DB_NAME: ekarte_db
+          DB_SSL_MODE: disable
+        run: go test ./... -count=1 -race -timeout 120s
+
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
