@@ -106,6 +106,16 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [typeComboOpen]);
+
+  // react-remove-scroll が document で wheel を preventDefault するのを阻止。
+  // React の onWheel はポータル内でネイティブ伝播を止められないため native addEventListener を使う。
+  useEffect(() => {
+    const el = typeDropdownRef.current;
+    if (!el || !typeComboOpen) return;
+    const stop = (e: WheelEvent) => e.stopPropagation();
+    el.addEventListener("wheel", stop);
+    return () => el.removeEventListener("wheel", stop);
+  }, [typeComboOpen]);
   // 現在選択中の予約区分名（Combobox トリガー表示用）
   const selectedTypeLabel = useMemo(() => {
     for (const group of groupedReservationTypes) {
@@ -292,9 +302,6 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                   zIndex: 9999,
                 }}
                 className="rounded-md border shadow-md bg-white overflow-hidden"
-                /* react-remove-scroll が document レベルで wheel を止めるため
-                   ここで stopPropagation して先に捕捉する（preventDefault は呼ばない） */
-                onWheel={(e) => e.stopPropagation()}
               >
                 <Command>
                   <CommandInput placeholder="予約区分を検索..." />
