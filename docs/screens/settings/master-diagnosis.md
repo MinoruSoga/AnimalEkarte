@@ -21,20 +21,18 @@
 
 ## 表示・フォーム項目
 
-### フォーム項目（カテゴリ）
+### フォーム項目（サイドパネル）
 | フィールド | 項目ID | 入力部品 | 必須 | 備考 |
 |-----------|--------|---------|------|------|
-| カテゴリ名| `name` | `Input` | ✅ | タイトルエリア |
-| ステータス | `isActive` | `StatusToggleButton` | - | |
-| 備考 | `description`| `PropInput` | - | |
+| 名称 | `name` | `Input` | ✅ | タイトルエリア（大文字表示） |
+| ステータス | `isActive` | `NotionStatusPill` | - | クリックで有効/無効トグル |
+| カテゴリ | `diagnosisCategoryId`| `Select` | ✅ | 病名タブのみ表示。カテゴリマスタ連動 |
+| 備考 | `description`| `PropertyInput` | - | Notion スタイルのボーダーレス入力 |
 
-### フォーム項目（診断病名）
-| フィールド | 項目ID | 入力部品 | 必須 | 備考 |
-|-----------|--------|---------|------|------|
-| 病名 | `name` | `Input` | ✅ | タイトルエリア |
-| ステータス | `isActive` | `StatusToggleButton` | - | |
-| カテゴリ | `diagnosisCategoryId`| `Select` | ✅ | 登録済みのカテゴリから選択 |
-| 備考 | `description`| `PropInput` | - | |
+## 特徴的なUI・機能
+- **Notionスタイル**: `PropertyRow` と `PropertyInput` を使用したクリーンな編集体験。
+- **ドラッグ&ドロップ**: 各タブの `DataTable` において `SortableDataTableRow` による並び替えが可能。
+- **離脱防止**: `MasterSidePanel` が開いている間は `NavigationBlocker` により不意の離脱をガード。
 
 ## API連携
 | メソッド | エンドポイント | 用途 |

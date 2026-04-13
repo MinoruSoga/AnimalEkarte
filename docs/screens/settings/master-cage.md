@@ -25,17 +25,13 @@
 | フィールド | 項目ID | 入力部品 | 必須 | 備考 |
 |-----------|--------|---------|------|------|
 | ケージ名 | `name` | `Input` | ✅ | タイトルエリア |
-| ステータス | `isActive` | `StatusToggleButton`| - | |
-| エリア | `cageType` | `Select` | ✅ | icu / dog / cat / general |
-| サイズ | `cageSize` | `Select` | ✅ | small / medium / large |
-| 単価(税込) | `price` | `MoneyInput` | - | |
-| 備考 | `description`| `PropInput` | - | |
+| ステータス | `isActive` | `StatusToggleButton`| - | 有効/無効トグル |
+| エリア | `cageType` | `Select` | ✅ | ICU / 犬舎 / 猫舎 / 汎用 |
+| サイズ | `cageSize` | `Select` | ✅ | 小型 / 中型 / 大型 |
+| 単価(税込) | `price` | `MoneyInput` | - | 1日あたりの使用料 |
+| 備考 | `description`| `PropertyInput` | - |補足情報など |
 
-## API連携
-| メソッド | エンドポイント | 用途 |
-|---------|--------------|------|
-| GET | `/api/v1/masters/cages` | 一覧取得 |
-| POST | `/api/v1/masters/cages` | 新規作成 |
-| PATCH | `/api/v1/masters/cages/:id` | 更新 |
-| DELETE | `/api/v1/masters/cages/:id` | 削除 |
-| PATCH | `/api/v1/masters/cages/reorder` | 並び順保存 |
+## 主要機能
+- **ドラッグ&ドロップ**: `dnd-kit` による並び替え。`PATCH /api/v1/masters/cages/reorder` で一括保存。
+- **Notionスタイル**: `MasterSidePanel` を使用したクリーンな編集体験。
+- **権限管理**: `ResourceMasterHospitalization` 権限により操作を制御。

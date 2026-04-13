@@ -9,19 +9,17 @@
 > - **セクション 15: 実データに基づく実装確定仕様（ノア動物病院向け）** ← 実装時はここを参照
 >
 > ---
-> **⚠️ 2026-04-10 統合リファクタリング反映**
+> **⚠️ 2026-04-13 統合リファクタリング最終反映**
 >
-> LINE予約管理の独立ページ（カレンダー/コース/スタッフ/スケジュール/顧客管理）は
-> 電カルのマスタ設定ページに統合された。現在の管理画面構成は
-> [LINE-RESERVATION-ARCHITECTURE.md](./LINE-RESERVATION-ARCHITECTURE.md) セクション7を参照。
+> LINE予約管理の全機能（カレンダー/コース/スタッフ/スケジュール/顧客管理）は、電子カルテ本体のマスタ設定および予約管理ページに完全統合されました。
 >
 > 主な変更:
-> - コース設定 → `/settings/service-type`（LINE予約フィールド統合）
-> - スタッフ設定 → `/settings/staff`（LINE予約フィールド + 対応不可コース統合）
-> - シフト休憩時間 → `/shifts`（break_start/break_end 統合）
-> - 予約カレンダー → `/reservations`（source フィルタ追加）
+> - 診療メニュー設定 → `/settings/reservation-type`（LINE予約フィールド統合）
+> - スタッフ設定 → `/settings/staff`（LINE予約フィールド + 対応不可予約区分統合）
+> - シフト休憩時間 → `/shifts`（`shift_entry_breaks` テーブルによる複数休憩管理）
+> - 予約カレンダー → `/reservations`（source='line' フィルタ対応）
 > - LINE顧客管理 → `/owners/:id`（LINE連携セクション統合）
-> - LINE予約専用ページは「基本設定」「ページ編集」の2ページのみ残存
+> - LINE予約専用設定 → `/line-reservation/settings` および `/line-reservation/page-editor`
 
 ---
 
@@ -29,12 +27,12 @@
 
 ### 1.1 システム構成
 
-「予約 on ライン」は2つのプログラムで構成される：
+本システムは、電子カルテ本体（Go/Gin WebAPI）を共通バックエンドとし、2つのフロントエンドで構成されます。
 
-| コンポーネント | 役割 |
-|---|---|
-| **システム本体**（ユーザー向け） | お客様がLINEアプリ内で操作して予約を行う |
-| **コントロールパネル**（管理者向け） | システム本体の設定や動きを管理する（Webブラウザからアクセス） |
+| コンポーネント | 役割 | 技術スタック |
+|---|---|---|
+| **LIFF App**（ユーザー向け） | お客様がLINEアプリ内で操作して予約を行う | React 19, TypeScript, LIFF SDK |
+| **管理画面**（病院向け） | 予約状況の確認、マスタ設定、LINE公式アカウント連携設定を行う | React 19, Vite, Tailwind 4 |
 
 ### 1.2 動作環境
 
@@ -1761,21 +1759,21 @@ AnimalEkarte/
 ### 15.7 DBスキーマ（確定版 — 既存テーブル統合方式）
 
 > **設計方針**: 既存AnimalEkarteのテーブルを最大限活用する。
-> 予約データは既存 `reservation_appointments` に統合し、カルテ・来院管理と自動連携する。
-> スタッフは既存 `staffs`、診療メニューは既存 `service_types` を拡張する。
+> 予約データは共通テーブル `appointments` に統合し、カルテ・来院管理と自動連携する。
+> スタッフは既存 `staffs`、診療メニューは既存 `reservation_types` を拡張・利用する。
 
 #### 既存テーブルと予約システムの対応
 
 | 予約システムの概念 | 使用するテーブル | 方式 |
 |---|---|---|
-| 診療メニュー（コース） | `service_types` | ALTER TABLE で列追加 |
-| スタッフ（獣医師/リソース） | `staffs` | ALTER TABLE で列追加 |
-| スタッフ非対応コース | `staff_excluded_service_types` | **新規** M:Nテーブル |
+| 診療メニュー | `reservation_types` | 予約用列を包含 |
+| スタッフ | `staffs` | 予約用列を包含 |
+| スタッフ非対応コース | `staff_reservation_exclusions` | **新規** M:N中間テーブル |
 | シフト/個人設定 | `shift_entries` | 既存をそのまま使用 |
 | シフト中の中断時間 | `shift_entry_breaks` | **新規** |
-| 予約データ | `reservation_appointments` | ALTER TABLE で列追加 |
-| LINE予約設定 | `reservation_settings` | **新規** |
-| LINE顧客 | `reservation_customers` | **新規** |
+| 予約データ | `appointments` | 共通テーブル（source 列で識別） |
+| LINE予約設定 | `line_reservation_settings` | **新規**（clinic_id で UNIQUE） |
+| LINE顧客 | `line_customers` | **新規** |
 | 飼い主・ペット | `owners` / `pets` | 既存をそのまま使用 |
 
 ```sql

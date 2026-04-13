@@ -1,6 +1,6 @@
 # Frontend + Backend コード規約準拠監査結果
 
-**実施日**: 2026-04-11（第12回監査まで反映）
+**実施日**: 2026-04-13（第13回監査まで反映）
 **検証方法**: 監査エージェント → grep/Read による実コード検証
 **注意**: 全指摘は実コードで検証済み。スポットチェック未実施の箇所は明記している。
 
@@ -191,6 +191,8 @@
 | BUG | 対象 | 内容 | 優先度 | パス |
 |-----|------|------|--------|------|
 | ~~BUG-338~~ | BE 複数 | ✅ **CLOSED** — RequirePermission c.JSON直接使用 / nilerr 2箇所 / liff_service bare return / transaction bare return 全修正（2026-04-12） | High/Medium | closed/ |
+| ~~BUG-339~~ | BE Repository | ✅ **CLOSED** — JOIN 先 `deleted_at IS NULL` 欠落 10箇所全修正（2026-04-13） | — | closed/ |
+| ~~BUG-340~~ | BE Repository | ✅ **CLOSED** — `clinicScope` 未使用 — appointment_repository CountByDateAndSource 修正（2026-04-13） | — | closed/ |
 
 ### バックエンド残存課題（実コード検証済み）
 
