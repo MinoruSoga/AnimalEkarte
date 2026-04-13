@@ -2000,3 +2000,70 @@ INSERT INTO shift_template_breaks (shift_template_id, break_start, break_end) VA
     (6,  '12:00', '13:00'),  -- 城東医院: 通常勤務
     (11, '12:00', '13:00')   -- 敷島医院: 通常勤務
 ON CONFLICT DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- H. clinic_holidays（休診日マスタ — 2026年祝日）
+-- -----------------------------------------------------------------------------
+INSERT INTO clinic_holidays (clinic_id, date, reason)
+SELECT c.id, h.date, h.reason
+FROM (VALUES
+    ('2026-04-29'::date, '昭和の日'),
+    ('2026-05-03'::date, '憲法記念日'),
+    ('2026-05-04'::date, 'みどりの日'),
+    ('2026-05-05'::date, 'こどもの日'),
+    ('2026-05-06'::date, '振替休日')
+) h(date, reason)
+CROSS JOIN (VALUES (3), (4), (5)) c(id)
+ON CONFLICT DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- I. shift_entries（2026-04-13〜2026-06-13 の 2ヶ月分）
+--    人間スタッフのみ（resource 系スタッフは除外）
+--    平日: 通常勤務（full / 09:00-18:00）
+--    土曜: 午前勤務（morning / 09:00-13:00）
+--    日曜・祝日: 休日（off）
+-- -----------------------------------------------------------------------------
+WITH holidays AS (
+    SELECT unnest(ARRAY[
+        '2026-04-29'::date,
+        '2026-05-03'::date,
+        '2026-05-04'::date,
+        '2026-05-05'::date,
+        '2026-05-06'::date
+    ]) AS hdate
+),
+staff_clinic(staff_id, clinic_id) AS (VALUES
+    -- 八王子院 (clinic_id=3): 人間スタッフ IDs 1-11, 33
+    (1,  3), (2,  3), (3,  3), (4,  3), (5,  3), (6,  3),
+    (7,  3), (8,  3), (9,  3), (10, 3), (11, 3), (33, 3),
+    -- 城東医院 (clinic_id=4): 人間スタッフ IDs 16-22, 34
+    (16, 4), (17, 4), (18, 4), (19, 4), (20, 4), (21, 4), (22, 4), (34, 4),
+    -- 敷島医院 (clinic_id=5): 人間スタッフ IDs 26-30, 35
+    (26, 5), (27, 5), (28, 5), (29, 5), (30, 5), (35, 5)
+)
+INSERT INTO shift_entries (clinic_id, staff_id, date, shift_type, start_time, end_time, notes)
+SELECT
+    sc.clinic_id,
+    sc.staff_id,
+    d::date,
+    CASE
+        WHEN d::date IN (SELECT hdate FROM holidays)
+          OR EXTRACT(DOW FROM d) = 0 THEN 'off'::shift_type
+        WHEN EXTRACT(DOW FROM d) = 6   THEN 'morning'::shift_type
+        ELSE                                'full'::shift_type
+    END,
+    CASE
+        WHEN d::date IN (SELECT hdate FROM holidays)
+          OR EXTRACT(DOW FROM d) = 0 THEN NULL
+        ELSE '09:00'::time
+    END,
+    CASE
+        WHEN d::date IN (SELECT hdate FROM holidays)
+          OR EXTRACT(DOW FROM d) = 0 THEN NULL
+        WHEN EXTRACT(DOW FROM d) = 6   THEN '13:00'::time
+        ELSE                                '18:00'::time
+    END,
+    ''
+FROM generate_series('2026-04-13'::date, '2026-06-13'::date, '1 day') d
+CROSS JOIN staff_clinic sc
+ON CONFLICT DO NOTHING;
