@@ -173,6 +173,13 @@ LINE公式アカウント連携および予約ページの表示内容・営業�
 
 ---
 
+## 18. シフトテンプレートマスタ (`/settings/shift-template`)
+
+**コンポーネント:** `ShiftTemplateSettings.tsx`
+**API:** `/api/v1/shift-templates`
+
+---
+
 ## 共有コンポーネント早見表
 
 | コンポーネント | パス |
