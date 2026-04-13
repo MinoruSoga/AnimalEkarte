@@ -1,9 +1,9 @@
 # 機能テストレポート
 
-> **最終更新**: 2026-04-13 (BUG-341〜344 予約フォーム改善対応・テスト項目追加)
+> **最終更新**: 2026-04-13 (BUG-102 修正確認 — NG=0 達成)
 > テスト環境: ローカル (localhost:3003, localhost:8080) / ステージング (stg.noah-karte.com)
 > テストアカウント: admin@example.com (安田 希恵 / 一般) / vet@example.com (倉田 春香 / 一般)
-> **テスト完成度**: OK=237 / NG=1 / 未確認=3,537
+> **テスト完成度**: OK=238 / NG=0 / 未確認=3,537
 
 ## テスト凡例
 
@@ -7713,13 +7713,14 @@
 | 項目 | 内容 |
 |------|------|
 | 発見日 | 2026-04-01 |
+| 修正日 | 2026-04-13 |
 | 重大度 | Medium |
-| 状態 | **未修正 ❌** |
+| 状態 | **修正済み ✅** |
 | エンドポイント | `PATCH /api/v1/medical-records/:id/clinical-plan` |
 | 症状 | 診察/治療プランタブで「保存」クリック時、全フィールドが DEFAULT 値（plan="# 治療方針"、assessment="# 診断詳細"）の場合に HTTP 400「at least one field must be provided」が返却される |
 | 根本原因 | `use-medical-record-form.ts` の switch "診察/治療プラン" ケースで plan/assessment が DEFAULT と一致する場合 `undefined` を送信 → BE `buildClinicalPlanUpdateFields()` が空 map → 400 拒否 |
-| 対応方針 | FE: DEFAULT値でも `undefined` を送らず文字列として送信する（BEは上書き保存する）。または BE: フィールドが空でも no-op として 200 を返す |
-| 備考 | §45.2 Tab2 spec「DEFAULT のまま保存 → 成功」の期待に反する |
+| 修正内容 | FE: `use-medical-record-form.ts:193-196` で DEFAULT値でも常に文字列として送信（`undefined` 送信廃止）。BE: `clinical_plan_service.go:66-69` で fields が空の場合は no-op として 200 を返す（「at least one field」チェックを削除） |
+| 備考 | §45.2 Tab2 spec「DEFAULT のまま保存 → 成功」の期待に準拠 |
 
 
 ---
