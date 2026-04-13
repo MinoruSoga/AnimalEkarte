@@ -385,7 +385,7 @@ features/xxx/types/index.ts     ← feature固有型（UI専用・手書きOK）
 ## ESLint
 
 - **エラー**: 0件を維持
-- **Warning**: 6件（shadcn/ui由来、許容）
+- **Warning**: 3件（shadcn/ui由来、許容）
 
 ```bash
 docker compose exec frontend npm run lint
