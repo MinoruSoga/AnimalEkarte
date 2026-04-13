@@ -304,7 +304,8 @@ func TestCreateMedicalRecord(t *testing.T) {
 					require.NotNil(t, record.PetID)
 					assert.Equal(t, uint64(20), *record.PetID)
 					assert.Equal(t, 2026, record.Date.Year())
-					// RecordNo の自動生成は service 層の責務のためここでは検証しない
+					require.NotNil(t, record.EnteredBy)
+					assert.Equal(t, uint64(1), *record.EnteredBy) // extractStaffID from user_id="1"
 					return nil
 				},
 			},

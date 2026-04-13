@@ -273,6 +273,8 @@ func TestCreateReservation(t *testing.T) {
 			svc: &mockReservationService{
 				createFn: func(_ context.Context, r *model.Appointment) error {
 					assert.Equal(t, "健康診断", r.Notes)
+					require.NotNil(t, r.CreatedBy)
+					assert.Equal(t, uint64(1), *r.CreatedBy) // extractStaffID from user_id="1"
 					return nil
 				},
 			},
