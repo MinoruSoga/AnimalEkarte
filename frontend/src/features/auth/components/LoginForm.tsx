@@ -23,7 +23,9 @@ interface DemoCredential {
   isSystemAdmin?: boolean;
 }
 
-const DEMO_ACCOUNTS: readonly DemoCredential[] = import.meta.env.DEV ? [
+const SHOW_DEMO = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === "true";
+
+const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO ? [
   // システム管理者（全医院）
   { email: "hayashi@noah-vet.co.jp", displayName: "林 文明",     occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "全医院",   isSystemAdmin: true },
   { email: "admin@noavet.jp",        displayName: "ノア",         occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "全医院",   isSystemAdmin: true },
@@ -240,7 +242,7 @@ export const LoginForm = memo(function LoginForm() {
       </form>
 
       {/* Demo accounts — 開発環境のみ表示 */}
-      {import.meta.env.DEV ? (
+      {SHOW_DEMO ? (
         <div className="mt-8">
           <div className="flex items-center gap-2 mb-2">
             <div className={`h-px flex-1 ${C.bgLight}`} />
