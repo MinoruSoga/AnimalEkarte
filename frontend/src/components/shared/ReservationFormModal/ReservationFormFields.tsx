@@ -289,7 +289,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           ) : null}
         </div>
         <div className="space-y-1.5">
-          <FieldLabel>予約区分</FieldLabel>
+          <FieldLabel>来院区分</FieldLabel>
           <RadioGroup
             value={formData.visitType || ""}
             onValueChange={(v: string) => {
