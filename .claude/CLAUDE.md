@@ -146,5 +146,5 @@ if count > 0 {
 ## 📚 参照ドキュメント
 - `frontend/CODING_RULES.md`: フロントエンドの実装詳細
 - `backend/CLAUDE.md`: バックエンドの実装詳細
-- `docs/FUNCTIONAL_TEST_REPORT.md`: 機能テストレポート（OK=2,111 / NG=274 / 未確認=1,514）
+- `docs/FUNCTIONAL_TEST_REPORT.md`: 機能テストレポート（OK=237 / NG=1 / 未確認=3,537）
 - `.gemini/styleguide.md`: Gemini 固有の補足（本ファイルと同期済み）
