@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { ShiftTemplate } from "../types";
+import type { ShiftTemplate, ShiftType } from "../types";
 
 function normalizeTime(t: string | undefined | null): string {
   if (!t) return "";
@@ -39,8 +39,7 @@ function transformTemplate(d: RawTemplate): ShiftTemplate {
     id: String(d.id ?? 0),
     clinic_id: String(d.clinic_id ?? 0),
     name: d.name ?? "",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    shift_type: (d.shift_type ?? "full") as any,
+    shift_type: (d.shift_type ?? "full") as ShiftType,
     start_time: normalizeTime(d.start_time),
     end_time: normalizeTime(d.end_time),
     notes: d.notes ?? "",
