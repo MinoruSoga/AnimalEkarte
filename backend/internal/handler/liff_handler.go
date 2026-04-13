@@ -67,16 +67,16 @@ func (h *Handler) GetLiffTypes(c *gin.Context) {
 }
 
 // GetLiffStaffs はコース対応スタッフ一覧を返す。
-// GET /api/liff/:clinicId/staffs?typeId=:id
+// GET /api/liff/:clinicId/staffs?courseId=:id
 func (h *Handler) GetLiffStaffs(c *gin.Context) {
 	clinicID, ok := extractClinicIDFromParam(c)
 	if !ok {
 		return
 	}
-	typeIDStr := c.Query("typeId")
+	typeIDStr := c.Query("courseId")
 	typeID, err := strconv.ParseUint(typeIDStr, 10, 64)
 	if err != nil || typeID == 0 {
-		RespondError(c, apperrors.WrapInvalidInput("invalid typeId"))
+		RespondError(c, apperrors.WrapInvalidInput("invalid courseId"))
 		return
 	}
 	staffs, err := h.svc.Liff.GetStaffs(c.Request.Context(), clinicID, typeID)
@@ -92,15 +92,15 @@ func (h *Handler) GetLiffStaffs(c *gin.Context) {
 }
 
 // GetLiffAvailableDates は予約可能日付一覧を返す。
-// GET /api/liff/:clinicId/available-dates?typeId=:id&staffId=:id
+// GET /api/liff/:clinicId/available-dates?courseId=:id&staffId=:id
 func (h *Handler) GetLiffAvailableDates(c *gin.Context) {
 	clinicID, ok := extractClinicIDFromParam(c)
 	if !ok {
 		return
 	}
-	typeID, err := strconv.ParseUint(c.Query("typeId"), 10, 64)
+	typeID, err := strconv.ParseUint(c.Query("courseId"), 10, 64)
 	if err != nil || typeID == 0 {
-		RespondError(c, apperrors.WrapInvalidInput("invalid typeId"))
+		RespondError(c, apperrors.WrapInvalidInput("invalid courseId"))
 		return
 	}
 	staffID, _ := strconv.ParseUint(c.Query("staffId"), 10, 64) // 0 = 指名なし
@@ -126,15 +126,15 @@ func (h *Handler) GetLiffAvailableDates(c *gin.Context) {
 }
 
 // GetLiffAvailableTimes は指定日の予約可能時間枠を返す。
-// GET /api/liff/:clinicId/available-times?typeId=:id&staffId=:id&date=YYYY-MM-DD
+// GET /api/liff/:clinicId/available-times?courseId=:id&staffId=:id&date=YYYY-MM-DD
 func (h *Handler) GetLiffAvailableTimes(c *gin.Context) {
 	clinicID, ok := extractClinicIDFromParam(c)
 	if !ok {
 		return
 	}
-	typeID, err := strconv.ParseUint(c.Query("typeId"), 10, 64)
+	typeID, err := strconv.ParseUint(c.Query("courseId"), 10, 64)
 	if err != nil || typeID == 0 {
-		RespondError(c, apperrors.WrapInvalidInput("invalid typeId"))
+		RespondError(c, apperrors.WrapInvalidInput("invalid courseId"))
 		return
 	}
 	staffID, _ := strconv.ParseUint(c.Query("staffId"), 10, 64)

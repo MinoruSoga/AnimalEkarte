@@ -65,7 +65,7 @@ export interface AvailableDate {
 export interface AvailableTime {
   start_time: string; // "HHMM"
   end_time: string;   // "HHMM"
-  display_time: string; // "HH:MM"
+  display_time?: string; // Backend未実装のためオプショナル。formatTime でフォールバック
 }
 
 export interface Reservation {
