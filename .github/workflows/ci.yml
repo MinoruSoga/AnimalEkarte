@@ -16,10 +16,42 @@ env:
 
 jobs:
   # ──────────────────────────────────────────────
+  # 変更検出: どのジョブを実行すべきか判定
+  # ──────────────────────────────────────────────
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      codegen: ${{ steps.filter.outputs.codegen }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Path filter
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+            codegen:
+              - 'backend/internal/model/**'
+              - 'backend/tygo.yaml'
+              - 'frontend/src/types/generated/**'
+
+  # ──────────────────────────────────────────────
   # Backend: build + lint + schema check
   # ──────────────────────────────────────────────
   backend:
     name: Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -101,6 +133,8 @@ jobs:
   # ──────────────────────────────────────────────
   frontend:
     name: Frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -131,6 +165,8 @@ jobs:
   # ──────────────────────────────────────────────
   codegen-check:
     name: Codegen Sync
+    needs: changes
+    if: needs.changes.outputs.codegen == 'true'
     runs-on: ubuntu-latest
 
     steps:
