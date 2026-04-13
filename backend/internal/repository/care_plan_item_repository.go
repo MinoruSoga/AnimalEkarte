@@ -31,7 +31,7 @@ func NewCarePlanItemRepository(db *gorm.DB) CarePlanItemRepository {
 func (r *carePlanItemRepository) ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
 	items := make([]model.CarePlanItem, 0)
 	err := r.db.WithContext(ctx).
-		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id").
+		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ?", clinicID, hospitalizationID).
 		Order("care_plan_items.sort_order ASC").
 		Preload("Medicine").
@@ -46,7 +46,7 @@ func (r *carePlanItemRepository) ListByHospitalizationID(ctx context.Context, cl
 func (r *carePlanItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CarePlanItem, error) {
 	var item model.CarePlanItem
 	err := r.db.WithContext(ctx).
-		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id").
+		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.id = ?", clinicID, id).
 		Preload("Medicine").
 		Preload("Procedure").
@@ -68,7 +68,7 @@ func (r *carePlanItemRepository) Create(ctx context.Context, item *model.CarePla
 func (r *carePlanItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
-		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id").
+		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.id = ?", clinicID, id).
 		Updates(fields)
 	if result.Error != nil {
@@ -82,7 +82,7 @@ func (r *carePlanItemRepository) Update(ctx context.Context, clinicID, id uint64
 
 func (r *carePlanItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id").
+		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.id = ?", clinicID, id).
 		Unscoped().
 		Delete(&model.CarePlanItem{})

@@ -29,7 +29,7 @@ func NewBillingConfirmationRepository(db *gorm.DB) BillingConfirmationRepository
 func (r *billingConfirmationRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
 	var review model.BillingConfirmation
 	err := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = billing_confirmations.medical_record_id").
+		Joins("JOIN medical_records ON medical_records.id = billing_confirmations.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND billing_confirmations.medical_record_id = ?", clinicID, medicalRecordID).
 		First(&review).Error
 	if err != nil {

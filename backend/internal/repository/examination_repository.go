@@ -35,7 +35,7 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 			q = q.Where("exams.pet_id = ?", *petID)
 		}
 		if ownerID != nil {
-			q = q.Joins("JOIN pets ON pets.id = exams.pet_id").Where("pets.owner_id = ?", *ownerID)
+			q = q.Joins("JOIN pets ON pets.id = exams.pet_id AND pets.deleted_at IS NULL").Where("pets.owner_id = ?", *ownerID)
 		}
 		if status != nil {
 			q = q.Where("exams.status = ?", *status)

@@ -37,7 +37,7 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 	}
 	if ownerID != nil {
 		q = q.Select("trimming_records.*").
-			Joins("JOIN pets ON pets.id = trimming_records.pet_id").Where("pets.owner_id = ?", *ownerID)
+			Joins("JOIN pets ON pets.id = trimming_records.pet_id AND pets.deleted_at IS NULL").Where("pets.owner_id = ?", *ownerID)
 	}
 	if startDate != nil {
 		q = q.Where("trimming_records.date >= ?", *startDate)

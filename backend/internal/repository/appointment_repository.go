@@ -270,8 +270,8 @@ func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinic
 	var count int64
 	dateStr := date.Format("2006-01-02")
 	err := dbOrTx(ctx, r.db).Model(&model.Appointment{}).
-		Where("clinic_id = ? AND DATE(start_time) = ? AND source = ?",
-			clinicID, dateStr, source).
+		Scopes(clinicScope(clinicID)).
+		Where("DATE(start_time) = ? AND source = ?", dateStr, source).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.Wrap(err, "count reservations by date and source")

@@ -34,7 +34,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 			q = q.Where("vaccinations.pet_id = ?", *petID)
 		}
 		if ownerID != nil {
-			q = q.Joins("JOIN pets ON pets.id = vaccinations.pet_id").Where("pets.owner_id = ?", *ownerID)
+			q = q.Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.deleted_at IS NULL").Where("pets.owner_id = ?", *ownerID)
 		}
 		if startDate != nil {
 			q = q.Where("vaccinations.date >= ?", *startDate)

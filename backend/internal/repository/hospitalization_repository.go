@@ -127,7 +127,7 @@ func (r *hospitalizationRepository) CountCarePlanItemsByHospitalizationID(ctx co
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
-		Joins("JOIN hospitalizations ON care_plan_items.hospitalization_id = hospitalizations.id").
+		Joins("JOIN hospitalizations ON care_plan_items.hospitalization_id = hospitalizations.id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ?", clinicID, hospitalizationID).
 		Count(&count).Error
 	if err != nil {
