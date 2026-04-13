@@ -1,8 +1,16 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v31.1（LINE予約・予約区分グループ・clinic_holidays 等 7テーブル追加）
+バージョン: v31.2（shift_templates・shift_template_breaks 追加）
 更新日: 2026-04-13
 状態: Production Ready
+
+---
+
+## 変更概要（v31.1 → v31.2）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| テーブル総数 65 → 67 | `shift_templates`, `shift_template_breaks` を追加 |
 
 ---
 
@@ -43,7 +51,7 @@
 
 ---
 
-## テーブル一覧（65テーブル）
+## テーブル一覧（67テーブル）
 
 | # | テーブル名 | 区分 | 説明 |
 |---|-----------|------|------|
@@ -298,7 +306,7 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 
 ---
 
-## テーブル一覧（59テーブル）
+## テーブル一覧（67テーブル）
 
 > テーブル順序は `001_init.sql` の CREATE TABLE 順に準拠。
 
@@ -369,6 +377,8 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 | 63 | `line_customers` | LINE予約 | LINE予約ユーザー管理（clinic_id + line_user_id UNIQUE） |
 | 64 | `staff_reservation_exclusions` | 予約マスタ | スタッフ × 非対応予約区分（N:N中間テーブル） |
 | 65 | `shift_entry_breaks` | シフト | シフト中の休憩時間管理 |
+| 66 | `shift_templates` | マスタ | シフトテンプレートマスタ |
+| 67 | `shift_template_breaks` | マスタ | シフトテンプレートの休憩時間管理 |
 
 ---
 
@@ -1316,6 +1326,35 @@ erDiagram
         timestamptz updated_at
     }
 
+    shift_entry_breaks {
+        bigint id PK
+        bigint shift_entry_id FK "FK → shift_entries(id) CASCADE"
+        time break_start
+        time break_end
+    }
+
+    shift_templates {
+        bigint id PK
+        bigint clinic_id FK
+        varchar_100 name
+        shift_type shift_type
+        time start_time
+        time end_time
+        text notes
+        integer sort_order
+        boolean is_active
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    shift_template_breaks {
+        bigint id PK
+        bigint shift_template_id FK "FK → shift_templates(id) CASCADE"
+        time break_start
+        time break_end
+    }
+
     audit_logs {
         bigint id PK
         bigint clinic_id
@@ -1392,13 +1431,6 @@ erDiagram
         text reason
         timestamptz created_at
         timestamptz updated_at
-    }
-
-    shift_entry_breaks {
-        bigint id PK
-        bigint shift_entry_id FK "FK → shift_entries(id) CASCADE"
-        time break_start
-        time break_end
     }
 
     %% ===== リレーション =====
@@ -1540,6 +1572,8 @@ erDiagram
     %% シフト
     staffs ||--o{ shift_entries : "staff_id"
     shift_entries ||--o{ shift_entry_breaks : "shift_entry_id"
+    clinics ||--o{ shift_templates : "clinic_id"
+    shift_templates ||--o{ shift_template_breaks : "shift_template_id"
 
     %% clinic_id マルチテナント（v10.0 + v22.0追加分）
     clinics ||--o{ vaccinations : "clinic_id"
@@ -3305,6 +3339,52 @@ erDiagram
 - `shift_entry_id` → `shift_entries.id` (CASCADE)
 
 **インデックス:** `(shift_entry_id)`
+
+---
+
+#### `shift_templates`
+
+用途: シフトテンプレートマスタ。よく使う勤務パターンを登録し、シフト作成時に利用する。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO | | FK → clinics(id) RESTRICT |
+| name | varchar(100) | NO | | テンプレート名 |
+| shift_type | shift_type | NO | 'full' | シフト種別 |
+| start_time | time | YES | | 勤務開始時刻 |
+| end_time | time | YES | | 勤務終了時刻 |
+| notes | text | NO | '' | 備考 |
+| sort_order | integer | NO | 0 | 並び順 |
+| is_active | boolean | NO | true | 有効フラグ |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
+| deleted_at | timestamptz | YES | NULL | 論理削除日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (RESTRICT)
+
+**インデックス:**
+- `(clinic_id, name) WHERE deleted_at IS NULL` UNIQUE
+- `(clinic_id) WHERE deleted_at IS NULL`
+
+---
+
+#### `shift_template_breaks`
+
+用途: シフトテンプレートに紐づく休憩時間の設定。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| shift_template_id | bigint | NO | | FK → shift_templates(id) CASCADE |
+| break_start | time | NO | | 休憩開始時刻 |
+| break_end | time | NO | | 休憩終了時刻 |
+
+**FK:**
+- `shift_template_id` → `shift_templates.id` (CASCADE)
+
+**インデックス:** `(shift_template_id)`
 
 ---
 
