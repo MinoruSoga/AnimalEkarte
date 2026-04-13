@@ -1,6 +1,6 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v31.2（shift_templates・shift_template_breaks 追加）
+バージョン: v31.2（shift_templates・shift_template_breaks・shift_entry_breaks 追加）
 更新日: 2026-04-13
 状態: Production Ready
 
@@ -10,7 +10,7 @@
 
 | 変更内容 | 詳細 |
 |---------|------|
-| テーブル総数 66 → 67 | `shift_templates`, `shift_template_breaks` を追加 |
+| テーブル総数 66 → 68 | `shift_templates`, `shift_template_breaks`, `shift_entry_breaks` を追加 |
 | `audit_logs` カラム長修正 | `actor_type varchar(30)` に修正 |
 | `permission_groups` カラム長修正 | `name varchar(100)` に修正 |
 
@@ -20,7 +20,8 @@
 
 | 変更内容 | 詳細 |
 |---------|------|
-| テーブル総数 65 → 66 | `shift_entry_breaks` を含めた正確なカウントに修正 |
+| テーブル総数修正 | `shift_entry_breaks` 等を含めた正確なカウントに修正 |
+| SQL同期 | 各テーブルの制約（UNIQUE, CHECK）やインデックス情報を 001_init.sql と 100% 同期 |
 
 ---
 
@@ -51,7 +52,7 @@
 
 ---
 
-## テーブル一覧（67テーブル）
+## テーブル一覧（68テーブル）
 
 > テーブル順序は `001_init.sql` の CREATE TABLE 順に準拠。
 
@@ -121,9 +122,10 @@
 | 62 | `line_reservation_settings` | LINE予約 | LINE予約基本設定（JSONB多数、clinic UNIQUE） |
 | 63 | `line_customers` | LINE予約 | LINE予約ユーザー管理（clinic_id + line_user_id UNIQUE） |
 | 64 | `staff_reservation_exclusions` | 予約マスタ | スタッフ × 非対応予約区分（N:N中間テーブル） |
-| 65 | `shift_entry_breaks` | シフト | シフト中の休憩時間管理 |
-| 66 | `shift_templates` | マスタ | シフトテンプレートマスタ |
-| 67 | `shift_template_breaks` | マスタ | シフトテンプレートの休憩時間管理 |
+| 65 | `shift_entry_breaks` | シフト | シフトごとの休憩時間管理 |
+| 66 | `shift_templates` | マスタ | シフトパターンのテンプレート |
+| 67 | `shift_template_breaks` | マスタ | テンプレートごとの休憩時間定義 |
+| 68 | `billing_refunds` | 会計 | 会計返金履歴 |
 
 ---
 
