@@ -57,6 +57,7 @@ func (r *reservationAdminRepository) FindByDay(ctx context.Context, clinicID uin
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType").
 		Preload("Doctor").
+		Preload("CreatedByStaff").
 		Preload("LineCustomer").
 		Preload("Owner").
 		Preload("Pet").

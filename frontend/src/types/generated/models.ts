@@ -1353,6 +1353,7 @@ export interface Appointment {
    * LINE予約用フィールド
    */
   source: ReservationSource;
+  created_by?: number /* uint64 */;
   line_customer_id?: number /* uint64 */;
   is_staff_delegated: boolean;
   customer_fields: string /* []byte */;
@@ -1363,6 +1364,7 @@ export interface Appointment {
   pet?: Pet;
   reservation_type?: ReservationType;
   doctor?: Staff;
+  created_by_staff?: Staff;
   line_customer?: LineCustomer;
 }
 

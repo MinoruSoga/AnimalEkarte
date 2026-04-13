@@ -85,6 +85,7 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType").
 		Preload("Doctor").
+		Preload("CreatedByStaff").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&reservation).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))

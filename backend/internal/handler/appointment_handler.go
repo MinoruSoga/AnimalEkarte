@@ -96,6 +96,10 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
 	var input createReservationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
@@ -117,6 +121,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		IsDesignated:      input.IsDesignated,
 		Notes:             input.Notes,
 		Source:            source,
+		CreatedBy:         &staffID,
 	}
 	if input.VisitType != "" {
 		vt, err := validateEnum(input.VisitType,

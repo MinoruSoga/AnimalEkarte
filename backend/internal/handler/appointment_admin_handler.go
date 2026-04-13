@@ -65,6 +65,10 @@ func (h *Handler) CreateReservationAdmin(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
 	var req createReservationAdminRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
@@ -91,6 +95,7 @@ func (h *Handler) CreateReservationAdmin(c *gin.Context) {
 		LineCustomerID:    req.LineCustomerID,
 		IsStaffDelegated:  req.IsStaffDelegated,
 		CustomerFields:    req.CustomerFields,
+		CreatedBy:         &staffID,
 	})
 	if err != nil {
 		RespondError(c, err)

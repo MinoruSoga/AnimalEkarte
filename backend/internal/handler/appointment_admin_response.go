@@ -40,6 +40,8 @@ type reservationDetailResponse struct {
 	CustomerName      string          `json:"customer_name"`
 	CourseShortName   string          `json:"course_short_name"`
 	StaffName         string          `json:"staff_name"`
+	CreatedBy         *uint64         `json:"created_by,omitempty"`
+	CreatedByName     string          `json:"created_by_name"`
 	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
 }
@@ -105,6 +107,11 @@ func toReservationDetailResponse(ra *model.Appointment) reservationDetailRespons
 		staffName = ra.Doctor.Name
 	}
 
+	createdByName := ""
+	if ra.CreatedByStaff != nil {
+		createdByName = ra.CreatedByStaff.Name
+	}
+
 	return reservationDetailResponse{
 		ID:                ra.ID,
 		StartTime:         ra.StartTime,
@@ -124,6 +131,8 @@ func toReservationDetailResponse(ra *model.Appointment) reservationDetailRespons
 		CustomerName:      customerName,
 		CourseShortName:   courseShortName,
 		StaffName:         staffName,
+		CreatedBy:         ra.CreatedBy,
+		CreatedByName:     createdByName,
 		CreatedAt:         ra.CreatedAt,
 		UpdatedAt:         ra.UpdatedAt,
 	}

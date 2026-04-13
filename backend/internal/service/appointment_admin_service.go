@@ -29,6 +29,7 @@ type CreateReservationAdminInput struct {
 	DoctorID          *uint64
 	IsDesignated      bool
 	Notes             string
+	CreatedBy         *uint64
 	LineCustomerID    *uint64
 	IsStaffDelegated  bool
 	CustomerFields    []byte
@@ -96,6 +97,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 			IsDesignated:      input.IsDesignated,
 			Notes:             input.Notes,
 			Source:            model.ReservationSourceManual,
+			CreatedBy:         input.CreatedBy,
 			LineCustomerID:    input.LineCustomerID,
 			IsStaffDelegated:  input.IsStaffDelegated,
 			CustomerFields:    customerFields,

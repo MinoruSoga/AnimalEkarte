@@ -269,7 +269,7 @@ func TestCreateReservation(t *testing.T) {
 		{
 			name:     "creates reservation successfully",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockReservationService{
 				createFn: func(_ context.Context, r *model.Appointment) error {
 					assert.Equal(t, "健康診断", r.Notes)
@@ -288,7 +288,7 @@ func TestCreateReservation(t *testing.T) {
 		{
 			name:       "returns 400 when required fields are missing",
 			body:       map[string]any{"notes": "テスト"}, // start_time, end_time, reservation_type_id missing
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -299,7 +299,7 @@ func TestCreateReservation(t *testing.T) {
 				b["visit_type"] = "invalid_type"
 				return b
 			}(),
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -310,14 +310,14 @@ func TestCreateReservation(t *testing.T) {
 				b["status"] = "invalid_status"
 				return b
 			}(),
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockReservationService{
 				createFn: func(_ context.Context, _ *model.Appointment) error {
 					return fmt.Errorf("db error")

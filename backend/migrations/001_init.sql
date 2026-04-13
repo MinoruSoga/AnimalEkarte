@@ -682,6 +682,7 @@ CREATE TABLE appointments (
     status             reservation_status            DEFAULT 'pending',
     notes              text                 NOT NULL DEFAULT '',
     source             reservation_source   NOT NULL DEFAULT 'manual',
+    created_by         bigint                        REFERENCES staffs(id),
     is_staff_delegated boolean              NOT NULL DEFAULT false,
     customer_fields    jsonb                NOT NULL DEFAULT '{}',
     created_at         timestamptz          NOT NULL DEFAULT now(),
@@ -1379,6 +1380,7 @@ CREATE INDEX idx_appointments_owner_id ON appointments(owner_id);
 CREATE INDEX idx_appointments_pet_id ON appointments(pet_id);
 CREATE INDEX idx_appointments_reservation_type_id ON appointments(reservation_type_id);
 CREATE INDEX idx_appointments_doctor_id ON appointments(doctor_id);
+CREATE INDEX idx_appointments_created_by ON appointments(created_by);
 
 -- medical_records 子テーブル FK インデックス
 CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
