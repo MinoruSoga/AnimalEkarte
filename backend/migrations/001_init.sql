@@ -1218,6 +1218,7 @@ CREATE TABLE payments (
     received_amount  bigint                  DEFAULT 0,
     change_amount    bigint                  DEFAULT 0,
     method           payment_method          DEFAULT 'cash',
+    paid_by          bigint         REFERENCES staffs(id),
     created_at       timestamptz    NOT NULL DEFAULT now(),
     updated_at       timestamptz    NOT NULL DEFAULT now(),
     deleted_at       timestamptz
@@ -1411,6 +1412,7 @@ CREATE INDEX idx_billings_owner_id ON billings(owner_id);
 
 CREATE INDEX idx_billing_refunds_billing ON billing_refunds(billing_id);
 CREATE INDEX idx_billing_refunds_clinic_billing ON billing_refunds(clinic_id, billing_id);
+CREATE INDEX idx_payments_staff ON payments(paid_by);
 CREATE INDEX idx_billing_refunds_staff ON billing_refunds(refunded_by);
 
 -- 担当医 FK インデックス（staffs）

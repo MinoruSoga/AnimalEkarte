@@ -121,8 +121,13 @@ export interface Payment {
   received_amount: number /* int64 */;
   change_amount: number /* int64 */;
   method: PaymentMethod;
+  paid_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
+  /**
+   * Relations
+   */
+  paid_by_staff?: Staff;
 }
 
 //////////
@@ -234,6 +239,10 @@ export interface BillingRefund {
   refunded_by?: number /* uint64 */; // 返金処理スタッフID（nullable）
   refunded_at: string;
   created_at: string;
+  /**
+   * Relations
+   */
+  refunded_by_staff?: Staff;
 }
 
 //////////

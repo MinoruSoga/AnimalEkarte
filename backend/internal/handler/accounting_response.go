@@ -76,6 +76,8 @@ type paymentResponse struct {
 	ReceivedAmount  int64     `json:"received_amount"`
 	ChangeAmount    int64     `json:"change_amount"`
 	Method          string    `json:"method"`
+	PaidBy          *uint64   `json:"paid_by"`
+	PaidByName      string    `json:"paid_by_name"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -137,6 +139,10 @@ func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
 }
 
 func toPaymentResponse(p *model.Payment) paymentResponse {
+	var staffName string
+	if p.PaidByStaff != nil {
+		staffName = p.PaidByStaff.Name
+	}
 	return paymentResponse{
 		ID:              p.ID,
 		BillingID:       p.BillingID,
@@ -151,6 +157,8 @@ func toPaymentResponse(p *model.Payment) paymentResponse {
 		ReceivedAmount:  p.ReceivedAmount,
 		ChangeAmount:    p.ChangeAmount,
 		Method:          string(p.Method),
+		PaidBy:          p.PaidBy,
+		PaidByName:      staffName,
 		CreatedAt:       p.CreatedAt,
 		UpdatedAt:       p.UpdatedAt,
 	}

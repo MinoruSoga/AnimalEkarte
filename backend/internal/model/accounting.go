@@ -119,9 +119,13 @@ type Payment struct {
 	ReceivedAmount  int64          `gorm:"default:0"                                      json:"received_amount"`
 	ChangeAmount    int64          `gorm:"default:0"                                      json:"change_amount"`
 	Method          PaymentMethod  `gorm:"type:payment_method;default:'cash'"             json:"method"`
+	PaidBy          *uint64        `gorm:""                                               json:"paid_by"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `                                                      json:"-"`
+
+	// Relations
+	PaidByStaff *Staff `gorm:"foreignKey:PaidBy" json:"paid_by_staff,omitempty" tygo:"-"`
 }
 
 func (Payment) TableName() string { return "payments" }

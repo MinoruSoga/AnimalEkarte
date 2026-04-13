@@ -20,6 +20,7 @@ type createAccountingRequest struct {
 
 // updateAccountingRequest は会計更新リクエスト。
 // nil フィールドは更新しない（GORM ゼロ値スキップ問題を回避するためポインタ型を使用）。
+// Payment フィールドが含まれている場合、会計完了時に Payment を同時 upsert する。
 type updateAccountingRequest struct {
 	MedicalRecordID   *uint64    `json:"medical_record_id"`
 	HospitalizationID *uint64    `json:"hospitalization_id"`
@@ -33,6 +34,15 @@ type updateAccountingRequest struct {
 	ScheduledDate     *time.Time `json:"scheduled_date"`
 	CompletedAt       *time.Time `json:"completed_at"`
 	Memo              *string    `json:"memo"`
+	// Payment フィールド（会計完了時に同時送信される）
+	PaymentMethod   *string  `json:"payment_method"`
+	InsuranceRatio  *float64 `json:"insurance_ratio"`
+	InsuranceName   *string  `json:"insurance_name"`
+	InsuranceAmount *int64   `json:"insurance_amount"`
+	DiscountAmount  *int64   `json:"discount_amount"`
+	BillingAmount   *int64   `json:"billing_amount"`
+	ReceivedAmount  *int64   `json:"received_amount"`
+	ChangeAmount    *int64   `json:"change_amount"`
 }
 
 // createBillingItemRequest は明細作成リクエスト。

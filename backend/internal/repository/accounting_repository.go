@@ -15,6 +15,7 @@ type AccountingRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	UpsertPayment(ctx context.Context, payment *model.Payment) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountItemsByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error)
 }
@@ -50,7 +51,7 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-	if err := q.Preload("Owner").Preload("Pet").Preload("Payments").Preload("Items").
+	if err := q.Preload("Owner").Preload("Pet").Preload("Payments").Preload("Payments.PaidByStaff").Preload("Items").
 		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
@@ -90,6 +91,7 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 	err := r.db.WithContext(ctx).
 		Preload("Items").
 		Preload("Payments").
+		Preload("Payments.PaidByStaff").
 		Preload("Refunds").
 		Preload("Refunds.RefundedByStaff").
 		Preload("Owner").
@@ -134,12 +136,36 @@ func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billi
 	}
 	var billing model.Billing
 	if err := r.db.WithContext(ctx).
-		Preload("Items").Preload("Payments").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner").Preload("Pet").
+		Preload("Items").Preload("Payments").Preload("Payments.PaidByStaff").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner").Preload("Pet").
 		Scopes(clinicScope(clinicID)).
 		First(&billing, "id = ?", billingID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
 	}
 	return &billing, nil
+}
+
+func (r *accountingRepository) UpsertPayment(ctx context.Context, payment *model.Payment) error {
+	result := r.db.WithContext(ctx).
+		Where(model.Payment{BillingID: payment.BillingID}).
+		Assign(model.Payment{
+			Subtotal:        payment.Subtotal,
+			TaxTotal:        payment.TaxTotal,
+			TotalAmount:     payment.TotalAmount,
+			InsuranceName:   payment.InsuranceName,
+			InsuranceRatio:  payment.InsuranceRatio,
+			InsuranceAmount: payment.InsuranceAmount,
+			DiscountAmount:  payment.DiscountAmount,
+			BillingAmount:   payment.BillingAmount,
+			ReceivedAmount:  payment.ReceivedAmount,
+			ChangeAmount:    payment.ChangeAmount,
+			Method:          payment.Method,
+			PaidBy:          payment.PaidBy,
+		}).
+		FirstOrCreate(payment)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
+	}
+	return nil
 }
 
 func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uint64) error {

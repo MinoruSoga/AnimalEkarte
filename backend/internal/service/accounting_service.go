@@ -32,6 +32,7 @@ type CreateAccountingInput struct {
 type UpdateAccountingInput struct {
 	ID                uint64
 	ClinicID          uint64
+	StaffID           *uint64
 	MedicalRecordID   *uint64
 	HospitalizationID *uint64
 	OwnerID           *uint64
@@ -44,6 +45,15 @@ type UpdateAccountingInput struct {
 	ScheduledDate     *time.Time
 	CompletedAt       *time.Time
 	Memo              *string
+	// Payment フィールド（会計完了時に同時 upsert）
+	PaymentMethod   *model.PaymentMethod
+	InsuranceRatio  *float64
+	InsuranceName   *string
+	InsuranceAmount *int64
+	DiscountAmount  *int64
+	BillingAmount   *int64
+	ReceivedAmount  *int64
+	ChangeAmount    *int64
 }
 
 // buildBillingUpdateFields は UpdateAccountingInput から nil でないフィールドのみ抽出する。
@@ -158,17 +168,90 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		return nil, apperrors.WrapInvalidInput("金額は0以上で指定してください")
 	}
 	fields := buildBillingUpdateFields(input)
-	if len(fields) == 0 {
+	if len(fields) == 0 && !hasPaymentFields(input) {
 		return nil, apperrors.WrapInvalidInput("no fields to update")
 	}
-	billing, err := s.repo.UpdateFields(ctx, input.ClinicID, input.ID, fields)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to update accounting")
+
+	// Billing 本体の更新
+	if len(fields) > 0 {
+		if _, err := s.repo.UpdateFields(ctx, input.ClinicID, input.ID, fields); err != nil {
+			return nil, apperrors.Wrap(err, "failed to update accounting")
+		}
 	}
+
+	// Payment upsert（支払フィールドが含まれている場合）
+	if hasPaymentFields(input) {
+		payment := buildPaymentFromInput(input)
+		if err := s.repo.UpsertPayment(ctx, payment); err != nil {
+			return nil, apperrors.Wrap(err, "failed to upsert payment")
+		}
+		slog.InfoContext(ctx, "payment upserted",
+			slog.Uint64("billing_id", input.ID))
+	}
+
+	// 更新後のレコードを返す
+	billing, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to reload accounting after update")
+	}
+
 	slog.InfoContext(ctx, "accounting updated",
 		slog.Uint64("billing_id", billing.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
 	return billing, nil
+}
+
+// hasPaymentFields は UpdateAccountingInput に Payment 関連フィールドが含まれているか判定する。
+func hasPaymentFields(input *UpdateAccountingInput) bool {
+	return input.PaymentMethod != nil ||
+		input.InsuranceRatio != nil ||
+		input.InsuranceAmount != nil ||
+		input.BillingAmount != nil ||
+		input.ReceivedAmount != nil ||
+		input.ChangeAmount != nil ||
+		input.DiscountAmount != nil
+}
+
+// buildPaymentFromInput は UpdateAccountingInput から Payment モデルを構築する。
+func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
+	p := &model.Payment{
+		BillingID: input.ID,
+		PaidBy:    input.StaffID,
+	}
+	if input.Subtotal != nil {
+		p.Subtotal = int64(*input.Subtotal)
+	}
+	if input.TaxTotal != nil {
+		p.TaxTotal = int64(*input.TaxTotal)
+	}
+	if input.TotalAmount != nil {
+		p.TotalAmount = int64(*input.TotalAmount)
+	}
+	if input.InsuranceName != nil {
+		p.InsuranceName = *input.InsuranceName
+	}
+	if input.InsuranceRatio != nil {
+		p.InsuranceRatio = *input.InsuranceRatio
+	}
+	if input.InsuranceAmount != nil {
+		p.InsuranceAmount = *input.InsuranceAmount
+	}
+	if input.DiscountAmount != nil {
+		p.DiscountAmount = *input.DiscountAmount
+	}
+	if input.BillingAmount != nil {
+		p.BillingAmount = *input.BillingAmount
+	}
+	if input.ReceivedAmount != nil {
+		p.ReceivedAmount = *input.ReceivedAmount
+	}
+	if input.ChangeAmount != nil {
+		p.ChangeAmount = *input.ChangeAmount
+	}
+	if input.PaymentMethod != nil {
+		p.Method = *input.PaymentMethod
+	}
+	return p
 }
 
 func (s *accountingService) Delete(ctx context.Context, clinicID, id uint64) error {

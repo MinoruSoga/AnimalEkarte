@@ -38,6 +38,7 @@ function buildPaymentInfo(data: BackendAccounting): PaymentInfo | undefined {
     receivedAmount: payment.received_amount ?? 0,
     changeAmount: payment.change_amount ?? 0,
     method: (payment.method || "cash") as PaymentInfo["method"],
+    paidByName: (payment as unknown as Record<string, unknown>).paid_by_name as string | undefined,
   };
 }
 
