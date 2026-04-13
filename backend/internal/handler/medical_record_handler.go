@@ -176,6 +176,10 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
 	var input createMedicalRecordRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
@@ -186,6 +190,7 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	record.EnteredBy = &staffID
 	ctx := c.Request.Context()
 	if err := h.svc.MedicalRecord.Create(ctx, record); err != nil {
 		RespondError(c, err)

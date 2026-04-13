@@ -976,6 +976,7 @@ export interface MedicalRecord {
   appointment_id?: number /* uint64 */;
   status: MedicalRecordStatus;
   version: number /* int */;
+  entered_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
   visit_count: number /* int64 */;
@@ -985,6 +986,7 @@ export interface MedicalRecord {
   owner?: Owner;
   pet?: Pet;
   doctor?: Staff;
+  entered_by_staff?: Staff;
   clinical_plan?: ClinicalPlan;
   inquiry?: Inquiry;
   treatments?: Treatment[];

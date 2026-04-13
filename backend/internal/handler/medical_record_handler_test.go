@@ -295,7 +295,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 		{
 			name:     "creates record with valid body",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
 				createFn: func(_ context.Context, record *model.MedicalRecord) error {
 					assert.Equal(t, uint64(1), record.ClinicID)
@@ -316,7 +316,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 			// handler は RecordNo を空のまま service に渡し、service が生成する。
 			name:     "auto-generates record_no when not provided",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
 				createFn: func(_ context.Context, record *model.MedicalRecord) error {
 					assert.Empty(t, record.RecordNo) // handler は空で渡す（service が生成）
@@ -333,7 +333,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 				b["record_no"] = "MR-CUSTOM-001"
 				return b
 			}(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
 				createFn: func(_ context.Context, record *model.MedicalRecord) error {
 					assert.Equal(t, "MR-CUSTOM-001", record.RecordNo)
@@ -350,7 +350,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 				b["plan"] = "経過観察"
 				return b
 			}(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
 				createFn: func(_ context.Context, _ *model.MedicalRecord) error { return nil },
 			},
@@ -374,7 +374,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 		{
 			name:       "returns 400 when owner_id is missing",
 			body:       map[string]any{"pet_id": "20"}, // owner_id missing (binding required)
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc:      &mockMedicalRecordService{},
 			cpSvc:      &mockClinicalPlanService{},
 			wantStatus: http.StatusBadRequest,
@@ -386,7 +386,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 				b["owner_id"] = ptrStr("not-a-number")
 				return b
 			}(),
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc:      &mockMedicalRecordService{},
 			cpSvc:      &mockClinicalPlanService{},
 			wantStatus: http.StatusBadRequest,
@@ -398,7 +398,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 				b["visit_date"] = ptrStr("03/24/2026") // wrong format
 				return b
 			}(),
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc:      &mockMedicalRecordService{},
 			cpSvc:      &mockClinicalPlanService{},
 			wantStatus: http.StatusBadRequest,
@@ -410,7 +410,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 				b["status"] = "unknown_status"
 				return b
 			}(),
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc:      &mockMedicalRecordService{},
 			cpSvc:      &mockClinicalPlanService{},
 			wantStatus: http.StatusBadRequest,
@@ -418,7 +418,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 		{
 			name:     "returns 500 on service error",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			mrSvc: &mockMedicalRecordService{
 				createFn: func(_ context.Context, _ *model.MedicalRecord) error {
 					return fmt.Errorf("db error")

@@ -753,6 +753,7 @@ CREATE TABLE medical_records (
     appointment_id             bigint                         REFERENCES appointments(id) ON DELETE SET NULL,
     status                     medical_record_status          DEFAULT 'draft',
     version                    INTEGER               NOT NULL DEFAULT 1,
+    entered_by                 bigint                         REFERENCES staffs(id),
     created_at                 timestamptz           NOT NULL DEFAULT now(),
     updated_at                 timestamptz           NOT NULL DEFAULT now(),
     deleted_at                 timestamptz
@@ -1519,6 +1520,7 @@ CREATE INDEX idx_pets_animal_species_id ON pets(animal_species_id);
 CREATE INDEX idx_pets_insurance_id ON pets(insurance_id) WHERE insurance_id IS NOT NULL;
 CREATE INDEX idx_diagnosis_names_type_id ON diagnosis_names(diagnosis_type_id);
 CREATE INDEX idx_medical_records_doctor_id ON medical_records(doctor_id) WHERE doctor_id IS NOT NULL;
+CREATE INDEX idx_medical_records_entered_by ON medical_records(entered_by) WHERE entered_by IS NOT NULL;
 CREATE INDEX idx_treatments_consultation_id ON treatments(consultation_id) WHERE consultation_id IS NOT NULL;
 CREATE INDEX idx_treatments_procedure_id ON treatments(procedure_id) WHERE procedure_id IS NOT NULL;
 CREATE INDEX idx_treatments_medicine_id ON treatments(medicine_id) WHERE medicine_id IS NOT NULL;
