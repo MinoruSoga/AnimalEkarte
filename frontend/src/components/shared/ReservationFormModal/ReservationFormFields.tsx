@@ -78,13 +78,27 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   // BUG-341: グループ情報付きで取得（useMasterItems は group 情報を捨てるため専用フック使用）
   const { data: groupedReservationTypes = [] } = useGetReservationTypesGrouped();
   const [typeComboOpen, setTypeComboOpen] = useState(false);
-  const typeComboRef = useRef<HTMLDivElement>(null);
+  const typeTriggerRef = useRef<HTMLButtonElement>(null);
+  const typeDropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
 
-  // Dialog 外クリックで閉じる
+  const handleTypeComboOpen = useCallback(() => {
+    if (typeTriggerRef.current) {
+      const r = typeTriggerRef.current.getBoundingClientRect();
+      setDropdownRect({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
+    setTypeComboOpen(true);
+  }, []);
+
+  // 外クリックで閉じる
   useEffect(() => {
     if (!typeComboOpen) return;
     const handleClick = (e: MouseEvent) => {
-      if (typeComboRef.current && !typeComboRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        !typeTriggerRef.current?.contains(target) &&
+        !typeDropdownRef.current?.contains(target)
+      ) {
         setTypeComboOpen(false);
       }
     };
@@ -251,12 +265,13 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           {/* BUG-341: Combobox（検索＋グループ階層表示）
                Radix Popover は Dialog 内で scroll-lock と干渉するため Portal を使わず
                インライン絶対配置で実装 */}
-          <div ref={typeComboRef} className="relative">
+          <div>
             <button
+              ref={typeTriggerRef}
               type="button"
               role="combobox"
               aria-expanded={typeComboOpen}
-              onClick={() => setTypeComboOpen((v) => !v)}
+              onClick={handleTypeComboOpen}
               className={cn(
                 `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
                 !selectedTypeLabel && C.text40
@@ -265,8 +280,18 @@ export const ReservationFormFields = memo(function ReservationFormFields({
               <span>{selectedTypeLabel ?? "選択してください"}</span>
               <ChevronsUpDown className={`${ICON.action} ${C.text40} flex-shrink-0`} />
             </button>
-            {typeComboOpen ? (
-              <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-md border shadow-md bg-white overflow-hidden">
+            {typeComboOpen && dropdownRect ? (
+              <div
+                ref={typeDropdownRef}
+                style={{
+                  position: "fixed",
+                  top: dropdownRect.top,
+                  left: dropdownRect.left,
+                  width: dropdownRect.width,
+                  zIndex: 9999,
+                }}
+                className="rounded-md border shadow-md bg-white overflow-hidden"
+              >
                 <Command>
                   <CommandInput placeholder="予約区分を検索..." />
                   <CommandList className="max-h-[240px]">
