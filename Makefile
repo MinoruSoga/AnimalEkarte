@@ -65,13 +65,24 @@ build-prod:
 	docker build -t animal-ekarte-api:latest ./backend
 	docker build -t animal-ekarte-front:latest ./frontend
 
-# リンター実行（Go）
+# golangci-lint バージョン（CI と同一）
+GOLANGCI_LINT_VERSION := v2.11.4
+
+# リンター実行（Go）- CI と同一の公式イメージを使用
 lint:
-	docker compose exec backend golangci-lint run
+	docker run --rm \
+		-v $(PWD)/backend:/app \
+		-w /app \
+		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) \
+		golangci-lint run
 
 # リンター実行（自動修正）
 lint-fix:
-	docker compose exec backend golangci-lint run --fix
+	docker run --rm \
+		-v $(PWD)/backend:/app \
+		-w /app \
+		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) \
+		golangci-lint run --fix
 
 # テスト実行（Go）
 test:
@@ -127,7 +138,11 @@ ci-local:
 	@echo "=== [2/6] Backend: test ==="
 	docker compose exec backend go test ./... -count=1 -race -timeout 120s
 	@echo "=== [3/6] Backend: lint ==="
-	docker compose exec backend golangci-lint run
+	docker run --rm \
+		-v $(PWD)/backend:/app \
+		-w /app \
+		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) \
+		golangci-lint run
 	@echo "=== [4/6] Backend: schema drift ==="
 	docker compose exec backend go test ./internal/model/ -run TestSchemaDrift -v
 	@echo "=== [5/6] Frontend: lint ==="
