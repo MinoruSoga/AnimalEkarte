@@ -127,11 +127,22 @@ const TimeSidebar = memo(function TimeSidebar() {
       {HOURS.map((hour) => (
         <div
           key={hour}
-          className={`text-sm ${C.text40} text-right pr-2 pt-1 relative leading-none`}
+          className={`relative flex-shrink-0 text-xs ${C.text40} text-right pr-2 pt-0.5 leading-none`}
           style={{ height: `${HOUR_HEIGHT}px` }}
         >
           {hour}:00
           <div className={`absolute top-0 right-0 w-1.5 h-[1px] ${C.bgLight}`} />
+          {/* :30 half-hour label */}
+          <div
+            className={`absolute right-0 pr-2 text-xs leading-none`}
+            style={{ top: `${HOUR_HEIGHT / 2}px`, transform: "translateY(-50%)", opacity: 0.45 }}
+          >
+            :30
+          </div>
+          <div
+            className={`absolute right-0 w-[5px] h-[1px] ${C.bgLight}`}
+            style={{ top: `${HOUR_HEIGHT / 2}px` }}
+          />
         </div>
       ))}
     </div>
@@ -177,8 +188,9 @@ const AppointmentCard = memo(function AppointmentCard({
   const isCancelled = appointment.status === "cancelled";
 
   // Layout mode based on available height
-  const isCompact = height <= 35; // 15min
-  const isNarrow = !isCompact && height <= 65; // 30min
+  // 15min = 40px → compact (single-line), 30min = 80px → narrow (multi-line)
+  const isCompact = height <= 44;
+  const isNarrow = !isCompact && height <= 85;
 
   // Status indicator dot
   const dotInfo = STATUS_DOT_STYLE[appointment.status];
@@ -428,14 +440,32 @@ const DayColumn = memo(function DayColumn({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Grid Lines */}
+      {/* Grid Lines — :00 solid, :30 dashed, :15/:45 dotted */}
       <div className="absolute inset-0 flex flex-col pointer-events-none z-0">
         {HOURS.map((_, h) => (
           <div
             key={h}
-            className={`border-b ${C.borderDivider} w-full`}
+            className="relative w-full flex-shrink-0"
             style={{ height: `${HOUR_HEIGHT}px` }}
-          />
+          >
+            {/* :15 dotted */}
+            <div
+              className={`absolute left-0 right-0 border-t border-dotted ${C.borderDivider}`}
+              style={{ top: `${HOUR_HEIGHT / 4}px`, opacity: 0.3 }}
+            />
+            {/* :30 dashed */}
+            <div
+              className={`absolute left-0 right-0 border-t border-dashed ${C.borderDivider}`}
+              style={{ top: `${HOUR_HEIGHT / 2}px`, opacity: 0.55 }}
+            />
+            {/* :45 dotted */}
+            <div
+              className={`absolute left-0 right-0 border-t border-dotted ${C.borderDivider}`}
+              style={{ top: `${(HOUR_HEIGHT * 3) / 4}px`, opacity: 0.3 }}
+            />
+            {/* :00 solid hour line */}
+            <div className={`absolute bottom-0 left-0 right-0 border-b ${C.borderDivider}`} />
+          </div>
         ))}
       </div>
 
