@@ -252,9 +252,9 @@ export const ReservationFormFields = memo(function ReservationFormFields({
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-              <Command>
+              <Command className="h-auto">
                 <CommandInput placeholder="予約区分を検索..." className="h-9" />
-                <CommandList>
+                <CommandList className="max-h-[200px]">
                   <CommandEmpty className={`py-4 text-sm ${C.text40}`}>
                     該当する予約区分がありません
                   </CommandEmpty>
