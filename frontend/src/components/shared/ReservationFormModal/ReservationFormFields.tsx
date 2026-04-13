@@ -1,4 +1,4 @@
-import { memo, useMemo, useCallback, useState } from "react";
+import { memo, useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { isBefore, startOfDay, format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { C, ICON } from "@/lib/design-tokens";
@@ -78,6 +78,19 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   // BUG-341: グループ情報付きで取得（useMasterItems は group 情報を捨てるため専用フック使用）
   const { data: groupedReservationTypes = [] } = useGetReservationTypesGrouped();
   const [typeComboOpen, setTypeComboOpen] = useState(false);
+  const typeComboRef = useRef<HTMLDivElement>(null);
+
+  // Dialog 外クリックで閉じる
+  useEffect(() => {
+    if (!typeComboOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (typeComboRef.current && !typeComboRef.current.contains(e.target as Node)) {
+        setTypeComboOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [typeComboOpen]);
   // 現在選択中の予約区分名（Combobox トリガー表示用）
   const selectedTypeLabel = useMemo(() => {
     for (const group of groupedReservationTypes) {
@@ -235,55 +248,58 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           >
             予約区分
           </FieldLabel>
-          {/* BUG-341: Combobox（検索＋グループ階層表示） */}
-          <Popover open={typeComboOpen} onOpenChange={setTypeComboOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                role="combobox"
-                aria-expanded={typeComboOpen}
-                className={cn(
-                  `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
-                  !selectedTypeLabel && C.text40
-                )}
-              >
-                <span>{selectedTypeLabel ?? "選択してください"}</span>
-                <ChevronsUpDown className={`${ICON.action} ${C.text40} flex-shrink-0`} />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-full p-0" align="start">
-              <Command>
-                <CommandInput placeholder="予約区分を検索..." />
-                <CommandList className="max-h-[500px]">
-                  <CommandEmpty className={`py-4 text-sm ${C.text40}`}>
-                    該当する予約区分がありません
-                  </CommandEmpty>
-                  {groupedReservationTypes.map((group) => (
-                    <CommandGroup key={group.label} heading={group.label}>
-                      {group.types.map((t) => (
-                        <CommandItem
-                          key={t.id}
-                          value={`${group.label} ${t.name}`}
-                          onSelect={() => {
-                            onChange({ ...formData, type: String(t.id) });
-                            setTypeComboOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              `${ICON.action} flex-shrink-0`,
-                              String(t.id) === formData.type ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {t.name}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  ))}
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          {/* BUG-341: Combobox（検索＋グループ階層表示）
+               Radix Popover は Dialog 内で scroll-lock と干渉するため Portal を使わず
+               インライン絶対配置で実装 */}
+          <div ref={typeComboRef} className="relative">
+            <button
+              type="button"
+              role="combobox"
+              aria-expanded={typeComboOpen}
+              onClick={() => setTypeComboOpen((v) => !v)}
+              className={cn(
+                `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
+                !selectedTypeLabel && C.text40
+              )}
+            >
+              <span>{selectedTypeLabel ?? "選択してください"}</span>
+              <ChevronsUpDown className={`${ICON.action} ${C.text40} flex-shrink-0`} />
+            </button>
+            {typeComboOpen ? (
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-md border shadow-md bg-white overflow-hidden">
+                <Command>
+                  <CommandInput placeholder="予約区分を検索..." />
+                  <CommandList className="max-h-[240px]">
+                    <CommandEmpty className={`py-4 text-sm ${C.text40}`}>
+                      該当する予約区分がありません
+                    </CommandEmpty>
+                    {groupedReservationTypes.map((group) => (
+                      <CommandGroup key={group.label} heading={group.label}>
+                        {group.types.map((t) => (
+                          <CommandItem
+                            key={t.id}
+                            value={`${group.label} ${t.name}`}
+                            onSelect={() => {
+                              onChange({ ...formData, type: String(t.id) });
+                              setTypeComboOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                `${ICON.action} flex-shrink-0`,
+                                String(t.id) === formData.type ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {t.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    ))}
+                  </CommandList>
+                </Command>
+              </div>
+            ) : null}
+          </div>
           {validationErrors?.type ? (
             <FormFieldError id="res-type-error" message={validationErrors.type} />
           ) : null}
