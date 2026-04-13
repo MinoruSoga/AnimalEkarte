@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks
+.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -119,6 +119,24 @@ mod-download:
 mod-tidy:
 	docker compose exec backend go mod tidy
 
+# CI と同等のチェックをローカル Docker で実行
+# 実行前に make up でコンテナを起動しておくこと
+ci-local:
+	@echo "=== [1/6] Backend: build ==="
+	docker compose exec backend go build ./...
+	@echo "=== [2/6] Backend: test ==="
+	docker compose exec backend go test ./... -count=1 -race -timeout 120s
+	@echo "=== [3/6] Backend: lint ==="
+	docker compose exec backend golangci-lint run
+	@echo "=== [4/6] Backend: schema drift ==="
+	docker compose exec backend go test ./internal/model/ -run TestSchemaDrift -v
+	@echo "=== [5/6] Frontend: lint ==="
+	docker compose exec frontend npm run lint
+	@echo "=== [6/6] Frontend: build ==="
+	docker compose exec frontend npm run build
+	@echo ""
+	@echo "✓ All CI checks passed"
+
 # git hooks セットアップ（初回・新メンバーオンボーディング時に実行）
 setup-hooks:
 	git config core.hooksPath .githooks
@@ -157,6 +175,7 @@ help:
 	@echo "  codegen       型定義生成（Go model → TypeScript型）"
 	@echo "  codegen-check 型定義の差分チェック（CI用）"
 	@echo "  schema-check  GoモデルとDBスキーマの差分チェック"
+	@echo "  ci-local      CI と同等のチェックをローカル Docker で実行"
 	@echo "  build-go      Goビルド（開発用）"
 	@echo "  mod-download  Goモジュールダウンロード"
 	@echo "  mod-tidy      Goモジュールtidy"

@@ -153,7 +153,7 @@ func verifyLiffIDToken(ctx context.Context, idToken, clientID string) (*lineVeri
 	if err != nil {
 		return nil, fmt.Errorf("line verify request failed: %w", err)
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer resp.Body.Close() //nolint:errcheck // レスポンスボディのクローズ失敗は復旧不可のため無視
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
