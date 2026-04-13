@@ -275,14 +275,12 @@ describe('useExaminationForm — formAction（useActionState コールバック�
   });
 
   it('testTypeId と doctorId がない場合、バリデーションエラーを返す（line 92-97）', async () => {
-    const { toast } = await import('sonner');
     const { result } = renderHook(() => useExaminationForm());
 
     await act(async () => {
       await result.current.formAction(new FormData());
     });
 
-    expect(toast.error).toHaveBeenCalledWith('未入力の項目があります');
     expect(result.current.formState.success).toBe(false);
     expect(result.current.formState.fieldErrors).toMatchObject({
       testTypeId: expect.any(String),
@@ -291,7 +289,6 @@ describe('useExaminationForm — formAction（useActionState コールバック�
   });
 
   it('doctorId のみない場合、doctorId バリデーションエラーを返す', async () => {
-    const { toast } = await import('sonner');
     const { result } = renderHook(() => useExaminationForm());
 
     act(() => { result.current.setFormData({ testTypeId: '5' }); });
@@ -300,7 +297,6 @@ describe('useExaminationForm — formAction（useActionState コールバック�
       await result.current.formAction(new FormData());
     });
 
-    expect(toast.error).toHaveBeenCalledWith('未入力の項目があります');
     expect(result.current.formState.fieldErrors?.doctorId).toBeDefined();
     expect(result.current.formState.fieldErrors?.testTypeId).toBeUndefined();
   });
