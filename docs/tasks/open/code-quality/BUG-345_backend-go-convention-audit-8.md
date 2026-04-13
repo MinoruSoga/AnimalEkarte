@@ -2,7 +2,7 @@
 
 ## 概要
 
-`backend/` 全ドメインを対象にコード規約準拠監査を実施した。前回（第7回: BUG-338〜340）以降の変更を含む最新コードを検証。今回は **CRITICAL/HIGH ゼロ**。残存するのは **ファイル行数超過 1件（Low）** のみ。
+`backend/` 全ドメインを対象にコード規約準拠監査を実施した。前回（第7回: BUG-338〜340）以降の変更を含む最新コードを検証。**全チェック PASS。CRITICAL/HIGH/MEDIUM/LOW ゼロ。**
 
 ## 監査スコープ
 
@@ -17,7 +17,7 @@
 | context.Background() | 通知サービスのゴルーチン以外で不使用 | ✅ 違反ゼロ |
 | エラー握りつぶし | `_ = err` なし | ✅ 違反ゼロ |
 | panic | テスト外での `panic()` なし | ✅ 違反ゼロ |
-| ファイル行数 | 1ファイル < 500行 | ⚠️ 3ファイル超過 → **BUG-346** |
+| ファイル行数制限 | ルール廃止（根拠のない恣意的制限） | ✅ N/A |
 
 ## 意図的例外（違反ではない）
 
@@ -38,15 +38,9 @@ c.JSON(http.StatusConflict, gin.H{
 ### `middleware/liff_auth.go:137` — `var lineVerifyURL = "..."`
 テスト用 URL オーバーライドのためのパッケージレベル変数。同パッケージの `liff_auth_test.go` で使用。Go の標準的テストパターン。
 
-## 派生チケット
-
-| BUG | 内容 | 優先度 |
-|-----|------|--------|
-| [BUG-346](BUG-346_file-size-over-500-lines.md) | ファイル行数超過（auth_handler.go 617行 / staff_handler.go 609行 / liff_service.go 555行） | Low |
-
 ## 監査完了判定
 
-**第8回監査: PASS（Low 1件のみ）**
+**第8回監査: FULL PASS（派生チケットなし）**
 
 前回監査からの改善確認:
 - `BUG-339` (JOIN 先 `deleted_at IS NULL` 欠落): 実コードで全修正確認済み

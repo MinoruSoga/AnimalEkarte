@@ -198,8 +198,8 @@
 
 | BUG | 対象 | 内容 | 優先度 | パス |
 |-----|------|------|--------|------|
-| [BUG-345](BUG-345_backend-go-convention-audit-8.md) | BE 全ドメイン | 第8回最終監査 — CRITICAL/HIGH/MEDIUM ゼロ確認。Low 1件（ファイル行数）のみ | — | code-quality/ |
-| [BUG-346](BUG-346_file-size-over-500-lines.md) | BE Handler/Service | ファイル行数 500行超過（auth_handler.go 617行 / staff_handler.go 609行 / liff_service.go 555行） | Low | code-quality/ |
+| [BUG-345](BUG-345_backend-go-convention-audit-8.md) | BE 全ドメイン | 第8回最終監査 — CRITICAL/HIGH/MEDIUM/LOW ゼロ確認。全チェック PASS | — | code-quality/ |
+| ~~BUG-346~~ | BE Handler/Service | ✅ **CLOSED** — ファイル行数制限ルール自体を廃止（任意の行数制限に根拠なし） | — | closed/ |
 
 ### バックエンド残存課題（実コード検証済み）
 
