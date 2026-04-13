@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { MasterLink } from "@/components/shared/MasterLink";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { PET_GENDER_VALUES, ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES, PetFormData } from "../types";
@@ -543,9 +544,10 @@ export const PetEditModal = memo(function PetEditModal({
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="insuranceId" className={LABEL_CLS}>
-                保険
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="insuranceId" className={LABEL_CLS}>保険</Label>
+                <MasterLink category="insurance" label="編集" className="text-[11px]" />
+              </div>
               <Select
                 value={formData.insuranceId || "none"}
                 onValueChange={handleInsuranceChange}
