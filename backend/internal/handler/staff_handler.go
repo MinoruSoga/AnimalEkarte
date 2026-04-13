@@ -201,11 +201,12 @@ func (h *Handler) GetStaff(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// TODO: pass clinicID to service/repo for tenant isolation (Staff is multi-clinic via assignments)
-	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	staff, err := h.svc.Staff.GetByID(c.Request.Context(), id)
@@ -241,11 +242,12 @@ func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// TODO: pass clinicID to repo for tenant isolation
-	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	groupIDs, err := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), id)
@@ -263,11 +265,12 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// TODO: pass clinicID to repo for tenant isolation
-	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	var req struct {
@@ -294,11 +297,12 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// TODO: pass clinicID to service/repo for tenant isolation
-	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	assignments, err := h.svc.StaffClinicAssignment.FindByStaffID(c.Request.Context(), id)
@@ -320,11 +324,12 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// TODO: pass clinicID to service/repo for tenant isolation
-	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	var req struct {
@@ -353,11 +358,12 @@ func (h *Handler) GetStaffExcludedReservationTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// TODO: pass clinicID to repo for tenant isolation
-	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	ids, err := h.svc.Staff.GetExcludedReservationTypeIDs(c.Request.Context(), id)
@@ -375,11 +381,12 @@ func (h *Handler) SetStaffExcludedReservationTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// TODO: pass clinicID to repo for tenant isolation
-	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
 	var req struct {

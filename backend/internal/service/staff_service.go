@@ -102,6 +102,7 @@ type staffService struct {
 	shiftEntryRepo      repository.ShiftEntryRepository
 	permissionGroupRepo repository.PermissionGroupRepository
 	resStaffRepo        repository.ReservationStaffRepository
+	tx                  repository.Transactor
 }
 
 func NewStaffService(
@@ -112,6 +113,7 @@ func NewStaffService(
 	shiftEntryRepo repository.ShiftEntryRepository,
 	permissionGroupRepo repository.PermissionGroupRepository,
 	resStaffRepo repository.ReservationStaffRepository,
+	tx repository.Transactor,
 ) StaffService {
 	return &staffService{
 		repo:                repo,
@@ -121,6 +123,7 @@ func NewStaffService(
 		shiftEntryRepo:      shiftEntryRepo,
 		permissionGroupRepo: permissionGroupRepo,
 		resStaffRepo:        resStaffRepo,
+		tx:                  tx,
 	}
 }
 
@@ -182,7 +185,7 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 }
 
 // CreateWithAccount はメール・パスワード付きでスタッフを作成する。
-// email 重複チェック・bcrypt ハッシュ化・Account 作成・Staff 作成を一括で行う。
+// email 重複チェック・bcrypt ハッシュ化・Account 作成・Staff 作成をトランザクション内で一括で行う。
 func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaffWithAccountInput) (*model.Staff, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
@@ -203,39 +206,44 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 		return nil, apperrors.Wrap(hashErr, "failed to hash password")
 	}
 
-	account := &model.Account{
-		Email:        input.Email,
-		PasswordHash: string(hashed),
-		IsActive:     true,
-	}
-	if createErr := s.accountRepo.Create(ctx, account); createErr != nil {
-		return nil, apperrors.Wrap(createErr, "failed to create account")
-	}
-
-	slog.InfoContext(ctx, "account created for staff", slog.String("email", input.Email))
-
 	staffType := model.StaffType(input.StaffType)
 	if staffType == "" {
 		staffType = model.StaffTypeDoctor
 	}
 
-	staff := &model.Staff{
-		Name:                   name,
-		LicenseNumber:          input.LicenseNumber,
-		OccupationID:           input.OccupationID,
-		SortOrder:              input.SortOrder,
-		IsActive:               true,
-		AccountID:              &account.ID,
-		StaffType:              staffType,
-		ReservationDisplayName: input.ReservationDisplayName,
-		ReservationVisible:     input.ReservationVisible,
-		ReservationComment:     input.ReservationComment,
-		ReservationImageURL:    input.ReservationImageURL,
-	}
-	if err := s.repo.Create(ctx, staff); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create staff")
+	var staff *model.Staff
+	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		account := &model.Account{
+			Email:        input.Email,
+			PasswordHash: string(hashed),
+			IsActive:     true,
+		}
+		if createErr := s.accountRepo.Create(ctx, account); createErr != nil {
+			return apperrors.Wrap(createErr, "failed to create account")
+		}
+
+		staff = &model.Staff{
+			Name:                   name,
+			LicenseNumber:          input.LicenseNumber,
+			OccupationID:           input.OccupationID,
+			SortOrder:              input.SortOrder,
+			IsActive:               true,
+			AccountID:              &account.ID,
+			StaffType:              staffType,
+			ReservationDisplayName: input.ReservationDisplayName,
+			ReservationVisible:     input.ReservationVisible,
+			ReservationComment:     input.ReservationComment,
+			ReservationImageURL:    input.ReservationImageURL,
+		}
+		if err := s.repo.Create(ctx, staff); err != nil {
+			return apperrors.Wrap(err, "failed to create staff")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
+	slog.InfoContext(ctx, "staff with account created", slog.String("email", input.Email), slog.Uint64("staff_id", staff.ID))
 	return staff, nil
 }
 
@@ -254,18 +262,23 @@ func (s *staffService) UpdatePassword(ctx context.Context, accountID uint64, new
 
 // SetClinicAssignments はスタッフのクリニック割当をトランザクション内で差し替える。
 func (s *staffService) SetClinicAssignments(ctx context.Context, staffID uint64, clinicIDs []uint64) error {
-	if err := s.assignmentRepo.DeleteByStaffID(ctx, staffID); err != nil {
-		return apperrors.Wrap(err, "failed to delete existing clinic assignments")
-	}
-	for i, clinicID := range clinicIDs {
-		assignment := &model.StaffClinicAssignment{
-			StaffID:  staffID,
-			ClinicID: clinicID,
-			IsMain:   i == 0,
+	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		if err := s.assignmentRepo.DeleteByStaffID(ctx, staffID); err != nil {
+			return apperrors.Wrap(err, "failed to delete existing clinic assignments")
 		}
-		if err := s.assignmentRepo.Create(ctx, assignment); err != nil {
-			return apperrors.Wrap(err, "failed to create clinic assignment")
+		for i, clinicID := range clinicIDs {
+			assignment := &model.StaffClinicAssignment{
+				StaffID:  staffID,
+				ClinicID: clinicID,
+				IsMain:   i == 0,
+			}
+			if err := s.assignmentRepo.Create(ctx, assignment); err != nil {
+				return apperrors.Wrap(err, "failed to create clinic assignment")
+			}
 		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "clinic assignments updated", slog.Uint64("staff_id", staffID), slog.Int("count", len(clinicIDs)))
 	return nil

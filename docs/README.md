@@ -28,7 +28,7 @@
 
 - **[SPECIFICATION.md](SPECIFICATION.md)**: システム全体の機能要件と主要ビジネスフロー。
 - **[screens/](screens/)**: 各画面の詳細仕様（項目定義・コンポーネント構成）。
-- **[spec-medical-record-flow.md](spec-medical-record-flow.md)**: カルテ登録・編集の複雑なライフサイクル仕様。
+- **[screens/99-medical-record-flow.md](screens/99-medical-record-flow.md)**: カルテ登録・編集の複雑なライフサイクル仕様。
 
 ---
 

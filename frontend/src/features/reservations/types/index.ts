@@ -1,4 +1,4 @@
-import type { Pet, VisitType, ReservationStatus } from "@/types";
+import type { VisitType, ReservationStatus } from "@/types";
 export type {
   Appointment,
   ReservationStatus,
@@ -38,25 +38,3 @@ export interface ReservationFormData {
   source?: "manual" | "line";
 }
 
-/** Default values for a new reservation form */
-export function createDefaultReservationFormData(): ReservationFormData {
-  const defaultStart = new Date();
-  defaultStart.setHours(10, 0, 0, 0);
-  const defaultEnd = new Date(defaultStart);
-  defaultEnd.setHours(11, 0, 0, 0);
-
-  return {
-    start: defaultStart,
-    end: defaultEnd,
-    visitType: "first",
-    type: "診療",
-    doctor: "医師A",
-    isDesignated: false,
-    status: "confirmed",
-  };
-}
-
-export type ReservationFormSaveHandler = (
-  data: ReservationFormData,
-  selectedPets: Pet[]
-) => void;

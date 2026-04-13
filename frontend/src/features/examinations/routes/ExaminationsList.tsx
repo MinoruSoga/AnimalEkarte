@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
+import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
 
 // External
 import { Plus, TestTube, Calendar, CircleDot, FlaskConical, User } from "lucide-react";
@@ -98,12 +99,8 @@ export function ExaminationsList() {
 
   // js-cache-function-results: ロード済みデータから検査種別・担当医の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
-    const testTypeOptions = Array.from(new Set(allExaminations.map((r) => r.testType).filter(Boolean)))
-      .sort()
-      .map((t) => ({ value: t, label: t }));
-    const doctorOptions = Array.from(new Set(allExaminations.map((r) => r.doctor).filter(Boolean)))
-      .sort()
-      .map((d) => ({ value: d, label: d }));
+    const testTypeOptions = uniqueSortedOptions(allExaminations, (r) => r.testType);
+    const doctorOptions = uniqueSortedOptions(allExaminations, (r) => r.doctor);
     return [
       ...STATIC_FILTER_PROPERTIES,
       // testType は nullable（未設定の検査依頼あり）

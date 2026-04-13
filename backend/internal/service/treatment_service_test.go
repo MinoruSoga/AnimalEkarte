@@ -12,6 +12,32 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// ---- MedicalRecord スタブ（BulkUpdateSortOrder テナント検証用）----
+
+type mockMedicalRecordRepoForTreatment struct{}
+
+func (m *mockMedicalRecordRepoForTreatment) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+	return nil, 0, nil
+}
+func (m *mockMedicalRecordRepoForTreatment) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+	return &model.MedicalRecord{}, nil
+}
+func (m *mockMedicalRecordRepoForTreatment) Create(_ context.Context, _ *model.MedicalRecord) error {
+	return nil
+}
+func (m *mockMedicalRecordRepoForTreatment) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+	return &model.MedicalRecord{}, nil
+}
+func (m *mockMedicalRecordRepoForTreatment) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockMedicalRecordRepoForTreatment) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+func (m *mockMedicalRecordRepoForTreatment) CountEstimatesByMedicalRecordID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- Treatment モック ----
 
 type mockTreatmentRepository struct {
@@ -510,12 +536,14 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					return tt.repoErr
 				},
 			}
+			mrRepo := &mockMedicalRecordRepoForTreatment{}
 			svc := NewTreatmentService(&repository.Repositories{
-				Treatment: repo,
-				Inventory: &mockInventoryRepository{},
+				Treatment:     repo,
+				Inventory:     &mockInventoryRepository{},
+				MedicalRecord: mrRepo,
 			})
 
-			err := svc.BulkUpdateSortOrder(context.Background(), clinicID, tt.input)
+			err := svc.BulkUpdateSortOrder(context.Background(), clinicID, tt.medicalRecordID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)

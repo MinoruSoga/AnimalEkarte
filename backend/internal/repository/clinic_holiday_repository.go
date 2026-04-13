@@ -37,7 +37,7 @@ func (r *clinicHolidayRepository) FindByYearMonth(ctx context.Context, clinicID 
 	}
 
 	if err := q.Find(&holidays).Error; err != nil {
-		return nil, apperrors.Wrap(err, "failed to list clinic holidays")
+		return nil, apperrors.FromGORM(err, "clinic_holiday", yearMonth)
 	}
 	return holidays, nil
 }
@@ -60,7 +60,7 @@ func (r *clinicHolidayRepository) Upsert(ctx context.Context, holiday *model.Cli
 		Assign(model.ClinicHoliday{Reason: holiday.Reason}).
 		FirstOrCreate(holiday)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "failed to upsert clinic holiday")
+		return nil, apperrors.FromGORM(result.Error, "clinic_holiday", holiday.Date.Format("2006-01-02"))
 	}
 	return holiday, nil
 }
@@ -71,7 +71,7 @@ func (r *clinicHolidayRepository) Delete(ctx context.Context, clinicID uint64, d
 		Where("date = ?", date.Format("2006-01-02")).
 		Delete(&model.ClinicHoliday{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "failed to delete clinic holiday")
+		return apperrors.FromGORM(result.Error, "clinic_holiday", date.Format("2006-01-02"))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.FromGORM(gorm.ErrRecordNotFound, "clinic_holiday", date.Format("2006-01-02"))

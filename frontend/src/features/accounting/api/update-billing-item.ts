@@ -1,7 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import { queryKeys } from "@/lib/query-keys";
-import { handleApiError } from "@/lib/handle-api-error";
 import type { UpdateBillingItemRequest, BackendAccountingItem } from "./types";
 
 export const updateBillingItem = async (
@@ -15,25 +12,3 @@ export const updateBillingItem = async (
   return data;
 };
 
-export const useUpdateBillingItem = (billingId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      itemId,
-      req,
-    }: {
-      itemId: string;
-      req: UpdateBillingItemRequest;
-    }) => updateBillingItem(itemId, req),
-    onSuccess: () => {
-      // Billing 合計が BE 側で再計算されるため詳細を再取得
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.accountings.detail(billingId),
-      });
-    },
-    onError: (error) => {
-      handleApiError(error, "更新");
-    },
-  });
-};

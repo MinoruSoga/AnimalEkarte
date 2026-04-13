@@ -32,7 +32,7 @@ func NewAccountRepository(db *gorm.DB) AccountRepository {
 // FindByID はIDでアカウントを取得する
 func (r *accountRepository) FindByID(ctx context.Context, id uint64) (*model.Account, error) {
 	var account model.Account
-	if err := r.db.WithContext(ctx).First(&account, "id = ? AND deleted_at IS NULL", id).Error; err != nil {
+	if err := dbOrTx(ctx, r.db).First(&account, "id = ? AND deleted_at IS NULL", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("account", fmt.Sprintf("%d", id))
 		}
@@ -44,7 +44,7 @@ func (r *accountRepository) FindByID(ctx context.Context, id uint64) (*model.Acc
 // FindByEmail はメールアドレスでアカウントを検索する
 func (r *accountRepository) FindByEmail(ctx context.Context, email string) (*model.Account, error) {
 	var account model.Account
-	if err := r.db.WithContext(ctx).First(&account, "email = ? AND deleted_at IS NULL", email).Error; err != nil {
+	if err := dbOrTx(ctx, r.db).First(&account, "email = ? AND deleted_at IS NULL", email).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("account", email)
 		}
@@ -55,7 +55,7 @@ func (r *accountRepository) FindByEmail(ctx context.Context, email string) (*mod
 
 // Create はアカウントを新規作成する
 func (r *accountRepository) Create(ctx context.Context, account *model.Account) error {
-	if err := r.db.WithContext(ctx).Create(account).Error; err != nil {
+	if err := dbOrTx(ctx, r.db).Create(account).Error; err != nil {
 		return apperrors.FromGORM(err, "account", "create")
 	}
 	return nil
@@ -63,7 +63,7 @@ func (r *accountRepository) Create(ctx context.Context, account *model.Account) 
 
 // Update はアカウントの指定フィールドのみを更新する（Save() による全フィールド上書き防止）。
 func (r *accountRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.Account{}).
 		Where("id = ?", id).
 		Updates(fields)

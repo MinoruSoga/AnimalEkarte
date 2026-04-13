@@ -1,6 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import { handleApiError } from "@/lib/handle-api-error";
 import type { Shift, CreateShiftInput } from "../types";
 import { transformShift } from "./transforms";
 import type { BackendShift } from "./types";
@@ -13,13 +11,3 @@ export async function createShift(input: CreateShiftInput): Promise<Shift> {
   return transformShift(data);
 }
 
-export function useCreateShift() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: createShift,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shifts"] });
-    },
-    onError: (error) => handleApiError(error, "シフトの作成"),
-  });
-}

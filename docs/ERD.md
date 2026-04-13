@@ -1720,7 +1720,7 @@ erDiagram
 - `staff_id` → `staffs.id` (CASCADE)
 - `clinic_id` → `clinics.id` (CASCADE)
 
-**UNIQUE制約:** `(staff_id, clinic_id)
+**UNIQUE制約:** `(staff_id, clinic_id)`
 
 **インデックス:**
 - `(staff_id)`
@@ -3246,7 +3246,7 @@ erDiagram
 - `clinic_id` → `clinics.id` (RESTRICT)
 - `staff_id` → `staffs.id` (RESTRICT)
 
-**UNIQUE制約:** `uk_shift_staff_date` — `(clinic_id, staff_id, date)
+**UNIQUE制約:** `uk_shift_staff_date` — `(clinic_id, staff_id, date)`
 
 **インデックス:** `(staff_id, date)`
 
@@ -3268,7 +3268,7 @@ erDiagram
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
 
-**UNIQUE制約:** `uk_clinic_holidays_clinic_date` — `(clinic_id, date)
+**UNIQUE制約:** `uk_clinic_holidays_clinic_date` — `(clinic_id, date)`
 
 **インデックス:** `(clinic_id, date)`
 
@@ -3410,7 +3410,7 @@ erDiagram
 - `clinic_id` → `clinics.id` (NO ACTION)
 - `owner_id` → `owners.id` (SET NULL)
 
-**UNIQUE制約:** `(clinic_id, line_user_id)
+**UNIQUE制約:** `(clinic_id, line_user_id)`
 
 **インデックス:** `(owner_id)`
 
@@ -3430,7 +3430,7 @@ erDiagram
 - `staff_id` → `staffs.id` (CASCADE)
 - `reservation_type_id` → `reservation_types.id` (CASCADE)
 
-**UNIQUE制約:** `(staff_id, reservation_type_id)
+**UNIQUE制約:** `(staff_id, reservation_type_id)`
 
 ---
 
@@ -3505,7 +3505,7 @@ erDiagram
 **FK:**
 - `group_id` → `permission_groups.id` (CASCADE)
 
-**UNIQUE制約:** `(group_id, resource)
+**UNIQUE制約:** `(group_id, resource)`
 
 ---
 
@@ -3519,7 +3519,7 @@ erDiagram
 | group_id | bigint | NO | | permission_groups.id FK |
 | created_at | timestamptz | NO | now() | 作成日時 |
 
-**PK:** `(staff_id, group_id)
+**PK:** `(staff_id, group_id)`
 
 **FK:**
 - `staff_id` → `staffs.id` (CASCADE)

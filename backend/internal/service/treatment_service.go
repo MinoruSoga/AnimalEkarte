@@ -71,7 +71,7 @@ type TreatmentService interface {
 	Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error)
 	Delete(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error
-	BulkUpdateSortOrder(ctx context.Context, medicalRecordID uint64, input *BulkUpdateTreatmentsInput) error
+	BulkUpdateSortOrder(ctx context.Context, clinicID, medicalRecordID uint64, input *BulkUpdateTreatmentsInput) error
 }
 
 // ─── Implementation ───────────────────────────────────────────────────────────
@@ -250,7 +250,12 @@ func (s *treatmentService) Delete(ctx context.Context, clinicID, medicalRecordID
 	return nil
 }
 
-func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, medicalRecordID uint64, input *BulkUpdateTreatmentsInput) error {
+func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, medicalRecordID uint64, input *BulkUpdateTreatmentsInput) error {
+	// テナント検証: medicalRecordID が clinicID に所属するか確認
+	if _, err := s.repos.MedicalRecord.FindByID(ctx, clinicID, medicalRecordID); err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record ownership")
+	}
+
 	updates := make([]repository.TreatmentSortUpdate, 0, len(input.Treatments))
 	for _, item := range input.Treatments {
 		updates = append(updates, repository.TreatmentSortUpdate{

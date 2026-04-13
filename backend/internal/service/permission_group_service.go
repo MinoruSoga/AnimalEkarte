@@ -113,6 +113,9 @@ func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, r
 }
 
 func (s *permissionGroupService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if len(ids) == 0 {
+		return apperrors.WrapInvalidInput("ids must not be empty")
+	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder permission groups")
 	}

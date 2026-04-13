@@ -35,7 +35,7 @@ export function getReservationStatusColor(status: string) {
 // ──────────────────────────────────────────────
 
 /** アクセントカラー（ReservationDetailModal のヘッダー帯・バッジ） */
-export const VISIT_TYPE_COLORS = {
+const VISIT_TYPE_COLORS = {
   初診: {
     border: C.borderRedBadge,
     bg: C.bgRedLight,

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/gin-gonic/gin"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
@@ -35,4 +37,20 @@ func (h *Handler) checkDoctorClinicAssignment(ctx context.Context, clinicID, doc
 		}
 	}
 	return apperrors.WrapInvalidInput("指定されたスタッフはこのクリニックに所属していません")
+}
+
+// verifyStaffClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
+// 所属していない場合は 404 レスポンスを書いて false を返す。
+// 呼び出し元は false 時に即 return すること。
+func (h *Handler) verifyStaffClinicMembership(c *gin.Context, clinicID, staffID uint64) bool {
+	exists, err := h.repos.StaffClinicAssignment.ExistsByStaffAndClinic(c.Request.Context(), staffID, clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return false
+	}
+	if !exists {
+		RespondError(c, apperrors.WrapNotFound("staff", fmt.Sprintf("%d", staffID)))
+		return false
+	}
+	return true
 }

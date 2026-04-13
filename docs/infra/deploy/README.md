@@ -23,7 +23,7 @@ Animal Ekarte のデプロイ手順・CI/CD・運用ガイド。
 |-----------|------|
 | [CI-CD-PIPELINE.md](./CI-CD-PIPELINE.md) | 自動デプロイパイプライン、手動デプロイ、ロールバック、トラブルシューティング |
 | [DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md) | デプロイ前チェックリスト、デプロイ手順、DB作り直し |
-| [docs_infra_architecture.md](../docs_infra_architecture.md) | AWSリソース一覧、インフラ構成、セキュリティ、コスト |
+| [architecture.md](../architecture.md) | AWSリソース一覧、インフラ構成、セキュリティ、コスト |
 
 ---
 

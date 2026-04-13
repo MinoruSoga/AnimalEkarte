@@ -1,2 +1,2 @@
-export { formatDate, formatDateJapanese } from "./date";
+export { formatDate } from "./date";
 export { formatWeight, formatCurrency } from "./number";

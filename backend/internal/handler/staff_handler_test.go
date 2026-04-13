@@ -38,7 +38,7 @@ func TestStaffHandlerCompiles(t *testing.T) {
 //    ✓ Response includes complete staff data with all fields
 //    ✓ Response includes: AccountID (if account attached), StaffClinicAssignments, PermissionGroups
 //    ✓ Uses toStaffResponse() transformation for response
-//    ✓ NOTE: TODO comment indicates clinic isolation not yet fully implemented
+//    ✓ Clinic isolation enforced via verifyStaffClinicMembership (BUG-352)
 //    ✓ Returns 500 on database error
 //
 // 3. CreateStaff (POST /staffs)
@@ -123,7 +123,7 @@ func TestStaffHandlerCompiles(t *testing.T) {
 //    ✓ Returns 404 when staff doesn't exist
 //    ✓ Returns {"group_ids": [1, 2, 3]} (array of permission group IDs)
 //    ✓ Empty array if staff has no permission groups assigned
-//    ✓ NOTE: TODO comment indicates clinic isolation not yet implemented
+//    ✓ Clinic isolation enforced via verifyStaffClinicMembership (BUG-352)
 //    ✓ Returns 500 on database error
 //
 // 8. SetStaffPermissionGroups (PUT /staffs/:id/permission-groups)
@@ -149,7 +149,7 @@ func TestStaffHandlerCompiles(t *testing.T) {
 //    ✓ Returns 404 when staff doesn't exist
 //    ✓ Returns {"clinic_ids": [1, 2, 3]} (array of clinic IDs staff is assigned to)
 //    ✓ At least one clinic (staff created auto-assigned to creating clinic)
-//    ✓ NOTE: TODO comment indicates clinic isolation not yet implemented
+//    ✓ Clinic isolation enforced via verifyStaffClinicMembership (BUG-352)
 //    ✓ Returns 500 on database error
 //
 // 10. SetStaffClinicAssignments (PUT /staffs/:id/clinics)
@@ -175,7 +175,7 @@ func TestStaffHandlerCompiles(t *testing.T) {
 //     ✓ Returns 404 when staff doesn't exist
 //     ✓ Returns {"reservation_type_ids": [5, 10]} (array of types staff cannot handle)
 //     ✓ Empty array if staff can handle all reservation types
-//     ✓ NOTE: TODO comment indicates clinic isolation not yet implemented
+//    ✓ Clinic isolation enforced via verifyStaffClinicMembership (BUG-352)
 //     ✓ Returns 500 on database error
 //
 // 12. SetStaffExcludedReservationTypes (PUT /staffs/:id/excluded-reservation-types)
@@ -244,7 +244,7 @@ func TestStaffHandlerCompiles(t *testing.T) {
 //    - Transformations: toStaffResponse() and toStaffResponseList()
 //    - RBAC: All create/edit/delete operations check ResourceMasterStaff permission
 //    - Staff can be assigned to multiple clinics via staff_clinic_assignments table
-//    - NOTE: Multiple TODO comments indicate clinic isolation not fully implemented yet
+//    - Clinic isolation enforced via verifyStaffClinicMembership (BUG-352)
 //
 // TESTING STRATEGY:
 //    Use integration tests with:

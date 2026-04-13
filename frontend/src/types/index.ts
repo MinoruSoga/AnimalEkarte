@@ -1,16 +1,7 @@
 import { ReactNode } from "react";
 import type {
-  Staff,
-  Insurance,
-  TrimmingCourse as BackendTrimmingCourse,
-  TrimmingOption as BackendTrimmingOption,
-  ExaminationType as BackendExaminationType,
   InventoryItem as BackendInventoryItem,
   Resource,
-  Hospitalization as BackendHospitalization,
-  CarePlanItem as BackendCarePlanItem,
-  DailyRecord as BackendDailyRecord,
-  MedicalRecord as BackendMedicalRecord,
 } from "./generated/models";
 
 /**
@@ -350,16 +341,6 @@ export interface TrimmingUI {
   remarks: string;
 }
 
-// Re-export backend types for use in hospitalization types (type alias to distinguish)
-export type { BackendHospitalization, BackendCarePlanItem, BackendDailyRecord, BackendMedicalRecord };
-
-// --- Specialized Master Items (UI Aliases) ---
-export type StaffMember = Staff;
-export type InsuranceCompany = Insurance;
-export type TrimmingCourse = BackendTrimmingCourse;
-export type TrimmingOption = BackendTrimmingOption;
-export type ExaminationType = BackendExaminationType;
-
 /**
  * フロントエンド在庫品目型（UI 表示用 - id:string, camelCase フィールド名）
  * use-inventory.ts の transformInventoryItem が返す型
@@ -392,5 +373,4 @@ export interface MasterItem {
   duration?: number | null;
 }
 
-export type MasterCategory = "vaccine" | "reservationType" | "consultation" | "procedure" | "hospitalization" | "diagnosis_type" | "diagnosis_name" | "checkup";
 

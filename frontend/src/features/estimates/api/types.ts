@@ -2,13 +2,11 @@
  * Estimates API types
  * Backend types: {@link Estimate}, {@link EstimateItem} from models.ts (tygo generated)
  */
-import type { Estimate, EstimateItem, Owner } from "@/types/generated/models";
+import type { Estimate, EstimateItem } from "@/types/generated/models";
 
 // ── Backend response aliases ──
 export type BackendEstimate = Estimate;
 export type BackendEstimateItem = EstimateItem;
-export type BackendOwnerSummary = Pick<Owner, 'id' | 'name' | 'phone'>;
-
 export interface EstimateListResponse {
   data: BackendEstimate[];
   total: number;
