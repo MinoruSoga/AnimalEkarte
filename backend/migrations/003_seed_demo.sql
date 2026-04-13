@@ -1966,3 +1966,37 @@ ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
 SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
+
+-- -----------------------------------------------------------------------------
+-- G. shift_templates（シフトテンプレートマスタ）
+--    各クリニック共通の標準テンプレート 5種
+-- -----------------------------------------------------------------------------
+INSERT INTO shift_templates (id, clinic_id, name, shift_type, start_time, end_time, notes, sort_order, is_active) VALUES
+    -- 八王子院 (clinic_id=3)
+    (1,  3, '通常勤務',   'full',       '09:00', '18:00', '', 1, true),
+    (2,  3, '午前勤務',   'morning',    '09:00', '13:00', '', 2, true),
+    (3,  3, '午後勤務',   'afternoon',  '13:00', '18:00', '', 3, true),
+    (4,  3, '休日',       'off',        NULL,    NULL,    '', 4, true),
+    (5,  3, '有給休暇',   'paid_leave', NULL,    NULL,    '', 5, true),
+    -- 城東医院 (clinic_id=4)
+    (6,  4, '通常勤務',   'full',       '09:00', '18:00', '', 1, true),
+    (7,  4, '午前勤務',   'morning',    '09:00', '13:00', '', 2, true),
+    (8,  4, '午後勤務',   'afternoon',  '13:00', '18:00', '', 3, true),
+    (9,  4, '休日',       'off',        NULL,    NULL,    '', 4, true),
+    (10, 4, '有給休暇',   'paid_leave', NULL,    NULL,    '', 5, true),
+    -- 敷島医院 (clinic_id=5)
+    (11, 5, '通常勤務',   'full',       '09:00', '18:00', '', 1, true),
+    (12, 5, '午前勤務',   'morning',    '09:00', '13:00', '', 2, true),
+    (13, 5, '午後勤務',   'afternoon',  '13:00', '18:00', '', 3, true),
+    (14, 5, '休日',       'off',        NULL,    NULL,    '', 4, true),
+    (15, 5, '有給休暇',   'paid_leave', NULL,    NULL,    '', 5, true)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('shift_templates', 'id'), (SELECT MAX(id) FROM shift_templates));
+
+-- 通常勤務テンプレートの休憩時間（12:00〜13:00）
+INSERT INTO shift_template_breaks (shift_template_id, break_start, break_end) VALUES
+    (1,  '12:00', '13:00'),  -- 八王子院: 通常勤務
+    (6,  '12:00', '13:00'),  -- 城東医院: 通常勤務
+    (11, '12:00', '13:00')   -- 敷島医院: 通常勤務
+ON CONFLICT DO NOTHING;
