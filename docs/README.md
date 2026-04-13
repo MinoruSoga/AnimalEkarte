@@ -34,9 +34,17 @@
 
 ## 💬 LINE予約システム
 
-- **[line-reseavation.md](line-reseavation.md)**: LINE予約システムの機能要件と UI 仕様。
-- **[LINE-RESERVATION-ARCHITECTURE.md](LINE-RESERVATION-ARCHITECTURE.md)**: LINE連携のアーキテクチャ全体像。
-- **[LINE-SETUP.md](LINE-SETUP.md)**: LINE公式アカウントおよび Messaging API のセットアップ手順。
+- **[line/reservation-spec.md](line/reservation-spec.md)**: LINE予約システムの機能要件と UI 仕様。
+- **[line/architecture.md](line/architecture.md)**: LINE連携のアーキテクチャ全体像。
+- **[line/setup.md](line/setup.md)**: LINE公式アカウントおよび Messaging API のセットアップ手順。
+
+---
+
+## 🧪 テスト・検証
+
+- **[testing/HANDLER_TEST_DOCUMENTATION_STATUS.md](testing/HANDLER_TEST_DOCUMENTATION_STATUS.md)**: API ハンドラーのテストカバレッジ・ステータス。
+- **[testing/SECTION_14_MANUAL_TEST_GUIDE.md](testing/SECTION_14_MANUAL_TEST_GUIDE.md)**: 手動ブラウザテストの実行ガイド。
+- **[archive/](archive/)**: 過去の機能テストレポートやトリアージ記録。
 
 ---
 

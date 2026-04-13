@@ -58,3 +58,6 @@ backend/issues/
 # Test results
 test-results/
 .vercel
+
+# Documentation archive
+docs/archive/

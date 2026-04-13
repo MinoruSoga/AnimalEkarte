@@ -5,7 +5,7 @@
 > **⚠️ 統合後の状態**: LINE予約管理の独立ページ5つ（カレンダー/コース/スタッフ/スケジュール/顧客管理）と
 > 関連APIファイル14個は削除済み。機能は電カルのマスタ設定ページ（ServiceTypeSettings, StaffSettings, ShiftFormDialog, ReservationManagement, OwnerForm）に統合。
 > LINE予約専用ページは「基本設定」「ページ編集」の2ページのみ残存。
-> 詳細は [LINE-RESERVATION-ARCHITECTURE.md](../../LINE-RESERVATION-ARCHITECTURE.md) セクション7を参照。
+> 詳細は [architecture.md](../../../line/architecture.md) セクション7を参照。
 
 ## TASK-RES-030: Feature scaffolding ✅
 

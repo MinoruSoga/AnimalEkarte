@@ -1,6 +1,6 @@
 # LINE予約システム 実装計画
 
-> **仕様書**: `docs/line-reseavation.md` セクション15
+> **仕様書**: `docs/line/reservation-spec.md` セクション15
 > **タスク一覧**: `docs/tasks/open/reservation/00-OVERVIEW.md`
 > **作成日**: 2026-04-08
 > **更新日**: 2026-04-09 — Phase 1〜6 実装完了（main ブランチに直接コミット）

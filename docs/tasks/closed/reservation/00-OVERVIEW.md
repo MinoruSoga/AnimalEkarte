@@ -1,6 +1,6 @@
 # LINE予約システム 実装タスク概要
 
-> **仕様書**: `docs/line-reseavation.md` セクション15（実装確定仕様）
+> **仕様書**: `docs/line/reservation-spec.md` セクション15（実装確定仕様）
 > **作成日**: 2026-04-08
 > **ステータス**: ✅ Phase 1〜6 実装完了 / Phase 7 結合テスト・デプロイ残
 

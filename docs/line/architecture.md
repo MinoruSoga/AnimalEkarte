@@ -1,7 +1,7 @@
 # LINE予約システム アーキテクチャ全体像
 
 > **作成日**: 2026-04-09
-> **関連ドキュメント**: [LINE-SETUP.md](./LINE-SETUP.md) / [仕様書](./line-reseavation.md) / [タスク一覧](./tasks/open/reservation/00-OVERVIEW.md)
+> **関連ドキュメント**: [setup.md](./setup.md) / [仕様書](./reservation-spec.md) / [タスク一覧](../tasks/open/reservation/00-OVERVIEW.md)
 
 ---
 
@@ -557,6 +557,6 @@
 1. CORS設定（`reserve.noah-karte.com` 許可追加）
 2. 結合テスト（LINE実機での全フロー通し確認）
 3. staging デプロイ
-4. リッチメニュー作成（[LINE-SETUP.md](./LINE-SETUP.md) 手順6）
-5. 管理画面へのクレデンシャル入力（[LINE-SETUP.md](./LINE-SETUP.md) 手順7）
+4. リッチメニュー作成（[setup.md](./setup.md) 手順6）
+5. 管理画面へのクレデンシャル入力（[setup.md](./setup.md) 手順7）
 6. あいさつメッセージに予約ページURL設定（LINE Official Account Manager）
