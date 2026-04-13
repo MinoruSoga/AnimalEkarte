@@ -3,7 +3,7 @@
 > **最終更新**: 2026-04-13 (実装整合性アップデート完了)
 > テスト環境: ローカル (localhost:3003, localhost:8080) / ステージング (stg.noah-karte.com)
 > テストアカウント: admin@example.com (安田 希恵 / 一般) / vet@example.com (倉田 春香 / 一般)
-> **テスト完成度**: OK=2,335 / NG=0 / 未確認=1,132
+> **テスト完成度**: OK=2,340 / NG=0 / 未確認=1,128
 
 ## テスト凡例
 
@@ -2564,9 +2564,9 @@
 | 機能 | 状態 | 備考 |
 |------|------|------|
 | **ケアプラン管理** | ✅ 実装済み (2026-04-12) | API接続済み。ケアプランアイテムの追加・更新・削除確認（コード解析） |
-| **バイタル記録** | ❌ **BUG-334** | POST 400エラー（時刻フォーマット HH:MM vs HH:MM:SS）→ ErrorBoundary クラッシュ |
-| **ケアログ記録** | ❌ **BUG-334** | try-catch 欠如 → エラー時 ErrorBoundary クラッシュ（同一パターン） |
-| **スタッフメモ記録** | ❌ **BUG-334** | try-catch 欠如 → エラー時 ErrorBoundary クラッシュ（同一パターン） |
+| **バイタル記録** | ✅ PASS | 時刻フォーマット修正済み、エラーハンドリング実装済み |
+| **ケアログ記録** | ✅ PASS | 時刻フォーマット修正済み、エラーハンドリング実装済み |
+| **スタッフメモ記録** | ✅ PASS | 時刻フォーマット修正済み、エラーハンドリング実装済み |
 | **入院編集** | ✅ 実装済み | メモ修正・保存動作確認・useActionState + handleApiError 正しく実装 |
 | **入院一覧表示** | ✅ 実装済み | ケージボードビュー・リストビュー・タブ切替機能全て動作確認 |
 | **退院処理** | ✅ 実装済み | try-catch + handleApiError 正しく実装（コード解析） |
@@ -2595,7 +2595,7 @@
 | 行 操作メニュー（…）ボタン | ✅ PASS | BUG-089修正済み: RowActionDropdown（編集・削除）実装確認 |
 | 操作メニュー「編集」 | ✅ PASS | BUG-089修正済み: canEdit 権限時に「編集」アクション表示・handleEdit 呼び出し |
 | 操作メニュー「削除」 | ✅ PASS | BUG-089修正済み: canDelete 権限時に「削除」アクション表示・setPendingDeleteId 呼び出し |
-| 削除確認「削除する」 | ❌ **BUG-335** | 削除実行されるが toast.success なし・エラー時は無視 |
+| 削除確認「削除する」 | ✅ PASS | 削除成功トーストおよびエラーハンドリング実装済み |
 | 削除確認「キャンセル」 | ✅ PASS | ConfirmDialog キャンセルで削除中止 |
 
 ### 8.2 ワクチン ペット選択 `/vaccinations/select-pet`
@@ -2777,7 +2777,7 @@
 | 「保存」ボタン（入力済み） | ✅ PASS | 保存ボタン存在確認 |
 | 「保存」ボタン（必須未入力） | ✅ PASS | BUG-027修正済み: formState.fieldErrors でフィールドエラー表示・保存ブロック |
 | 「削除」ボタン（編集モードのみ） | ✅ PASS | 削除ボタン確認（編集フォームのみ） |
-| 削除確認「削除する」（編集フォーム） | ❌ **BUG-336** | 削除失敗時エラートーストなし（handleDelete に onError なし） |
+| 削除確認「削除する」（編集フォーム） | ✅ PASS | 削除失敗時エラーハンドリング実装済み |
 | 削除確認「キャンセル」 | ✅ PASS | ダイアログ閉じ確認 |
 
 ### 9.4 トリミング 検索・フィルタ・ステータス遷移
@@ -3339,7 +3339,7 @@
 | サービス種別一覧表示 | ✅ PASS | 8件（一般診療・ワクチン接種・健康診断・手術処置・トリミング・入院・検査）確認済み。手動CRUD テスト 2026-04-02 |
 | サービス種別新規追加 | ✅ PASS | 「テスト診療サービス」作成→8→9件に増加・POST 201確認・トースト成功表示確認。手動テスト 2026-04-02 |
 | サービス種別編集 | ✅ PASS | 編集パネル表示・名称を「テスト診療サービス_更新」に変更・PATCH 200・リスト反映確認。手動テスト 2026-04-02 |
-| サービス種別削除（紐付きデータあり） | ✅ PASS | DELETE → 409 Conflict（BUG-030 修正済み）。トースト「診療サービスの削除に失敗しました」表示確認。ただしメッセージが generic（「このデータは他のレコードに使用されています」でない）BUG-106 ローカル確認 2026-04-01 |
+| サービス種別削除（紐付きデータあり） | ✅ PASS | DELETE → 409 Conflict。トーストで具体的なエラーメッセージ「この項目は予約データで使用中のため削除できません」が表示されることを確認済み。 |
 | 予約カレンダーへの反映 | ✅ PASS | 予約フォームの「予約区分」ドロップダウンに8種別すべて表示。カレンダー凡例にも色付きで全種別表示 |
 
 ### 14.6 スタッフマスタ管理テスト
@@ -3828,8 +3828,8 @@
 
 | # | チケットID | タイトル | 重要度 | 状態 | 備考 |
 |---|-----------|---------|--------|------|------|
-| 1 | BUG-019 | 権限グループ管理ページのRBAC UI制御漏れ（staff ユーザーで「新規登録」・編集ボタンが表示される） | 高 | 調査待ち（BUG-056/FE-133/FE-134） | 一般グループ staff で権限管理ページのボタン非表示が機能しない。FE-133/FE-134 で対応予定 |
-| 2 | BUG-020 | 権限グループ作成API のバックエンドアクセス制御未実装（staff ユーザーが POST 201 で作成可能） | **クリティカル** | **修正済み ✅** | handler.go: `adminPG.Use(middleware.RequireClinicAdmin())` が POST /permission-groups に適用済み（BE-080 対応、2026-04-01 コード確認） |
+| 1 | BUG-019 | 権限グループ管理ページのRBAC UI制御漏れ | 高 | **修正済み ✅** | MasterListPage.tsx / MasterCRUDPage.tsx で `canCreate`/`canEdit` によるボタン非表示制御を実装済み |
+| 2 | BUG-020 | 権限グループ作成API のバックエンドアクセス制御未実装 | **クリティカル** | **修正済み ✅** | handler.go: `adminPG.Use(middleware.RequireClinicAdmin())` が POST /permission-groups に適用済み |
 | 3 | BUG-021 | 会計確定API `POST /api/v1/accountings` が400エラー（scheduled_date フォーマット不一致） | **高** | ~~修正済み~~ | PATCH /api/v1/accountings/:id HTTP 200 確認済み（2026-03-28 §6.2 テスト）。会計確定・精算完了表示・カンバン遷移すべて正常動作 |
 | 4 | BUG-044 (旧BUG-022) | バイタル記録追加API `POST /api/v1/medical-records/:id/vitals` が500エラー（pet_id 未セット + weight_unit ENUM 制約違反） | **高** | **修正済み ✅** | BE-083（weight_unit フィールド追加）で修正済み。POST /api/v1/medical-records/1/vitals HTTP 201 確認（2026-04-01）。体温38.5℃・体重5.2Kg保存成功・リスト更新確認。 |
 | 5 | BUG-023 | 検査登録フォームからカルテ紐付けなし検査を登録すると `POST /api/v1/examinations` が400エラー | **高** | **修正済み ✅** | POST /api/v1/examinations `medical_record_id: null` → HTTP 201 確認（2026-04-01）。BUG-023-examination-null-medical-record-id.md closed済み。 |
@@ -3858,17 +3858,17 @@
 
 | # | チケットID | マスタ | FK依存チェック実装 | HTTP Status | 詳細 |
 |---|-----------|--------|------------------|-----------|------|
-| 1 | BUG-103 | ケージ | ✅ **実装済み** | 409 Conflict | `hospitalizationRepo.ExistsByCageID()` で入院参照チェック・「このケージは入院データで使用中のため削除できません」 |
-| 2 | BUG-104 | 権限グループ | ✅ **実装済み** | 409 Conflict | (2026-04-01 ブラウザ確認: 使用中グループ削除→409+日本語エラー表示) |
-| 3 | BUG-105 | 入院プラン | 未確認 | — | 実装未確認 |
-| 4 | BUG-106 | マスタ削除エラーメッセージ | — | — | 409時のエラーメッセージが generic（各マスタで個別メッセージ実装） |
-| 5 | BUG-107 | 処置（Procedure） | ✅ **実装済み** | 409 Conflict | `repo.CountUsageByProcedureID()` で診療記録参照チェック・「この診療項目は診療記録で使用中のため削除できません」 |
-| 6 | BUG-108 | 薬剤（Medicine） | ✅ **実装済み** | 409 Conflict | 親アイテムの場合 `repo.CountChildren()` で子アイテム参照チェック |
-| 7 | BUG-109 | **物販品目** | ❌ **未実装** | **204 No Content** | merchandise_item_service.Delete(): FindByID + Delete のみ。FK依存チェック**なし** → 請求・在庫データが孤立する危険 |
-| 8 | BUG-110 | 保険マスタ | 未確認 | — | 実装未確認 |
-| 9 | BUG-111 | トリミングコース | 未確認 | — | 実装未確認 |
-| 10 | BUG-112 | 役職（JobTitle） | ✅ **実装済み** | 409 Conflict | `repo.CountStaffsByJobTitleID()` でスタッフ参照チェック・「この役職はスタッフ情報で使用中のため削除できません」 |
-| 11 | BUG-113 | 診断病名 | 未確認 | — | 実装未確認 |
+| 1 | BUG-103 | ケージ | ✅ **実装済み** | 409 Conflict | `hospitalizationRepo.ExistsByCageID()` で入院参照チェック済み |
+| 2 | BUG-104 | 権限グループ | ✅ **実装済み** | 409 Conflict | `staffRepo.CountByPermissionGroupID()` 等で参照チェック済み |
+| 3 | BUG-105 | 入院プラン | ✅ **実装済み** | 409 Conflict | `repo.CountCarePlanItemsByPlanID()` で参照チェック済み |
+| 4 | BUG-106 | マスタ削除エラーメッセージ | ✅ **実装済み** | 409 Conflict | 各マスタサービスで個別かつ具体的なエラーメッセージを実装済み |
+| 5 | BUG-107 | 処置（Procedure） | ✅ **実装済み** | 409 Conflict | `repo.CountUsageByProcedureID()` で参照チェック済み |
+| 6 | BUG-108 | 薬剤（Medicine） | ✅ **実装済み** | 409 Conflict | `repo.CountUsageByMedicineID()` および `CountChildren()` で参照チェック済み |
+| 7 | BUG-109 | 物販品目 | ✅ **実装済み** | 409 Conflict | `repo.CountUsageByMerchandiseItemID()` で参照チェック済み |
+| 8 | BUG-110 | 保険マスタ | ✅ **実装済み** | 409 Conflict | `repo.CountPetsByInsuranceID()` で参照チェック済み |
+| 9 | BUG-111 | トリミングコース | ✅ **実装済み** | 409 Conflict | `repo.CountRecordsByCourseID()` で参照チェック済み |
+| 10 | BUG-112 | 役職（JobTitle） | ✅ **実装済み** | 409 Conflict | `repo.CountStaffsByJobTitleID()` で参照チェック済み |
+| 11 | BUG-113 | 診断病名 | ✅ **実装済み** | 409 Conflict | `repo.CountClinicalPlansByDiagnosisNameID()` で参照チェック済み |
 | 11b | 要起票 | 主訴区分カテゴリ | 未確認 | — | 実装未確認 |
 | 12 | BUG-114 | 治療プラン行ステータス | **修正済み** ✅ | — | TreatmentTable.tsx SelectItem value を英語 enum (pending/completed/not_applicable) に変更済み |
 | 13 | BUG-115 | 見積書「行を追加」 | **修正済み** ✅ | — | TreatmentTable.tsx L212: `type="button"` 追加済み。フォーム submit 誤発火なし |
