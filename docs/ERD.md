@@ -1625,7 +1625,7 @@ erDiagram
 | `shift_type` | full, morning, afternoon, off, paid_leave |
 | `staff_type` | doctor, nurse, resource |
 | `target_size` | small, medium, large, cat |
-| `tax_type` | included（内税）, excluded（外税）, exempt（非課税） |
+| `tax_type` | included, excluded, exempt |
 | `treatment_item_type` | consultation, procedure, medicine, other |
 | `treatment_status` | pending, completed, not_applicable |
 | `trimming_status` | completed, reserved, in_progress |
@@ -3654,7 +3654,7 @@ FK なし（監査ログの独立性を担保するため、clinic_id / actor_id
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| company_id | companies.id | RESTRICT |
+| company_id | companies.id | NO ACTION |
 
 ### clinical_plans
 
@@ -3685,7 +3685,7 @@ FK なし（監査ログの独立性を担保するため、clinic_id / actor_id
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
 | clinic_id | clinics.id | RESTRICT |
-| billing_id | billings.id | - |
+| billing_id | billings.id | CASCADE |
 
 ### merchandise_items
 
@@ -3756,9 +3756,9 @@ FK なし（監査ログの独立性を担保するため、clinic_id / actor_id
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
 | clinic_id | clinics.id | RESTRICT |
-| course_id | trimming_courses.id | RESTRICT |
+| course_id | trimming_courses.id | SET NULL |
 | pet_id | pets.id | RESTRICT |
-| staff_id | staffs.id | RESTRICT |
+| staff_id | staffs.id | SET NULL |
 
 ### cages
 
@@ -3919,7 +3919,7 @@ FK なし（監査ログの独立性を担保するため、clinic_id / actor_id
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
 | staff_id | staffs.id | CASCADE |
-| clinic_id | clinics.id | RESTRICT |
+| clinic_id | clinics.id | CASCADE |
 
 ### permission_groups
 
@@ -4085,6 +4085,7 @@ CREATE INDEX idx_trimming_records_staff_id ON trimming_records(staff_id);
 -- 事前に: CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX idx_owners_name_trgm ON owners USING gin (name gin_trgm_ops) WHERE deleted_at IS NULL;
 CREATE INDEX idx_owners_name_kana_trgm ON owners USING gin (name_kana gin_trgm_ops) WHERE deleted_at IS NULL;
+CREATE INDEX idx_owners_phone_trgm ON owners USING gin (phone gin_trgm_ops) WHERE deleted_at IS NULL;
 CREATE INDEX idx_pets_name_trgm ON pets USING gin (name gin_trgm_ops) WHERE deleted_at IS NULL;
 -- record_no は UNIQUE インデックス (clinic_id, record_no) で前方一致検索に対応済み
 ```
