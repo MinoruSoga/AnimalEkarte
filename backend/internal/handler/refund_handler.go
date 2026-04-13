@@ -41,6 +41,11 @@ func (h *Handler) CreateRefund(c *gin.Context) {
 		return
 	}
 
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
+
 	billingID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid billing id"))
@@ -54,7 +59,7 @@ func (h *Handler) CreateRefund(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	refund, err := h.svc.Refund.Create(ctx, clinicID, billingID, req.Amount, req.Reason)
+	refund, err := h.svc.Refund.Create(ctx, clinicID, billingID, &staffID, req.Amount, req.Reason)
 	if err != nil {
 		RespondError(c, err)
 		return

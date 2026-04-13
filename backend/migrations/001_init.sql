@@ -1232,6 +1232,7 @@ CREATE TABLE billing_refunds (
     billing_id   bigint      NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
     amount       bigint      NOT NULL CHECK (amount > 0),
     reason       text        NOT NULL DEFAULT '',
+    refunded_by  bigint      REFERENCES staffs(id),
     refunded_at  timestamptz NOT NULL DEFAULT now(),
     created_at   timestamptz NOT NULL DEFAULT now()
 );
@@ -1410,6 +1411,7 @@ CREATE INDEX idx_billings_owner_id ON billings(owner_id);
 
 CREATE INDEX idx_billing_refunds_billing ON billing_refunds(billing_id);
 CREATE INDEX idx_billing_refunds_clinic_billing ON billing_refunds(clinic_id, billing_id);
+CREATE INDEX idx_billing_refunds_staff ON billing_refunds(refunded_by);
 
 -- 担当医 FK インデックス（staffs）
 CREATE INDEX idx_vital_records_staff_id ON vital_records(staff_id);

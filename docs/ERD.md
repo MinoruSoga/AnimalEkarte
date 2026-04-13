@@ -1,8 +1,17 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v31.2（shift_templates・shift_template_breaks・shift_entry_breaks 追加）
+バージョン: v31.3（SQL マイグレーション 100% 同期）
 更新日: 2026-04-13
 状態: Production Ready
+
+---
+
+## 変更概要（v31.2 → v31.3）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| テーブル総数修正 | 重複を削除し 67 テーブルに修正 |
+| SQL同期 | 各テーブルの順序および定義を `001_init.sql` と完全に一致させた |
 
 ---
 
@@ -52,7 +61,7 @@
 
 ---
 
-## テーブル一覧（68テーブル）
+## テーブル一覧（67テーブル）
 
 > テーブル順序は `001_init.sql` の CREATE TABLE 順に準拠。
 
@@ -125,7 +134,6 @@
 | 65 | `shift_entry_breaks` | シフト | シフトごとの休憩時間管理 |
 | 66 | `shift_templates` | マスタ | シフトパターンのテンプレート |
 | 67 | `shift_template_breaks` | マスタ | テンプレートごとの休憩時間定義 |
-| 68 | `billing_refunds` | 会計 | 会計返金履歴 |
 
 ---
 
@@ -813,6 +821,143 @@ erDiagram
         integer sort_order
         timestamptz created_at
         timestamptz updated_at
+    }
+
+    %% ===== シフト・管理 =====
+    shift_entries {
+        bigint id PK
+        bigint clinic_id FK
+        bigint staff_id FK
+        date date
+        shift_type shift_type
+        time start_time
+        time end_time
+        text notes
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    shift_entry_breaks {
+        bigint id PK
+        bigint shift_entry_id FK
+        time break_start
+        time break_end
+    }
+
+    clinic_holidays {
+        bigint id PK
+        bigint clinic_id FK
+        date date
+        text reason
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    shift_templates {
+        bigint id PK
+        bigint clinic_id FK
+        varchar_100 name
+        shift_type shift_type
+        time start_time
+        time end_time
+        text notes
+        integer sort_order
+        boolean is_active
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    shift_template_breaks {
+        bigint id PK
+        bigint shift_template_id FK
+        time break_start
+        time break_end
+    }
+
+    %% ===== 会計・返金 =====
+    billings {
+        bigint id PK
+        bigint clinic_id FK
+        bigint medical_record_id FK
+        bigint hospitalization_id FK
+        bigint owner_id FK
+        bigint pet_id FK
+        bigint subtotal
+        bigint tax_total
+        bigint total_amount
+        boolean has_insurance
+        billing_status status
+        date scheduled_date
+        timestamptz completed_at
+        text memo
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    billing_refunds {
+        bigint id PK
+        bigint clinic_id FK
+        bigint billing_id FK
+        bigint amount
+        text reason
+        timestamptz refunded_at
+        timestamptz created_at
+    }
+
+    %% ===== LINE予約 =====
+    line_reservation_settings {
+        bigint id PK
+        bigint clinic_id FK "UNIQUE"
+        text status
+        text header_text
+        text reservation_notice
+        text cancel_notice
+        text privacy_policy
+        jsonb closed_weekdays
+        jsonb closed_dates
+        boolean national_holiday_closed
+        jsonb business_hours
+        jsonb business_hours_by_weekday
+        jsonb break_hours
+        integer daily_limit
+        integer monthly_limit
+        integer booking_window_max_days
+        integer booking_window_min_days
+        integer calendar_months
+        text phone_number
+        text notification_email
+        text request_example
+        text time_slot_mode
+        integer time_slot_interval_minutes
+        text no_staff_mode
+        boolean show_no_staff_option
+        jsonb additional_fields
+        text line_channel_id
+        text line_channel_secret
+        text liff_id
+        text line_access_token
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    line_customers {
+        bigint id PK
+        bigint clinic_id FK
+        text line_user_id
+        text display_name
+        text real_name
+        jsonb additional_fields
+        bigint owner_id FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    staff_reservation_exclusions {
+        bigint id PK
+        bigint staff_id FK
+        bigint reservation_type_id FK
     }
 
     %% ===== 診療 =====

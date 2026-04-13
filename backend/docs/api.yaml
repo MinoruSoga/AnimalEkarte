@@ -918,6 +918,12 @@ components:
         reason:
           type: string
           description: 返金理由
+        refunded_by:
+          type: integer
+          format: int64
+          nullable: true
+          description: 返金処理を行ったスタッフID（JWT認証から自動セット）
+          readOnly: true
         refunded_at:
           type: string
           format: date-time

@@ -109,7 +109,7 @@ export const DailyCareLogsSection = memo(function DailyCareLogsSection({
         if (!form.time) return;
 
         const payload: CreateCareLogRequest = {
-            time: form.time,
+            time: form.time.length === 5 ? `${form.time}:00` : form.time,
             type: form.type,
         };
         if (form.value) payload.value = form.value;

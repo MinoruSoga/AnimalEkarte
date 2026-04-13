@@ -231,6 +231,7 @@ export interface BillingRefund {
   billing_id: number /* uint64 */;
   amount: number /* int64 */; // 返金額（正の整数、円）
   reason: string;
+  refunded_by?: number /* uint64 */; // 返金処理スタッフID（nullable）
   refunded_at: string;
   created_at: string;
 }

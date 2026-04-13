@@ -8,24 +8,32 @@ import (
 )
 
 type refundResponse struct {
-	ID         uint64    `json:"id"`
-	ClinicID   uint64    `json:"clinic_id"`
-	BillingID  uint64    `json:"billing_id"`
-	Amount     int64     `json:"amount"`
-	Reason     string    `json:"reason"`
-	RefundedAt time.Time `json:"refunded_at"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID             uint64    `json:"id"`
+	ClinicID       uint64    `json:"clinic_id"`
+	BillingID      uint64    `json:"billing_id"`
+	Amount         int64     `json:"amount"`
+	Reason         string    `json:"reason"`
+	RefundedBy     *uint64   `json:"refunded_by"`
+	RefundedByName string    `json:"refunded_by_name"`
+	RefundedAt     time.Time `json:"refunded_at"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 func toRefundResponse(r *model.BillingRefund) refundResponse {
+	var staffName string
+	if r.RefundedByStaff != nil {
+		staffName = r.RefundedByStaff.Name
+	}
 	return refundResponse{
-		ID:         r.ID,
-		ClinicID:   r.ClinicID,
-		BillingID:  r.BillingID,
-		Amount:     r.Amount,
-		Reason:     r.Reason,
-		RefundedAt: r.RefundedAt,
-		CreatedAt:  r.CreatedAt,
+		ID:             r.ID,
+		ClinicID:       r.ClinicID,
+		BillingID:      r.BillingID,
+		Amount:         r.Amount,
+		Reason:         r.Reason,
+		RefundedBy:     r.RefundedBy,
+		RefundedByName: staffName,
+		RefundedAt:     r.RefundedAt,
+		CreatedAt:      r.CreatedAt,
 	}
 }
 

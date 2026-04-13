@@ -82,6 +82,8 @@ export interface Refund {
   billingId: string;
   amount: number;
   reason: string;
+  refundedBy: number | null;
+  refundedByName: string;
   refundedAt: string;
   createdAt: string;
 }

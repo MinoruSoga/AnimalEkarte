@@ -91,6 +91,7 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 		Preload("Items").
 		Preload("Payments").
 		Preload("Refunds").
+		Preload("Refunds.RefundedByStaff").
 		Preload("Owner").
 		Preload("Pet").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&billing).Error
@@ -133,7 +134,7 @@ func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billi
 	}
 	var billing model.Billing
 	if err := r.db.WithContext(ctx).
-		Preload("Items").Preload("Payments").Preload("Refunds").Preload("Owner").Preload("Pet").
+		Preload("Items").Preload("Payments").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner").Preload("Pet").
 		Scopes(clinicScope(clinicID)).
 		First(&billing, "id = ?", billingID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))

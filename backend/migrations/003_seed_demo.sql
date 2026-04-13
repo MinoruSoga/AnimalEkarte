@@ -1205,10 +1205,10 @@ SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM pay
 -- -----------------------------------------------------------------------------
 -- 13. billing_refunds（返金デモデータ）
 -- -----------------------------------------------------------------------------
-INSERT INTO billing_refunds (id, clinic_id, billing_id, amount, reason, refunded_at) VALUES
-    (1, 3, 1, 919,  '処置内容の変更に伴う部分返金',   '2026-02-16 10:00:00+09'),
-    (2, 3, 1, 500,  '薬剤変更による差額返金',         '2026-02-20 14:30:00+09'),
-    (3, 3, 2, 500,  '診察キャンセル分の返金',          '2026-03-01 09:00:00+09')
+INSERT INTO billing_refunds (id, clinic_id, billing_id, amount, reason, refunded_by, refunded_at) VALUES
+    (1, 3, 1, 919,  '処置内容の変更に伴う部分返金',  1, '2026-02-16 10:00:00+09'),
+    (2, 3, 1, 500,  '薬剤変更による差額返金',        1, '2026-02-20 14:30:00+09'),
+    (3, 3, 2, 500,  '診察キャンセル分の返金',         1, '2026-03-01 09:00:00+09')
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) FROM billing_refunds));
