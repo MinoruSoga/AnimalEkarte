@@ -169,7 +169,7 @@ func (h *Handler) UploadMedicalRecordImage(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("file field is required"))
 		return
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	// Validate file size
 	if fileHeader.Size > maxUploadSize {

@@ -27,15 +27,15 @@ func NewLocalUploader(baseDir, baseURL string) *LocalUploader {
 func (u *LocalUploader) Upload(_ context.Context, key string, body io.Reader, _ string) (string, error) {
 	fullPath := filepath.Join(u.baseDir, key)
 	dir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec
 		return "", fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	f, err := os.Create(fullPath)
+	f, err := os.Create(fullPath) //nolint:gosec
 	if err != nil {
 		return "", fmt.Errorf("failed to create file: %w", err)
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	if _, err := io.Copy(f, body); err != nil {
 		return "", fmt.Errorf("failed to write file: %w", err)

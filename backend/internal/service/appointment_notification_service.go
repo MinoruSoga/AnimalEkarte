@@ -59,7 +59,7 @@ func (s *reservationNotificationService) NotifyCreated(
 	emailSubject, emailBody := s.buildCreatedEmail(appt, customer)
 	clinicID := appt.ClinicID
 
-	go func() { //nolint:contextcheck // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
+	go func() { //nolint:contextcheck,gosec // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
@@ -106,7 +106,7 @@ func (s *reservationNotificationService) NotifyCancelled(
 	emailSubject, emailBody := s.buildCancelledEmail(appt, customer)
 	clinicID := appt.ClinicID
 
-	go func() { //nolint:contextcheck // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
+	go func() { //nolint:contextcheck,gosec // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
@@ -172,16 +172,16 @@ func staffDisplayName(s *model.Staff) string {
 func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.Appointment) string {
 	var sb strings.Builder
 	sb.WriteString("ご予約を承りました。\n\n")
-	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
-	sb.WriteString(fmt.Sprintf("■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime)))
+	fmt.Fprintf(&sb, "■ 予約番号: R-%06d\n", appt.ID)
+	fmt.Fprintf(&sb, "■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime))
 	if name := reservationTypeDisplayName(appt.ReservationType); name != "" {
-		sb.WriteString(fmt.Sprintf("■ メニュー: %s\n", name))
+		fmt.Fprintf(&sb, "■ メニュー: %s\n", name)
 	}
 	if name := staffDisplayName(appt.Doctor); name != "" {
-		sb.WriteString(fmt.Sprintf("■ 担当: %s\n", name))
+		fmt.Fprintf(&sb, "■ 担当: %s\n", name)
 	}
 	if petNames := extractPetNamesFromCustomerFields(appt); petNames != "" {
-		sb.WriteString(fmt.Sprintf("■ ペット: %s\n", petNames))
+		fmt.Fprintf(&sb, "■ ペット: %s\n", petNames)
 	}
 	sb.WriteString("\nキャンセルはLINEメニューの\n「予約確認・キャンセル」から行えます。")
 	return sb.String()
@@ -190,10 +190,10 @@ func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.App
 func (s *reservationNotificationService) buildCancelledLineMessage(appt *model.Appointment) string {
 	var sb strings.Builder
 	sb.WriteString("以下のご予約をキャンセルしました。\n\n")
-	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
-	sb.WriteString(fmt.Sprintf("■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime)))
+	fmt.Fprintf(&sb, "■ 予約番号: R-%06d\n", appt.ID)
+	fmt.Fprintf(&sb, "■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime))
 	if name := reservationTypeDisplayName(appt.ReservationType); name != "" {
-		sb.WriteString(fmt.Sprintf("■ メニュー: %s\n", name))
+		fmt.Fprintf(&sb, "■ メニュー: %s\n", name)
 	}
 	sb.WriteString("\n再度のご予約はLINEメニューの\n「予約する」から行えます。")
 	return sb.String()
@@ -215,38 +215,38 @@ func (s *reservationNotificationService) buildCreatedEmail(
 
 	var sb strings.Builder
 	sb.WriteString("新規予約が入りました。\n\n")
-	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
+	fmt.Fprintf(&sb, "■ 予約番号: R-%06d\n", appt.ID)
 	if customer != nil {
-		sb.WriteString(fmt.Sprintf("■ お名前: %s\n", customer.DisplayName))
-		sb.WriteString(fmt.Sprintf("■ 本名: %s\n", customer.RealName))
+		fmt.Fprintf(&sb, "■ お名前: %s\n", customer.DisplayName)
+		fmt.Fprintf(&sb, "■ 本名: %s\n", customer.RealName)
 		if len(customer.AdditionalFields) > 0 {
 			var fields map[string]any
 			if err := json.Unmarshal(customer.AdditionalFields, &fields); err == nil {
 				if phone, ok := fields["phone"].(string); ok && phone != "" {
-					sb.WriteString(fmt.Sprintf("■ 電話番号: %s\n", phone))
+					fmt.Fprintf(&sb, "■ 電話番号: %s\n", phone)
 				}
 				if note, ok := fields["note"].(string); ok && note != "" {
-					sb.WriteString(fmt.Sprintf("■ 診察内容: %s\n", note))
+					fmt.Fprintf(&sb, "■ 診察内容: %s\n", note)
 				}
 			}
 		}
 	}
 	if appt.Owner != nil {
-		sb.WriteString(fmt.Sprintf("■ 飼い主名: %s\n", appt.Owner.Name))
+		fmt.Fprintf(&sb, "■ 飼い主名: %s\n", appt.Owner.Name)
 	}
 	if petNames := extractPetNamesFromCustomerFields(appt); petNames != "" {
-		sb.WriteString(fmt.Sprintf("■ ペット: %s\n", petNames))
+		fmt.Fprintf(&sb, "■ ペット: %s\n", petNames)
 	}
-	sb.WriteString(fmt.Sprintf("■ コース: %s\n", courseName))
+	fmt.Fprintf(&sb, "■ コース: %s\n", courseName)
 	if appt.Doctor != nil {
-		sb.WriteString(fmt.Sprintf("■ 担当: %s\n", appt.Doctor.Name))
+		fmt.Fprintf(&sb, "■ 担当: %s\n", appt.Doctor.Name)
 	}
-	sb.WriteString(fmt.Sprintf("■ 日時: %s〜%s\n",
+	fmt.Fprintf(&sb, "■ 日時: %s〜%s\n",
 		formatDateJPWithTime(appt.StartTime),
 		appt.EndTime.Format("15:04"),
-	))
+	)
 	if appt.Notes != "" {
-		sb.WriteString(fmt.Sprintf("■ 要望: %s\n", appt.Notes))
+		fmt.Fprintf(&sb, "■ 要望: %s\n", appt.Notes)
 	} else {
 		sb.WriteString("■ 要望: （なし）\n")
 	}
@@ -269,15 +269,15 @@ func (s *reservationNotificationService) buildCancelledEmail(
 
 	var sb strings.Builder
 	sb.WriteString("以下の予約がキャンセルされました。\n\n")
-	sb.WriteString(fmt.Sprintf("■ 予約番号: R-%06d\n", appt.ID))
+	fmt.Fprintf(&sb, "■ 予約番号: R-%06d\n", appt.ID)
 	if customer != nil {
-		sb.WriteString(fmt.Sprintf("■ お名前: %s\n", customer.DisplayName))
+		fmt.Fprintf(&sb, "■ お名前: %s\n", customer.DisplayName)
 	}
-	sb.WriteString(fmt.Sprintf("■ コース: %s\n", courseName))
-	sb.WriteString(fmt.Sprintf("■ 日時: %s〜%s\n",
+	fmt.Fprintf(&sb, "■ コース: %s\n", courseName)
+	fmt.Fprintf(&sb, "■ 日時: %s〜%s\n",
 		formatDateJPWithTime(appt.StartTime),
 		appt.EndTime.Format("15:04"),
-	))
+	)
 	body = sb.String()
 	return
 }

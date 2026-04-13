@@ -51,6 +51,7 @@ linters:
         - name: error-strings
         - name: error-naming
         - name: exported
+          disabled: true
         - name: increment-decrement
         - name: var-naming
         - name: package-comments

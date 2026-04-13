@@ -71,7 +71,7 @@ func (s *LineMessagingService) PushText(ctx context.Context, lineUserID, text st
 	if err != nil {
 		return fmt.Errorf("send line push: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("line push returned status %d", resp.StatusCode)

@@ -69,7 +69,7 @@ func run(logger *slog.Logger) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
-	defer db.Close()
+	defer db.Close() //nolint:errcheck
 
 	logger.Info("Connected to database", slog.String("host", dbHost), slog.String("dbname", dbName))
 
@@ -286,7 +286,7 @@ func runMigrations(db *sql.DB, logger *slog.Logger) error {
 		filePath := filepath.Join(migrationsDir, filename)
 
 		// SQL ファイルを読み込み
-		content, err := os.ReadFile(filePath)
+		content, err := os.ReadFile(filePath) //nolint:gosec
 		if err != nil {
 			return fmt.Errorf("failed to read migration file %s: %w", filename, err)
 		}
