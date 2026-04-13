@@ -3,6 +3,7 @@ import { memo, useState, useEffect, useCallback, useMemo } from "react";
 
 // Internal
 import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
+import { MasterLink } from "@/components/shared/MasterLink";
 import { C, STYLE } from "@/lib/design-tokens";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -104,7 +105,10 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
 
         {/* 診断カテゴリ — Select で ID を安全に管理（旧: 自由入力 input で NaN 破損バグ） */}
         <div className="flex flex-col gap-1.5">
-          <label className={STYLE.formLabel}>診断カテゴリ</label>
+          <div className="flex items-center justify-between">
+            <label className={STYLE.formLabel}>診断カテゴリ</label>
+            <MasterLink category="diagnosis_type" label="編集" className="text-[11px]" />
+          </div>
           <Select
             value={diagnosisTypeId ? String(diagnosisTypeId) : ""}
             onValueChange={(value) => {
@@ -124,7 +128,10 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRe
 
         {/* 診断病名 — Select で ID を安全に管理（旧: 自由入力 input で NaN 破損バグ） */}
         <div className="flex flex-col gap-1.5">
-          <label className={STYLE.formLabel}>診断病名</label>
+          <div className="flex items-center justify-between">
+            <label className={STYLE.formLabel}>診断病名</label>
+            <MasterLink category="diagnosis_name" label="編集" className="text-[11px]" />
+          </div>
           <Select
             value={diagnosisNameId ? String(diagnosisNameId) : ""}
             onValueChange={(value) => setDiagnosisNameId(value ? Number(value) : null)}

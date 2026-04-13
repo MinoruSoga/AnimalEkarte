@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
+import { MasterLink } from "@/components/shared/MasterLink";
 import { C, STYLE } from "@/lib/design-tokens";
 
 interface VaccineOption {
@@ -80,9 +81,10 @@ export const VaccinationForm = memo(function VaccinationForm({
       {/* Row 1: Name and Date */}
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            予防接種名
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label className={`text-sm font-medium ${C.text60}`}>予防接種名</Label>
+            <MasterLink category="vaccine" label="編集" className="text-[11px]" />
+          </div>
           <Select value={vaccineName} onValueChange={setVaccineName}>
             <SelectTrigger className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}>
               <SelectValue placeholder="ワクチンを選択" />

@@ -17,6 +17,7 @@ import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { MasterLink } from "@/components/shared/MasterLink";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -231,9 +232,12 @@ export const VaccinationForm = memo(function VaccinationForm() {
                   <FormFieldError message={fieldErrors.date} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="vaccine-select">
-                    ワクチン<span className={`${C.textRequired} ml-1`}>*</span>
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="vaccine-select">
+                      ワクチン<span className={`${C.textRequired} ml-1`}>*</span>
+                    </Label>
+                    <MasterLink category="vaccine" label="編集" className="text-[11px]" />
+                  </div>
                   <Select value={vaccineId} onValueChange={(v) => { markDirty(); setVaccineId(v); }}>
                     <SelectTrigger id="vaccine-select">
                       <SelectValue placeholder="選択してください" />
