@@ -1760,10 +1760,11 @@ CREATE TABLE shift_templates (
     is_active  boolean      NOT NULL DEFAULT true,
     created_at timestamptz  NOT NULL DEFAULT now(),
     updated_at timestamptz  NOT NULL DEFAULT now(),
-    deleted_at timestamptz,
-    CONSTRAINT uk_shift_templates_clinic_name UNIQUE (clinic_id, name) WHERE deleted_at IS NULL
+    deleted_at timestamptz
 );
 
+-- 部分 UNIQUE インデックス（WHERE 句は CREATE UNIQUE INDEX で記述する必要がある）
+CREATE UNIQUE INDEX uk_shift_templates_clinic_name ON shift_templates(clinic_id, name) WHERE deleted_at IS NULL;
 CREATE INDEX idx_shift_templates_clinic ON shift_templates(clinic_id) WHERE deleted_at IS NULL;
 
 -- ------------------------------------
