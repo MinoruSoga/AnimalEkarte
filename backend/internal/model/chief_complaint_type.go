@@ -9,7 +9,7 @@ type ChiefComplaintType struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`
 	Name        string    `gorm:"not null"                                       json:"name"`
-	Description string    `gorm:"default:''"`
+	Description string    `gorm:"default:''"                              json:"description"`
 	IsActive    bool      `gorm:"default:true"                                   json:"is_active"`
 	SortOrder   int       `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`

@@ -194,6 +194,13 @@
 | ~~BUG-339~~ | BE Repository | ✅ **CLOSED** — JOIN 先 `deleted_at IS NULL` 欠落 10箇所全修正（2026-04-13） | — | closed/ |
 | ~~BUG-340~~ | BE Repository | ✅ **CLOSED** — `clinicScope` 未使用 — appointment_repository CountByDateAndSource 修正（2026-04-13） | — | closed/ |
 
+## バックエンド Go 規約準拠監査（2026-04-14 第14回・第8回監査）
+
+| BUG | 対象 | 内容 | 優先度 | パス |
+|-----|------|------|--------|------|
+| [BUG-345](BUG-345_backend-go-convention-audit-8.md) | BE 全ドメイン | 第8回最終監査 — CRITICAL/HIGH/MEDIUM/LOW ゼロ確認。全チェック PASS | — | code-quality/ |
+| ~~BUG-346~~ | BE Handler/Service | ✅ **CLOSED** — ファイル行数制限ルール自体を廃止（任意の行数制限に根拠なし） | — | closed/ |
+
 ### バックエンド残存課題（実コード検証済み）
 
 ~~**BUG-245**~~ CLOSED — 全 price フィールドが `*input.Price` でデリファレンス済み

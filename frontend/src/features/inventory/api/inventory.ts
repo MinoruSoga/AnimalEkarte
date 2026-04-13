@@ -75,14 +75,3 @@ export const useUpdateInventoryItem = () => {
 export const deleteInventoryItem = async (id: string): Promise<void> => {
   await axios.delete(`/v1/inventory/${id}`);
 };
-
-export const useDeleteInventoryItem = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: deleteInventoryItem,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventoryItems"] });
-    },
-    onError: (error) => handleApiError(error, "在庫削除"),
-  });
-};

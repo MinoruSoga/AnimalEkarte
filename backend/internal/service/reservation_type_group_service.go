@@ -41,11 +41,19 @@ func NewReservationTypeGroupService(repo repository.ReservationTypeGroupReposito
 }
 
 func (s *reservationTypeGroupService) List(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	groups, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list reservation type groups")
+	}
+	return groups, nil
 }
 
 func (s *reservationTypeGroupService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	group, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation type group")
+	}
+	return group, nil
 }
 
 func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeGroupInput) (*model.ReservationTypeGroup, error) {
@@ -82,12 +90,20 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 		fields["is_active"] = *input.IsActive
 	}
 	if len(fields) == 0 {
-		return s.repo.FindByID(ctx, clinicID, id)
+		g, err := s.repo.FindByID(ctx, clinicID, id)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to get reservation type group")
+		}
+		return g, nil
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update reservation_type_group")
 	}
-	return s.repo.FindByID(ctx, clinicID, id)
+	g, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get updated reservation type group")
+	}
+	return g, nil
 }
 
 func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -98,9 +114,18 @@ func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id u
 	if count > 0 {
 		return apperrors.WrapConflict("このグループには予約区分が設定されています。先に予約区分のグループを変更してください。")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete reservation type group")
+	}
+	return nil
 }
 
 func (s *reservationTypeGroupService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if len(ids) == 0 {
+		return apperrors.WrapInvalidInput("ids must not be empty")
+	}
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder reservation type groups")
+	}
+	return nil
 }

@@ -39,6 +39,7 @@
 | 25 | 定期健診一覧 | [25-checkups-list.md](./25-checkups-list.md) | 全ペットの定期健診記録の参照 |
 | 26 | 見積書詳細 | [26-estimate-detail.md](./26-estimate-detail.md) | 見積内容の確認と管理 |
 | 28 | LINE予約設定 | [28-line-reservation.md](./28-line-reservation.md) | LINE予約システムの設定・編集 |
+| 99 | カルテ登録フロー | [99-medical-record-flow.md](./99-medical-record-flow.md) | カルテ登録・編集の複雑なライフサイクル仕様 |
 
 ## マスタ設定詳細
 

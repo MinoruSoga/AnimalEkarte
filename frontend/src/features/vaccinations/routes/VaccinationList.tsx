@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
+import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
 
 // External
 import { Plus, Syringe, Calendar, User, Pencil, Trash2 } from "lucide-react";
@@ -88,9 +89,7 @@ export function VaccinationList() {
 
   // js-cache-function-results: ロード済みデータから担当医の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
-    const doctorOptions = Array.from(new Set(allVaccinations.map((r) => r.doctor).filter(Boolean)))
-      .sort()
-      .map((d) => ({ value: d, label: d }));
+    const doctorOptions = uniqueSortedOptions(allVaccinations, (r) => r.doctor);
     return [
       ...STATIC_FILTER_PROPERTIES,
       // vaccinations.doctor_id nullable（未割当あり）

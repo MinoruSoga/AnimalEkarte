@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 // バックエンドの staffSummaryResponse 型（id + name のみ）
-export interface OnDutyStaff {
+interface OnDutyStaff {
   id: number;
   name: string;
 }

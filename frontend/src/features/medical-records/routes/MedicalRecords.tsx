@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from "react-router";
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
+import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
 
 // External
 import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar, CircleDot, User, PawPrint } from "lucide-react";
@@ -99,12 +100,8 @@ export function MedicalRecords() {
 
   // js-cache-function-results: ロード済みレコードから担当医・種の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
-    const doctorOptions = Array.from(new Set(allRecords.map((r) => r.doctor).filter(Boolean)))
-      .sort()
-      .map((d) => ({ value: d, label: d }));
-    const speciesOptions = Array.from(new Set(allRecords.map((r) => r.species).filter(Boolean)))
-      .sort()
-      .map((s) => ({ value: s, label: s }));
+    const doctorOptions = uniqueSortedOptions(allRecords, (r) => r.doctor);
+    const speciesOptions = uniqueSortedOptions(allRecords, (r) => r.species);
     return [
       ...STATIC_FILTER_PROPERTIES,
       // medical_records.doctor_id nullable（未割当あり）

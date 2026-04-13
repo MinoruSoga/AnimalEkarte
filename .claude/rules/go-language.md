@@ -169,4 +169,3 @@ func (s *OwnerService) Create(ctx context.Context, input CreateOwnerInput) (*Own
 - [ ] PATCH は ポインタ型 + buildUpdateFields()
 - [ ] errgroup で並列処理
 - [ ] インターフェース最小化（3-5メソッド）
-- [ ] パッケージ1ファイル < 500行

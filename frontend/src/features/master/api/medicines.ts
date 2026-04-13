@@ -35,16 +35,6 @@ export const getMedicineById = async (id: string): Promise<Medicine> => {
   return transformBackendMedicineToFrontend(data);
 };
 
-export const useGetMedicineById = (id: string) => {
-  return useQuery({
-    queryKey: ["masters", "medicines", id],
-    queryFn: () => getMedicineById(id),
-    enabled: !!id,
-    staleTime: QUERY_STALE_TIMES.STATIC,
-    gcTime: QUERY_GC_TIMES.LONG,
-  });
-};
-
 export const createMedicine = async (req: CreateMedicineRequest): Promise<Medicine> => {
   const { data } = await axios.post<MedicineModel>("/v1/masters/medicines", req);
   return transformBackendMedicineToFrontend(data);

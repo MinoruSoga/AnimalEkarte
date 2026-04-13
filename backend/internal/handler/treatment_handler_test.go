@@ -25,7 +25,7 @@ type mockTreatmentService struct {
 	createFn              func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error)
 	updateFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error)
 	deleteFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error
-	bulkUpdateSortOrderFn func(ctx context.Context, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error
+	bulkUpdateSortOrderFn func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error
 }
 
 func (m *mockTreatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
@@ -44,8 +44,8 @@ func (m *mockTreatmentService) Delete(ctx context.Context, clinicID, medicalReco
 	return m.deleteFn(ctx, clinicID, medicalRecordID, treatmentID)
 }
 
-func (m *mockTreatmentService) BulkUpdateSortOrder(ctx context.Context, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error {
-	return m.bulkUpdateSortOrderFn(ctx, medicalRecordID, input)
+func (m *mockTreatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error {
+	return m.bulkUpdateSortOrderFn(ctx, clinicID, medicalRecordID, input)
 }
 
 // ---- test helpers ----
@@ -452,7 +452,7 @@ func TestBulkUpdateTreatments(t *testing.T) {
 			paramID: "10",
 			body:    validBody(),
 			svc: &mockTreatmentService{
-				bulkUpdateSortOrderFn: func(_ context.Context, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error {
+				bulkUpdateSortOrderFn: func(_ context.Context, _, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error {
 					assert.Equal(t, uint64(10), medicalRecordID)
 					assert.Len(t, input.Treatments, 3)
 					assert.Equal(t, uint64(1), input.Treatments[0].ID)
@@ -474,7 +474,7 @@ func TestBulkUpdateTreatments(t *testing.T) {
 			paramID: "1",
 			body:    validBody(),
 			svc: &mockTreatmentService{
-				bulkUpdateSortOrderFn: func(_ context.Context, _ uint64, _ *service.BulkUpdateTreatmentsInput) error {
+				bulkUpdateSortOrderFn: func(_ context.Context, _, _ uint64, _ *service.BulkUpdateTreatmentsInput) error {
 					return fmt.Errorf("db error")
 				},
 			},

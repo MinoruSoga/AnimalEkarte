@@ -15,13 +15,6 @@ import type {
 
 // ---- Fetchers ----
 
-const listDailyRecords = async (hospitalizationId: string): Promise<ApiDailyRecord[]> => {
-    const { data } = await axios.get<ApiDailyRecord[]>(
-        `/v1/hospitalizations/${hospitalizationId}/daily-records`
-    );
-    return data;
-};
-
 const getDailyRecord = async (
     hospitalizationId: string,
     date: string
@@ -89,14 +82,6 @@ export const dailyRecordKeys = {
 };
 
 // ---- Hooks ----
-
-export function useGetDailyRecords(hospitalizationId: string) {
-    return useQuery({
-        queryKey: dailyRecordKeys.all(hospitalizationId),
-        queryFn: () => listDailyRecords(hospitalizationId),
-        enabled: !!hospitalizationId,
-    });
-}
 
 export function useDailyRecord(hospitalizationId: string, date: string) {
     return useQuery({

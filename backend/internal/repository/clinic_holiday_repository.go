@@ -13,7 +13,6 @@ import (
 // ClinicHolidayRepository は個別休診日のデータアクセスインターフェース
 type ClinicHolidayRepository interface {
 	FindByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
-	FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
 	Upsert(ctx context.Context, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
 	Delete(ctx context.Context, clinicID uint64, date time.Time) error
 }
@@ -37,21 +36,9 @@ func (r *clinicHolidayRepository) FindByYearMonth(ctx context.Context, clinicID 
 	}
 
 	if err := q.Find(&holidays).Error; err != nil {
-		return nil, apperrors.Wrap(err, "failed to list clinic holidays")
+		return nil, apperrors.FromGORM(err, "clinic_holiday", yearMonth)
 	}
 	return holidays, nil
-}
-
-func (r *clinicHolidayRepository) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
-	var holiday model.ClinicHoliday
-	err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
-		Where("date = ?", date.Format("2006-01-02")).
-		First(&holiday).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "clinic_holiday", date.Format("2006-01-02"))
-	}
-	return &holiday, nil
 }
 
 func (r *clinicHolidayRepository) Upsert(ctx context.Context, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
@@ -60,7 +47,7 @@ func (r *clinicHolidayRepository) Upsert(ctx context.Context, holiday *model.Cli
 		Assign(model.ClinicHoliday{Reason: holiday.Reason}).
 		FirstOrCreate(holiday)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "failed to upsert clinic holiday")
+		return nil, apperrors.FromGORM(result.Error, "clinic_holiday", holiday.Date.Format("2006-01-02"))
 	}
 	return holiday, nil
 }
@@ -71,7 +58,7 @@ func (r *clinicHolidayRepository) Delete(ctx context.Context, clinicID uint64, d
 		Where("date = ?", date.Format("2006-01-02")).
 		Delete(&model.ClinicHoliday{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "failed to delete clinic holiday")
+		return apperrors.FromGORM(result.Error, "clinic_holiday", date.Format("2006-01-02"))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.FromGORM(gorm.ErrRecordNotFound, "clinic_holiday", date.Format("2006-01-02"))

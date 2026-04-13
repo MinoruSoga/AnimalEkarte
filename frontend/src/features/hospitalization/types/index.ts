@@ -6,9 +6,6 @@ export type UpdateCarePlanDTO = Partial<CarePlanItem>;
 export type CreateVitalDTO = Omit<DailyRecord["vitals"][0], "id">;
 export type CreateCareLogDTO = Omit<DailyRecord["careLogs"][0], "id">;
 
-export type CreateHospitalizationDTO = Omit<Hospitalization, "id" | "hospitalizationNo" | "status">;
-export type UpdateHospitalizationDTO = Partial<Hospitalization>;
-
 export interface Task {
     planId: string;
     timing: string;

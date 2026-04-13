@@ -9,7 +9,7 @@
  * 明細行アイテムの共通最小構造
  * TreatmentItem / EstimateLineItem 両方に対応できる
  */
-export interface LineItemBase {
+interface LineItemBase {
   unitPrice: number;
   quantity: number;
   discountAmount?: number;
@@ -43,23 +43,3 @@ export function calcLineItemAmount(item: LineItemBase): {
   };
 }
 
-/**
- * 明細行リスト全体の合計金額計算
- */
-export function calcLineItemsTotal(items: LineItemBase[]): {
-  subtotalSum: number;
-  discountSum: number;
-  totalSum: number;
-} {
-  return items.reduce(
-    (acc, item) => {
-      const { subtotal, discount, total } = calcLineItemAmount(item);
-      return {
-        subtotalSum: acc.subtotalSum + subtotal,
-        discountSum: acc.discountSum + discount,
-        totalSum: acc.totalSum + total,
-      };
-    },
-    { subtotalSum: 0, discountSum: 0, totalSum: 0 },
-  );
-}

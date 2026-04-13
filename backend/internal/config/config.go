@@ -15,9 +15,7 @@ type Config struct {
 	DBSSLMode string
 	GinMode   string
 
-	JWTSecret        string
-	DevAdminEmail    string // dev-only; empty string means disabled
-	DevAdminPassword string // dev-only; empty string means disabled
+	JWTSecret string
 
 	// SMTP設定（空文字=無効）。LINE アクセストークン・通知先メールはクリニックごとに DB で管理する。
 	SMTPHost string
@@ -38,9 +36,7 @@ func Load() *Config {
 		DBSSLMode: getEnv("DB_SSL_MODE", "disable"),
 		GinMode:   getEnv("GIN_MODE", "debug"),
 
-		JWTSecret:        getEnv("JWT_SECRET", "dev-secret-change-me"),
-		DevAdminEmail:    os.Getenv("DEV_ADMIN_EMAIL"),    //nolint:gocritic // leave empty to disable dev bypass
-		DevAdminPassword: os.Getenv("DEV_ADMIN_PASSWORD"), //nolint:gocritic // leave empty to disable dev bypass
+		JWTSecret: getEnv("JWT_SECRET", "dev-secret-change-me"),
 
 		SMTPHost: os.Getenv("SMTP_HOST"),
 		SMTPPort: getEnv("SMTP_PORT", "587"),

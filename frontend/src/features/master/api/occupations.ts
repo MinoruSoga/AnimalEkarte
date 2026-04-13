@@ -61,10 +61,6 @@ const deleteOccupation = async (id: string): Promise<void> => {
   await axios.delete(`/v1/masters/occupations/${id}`);
 };
 
-const reorderOccupations = async (req: { ids: number[] }): Promise<void> => {
-  await axios.patch("/v1/masters/occupations/reorder", req);
-};
-
 // ─────────────────────────────────────────────────
 // Query hooks
 // ─────────────────────────────────────────────────
@@ -112,13 +108,3 @@ export const useDeleteOccupation = () => {
   });
 };
 
-export const useReorderOccupations = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: reorderOccupations,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "occupations"] });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-};

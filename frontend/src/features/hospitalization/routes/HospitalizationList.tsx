@@ -7,6 +7,7 @@ import { useSearchParams } from "react-router";
 import { Plus, LayoutGrid, List, Building2, Calendar, PawPrint } from "lucide-react";
 
 // Internal
+import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -110,9 +111,7 @@ export function HospitalizationList() {
 
   // js-cache-function-results: ロード済みデータから種の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
-    const speciesOptions = Array.from(new Set(allHospitalizations.map((h) => h.species).filter(Boolean)))
-      .sort()
-      .map((s) => ({ value: s, label: s }));
+    const speciesOptions = uniqueSortedOptions(allHospitalizations, (h) => h.species);
     return [
       ...HOSPITALIZATION_STATIC_FILTER_PROPERTIES,
       // pets.animal_species_id NOT NULL — 空値は存在しない

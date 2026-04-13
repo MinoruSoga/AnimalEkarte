@@ -174,8 +174,6 @@ func (h *Handler) BulkUpdateTreatments(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	_ = clinicID // BulkUpdateSortOrder does not need clinic-scoped queries per item
-
 	var req bulkUpdateTreatmentsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
@@ -191,7 +189,7 @@ func (h *Handler) BulkUpdateTreatments(c *gin.Context) {
 	}
 	input := &service.BulkUpdateTreatmentsInput{Treatments: items}
 
-	if err := h.svc.Treatment.BulkUpdateSortOrder(c.Request.Context(), medicalRecordID, input); err != nil {
+	if err := h.svc.Treatment.BulkUpdateSortOrder(c.Request.Context(), clinicID, medicalRecordID, input); err != nil {
 		RespondError(c, err)
 		return
 	}

@@ -30,6 +30,5 @@ export {
   useCreateReservationTypeGroup,
   useUpdateReservationTypeGroup,
   useDeleteReservationTypeGroup,
-  useReorderReservationTypeGroups,
 } from "./api/reservation-type-groups";
 export type { ReservationTypeGroup } from "./api/reservation-type-groups";

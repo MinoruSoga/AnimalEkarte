@@ -100,6 +100,14 @@ func allModels() []any {
 		&model.ShiftEntryBreak{},
 		&model.ShiftTemplate{},
 		&model.ShiftTemplateBreak{},
+		// 権限管理
+		&model.PermissionGroup{},
+		&model.PermissionGroupRule{},
+		&model.StaffPermissionGroup{},
+		// 予約種別グループ
+		&model.ReservationTypeGroup{},
+		// クリニック休診日
+		&model.ClinicHoliday{},
 	}
 }
 

@@ -12,6 +12,12 @@ import (
 // RFC 5322簡易的なメール形式パターン
 var emailPattern = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
+// 電話番号パターン: 03-1234-5678, 090-1234-5678, 09012345678 等
+var phonePattern = regexp.MustCompile(`^0\d{1,4}-?\d{1,4}-?\d{4}$`)
+
+// 郵便番号パターン: 123-4567 または 1234567
+var postalCodePattern = regexp.MustCompile(`^\d{3}-?\d{4}$`)
+
 // validatePetGender は性別の値がドメイン上有効かを検証する
 func validatePetGender(gender string) error {
 	if gender == "" {
@@ -141,8 +147,6 @@ func validatePhoneFormat(phone string) error {
 	if phone == "" {
 		return nil
 	}
-	// ハイフンなし、またはハイフン付き電話番号を許可
-	phonePattern := regexp.MustCompile(`^0\d{1,4}-?\d{1,4}-?\d{4}$`)
 	if !phonePattern.MatchString(phone) {
 		return apperrors.WrapInvalidInput("電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）")
 	}
@@ -155,7 +159,6 @@ func validatePostalCodeFormat(postalCode string) error {
 	if postalCode == "" {
 		return nil
 	}
-	postalCodePattern := regexp.MustCompile(`^\d{3}-?\d{4}$`)
 	if !postalCodePattern.MatchString(postalCode) {
 		return apperrors.WrapInvalidInput("郵便番号の形式が正しくありません（例：123-4567 または 1234567）")
 	}

@@ -191,6 +191,9 @@ type mockAssignmentForStaff struct {
 func (m *mockAssignmentForStaff) FindByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
 	return nil, nil
 }
+func (m *mockAssignmentForStaff) ExistsByStaffAndClinic(_ context.Context, _, _ uint64) (bool, error) {
+	return true, nil
+}
 func (m *mockAssignmentForStaff) FindByClinicID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
 	return nil, nil
 }
@@ -276,8 +279,15 @@ func (m *mockResStaffForStaff) ReplaceExcludedReservationTypes(_ context.Context
 	return nil
 }
 
+// noopTransactor はテスト用のトランザクションモック。fn を直接実行するだけ。
+type noopTransactor struct{}
+
+func (noopTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx) //nolint:contextcheck // テスト用: 親 context をそのまま伝播
+}
+
 func newTestStaffService(repo *mockStaffRepository) StaffService {
-	return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{})
+	return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
 }
 
 func TestStaffService_List(t *testing.T) {
@@ -724,7 +734,7 @@ func TestStaffService_Delete(t *testing.T) {
 					return tt.shiftExists, tt.checkShiftErr
 				},
 			}
-			svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, reservationRepo, shiftRepo, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{})
+			svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, reservationRepo, shiftRepo, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 

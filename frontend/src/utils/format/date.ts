@@ -25,24 +25,3 @@ export function formatDate(dateString: string | undefined | null): string {
   }
 }
 
-/**
- * 日付をYYYY年MM月DD日形式にフォーマット
- */
-export function formatDateJapanese(
-  dateString: string | undefined | null
-): string {
-  if (!dateString) return "-";
-
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "-";
-
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-
-    return `${year}年${month}月${day}日`;
-  } catch {
-    return "-";
-  }
-}

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 
-export interface ActiveSortItem {
+interface ActiveSortItem {
   key: string;
   direction: "asc" | "desc";
 }

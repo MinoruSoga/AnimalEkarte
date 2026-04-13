@@ -10,7 +10,7 @@ interface ReservationTypeGroupSummary {
 }
 
 // バックエンドの reservation_types レスポンス型（group フィールド含む）
-export interface ReservationTypeRaw {
+interface ReservationTypeRaw {
   id: number;
   name: string;
   color: string;
@@ -20,7 +20,7 @@ export interface ReservationTypeRaw {
 }
 
 // フロントエンド用にグループ化したデータ
-export interface GroupedReservationTypes {
+interface GroupedReservationTypes {
   label: string;
   types: ReservationTypeRaw[];
 }

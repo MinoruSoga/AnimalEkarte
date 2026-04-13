@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from "react-router";
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
+import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
 
 // External
 import { Plus, Scissors, AlertTriangle, Edit, Trash2, Calendar, CircleDot, PawPrint, User } from "lucide-react";
@@ -177,12 +178,8 @@ export function TrimmingList() {
 
   // js-cache-function-results: ロード済みデータから種・担当の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
-    const speciesOptions = Array.from(new Set(allTrimmings.map((r) => r.species).filter(Boolean)))
-      .sort()
-      .map((s) => ({ value: s, label: s }));
-    const staffOptions = Array.from(new Set(allTrimmings.map((r) => r.staff).filter(Boolean)))
-      .sort()
-      .map((s) => ({ value: s, label: s }));
+    const speciesOptions = uniqueSortedOptions(allTrimmings, (r) => r.species);
+    const staffOptions = uniqueSortedOptions(allTrimmings, (r) => r.staff);
     return [
       ...TRIMMING_STATIC_FILTER_PROPERTIES,
       // pets.animal_species_id NOT NULL — 空値は存在しない
