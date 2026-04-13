@@ -14,7 +14,6 @@ import Calendar from "lucide-react/dist/esm/icons/calendar";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import X from "lucide-react/dist/esm/icons/x";
-import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
 import { toast } from "sonner";
 
 // Internal
@@ -47,6 +46,8 @@ import type { ShiftType } from "@/features/shifts/types";
 // Constants
 // ─────────────────────────────────────────────────
 
+// SortableDataTableRow が GripVertical セルを自動追加するため、
+// COLUMNS には DnD ハンドル用の先頭空カラムを含める。
 const COLUMNS = [
   { header: "", className: "w-[32px]" },
   { header: "テンプレート名" },
@@ -163,24 +164,17 @@ const SortableRow = memo(function SortableRow({ item, onEdit }: SortableRowProps
 
   return (
     <SortableDataTableRow id={item.id} onClick={onEdit}>
-      {({ listeners }) => (
-        <>
-          <TableCell className="w-[32px] py-2.5 text-[#37352F]/20 cursor-grab" {...listeners}>
-            <GripVertical className="size-4" />
-          </TableCell>
-          <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>{item.name}</TableCell>
-          <TableCell className={`text-sm ${C.text70} py-2.5`}>
-            {SHIFT_TYPE_LABELS[item.shift_type] ?? item.shift_type}
-          </TableCell>
-          <TableCell className={`text-sm ${C.text70} py-2.5`}>{timeLabel}</TableCell>
-          <TableCell className="text-center py-2.5">
-            <NotionStatusPill isActive={item.is_active} />
-          </TableCell>
-          <TableCell className="text-right py-2.5">
-            <RowActionButton onClick={onEdit} />
-          </TableCell>
-        </>
-      )}
+      <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>{item.name}</TableCell>
+      <TableCell className={`text-sm ${C.text70} py-2.5`}>
+        {SHIFT_TYPE_LABELS[item.shift_type] ?? item.shift_type}
+      </TableCell>
+      <TableCell className={`text-sm ${C.text70} py-2.5`}>{timeLabel}</TableCell>
+      <TableCell className="text-center py-2.5">
+        <NotionStatusPill isActive={item.is_active} />
+      </TableCell>
+      <TableCell className="text-right py-2.5">
+        <RowActionButton onClick={onEdit} />
+      </TableCell>
     </SortableDataTableRow>
   );
 });
