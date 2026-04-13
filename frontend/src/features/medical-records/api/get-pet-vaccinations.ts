@@ -8,6 +8,14 @@ export interface PetVaccinationHistoryItem {
   name: string;
   date: string;
   next: string;
+  // 複製に使う生データ
+  vaccineId: number;
+  lot1: string;
+  lot2: string;
+  lot3: string;
+  lot4: string;
+  nextDate: string;
+  remarks: string;
 }
 
 function formatDate(iso?: string): string {
@@ -26,6 +34,13 @@ function transformToHistoryItem(v: Vaccination): PetVaccinationHistoryItem {
     name: v.vaccine?.name ?? `ワクチン(ID:${v.vaccine_id})`,
     date: formatDate(v.date),
     next: formatDate(v.next_date),
+    vaccineId: v.vaccine_id ?? 0,
+    lot1: v.lot1 ?? "",
+    lot2: v.lot2 ?? "",
+    lot3: v.lot3 ?? "",
+    lot4: v.lot4 ?? "",
+    nextDate: v.next_date ? v.next_date.split("T")[0] : "",
+    remarks: v.remarks ?? "",
   };
 }
 

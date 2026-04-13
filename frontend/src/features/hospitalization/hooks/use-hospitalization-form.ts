@@ -23,7 +23,7 @@ const DEFAULT_TREATMENT_PLANS: TreatmentPlan[] = [
     id: "1",
     treatmentContent: "adm rate",
     memo: "入院料1日分",
-    insurance: true,
+    is_insurance: true,
     unitPrice: 990,
     quantity: 1,
     discount: 0,
@@ -34,7 +34,7 @@ const DEFAULT_TREATMENT_PLANS: TreatmentPlan[] = [
     id: "2",
     treatmentContent: "PCG/SC ~15kg",
     memo: "",
-    insurance: false,
+    is_insurance: false,
     unitPrice: 990,
     quantity: 1,
     discount: 0,
@@ -85,8 +85,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       if (!selectedPets.length) {
-        toast.error("ペットを選択してください");
-        return { success: false, timestamp: Date.now() };
+        return { success: false, fieldErrors: { pet: "ペットを選択してください" }, timestamp: Date.now() };
       }
 
       const pet = selectedPets[0];
@@ -159,7 +158,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
         {
           id: String(hospitalizationData.pet_id),
           ownerId: String(hospitalizationData.owner_id),
-          ownerName: hospitalizationData.owner?.owner_name ?? "",
+          ownerName: hospitalizationData.owner?.name ?? "",
           name: hospitalizationData.pet.name,
           species: hospitalizationData.pet.animal_species?.name ?? "",
           breed: hospitalizationData.pet.breed,
@@ -204,10 +203,10 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   // rerender-functional-setstate: prev => 形式で treatmentPlans を deps から除外
   const addTreatmentPlan = useCallback(() => {
     const newPlan: TreatmentPlan = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       treatmentContent: "",
       memo: "",
-      insurance: false,
+      is_insurance: false,
       unitPrice: 0,
       quantity: 1,
       discount: 0,

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { Search, X, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ interface MasterSelectModalProps {
   matchBy?: "id" | "name";
 }
 
-export function MasterSelectModal({
+export const MasterSelectModal = memo(function MasterSelectModal({
   open,
   onOpenChange,
   title,
@@ -131,4 +131,4 @@ export function MasterSelectModal({
       </DialogContent>
     </Dialog>
   );
-}
+});

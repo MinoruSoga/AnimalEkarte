@@ -30,9 +30,9 @@ func NewClinicalPlanRepository(db *gorm.DB) ClinicalPlanRepository {
 func (r *clinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
 	var plan model.ClinicalPlan
 	err := r.db.WithContext(ctx).
-		Preload("DiagnosisCategory").
+		Preload("DiagnosisType").
 		Preload("DiagnosisName").
-		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id").
+		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND clinical_plans.medical_record_id = ?", clinicID, medicalRecordID).
 		First(&plan).Error
 	if err != nil {
@@ -52,8 +52,7 @@ func (r *clinicalPlanRepository) Create(ctx context.Context, plan *model.Clinica
 func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ClinicalPlan{}).
-		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id").
-		Where("clinical_plans.id = ? AND medical_records.clinic_id = ?", id, clinicID).
+		Where("clinical_plans.id = ? AND clinical_plans.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "clinical_plan", fmt.Sprintf("%d", id))
@@ -66,7 +65,7 @@ func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64
 
 func (r *clinicalPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id").
+		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("clinical_plans.id = ? AND medical_records.clinic_id = ?", id, clinicID).
 		Delete(&model.ClinicalPlan{})
 	if result.Error != nil {

@@ -17,7 +17,7 @@ type PermissionGroup struct {
 	SortOrder   int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt   time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt   gorm.DeletedAt `                                                      json:"-"`
 
 	// Relations
 	Rules  []PermissionGroupRule `gorm:"foreignKey:GroupID" json:"rules,omitempty"`

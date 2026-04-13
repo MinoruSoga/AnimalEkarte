@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useMasterItems } from "@/hooks/use-master-items";
+import { useMasterItems } from "@/features/master";
 
 /**
  * Hook that provides validation for active staff names.

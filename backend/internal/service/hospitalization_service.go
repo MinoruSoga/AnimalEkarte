@@ -41,11 +41,19 @@ func NewHospitalizationService(repos *repository.Repositories) HospitalizationSe
 }
 
 func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
-	return s.repos.Hospitalization.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	result, total, err := s.repos.Hospitalization.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list hospitalizations")
+	}
+	return result, total, nil
 }
 
 func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
-	return s.repos.Hospitalization.FindByID(ctx, clinicID, id)
+	result, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get hospitalization")
+	}
+	return result, nil
 }
 
 func (s *hospitalizationService) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
@@ -167,7 +175,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		Status:            string(model.HospitalizationStatusDischarged),
 	}
 
-	err = s.repos.Transaction(func(txRepos *repository.Repositories) error {
+	err = s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
 		// 1. 退院ステータスに更新
 		dischargedStatus := model.HospitalizationStatusDischarged
 		dischargeFields := map[string]any{
@@ -183,7 +191,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		}
 
 		// 2. ケアプラン取得
-		carePlanItems, err := txRepos.CarePlanItem.ListByHospitalizationID(ctx, id)
+		carePlanItems, err := txRepos.CarePlanItem.ListByHospitalizationID(ctx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get care plan items")
 		}
@@ -225,7 +233,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		// 5. 合計金額更新
 		if len(carePlanItems) > 0 {
 			taxTotal := int64(float64(totalAmount) * 0.10)
-			if err := txRepos.BillingItem.UpdateBillingTotals(ctx, billing.ID, totalAmount, taxTotal, totalAmount+taxTotal); err != nil {
+			if err := txRepos.BillingItem.UpdateBillingTotals(ctx, clinicID, billing.ID, totalAmount, taxTotal, totalAmount+taxTotal); err != nil {
 				return apperrors.Wrap(err, "failed to update billing totals")
 			}
 		}

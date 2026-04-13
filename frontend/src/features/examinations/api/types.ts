@@ -2,9 +2,9 @@
  * Backend API response types
  * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
-import type { Examination, ExaminationItem } from "@/types/generated/models";
+import type { Examination, ExamResult } from "@/types/generated/models";
 
-export type BackendExaminationItem = ExaminationItem;
+export type BackendExamResult = ExamResult;
 export type BackendExamination = Examination;
 
 export interface CreateExaminationRequest {
@@ -18,6 +18,7 @@ export interface CreateExaminationRequest {
 }
 
 export interface UpdateExaminationRequest {
+  medical_record_id?: number | null;
   status?: "pending" | "in_progress" | "result_entered" | "completed" | "confirmed";
   result_summary?: string;
   machine?: string;

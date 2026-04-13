@@ -1,16 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type {
-  DiagnosisCategory as ModelDiagnosisCategory,
+  DiagnosisType as ModelDiagnosisType,
   DiagnosisName as ModelDiagnosisName,
 } from "@/types/generated/models";
 import type {
-  CreateDiagnosisCategoryRequest,
-  UpdateDiagnosisCategoryRequest,
+  CreateDiagnosisTypeRequest,
+  UpdateDiagnosisTypeRequest,
   CreateDiagnosisNameRequest,
   UpdateDiagnosisNameRequest,
-  ReorderDiagnosisCategoryRequest,
+  ReorderDiagnosisTypeRequest,
   ReorderDiagnosisNameRequest,
 } from "@/types/diagnosis";
 
@@ -18,7 +19,7 @@ import type {
 // Transform functions → domain types (camelCase)
 // ─────────────────────────────────────────────────
 
-function transformDiagnosisCategory(data: ModelDiagnosisCategory) {
+function transformDiagnosisType(data: ModelDiagnosisType) {
   return {
     id: String(data.id ?? 0),
     clinicId: data.clinic_id,
@@ -38,7 +39,7 @@ function transformDiagnosisName(data: ModelDiagnosisName) {
     name: data.name,
     isActive: data.is_active,
     description: data.description,
-    diagnosisCategoryId: String(data.diagnosis_category_id ?? 0),
+    diagnosisTypeId: String(data.diagnosis_type_id ?? 0),
     sortOrder: data.sort_order,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
@@ -46,7 +47,7 @@ function transformDiagnosisName(data: ModelDiagnosisName) {
 }
 
 // Frontend domain types derived from transforms (編集禁止 - ReturnType から自動導出)
-export type DiagnosisCategory = ReturnType<typeof transformDiagnosisCategory>;
+export type DiagnosisType = ReturnType<typeof transformDiagnosisType>;
 export type DiagnosisName = ReturnType<typeof transformDiagnosisName>;
 
 // ─────────────────────────────────────────────────
@@ -54,11 +55,11 @@ export type DiagnosisName = ReturnType<typeof transformDiagnosisName>;
 // ─────────────────────────────────────────────────
 
 export type {
-  CreateDiagnosisCategoryRequest,
-  UpdateDiagnosisCategoryRequest,
+  CreateDiagnosisTypeRequest,
+  UpdateDiagnosisTypeRequest,
   CreateDiagnosisNameRequest,
   UpdateDiagnosisNameRequest,
-  ReorderDiagnosisCategoryRequest,
+  ReorderDiagnosisTypeRequest,
   ReorderDiagnosisNameRequest,
 } from "@/types/diagnosis";
 
@@ -66,49 +67,49 @@ export type {
 // Query keys
 // ─────────────────────────────────────────────────
 
-const DIAGNOSIS_CATEGORIES_KEY = ["masters", "diagnosis-categories"] as const;
+const DIAGNOSIS_TYPES_KEY = ["masters", "diagnosis-types"] as const;
 const DIAGNOSIS_NAMES_KEY = ["masters", "diagnosis-names"] as const;
 
 // ─────────────────────────────────────────────────
-// API functions - DiagnosisCategory
+// API functions - DiagnosisType
 // ─────────────────────────────────────────────────
 
-export async function listDiagnosisCategories(): Promise<DiagnosisCategory[]> {
-  const { data } = await axios.get<ModelDiagnosisCategory[]>(
-    "/v1/masters/diagnosis-categories",
+export async function listDiagnosisTypes(): Promise<DiagnosisType[]> {
+  const { data } = await axios.get<ModelDiagnosisType[]>(
+    "/v1/masters/diagnosis-types",
   );
-  return data.map(transformDiagnosisCategory);
+  return data.map(transformDiagnosisType);
 }
 
-export async function createDiagnosisCategory(
-  req: CreateDiagnosisCategoryRequest,
-): Promise<DiagnosisCategory> {
-  const { data } = await axios.post<ModelDiagnosisCategory>(
-    "/v1/masters/diagnosis-categories",
+export async function createDiagnosisType(
+  req: CreateDiagnosisTypeRequest,
+): Promise<DiagnosisType> {
+  const { data } = await axios.post<ModelDiagnosisType>(
+    "/v1/masters/diagnosis-types",
     req,
   );
-  return transformDiagnosisCategory(data);
+  return transformDiagnosisType(data);
 }
 
-export async function updateDiagnosisCategory(
+export async function updateDiagnosisType(
   id: string,
-  req: UpdateDiagnosisCategoryRequest,
-): Promise<DiagnosisCategory> {
-  const { data } = await axios.patch<ModelDiagnosisCategory>(
-    `/v1/masters/diagnosis-categories/${id}`,
+  req: UpdateDiagnosisTypeRequest,
+): Promise<DiagnosisType> {
+  const { data } = await axios.patch<ModelDiagnosisType>(
+    `/v1/masters/diagnosis-types/${id}`,
     req,
   );
-  return transformDiagnosisCategory(data);
+  return transformDiagnosisType(data);
 }
 
-export async function deleteDiagnosisCategory(id: string): Promise<void> {
-  await axios.delete(`/v1/masters/diagnosis-categories/${id}`);
+export async function deleteDiagnosisType(id: string): Promise<void> {
+  await axios.delete(`/v1/masters/diagnosis-types/${id}`);
 }
 
-export async function reorderDiagnosisCategories(
-  req: ReorderDiagnosisCategoryRequest,
+export async function reorderDiagnosisTypes(
+  req: ReorderDiagnosisTypeRequest,
 ): Promise<void> {
-  await axios.patch("/v1/masters/diagnosis-categories/reorder", req);
+  await axios.patch("/v1/masters/diagnosis-types/reorder", req);
 }
 
 // ─────────────────────────────────────────────────
@@ -154,56 +155,60 @@ export async function reorderDiagnosisNames(
 }
 
 // ─────────────────────────────────────────────────
-// TanStack Query hooks - DiagnosisCategory
+// TanStack Query hooks - DiagnosisType
 // ─────────────────────────────────────────────────
 
-export function useGetDiagnosisCategories() {
+export function useGetDiagnosisTypes() {
   return useQuery({
-    queryKey: DIAGNOSIS_CATEGORIES_KEY,
-    queryFn: listDiagnosisCategories,
+    queryKey: DIAGNOSIS_TYPES_KEY,
+    queryFn: listDiagnosisTypes,
     staleTime: QUERY_STALE_TIMES.STATIC, // マスタデータ: 30分キャッシュ
     gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
-export function useCreateDiagnosisCategory() {
+export function useCreateDiagnosisType() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createDiagnosisCategory,
+    mutationFn: createDiagnosisType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_CATEGORIES_KEY });
+      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
-export function useUpdateDiagnosisCategory() {
+export function useUpdateDiagnosisType() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateDiagnosisCategoryRequest }) =>
-      updateDiagnosisCategory(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdateDiagnosisTypeRequest }) =>
+      updateDiagnosisType(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_CATEGORIES_KEY });
+      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
-export function useDeleteDiagnosisCategory() {
+export function useDeleteDiagnosisType() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deleteDiagnosisCategory,
+    mutationFn: deleteDiagnosisType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_CATEGORIES_KEY });
+      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }
 
-export function useReorderDiagnosisCategories() {
+export function useReorderDiagnosisTypes() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: reorderDiagnosisCategories,
+    mutationFn: reorderDiagnosisTypes,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_CATEGORIES_KEY });
+      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
     },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 }
 
@@ -227,6 +232,7 @@ export function useCreateDiagnosisName() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
@@ -238,6 +244,7 @@ export function useUpdateDiagnosisName() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
@@ -248,6 +255,7 @@ export function useDeleteDiagnosisName() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }
 
@@ -258,5 +266,6 @@ export function useReorderDiagnosisNames() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
     },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 }

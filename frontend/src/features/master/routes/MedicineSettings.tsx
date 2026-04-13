@@ -26,9 +26,7 @@ import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
-import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { PropertyRow, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -150,7 +148,7 @@ function SortableMedicineRow({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
+                  className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverBgMedium} ${C.hoverText}`}
                 >
                   <MoreHorizontal className={ICON.action} />
                 </button>
@@ -162,7 +160,7 @@ function SortableMedicineRow({
             <button
               type="button"
               onClick={() => onEdit(medicine)}
-              className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors`}
+              className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverBgMedium} ${C.hoverText}`}
             >
               <Maximize2 className={`${ICON.xs}`} />
             </button>
@@ -638,11 +636,6 @@ export function MedicineSettings() {
   const [, startSaveTransition] = useTransition();
 
   const handleSave = useCallback(() => {
-    if (!formData.name.trim()) {
-      toast.error("薬品名は必須です");
-      return;
-    }
-
     // カテゴリ編集時は price を 0 に固定（disabled UI をバイパス対策）
     const effectivePrice = isCategoryMedicine(selectedMedicine) ? 0 : formData.price;
 
@@ -766,7 +759,7 @@ export function MedicineSettings() {
                         type="button"
                         tabIndex={-1}
                         onClick={(e) => e.stopPropagation()}
-                        className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text20} ${C.hoverBgMedium} ${C.hoverText60} transition-colors cursor-grab`}
+                        className={`${STYLE.iconBtn32} ${C.text20} ${C.hoverBgMedium} ${C.hoverText60} cursor-grab`}
                       >
                         <GripVertical className={ICON.action} />
                       </button>
@@ -784,7 +777,7 @@ export function MedicineSettings() {
                           className={`flex items-center gap-1.5 py-1.5 px-1 ${C.hoverBgLight} rounded-[3px] transition-colors`}
                         >
                           <ChevronRight
-                            className={`size-5 ${C.text50} transition-transform duration-150 ${
+                            className={`${ICON.xs} ${C.text50} transition-transform duration-150 ${
                               isCollapsed ? "" : "rotate-90"
                             }`}
                           />
@@ -801,7 +794,7 @@ export function MedicineSettings() {
                               e.stopPropagation();
                               handleCreate(parentId);
                             }}
-                            className={`w-8 h-8 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
+                            className={`${STYLE.iconBtn32} ${C.text40} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100`}
                           >
                             <Plus className={`${ICON.xs}`} />
                           </button>
@@ -827,7 +820,7 @@ export function MedicineSettings() {
                           <DropdownMenuTrigger asChild>
                             <button
                               type="button"
-                              className={`w-7 h-7 flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} ${C.hoverText} transition-colors opacity-0 group-hover/header:opacity-100`}
+                              className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100`}
                             >
                               <MoreHorizontal className={ICON.action} />
                             </button>
@@ -894,7 +887,7 @@ export function MedicineSettings() {
         <button
           type="button"
           onClick={() => handleCreate()}
-          className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}
+          className={STYLE.inlineAddBtn}
         >
           <Plus className={`${ICON.xs}`} />
           新しい薬剤を追加...

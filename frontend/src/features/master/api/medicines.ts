@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformBackendMedicineToFrontend } from "@/lib/transforms/medicine";
 import type { Medicine } from "@/lib/transforms/medicine";
@@ -56,6 +57,7 @@ export const useCreateMedicine = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 };
 
@@ -72,6 +74,7 @@ export const useUpdateMedicine = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 };
 
@@ -86,6 +89,7 @@ export const useDeleteMedicine = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 };
 
@@ -100,5 +104,6 @@ export const useReorderMedicines = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
     },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 };

@@ -18,7 +18,7 @@ import PawPrint from "lucide-react/dist/esm/icons/paw-print";
 import ShoppingBag from "lucide-react/dist/esm/icons/shopping-bag";
 
 import type { Resource } from "@/types/generated/models";
-import { ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterServiceType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCheckups } from "@/types/generated/models";
+import { ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceCheckups } from "@/types/generated/models";
 
 // All master categories for the settings UI
 // Note: some of these have their own backend tables, but all appear in settings UI
@@ -27,7 +27,7 @@ export type MasterSettingsCategory =
   | "vaccine"
   | "medicine"
   | "consultation"
-  | "serviceType"
+  | "reservationType"
   | "procedure"
   | "hospitalization"
   | "cage"
@@ -35,7 +35,7 @@ export type MasterSettingsCategory =
   | "trimming_option"
   | "staff"
   | "insurance"
-  | "diagnosis_category"
+  | "diagnosis_type"
   | "diagnosis_name"
   | "checkup"
   | "occupations"
@@ -101,12 +101,12 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     showPrice: true, showCode: false, showCategory: false, showParentItem: true,
     namePlaceholder: "再診料", codePlaceholder: "",
   },
-  serviceType: {
+  reservationType: {
     label: "予約区分マスタ",
     description: "予約の区分（診療、トリミング入院等）を管理します",
-    settingsPath: "/settings/service-type",
+    settingsPath: "/settings/reservation-type",
     IconComponent: Activity,
-    resource: ResourceMasterServiceType,
+    resource: ResourceMasterReservationType,
     labels: { code: "コード", name: "名称", category: "分類" },
     showPrice: false, showCode: false, showCategory: false, showParentItem: false,
     namePlaceholder: "診療", codePlaceholder: "",
@@ -181,10 +181,10 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     showPrice: false, showCode: false, showCategory: false, showParentItem: false,
     namePlaceholder: "アニコム", codePlaceholder: "",
   },
-  diagnosis_category: {
+  diagnosis_type: {
     label: "診断カテゴリマスタ",
     description: "消化器疾患、呼吸器疾患などの診断カテゴリを管理します",
-    settingsPath: "/settings/diagnosis-category",
+    settingsPath: "/settings/diagnosis-type",
     IconComponent: FolderTree,
     resource: ResourceMasterMedical,
     labels: { code: "コード", name: "カテゴリ名", category: "分類" },
@@ -267,7 +267,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
 export const CATEGORY_ALIAS_MAP: Record<string, MasterSettingsCategory> = {
   trimmingCourse: "trimming_course",
   trimmingOption: "trimming_option",
-  diagnosisCategory: "diagnosis_category",
+  diagnosisType: "diagnosis_type",
   diagnosisName: "diagnosis_name",
   inquiryTemplate: "inquiry_template",
   merchandiseItem: "merchandise_item",

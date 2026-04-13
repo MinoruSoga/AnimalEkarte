@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { AnimalSpecies as ModelAnimalSpecies } from "@/types/generated/models";
 
@@ -104,6 +105,7 @@ export function useCreateAnimalSpecies() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ANIMAL_SPECIES_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
@@ -115,6 +117,7 @@ export function useUpdateAnimalSpecies() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ANIMAL_SPECIES_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
@@ -125,6 +128,7 @@ export function useDeleteAnimalSpecies() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ANIMAL_SPECIES_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }
 
@@ -135,5 +139,6 @@ export function useReorderAnimalSpecies() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ANIMAL_SPECIES_KEY });
     },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 }

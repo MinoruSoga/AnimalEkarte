@@ -10,6 +10,7 @@ import { useModalState } from "@/hooks/use-modal-state";
 import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar, CircleDot, User, PawPrint } from "lucide-react";
 
 // Internal
+import { paths } from "@/config/paths";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -20,7 +21,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Pagination } from "@/components/shared/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
@@ -159,8 +160,8 @@ export function MedicalRecords() {
 
   const handleNavigateToForm = useCallback((recordId?: string) => {
     navigate(
-      recordId ? `/medical-records/${recordId}` : "/medical-records/select-pet",
-      { state: { from: "/medical-records" } },
+      recordId ? paths.medicalRecords.detail.getHref(recordId) : paths.medicalRecords.selectPet.getHref(),
+      { state: { from: paths.medicalRecords.getHref() } },
     );
   }, [navigate]);
 
@@ -241,7 +242,7 @@ export function MedicalRecords() {
                 <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
                 <TableCell className={STYLE.tableCell}>{r.petName}</TableCell>
                 <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{r.species}</TableCell>
-                <TableCell className={`text-base ${C.text} max-w-[200px] truncate py-2.5`} title={r.chiefComplaint}>
+                <TableCell className={`${STYLE.tableCell} max-w-[200px] truncate`} title={r.chiefComplaint}>
                   {r.chiefComplaint}
                 </TableCell>
                 <TableCell className="py-2.5 hidden lg:table-cell">
@@ -249,7 +250,7 @@ export function MedicalRecords() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/accounting/${r.accountingId}`);
+                        navigate(paths.accounting.detail.getHref(r.accountingId ?? ""));
                       }}
                       className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-[3px] border ${C.textSuccess} ${C.bgSuccess10} ${C.borderSuccess30} ${C.hoverBgSuccess20} transition-colors`}
                     >

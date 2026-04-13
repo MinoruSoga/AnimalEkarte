@@ -4,7 +4,8 @@ import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { toast } from "sonner";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -53,7 +54,7 @@ export function ResetPasswordPage() {
       try {
         await resetPassword({ token, password });
         toast.success("パスワードを変更しました");
-        void navigate("/login");
+        void navigate(paths.auth.login.getHref());
         return { error: null };
       } catch (err) {
         handleApiError(err, "パスワードのリセット");
@@ -76,7 +77,7 @@ export function ResetPasswordPage() {
             パスワードリセットリンクが無効または期限切れです。再度リセットを申請してください。
           </p>
           <Link
-            to="/forgot-password"
+            to={paths.auth.forgotPassword.getHref()}
             className={`block text-sm ${C.text50} hover:underline`}
           >
             パスワードリセットを再申請する
@@ -120,7 +121,7 @@ export function ResetPasswordPage() {
               <button
                 type="button"
                 onClick={handleTogglePassword}
-                className={`absolute right-1 top-1/2 -translate-y-1/2 size-8 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} transition-colors`}
+                className={`absolute right-1 top-1/2 -translate-y-1/2 ${STYLE.iconBtn32} ${C.text35} ${C.hoverText}`}
                 aria-label={showPassword ? "パスワードを非表示" : "パスワードを表示"}
               >
                 {showPassword ? <EyeOff className={ICON.action} /> : <Eye className={ICON.action} />}
@@ -147,7 +148,7 @@ export function ResetPasswordPage() {
               <button
                 type="button"
                 onClick={handleToggleConfirmPassword}
-                className={`absolute right-1 top-1/2 -translate-y-1/2 size-8 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} transition-colors`}
+                className={`absolute right-1 top-1/2 -translate-y-1/2 ${STYLE.iconBtn32} ${C.text35} ${C.hoverText}`}
                 aria-label={showConfirmPassword ? "確認パスワードを非表示" : "確認パスワードを表示"}
               >
                 {showConfirmPassword ? <EyeOff className={ICON.action} /> : <Eye className={ICON.action} />}
@@ -165,7 +166,7 @@ export function ResetPasswordPage() {
           </SubmitButton>
 
           <Link
-            to="/login"
+            to={paths.auth.login.getHref()}
             className={`block text-center text-sm ${C.text50} hover:underline`}
           >
             ログインページに戻る

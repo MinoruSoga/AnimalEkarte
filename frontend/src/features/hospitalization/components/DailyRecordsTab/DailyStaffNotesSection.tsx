@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useCallback } from "react";
+import { memo, useState, useCallback } from "react";
 
 // External
 import { MessageSquare, Plus } from "lucide-react";
@@ -13,11 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Types
-import type { ApiStaffNoteRecord, CreateStaffNoteRecordRequest } from "@/features/hospitalization/api/daily-records-types";
+import type { ApiStaffNote, CreateStaffNoteRequest } from "@/features/hospitalization/api/daily-records-types";
 
 interface DailyStaffNotesSectionProps {
-    staffNotes: ApiStaffNoteRecord[];
-    onAddStaffNote: (payload: CreateStaffNoteRecordRequest) => void;
+    staffNotes: ApiStaffNote[];
+    onAddStaffNote: (payload: CreateStaffNoteRequest) => void;
     isPending: boolean;
     canCreate?: boolean;
 }
@@ -37,7 +37,7 @@ function getCurrentTime(): string {
     return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-export function DailyStaffNotesSection({
+export const DailyStaffNotesSection = memo(function DailyStaffNotesSection({
     staffNotes,
     onAddStaffNote,
     isPending,
@@ -151,4 +151,4 @@ export function DailyStaffNotesSection({
             </FormDialog>
         </div>
     );
-}
+});

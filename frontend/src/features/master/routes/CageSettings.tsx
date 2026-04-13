@@ -6,11 +6,7 @@ import { Plus, Building2, GripVertical } from "lucide-react";
 import { Table, TableBody, TableHeader, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
-import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
-import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
-import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { PropertyRow, StatusToggleButton, MoneyInput, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
@@ -231,7 +227,7 @@ export function CageSettings() {
         </div>
         {canCreate ? (
           <button type="button" onClick={crud.handleNew}
-            className={`flex items-center gap-1.5 w-full px-3 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPageHalf} transition-colors rounded-b-[4px]`}>
+            className={STYLE.inlineAddBtn}>
             <Plus className={`${ICON.xs}`} />新しいケージを追加...
           </button>
         ) : null}

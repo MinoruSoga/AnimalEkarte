@@ -5,7 +5,7 @@ type createPetRequest struct {
 	OwnerID         uint64    `json:"owner_id"          binding:"required"`
 	AnimalSpeciesID uint64    `json:"animal_species_id" binding:"required"`
 	Name            string    `json:"name"              binding:"required"`
-	PetNameKana     string    `json:"pet_name_kana"`
+	NameKana        string    `json:"name_kana"`
 	Gender          string    `json:"gender"`
 	Status          string    `json:"status"`
 	BirthDate       *jsonDate `json:"birth_date"`
@@ -29,7 +29,7 @@ type updatePetRequest struct {
 	AnimalSpeciesID *uint64   `json:"animal_species_id"`
 	PetNumber       *string   `json:"pet_number"` // 自動採番後も手動変更可
 	Name            *string   `json:"name"`
-	PetNameKana     *string   `json:"pet_name_kana"`
+	NameKana        *string   `json:"name_kana"`
 	Gender          *string   `json:"gender"`
 	Status          *string   `json:"status"`
 	BirthDate       *jsonDate `json:"birth_date"`

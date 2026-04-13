@@ -6,21 +6,40 @@ import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDat
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C } from "@/lib/design-tokens";
 
+// rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+const SORT_ORDER_SELECT_ITEMS = (
+  <>
+    <SelectItem value="desc">降順</SelectItem>
+    <SelectItem value="asc">昇順</SelectItem>
+  </>
+);
+
 interface HistoryItem {
   id: number;
   name: string;
   date: string;
   next: string;
+  vaccineId: number;
+  lot1: string;
+  lot2: string;
+  lot3: string;
+  lot4: string;
+  nextDate: string;
+  remarks: string;
 }
 
 interface VaccinationHistoryProps {
   historyItems: HistoryItem[];
   isLoading?: boolean;
+  onDuplicate?: (item: HistoryItem) => void;
+  canCreate?: boolean;
 }
 
 export const VaccinationHistory = memo(function VaccinationHistory({
   historyItems,
   isLoading = false,
+  onDuplicate,
+  canCreate = false,
 }: VaccinationHistoryProps) {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
@@ -83,10 +102,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
               <SelectTrigger className={`w-[80px] h-10 bg-white ${C.borderMedium} text-sm`}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="desc">降順</SelectItem>
-                <SelectItem value="asc">昇順</SelectItem>
-              </SelectContent>
+              <SelectContent>{SORT_ORDER_SELECT_ITEMS}</SelectContent>
             </Select>
           </div>
         </div>
@@ -132,13 +148,16 @@ export const VaccinationHistory = memo(function VaccinationHistory({
                 {item.next}
               </div>
               <div className={`w-[70px] px-2 flex justify-center border-l ${C.borderMedium}`}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`h-10 w-[50px] text-sm ${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} border-transparent px-0`}
-                >
-                  複製
-                </Button>
+                {canCreate ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`h-10 w-[50px] text-sm ${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} border-transparent px-0`}
+                    onClick={() => onDuplicate?.(item)}
+                  >
+                    複製
+                  </Button>
+                ) : null}
               </div>
             </div>
           )) : null}

@@ -36,7 +36,7 @@ services:
       # LIFF Mock: ローカル開発用認証バイパス
       LIFF_MOCK: "true"
       # CORS: 管理画面 + LIFF App + LINE内ブラウザ
-      CORS_ALLOWED_ORIGIN: "http://localhost:3000,http://localhost:3001,https://liff.line.me"
+      CORS_ALLOWED_ORIGIN: "http://localhost:3000,http://localhost:3001,http://localhost:3003,https://liff.line.me"
       # SMTP通知（.env.local に設定: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM）
       # LINE アクセストークン・通知先メールはクリニックごとに reservation_settings（DB）で管理する
     ports:
@@ -70,17 +70,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-
-  liff-app:
-    build:
-      context: ./liff-app
-      dockerfile: Dockerfile
-    networks:
-      - ekarte-network
-    ports:
-      - "3001:80"
-    profiles:
-      - liff
 
   codegen:
     image: golang:1.25-alpine

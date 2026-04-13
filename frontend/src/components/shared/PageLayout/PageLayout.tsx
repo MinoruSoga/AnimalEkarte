@@ -1,7 +1,7 @@
-import { ReactNode, type RefObject } from "react";
+import { memo, type ReactNode, type RefObject } from "react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
-import { C } from "@/lib/design-tokens";
+import { STYLE } from "@/lib/design-tokens";
 import type { Resource } from "@/types/generated/models";
 
 interface PageLayoutProps {
@@ -20,7 +20,7 @@ interface PageLayoutProps {
   scrollContainerRef?: RefObject<HTMLDivElement | null>;
 }
 
-export function PageLayout({
+export const PageLayout = memo(function PageLayout({
   children,
   title,
   description: _description,
@@ -42,7 +42,7 @@ export function PageLayout({
 
   return (
     <div
-      className={`flex flex-col h-full ${C.bgPage} overflow-hidden ${className || ""}`}
+      className={`flex flex-col h-full ${STYLE.page} ${className || ""}`}
     >
       <FormHeader
         title={title}
@@ -59,4 +59,4 @@ export function PageLayout({
       </div>
     </div>
   );
-}
+});

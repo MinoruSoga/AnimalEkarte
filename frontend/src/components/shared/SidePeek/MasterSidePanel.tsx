@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import type { ReactNode } from "react";
+import { memo, useEffect, type ReactNode } from "react";
 import { STYLE } from "@/lib/design-tokens";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
 import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
@@ -30,7 +29,7 @@ interface MasterSidePanelProps {
   children: ReactNode;
 }
 
-export function MasterSidePanel({
+export const MasterSidePanel = memo(function MasterSidePanel({
   isNew,
   title,
   onTitleChange,
@@ -117,4 +116,4 @@ export function MasterSidePanel({
       )}
     </SidePeekPanel>
   );
-}
+});

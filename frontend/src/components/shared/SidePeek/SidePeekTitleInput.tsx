@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 
@@ -15,7 +16,7 @@ interface SidePeekTitleInputProps {
   maxLength?: number;
 }
 
-export function SidePeekTitleInput({
+export const SidePeekTitleInput = memo(function SidePeekTitleInput({
   id,
   value,
   onChange,
@@ -59,4 +60,4 @@ export function SidePeekTitleInput({
       {error ? <FormFieldError message={error} /> : null}
     </div>
   );
-}
+});

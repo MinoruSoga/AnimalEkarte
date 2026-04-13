@@ -1,11 +1,14 @@
 // React/Framework
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useState, useCallback, useTransition } from "react";
 
 // Internal
 import { useGetAllVaccinesMaster } from "@/features/master";
+import { useCreateVaccination } from "@/features/vaccinations";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
 import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
+import type { PetVaccinationHistoryItem } from "../api/get-pet-vaccinations";
 import { VaccinationForm } from "./VaccinationForm";
 import { VaccinationHistory } from "./VaccinationHistory";
 
@@ -16,7 +19,7 @@ interface MedicalRecordVaccinationProps {
 export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   petId,
 }: MedicalRecordVaccinationProps) {
-  const [vaccineName, setVaccineName] = useState("esophagitis");
+  const [vaccineName, setVaccineName] = useState("");
   const [date, setDate] = useState("");
   const [supplemental, setSupplemental] = useState("");
   const [lot1, setLot1] = useState("");
@@ -27,8 +30,11 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   const [nextDate, setNextDate] = useState("");
   const [remarks, setRemarks] = useState("");
 
+  const [isSaving, startSaveTransition] = useTransition();
+
   const { data: historyItems = [], isLoading } = useGetPetVaccinations(petId);
   const { data: vaccinesMaster = [] } = useGetAllVaccinesMaster();
+  const { mutateAsync: createVaccination } = useCreateVaccination();
 
   const vaccineOptions = useMemo(
     () => vaccinesMaster.flatMap((v) =>
@@ -36,6 +42,49 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
     ),
     [vaccinesMaster]
   );
+
+  const handleDuplicate = useCallback((item: PetVaccinationHistoryItem) => {
+    setVaccineName(String(item.vaccineId));
+    setDate(""); // 実施日は新しく入力させる
+    setLot1(item.lot1);
+    setLot2(item.lot2);
+    setLot3(item.lot3);
+    setLot4(item.lot4);
+    setNextDate(item.nextDate);
+    setRemarks(item.remarks);
+  }, []);
+
+  const handleSave = useCallback(() => {
+    if (!petId || !vaccineName || !date) return;
+    startSaveTransition(async () => {
+      try {
+        await createVaccination({
+          pet_id: Number(petId),
+          vaccine_id: Number(vaccineName),
+          date,
+          lot1: lot1 || undefined,
+          lot2: lot2 || undefined,
+          lot3: lot3 || undefined,
+          lot4: lot4 || undefined,
+          next_date: nextDate || null,
+          remarks: remarks || undefined,
+        });
+        // フォームをリセット
+        setVaccineName("");
+        setDate("");
+        setSupplemental("");
+        setLot1("");
+        setLot2("");
+        setLot3("");
+        setLot4("");
+        setNextScheduleType("4weeks");
+        setNextDate("");
+        setRemarks("");
+      } catch (err) {
+        handleApiError(err, "予防接種の登録");
+      }
+    });
+  }, [petId, vaccineName, date, lot1, lot2, lot3, lot4, nextDate, remarks, createVaccination]);
 
   return (
     <div className="grid grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1">
@@ -62,10 +111,17 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         setNextDate={setNextDate}
         remarks={remarks}
         setRemarks={setRemarks}
+        onSave={handleSave}
+        isSaving={isSaving}
       />
 
       {/* Right Column: History */}
-      <VaccinationHistory historyItems={historyItems} isLoading={isLoading} />
+      <VaccinationHistory
+        historyItems={historyItems}
+        isLoading={isLoading}
+        onDuplicate={handleDuplicate}
+        canCreate={!!petId}
+      />
     </div>
   );
 });

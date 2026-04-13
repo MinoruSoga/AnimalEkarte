@@ -23,12 +23,14 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { useFilterVaccinations } from "../hooks/use-vaccinations";
 import { useDeleteVaccination } from "../api/delete-vaccination";
 import { usePermission } from "@/features/auth";
+import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Types
 import type { VaccinationRecord } from "@/types";
@@ -65,7 +67,7 @@ export function VaccinationList() {
   const { canCreate, canEdit, canDelete } = usePermission("vaccinations");
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const deleteMutation = useDeleteVaccination();
+  const { mutate: deleteVaccinationFn } = useDeleteVaccination();
   const [isDeletePending, startDeleteTransition] = useTransition();
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearchTerm = useDeferredValue(searchTerm);
@@ -108,17 +110,19 @@ export function VaccinationList() {
   const urlPage = Number(searchParams.get("page") ?? 1);
 
   // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  // rerender-dependencies: pagination（オブジェクト）を destructure し primitive を deps に使用
+  const { totalPages, currentPage, goToPage } = pagination;
   useEffect(() => {
-    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
-    if (clampedPage !== pagination.currentPage) {
-      pagination.goToPage(clampedPage);
+    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
+    if (clampedPage !== currentPage) {
+      goToPage(clampedPage);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlPage, pagination.totalPages]);
+  }, [urlPage, totalPages]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新
   const handlePageChange = useCallback((page: number) => {
-    pagination.goToPage(page);
+    goToPage(page);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (page === 1) {
@@ -128,7 +132,7 @@ export function VaccinationList() {
       }
       return next;
     }, { replace: true });
-  }, [pagination, setSearchParams]);
+  }, [goToPage, setSearchParams]);
 
 
   const handleCreate = useCallback(() => {
@@ -136,17 +140,23 @@ export function VaccinationList() {
   }, [navigate]);
 
   const handleEdit = useCallback((id: string) => {
-    navigate(`/vaccinations/${id}`);
+    navigate(paths.vaccinations.detail.getHref(id));
   }, [navigate]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDeleteId) return;
     startDeleteTransition(() => {
-      deleteMutation.mutate(pendingDeleteId, {
-        onSuccess: () => setPendingDeleteId(null),
+      deleteVaccinationFn(pendingDeleteId, {
+        onSuccess: () => {
+          toast.success("予防接種記録を削除しました");
+          setPendingDeleteId(null);
+        },
+        onError: (error) => {
+          handleApiError(error, "削除");
+        },
       });
     });
-  }, [pendingDeleteId, deleteMutation]);
+  }, [pendingDeleteId, deleteVaccinationFn]);
 
   const columns = useMemo(() => [
     {

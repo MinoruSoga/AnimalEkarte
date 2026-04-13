@@ -9,15 +9,16 @@ interface MyReservationsPageProps {
   onBack: () => void;
 }
 
-function formatTime(hhmm: string): string {
-  if (!hhmm || hhmm.length < 4) return hhmm;
-  return `${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}`;
-}
-
 function formatDate(dateStr: string): string {
   if (!dateStr) return '';
   const [year, month, day] = dateStr.split('-');
   return `${year}年${Number(month)}月${Number(day)}日`;
+}
+
+function formatCreatedAt(isoStr: string): string {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 申し込み`;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -122,9 +123,13 @@ export function MyReservationsPage({
                   <div className="text-sm text-noah-text space-y-1">
                     <p>📅 {formatDate(reservation.date)}</p>
                     <p>
-                      🕐 {formatTime(reservation.start_time)} 〜 {formatTime(reservation.end_time)}
+                      🕐 {reservation.start_time} 〜 {reservation.end_time}
                     </p>
                   </div>
+
+                  {reservation.created_at ? (
+                    <p className="text-xs text-gray-400 mt-2">{formatCreatedAt(reservation.created_at)}</p>
+                  ) : null}
 
                   {reservation.status === 'confirmed' ? (
                     <div className="mt-3 pt-3 border-t border-gray-100">

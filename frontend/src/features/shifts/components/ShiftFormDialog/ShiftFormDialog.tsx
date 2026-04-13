@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useActionState } from "react";
+import { memo, useState, useEffect, useRef, useCallback, useActionState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +9,14 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import type { Shift, ShiftType, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
+import type { Shift, ShiftType, ShiftBreakInput, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
 import { SHIFT_TYPE_LABELS } from "@/features/shifts/types";
 import { ShiftTypeOff } from "@/types/generated/models";
+import { C, ICON } from "@/lib/design-tokens";
 import { createShift } from "@/features/shifts/api/create-shift";
 import { updateShift } from "@/features/shifts/api/update-shift";
 import { useDeleteShift } from "@/features/shifts/api/delete-shift";
+import { useGetShiftTemplates } from "@/features/shifts/api/get-shift-templates";
 import { handleApiError } from "@/lib/handle-api-error";
 
 /**
@@ -51,7 +54,7 @@ interface FormActionState {
   timeError?: string;
 }
 
-export function ShiftFormDialog({
+export const ShiftFormDialog = memo(function ShiftFormDialog({
   open,
   onClose,
   staffId,
@@ -62,12 +65,23 @@ export function ShiftFormDialog({
   canDelete = false,
 }: ShiftFormDialogProps) {
   const isEdit = editShift !== undefined;
+  // rerender-dependencies: editShift オブジェクトの代わりに primitive id を deps に使用
+  const editShiftId = editShift?.id;
   const queryClient = useQueryClient();
+
+  // テンプレート選択
+  const { data: templates = [] } = useGetShiftTemplates();
 
   // Controlled state for Select and time inputs (needed for UI feedback and FormData relay)
   const [shiftType, setShiftType] = useState<ShiftType>(() => editShift?.shift_type ?? "full");
   const [startTime, setStartTime] = useState(() => normalizeTimeToHHmm(editShift?.start_time ?? ""));
   const [endTime, setEndTime] = useState(() => normalizeTimeToHHmm(editShift?.end_time ?? ""));
+  const [breaks, setBreaks] = useState<ShiftBreakInput[]>(() =>
+    (editShift?.breaks ?? []).map((b) => ({ break_start: normalizeTimeToHHmm(b.break_start), break_end: normalizeTimeToHHmm(b.break_end) })),
+  );
+  // rerender-dependencies: breaks 配列を ref 経由で参照し formAction deps から除外
+  const breaksRef = useRef(breaks);
+  useEffect(() => { breaksRef.current = breaks; }, [breaks]);
 
   useEffect(() => {
     if (open) {
@@ -75,6 +89,7 @@ export function ShiftFormDialog({
       setShiftType(editShift?.shift_type ?? "full");
       setStartTime(normalizeTimeToHHmm(editShift?.start_time ?? ""));
       setEndTime(normalizeTimeToHHmm(editShift?.end_time ?? ""));
+      setBreaks((editShift?.breaks ?? []).map((b) => ({ break_start: normalizeTimeToHHmm(b.break_start), break_end: normalizeTimeToHHmm(b.break_end) })));
     }
   }, [open, editShift]);
 
@@ -89,22 +104,26 @@ export function ShiftFormDialog({
       }
 
       try {
-        if (isEdit && editShift) {
+        if (isEdit && editShiftId) {
+          const validBreaks = breaksRef.current.filter((b) => b.break_start && b.break_end);
           const input: UpdateShiftInput = {
             shift_type: resolvedShiftType,
             start_time: resolvedStartTime || undefined,
             end_time: resolvedEndTime || undefined,
-            note: (formData.get("note") as string) || undefined,
+            notes: (formData.get("notes") as string) || undefined,
+            breaks: validBreaks,
           };
-          await updateShift(editShift.id, input);
+          await updateShift(editShiftId, input);
         } else {
+          const validBreaks = breaksRef.current.filter((b) => b.break_start && b.break_end);
           const input: CreateShiftInput = {
             staff_id: staffId,
             date,
             shift_type: resolvedShiftType,
             start_time: resolvedStartTime || undefined,
             end_time: resolvedEndTime || undefined,
-            note: (formData.get("note") as string) || undefined,
+            notes: (formData.get("notes") as string) || undefined,
+            breaks: validBreaks.length > 0 ? validBreaks : undefined,
           };
           await createShift(input);
         }
@@ -116,7 +135,8 @@ export function ShiftFormDialog({
         return {};
       }
     },
-    [isEdit, editShift, staffId, date, shiftType, queryClient, onClose],
+    // rerender-dependencies: editShift → id（primitive）、breaks → ref 経由
+    [isEdit, editShiftId, staffId, date, shiftType, queryClient, onClose],
   );
 
   const [state, dispatchFormAction, isPending] = useActionState<FormActionState, FormData>(formAction, {});
@@ -126,6 +146,18 @@ export function ShiftFormDialog({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   // BUG-092: 休日・有休は時刻入力不要
   const isTimeFieldDisabled = shiftType === ShiftTypeOff;
+
+  const handleApplyTemplate = useCallback(
+    (templateId: string) => {
+      const tpl = templates.find((t) => t.id === templateId);
+      if (!tpl) return;
+      setShiftType(tpl.shift_type);
+      setStartTime(tpl.start_time ?? "");
+      setEndTime(tpl.end_time ?? "");
+      setBreaks(tpl.breaks.map((b) => ({ break_start: b.break_start, break_end: b.break_end })));
+    },
+    [templates],
+  );
 
   const handleShiftTypeChange = useCallback((value: string) => {
     setShiftType(value as ShiftType);
@@ -146,6 +178,19 @@ export function ShiftFormDialog({
     deleteShift(editShift.id, { onSuccess: () => onClose() });
   }, [editShift, deleteShift, onClose]);
 
+  // js-cache-function-results: テンプレート選択肢を useMemo でキャッシュ
+  const templateSelectItems = useMemo(
+    () =>
+      templates
+        .filter((t) => t.is_active)
+        .map((t) => (
+          <SelectItem key={t.id} value={t.id}>
+            {t.name}
+          </SelectItem>
+        )),
+    [templates],
+  );
+
   const formattedDate = date
     ? new Date(date + "T00:00:00").toLocaleDateString("ja-JP", {
         month: "long",
@@ -162,7 +207,7 @@ export function ShiftFormDialog({
           <DialogTitle>
             {isEdit ? "シフト編集" : "シフト追加"}
           </DialogTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className={`text-sm ${C.text50}`}>
             {staffName} — {formattedDate}
           </p>
         </DialogHeader>
@@ -170,6 +215,19 @@ export function ShiftFormDialog({
         <form action={dispatchFormAction} className="space-y-4">
           {/* hidden input を経由してコントロール値を FormData に渡す */}
           <input type="hidden" name="shiftType" value={shiftType} />
+
+          {/* テンプレート選択（テンプレートがある場合のみ表示） */}
+          {templateSelectItems.length > 0 ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="shift-template" className={`text-xs ${C.text50}`}>テンプレートから入力</Label>
+              <Select onValueChange={handleApplyTemplate}>
+                <SelectTrigger id="shift-template" className="h-8 text-sm">
+                  <SelectValue placeholder="テンプレートを選択..." />
+                </SelectTrigger>
+                <SelectContent>{templateSelectItems}</SelectContent>
+              </Select>
+            </div>
+          ) : null}
 
           <div className="space-y-1.5">
             <Label htmlFor="shift-type">シフト種別</Label>
@@ -213,14 +271,59 @@ export function ShiftFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="note">メモ</Label>
+            <Label htmlFor="notes">メモ</Label>
             <Input
-              id="note"
-              name="note"
+              id="notes"
+              name="notes"
               placeholder="メモ（任意）"
-              defaultValue={editShift?.note ?? ""}
+              defaultValue={editShift?.notes ?? ""}
             />
           </div>
+
+          {/* 休憩時間 */}
+          {!isTimeFieldDisabled ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">休憩時間</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setBreaks((prev) => [...prev, { break_start: "12:00", break_end: "13:00" }])}
+                >
+                  <Plus className={`${ICON.xxs} mr-1`} />
+                  追加
+                </Button>
+              </div>
+              {breaks.map((b, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    type="time"
+                    value={b.break_start}
+                    onChange={(e) => setBreaks((prev) => prev.map((br, j) => j === i ? { ...br, break_start: e.target.value } : br))}
+                    className="flex-1"
+                  />
+                  <span className={`text-xs ${C.text50}`}>〜</span>
+                  <Input
+                    type="time"
+                    value={b.break_end}
+                    onChange={(e) => setBreaks((prev) => prev.map((br, j) => j === i ? { ...br, break_end: e.target.value } : br))}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setBreaks((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <X className={ICON.smXs} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           <DialogFooter className="gap-2">
             {isEdit && canDelete ? (
@@ -259,4 +362,4 @@ export function ShiftFormDialog({
     />
     </>
   );
-}
+});

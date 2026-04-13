@@ -97,18 +97,18 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 	}
 
 	input := &service.CreateTrimmingInput{
-		PetID:          req.PetID,
-		StaffID:        req.StaffID,
-		CourseID:       req.CourseID,
-		StyleRequest:   req.StyleRequest,
-		BW:             req.BW,
-		BT:             req.BT,
-		UsedShampoo:    req.UsedShampoo,
-		UsedRibbon:     req.UsedRibbon,
-		Remarks:        req.Remarks,
-		StyleImage:     req.StyleImage,
-		CompletedImage: req.CompletedImage,
-		OptionIDs:      req.OptionIDs,
+		PetID:           req.PetID,
+		StaffID:         req.StaffID,
+		CourseID:        req.CourseID,
+		StyleRequest:    req.StyleRequest,
+		BodyWeight:      req.BW,
+		BodyTemperature: req.BT,
+		UsedShampoo:     req.UsedShampoo,
+		UsedRibbon:      req.UsedRibbon,
+		Remarks:         req.Remarks,
+		StyleImage:      req.StyleImage,
+		CompletedImage:  req.CompletedImage,
+		OptionIDs:       req.OptionIDs,
 	}
 	if req.Date != nil {
 		input.Date = *req.Date
@@ -147,19 +147,19 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 	}
 
 	input := &service.UpdateTrimmingInput{
-		Date:           req.Date,
-		PetID:          req.PetID,
-		StaffID:        req.StaffID,
-		CourseID:       req.CourseID,
-		StyleRequest:   req.StyleRequest,
-		BW:             req.BW,
-		BT:             req.BT,
-		UsedShampoo:    req.UsedShampoo,
-		UsedRibbon:     req.UsedRibbon,
-		Remarks:        req.Remarks,
-		StyleImage:     req.StyleImage,
-		CompletedImage: req.CompletedImage,
-		OptionIDs:      req.OptionIDs,
+		Date:            req.Date,
+		PetID:           req.PetID,
+		StaffID:         req.StaffID,
+		CourseID:        req.CourseID,
+		StyleRequest:    req.StyleRequest,
+		BodyWeight:      req.BW,
+		BodyTemperature: req.BT,
+		UsedShampoo:     req.UsedShampoo,
+		UsedRibbon:      req.UsedRibbon,
+		Remarks:         req.Remarks,
+		StyleImage:      req.StyleImage,
+		CompletedImage:  req.CompletedImage,
+		OptionIDs:       req.OptionIDs,
 	}
 	if req.Status != nil {
 		status := model.TrimmingStatus(*req.Status)
@@ -193,14 +193,4 @@ func (h *Handler) DeleteTrimming(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
-}
-
-// RegisterTrimmingRoutes はトリミング関連のルートを登録する
-func (h *Handler) RegisterTrimmingRoutes(rg *gin.RouterGroup) {
-	trimmings := rg.Group("/trimmings")
-	trimmings.GET("", h.ListTrimmings)
-	trimmings.POST("", h.CreateTrimming)
-	trimmings.GET("/:id", h.GetTrimming)
-	trimmings.PATCH("/:id", h.UpdateTrimming)
-	trimmings.DELETE("/:id", h.DeleteTrimming)
 }

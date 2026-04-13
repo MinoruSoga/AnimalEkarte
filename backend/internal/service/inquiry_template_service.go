@@ -39,11 +39,19 @@ func NewInquiryTemplateService(repo repository.InquiryTemplateRepository) Inquir
 }
 
 func (s *inquiryTemplateService) List(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	items, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list inquiry templates")
+	}
+	return items, nil
 }
 
 func (s *inquiryTemplateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get inquiry template")
+	}
+	return result, nil
 }
 
 func (s *inquiryTemplateService) Create(ctx context.Context, template *model.InquiryTemplate) error {
@@ -67,11 +75,21 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 	slog.InfoContext(ctx, "inquiry template updated",
 		slog.Uint64("template_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get inquiry template after update")
+	}
+	return result, nil
 }
 
 func (s *inquiryTemplateService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete inquiry template")
+	}
+	slog.InfoContext(ctx, "inquiry template deleted",
+		slog.Uint64("template_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return nil
 }
 
 func buildInquiryTemplateUpdateFields(input *UpdateInquiryTemplateInput) map[string]any {

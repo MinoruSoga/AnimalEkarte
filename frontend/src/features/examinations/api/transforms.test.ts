@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { transformExamination } from "./transforms";
-import type { BackendExamination, BackendExaminationItem } from "./types";
+import type { BackendExamination, BackendExamResult } from "./types";
 
 const minimal: BackendExamination = {
   id: 1,
@@ -67,13 +67,13 @@ describe("transformExamination", () => {
   });
 
   it("items を変換して返す", () => {
-    const item: BackendExaminationItem = {
+    const item: BackendExamResult = {
       id: 10,
       name: "白血球",
       result: "5.0",
       unit: "10^3/μL",
-      ref: "4.0-10.0",
-    } as BackendExaminationItem;
+      reference_value: "4.0-10.0",
+    } as BackendExamResult;
     const result = transformExamination({ ...minimal, items: [item] });
     expect(result.items).toHaveLength(1);
     expect(result.items![0].id).toBe("10");
@@ -81,12 +81,12 @@ describe("transformExamination", () => {
     expect(result.items![0].referenceRange).toBe("4.0-10.0");
   });
 
-  it("pet.owner.owner_name を ownerName にマップする", () => {
+  it("pet.owner.name を ownerName にマップする", () => {
     const result = transformExamination({
       ...minimal,
       pet: {
         id: 1, clinic_id: 1,
-        owner: { id: 1, clinic_id: 1, owner_name: "田中太郎" } as BackendExamination["pet"]["owner"],
+        owner: { id: 1, clinic_id: 1, name: "田中太郎" } as BackendExamination["pet"]["owner"],
       } as BackendExamination["pet"],
     });
     expect(result.ownerName).toBe("田中太郎");

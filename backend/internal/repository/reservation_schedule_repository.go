@@ -38,8 +38,9 @@ func (r *reservationScheduleRepository) FindByMonth(ctx context.Context, clinicI
 
 	entries := make([]model.ShiftEntry, 0)
 	err = r.db.WithContext(ctx).
-		Where("clinic_id = ? AND staff_id = ? AND date >= ? AND date < ?",
-			clinicID, staffID, start.Format("2006-01-02"), end.Format("2006-01-02")).
+		Scopes(clinicScope(clinicID)).
+		Where("staff_id = ? AND date >= ? AND date < ?",
+			staffID, start.Format("2006-01-02"), end.Format("2006-01-02")).
 		Order("date ASC").
 		Find(&entries).Error
 	if err != nil {
@@ -75,8 +76,9 @@ func (r *reservationScheduleRepository) FindBreaksByEntryID(ctx context.Context,
 func (r *reservationScheduleRepository) FindByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error) {
 	var entry model.ShiftEntry
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND staff_id = ? AND date = ?",
-			clinicID, staffID, date.Format("2006-01-02")).
+		Scopes(clinicScope(clinicID)).
+		Where("staff_id = ? AND date = ?",
+			staffID, date.Format("2006-01-02")).
 		First(&entry).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))
@@ -86,21 +88,22 @@ func (r *reservationScheduleRepository) FindByDate(ctx context.Context, clinicID
 
 // Upsert は ShiftEntry と ShiftEntryBreaks をトランザクションで upsert する
 func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存エントリを検索
 		var existing model.ShiftEntry
-		err := tx.Where("clinic_id = ? AND staff_id = ? AND date = ?",
-			entry.ClinicID, entry.StaffID, entry.Date.Format("2006-01-02")).
+		err := tx.Scopes(clinicScope(entry.ClinicID)).
+			Where("staff_id = ? AND date = ?",
+				entry.StaffID, entry.Date.Format("2006-01-02")).
 			First(&existing).Error
 
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			return apperrors.Wrap(err, "find existing shift entry")
+			return apperrors.FromGORM(err, "shift_entry", fmt.Sprintf("staff=%d", entry.StaffID))
 		}
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// 新規作成
 			if err2 := tx.Create(entry).Error; err2 != nil {
-				return apperrors.Wrap(err2, "create shift entry")
+				return apperrors.FromGORM(err2, "shift_entry", "")
 			}
 		} else {
 			// 更新
@@ -109,34 +112,38 @@ func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model
 				"shift_type": entry.ShiftType,
 				"start_time": entry.StartTime,
 				"end_time":   entry.EndTime,
-				"note":       entry.Note,
-				"updated_at": entry.UpdatedAt,
+				"notes":      entry.Notes,
+				"updated_at": gorm.Expr("NOW()"),
 			}
 			if err2 := tx.Model(&model.ShiftEntry{}).Where("id = ?", existing.ID).Updates(fields).Error; err2 != nil {
-				return apperrors.Wrap(err2, "update shift entry")
+				return apperrors.FromGORM(err2, "shift_entry", fmt.Sprintf("%d", existing.ID))
 			}
 		}
 
 		// 既存のbreaksを削除してから再作成
 		if err2 := tx.Where("shift_entry_id = ?", entry.ID).Delete(&model.ShiftEntryBreak{}).Error; err2 != nil {
-			return apperrors.Wrap(err2, "delete shift entry breaks")
+			return apperrors.FromGORM(err2, "shift_entry_break", fmt.Sprintf("%d", entry.ID))
 		}
 		if len(breaks) > 0 {
 			for i := range breaks {
 				breaks[i].ShiftEntryID = entry.ID
 			}
 			if err2 := tx.Create(&breaks).Error; err2 != nil {
-				return apperrors.Wrap(err2, "create shift entry breaks")
+				return apperrors.FromGORM(err2, "shift_entry_break", "")
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to upsert shift entry")
+	}
+	return nil
 }
 
 func (r *reservationScheduleRepository) DeleteByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
 	result := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND staff_id = ? AND date = ?",
-			clinicID, staffID, date.Format("2006-01-02")).
+		Scopes(clinicScope(clinicID)).
+		Where("staff_id = ? AND date = ?",
+			staffID, date.Format("2006-01-02")).
 		Delete(&model.ShiftEntry{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "schedule_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))

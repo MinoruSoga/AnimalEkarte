@@ -302,7 +302,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                   className="text-base"
                 >
                   {prop.icon ? (
-                    <prop.icon className={`mr-2 size-5 ${C.text50}`} />
+                    <prop.icon className={`mr-2 ${ICON.xs} ${C.text50}`} />
                   ) : null}
                   {prop.label}
                 </CommandItem>

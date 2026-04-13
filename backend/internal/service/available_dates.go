@@ -25,10 +25,10 @@ type BookingWindow struct {
 // AvailableDatesInput は空き日付計算の入力。
 type AvailableDatesInput struct {
 	Settings       AvailableDatesSettings
-	CourseID       uint64
+	TypeID         uint64
 	StaffID        uint64 // 0 = 指名なし
-	StaffInputsFn  func(ctx context.Context, date time.Time, courseID, staffID uint64) ([]StaffSlotInput, error)
-	SlotSettingsFn func() TimeSlotsInput
+	StaffInputsFn  func(ctx context.Context, date time.Time, typeID, staffID uint64) ([]StaffSlotInput, error)
+	SlotSettingsFn func(date time.Time) TimeSlotsInput
 }
 
 // AvailableDatesSettings は空き日付計算に必要な設定項目。
@@ -42,7 +42,7 @@ type AvailableDatesSettings struct {
 	ReservationDayOption  string // "none" | "saturday" | "weekday" | "anyday"
 }
 
-// ParseAvailableDatesSettings は ReservationSetting の JSONB フィールドから設定を解析する。
+// ParseAvailableDatesSettings は LineReservationSetting の JSONB フィールドから設定を解析する。
 func ParseAvailableDatesSettings(
 	closedWeekdaysJSON []byte,
 	closedDatesJSON []byte,
@@ -84,7 +84,7 @@ func closedDates0(b []byte) []byte {
 }
 
 // CalcAvailableDates は予約可能な日付一覧を計算して返す。
-func CalcAvailableDates(ctx context.Context, input AvailableDatesInput) ([]AvailableDateResult, BookingWindow, error) {
+func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]AvailableDateResult, BookingWindow, error) {
 	now := time.Now().In(jstLocation())
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jstLocation())
 
@@ -152,7 +152,7 @@ func CalcAvailableDates(ctx context.Context, input AvailableDatesInput) ([]Avail
 
 		// スタッフ個人設定・時間枠チェック
 		if input.StaffInputsFn != nil && input.SlotSettingsFn != nil {
-			staffInputs, err := input.StaffInputsFn(ctx, d, input.CourseID, input.StaffID)
+			staffInputs, err := input.StaffInputsFn(ctx, d, input.TypeID, input.StaffID)
 			if err != nil {
 				return nil, window, err
 			}
@@ -177,9 +177,9 @@ func CalcAvailableDates(ctx context.Context, input AvailableDatesInput) ([]Avail
 			}
 
 			// 時間枠が1つ以上あるかチェック
-			slotInput := input.SlotSettingsFn()
+			slotInput := input.SlotSettingsFn(d)
 			slotInput.Staffs = staffInputs
-			slots, err := GenerateTimeSlots(slotInput)
+			slots, err := GenerateTimeSlots(&slotInput)
 			if err != nil {
 				return nil, window, err
 			}

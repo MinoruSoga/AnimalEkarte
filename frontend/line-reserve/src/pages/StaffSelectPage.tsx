@@ -27,7 +27,6 @@ export function StaffSelectPage({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
     liffApi.getStaffs(clinicId, courseId, idToken)
       .then(data => {
         setStaffs(data);
@@ -72,7 +71,8 @@ export function StaffSelectPage({
                 <ListItem
                   key={staff.id}
                   onClick={() => onSelect(staff.id, staff.name)}
-                  subtitle={staff.description || undefined}
+                  description={staff.reservation_comment || undefined}
+                  imageUrl={staff.reservation_image_url || undefined}
                 >
                   {staff.name}
                 </ListItem>

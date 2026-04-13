@@ -2,7 +2,7 @@
  * Medical records feature types (UI-facing: string IDs)
  * Backend types: {@link import("@/types/generated/models").Treatment},
  * {@link import("@/types/generated/models").Vital},
- * {@link import("@/types/generated/models").BillingReview} from models.ts
+ * {@link import("@/types/generated/models").BillingConfirmation} from models.ts
  */
 
 /** Interview (問診) history list item */
@@ -30,11 +30,11 @@ export interface Treatment {
   inventory_id?: string | null;
   unit_price: number;
   quantity: number;
-  selected: boolean;
+  is_selected: boolean;
   status: string;
   content: string;
   memo: string;
-  insurance: boolean;
+  is_insurance: boolean;
   discount_rate: number;
   discount_amount: number;
   sort_order: number;
@@ -50,11 +50,11 @@ export interface CreateTreatmentInput {
   inventory_id?: string | null;
   unit_price?: number;
   quantity?: number;
-  selected?: boolean;
+  is_selected?: boolean;
   status?: string;
   content?: string;
   memo?: string;
-  insurance?: boolean;
+  is_insurance?: boolean;
   discount_rate?: number;
   discount_amount?: number;
   sort_order?: number;
@@ -68,11 +68,11 @@ export interface UpdateTreatmentInput {
   inventory_id?: string | null;
   unit_price?: number;
   quantity?: number;
-  selected?: boolean;
+  is_selected?: boolean;
   status?: string;
   content?: string;
   memo?: string;
-  insurance?: boolean;
+  is_insurance?: boolean;
   discount_rate?: number;
   discount_amount?: number;
   sort_order?: number;
@@ -82,16 +82,16 @@ export interface BulkReorderTreatmentsInput {
   treatments: Array<{ id: string; sort_order: number }>;
 }
 
-// ── BillingReview (会計医師確認) ──────────────────────────────────────
+// ── BillingConfirmation (会計医師確認) ──────────────────────────────────────
 
-/** 会計医師確認ステータス @see {@link import("@/types/generated/models").BillingReviewStatus} */
-export type BillingReviewStatus = 'pending' | 'confirmed' | 'returned';
+/** 会計医師確認ステータス @see {@link import("@/types/generated/models").ConfirmationStatus} */
+export type ConfirmationStatus = 'pending' | 'confirmed' | 'returned';
 
 /** 会計医師確認レコード */
-export interface BillingReview {
+export interface BillingConfirmation {
   id: string;
   medical_record_id: string;
-  status: BillingReviewStatus;
+  status: ConfirmationStatus;
   confirmed_by?: string | null;
   confirmed_at?: string | null;
   return_reason?: string | null;
@@ -103,7 +103,7 @@ export interface BillingReview {
 }
 
 /** 会計差し戻しリクエスト入力 */
-export interface ReturnBillingReviewInput {
+export interface ReturnBillingConfirmationInput {
   return_reason: string;
 }
 
@@ -117,8 +117,8 @@ export interface Vital {
   recorded_at: string;
   temperature?: number | null;
   heart_rate?: number | null;
-  respiratory_rate?: number | null;
-  body_weight?: number | null;
+  respiration_rate?: number | null;
+  weight?: number | null;
   weight_unit: BodyWeightUnit;
   note?: string | null;
   created_at: string;
@@ -129,8 +129,8 @@ export interface CreateVitalInput {
   recorded_at: string;
   temperature?: number | null;
   heart_rate?: number | null;
-  respiratory_rate?: number | null;
-  body_weight?: number | null;
+  respiration_rate?: number | null;
+  weight?: number | null;
   weight_unit: BodyWeightUnit;
   note?: string | null;
 }
@@ -139,8 +139,8 @@ export interface UpdateVitalInput {
   recorded_at?: string;
   temperature?: number | null;
   heart_rate?: number | null;
-  respiratory_rate?: number | null;
-  body_weight?: number | null;
+  respiration_rate?: number | null;
+  weight?: number | null;
   weight_unit?: BodyWeightUnit;
   note?: string | null;
 }

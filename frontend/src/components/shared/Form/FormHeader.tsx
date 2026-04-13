@@ -1,4 +1,5 @@
-import { ICON, C } from "@/lib/design-tokens";
+import { memo } from "react";
+import { ICON, C, STYLE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 
@@ -10,16 +11,16 @@ interface FormHeaderProps {
   action?: React.ReactNode;
 }
 
-export function FormHeader({ title, description, icon, onBack, action }: FormHeaderProps) {
+export const FormHeader = memo(function FormHeader({ title, description, icon, onBack, action }: FormHeaderProps) {
   return (
-    <div className={`sticky top-0 z-10 ${C.bgPage} border-b ${C.borderLight} px-4 flex items-center justify-between h-[53px]`}>
+    <div className={STYLE.formHeader}>
       <div className="flex items-center gap-2">
         {onBack ? (
           <Button
             variant="ghost"
             type="button"
             onClick={onBack}
-            className={`${C.text60} ${C.hoverText} hover:bg-transparent pl-0 size-11`}
+            className={`${STYLE.btnGhost} pl-0 size-11`}
           >
             <ChevronLeft className={ICON.page} />
             <span className="sr-only">戻る</span>
@@ -36,4 +37,4 @@ export function FormHeader({ title, description, icon, onBack, action }: FormHea
       {action ? <div>{action}</div> : null}
     </div>
   );
-}
+});

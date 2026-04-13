@@ -13,7 +13,7 @@ type treatmentPlanResponse struct {
 	HospitalizationID *string   `json:"hospitalization_id,omitempty"`
 	TreatmentContent  string    `json:"treatment_content"`
 	Memo              string    `json:"memo"`
-	Insurance         bool      `json:"insurance"`
+	IsInsurance       bool      `json:"is_insurance"`
 	UnitPrice         int64     `json:"unit_price"`
 	Quantity          float64   `json:"quantity"`
 	DiscountRate      float64   `json:"discount_rate"`
@@ -29,7 +29,7 @@ func toTreatmentPlanResponse(p *model.TreatmentPlan) treatmentPlanResponse {
 		ID:               strconv.FormatUint(p.ID, 10),
 		TreatmentContent: p.TreatmentContent,
 		Memo:             p.Memo,
-		Insurance:        p.Insurance,
+		IsInsurance:      p.IsInsurance,
 		UnitPrice:        p.UnitPrice,
 		Quantity:         p.Quantity,
 		DiscountRate:     p.DiscountRate,

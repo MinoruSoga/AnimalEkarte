@@ -11,6 +11,7 @@
 | カテゴリ | ファイル | 概要 |
 |:---|:---|:---|
 | スタッフ | [master-staff.md](./master-staff.md) | 獣医師・スタッフおよびログインアカウント管理 |
+| 権限グループ | [master-permission-group.md](./master-permission-group.md) | ロールベースのアクセス制御（RBAC）設定 |
 | 診療項目 | [master-treatment.md](./master-treatment.md) | 診察・検査・処置・予防・健診の共通ツリー管理 |
 | 薬剤 | [master-medicine.md](./master-medicine.md) | カテゴリ別薬剤単価と剤形管理 |
 | 診断 | [master-diagnosis.md](./master-diagnosis.md) | 診断カテゴリと具体的な病名の紐付け |
@@ -19,6 +20,7 @@
 | ケージ | [master-cage.md](./master-cage.md) | 入院用ケージのエリア・サイズ・料金管理 |
 | 問診・テンプレート | [master-interview.md](./master-interview.md) | 主訴カテゴリと問診票テンプレート定型文 |
 | 保険 | [master-insurance.md](./master-insurance.md) | ペット保険会社の補償率・連絡先管理 |
+| シフトテンプレート | [master-shift-template.md](./master-shift-template.md) | シフト入力パターンの管理 |
 | 基礎マスタ | [master-basics.md](./master-basics.md) | 動物種、職能、予約区分、入院プラン等の共通設定 |
 
 ---

@@ -2,8 +2,8 @@
 import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
 
 // Relative
-import { useGetRecordImages } from "../api/get-record-images";
-import { useUploadImages, useDeleteImage } from "../api/record-images";
+import { useGetMedicalRecordImages } from "../api/get-medical-record-images";
+import { useUploadImages, useDeleteImage } from "../api/medical-record-images";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
 import { usePermission } from "@/features/auth";
@@ -28,7 +28,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
   const resolvedId = isNewRecord ? undefined : medicalRecordId;
 
-  const { data: apiImageGroups = [], isLoading } = useGetRecordImages(resolvedId);
+  const { data: apiImageGroups = [], isLoading } = useGetMedicalRecordImages(resolvedId);
 
   const uploadMutation = useUploadImages(resolvedId ?? "");
   const deleteMutation = useDeleteImage(resolvedId ?? "");
@@ -51,15 +51,16 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
     [canCreate, resolvedId, uploadMutation],
   );
 
+  const { mutate: deleteImageFn } = deleteMutation;
   const handleDeleteImage = useCallback(
     (imageId: number) => {
       if (!canDelete || !resolvedId) return;
       setDeletingId(imageId);
-      deleteMutation.mutate(imageId, {
+      deleteImageFn(imageId, {
         onSettled: () => setDeletingId(null),
       });
     },
-    [canDelete, resolvedId, deleteMutation],
+    [canDelete, resolvedId, deleteImageFn],
   );
 
   return (

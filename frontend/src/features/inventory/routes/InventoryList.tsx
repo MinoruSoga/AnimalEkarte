@@ -32,7 +32,7 @@ import { getInventoryStatusColor, getInventoryStatusLabel } from "@/utils/status
 import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { useInventory } from "../hooks/use-inventory";
@@ -126,17 +126,19 @@ export function InventoryList() {
   const urlPage = Number(searchParams.get("page") ?? 1);
 
   // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  // rerender-dependencies: pagination（オブジェクト）を destructure し primitive を deps に使用
+  const { totalPages, currentPage, goToPage } = pagination;
   useEffect(() => {
-    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
-    if (clampedPage !== pagination.currentPage) {
-      pagination.goToPage(clampedPage);
+    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
+    if (clampedPage !== currentPage) {
+      goToPage(clampedPage);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlPage, pagination.totalPages]);
+  }, [urlPage, totalPages]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新
   const handlePageChange = useCallback((page: number) => {
-    pagination.goToPage(page);
+    goToPage(page);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (page === 1) {
@@ -146,7 +148,7 @@ export function InventoryList() {
       }
       return next;
     }, { replace: true });
-  }, [pagination, setSearchParams]);
+  }, [goToPage, setSearchParams]);
 
   const handleCreate = useCallback(() => {
     navigate(paths.inventory.new.getHref());

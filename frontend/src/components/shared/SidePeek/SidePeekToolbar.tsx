@@ -1,3 +1,4 @@
+import { memo } from "react";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import X from "lucide-react/dist/esm/icons/x";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
@@ -10,7 +11,7 @@ interface SidePeekToolbarProps {
   readOnly?: boolean;
 }
 
-export function SidePeekToolbar({ isNew, onClose, onDelete, readOnly }: SidePeekToolbarProps) {
+export const SidePeekToolbar = memo(function SidePeekToolbar({ isNew, onClose, onDelete, readOnly }: SidePeekToolbarProps) {
   return (
     <div className={STYLE.sidePeekToolbar}>
       <span className={`text-xs ${C.text35} pl-1 select-none`}>
@@ -21,6 +22,7 @@ export function SidePeekToolbar({ isNew, onClose, onDelete, readOnly }: SidePeek
           <button
             type="button"
             onClick={onDelete}
+            aria-label="削除"
             className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${C.danger} ${C.hoverBgDanger5}`}
           >
             <Trash2 className={ICON.toolbar} />
@@ -37,4 +39,4 @@ export function SidePeekToolbar({ isNew, onClose, onDelete, readOnly }: SidePeek
       </div>
     </div>
   );
-}
+});

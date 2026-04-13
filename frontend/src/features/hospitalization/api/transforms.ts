@@ -17,7 +17,7 @@ export const transformHospitalization = (
   return {
     id: String(hosp.id ?? 0),
     hospitalizationNo: String(hosp.id ?? ""),
-    ownerName: hosp.owner?.owner_name ?? "",
+    ownerName: hosp.owner?.name ?? "",
     petName: hosp.pet?.name ?? "",
     species: hosp.pet?.animal_species?.name ?? "",
     hospitalizationType: typeMap[hosp.hospitalization_type] ?? "入院",
@@ -26,6 +26,11 @@ export const transformHospitalization = (
     status: statusMap[hosp.status] ?? "予約",
     cageId: hosp.cage_id ? String(hosp.cage_id) : undefined,
     petId: hosp.pet?.id ? String(hosp.pet.id) : undefined,
+    doctorId: hosp.doctor_id ? String(hosp.doctor_id) : undefined,
+    doctorName: hosp.doctor?.name ?? undefined,
     petIsDeceased: hosp.pet?.status === "deceased",
+    memo: hosp.memo || undefined,
+    ownerRequest: hosp.owner_request || undefined,
+    staffNotes: hosp.staff_notes || undefined,
   };
 };

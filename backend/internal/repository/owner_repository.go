@@ -17,6 +17,7 @@ type OwnerRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 	FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
 	FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error)
+	FindByNameAndPhone(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error)
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -36,11 +37,11 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.Owner{}).Where("clinic_id = ?", clinicID)
+		q := r.db.WithContext(ctx).Model(&model.Owner{}).Scopes(clinicScope(clinicID))
 		if search != "" {
 			pattern := "%" + escapeLike(search) + "%"
 			q = q.Where(
-				`(owner_name ILIKE ? ESCAPE '\' OR phone ILIKE ? ESCAPE '\' OR email ILIKE ? ESCAPE '\')`,
+				`(name ILIKE ? ESCAPE '\' OR phone ILIKE ? ESCAPE '\' OR email ILIKE ? ESCAPE '\')`,
 				pattern, pattern, pattern,
 			)
 		}
@@ -61,7 +62,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 
 func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").First(&owner, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&owner).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}
@@ -70,7 +71,7 @@ func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*m
 
 func (r *ownerRepository) FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).First(&owner, "clinic_id = ? AND email = ?", clinicID, email).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).First(&owner, "email = ?", email).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -83,7 +84,7 @@ func (r *ownerRepository) FindByEmail(ctx context.Context, clinicID uint64, emai
 // FindByPhone は clinic_id + phone に一致するオーナーを返す。見つからない場合は nil を返す。
 func (r *ownerRepository) FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).First(&owner, "clinic_id = ? AND phone = ?", clinicID, phone).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).First(&owner, "phone = ?", phone).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -93,27 +94,49 @@ func (r *ownerRepository) FindByPhone(ctx context.Context, clinicID uint64, phon
 	return &owner, nil
 }
 
+// FindByNameAndPhone は clinic_id + owner_name + phone に完全一致するオーナーを返す。
+// 0件 or 複数件の場合は nil を返す（1件の場合のみ返す）。
+func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error) {
+	name = strings.TrimSpace(name)
+	phone = strings.TrimSpace(phone)
+	if name == "" || phone == "" {
+		return nil, nil
+	}
+	var owners []model.Owner
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("name = ? AND phone = ? AND deleted_at IS NULL", name, phone).
+		Limit(2). // 2件以上あるかだけ判定すればよい
+		Find(&owners).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%s/%s", name, phone))
+	}
+	if len(owners) != 1 {
+		return nil, nil // 0件 or 複数件 → 自動紐付け不可
+	}
+	return &owners[0], nil
+}
+
 func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. 飼主を作成
 		if err := tx.Create(owner).Error; err != nil {
 			if isUniqueConstraintErr(err) {
 				return apperrors.WrapAlreadyExists("owner", "email already registered")
 			}
-			return apperrors.Wrap(err, "create owner")
+			return apperrors.FromGORM(err, "owner", "")
 		}
 		// 2. ペットを順次作成（owner_id, clinic_id をサーバー側でセット）
 		for i := range pets {
 			pets[i].OwnerID = owner.ID
 			pets[i].ClinicID = owner.ClinicID
 			if err := tx.Create(&pets[i]).Error; err != nil {
-				return apperrors.Wrap(err, "create pet")
+				return apperrors.FromGORM(err, "pet", "")
 			}
 		}
 		return nil
-	})
-	if err != nil {
-		return apperrors.Wrap(err, "create owner with pets")
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to create owner with pets")
 	}
 	// トランザクションコミット後に全リレーションをロードして呼び出し元に反映
 	loaded, err := r.FindByID(ctx, owner.ClinicID, owner.ID)
@@ -135,7 +158,7 @@ func escapeLike(s string) string {
 func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Owner{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
@@ -147,7 +170,7 @@ func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, field
 }
 
 func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Owner{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Owner{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
 	}
@@ -162,7 +185,8 @@ func (r *ownerRepository) CountPetsByOwnerID(ctx context.Context, clinicID, owne
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Pet{}).
-		Where("clinic_id = ? AND owner_id = ?", clinicID, ownerID).
+		Scopes(clinicScope(clinicID)).
+		Where("owner_id = ?", ownerID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")

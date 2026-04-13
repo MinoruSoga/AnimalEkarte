@@ -1,5 +1,5 @@
 // React/Framework
-import { useActionState } from "react";
+import { memo, useActionState } from "react";
 
 // External
 import { toast } from "sonner";
@@ -24,7 +24,7 @@ interface ChangePasswordDialogProps {
 
 type FormState = { error?: string; success?: boolean } | null;
 
-export function ChangePasswordDialog({
+export const ChangePasswordDialog = memo(function ChangePasswordDialog({
   open,
   onOpenChange,
   onSuccess,
@@ -126,4 +126,4 @@ export function ChangePasswordDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});

@@ -1,5 +1,5 @@
 // React/Framework
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -15,14 +15,14 @@ import { C, LAYOUT, ICON, STYLE } from "@/lib/design-tokens";
 import { usePermission } from "@/features/auth";
 
 // Relative
-import { useGetChiefComplaintCategories } from "../api/get-chief-complaint-categories";
+import { useGetChiefComplaintTypes } from "../api/get-chief-complaint-types";
 
 interface InterviewChiefComplaintProps {
   className?: string;
   chiefComplaint: string;
   setChiefComplaint: (value: string) => void;
-  chiefComplaintCategoryId: number | null;
-  setChiefComplaintCategoryId: (id: number | null) => void;
+  chiefComplaintTypeId: number | null;
+  setChiefComplaintTypeId: (id: number | null) => void;
   templates: { label: string; text: string }[];
   onInsertTemplate: (text: string) => void;
 }
@@ -31,14 +31,37 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   className,
   chiefComplaint,
   setChiefComplaint,
-  chiefComplaintCategoryId,
-  setChiefComplaintCategoryId,
+  chiefComplaintTypeId,
+  setChiefComplaintTypeId,
   templates,
   onInsertTemplate,
 }: InterviewChiefComplaintProps) {
   const navigate = useNavigate();
   const { canEdit } = usePermission("medical-records");
-  const { data: categories = [], isLoading } = useGetChiefComplaintCategories();
+  const { data: categories = [], isLoading } = useGetChiefComplaintTypes();
+
+  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
+  const categorySelectItems = useMemo(
+    () => categories.map((category) => (
+      <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
+    )),
+    [categories]
+  );
+  const templateButtons = useMemo(
+    () => templates.map((tmpl) => (
+      <Button
+        key={tmpl.label}
+        variant="outline"
+        size="sm"
+        className={`${LAYOUT.touch.md} text-sm px-3 bg-white ${C.hoverBgPage} ${C.text60} ${C.borderMedium}`}
+        onClick={() => onInsertTemplate(tmpl.text)}
+        disabled={!canEdit}
+      >
+        {tmpl.label}
+      </Button>
+    )),
+    [templates, onInsertTemplate, canEdit]
+  );
 
   return (
     <div className={`flex flex-col ${className ?? ""}`}>
@@ -64,19 +87,15 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             ) : null}
           </div>
           <Select
-            value={chiefComplaintCategoryId ? String(chiefComplaintCategoryId) : ""}
-            onValueChange={(value) => setChiefComplaintCategoryId(value ? Number(value) : null)}
+            value={chiefComplaintTypeId ? String(chiefComplaintTypeId) : ""}
+            onValueChange={(value) => setChiefComplaintTypeId(value ? Number(value) : null)}
             disabled={isLoading || !canEdit}
           >
             <SelectTrigger className={`w-full ${LAYOUT.touch.md} bg-white ${C.borderMedium} text-sm ${C.text}`}>
               <SelectValue placeholder={isLoading ? "読み込み中..." : "選択してください"} />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={String(category.id)}>
-                  {category.name}
-                </SelectItem>
-              ))}
+              {categorySelectItems}
             </SelectContent>
           </Select>
         </div>
@@ -96,18 +115,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
-            {templates.map((tmpl) => (
-              <Button
-                key={tmpl.label}
-                variant="outline"
-                size="sm"
-                className={`${LAYOUT.touch.md} text-sm px-3 bg-white ${C.hoverBgPage} ${C.text60} ${C.borderMedium}`}
-                onClick={() => onInsertTemplate(tmpl.text)}
-                disabled={!canEdit}
-              >
-                {tmpl.label}
-              </Button>
-            ))}
+            {templateButtons}
           </div>
         </div>
 

@@ -13,43 +13,43 @@ import (
 
 const testClinicID uint64 = 1
 
-// ---- DiagnosisCategory モック ----
+// ---- DiagnosisType モック ----
 
-type mockDiagnosisCategoryRepository struct {
-	findAllFn                func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error)
-	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error)
-	createFn                 func(ctx context.Context, category *model.DiagnosisCategory) error
+type mockDiagnosisTypeRepository struct {
+	findAllFn                func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
+	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
+	createFn                 func(ctx context.Context, category *model.DiagnosisType) error
 	updateFn                 func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countNamesByCategoryIDFn func(ctx context.Context, categoryID uint64) (int64, error)
 }
 
-func (m *mockDiagnosisCategoryRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error) {
+func (m *mockDiagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
 	return m.findAllFn(ctx, clinicID, page, limit)
 }
 
-func (m *mockDiagnosisCategoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error) {
+func (m *mockDiagnosisTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error) {
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockDiagnosisCategoryRepository) Create(ctx context.Context, category *model.DiagnosisCategory) error {
+func (m *mockDiagnosisTypeRepository) Create(ctx context.Context, category *model.DiagnosisType) error {
 	return m.createFn(ctx, category)
 }
 
-func (m *mockDiagnosisCategoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (m *mockDiagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	return m.updateFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockDiagnosisCategoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+func (m *mockDiagnosisTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockDiagnosisCategoryRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+func (m *mockDiagnosisTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockDiagnosisCategoryRepository) CountNamesByCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
+func (m *mockDiagnosisTypeRepository) CountNamesByCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
 	if m.countNamesByCategoryIDFn == nil {
 		return 0, nil
 	}
@@ -101,21 +101,21 @@ func (m *mockDiagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(_ cont
 }
 
 // newCategoryService はテスト用ヘルパー
-func newCategoryService(repo *mockDiagnosisCategoryRepository) DiagnosisCategoryService {
-	return NewDiagnosisCategoryService(repo)
+func newCategoryService(repo *mockDiagnosisTypeRepository) DiagnosisTypeService {
+	return NewDiagnosisTypeService(repo)
 }
 
 // newNameService はテスト用ヘルパー（categoryRepo FK validation付き）
-func newNameService(repo *mockDiagnosisNameRepository, categoryRepo *mockDiagnosisCategoryRepository) DiagnosisNameService {
+func newNameService(repo *mockDiagnosisNameRepository, categoryRepo *mockDiagnosisTypeRepository) DiagnosisNameService {
 	return NewDiagnosisNameService(repo, categoryRepo)
 }
 
-// ---- DiagnosisCategoryService テスト ----
+// ---- DiagnosisTypeService テスト ----
 
-func TestDiagnosisCategoryService_List(t *testing.T) {
+func TestDiagnosisTypeService_List(t *testing.T) {
 	tests := []struct {
 		name      string
-		repoData  []model.DiagnosisCategory
+		repoData  []model.DiagnosisType
 		repoTotal int64
 		repoErr   error
 		wantLen   int
@@ -124,7 +124,7 @@ func TestDiagnosisCategoryService_List(t *testing.T) {
 	}{
 		{
 			name: "returns category list",
-			repoData: []model.DiagnosisCategory{
+			repoData: []model.DiagnosisType{
 				{ID: 1, Name: "皮膚疾患"},
 				{ID: 2, Name: "消化器疾患"},
 			},
@@ -136,7 +136,7 @@ func TestDiagnosisCategoryService_List(t *testing.T) {
 		},
 		{
 			name:      "returns empty list when no categories exist",
-			repoData:  []model.DiagnosisCategory{},
+			repoData:  []model.DiagnosisType{},
 			repoTotal: 0,
 			repoErr:   nil,
 			wantLen:   0,
@@ -158,8 +158,8 @@ func TestDiagnosisCategoryService_List(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			capturedPage := 0
 			capturedLimit := 0
-			repo := &mockDiagnosisCategoryRepository{
-				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.DiagnosisCategory, int64, error) {
+			repo := &mockDiagnosisTypeRepository{
+				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
 					capturedPage = page
 					capturedLimit = limit
 					return tt.repoData, tt.repoTotal, tt.repoErr
@@ -183,11 +183,11 @@ func TestDiagnosisCategoryService_List(t *testing.T) {
 	}
 }
 
-func TestDiagnosisCategoryService_GetByID(t *testing.T) {
+func TestDiagnosisTypeService_GetByID(t *testing.T) {
 	tests := []struct {
 		name         string
 		id           uint64
-		repoCategory *model.DiagnosisCategory
+		repoCategory *model.DiagnosisType
 		repoErr      error
 		wantErr      bool
 		wantNotFound bool
@@ -195,7 +195,7 @@ func TestDiagnosisCategoryService_GetByID(t *testing.T) {
 		{
 			name:         "returns category when found",
 			id:           1,
-			repoCategory: &model.DiagnosisCategory{ID: 1, Name: "皮膚疾患"},
+			repoCategory: &model.DiagnosisType{ID: 1, Name: "皮膚疾患"},
 			repoErr:      nil,
 			wantErr:      false,
 			wantNotFound: false,
@@ -204,7 +204,7 @@ func TestDiagnosisCategoryService_GetByID(t *testing.T) {
 			name:         "returns not found error when category does not exist",
 			id:           999,
 			repoCategory: nil,
-			repoErr:      apperrors.WrapNotFound("diagnosis_category", "999"),
+			repoErr:      apperrors.WrapNotFound("diagnosis_type", "999"),
 			wantErr:      true,
 			wantNotFound: true,
 		},
@@ -220,8 +220,8 @@ func TestDiagnosisCategoryService_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockDiagnosisCategoryRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisCategory, error) {
+			repo := &mockDiagnosisTypeRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisType, error) {
 					return tt.repoCategory, tt.repoErr
 				},
 			}
@@ -243,28 +243,28 @@ func TestDiagnosisCategoryService_GetByID(t *testing.T) {
 	}
 }
 
-func TestDiagnosisCategoryService_Create(t *testing.T) {
+func TestDiagnosisTypeService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *CreateDiagnosisCategoryInput
+		input   *CreateDiagnosisTypeInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name:    "creates category successfully",
-			input:   &CreateDiagnosisCategoryInput{Name: "新規カテゴリ", IsActive: true},
+			input:   &CreateDiagnosisTypeInput{Name: "新規カテゴリ", IsActive: true},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
 			name:    "returns error when category already exists",
-			input:   &CreateDiagnosisCategoryInput{Name: "重複カテゴリ"},
-			repoErr: apperrors.WrapAlreadyExists("diagnosis_category", "重複カテゴリ"),
+			input:   &CreateDiagnosisTypeInput{Name: "重複カテゴリ"},
+			repoErr: apperrors.WrapAlreadyExists("diagnosis_type", "重複カテゴリ"),
 			wantErr: true,
 		},
 		{
 			name:    "returns error on repository failure",
-			input:   &CreateDiagnosisCategoryInput{Name: "エラーカテゴリ"},
+			input:   &CreateDiagnosisTypeInput{Name: "エラーカテゴリ"},
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
@@ -272,8 +272,8 @@ func TestDiagnosisCategoryService_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockDiagnosisCategoryRepository{
-				createFn: func(_ context.Context, _ *model.DiagnosisCategory) error {
+			repo := &mockDiagnosisTypeRepository{
+				createFn: func(_ context.Context, _ *model.DiagnosisType) error {
 					return tt.repoErr
 				},
 			}
@@ -294,43 +294,43 @@ func TestDiagnosisCategoryService_Create(t *testing.T) {
 	}
 }
 
-func TestDiagnosisCategoryService_Update(t *testing.T) {
+func TestDiagnosisTypeService_Update(t *testing.T) {
 	updatedName := "更新後カテゴリ名"
 	isActive := false
 
 	tests := []struct {
 		name     string
 		id       uint64
-		input    *UpdateDiagnosisCategoryInput
+		input    *UpdateDiagnosisTypeInput
 		repoErr  error
-		fetchRes *model.DiagnosisCategory
+		fetchRes *model.DiagnosisType
 		wantErr  bool
 	}{
 		{
 			name:     "updates category successfully",
 			id:       1,
-			input:    &UpdateDiagnosisCategoryInput{Name: &updatedName, IsActive: &isActive},
+			input:    &UpdateDiagnosisTypeInput{Name: &updatedName, IsActive: &isActive},
 			repoErr:  nil,
-			fetchRes: &model.DiagnosisCategory{ID: 1, Name: updatedName, IsActive: isActive, ClinicID: testClinicID},
+			fetchRes: &model.DiagnosisType{ID: 1, Name: updatedName, IsActive: isActive, ClinicID: testClinicID},
 			wantErr:  false,
 		},
 		{
 			name:    "returns invalid input when no fields provided",
 			id:      1,
-			input:   &UpdateDiagnosisCategoryInput{},
+			input:   &UpdateDiagnosisTypeInput{},
 			wantErr: true,
 		},
 		{
 			name:    "returns not found error when category does not exist",
 			id:      999,
-			input:   &UpdateDiagnosisCategoryInput{Name: &updatedName},
-			repoErr: apperrors.WrapNotFound("diagnosis_category", "999"),
+			input:   &UpdateDiagnosisTypeInput{Name: &updatedName},
+			repoErr: apperrors.WrapNotFound("diagnosis_type", "999"),
 			wantErr: true,
 		},
 		{
 			name:    "returns error on repository failure",
 			id:      1,
-			input:   &UpdateDiagnosisCategoryInput{Name: &updatedName},
+			input:   &UpdateDiagnosisTypeInput{Name: &updatedName},
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
@@ -338,11 +338,11 @@ func TestDiagnosisCategoryService_Update(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockDiagnosisCategoryRepository{
+			repo := &mockDiagnosisTypeRepository{
 				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoErr
 				},
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisCategory, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisType, error) {
 					return tt.fetchRes, nil
 				},
 			}
@@ -361,7 +361,7 @@ func TestDiagnosisCategoryService_Update(t *testing.T) {
 	}
 }
 
-func TestDiagnosisCategoryService_Delete(t *testing.T) {
+func TestDiagnosisTypeService_Delete(t *testing.T) {
 	tests := []struct {
 		name          string
 		id            uint64
@@ -402,7 +402,7 @@ func TestDiagnosisCategoryService_Delete(t *testing.T) {
 			id:            999,
 			nameCount:     0,
 			countNamesErr: nil,
-			repoErr:       apperrors.WrapNotFound("diagnosis_category", "999"),
+			repoErr:       apperrors.WrapNotFound("diagnosis_type", "999"),
 			wantErr:       true,
 			wantNF:        true,
 		},
@@ -418,7 +418,7 @@ func TestDiagnosisCategoryService_Delete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockDiagnosisCategoryRepository{
+			repo := &mockDiagnosisTypeRepository{
 				countNamesByCategoryIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.nameCount, tt.countNamesErr
 				},
@@ -445,7 +445,7 @@ func TestDiagnosisCategoryService_Delete(t *testing.T) {
 	}
 }
 
-func TestDiagnosisCategoryService_Reorder(t *testing.T) {
+func TestDiagnosisTypeService_Reorder(t *testing.T) {
 	tests := []struct {
 		name    string
 		ids     []uint64
@@ -466,14 +466,14 @@ func TestDiagnosisCategoryService_Reorder(t *testing.T) {
 		{
 			name:    "returns error when id not in clinic",
 			ids:     []uint64{999},
-			repoErr: apperrors.WrapInvalidInput("diagnosis_category id 999 not found in this clinic"),
+			repoErr: apperrors.WrapInvalidInput("diagnosis_type id 999 not found in this clinic"),
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockDiagnosisCategoryRepository{
+			repo := &mockDiagnosisTypeRepository{
 				reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
 					return tt.repoErr
 				},
@@ -494,14 +494,14 @@ func TestDiagnosisCategoryService_Reorder(t *testing.T) {
 // ---- DiagnosisNameService テスト ----
 
 // defaultCategoryRepo は FindByID が常に成功する categoryRepo モック
-func defaultCategoryRepo() *mockDiagnosisCategoryRepository {
-	return &mockDiagnosisCategoryRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisCategory, error) {
-			return &model.DiagnosisCategory{ID: 1}, nil
+func defaultCategoryRepo() *mockDiagnosisTypeRepository {
+	return &mockDiagnosisTypeRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisType, error) {
+			return &model.DiagnosisType{ID: 1}, nil
 		},
 		// FindAll は DiagnosisNameService では使用されないが、テスト追加時の panic防止
-		findAllFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisCategory, int64, error) {
-			return []model.DiagnosisCategory{}, 0, nil
+		findAllFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisType, int64, error) {
+			return []model.DiagnosisType{}, 0, nil
 		},
 	}
 }
@@ -519,8 +519,8 @@ func TestDiagnosisNameService_List(t *testing.T) {
 		{
 			name: "returns diagnosis name list",
 			repoData: []model.DiagnosisName{
-				{ID: 1, Name: "アトピー性皮膚炎", DiagnosisCategoryID: 1},
-				{ID: 2, Name: "食物アレルギー", DiagnosisCategoryID: 1},
+				{ID: 1, Name: "アトピー性皮膚炎", DiagnosisTypeID: 1},
+				{ID: 2, Name: "食物アレルギー", DiagnosisTypeID: 1},
 			},
 			repoTotal: 2,
 			repoErr:   nil,
@@ -592,7 +592,7 @@ func TestDiagnosisNameService_ListByCategoryID(t *testing.T) {
 			name:       "returns names filtered by category ID",
 			categoryID: 1,
 			repoData: []model.DiagnosisName{
-				{ID: 1, Name: "アトピー性皮膚炎", DiagnosisCategoryID: 1},
+				{ID: 1, Name: "アトピー性皮膚炎", DiagnosisTypeID: 1},
 			},
 			repoTotal: 1,
 			repoErr:   nil,
@@ -721,25 +721,25 @@ func TestDiagnosisNameService_Create(t *testing.T) {
 	}{
 		{
 			name:    "creates diagnosis name successfully",
-			input:   &CreateDiagnosisNameInput{Name: "新規病名", DiagnosisCategoryID: 1, IsActive: true},
+			input:   &CreateDiagnosisNameInput{Name: "新規病名", DiagnosisTypeID: 1, IsActive: true},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
 			name:        "returns invalid input when category not found",
-			input:       &CreateDiagnosisNameInput{Name: "病名", DiagnosisCategoryID: 999},
-			categoryErr: apperrors.WrapNotFound("diagnosis_category", "999"),
+			input:       &CreateDiagnosisNameInput{Name: "病名", DiagnosisTypeID: 999},
+			categoryErr: apperrors.WrapNotFound("diagnosis_type", "999"),
 			wantErr:     true,
 		},
 		{
 			name:    "returns error when name already exists",
-			input:   &CreateDiagnosisNameInput{Name: "重複病名", DiagnosisCategoryID: 1},
+			input:   &CreateDiagnosisNameInput{Name: "重複病名", DiagnosisTypeID: 1},
 			repoErr: apperrors.WrapAlreadyExists("diagnosis_name", "重複病名"),
 			wantErr: true,
 		},
 		{
 			name:    "returns error on repository failure",
-			input:   &CreateDiagnosisNameInput{Name: "エラー病名", DiagnosisCategoryID: 1},
+			input:   &CreateDiagnosisNameInput{Name: "エラー病名", DiagnosisTypeID: 1},
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
@@ -753,12 +753,12 @@ func TestDiagnosisNameService_Create(t *testing.T) {
 				},
 			}
 			categoryErr := tt.categoryErr
-			categoryRepo := &mockDiagnosisCategoryRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisCategory, error) {
+			categoryRepo := &mockDiagnosisTypeRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisType, error) {
 					if categoryErr != nil {
 						return nil, categoryErr
 					}
-					return &model.DiagnosisCategory{ID: 1}, nil
+					return &model.DiagnosisType{ID: 1}, nil
 				},
 			}
 			svc := newNameService(repo, categoryRepo)
@@ -809,8 +809,8 @@ func TestDiagnosisNameService_Update(t *testing.T) {
 		{
 			name:        "returns invalid input when category_id not found",
 			id:          1,
-			input:       &UpdateDiagnosisNameInput{DiagnosisCategoryID: &newCatID},
-			categoryErr: apperrors.WrapNotFound("diagnosis_category", "2"),
+			input:       &UpdateDiagnosisNameInput{DiagnosisTypeID: &newCatID},
+			categoryErr: apperrors.WrapNotFound("diagnosis_type", "2"),
 			wantErr:     true,
 		},
 		{
@@ -840,12 +840,12 @@ func TestDiagnosisNameService_Update(t *testing.T) {
 				},
 			}
 			categoryErr := tt.categoryErr
-			categoryRepo := &mockDiagnosisCategoryRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisCategory, error) {
+			categoryRepo := &mockDiagnosisTypeRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisType, error) {
 					if categoryErr != nil {
 						return nil, categoryErr
 					}
-					return &model.DiagnosisCategory{ID: 1}, nil
+					return &model.DiagnosisType{ID: 1}, nil
 				},
 			}
 			svc := newNameService(repo, categoryRepo)
@@ -963,35 +963,35 @@ func TestDiagnosisNameService_Reorder(t *testing.T) {
 	}
 }
 
-func TestBuildDiagnosisCategoryUpdateFields(t *testing.T) {
+func TestBuildDiagnosisTypeUpdateFields(t *testing.T) {
 	name := "テスト"
 	isActive := false
 	desc := "説明"
 	sortOrder := 0
 
 	t.Run("includes only non-nil fields", func(t *testing.T) {
-		input := &UpdateDiagnosisCategoryInput{
+		input := &UpdateDiagnosisTypeInput{
 			Name:      &name,
 			IsActive:  &isActive,
 			SortOrder: &sortOrder,
 		}
-		fields := buildDiagnosisCategoryUpdateFields(input)
-		assert.Equal(t, name, fields[colDiagnosisCategoryName])
-		assert.Equal(t, isActive, fields[colDiagnosisCategoryIsActive])
-		assert.Equal(t, sortOrder, fields[colDiagnosisCategorySortOrder])
-		assert.NotContains(t, fields, colDiagnosisCategoryDescription)
+		fields := buildDiagnosisTypeUpdateFields(input)
+		assert.Equal(t, name, fields[colDiagnosisTypeName])
+		assert.Equal(t, isActive, fields[colDiagnosisTypeIsActive])
+		assert.Equal(t, sortOrder, fields[colDiagnosisTypeSortOrder])
+		assert.NotContains(t, fields, colDiagnosisTypeDescription)
 	})
 
 	t.Run("returns empty map when all fields are nil", func(t *testing.T) {
-		input := &UpdateDiagnosisCategoryInput{}
-		fields := buildDiagnosisCategoryUpdateFields(input)
+		input := &UpdateDiagnosisTypeInput{}
+		fields := buildDiagnosisTypeUpdateFields(input)
 		assert.Empty(t, fields)
 	})
 
 	t.Run("includes description when provided", func(t *testing.T) {
-		input := &UpdateDiagnosisCategoryInput{Description: &desc}
-		fields := buildDiagnosisCategoryUpdateFields(input)
-		assert.Equal(t, desc, fields[colDiagnosisCategoryDescription])
+		input := &UpdateDiagnosisTypeInput{Description: &desc}
+		fields := buildDiagnosisTypeUpdateFields(input)
+		assert.Equal(t, desc, fields[colDiagnosisTypeDescription])
 	})
 }
 
@@ -1003,15 +1003,15 @@ func TestBuildDiagnosisNameUpdateFields(t *testing.T) {
 
 	t.Run("includes only non-nil fields", func(t *testing.T) {
 		input := &UpdateDiagnosisNameInput{
-			Name:                &name,
-			IsActive:            &isActive,
-			DiagnosisCategoryID: &catID,
-			SortOrder:           &sortOrder,
+			Name:            &name,
+			IsActive:        &isActive,
+			DiagnosisTypeID: &catID,
+			SortOrder:       &sortOrder,
 		}
 		fields := buildDiagnosisNameUpdateFields(input)
 		assert.Equal(t, name, fields[colDiagnosisNameName])
 		assert.Equal(t, isActive, fields[colDiagnosisNameIsActive])
-		assert.Equal(t, catID, fields[colDiagnosisNameDiagnosisCategoryID])
+		assert.Equal(t, catID, fields[colDiagnosisNameDiagnosisTypeID])
 		assert.Equal(t, sortOrder, fields[colDiagnosisNameSortOrder])
 		assert.NotContains(t, fields, colDiagnosisNameDescription)
 	})

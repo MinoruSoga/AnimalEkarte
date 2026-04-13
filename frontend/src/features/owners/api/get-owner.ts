@@ -2,11 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Owner } from "@/types/owner";
-import { transformOwner } from "./transforms";
-import type { Owner as BackendOwner } from "@/types/generated/models";
+import { transformOwner, type OwnerApiResponse } from "./transforms";
 
 export const getOwner = async (id: string): Promise<Owner> => {
-  const { data } = await axios.get<BackendOwner>(`/v1/owners/${id}`);
+  const { data } = await axios.get<OwnerApiResponse>(`/v1/owners/${id}`);
   return transformOwner(data);
 };
 

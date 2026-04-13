@@ -7,8 +7,8 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useGetReservationSetting } from "../api/get-reservation-setting";
-import { updateReservationSetting } from "../api/update-reservation-setting";
+import { useGetLineReservationSetting } from "../api/get-line-reservation-setting";
+import { updateLineReservationSetting } from "../api/update-line-reservation-setting";
 import type { ReservationSetting } from "../api/types";
 
 // ── Page Editor Form ──
@@ -66,7 +66,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
     async (_prev: null) => {
       const merged = { ...setting, ...fieldValues };
       try {
-        await updateReservationSetting(clinicId, {
+        await updateLineReservationSetting(clinicId, {
           status: merged.status,
           header_text: merged.header_text,
           reservation_notice: merged.reservation_notice,
@@ -76,6 +76,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
           closed_dates: merged.closed_dates,
           national_holiday_closed: merged.national_holiday_closed,
           business_hours: merged.business_hours,
+          business_hours_by_weekday: merged.business_hours_by_weekday,
           break_hours: merged.break_hours,
           daily_limit: merged.daily_limit,
           monthly_limit: merged.monthly_limit,
@@ -91,9 +92,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
           show_no_staff_option: merged.show_no_staff_option,
           additional_fields: merged.additional_fields,
           line_channel_id: merged.line_channel_id,
-          line_channel_secret: merged.line_channel_secret,
           liff_id: merged.liff_id,
-          line_access_token: merged.line_access_token,
         });
         toast.success("ページ内容を保存しました");
       } catch (err) {
@@ -134,7 +133,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
 
 export function LineReservationPageEditor() {
   const { currentClinicId } = useAuth();
-  const { data: setting, isLoading } = useGetReservationSetting(currentClinicId);
+  const { data: setting, isLoading } = useGetLineReservationSetting(currentClinicId);
 
   return (
     <PageLayout title="ページ編集">

@@ -128,19 +128,28 @@ type MedicineService interface {
 }
 
 type medicineService struct {
-	repo repository.MedicineRepository
+	repo          repository.MedicineRepository
+	inventoryRepo repository.InventoryRepository
 }
 
-func NewMedicineService(repo repository.MedicineRepository) MedicineService {
-	return &medicineService{repo: repo}
+func NewMedicineService(repo repository.MedicineRepository, inventoryRepo repository.InventoryRepository) MedicineService {
+	return &medicineService{repo: repo, inventoryRepo: inventoryRepo}
 }
 
 func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, page, limit)
+	result, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list medicines")
+	}
+	return result, total, nil
 }
 
 func (s *medicineService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get medicine")
+	}
+	return result, nil
 }
 
 func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *CreateMedicineInput) (*model.Medicine, error) {
@@ -182,6 +191,24 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, apperrors.Wrap(err, "failed to create medicine")
 	}
 
+	// BUG-320: 薬品作成時に在庫アイテムを自動作成
+	inventoryItem := &model.InventoryItem{
+		ClinicID:      clinicID,
+		Name:          medicine.Name,
+		Category:      model.InventoryCategoryMedicine,
+		Quantity:      0,
+		Unit:          "錠", // デフォルト
+		MinStockLevel: 0,
+		Status:        model.InventoryStatusSufficient,
+	}
+	if err := s.inventoryRepo.Create(ctx, clinicID, inventoryItem); err != nil {
+		slog.ErrorContext(ctx, "failed to create inventory item",
+			slog.Uint64("medicine_id", medicine.ID),
+			slog.String("name", medicine.Name),
+			slog.String("error", err.Error()))
+		// best-effort: 薬品は作成済みなので、エラーは警告レベル
+	}
+
 	slog.InfoContext(ctx, "medicine created",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", medicine.ID),
@@ -193,7 +220,11 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMedicineInput) (*model.Medicine, error) {
 	fields := buildMedicineUpdateFields(input)
 	if len(fields) == 0 {
-		return s.repo.FindByID(ctx, clinicID, id)
+		result, err := s.repo.FindByID(ctx, clinicID, id)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to get medicine")
+		}
+		return result, nil
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
@@ -204,14 +235,22 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", id),
 	)
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get medicine after update")
+	}
+	return result, nil
 }
 
 func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder medicines")
+	}
+	slog.InfoContext(ctx, "medicines reordered", slog.Uint64("clinic_id", clinicID))
+	return nil
 }
 
 func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { C } from "@/lib/design-tokens";
 // ─────────────────────────────────────────────────
 // Notion-style status pill
@@ -18,7 +19,7 @@ const STATUS_CONFIG = {
   },
 } as const;
 
-export function NotionStatusPill({ isActive }: { isActive: boolean }) {
+export const NotionStatusPill = memo(function NotionStatusPill({ isActive }: { isActive: boolean }) {
   const cfg = STATUS_CONFIG[isActive ? "active" : "inactive"];
   return (
     <span
@@ -28,4 +29,4 @@ export function NotionStatusPill({ isActive }: { isActive: boolean }) {
       {cfg.label}
     </span>
   );
-}
+});

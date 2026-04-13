@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Company as ModelCompany } from "@/types/generated/models";
 
@@ -86,5 +87,6 @@ export function useUpdateCompany() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: COMPANY_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }

@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"context"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 
 	"gorm.io/gorm"
@@ -10,65 +12,68 @@ import (
 type Repositories struct {
 	db *gorm.DB
 	// TransactionFn はテスト時に差し替え可能なトランザクション関数。
-	// nil の場合は db.Transaction() を使用する（本番動作）。
-	TransactionFn          func(fn func(*Repositories) error) error
-	Account                AccountRepository
-	StaffClinicAssignment  StaffClinicAssignmentRepository
-	AnimalSpecies          AnimalSpeciesRepository
-	Owner                  OwnerRepository
-	Pet                    PetRepository
-	Reservation            ReservationRepository
-	MedicalRecord          MedicalRecordRepository
-	Hospitalization        HospitalizationRepository
-	Accounting             AccountingRepository
-	Trimming               TrimmingRepository
-	Inventory              InventoryRepository
-	Staff                  StaffRepository
-	Cage                   CageRepository
-	Medicine               MedicineRepository
-	Vaccine                VaccineRepository
-	Insurance              InsuranceRepository
-	ServiceType            ServiceTypeRepository
-	Consultation           ConsultationRepository
-	Procedure              ProcedureRepository
-	HospitalizationPlan    HospitalizationPlanRepository
-	TrimmingCourse         TrimmingCourseRepository
-	TrimmingOption         TrimmingOptionRepository
-	ExaminationType        ExamTypeRepository
-	DiagnosisCategory      DiagnosisCategoryRepository
-	DiagnosisName          DiagnosisNameRepository
-	CheckupType            CheckupTypeRepository
-	Clinic                 ClinicRepository
-	Examination            ExaminationRepository
-	Vaccination            VaccinationRepository
-	Occupation             OccupationRepository
-	ChiefComplaintCategory ChiefComplaintCategoryRepository
-	Inquiry                InquiryRepository
-	InquiryTemplate        InquiryTemplateRepository
-	Company                CompanyRepository
-	PermissionGroup        PermissionGroupRepository
-	BillingReview          BillingReviewRepository
-	CarePlanItem           CarePlanItemRepository
-	ShiftEntry             ShiftEntryRepository
-	TreatmentPlan          TreatmentPlanRepository
-	Vital                  VitalRepository
-	Treatment              TreatmentRepository
-	DailyRecord            DailyRecordRepository
-	RecordImage            RecordImageRepository
-	ClinicalPlan           ClinicalPlanRepository
-	Checkup                CheckupRepository
-	Estimate               EstimateRepository
-	MerchandiseItem        MerchandiseItemRepository
-	BillingItem            BillingItemRepository
-	Refund                 RefundRepository
-	Audit                  AuditRepository
+	// nil の場合は db.WithContext(ctx).Transaction() を使用する（本番動作）。
+	TransactionFn         func(ctx context.Context, fn func(*Repositories) error) error
+	Account               AccountRepository
+	StaffClinicAssignment StaffClinicAssignmentRepository
+	AnimalSpecies         AnimalSpeciesRepository
+	Owner                 OwnerRepository
+	Pet                   PetRepository
+	Reservation           ReservationRepository
+	MedicalRecord         MedicalRecordRepository
+	Hospitalization       HospitalizationRepository
+	Accounting            AccountingRepository
+	Trimming              TrimmingRepository
+	Inventory             InventoryRepository
+	Staff                 StaffRepository
+	Cage                  CageRepository
+	Medicine              MedicineRepository
+	Vaccine               VaccineRepository
+	Insurance             InsuranceRepository
+	ReservationType       ReservationTypeRepository
+	ReservationTypeGroup  ReservationTypeGroupRepository
+	Consultation          ConsultationRepository
+	Procedure             ProcedureRepository
+	HospitalizationPlan   HospitalizationPlanRepository
+	TrimmingCourse        TrimmingCourseRepository
+	TrimmingOption        TrimmingOptionRepository
+	ExaminationType       ExamTypeRepository
+	DiagnosisType         DiagnosisTypeRepository
+	DiagnosisName         DiagnosisNameRepository
+	CheckupType           CheckupTypeRepository
+	Clinic                ClinicRepository
+	Examination           ExaminationRepository
+	Vaccination           VaccinationRepository
+	Occupation            OccupationRepository
+	ChiefComplaintType    ChiefComplaintTypeRepository
+	Inquiry               InquiryRepository
+	InquiryTemplate       InquiryTemplateRepository
+	Company               CompanyRepository
+	PermissionGroup       PermissionGroupRepository
+	BillingConfirmation   BillingConfirmationRepository
+	CarePlanItem          CarePlanItemRepository
+	ShiftEntry            ShiftEntryRepository
+	ShiftTemplate         ShiftTemplateRepository
+	ClinicHoliday         ClinicHolidayRepository
+	TreatmentPlan         TreatmentPlanRepository
+	Vital                 VitalRepository
+	Treatment             TreatmentRepository
+	DailyRecord           DailyRecordRepository
+	MedicalRecordImage    MedicalRecordImageRepository
+	ClinicalPlan          ClinicalPlanRepository
+	Checkup               CheckupRepository
+	Estimate              EstimateRepository
+	MerchandiseItem       MerchandiseItemRepository
+	BillingItem           BillingItemRepository
+	Refund                RefundRepository
+	Audit                 AuditRepository
 	// LINE予約
-	ReservationSetting     ReservationSettingRepository
-	ReservationCourse      ReservationCourseRepository
+	LineReservationSetting LineReservationSettingRepository
+	ReservationTypeLiff    ReservationTypeLiffRepository
 	ReservationStaff       ReservationStaffRepository
 	ReservationSchedule    ReservationScheduleRepository
 	ReservationAdmin       ReservationAdminRepository
-	ReservationCustomerMgr ReservationCustomerRepository
+	LineCustomerMgr        LineCustomerRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -91,33 +96,36 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Medicine:               NewMedicineRepository(db),
 		Vaccine:                NewVaccineRepository(db),
 		Insurance:              NewInsuranceRepository(db),
-		ServiceType:            NewServiceTypeRepository(db),
+		ReservationType:        NewReservationTypeRepository(db),
+		ReservationTypeGroup:   NewReservationTypeGroupRepository(db),
 		Consultation:           NewConsultationRepository(db),
 		Procedure:              NewProcedureRepository(db),
 		HospitalizationPlan:    NewHospitalizationPlanRepository(db),
 		TrimmingCourse:         NewTrimmingCourseRepository(db),
 		TrimmingOption:         NewTrimmingOptionRepository(db),
 		ExaminationType:        NewExamTypeRepository(db),
-		DiagnosisCategory:      NewDiagnosisCategoryRepository(db),
+		DiagnosisType:          NewDiagnosisTypeRepository(db),
 		DiagnosisName:          NewDiagnosisNameRepository(db),
 		CheckupType:            NewCheckupTypeRepository(db),
 		Clinic:                 NewClinicRepository(db),
 		Examination:            NewExaminationRepository(db),
 		Vaccination:            NewVaccinationRepository(db),
 		Occupation:             NewOccupationRepository(db),
-		ChiefComplaintCategory: NewChiefComplaintCategoryRepository(db),
+		ChiefComplaintType:     NewChiefComplaintTypeRepository(db),
 		Inquiry:                NewInquiryRepository(db),
 		InquiryTemplate:        NewInquiryTemplateRepository(db),
 		Company:                NewCompanyRepository(db),
 		PermissionGroup:        NewPermissionGroupRepository(db),
-		BillingReview:          NewBillingReviewRepository(db),
+		BillingConfirmation:    NewBillingConfirmationRepository(db),
 		CarePlanItem:           NewCarePlanItemRepository(db),
 		ShiftEntry:             NewShiftEntryRepository(db),
+		ShiftTemplate:          NewShiftTemplateRepository(db),
+		ClinicHoliday:          NewClinicHolidayRepository(db),
 		TreatmentPlan:          NewTreatmentPlanRepository(db),
 		Vital:                  NewVitalRepository(db),
 		Treatment:              NewTreatmentRepository(db),
 		DailyRecord:            NewDailyRecordRepository(db),
-		RecordImage:            NewRecordImageRepository(db),
+		MedicalRecordImage:     NewMedicalRecordImageRepository(db),
 		ClinicalPlan:           NewClinicalPlanRepository(db),
 		Checkup:                NewCheckupRepository(db),
 		Estimate:               NewEstimateRepository(db),
@@ -125,12 +133,12 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		BillingItem:            NewBillingItemRepository(db),
 		Refund:                 NewRefundRepository(db),
 		Audit:                  NewAuditRepository(db),
-		ReservationSetting:     NewReservationSettingRepository(db),
-		ReservationCourse:      NewReservationCourseRepository(db),
+		LineReservationSetting: NewLineReservationSettingRepository(db),
+		ReservationTypeLiff:    NewReservationTypeLiffRepository(db),
 		ReservationStaff:       NewReservationStaffRepository(db),
 		ReservationSchedule:    NewReservationScheduleRepository(db),
 		ReservationAdmin:       NewReservationAdminRepository(db),
-		ReservationCustomerMgr: NewReservationCustomerRepository(db),
+		LineCustomerMgr:        NewLineCustomerRepository(db),
 	}
 }
 
@@ -139,11 +147,11 @@ func (r *Repositories) DB() *gorm.DB { return r.db }
 
 // Transaction はリポジトリ層のトランザクションを実行する。
 // テスト時は TransactionFn に mock を設定することで DB 依存を排除できる。
-func (r *Repositories) Transaction(fn func(repos *Repositories) error) error {
+func (r *Repositories) Transaction(ctx context.Context, fn func(repos *Repositories) error) error {
 	if r.TransactionFn != nil {
-		return r.TransactionFn(fn)
+		return r.TransactionFn(ctx, fn)
 	}
-	if err := r.db.Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txRepos := NewRepositories(tx)
 		return fn(txRepos)
 	}); err != nil {

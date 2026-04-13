@@ -1,6 +1,6 @@
 // React/Framework
-import { ICON, C, BADGE } from "@/lib/design-tokens";
-import { useState, useCallback, useMemo } from "react";
+import { ICON, C, BADGE, STYLE } from "@/lib/design-tokens";
+import { useState, useCallback, useMemo, memo } from "react";
 
 // External
 import { Pill, Stethoscope, Utensils, ClipboardList, MoreHorizontal, Pencil, Plus, Loader2 } from "lucide-react";
@@ -210,7 +210,7 @@ function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
                     <DeleteIconButton
                         onClick={() => onDelete(item.id)}
                         disabled={isDeleting}
-                        className="size-7"
+                        className={STYLE.iconBtn28}
                     />
                 ) : null}
             </div>
@@ -307,7 +307,7 @@ interface CarePlanTabProps {
     hospitalizationId: string;
 }
 
-export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
+export const CarePlanTab = memo(function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
     const { canCreate, canEdit, canDelete } = usePermission("hospitalization");
     const { data: items, isLoading } = useGetCarePlanItems(hospitalizationId);
     const createItem = useCreateCarePlanItem(hospitalizationId);
@@ -406,4 +406,4 @@ export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
             ) : null}
         </div>
     );
-}
+});

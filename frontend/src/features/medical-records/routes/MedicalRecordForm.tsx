@@ -12,7 +12,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
-import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
@@ -37,6 +37,9 @@ import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments } from "../api/treatments";
+import { useDeleteMedicalRecord } from "../api/delete-medical-record";
+import { handleApiError } from "@/lib/handle-api-error";
+import { toast } from "sonner";
 import { MedicalRecordPrintView } from "../components/MedicalRecordPrintView";
 import { useAuth, usePermission } from "@/features/auth";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
@@ -76,8 +79,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setTreatmentPlanItems: _setTreatmentPlanItems,
     chiefComplaint,
     setChiefComplaint,
-    chiefComplaintCategoryId,
-    setChiefComplaintCategoryId,
+    chiefComplaintTypeId,
+    setChiefComplaintTypeId,
     treatmentPolicy,
     setTreatmentPolicy,
     plan,
@@ -144,8 +147,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         } else if (currentTab === "見積書") {
           await (estimateSaveRef.current?.() ?? Promise.resolve());
         }
-      } catch {
-        // サブ保存失敗はページ表示に影響しない
+      } catch (error) {
+        // サブ保存失敗: メインカルテは保存済み。ユーザーに通知して再保存を促す
+        handleApiError(error, "データの保存");
       }
       markClean();
       // ナビゲーションなし: タブに留まる
@@ -172,6 +176,22 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
+
+  const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord();
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (!recordId) return;
+    deleteRecord(recordId, {
+      onSuccess: () => {
+        toast.success("カルテを削除しました");
+        setIsDeleteConfirmOpen(false);
+        navigate(paths.medicalRecords.getHref());
+      },
+      onError: (error) => {
+        handleApiError(error, "カルテ削除");
+      },
+    });
+  }, [recordId, deleteRecord, navigate]);
 
   useEffect(() => {
     if (shouldRedirectToSelectPet) {
@@ -201,10 +221,10 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setChiefComplaint(val);
   }, [markDirty, setChiefComplaint]);
 
-  const handleSetChiefComplaintCategoryId = useCallback((id: number | null) => {
+  const handleSetChiefComplaintTypeId = useCallback((id: number | null) => {
     markDirty();
-    setChiefComplaintCategoryId(id);
-  }, [markDirty, setChiefComplaintCategoryId]);
+    setChiefComplaintTypeId(id);
+  }, [markDirty, setChiefComplaintTypeId]);
 
   const handleSetTreatmentPolicy = useCallback((val: string) => {
     markDirty();
@@ -252,6 +272,21 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setIsStaffModalOpen(open);
   }, []);
 
+  const handleVisitTypeCycle = useCallback(() => {
+    setVisitType((prev) => {
+      const idx = VISIT_TYPE_OPTIONS.indexOf(prev as typeof VISIT_TYPE_OPTIONS[number]);
+      return VISIT_TYPE_OPTIONS[(idx + 1) % VISIT_TYPE_OPTIONS.length];
+    });
+  }, [setVisitType]);
+
+  const handleOpenStaffModal = useCallback(() => {
+    setIsStaffModalOpen(true);
+  }, []);
+
+  const handleOpenOwnerSearch = useCallback(() => {
+    setIsOwnerSearchOpen(true);
+  }, []);
+
   if (isPetLoading) {
     return <LoadingFallback />;
   }
@@ -281,14 +316,11 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           status={selectedPet.status === "死亡" ? "deceased" : "alive"}
           staffName={staffName}
           staffLabel="担当医: "
-          serviceType={visitType}
-          serviceTypeLabel="来院種別"
-          onServiceTypeClick={() => {
-            const idx = VISIT_TYPE_OPTIONS.indexOf(visitType as typeof VISIT_TYPE_OPTIONS[number]);
-            setVisitType(VISIT_TYPE_OPTIONS[(idx + 1) % VISIT_TYPE_OPTIONS.length]);
-          }}
-          onStaffClick={canEdit ? () => setIsStaffModalOpen(true) : undefined}
-          onOwnerClick={!isNewRecord ? () => setIsOwnerSearchOpen(true) : undefined}
+          reservationType={visitType}
+          reservationTypeLabel="来院種別"
+          onReservationTypeClick={handleVisitTypeCycle}
+          onStaffClick={canEdit ? handleOpenStaffModal : undefined}
+          onOwnerClick={!isNewRecord ? handleOpenOwnerSearch : undefined}
           petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
           insuranceName={selectedPet.insuranceName || "保険情報未登録"}
           insuranceDetails={selectedPet.insuranceDetails || "-"}
@@ -327,8 +359,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}
               setChiefComplaint={handleSetChiefComplaint}
-              chiefComplaintCategoryId={chiefComplaintCategoryId}
-              setChiefComplaintCategoryId={handleSetChiefComplaintCategoryId}
+              chiefComplaintTypeId={chiefComplaintTypeId}
+              setChiefComplaintTypeId={handleSetChiefComplaintTypeId}
               treatmentPolicy={treatmentPolicy}
               setTreatmentPolicy={handleSetTreatmentPolicy}
               historyItems={historyItems}
@@ -355,6 +387,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               medicalRecordId={recordId}
               ownerDiscountRate={ownerDiscountRate}
               onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
+              diagnosis1NameIdError={formState.fieldErrors?.diagnosis1_name_id}
             />
           </div>
         ) : null}
@@ -384,7 +417,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         ) : null}
         {mountedTabs.has("検査") ? (
           <div className={`${LAYOUT.fullHeight} ${activeTab === "検査" ? "" : "hidden"}`}>
-            <MedicalRecordExamination isNewRecord={isNewRecord} petId={selectedPet?.id} />
+            <MedicalRecordExamination isNewRecord={isNewRecord} petId={selectedPet?.id} medicalRecordId={recordId} />
           </div>
         ) : null}
         {mountedTabs.has("画像") ? (
@@ -413,6 +446,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         <div className="fixed bottom-6 right-6 z-50 flex gap-2">
           {canDelete && !isNewRecord && activeTab === "問診" ? (
             <Button
+              type="button"
               variant="ghost-danger"
               onClick={() => setIsDeleteConfirmOpen(true)}
               className={`border ${C.borderDanger} h-10 text-sm px-4`}
@@ -423,6 +457,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           ) : null}
           {activeTab !== "見積書" && canEdit ? (
             <Button
+              type="button"
               variant="outline"
               onClick={() => setIsVitalsOpen(true)}
               disabled={isNewRecord}
@@ -435,6 +470,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           ) : null}
           {!isNewRecord ? (
             <Button
+              type="button"
               variant="outline"
               onClick={() => {
                 setIsPrinting(true);
@@ -476,14 +512,21 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               {selectedPet.name}のカルテデータを削除します。この操作は元に戻せません。
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                disabled={isDeleting}
+              >
                 キャンセル
               </Button>
               <Button
+                type="button"
                 className={`${STYLE.btnDanger}`}
-                onClick={() => setIsDeleteConfirmOpen(false)}
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
               >
-                削除
+                {isDeleting ? "削除中..." : "削除する"}
               </Button>
             </div>
           </div>

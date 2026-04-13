@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -43,9 +42,8 @@ func (h *Handler) GetOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	owner, err := h.svc.Owner.GetByID(c.Request.Context(), clinicID, id)
@@ -74,7 +72,7 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 		pets = append(pets, service.CreatePetForOwnerInput{
 			Name:            p.Name,
 			AnimalSpeciesID: p.AnimalSpeciesID,
-			PetNameKana:     p.PetNameKana,
+			PetNameKana:     p.NameKana,
 			Breed:           p.Breed,
 			Color:           p.Color,
 			Gender:          p.Gender,
@@ -125,9 +123,8 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var req updateOwnerRequest
@@ -175,9 +172,8 @@ func (h *Handler) DeleteOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.Owner.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -185,14 +181,4 @@ func (h *Handler) DeleteOwner(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
-}
-
-// RegisterOwnerRoutes は飼主関連のルートを登録する
-func (h *Handler) RegisterOwnerRoutes(rg *gin.RouterGroup) {
-	owners := rg.Group("/owners")
-	owners.GET("", h.ListOwners)
-	owners.POST("", h.CreateOwner)
-	owners.GET("/:id", h.GetOwner)
-	owners.PATCH("/:id", h.UpdateOwner)
-	owners.DELETE("/:id", h.DeleteOwner)
 }

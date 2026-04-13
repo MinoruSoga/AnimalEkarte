@@ -69,13 +69,14 @@ export function TaskCompleteDialog({ open, onOpenChange, task, onConfirm }: Task
                 </div>
 
                 <div className="space-y-2">
-                    <Label>実施時刻</Label>
-                    <Input type="time" value={form.time} onChange={e => setForm(prev => ({...prev, time: e.target.value}))} className={H_STYLES.text.base} />
+                    <Label htmlFor="task-time">実施時刻</Label>
+                    <Input id="task-time" type="time" value={form.time} onChange={e => setForm(prev => ({...prev, time: e.target.value}))} className={H_STYLES.text.base} />
                 </div>
 
                 <div className="space-y-2">
-                    <Label>実施メモ (任意)</Label>
+                    <Label htmlFor="task-memo">実施メモ (任意)</Label>
                     <Textarea
+                        id="task-memo"
                         placeholder="特記事項があれば入力..."
                         value={form.notes}
                         onChange={e => setForm(prev => ({...prev, notes: e.target.value}))}

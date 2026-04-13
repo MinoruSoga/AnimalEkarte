@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation, useNavigation } from "react-router";
 import { Sidebar } from "./Sidebar";
 import { useAuth } from "@/features/auth";
 import { C } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 
 export function Layout() {
   const { isAuthenticated, isLoading, isSwitchingClinic } = useAuth();
@@ -12,7 +13,7 @@ export function Layout() {
 
   if (!isAuthenticated) {
     // BUG-047: Redirect back to original destination after login
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return <Navigate to={paths.auth.login.getHref()} replace state={{ from: location.pathname }} />;
   }
 
   const isNavigating = navigation.state === "loading";

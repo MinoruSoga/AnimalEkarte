@@ -2,16 +2,16 @@ import type {
   Hospitalization,
   CarePlanItem,
   VitalRecord,
-  CareLogRecord,
-  StaffNoteRecord,
+  CareLog,
+  StaffNote,
   DailyRecord,
 } from "@/types/generated/models";
 
 export type BackendHospitalization = Hospitalization;
 export type BackendCarePlanItem = CarePlanItem;
 export type BackendVital = VitalRecord;
-export type BackendCareLog = CareLogRecord;
-export type BackendStaffNote = StaffNoteRecord;
+export type BackendCareLog = CareLog;
+export type BackendStaffNote = StaffNote;
 export type BackendDailyRecord = DailyRecord;
 
 export interface CreateHospitalizationRequest {

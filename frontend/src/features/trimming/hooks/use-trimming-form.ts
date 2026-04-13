@@ -76,7 +76,10 @@ export function useTrimmingForm(id?: string) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: one-time draft restore on mount
         setLocalOverrides((prev) => ({ ...prev, ...draft }));
         toast.info("未保存の下書きを復元しました", { duration: 2000 });
-      } catch { /* ignore */ }
+      } catch {
+        // localStorage の下書きが破損している場合は静かにスキップ（復元失敗は非致命的）
+        localStorage.removeItem(DRAFT_KEY);
+      }
     }
   }, [DRAFT_KEY]);
 
@@ -89,6 +92,9 @@ export function useTrimmingForm(id?: string) {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }
   }, [DRAFT_KEY, localOverrides]);
+
+  const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
+  const [completedImagePreview, setCompletedImagePreview] = useState<string | null>(null);
 
   // 編集モード: サーバーデータを全フィールド復元（初回のみ）
   // rerender-use-ref-transient-values: フラグを useState → useRef に変更して setState-in-effect を排除
@@ -110,6 +116,13 @@ export function useTrimmingForm(id?: string) {
         staffId: existingTrimming.staffId ?? "",
         staffName: existingTrimming.staff ?? "",
       });
+      // 既存画像URLをプレビューとして復元
+      if (existingTrimming.styleImage) {
+        setStyleImagePreview(existingTrimming.styleImage);
+      }
+      if (existingTrimming.completedImage) {
+        setCompletedImagePreview(existingTrimming.completedImage);
+      }
     }
   }, [isEdit, existingTrimming]);
 
@@ -132,9 +145,9 @@ export function useTrimmingForm(id?: string) {
         if (isEdit && id) {
           const req: UpdateTrimmingRequest = {
             style_request: formData.styleRequest || undefined,
-            bw: formData.bw ? Number(formData.bw) : undefined,
+            body_weight: formData.bw ? Number(formData.bw) : undefined,
             bw_unit: formData.bwUnit || undefined,
-            bt: formData.bt ? Number(formData.bt) : undefined,
+            body_temperature: formData.bt ? Number(formData.bt) : undefined,
             used_shampoo: formData.usedShampoo || undefined,
             used_ribbon: formData.usedRibbon || undefined,
             remarks: formData.remarks || undefined,
@@ -179,9 +192,6 @@ export function useTrimmingForm(id?: string) {
     },
     INITIAL_ACTION_STATE
   );
-
-  const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
-  const [completedImagePreview, setCompletedImagePreview] = useState<string | null>(null);
 
   // Edit mode: restore pet from fetched trimming data
   useEffect(() => {
@@ -248,6 +258,9 @@ export function useTrimmingForm(id?: string) {
         onSuccess: () => {
           toast.success("トリミング情報を削除しました");
           onSuccess?.();
+        },
+        onError: (error) => {
+          handleApiError(error, "削除");
         },
       });
     });

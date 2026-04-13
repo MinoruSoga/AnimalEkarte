@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 
@@ -10,7 +11,7 @@ interface SidePeekFooterProps {
   readOnly?: boolean;
 }
 
-export function SidePeekFooter({
+export const SidePeekFooter = memo(function SidePeekFooter({
   onCancel,
   onSave,
   saveLabel = "保存",
@@ -44,4 +45,4 @@ export function SidePeekFooter({
       </SubmitButton>
     </div>
   );
-}
+});

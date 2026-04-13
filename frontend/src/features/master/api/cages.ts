@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Cage as ModelCage } from "@/types/generated/models";
 
@@ -85,6 +86,7 @@ export const useCreateCage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 };
 
@@ -101,6 +103,7 @@ export const useUpdateCage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 };
 
@@ -119,6 +122,7 @@ export const useDeleteCage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 };
 
@@ -129,5 +133,6 @@ export const useReorderCages = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
     },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 };

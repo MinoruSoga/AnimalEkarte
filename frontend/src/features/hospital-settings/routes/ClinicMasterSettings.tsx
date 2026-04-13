@@ -22,6 +22,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useGetClinics, useCreateClinic, useUpdateClinic, useDeleteClinic } from "@/features/hospital-settings/api/clinics";
 
 // Types
@@ -56,8 +57,8 @@ const PropertyRow = memo(function PropertyRow({
   children: ReactNode;
 }) {
   return (
-    <div className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}>
-      <div className={`w-[140px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
+    <div className={STYLE.propertyRow}>
+      <div className={`${LAYOUT.propertyRow.labelW} shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
         {label}
       </div>
       <div className="flex-1 flex items-center">{children}</div>
@@ -158,6 +159,7 @@ export function ClinicMasterSettings() {
   interface FormState {
     success: boolean;
     timestamp: number;
+    nameError?: string;
   }
 
   /**
@@ -167,8 +169,7 @@ export function ClinicMasterSettings() {
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
       const fd = formData;
       if (!fd.name) {
-        toast.error("院名は必須です");
-        return { success: false, timestamp: Date.now() };
+        return { success: false, timestamp: Date.now(), nameError: "院名は必須です" };
       }
 
       try {
@@ -269,10 +270,11 @@ export function ClinicMasterSettings() {
   const pendingDeleteId = pendingDelete?.id ?? null;
   const [isDeletePending, startDeleteTransition] = useTransition();
 
+  const { mutate: deleteClinicMasterFn } = deleteMutation;
   const handleDeleteConfirm = useCallback(() => {
     if (pendingDeleteId === null) return;
     startDeleteTransition(() => {
-      deleteMutation.mutate(pendingDeleteId, {
+      deleteClinicMasterFn(pendingDeleteId, {
         onSuccess: () => {
           setPendingDelete(null);
           setIsEditing(false);
@@ -283,7 +285,7 @@ export function ClinicMasterSettings() {
         },
       });
     });
-  }, [pendingDeleteId, deleteMutation]);
+  }, [pendingDeleteId, deleteClinicMasterFn]);
 
   return (
     <>
@@ -410,6 +412,7 @@ export function ClinicMasterSettings() {
                     }
                     placeholder="無題"
                   />
+                  <FormFieldError message={formState.nameError} />
                 </div>
 
                 {/* Separator */}

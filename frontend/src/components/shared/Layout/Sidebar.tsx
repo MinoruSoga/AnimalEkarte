@@ -1,4 +1,4 @@
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { LayoutDashboard, Users, Calendar, FileText, TestTube, CreditCard, Bed, Syringe, Scissors, Settings, ChevronDown, PanelLeftClose, PanelLeft, Pill, ShieldCheck, Building2, Activity, Package, CalendarDays, ClipboardCheck, Clipboard, ClipboardList, KeyRound, LogOut, User, PawPrint, Lock, Briefcase, Smartphone } from "lucide-react";
 import { useState, useEffect, memo, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -6,7 +6,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth, ChangePasswordDialog, usePermission } from "@/features/auth";
 import { paths } from "@/config/paths";
-import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterServiceType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise } from "@/types/generated/models";
+import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceExaminations, ResourceAccounting, ResourceHospitalization, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceShifts, ResourceTrimming, ResourceHospitalSettings, ResourceMasterAnimalSpecies, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization as ResourceMasterHosp, ResourceMasterTrimming as ResourceMasterTrim, ResourceMasterPermission, ResourceMasterStaff, ResourceMasterInsurance, ResourceMasterMerchandise } from "@/types/generated/models";
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */
@@ -62,7 +62,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
         "w-full flex items-center gap-3 px-3 h-12 rounded-[3px] text-base transition-colors",
         isActive
           ? STYLE.sidebarItemActive
-          : `${C.text65} ${C.hoverBgLight} ${C.hoverText}`,
+          : STYLE.sidebarItemIdle,
         collapsed ? "justify-center" : "",
         level === 1 ? "pl-8" : level > 1 ? "pl-14" : "",
       ].join(" ")}
@@ -167,7 +167,7 @@ const SidebarItemWithPermission = memo(function SidebarItemWithPermission({
 /*  Sidebar                                                            */
 /* ================================================================== */
 
-export function Sidebar() {
+export const Sidebar = memo(function Sidebar() {
   const [collapsed, setCollapsed] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 1280,
   );
@@ -214,12 +214,10 @@ export function Sidebar() {
 
   return (
     <div
-      className={`h-full ${C.bgPage} border-r ${C.borderLight} flex flex-col transition-all duration-300 ${
-        collapsed ? "w-[56px]" : "w-[220px]"
-      }`}
+      className={`${STYLE.sidebarContainer} ${collapsed ? LAYOUT.sidebar.collapsed : LAYOUT.sidebar.expanded}`}
     >
       {/* Header */}
-      <div className={`h-[53px] flex items-center px-2.5 border-b ${C.borderDivider}`}>
+      <div className={STYLE.sidebarHeader}>
         {!collapsed ? (
           <div className="flex items-center justify-between w-full">
             {hasMultipleClinics ? (
@@ -229,7 +227,7 @@ export function Sidebar() {
                     type="button"
                     className={`flex items-center gap-1 min-w-0 text-base font-semibold ${C.text} ${C.hoverBgLight} rounded-[3px] px-1.5 py-1 transition-colors outline-none`}
                   >
-                    <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
+                    <span className={`${ICON.dot} rounded-full ${C.bgBrand} shrink-0`} />
                     <span className="truncate">{clinicName}</span>
                     <ChevronDown className={`${ICON.xs} opacity-40 shrink-0`} />
                   </button>
@@ -246,7 +244,7 @@ export function Sidebar() {
                           : `${C.text65} ${C.hoverBgLight}`
                       }`}
                     >
-                      <span className={`size-1.5 rounded-full shrink-0 ${
+                      <span className={`${ICON.dotSm} rounded-full shrink-0 ${
                         c.clinicId === currentClinicId ? C.bgBrand : C.bgInactive
                       }`} />
                       {c.clinicName}
@@ -256,7 +254,7 @@ export function Sidebar() {
               </Popover>
             ) : (
               <div className={`flex items-center gap-1 min-w-0 text-base font-semibold px-1.5 py-1 ${C.text}`}>
-                <span className={`size-2 rounded-full ${C.bgBrand} shrink-0`} />
+                <span className={`${ICON.dot} rounded-full ${C.bgBrand} shrink-0`} />
                 <span className="truncate">{clinicName}</span>
               </div>
             )}
@@ -264,7 +262,7 @@ export function Sidebar() {
               type="button"
               onClick={() => setCollapsed(true)}
               aria-label="サイドバーを折りたたむ"
-              className={`size-7 flex items-center justify-center ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-[3px] transition-colors`}
+              className={STYLE.sidebarToggle}
             >
               <PanelLeftClose className={ICON.page} />
             </button>
@@ -323,13 +321,8 @@ export function Sidebar() {
               path: paths.lineReservation.getHref(),
               resource: ResourceReservations,
               subItems: [
-                { label: "予約状況", path: paths.lineReservation.calendar.getHref(), resource: ResourceReservations },
-                { label: "コース設定", path: paths.lineReservation.courses.getHref(), resource: ResourceReservations },
-                { label: "スタッフ設定", path: paths.lineReservation.staffs.getHref(), resource: ResourceReservations },
-                { label: "スタッフ個人設定", path: paths.lineReservation.schedule.getHref(), resource: ResourceReservations },
                 { label: "基本設定", path: paths.lineReservation.settings.getHref(), resource: ResourceReservations },
                 { label: "ページ編集", path: paths.lineReservation.pageEditor.getHref(), resource: ResourceReservations },
-                { label: "LINE顧客管理", path: paths.lineReservation.customers.getHref(), resource: ResourceReservations },
               ],
             } as MenuItem}
             collapsed={collapsed}
@@ -358,7 +351,7 @@ export function Sidebar() {
                     { icon: <Pill           className={ICON.toolbar} />, label: "薬剤マスタ", path: paths.settings.medicine.getHref(), resource: ResourceMasterMedical },
                   ],
                 },
-                { icon: <Activity     className={ICON.toolbar} />, label: "診療サービス", path: paths.settings.serviceType.getHref(), resource: ResourceMasterServiceType },
+                { icon: <Activity     className={ICON.toolbar} />, label: "予約区分", path: paths.settings.reservationType.getHref(), resource: ResourceMasterReservationType },
                 { icon: <Bed          className={ICON.toolbar} />, label: "入院・ケージ", path: paths.settings.hospitalization.getHref(), resource: ResourceMasterHosp },
                 { icon: <Scissors     className={ICON.toolbar} />, label: "トリミング", path: paths.settings.trimming.getHref(), resource: ResourceMasterTrim },
                 { icon: <Lock         className={ICON.toolbar} />, label: "権限グループ", path: paths.settings.permissionGroups.getHref(), resource: ResourceMasterPermission },
@@ -389,7 +382,7 @@ export function Sidebar() {
                 onClick={() => setIsChangePasswordOpen(true)}
                 aria-label="パスワード変更"
                 title="パスワード変更"
-                className={`size-7 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} ${C.hoverBgMedium} transition-colors shrink-0`}
+                className={`${STYLE.iconBtn28} ${C.text35} ${C.hoverText} ${C.hoverBgMedium} shrink-0`}
               >
                 <KeyRound className={ICON.action} />
               </button>
@@ -398,7 +391,7 @@ export function Sidebar() {
                 onClick={logout}
                 aria-label="ログアウト"
                 title="ログアウト"
-                className={`size-7 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} ${C.hoverBgMedium} transition-colors shrink-0`}
+                className={`${STYLE.iconBtn28} ${C.text35} ${C.hoverText} ${C.hoverBgMedium} shrink-0`}
               >
                 <LogOut className={ICON.action} />
               </button>
@@ -410,9 +403,15 @@ export function Sidebar() {
             />
           </>
         ) : (
-          <div className="flex items-center justify-center h-[30px]">
+          <button
+            type="button"
+            onClick={logout}
+            aria-label="ログアウト"
+            title="ログアウト"
+            className={`w-full h-[30px] flex items-center justify-center rounded-[3px] ${C.hoverBgMedium} transition-colors`}
+          >
             <LogOut className={`${ICON.action} ${C.text40}`} />
-          </div>
+          </button>
         )}
       </div>
 
@@ -428,4 +427,4 @@ export function Sidebar() {
       />
     </div>
   );
-}
+});

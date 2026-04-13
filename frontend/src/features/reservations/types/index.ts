@@ -1,6 +1,6 @@
 import type { Pet, VisitType, ReservationStatus } from "@/types";
 export type {
-  ReservationAppointment,
+  Appointment,
   ReservationStatus,
   CalendarView,
   VisitType,
@@ -35,6 +35,7 @@ export interface ReservationFormData {
   status?: ReservationStatus;
   notes?: string;
   petId?: string;
+  source?: "manual" | "line";
 }
 
 /** Default values for a new reservation form */

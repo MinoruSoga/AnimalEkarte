@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { Shift, UpdateShiftInput } from "../types";
 import { transformShift } from "./transforms";
 import type { BackendShift } from "./types";
@@ -17,5 +18,6 @@ export function useUpdateShift() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
     },
+    onError: (error) => handleApiError(error, "シフトの更新"),
   });
 }

@@ -15,18 +15,18 @@ import (
 // ---- Vital モック ----
 
 type mockVitalRepository struct {
-	listByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error)
-	findByIDFn              func(ctx context.Context, clinicID uint64, vitalID uint64) (*model.VitalRecord, error)
+	listByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
+	findByIDFn              func(ctx context.Context, clinicID, vitalID uint64) (*model.VitalRecord, error)
 	createFn                func(ctx context.Context, vital *model.VitalRecord) error
-	updateFn                func(ctx context.Context, vitalID uint64, fields map[string]any) error
-	deleteFn                func(ctx context.Context, vitalID uint64) error
+	updateFn                func(ctx context.Context, clinicID, vitalID uint64, fields map[string]any) error
+	deleteFn                func(ctx context.Context, clinicID, vitalID uint64) error
 }
 
-func (m *mockVitalRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error) {
-	return m.listByMedicalRecordIDFn(ctx, medicalRecordID)
+func (m *mockVitalRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
+	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockVitalRepository) FindByID(ctx context.Context, clinicID uint64, vitalID uint64) (*model.VitalRecord, error) {
+func (m *mockVitalRepository) FindByID(ctx context.Context, clinicID, vitalID uint64) (*model.VitalRecord, error) {
 	return m.findByIDFn(ctx, clinicID, vitalID)
 }
 
@@ -34,12 +34,12 @@ func (m *mockVitalRepository) Create(ctx context.Context, vital *model.VitalReco
 	return m.createFn(ctx, vital)
 }
 
-func (m *mockVitalRepository) Update(ctx context.Context, vitalID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, vitalID, fields)
+func (m *mockVitalRepository) Update(ctx context.Context, clinicID, vitalID uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, vitalID, fields)
 }
 
-func (m *mockVitalRepository) Delete(ctx context.Context, vitalID uint64) error {
-	return m.deleteFn(ctx, vitalID)
+func (m *mockVitalRepository) Delete(ctx context.Context, clinicID, vitalID uint64) error {
+	return m.deleteFn(ctx, clinicID, vitalID)
 }
 
 // ---- Tests ----
@@ -84,13 +84,13 @@ func TestVitalService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVitalRepository{
-				listByMedicalRecordIDFn: func(_ context.Context, _ uint64) ([]model.VitalRecord, error) {
+				listByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
 					return tt.repoVitals, tt.repoErr
 				},
 			}
 			svc := NewVitalService(repo)
 
-			vitals, err := svc.List(context.Background(), tt.medicalRecordID)
+			vitals, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -331,7 +331,7 @@ func TestVitalService_Update(t *testing.T) {
 				findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.VitalRecord, error) {
 					return tt.repoVital, tt.findByIDErr
 				},
-				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.updateErr
 				},
 			}
@@ -417,7 +417,7 @@ func TestVitalService_Delete(t *testing.T) {
 				findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.VitalRecord, error) {
 					return tt.repoVital, tt.findByIDErr
 				},
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.deleteErr
 				},
 			}

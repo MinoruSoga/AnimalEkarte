@@ -5,6 +5,7 @@ import { Building2, Calendar } from "lucide-react";
 
 // Internal
 import { Label } from "@/components/ui/label";
+import { MasterLink } from "@/components/shared/MasterLink";
 import { Textarea } from "@/components/ui/textarea";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -88,7 +89,10 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 
       {/* ケージ/個室 */}
       <div className="mb-3">
-          <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>ケージ・個室</Label>
+          <div className="flex items-center justify-between mb-1.5">
+            <Label className={`${H_STYLES.text.sm} ${C.text60}`}>ケージ・個室</Label>
+            <MasterLink category="cage" label="編集" className="text-[11px]" />
+          </div>
           <Select 
               value={formData.cageId} 
               onValueChange={(val) => onChange({ cageId: val })}
@@ -99,7 +103,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
               <SelectContent>
                   {cageItems.map((cage) => (
                       <SelectItem key={cage.id} value={String(cage.id)}>
-                          {cage.name} <span className={`${H_STYLES.text.xs} text-muted-foreground ml-1`}>({cage.description})</span>
+                          {cage.name} <span className={`${H_STYLES.text.xs} ${C.text50} ml-1`}>({cage.description})</span>
                       </SelectItem>
                   ))}
               </SelectContent>

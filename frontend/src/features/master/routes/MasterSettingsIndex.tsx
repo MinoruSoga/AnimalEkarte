@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
-import { Building2, ChevronRight, ClipboardList, FolderTree, Scissors, Settings, Stethoscope } from "lucide-react";
+import { Building2, Calendar, ChevronRight, ClipboardList, FolderTree, Scissors, Settings, Stethoscope } from "lucide-react";
 import { CATEGORY_CONFIG } from "@/features/master/constants/category-config";
 import type { MasterSettingsCategory } from "@/features/master/constants/category-config";
 
@@ -14,14 +14,14 @@ import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { usePermission, useAuth } from "@/features/auth";
 import type { ResourceAction } from "@/features/auth";
 import type { Resource } from "@/types/generated/models";
-import { ResourceHospitalSettings, ResourceMasterMedical, ResourceMasterTrimming } from "@/types/generated/models";
+import { ResourceHospitalSettings, ResourceMasterMedical, ResourceMasterTrimming, ResourceShifts } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────
 
 /** Group keys that are NOT individual MasterSettingsCategory */
-type GroupKey = "clinic" | "treatmentItems" | "diagnosisGroup" | "trimmingGroup" | "inquiry_template";
+type GroupKey = "clinic" | "treatmentItems" | "diagnosisGroup" | "trimmingGroup" | "inquiry_template" | "shift_template";
 
 /** All possible card keys in the settings index */
 type MasterCardKey = MasterSettingsCategory | GroupKey;
@@ -68,7 +68,7 @@ const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     IconComponent: FolderTree,
     path: "/settings/diagnosis",
     resource: ResourceMasterMedical,
-    countCategories: ["diagnosis_category", "diagnosis_name"],
+    countCategories: ["diagnosis_type", "diagnosis_name"],
   },
   trimmingGroup: {
     label: "トリミングマスタ",
@@ -86,6 +86,14 @@ const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     resource: ResourceMasterMedical,
     countCategories: [],
   },
+  shift_template: {
+    label: "シフトテンプレートマスタ",
+    description: "シフト登録で使用するテンプレートを管理します",
+    IconComponent: Calendar,
+    path: "/settings/shift-template",
+    resource: ResourceShifts,
+    countCategories: [],
+  },
 };
 
 // ─────────────────────────────────────────────────
@@ -97,11 +105,12 @@ const MASTER_SECTIONS: SectionDef[] = [
     title: "カルテ",
     keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "medicine"],
   },
-  { title: "診療関連マスタ", keys: ["serviceType"] },
+  { title: "予約管理マスタ", keys: ["reservationType"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
   { title: "トリミング関連", keys: ["trimmingGroup"] },
   { title: "会計・商品", keys: ["merchandise_item", "insurance"] },
   { title: "スタッフ・権限", keys: ["staff", "occupations", "permission_group"] },
+  { title: "シフト管理", keys: ["shift_template"] },
 ];
 
 // ─────────────────────────────────────────────────

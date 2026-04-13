@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [staging, production]
   push:
-    branches: [develop]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -68,9 +68,22 @@ jobs:
         working-directory: backend
         run: go build ./...
 
-      - name: Lint
+      - name: Test
         working-directory: backend
-        run: go vet ./...
+        env:
+          DB_HOST: localhost
+          DB_PORT: "5432"
+          DB_USER: ekarte_user
+          DB_PASSWORD: ekarte_password
+          DB_NAME: ekarte_db
+          DB_SSL_MODE: disable
+        run: go test ./... -count=1 -race -timeout 120s
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.11.4
+          working-directory: backend
 
       - name: Schema drift check
         working-directory: backend

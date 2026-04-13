@@ -36,7 +36,7 @@ func (r *refundRepository) Create(ctx context.Context, refund *model.BillingRefu
 func (r *refundRepository) FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error) {
 	refunds := make([]model.BillingRefund, 0)
 	if err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND billing_id = ?", clinicID, billingID).
+		Scopes(clinicScope(clinicID)).Where("billing_id = ?", billingID).
 		Order("created_at DESC").
 		Find(&refunds).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing_refund", fmt.Sprintf("billing_id=%d", billingID))
@@ -48,7 +48,7 @@ func (r *refundRepository) SumByBillingID(ctx context.Context, clinicID, billing
 	var total int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.BillingRefund{}).
-		Where("clinic_id = ? AND billing_id = ?", clinicID, billingID).
+		Scopes(clinicScope(clinicID)).Where("billing_id = ?", billingID).
 		Select("COALESCE(SUM(amount), 0)").
 		Scan(&total).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "billing_refund", fmt.Sprintf("billing_id=%d", billingID))

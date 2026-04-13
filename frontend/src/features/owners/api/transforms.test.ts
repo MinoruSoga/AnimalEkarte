@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { transformOwner } from "./transforms";
-import type { Owner as BackendOwner } from "@/types/generated/models";
+import type { OwnerApiResponse } from "./transforms";
 
-/** BackendOwner の最小スタブ */
-const minimalBackend: BackendOwner = {
+/**
+ * OwnerApiResponse の最小スタブ。
+ * API ハンドラが返す owner_name を使う（BackendOwner.name ではない）。
+ */
+const minimalBackend: OwnerApiResponse = {
   id: 1,
   clinic_id: 1,
   owner_name: "田中太郎",
@@ -29,7 +32,7 @@ describe("transformOwner", () => {
   });
 
   it("owner_name が未設定のとき空文字を返す", () => {
-    const result = transformOwner({ ...minimalBackend, owner_name: undefined });
+    const result = transformOwner({ ...minimalBackend, owner_name: undefined as unknown as string });
     expect(result.ownerName).toBe("");
   });
 

@@ -30,10 +30,18 @@ func NewConsultationService(repo repository.ConsultationRepository) Consultation
 }
 
 func (s *consultationService) List(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	items, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list consultations")
+	}
+	return items, nil
 }
 func (s *consultationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get consultation")
+	}
+	return result, nil
 }
 func (s *consultationService) Create(ctx context.Context, consultation *model.Consultation) error {
 	if err := s.repo.Create(ctx, consultation); err != nil {
@@ -76,7 +84,10 @@ func (s *consultationService) Reorder(ctx context.Context, clinicID uint64, ids 
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder consultations")
+	}
+	return nil
 }
 
 // UpdateConsultationInput は診察料金更新のサービス入力 DTO

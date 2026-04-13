@@ -28,8 +28,8 @@
 
 | 項目 | タイプ | 説明 |
 |------|------|------|
-| 検索ワード | `Input` | 飼主名、ペット名、飼主No、種別を部分一致検索 |
-| 種 | `Select` | 犬、猫、鳥、うさぎ、ハムスター、その他 |
+| 検索ワード | `Input` | 飼主名、ペット名、飼主No、種別を部分一致検索（`useDeferredValue` による非同期フィルタリング） |
+| 種 | `Select` | 犬、猫、鳥、うさぎ、ハムスター、その他（`NotionFilter` による詳細条件指定可） |
 | 生死 | `Select` | 生存、死亡 |
 
 ## 表示項目（テーブル）
@@ -37,10 +37,10 @@
 | フィールド名 | 型 | 説明 | ソート | 備考 |
 |------------|-----|------|--------|------|
 | 飼主No | string | 飼主ID番号 | ○ | `pet.ownerNumber` |
-| 飼主名 | string | 飼い主氏名 | ○ | `pet.ownerName`。`dangerLevel === "高"` のペットを持つ飼主には ⚠ 危険バッジ（赤）を表示 |
+| 飼主名 | string | 飼い主氏名 | ○ | `pet.ownerName`。危険度「高」ペットを持つ場合は `⚠ 危険` バッジを表示（BUG-043） |
 | ペット番号 | string | ペットの患者番号 | - | `pet.petNumber`（等幅フォント） |
 | ペット名 | string | ペットの名前 | ○ | `pet.name` |
-| 生死 | string | 生存/死亡ステータス（StatusBadge） | - | `pet.status` |
+| 生死 | string | 生存/死亡ステータス（StatusBadge） | - | `pet.status` (getPetStatusColor で色判定) |
 | 種 | string | 犬/猫等 | ○ | `pet.species` |
 | 生年月日 | date | ペットの誕生日 | ○ | `formatDate(pet.birthDate)`（等幅フォント） |
 | 体重 | decimal | 体重(kg) | - | `formatWeight(pet.weight)`（等幅フォント） |
@@ -53,14 +53,15 @@
 | コンポーネント | 種別 | 説明 |
 |---|---|---|
 | `OwnersList` | `[R]` | メインページ |
-| `PageLayout` | `[S]` | ページコンテナ |
+| `PageLayout` | `[S]` | ページコンテナ（`ResourceOwners` 権限ガード） |
 | `NotionFilter` | `[S]` | 高度な検索・フィルタ・ソートパネル |
 | `DataTable` | `[S]` | テーブルコンテナ |
+| `FilteringIndicator` | `[S]` | フィルタ計算中（`isFiltering`）に透過度を下げてフィードバック |
 | `DataTableRow` | `[S]` | クリックで飼主詳細（編集）画面へ遷移 |
 | `StatusBadge` | `[S]` | 生死ステータスバッジ |
 | `RowActionDropdown` | `[S]` | 編集・削除アクション |
-| `Pagination` | `[S]` | ページネーション |
-| `usePagination` | `[H]` | ページネーションロジック |
+| `Pagination` | `[S]` | ページネーション（URLの `?page=` パラメータと同期。BUG-049） |
+| `usePagination` | `[H]` | ページネーションロジック（`pageSize: 20`） |
 
 ## ユーザーアクション
 

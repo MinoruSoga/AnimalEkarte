@@ -96,7 +96,9 @@ const PetTableRow = memo(function PetTableRow({
   onDeleteRequest,
 }: PetTableRowProps) {
   const navigate = useNavigate();
-  const backFrom = ownerId ? `/owners/${ownerId}` : "/owners";
+  const backFrom = ownerId
+    ? paths.owners.detail.getHref(ownerId)
+    : paths.owners.getHref();
 
   return (
     <TableRow
@@ -138,30 +140,30 @@ const PetTableRow = memo(function PetTableRow({
               ) : null}
               {canCreate ? (
                 <>
-                  <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
+                  <DropdownMenuItem onClick={() => navigate(`${paths.reservations.getHref()}?petId=${pet.id}`)}>
                     <Calendar className={`mr-2 ${ICON.action}`} />
                     予約作成
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => navigate(`${paths.medicalRecords.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
                   >
                     <FileText className={`mr-2 ${ICON.action}`} />
                     カルテ作成
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => navigate(`${paths.trimming.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
                   >
                     <Scissors className={`mr-2 ${ICON.action}`} />
                     トリミング
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => navigate(`${paths.hospitalization.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
                   >
                     <Bed className={`mr-2 ${ICON.action}`} />
                     入院登録
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: backFrom } })}
+                    onClick={() => navigate(`${paths.accounting.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } })}
                   >
                     <CreditCard className={`mr-2 ${ICON.action}`} />
                     会計登録
@@ -440,7 +442,22 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
   );
 });
 
-export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}) {
+// rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
+const OWNER_FIELD_ID_MAP: Record<string, string> = {
+  ownerName: "ownerName",
+  ownerNameKana: "ownerNameKana",
+  phone: "phone",
+  email: "email",
+  discountRate: "discountRate",
+};
+const OWNER_PRIORITY_FIELDS = ["ownerName", "ownerNameKana", "phone", "email", "discountRate"] as const;
+
+interface OwnerFormProps {
+  petMutations?: PetMutations;
+  lineSection?: React.ReactNode;
+}
+
+export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("owners");
@@ -494,18 +511,9 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
   useEffect(() => {
     const errorFields = Object.keys(fieldErrors);
     if (errorFields.length === 0) return;
-    // フィールド名とDOM IDのマッピング（OwnerInfoSection内の htmlFor と対応）
-    const FIELD_ID_MAP: Record<string, string> = {
-      ownerName: "ownerName",
-      ownerNameKana: "ownerNameKana",
-      phone: "phone",
-      email: "email",
-      discountRate: "discountRate",
-    };
     // 優先度順にフォーカスする最初のフィールドを探す
-    const PRIORITY_FIELDS = ["ownerName", "ownerNameKana", "phone", "email", "discountRate"];
-    const firstErrorField = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ?? errorFields[0];
-    const domId = FIELD_ID_MAP[firstErrorField] ?? firstErrorField;
+    const firstErrorField = OWNER_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ?? errorFields[0];
+    const domId = OWNER_FIELD_ID_MAP[firstErrorField] ?? firstErrorField;
     const el = document.getElementById(domId) as HTMLElement | null;
     el?.focus();
   // fieldErrors オブジェクトのキー変化で発火させるため JSON.stringify を使用
@@ -616,6 +624,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
           </h2>
           {canEdit ? (
             <Button
+              type="button"
               size="sm"
               onClick={handleAddPet}
               className={`${STYLE.confirmPrimary} gap-1.5 text-sm px-4`}
@@ -660,6 +669,14 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
       </div>
 
         </fieldset>
+
+      {/* LINE連携セクション（編集モードのみ・app層から注入） */}
+      {isEdit && lineSection ? (
+        <div className={`mt-6 p-4 rounded-lg border ${C.borderLight}`}>
+          {lineSection}
+        </div>
+      ) : null}
+
       <Suspense fallback={null}>
         <PetEditModal
           key={editingPet?.id ?? "new"}

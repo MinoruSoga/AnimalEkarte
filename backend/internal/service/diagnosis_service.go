@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for DiagnosisCategory and DiagnosisName entities.
+// Package service provides business logic implementations for DiagnosisType and DiagnosisName entities.
 package service
 
 import (
@@ -13,30 +13,30 @@ import (
 // ---- 列名定数 (#021) ----
 
 const (
-	colDiagnosisCategoryName        = "name"
-	colDiagnosisCategoryIsActive    = "is_active"
-	colDiagnosisCategoryDescription = "description"
-	colDiagnosisCategorySortOrder   = "sort_order"
+	colDiagnosisTypeName        = "name"
+	colDiagnosisTypeIsActive    = "is_active"
+	colDiagnosisTypeDescription = "description"
+	colDiagnosisTypeSortOrder   = "sort_order"
 
-	colDiagnosisNameName                = "name"
-	colDiagnosisNameIsActive            = "is_active"
-	colDiagnosisNameDescription         = "description"
-	colDiagnosisNameSortOrder           = "sort_order"
-	colDiagnosisNameDiagnosisCategoryID = "diagnosis_category_id"
+	colDiagnosisNameName            = "name"
+	colDiagnosisNameIsActive        = "is_active"
+	colDiagnosisNameDescription     = "description"
+	colDiagnosisNameSortOrder       = "sort_order"
+	colDiagnosisNameDiagnosisTypeID = "diagnosis_type_id"
 )
 
-// ---- DiagnosisCategory Input DTOs ----
+// ---- DiagnosisType Input DTOs ----
 
-// CreateDiagnosisCategoryInput はカテゴリ作成の入力DTO
-type CreateDiagnosisCategoryInput struct {
+// CreateDiagnosisTypeInput はカテゴリ作成の入力DTO
+type CreateDiagnosisTypeInput struct {
 	Name        string
 	IsActive    bool
 	Description string
 	SortOrder   int
 }
 
-// UpdateDiagnosisCategoryInput はカテゴリ更新の入力DTO（nil = 未指定 = 更新しない）
-type UpdateDiagnosisCategoryInput struct {
+// UpdateDiagnosisTypeInput はカテゴリ更新の入力DTO（nil = 未指定 = 更新しない）
+type UpdateDiagnosisTypeInput struct {
 	Name        *string
 	IsActive    *bool
 	Description *string
@@ -47,118 +47,136 @@ type UpdateDiagnosisCategoryInput struct {
 
 // CreateDiagnosisNameInput は診断名作成の入力DTO
 type CreateDiagnosisNameInput struct {
-	Name                string
-	DiagnosisCategoryID uint64
-	IsActive            bool
-	Description         string
-	SortOrder           int
+	Name            string
+	DiagnosisTypeID uint64
+	IsActive        bool
+	Description     string
+	SortOrder       int
 }
 
 // UpdateDiagnosisNameInput は診断名更新の入力DTO（nil = 未指定 = 更新しない）
 type UpdateDiagnosisNameInput struct {
-	Name                *string
-	DiagnosisCategoryID *uint64
-	IsActive            *bool
-	Description         *string
-	SortOrder           *int
+	Name            *string
+	DiagnosisTypeID *uint64
+	IsActive        *bool
+	Description     *string
+	SortOrder       *int
 }
 
-// ---- DiagnosisCategoryService ----
+// ---- DiagnosisTypeService ----
 
-type DiagnosisCategoryService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error)
-	GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisCategoryInput) (*model.DiagnosisCategory, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisCategoryInput) (*model.DiagnosisCategory, error)
+type DiagnosisTypeService interface {
+	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisTypeInput) (*model.DiagnosisType, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisTypeInput) (*model.DiagnosisType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-// diagnosisCategoryService
-type diagnosisCategoryService struct {
-	repo repository.DiagnosisCategoryRepository
+// diagnosisTypeService
+type diagnosisTypeService struct {
+	repo repository.DiagnosisTypeRepository
 }
 
-func NewDiagnosisCategoryService(
-	repo repository.DiagnosisCategoryRepository,
-) DiagnosisCategoryService {
-	return &diagnosisCategoryService{repo: repo}
+func NewDiagnosisTypeService(
+	repo repository.DiagnosisTypeRepository,
+) DiagnosisTypeService {
+	return &diagnosisTypeService{repo: repo}
 }
 
-func (s *diagnosisCategoryService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, page, limit)
+func (s *diagnosisTypeService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
+	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis categories")
+	}
+	return items, total, nil
 }
 
-func (s *diagnosisCategoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+func (s *diagnosisTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error) {
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis type")
+	}
+	return result, nil
 }
 
-func (s *diagnosisCategoryService) Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisCategoryInput) (*model.DiagnosisCategory, error) {
-	category := &model.DiagnosisCategory{
+func (s *diagnosisTypeService) Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisTypeInput) (*model.DiagnosisType, error) {
+	diagType := &model.DiagnosisType{
 		ClinicID:    clinicID,
 		Name:        input.Name,
 		IsActive:    input.IsActive,
 		Description: input.Description,
 		SortOrder:   input.SortOrder,
 	}
-	if err := s.repo.Create(ctx, category); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create diagnosis category")
+	if err := s.repo.Create(ctx, diagType); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create diagnosis type")
 	}
-	slog.InfoContext(ctx, "diagnosis category created",
-		slog.Uint64("category_id", category.ID),
+	slog.InfoContext(ctx, "diagnosis type created",
+		slog.Uint64("type_id", diagType.ID),
 		slog.Uint64("clinic_id", clinicID))
-	return category, nil
+	return diagType, nil
 }
 
-func (s *diagnosisCategoryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisCategoryInput) (*model.DiagnosisCategory, error) {
-	fields := buildDiagnosisCategoryUpdateFields(input)
+func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisTypeInput) (*model.DiagnosisType, error) {
+	fields := buildDiagnosisTypeUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, apperrors.Wrap(err, "failed to update diagnosis category")
+		return nil, apperrors.Wrap(err, "failed to update diagnosis type")
 	}
-	slog.InfoContext(ctx, "diagnosis category updated",
-		slog.Uint64("category_id", id),
+	slog.InfoContext(ctx, "diagnosis type updated",
+		slog.Uint64("type_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis type after update")
+	}
+	return result, nil
 }
 
-func (s *diagnosisCategoryService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (s *diagnosisTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
 	count, err := s.repo.CountNamesByCategoryID(ctx, id)
 	if err != nil {
-		return apperrors.Wrap(err, "failed to check diagnosis category dependencies")
+		return apperrors.Wrap(err, "failed to check diagnosis type dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この診断カテゴリには診断名が登録されているため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to delete diagnosis category")
+		return apperrors.Wrap(err, "failed to delete diagnosis type")
+	}
+	slog.InfoContext(ctx, "diagnosis type deleted",
+		slog.Uint64("type_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return nil
+}
+
+func (s *diagnosisTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if len(ids) == 0 {
+		return apperrors.WrapInvalidInput("ids must not be empty")
+	}
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder diagnosis categories")
 	}
 	return nil
 }
 
-func (s *diagnosisCategoryService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
-	}
-	return s.repo.Reorder(ctx, clinicID, ids)
-}
-
-// buildDiagnosisCategoryUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#021: 定数使用)
-func buildDiagnosisCategoryUpdateFields(input *UpdateDiagnosisCategoryInput) map[string]any {
+// buildDiagnosisTypeUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#021: 定数使用)
+func buildDiagnosisTypeUpdateFields(input *UpdateDiagnosisTypeInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields[colDiagnosisCategoryName] = *input.Name
+		fields[colDiagnosisTypeName] = *input.Name
 	}
 	if input.IsActive != nil {
-		fields[colDiagnosisCategoryIsActive] = *input.IsActive
+		fields[colDiagnosisTypeIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields[colDiagnosisCategoryDescription] = *input.Description
+		fields[colDiagnosisTypeDescription] = *input.Description
 	}
 	if input.SortOrder != nil {
-		fields[colDiagnosisCategorySortOrder] = *input.SortOrder
+		fields[colDiagnosisTypeSortOrder] = *input.SortOrder
 	}
 	return fields
 }
@@ -175,43 +193,55 @@ type DiagnosisNameService interface {
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-// diagnosisNameService (#020: categoryRepo FK validation)
+// diagnosisNameService (#020: typeRepo FK validation)
 type diagnosisNameService struct {
-	repo         repository.DiagnosisNameRepository
-	categoryRepo repository.DiagnosisCategoryRepository
+	repo     repository.DiagnosisNameRepository
+	typeRepo repository.DiagnosisTypeRepository
 }
 
 func NewDiagnosisNameService(
 	repo repository.DiagnosisNameRepository,
-	categoryRepo repository.DiagnosisCategoryRepository,
+	typeRepo repository.DiagnosisTypeRepository,
 ) DiagnosisNameService {
-	return &diagnosisNameService{repo: repo, categoryRepo: categoryRepo}
+	return &diagnosisNameService{repo: repo, typeRepo: typeRepo}
 }
 
 func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, page, limit)
+	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names")
+	}
+	return items, total, nil
 }
 
 func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
-	return s.repo.FindByCategoryID(ctx, clinicID, categoryID, page, limit)
+	items, total, err := s.repo.FindByCategoryID(ctx, clinicID, categoryID, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names by type")
+	}
+	return items, total, nil
 }
 
 func (s *diagnosisNameService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis name")
+	}
+	return result, nil
 }
 
 func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisNameInput) (*model.DiagnosisName, error) {
-	// #020: FK validation — diagnosis_category_id の存在確認
-	if _, err := s.categoryRepo.FindByID(ctx, clinicID, input.DiagnosisCategoryID); err != nil {
+	// #020: FK validation — diagnosis_type_id の存在確認
+	if _, err := s.typeRepo.FindByID(ctx, clinicID, input.DiagnosisTypeID); err != nil {
 		return nil, apperrors.WrapInvalidInput("診断カテゴリが見つかりません")
 	}
 	name := &model.DiagnosisName{
-		ClinicID:            clinicID,
-		Name:                input.Name,
-		DiagnosisCategoryID: input.DiagnosisCategoryID,
-		IsActive:            input.IsActive,
-		Description:         input.Description,
-		SortOrder:           input.SortOrder,
+		ClinicID:        clinicID,
+		Name:            input.Name,
+		DiagnosisTypeID: input.DiagnosisTypeID,
+		IsActive:        input.IsActive,
+		Description:     input.Description,
+		SortOrder:       input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create diagnosis name")
@@ -223,9 +253,9 @@ func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisNameInput) (*model.DiagnosisName, error) {
-	// #020: FK validation — diagnosis_category_id が変更される場合のみ確認
-	if input.DiagnosisCategoryID != nil {
-		if _, err := s.categoryRepo.FindByID(ctx, clinicID, *input.DiagnosisCategoryID); err != nil {
+	// #020: FK validation — diagnosis_type_id が変更される場合のみ確認
+	if input.DiagnosisTypeID != nil {
+		if _, err := s.typeRepo.FindByID(ctx, clinicID, *input.DiagnosisTypeID); err != nil {
 			return nil, apperrors.WrapInvalidInput("診断カテゴリが見つかりません")
 		}
 	}
@@ -239,7 +269,11 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 	slog.InfoContext(ctx, "diagnosis name updated",
 		slog.Uint64("name_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis name after update")
+	}
+	return result, nil
 }
 
 func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -253,6 +287,9 @@ func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete diagnosis name")
 	}
+	slog.InfoContext(ctx, "diagnosis name deleted",
+		slog.Uint64("name_id", id),
+		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 
@@ -260,7 +297,10 @@ func (s *diagnosisNameService) Reorder(ctx context.Context, clinicID uint64, ids
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder diagnosis names")
+	}
+	return nil
 }
 
 // buildDiagnosisNameUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#021: 定数使用)
@@ -269,8 +309,8 @@ func buildDiagnosisNameUpdateFields(input *UpdateDiagnosisNameInput) map[string]
 	if input.Name != nil {
 		fields[colDiagnosisNameName] = *input.Name
 	}
-	if input.DiagnosisCategoryID != nil {
-		fields[colDiagnosisNameDiagnosisCategoryID] = *input.DiagnosisCategoryID
+	if input.DiagnosisTypeID != nil {
+		fields[colDiagnosisNameDiagnosisTypeID] = *input.DiagnosisTypeID
 	}
 	if input.IsActive != nil {
 		fields[colDiagnosisNameIsActive] = *input.IsActive

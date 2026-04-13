@@ -67,7 +67,7 @@ type Billing struct {
 	ScheduledDate     time.Time      `gorm:"type:date;not null"                             json:"scheduled_date"`
 	CompletedAt       *time.Time     `                                                      json:"completed_at,omitempty"`
 	Memo              string         `gorm:"default:''"                                     json:"memo"`
-	DeletedAt         gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt         gorm.DeletedAt `                                                      json:"-"`
 	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -100,28 +100,28 @@ type BillingItem struct {
 	SortOrder             int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt             time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt             time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt             gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt             gorm.DeletedAt `                                                      json:"-"`
 }
 
 func (BillingItem) TableName() string { return "billing_items" }
 
 type Payment struct {
-	ID              uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	BillingID       uint64        `gorm:"not null;uniqueIndex"                           json:"billing_id"`
-	Subtotal        int64         `gorm:"not null;default:0"                             json:"subtotal"`
-	TaxTotal        int64         `gorm:"not null;default:0"                             json:"tax_total"`
-	TotalAmount     int64         `gorm:"not null;default:0"                             json:"total_amount"`
-	InsuranceName   string        `gorm:"default:''"                                     json:"insurance_name"`
-	InsuranceRatio  float64       `gorm:"type:numeric(3,2);default:0"                    json:"insurance_ratio"`
-	InsuranceAmount int64         `gorm:"default:0"                                      json:"insurance_amount"`
-	DiscountAmount  int64         `gorm:"default:0"                                      json:"discount_amount"`
-	BillingAmount   int64         `gorm:"not null;default:0"                             json:"billing_amount"`
-	ReceivedAmount  int64         `gorm:"default:0"                                      json:"received_amount"`
-	ChangeAmount    int64         `gorm:"default:0"                                      json:"change_amount"`
+	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	BillingID       uint64         `gorm:"not null;uniqueIndex"                           json:"billing_id"`
+	Subtotal        int64          `gorm:"not null;default:0"                             json:"subtotal"`
+	TaxTotal        int64          `gorm:"not null;default:0"                             json:"tax_total"`
+	TotalAmount     int64          `gorm:"not null;default:0"                             json:"total_amount"`
+	InsuranceName   string         `gorm:"default:''"                                     json:"insurance_name"`
+	InsuranceRatio  float64        `gorm:"type:numeric(3,2);default:0"                    json:"insurance_ratio"`
+	InsuranceAmount int64          `gorm:"default:0"                                      json:"insurance_amount"`
+	DiscountAmount  int64          `gorm:"default:0"                                      json:"discount_amount"`
+	BillingAmount   int64          `gorm:"not null;default:0"                             json:"billing_amount"`
+	ReceivedAmount  int64          `gorm:"default:0"                                      json:"received_amount"`
+	ChangeAmount    int64          `gorm:"default:0"                                      json:"change_amount"`
 	Method          PaymentMethod  `gorm:"type:payment_method;default:'cash'"             json:"method"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt       gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt       gorm.DeletedAt `                                                      json:"-"`
 }
 
 func (Payment) TableName() string { return "payments" }

@@ -23,9 +23,7 @@ import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
-import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { PropertyRow, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useGetTrimmingCourses, useCreateTrimmingCourse, useUpdateTrimmingCourse, useDeleteTrimmingCourse, useGetTrimmingOptions, useCreateTrimmingOption, useUpdateTrimmingOption, useDeleteTrimmingOption, TARGET_SIZE_LABELS, TARGET_SIZE_OPTIONS } from "@/features/master/api/trimming";
@@ -552,10 +550,6 @@ export function TrimmingSettings() {
 
   const handleCourseSave = useCallback(
     (data: CourseFormData) => {
-      if (!data.name.trim()) {
-        toast.error("コース名は必須です");
-        return;
-      }
       const priceValue = data.price !== "" ? Number(data.price) : null;
       courseStartSave(() => {
         if (courseEditTarget !== null && courseEditTarget !== "new") {
@@ -595,10 +589,6 @@ export function TrimmingSettings() {
 
   const handleOptionSave = useCallback(
     (data: OptionFormData) => {
-      if (!data.name.trim()) {
-        toast.error("オプション名は必須です");
-        return;
-      }
       const priceValue = data.price !== "" ? Number(data.price) : null;
       optionStartSave(() => {
         if (optionEditTarget !== null && optionEditTarget !== "new") {
@@ -606,7 +596,7 @@ export function TrimmingSettings() {
             name: data.name,
             price: priceValue,
             duration: data.duration !== "" ? Number(data.duration) : null,
-            combinable: data.combinable,
+            is_combinable: data.combinable,
             description: data.description || undefined,
             is_active: data.isActive,
           };
@@ -622,7 +612,7 @@ export function TrimmingSettings() {
             name: data.name,
             price: priceValue,
             duration: data.duration !== "" ? Number(data.duration) : null,
-            combinable: data.combinable,
+            is_combinable: data.combinable,
             description: data.description || undefined,
             is_active: true,
           };

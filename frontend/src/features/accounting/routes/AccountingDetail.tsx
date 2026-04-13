@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON, C } from "@/lib/design-tokens";
+import { ICON, C, LAYOUT } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, memo, useTransition, useDeferredValue, useActionState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
@@ -25,7 +25,8 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth, usePermission } from "@/features/auth";
 
 // Relative
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
@@ -89,6 +90,11 @@ const MERCHANDISE_CATEGORY_OPTIONS = [
   { value: "other", label: "その他" },
 ];
 
+// rendering-hoist-jsx: 静的 SelectItem リストをモジュールスコープに巻き上げ
+const MERCHANDISE_CATEGORY_SELECT_ITEMS = MERCHANDISE_CATEGORY_OPTIONS.map((o) => (
+  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+));
+
 const ItemListCard = memo(function ItemListCard({
   items,
   subtotal,
@@ -110,6 +116,7 @@ const ItemListCard = memo(function ItemListCard({
   const [addMode, setAddMode] = useState<"master" | "manual">("master");
   const [manualName, setManualName] = useState("");
   const [manualPrice, setManualPrice] = useState("");
+  const [manualPriceError, setManualPriceError] = useState<string>("");
 
   // マスタデータ取得
   const { data: merchandiseItems = [] } = useGetAllMerchandiseItems();
@@ -165,7 +172,7 @@ const ItemListCard = memo(function ItemListCard({
                 onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
               />
             ) : (
-              <span className="text-sm text-muted-foreground">
+              <span className={`text-sm ${C.text50}`}>
                 {item.taxType === "excluded" ? "外税" : item.taxType === "included" ? "内税" : "非課税"}
               </span>
             )}
@@ -177,7 +184,7 @@ const ItemListCard = memo(function ItemListCard({
                 onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
               />
             ) : (
-              <span className="text-sm text-muted-foreground">{Math.round(item.taxRate * 100)}%</span>
+              <span className={`text-sm ${C.text50}`}>{Math.round(item.taxRate * 100)}%</span>
             )}
           </TableCell>
           <TableCell className="text-right font-mono text-sm">
@@ -215,7 +222,7 @@ const ItemListCard = memo(function ItemListCard({
               物販・その他追加
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg max-h-[70vh] flex flex-col">
+          <DialogContent className={`${LAYOUT.modal.md} max-h-[70vh] flex flex-col`}>
             <DialogHeader>
               <DialogTitle>物販・その他追加</DialogTitle>
               <DialogDescription>マスタから選択するか、手動入力で追加できます。</DialogDescription>
@@ -228,7 +235,7 @@ const ItemListCard = memo(function ItemListCard({
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   addMode === "master"
                     ? `${C.borderBrand} ${C.textBrand}`
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : `border-transparent ${C.text50} ${C.hoverText}`
                 }`}
               >
                 マスタから選択
@@ -239,7 +246,7 @@ const ItemListCard = memo(function ItemListCard({
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   addMode === "manual"
                     ? `${C.borderBrand} ${C.textBrand}`
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : `border-transparent ${C.text50} ${C.hoverText}`
                 }`}
               >
                 手動入力
@@ -261,9 +268,7 @@ const ItemListCard = memo(function ItemListCard({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {MERCHANDISE_CATEGORY_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
+                      {MERCHANDISE_CATEGORY_SELECT_ITEMS}
                     </SelectContent>
                   </Select>
                 </div>
@@ -271,7 +276,7 @@ const ItemListCard = memo(function ItemListCard({
                   {filteredMerchandise.length > 0 ? (
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b bg-muted/50 text-xs">
+                        <tr className={`border-b ${C.bgPage30} text-xs`}>
                           <th className="px-3 py-2 text-left font-medium">品目名</th>
                           <th className="px-3 py-2 text-left font-medium w-[70px]">区分</th>
                           <th className="px-3 py-2 text-right font-medium w-[90px]">単価</th>
@@ -283,16 +288,16 @@ const ItemListCard = memo(function ItemListCard({
                           <tr
                             key={item.id}
                             onClick={() => handleSelectMerchandise(item)}
-                            className="border-b cursor-pointer hover:bg-muted/30 transition-colors"
+                            className={`border-b cursor-pointer ${C.hoverBgLight} transition-colors`}
                           >
                             <td className="px-3 py-2 text-sm font-medium">{item.name}</td>
-                            <td className="px-3 py-2 text-sm text-muted-foreground">
+                            <td className={`px-3 py-2 text-sm ${C.text50}`}>
                               {CATEGORY_LABELS[item.category as ItemCategory] ?? item.category}
                             </td>
                             <td className="px-3 py-2 text-sm text-right font-mono">
                               ¥{item.unitPrice.toLocaleString()}
                             </td>
-                            <td className="px-3 py-2 text-sm text-right text-muted-foreground">
+                            <td className={`px-3 py-2 text-sm text-right ${C.text50}`}>
                               {item.taxRate === 0.1 ? "10%" : item.taxRate === 0.08 ? "8%" : `${item.taxRate * 100}%`}
                             </td>
                           </tr>
@@ -300,7 +305,7 @@ const ItemListCard = memo(function ItemListCard({
                       </tbody>
                     </table>
                   ) : (
-                    <div className="flex items-center justify-center h-full text-sm text-muted-foreground py-8">
+                    <div className={`flex items-center justify-center h-full text-sm ${C.text50} py-8`}>
                       該当する品目がありません
                     </div>
                   )}
@@ -332,6 +337,7 @@ const ItemListCard = memo(function ItemListCard({
                     placeholder="例: 3000"
                     className="h-9"
                   />
+                  <FormFieldError message={manualPriceError} />
                 </div>
                 <Button
                   type="button"
@@ -342,13 +348,14 @@ const ItemListCard = memo(function ItemListCard({
                     // BUG-072: 金額の範囲チェック（負の値・上限超過）
                     const priceNum = parseInt(manualPrice, 10);
                     if (isNaN(priceNum) || priceNum < 0) {
-                      toast.error("単価は0以上の整数で入力してください");
+                      setManualPriceError("単価は0以上の整数で入力してください");
                       return;
                     }
                     if (priceNum > 999999999) {
-                      toast.error("単価は999,999,999円以下で入力してください");
+                      setManualPriceError("単価は999,999,999円以下で入力してください");
                       return;
                     }
+                    setManualPriceError("");
                     onAddItem(manualName.trim(), manualPrice, "other");
                     setManualName("");
                     setManualPrice("");
@@ -542,6 +549,7 @@ const PaymentCard = memo(function PaymentCard({
               />
               <div className="flex gap-2 justify-end">
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => onReceivedAmountChange(billingAmount.toString())}
@@ -549,6 +557,7 @@ const PaymentCard = memo(function PaymentCard({
                   丁度
                 </Button>
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={() =>
@@ -560,6 +569,7 @@ const PaymentCard = memo(function PaymentCard({
                   千円単位
                 </Button>
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={() =>
@@ -652,7 +662,7 @@ const RefundSection = memo(function RefundSection({
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <RotateCcw className={`${ICON.action} ${C.textDiscount}`} />
             返金管理
-            <span className="text-xs font-normal text-muted-foreground">
+            <span className={`text-xs font-normal ${C.text50}`}>
               残額 ¥{refundableAmount.toLocaleString()}
             </span>
             {totalRefunded > 0 ? (
@@ -722,7 +732,7 @@ const RefundSection = memo(function RefundSection({
         <CardContent className="p-0">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/30 text-xs">
+              <tr className={`border-b ${C.bgPage30} text-xs`}>
                 <th className="px-3 py-2 text-left font-medium">日時</th>
                 <th className="px-3 py-2 text-right font-medium">金額</th>
                 <th className="px-3 py-2 text-left font-medium">理由</th>
@@ -731,13 +741,13 @@ const RefundSection = memo(function RefundSection({
             <tbody>
               {refunds.map((r) => (
                 <tr key={r.id} className="border-b last:border-0">
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                  <td className={`px-3 py-2 font-mono text-xs ${C.text50}`}>
                     {new Date(r.refundedAt).toLocaleDateString("ja-JP")}
                   </td>
                   <td className={`px-3 py-2 text-right font-medium ${C.textDiscount}`}>
                     ¥{r.amount.toLocaleString()}
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground truncate max-w-[120px]">
+                  <td className={`px-3 py-2 ${C.text50} truncate max-w-[120px]`}>
                     {r.reason || "-"}
                   </td>
                 </tr>
@@ -746,7 +756,7 @@ const RefundSection = memo(function RefundSection({
           </table>
         </CardContent>
       ) : (
-        <CardContent className="p-4 text-center text-sm text-muted-foreground">
+        <CardContent className={`p-4 text-center text-sm ${C.text50}`}>
           返金記録はありません
         </CardContent>
       )}
@@ -1003,7 +1013,6 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     // 既存の治療明細を失わないようにする
     setLocalItems((prev) => [...(prev ?? baseItems), newItem]);
     setNewItemOpen(false);
-    toast.success("明細を追加しました");
 
     // 既存の会計 (id あり) の場合は POST API を呼び出してサーバーに永続化
     if (id) {
@@ -1022,11 +1031,16 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
           });
           await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(id) });
           setLocalItems(null);
+          toast.success("明細を追加しました");
         } catch (error) {
+          // 楽観的更新をロールバック
           setLocalItems((prev) => (prev ?? []).filter((i) => i.id !== tempId));
           handleApiError(error, "明細の追加");
         }
       });
+    } else {
+      // 新規会計（id なし）はローカル追加のみで API 呼び出しなし
+      toast.success("明細を追加しました");
     }
   }, [id, queryClient, baseItems]);
 
@@ -1039,8 +1053,12 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     (itemId: string, taxType: TaxType, taxRate: number) => {
       if (!id) return;
       startTaxUpdateTransition(async () => {
-        await updateBillingItem(itemId, { tax_type: taxType, tax_rate: taxRate });
-        queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(id) });
+        try {
+          await updateBillingItem(itemId, { tax_type: taxType, tax_rate: taxRate });
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(id) });
+        } catch (error) {
+          handleApiError(error, "税区分の更新");
+        }
       });
     },
     [id, queryClient],

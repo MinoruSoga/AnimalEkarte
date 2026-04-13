@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import type { ReservationStatus } from "@/types";
-import type { ReservationAppointment as BackendReceptionReservation } from "@/types/generated/models";
+import type { Appointment as BackendReceptionReservation } from "@/types/generated/models";
 import type { ReceptionAppointment, ReceptionColumn } from "./types";
 
 /** Backend status 値 → カンバンカラム ID のマッピング */
@@ -73,7 +73,7 @@ export function transformReservationToReceptionAppointment(
   const petType = reservation.pet?.animal_species?.name
     ?? (reservation.pet?.animal_species_id ? ANIMAL_SPECIES_MAP[reservation.pet.animal_species_id] : "犬")
     ?? "犬";
-  const ownerName = reservation.owner?.owner_name ?? "";
+  const ownerName = reservation.owner?.name ?? "";
 
   const status = STATUS_TO_COLUMN_ID[reservation.status] ?? "pending";
 
@@ -84,12 +84,14 @@ export function transformReservationToReceptionAppointment(
     petType,
     petName,
     visitType: visitTypeToJapanese(reservation.visit_type),
-    serviceType: reservation.service_type?.name ?? "",
+    reservationType: reservation.reservation_type?.name ?? "",
     isDesignated: reservation.is_designated,
     doctor: reservation.doctor?.name ?? (reservation.doctor_id ? String(reservation.doctor_id) : undefined),
     petId: String(reservation.pet_id ?? 0),
     ownerId: String(reservation.owner_id ?? 0),
     status,
+    notes: reservation.notes || undefined,
+    source: (reservation.source as "manual" | "line") ?? "manual",
   };
 }
 

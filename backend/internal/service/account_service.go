@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -33,7 +34,7 @@ func (s *accountService) FindByEmail(ctx context.Context, email string) (*model.
 }
 
 func (s *accountService) GetByID(ctx context.Context, id uint64) (*model.Account, error) {
-	account, err := s.repo.GetByID(ctx, id)
+	account, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, fmt.Sprintf("failed to get account: %d", id))
 	}
@@ -41,13 +42,10 @@ func (s *accountService) GetByID(ctx context.Context, id uint64) (*model.Account
 }
 
 func (s *accountService) UpdatePasswordHash(ctx context.Context, accountID uint64, newHash string) error {
-	account, err := s.repo.GetByID(ctx, accountID)
-	if err != nil {
-		return apperrors.Wrap(err, fmt.Sprintf("failed to get account for password update: %d", accountID))
+	if err := s.repo.Update(ctx, accountID, map[string]any{"password_hash": newHash}); err != nil {
+		return apperrors.Wrap(err, "failed to update password hash")
 	}
-	account.PasswordHash = newHash
-	if err := s.repo.Update(ctx, account); err != nil {
-		return apperrors.Wrap(err, fmt.Sprintf("failed to update password hash for account: %d", accountID))
-	}
+	slog.InfoContext(ctx, "password hash updated",
+		slog.Uint64("account_id", accountID))
 	return nil
 }

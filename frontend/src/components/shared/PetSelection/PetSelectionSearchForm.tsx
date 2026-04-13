@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ const FIELD_DEFS = [
   { id: "address", label: "住所", placeholder: "例: 東京都" },
 ] as const;
 
-export function PetSelectionSearchForm({ searchParams, setSearchParams, onSearch, onClear }: PetSelectionSearchFormProps) {
+export const PetSelectionSearchForm = memo(function PetSelectionSearchForm({ searchParams, setSearchParams, onSearch, onClear }: PetSelectionSearchFormProps) {
   return (
     <div className={cn("mb-4 rounded-lg bg-white p-4 shadow-sm border", C.borderMedium)}>
       <h2 className={cn("mb-2 text-sm font-medium", C.text)}>検索条件</h2>
@@ -76,4 +77,4 @@ export function PetSelectionSearchForm({ searchParams, setSearchParams, onSearch
       </div>
     </div>
   );
-}
+});

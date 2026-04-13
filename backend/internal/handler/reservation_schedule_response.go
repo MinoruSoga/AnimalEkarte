@@ -27,7 +27,7 @@ type scheduleEntryResponse struct {
 	UpdatedAt time.Time                 `json:"updated_at"`
 }
 
-func toScheduleEntryResponse(e service.ScheduleEntry) scheduleEntryResponse {
+func toScheduleEntryResponse(e *service.ScheduleEntry) scheduleEntryResponse {
 	breaks := make([]shiftEntryBreakResponse, 0, len(e.Breaks))
 	for _, b := range e.Breaks {
 		breaks = append(breaks, toShiftEntryBreakResponse(b))
@@ -40,7 +40,7 @@ func toScheduleEntryResponse(e service.ScheduleEntry) scheduleEntryResponse {
 		ShiftType: string(e.Entry.ShiftType),
 		WorkStart: e.Entry.StartTime,
 		WorkEnd:   e.Entry.EndTime,
-		Note:      e.Entry.Note,
+		Note:      e.Entry.Notes,
 		Breaks:    breaks,
 		CreatedAt: e.Entry.CreatedAt,
 		UpdatedAt: e.Entry.UpdatedAt,

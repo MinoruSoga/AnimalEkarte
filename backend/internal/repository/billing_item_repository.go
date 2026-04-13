@@ -13,12 +13,12 @@ import (
 
 // BillingItemRepository は billing_items テーブルの CRUD を担うインターフェース
 type BillingItemRepository interface {
-	FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error)
-	FindByBillingID(ctx context.Context, billingID uint64) ([]model.BillingItem, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error)
+	FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
 	Create(ctx context.Context, item *model.BillingItem) error
-	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, id uint64) error
-	UpdateBillingTotals(ctx context.Context, billingID uint64, subtotal, taxTotal, totalAmount int64) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Delete(ctx context.Context, clinicID, id uint64) error
+	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 }
 
 type billingItemRepository struct{ db *gorm.DB }
@@ -28,7 +28,7 @@ func NewBillingItemRepository(db *gorm.DB) BillingItemRepository {
 	return &billingItemRepository{db: db}
 }
 
-func (r *billingItemRepository) FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error) {
+func (r *billingItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error) {
 	var item model.BillingItem
 	err := r.db.WithContext(ctx).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ?", clinicID).
@@ -40,10 +40,11 @@ func (r *billingItemRepository) FindByID(ctx context.Context, clinicID uint64, i
 	return &item, nil
 }
 
-func (r *billingItemRepository) FindByBillingID(ctx context.Context, billingID uint64) ([]model.BillingItem, error) {
+func (r *billingItemRepository) FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error) {
 	items := make([]model.BillingItem, 0)
 	if err := r.db.WithContext(ctx).
-		Where("billing_id = ?", billingID).
+		Joins("JOIN billings ON billings.id = billing_items.billing_id").
+		Where("billings.clinic_id = ? AND billing_items.billing_id = ?", clinicID, billingID).
 		Order("sort_order ASC, id ASC").
 		Find(&items).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing_item", "")
@@ -58,7 +59,11 @@ func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingI
 	return nil
 }
 
-func (r *billingItemRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *billingItemRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	// Verify clinic ownership before mutating
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
 	result := r.db.WithContext(ctx).
 		Model(&model.BillingItem{}).
 		Where("id = ?", id).
@@ -72,7 +77,11 @@ func (r *billingItemRepository) UpdateFields(ctx context.Context, id uint64, fie
 	return nil
 }
 
-func (r *billingItemRepository) Delete(ctx context.Context, id uint64) error {
+func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	// Verify clinic ownership before mutating
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
 	result := r.db.WithContext(ctx).Delete(&model.BillingItem{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing_item", fmt.Sprintf("%d", id))
@@ -83,10 +92,10 @@ func (r *billingItemRepository) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
+func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
-		Where("id = ?", billingID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", billingID).
 		Updates(map[string]any{
 			"subtotal":     subtotal,
 			"tax_total":    taxTotal,

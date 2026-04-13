@@ -1,5 +1,5 @@
 // React/Framework
-import { lazy, Suspense, useState, useCallback, useMemo } from "react";
+import { memo, lazy, Suspense, useState, useCallback, useMemo } from "react";
 
 // External
 import { Plus, Search } from "lucide-react";
@@ -71,13 +71,17 @@ interface TreatmentsTabProps {
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: TreatmentsTabProps) {
+export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: TreatmentsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: treatments, isLoading } = useGetTreatments(medicalRecordId);
   const createMutation = useCreateTreatment(medicalRecordId);
+  const { mutate: createTreatmentFn } = createMutation;
   const updateMutation = useUpdateTreatment(medicalRecordId);
+  const { mutate: updateTreatmentFn } = updateMutation;
   const deleteMutation = useDeleteTreatment(medicalRecordId);
+  const { mutate: deleteTreatmentFn } = deleteMutation;
   const reorderMutation = useReorderTreatments(medicalRecordId);
+  const { mutate: reorderTreatmentsFn } = reorderMutation;
 
   // マスタ検索ダイアログ
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -98,7 +102,7 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
 
   // 合計金額 (selected のみ)
   const { selectedSubtotal, selectedCount, finalTotal } = useMemo(() => {
-    const selected = sortedTreatments.filter((t) => t.selected);
+    const selected = sortedTreatments.filter((t) => t.is_selected);
     const sub = selected.reduce(
       (sum, t) => sum + t.unit_price * t.quantity - t.discount_amount,
       0
@@ -130,17 +134,17 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
   const handleUpdate = useCallback(
     (treatmentId: string, input: UpdateTreatmentInput) => {
       if (!canEdit) return;
-      updateMutation.mutate({ treatmentId, input });
+      updateTreatmentFn({ treatmentId, input });
     },
-    [canEdit, updateMutation]
+    [canEdit, updateTreatmentFn]
   );
 
   const handleDelete = useCallback(
     (treatmentId: string) => {
       if (!canDelete) return;
-      deleteMutation.mutate(treatmentId);
+      deleteTreatmentFn(treatmentId);
     },
-    [canDelete, deleteMutation]
+    [canDelete, deleteTreatmentFn]
   );
 
   const handleMoveUp = useCallback(
@@ -154,9 +158,9 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
         if (i === idx) return { id: t.id, sort_order: list[idx - 1].sort_order };
         return { id: t.id, sort_order: t.sort_order };
       });
-      reorderMutation.mutate({ treatments: newList });
+      reorderTreatmentsFn({ treatments: newList });
     },
-    [canEdit, sortedTreatments, reorderMutation]
+    [canEdit, sortedTreatments, reorderTreatmentsFn]
   );
 
   const handleMoveDown = useCallback(
@@ -170,9 +174,9 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
         if (i === idx + 1) return { id: t.id, sort_order: list[idx].sort_order };
         return { id: t.id, sort_order: t.sort_order };
       });
-      reorderMutation.mutate({ treatments: newList });
+      reorderTreatmentsFn({ treatments: newList });
     },
-    [canEdit, sortedTreatments, reorderMutation]
+    [canEdit, sortedTreatments, reorderTreatmentsFn]
   );
 
   const handleAddSubmit = useCallback(() => {
@@ -186,14 +190,14 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
       addItemType === "medicine" && addAdminRoute
         ? `[投与方法: ${addAdminRoute}]`
         : "";
-    createMutation.mutate(
+    createTreatmentFn(
       {
         item_type: addItemType,
         content: addContent.trim(),
         unit_price: 0,
         quantity: 1,
-        selected: true,
-        insurance: false,
+        is_selected: true,
+        is_insurance: false,
         discount_amount: 0,
         sort_order: nextOrder,
         memo: memoWithRoute,
@@ -207,7 +211,7 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
         },
       }
     );
-  }, [canCreate, addItemType, addContent, addAdminRoute, sortedTreatments, createMutation]);
+  }, [canCreate, addItemType, addContent, addAdminRoute, sortedTreatments, createTreatmentFn]);
 
   const handleAddCancel = useCallback(() => {
     setAddContent("");
@@ -226,21 +230,21 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
         : item.category === "処置" ? "procedure"
         : item.category === "診察" ? "consultation"
         : "other";
-    createMutation.mutate(
+    createTreatmentFn(
       {
         item_type: itemType,
         content: item.name,
         unit_price: item.unitPrice,
         quantity: 1,
-        selected: true,
-        insurance: false,
+        is_selected: true,
+        is_insurance: false,
         discount_amount: 0,
         sort_order: nextOrder,
         memo: "",
       },
       { onSuccess: () => setFocusLastRow(true) },
     );
-  }, [canCreate, sortedTreatments, createMutation]);
+  }, [canCreate, sortedTreatments, createTreatmentFn]);
 
   // ── render ──
 
@@ -263,7 +267,7 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
               <tr>
                 <td
                   colSpan={10}
-                  className={`text-center py-12 text-sm ${C.text40}`}
+                  className={STYLE.tableEmptySm}
                 >
                   治療明細がありません。下の「明細を追加」ボタンから追加してください。
                 </td>
@@ -410,4 +414,4 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
       </div>
     </div>
   );
-}
+});

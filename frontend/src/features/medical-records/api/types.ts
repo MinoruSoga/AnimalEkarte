@@ -20,22 +20,22 @@ export interface CreateMedicalRecordRequest {
   owner_id: string;         // FE は string → BE で uint64 変換
   pet_id: string;           // FE は string → BE で uint64 変換
   doctor_id?: string;       // FE は string → BE で uint64 変換
-  reservation_appointment_id?: string;
+  appointment_id?: string;
   status?: string;
 
   // ClinicalPlan 関連（原子的作成用）
   chief_complaint?: string;
-  chief_complaint_category_id?: number;
+  chief_complaint_type_id?: number;
   plan?: string;
   assessment?: string;
   notes?: string;
-  diagnosis_1_category_id?: number;
+  diagnosis_1_type_id?: number;
   diagnosis_1_name_id?: number;
-  diagnosis_2_category_id?: number;
+  diagnosis_2_type_id?: number;
   diagnosis_2_name_id?: number;
 }
 
 // ★ Partial で全フィールド optional に（編集時は部分更新）
 export type UpdateMedicalRecordRequest = Partial<
-  Omit<ApiMedicalRecord, "id" | "clinic_id" | "created_at" | "updated_at" | "owner" | "pet" | "doctor" | "clinical_plan" | "inquiry" | "treatments" | "vitals" | "exams" | "vaccinations" | "checkups" | "estimates" | "billing_review" | "billing">
+  Omit<ApiMedicalRecord, "id" | "clinic_id" | "created_at" | "updated_at" | "owner" | "pet" | "doctor" | "clinical_plan" | "inquiry" | "treatments" | "vitals" | "exams" | "vaccinations" | "checkups" | "estimates" | "billing_confirmation" | "billing">
 >;

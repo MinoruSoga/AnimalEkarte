@@ -69,9 +69,8 @@ func (h *Handler) GetMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	record, err := h.svc.MedicalRecord.GetByID(c.Request.Context(), clinicID, id)
@@ -143,20 +142,20 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 	if err != nil {
 		return nil, err
 	}
-	reservationAppointmentID, err := parseOptionalID(input.ReservationAppointmentID, "reservation_appointment_id")
+	appointmentID, err := parseOptionalID(input.AppointmentID, "appointment_id")
 	if err != nil {
 		return nil, err
 	}
 
 	// 4. モデル組み立て（RecordNo は service 層で自動生成）
 	record := &model.MedicalRecord{
-		ClinicID:                 clinicID,
-		RecordNo:                 input.RecordNo,
-		Date:                     recordDate,
-		OwnerID:                  ownerID,
-		PetID:                    petID,
-		DoctorID:                 doctorID,
-		ReservationAppointmentID: reservationAppointmentID,
+		ClinicID:      clinicID,
+		RecordNo:      input.RecordNo,
+		Date:          recordDate,
+		OwnerID:       ownerID,
+		PetID:         petID,
+		DoctorID:      doctorID,
+		AppointmentID: appointmentID,
 	}
 	if input.Status != "" {
 		status, err := validateEnum(input.Status,
@@ -193,15 +192,15 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		return
 	}
 	h.svc.MedicalRecord.CreateSubRecords(ctx, clinicID, record.ID, service.CreateSubRecordsInput{
-		ChiefComplaintCategoryID: input.ChiefComplaintCategoryID,
-		ChiefComplaint:           input.ChiefComplaint,
-		Notes:                    input.Notes,
-		Plan:                     input.Plan,
-		Assessment:               input.Assessment,
-		Diagnosis1CategoryID:     input.Diagnosis1CategoryID,
-		Diagnosis1NameID:         input.Diagnosis1NameID,
-		Diagnosis2CategoryID:     input.Diagnosis2CategoryID,
-		Diagnosis2NameID:         input.Diagnosis2NameID,
+		ChiefComplaintTypeID: input.ChiefComplaintTypeID,
+		ChiefComplaint:       input.ChiefComplaint,
+		Notes:                input.Notes,
+		Plan:                 input.Plan,
+		Assessment:           input.Assessment,
+		Diagnosis1CategoryID: input.Diagnosis1CategoryID,
+		Diagnosis1NameID:     input.Diagnosis1NameID,
+		Diagnosis2CategoryID: input.Diagnosis2CategoryID,
+		Diagnosis2NameID:     input.Diagnosis2NameID,
 	})
 	c.JSON(http.StatusCreated, record)
 }
@@ -212,9 +211,8 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var input updateMedicalRecordRequest
@@ -237,13 +235,13 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 	}
 
 	svcInput := service.UpdateMedicalRecordInput{
-		Date:                     input.Date,
-		OwnerID:                  input.OwnerID,
-		PetID:                    input.PetID,
-		DoctorID:                 input.DoctorID,
-		ReservationAppointmentID: input.ReservationAppointmentID,
-		Status:                   status,
-		Version:                  input.Version,
+		Date:          input.Date,
+		OwnerID:       input.OwnerID,
+		PetID:         input.PetID,
+		DoctorID:      input.DoctorID,
+		AppointmentID: input.AppointmentID,
+		Status:        status,
+		Version:       input.Version,
 	}
 
 	ctx := c.Request.Context()
@@ -261,9 +259,8 @@ func (h *Handler) DeleteMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.MedicalRecord.Delete(c.Request.Context(), clinicID, id); err != nil {

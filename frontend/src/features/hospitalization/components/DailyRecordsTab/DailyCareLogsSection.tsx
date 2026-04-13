@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useCallback } from "react";
+import { memo, useState, useCallback } from "react";
 
 // External
 import { UtensilsCrossed, Droplets, Pill, Stethoscope, MoreHorizontal, Plus } from "lucide-react";
@@ -14,13 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Types
-import type { ApiCareLogRecord, CreateCareLogRecordRequest } from "@/features/hospitalization/api/daily-records-types";
+import type { ApiCareLog, CreateCareLogRequest } from "@/features/hospitalization/api/daily-records-types";
 
 type CareLogType = "food" | "excretion" | "medicine" | "treatment" | "other";
 
 interface DailyCareLogsSectionProps {
-    careLogs: ApiCareLogRecord[];
-    onAddCareLog: (payload: CreateCareLogRecordRequest) => void;
+    careLogs: ApiCareLog[];
+    onAddCareLog: (payload: CreateCareLogRequest) => void;
     isPending: boolean;
     canCreate?: boolean;
 }
@@ -82,7 +82,7 @@ function getCurrentTime(): string {
     return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-export function DailyCareLogsSection({
+export const DailyCareLogsSection = memo(function DailyCareLogsSection({
     careLogs,
     onAddCareLog,
     isPending,
@@ -108,7 +108,7 @@ export function DailyCareLogsSection({
     const handleSubmit = useCallback(() => {
         if (!form.time) return;
 
-        const payload: CreateCareLogRecordRequest = {
+        const payload: CreateCareLogRequest = {
             time: form.time,
             type: form.type,
         };
@@ -245,4 +245,4 @@ export function DailyCareLogsSection({
             </FormDialog>
         </div>
     );
-}
+});

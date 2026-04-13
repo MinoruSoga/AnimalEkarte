@@ -15,10 +15,10 @@ import (
 
 type PermissionGroupRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
-	FindByID(ctx context.Context, id uint64) (*model.PermissionGroup, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
 	Create(ctx context.Context, group *model.PermissionGroup) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
 	CountStaffsByGroupID(ctx context.Context, groupID uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -40,7 +40,7 @@ func NewPermissionGroupRepository(db *gorm.DB) PermissionGroupRepository {
 func (r *permissionGroupRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
 	groups := make([]model.PermissionGroup, 0)
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Scopes(clinicScope(clinicID)).Where("deleted_at IS NULL").
 		Preload("Rules").
 		Order("sort_order ASC, name ASC").
 		Find(&groups).Error
@@ -50,11 +50,11 @@ func (r *permissionGroupRepository) FindAll(ctx context.Context, clinicID uint64
 	return groups, nil
 }
 
-func (r *permissionGroupRepository) FindByID(ctx context.Context, id uint64) (*model.PermissionGroup, error) {
+func (r *permissionGroupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
 	var group model.PermissionGroup
 	err := r.db.WithContext(ctx).
 		Preload("Rules").
-		First(&group, "id = ? AND deleted_at IS NULL", id).Error
+		Scopes(clinicScope(clinicID)).Where("id = ? AND deleted_at IS NULL", id).First(&group).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
 	}
@@ -75,7 +75,7 @@ func (r *permissionGroupRepository) Create(ctx context.Context, group *model.Per
 func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.PermissionGroup{}).
-		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ? AND deleted_at IS NULL", id).
 		Updates(fields)
 	if result.Error != nil {
 		if isUniqueConstraintErr(result.Error) {
@@ -89,10 +89,10 @@ func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uin
 	return nil
 }
 
-func (r *permissionGroupRepository) Delete(ctx context.Context, id uint64) error {
+func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.PermissionGroup{}).
-		Where("id = ?", id).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Update("deleted_at", gorm.Expr("now()"))
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
@@ -215,12 +215,13 @@ func (r *permissionGroupRepository) SetStaffGroups(ctx context.Context, staffID 
 	return nil
 }
 
-// Reorder は指定されたIDリストの順序でソート順を更新する
+// Reorder は指定されたIDリストの順序でソート順を更新する。
+// GORM の論理削除は Model 呼び出しで自動適用されないため、明示的に deleted_at IS NULL を指定する。
 func (r *permissionGroupRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.PermissionGroup{}).
-				Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
+				Scopes(clinicScope(clinicID)).Where("id = ? AND deleted_at IS NULL", id).
 				Update("sort_order", i+1)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
@@ -230,9 +231,8 @@ func (r *permissionGroupRepository) Reorder(ctx context.Context, clinicID uint64
 			}
 		}
 		return nil
-	})
-	if err != nil {
-		return apperrors.Wrap(err, "reorder permission group")
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to reorder permission groups")
 	}
 	return nil
 }

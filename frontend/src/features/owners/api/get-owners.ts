@@ -2,11 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Owner } from "@/types/owner";
-import { transformOwner } from "./transforms";
-import type { Owner as BackendOwner } from "@/types/generated/models";
+import { transformOwner, type OwnerApiResponse } from "./transforms";
 
 interface OwnersResponse {
-  data: BackendOwner[];
+  data: OwnerApiResponse[];
   total: number;
   page: number;
   limit: number;

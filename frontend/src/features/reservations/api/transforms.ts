@@ -1,30 +1,57 @@
-import type { ReservationAppointment } from "@/types";
-import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
+import type { Appointment } from "@/types";
+import type { Appointment as BackendReservation } from "@/types/generated/models";
 import type { CreateReservationRequest } from "./types";
+
+/** customer_fields JSON（LINE予約のオーナー未紐付け時のフォールバック用） */
+interface CustomerFieldsJSON {
+  customer_name?: string;
+  owner_name?: string;
+  pets?: Array<{ name?: string; type?: string }>;
+}
+
+function parseCustomerFields(raw: string | undefined): CustomerFieldsJSON {
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as CustomerFieldsJSON;
+  } catch {
+    return {};
+  }
+}
 
 export const transformReservation = (
   reservation: BackendReservation
-): ReservationAppointment => {
+): Appointment => {
+  // LINE予約でオーナー未紐付けの場合、customer_fields をフォールバックとして使用
+  const cf = parseCustomerFields(reservation.customer_fields);
+  const ownerName =
+    reservation.owner?.name ??
+    reservation.pet?.owner?.name ??
+    cf.owner_name ??
+    cf.customer_name ??
+    "";
+  const petName = reservation.pet?.name ?? cf.pets?.[0]?.name ?? "";
+
   return {
     id: String(reservation.id ?? 0),
     start: new Date(reservation.start_time),
     end: new Date(reservation.end_time),
-    ownerName: reservation.owner?.owner_name ?? reservation.pet?.owner?.owner_name ?? "",
-    petName: reservation.pet?.name ?? "",
+    ownerName,
+    petName,
     visitType: (reservation.visit_type as "first" | "revisit") ?? "first",
-    type: reservation.service_type?.name ?? "",
-    serviceTypeId: reservation.service_type_id ? String(reservation.service_type_id) : undefined,
+    type: reservation.reservation_type?.name ?? "",
+    reservationTypeId: reservation.reservation_type_id ? String(reservation.reservation_type_id) : undefined,
     doctor: reservation.doctor?.name ?? "",
     doctorId: reservation.doctor_id ? String(reservation.doctor_id) : undefined,
     isDesignated: reservation.is_designated ?? false,
-    status: (reservation.status as ReservationAppointment["status"]) ?? "pending",
+    status: (reservation.status as Appointment["status"]) ?? "pending",
     notes: reservation.notes || undefined,
     petId: reservation.pet_id ? String(reservation.pet_id) : undefined,
+    source: (reservation.source as "manual" | "line") ?? "manual",
   };
 };
 
 export const transformToCreateRequest = (
-  data: Partial<ReservationAppointment>,
+  data: Partial<Appointment>,
   petId: string,
   ownerId: string
 ): CreateReservationRequest => {
@@ -34,9 +61,10 @@ export const transformToCreateRequest = (
     start_time: data.start ? data.start.toISOString() : "",
     end_time: data.end ? data.end.toISOString() : "",
     visit_type: data.visitType ?? "first",
-    service_type_id: Number(data.type ?? 0),
+    reservation_type_id: Number(data.type ?? 0),
     doctor_id: data.doctor ? Number(data.doctor) : undefined,
     is_designated: data.isDesignated ?? false,
     notes: data.notes,
+    source: data.source,
   };
 };

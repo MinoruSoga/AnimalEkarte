@@ -35,7 +35,7 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 			q = q.Where("exams.pet_id = ?", *petID)
 		}
 		if ownerID != nil {
-			q = q.Joins("JOIN pets ON pets.id = exams.pet_id").Where("pets.owner_id = ?", *ownerID)
+			q = q.Joins("JOIN pets ON pets.id = exams.pet_id AND pets.deleted_at IS NULL").Where("pets.owner_id = ?", *ownerID)
 		}
 		if status != nil {
 			q = q.Where("exams.status = ?", *status)
@@ -86,7 +86,7 @@ func (r *examinationRepository) Create(ctx context.Context, exam *model.Examinat
 func (r *examinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Examination{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "exam", fmt.Sprintf("%d", id))
@@ -99,7 +99,7 @@ func (r *examinationRepository) UpdateFields(ctx context.Context, clinicID, id u
 
 func (r *examinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.Examination{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "exam", fmt.Sprintf("%d", id))
@@ -113,9 +113,9 @@ func (r *examinationRepository) Delete(ctx context.Context, clinicID, id uint64)
 func (r *examinationRepository) CountItemsByExamID(ctx context.Context, clinicID, examID uint64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
-		Model(&model.ExaminationItem{}).
-		Joins("JOIN exams ON exam_items.exam_id = exams.id").
-		Where("exams.clinic_id = ? AND exam_items.exam_id = ?", clinicID, examID).
+		Model(&model.ExamResult{}).
+		Joins("JOIN exams ON exam_results.exam_id = exams.id").
+		Where("exams.clinic_id = ? AND exam_results.exam_id = ?", clinicID, examID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "exam_item", fmt.Sprintf("exam_id=%d", examID))

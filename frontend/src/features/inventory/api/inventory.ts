@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { BackendInventoryItem, CreateInventoryItemRequest, UpdateInventoryItemRequest } from "./types";
 
 interface GetInventoryItemsParams {
@@ -51,6 +52,7 @@ export const useCreateInventoryItem = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventoryItems"] });
     },
+    onError: (error) => handleApiError(error, "在庫作成"),
   });
 };
 
@@ -66,6 +68,7 @@ export const useUpdateInventoryItem = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventoryItems"] });
     },
+    onError: (error) => handleApiError(error, "在庫更新"),
   });
 };
 
@@ -80,5 +83,6 @@ export const useDeleteInventoryItem = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventoryItems"] });
     },
+    onError: (error) => handleApiError(error, "在庫削除"),
   });
 };

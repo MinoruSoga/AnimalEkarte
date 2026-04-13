@@ -27,6 +27,12 @@ type staffResponse struct {
 	Occupation    *occupationInStaffResponse `json:"occupation,omitempty"`
 	CreatedAt     time.Time                  `json:"created_at"`
 	UpdatedAt     time.Time                  `json:"updated_at"`
+
+	// LINE予約用フィールド
+	StaffType              model.StaffType `json:"staff_type"`
+	ReservationDisplayName string          `json:"reservation_display_name"`
+	ReservationVisible     bool            `json:"reservation_visible"`
+	ReservationComment     string          `json:"reservation_comment"`
 }
 
 func toOccupationInStaffResponse(occ *model.Occupation) *occupationInStaffResponse {
@@ -50,16 +56,20 @@ func toStaffResponse(s *model.Staff) staffResponse {
 		email = s.Account.Email
 	}
 	return staffResponse{
-		ID:            s.ID,
-		Name:          s.Name,
-		IsActive:      s.IsActive,
-		OccupationID:  s.OccupationID,
-		LicenseNumber: s.LicenseNumber,
-		SortOrder:     s.SortOrder,
-		Email:         email,
-		Occupation:    toOccupationInStaffResponse(s.Occupation),
-		CreatedAt:     s.CreatedAt,
-		UpdatedAt:     s.UpdatedAt,
+		ID:                     s.ID,
+		Name:                   s.Name,
+		IsActive:               s.IsActive,
+		OccupationID:           s.OccupationID,
+		LicenseNumber:          s.LicenseNumber,
+		SortOrder:              s.SortOrder,
+		Email:                  email,
+		Occupation:             toOccupationInStaffResponse(s.Occupation),
+		CreatedAt:              s.CreatedAt,
+		UpdatedAt:              s.UpdatedAt,
+		StaffType:              s.StaffType,
+		ReservationDisplayName: s.ReservationDisplayName,
+		ReservationVisible:     s.ReservationVisible,
+		ReservationComment:     s.ReservationComment,
 	}
 }
 

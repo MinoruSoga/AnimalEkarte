@@ -72,6 +72,13 @@ func RespondError(c *gin.Context, err error) {
 	}
 }
 
+// RespondErrorAndAbort は RespondError を呼び出した後 c.Abort() する。
+// gin ミドルウェアで後続ハンドラを停止させる必要がある場合に使用する。
+func RespondErrorAndAbort(c *gin.Context, err error) {
+	RespondError(c, err)
+	c.Abort()
+}
+
 // isPgError はエラーチェーンに pgconn.PgError が含まれるか判定する
 func isPgError(err error) bool {
 	var pgErr *pgconn.PgError
@@ -166,17 +173,17 @@ func parseDateQuery(c *gin.Context, key string) (*string, error) {
 func extractStaffID(c *gin.Context) (uint64, bool) {
 	val, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		RespondError(c, apperrors.WrapUnauthorized("missing user context"))
 		return 0, false
 	}
 	userIDStr, ok := val.(string)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid user context"))
 		return 0, false
 	}
 	staffID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid user context"))
 		return 0, false
 	}
 	return staffID, true
@@ -188,17 +195,17 @@ func extractStaffID(c *gin.Context) (uint64, bool) {
 func extractClinicID(c *gin.Context) (uint64, bool) {
 	val, exists := c.Get("clinic_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing clinic context"})
+		RespondError(c, apperrors.WrapUnauthorized("missing clinic context"))
 		return 0, false
 	}
 	clinicIDStr, ok := val.(string)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid clinic context"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid clinic context"))
 		return 0, false
 	}
 	clinicID, err := strconv.ParseUint(clinicIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid clinic context"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid clinic context"))
 		return 0, false
 	}
 	return clinicID, true
@@ -210,12 +217,12 @@ func extractClinicID(c *gin.Context) (uint64, bool) {
 func extractIsSystemAdmin(c *gin.Context) (isSystemAdmin, ok bool) {
 	val, exists := c.Get("is_system_admin")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		RespondError(c, apperrors.WrapUnauthorized("missing user context"))
 		return false, false
 	}
 	isAdmin, ok := val.(bool)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid user context"))
 		return false, false
 	}
 	return isAdmin, true
@@ -226,8 +233,7 @@ func extractIsSystemAdmin(c *gin.Context) (isSystemAdmin, ok bool) {
 func (h *Handler) RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !h.hasPermission(c, resource, action) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
-			c.Abort()
+			RespondErrorAndAbort(c, apperrors.WrapForbidden("forbidden"))
 			return
 		}
 		c.Next()
@@ -257,18 +263,35 @@ func parsePagination(c *gin.Context) (page, limit int, err error) {
 	return page, limit, nil
 }
 
+// parseIDParam は URL path parameter を uint64 にパースする汎用ヘルパー。
+// パース失敗時は即座に HTTP 400 レスポンスを書いて false を返す。
+// 呼び出し元は false 時に即 return すること。
+func parseIDParam(c *gin.Context, key string) (uint64, bool) {
+	s := c.Param(key)
+	if s == "" {
+		RespondError(c, apperrors.WrapInvalidInput("missing "+key))
+		return 0, false
+	}
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid "+key))
+		return 0, false
+	}
+	return id, true
+}
+
 // extractClinicIDFromParam は URL path parameter :clinicId を取得してパースする。
 // 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
 // 呼び出し元は false 時に即 return すること。
 func extractClinicIDFromParam(c *gin.Context) (uint64, bool) {
 	s := c.Param("clinicId")
 	if s == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing clinicId"})
+		RespondError(c, apperrors.WrapInvalidInput("missing clinicId"))
 		return 0, false
 	}
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid clinicId"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid clinicId"))
 		return 0, false
 	}
 	return id, true

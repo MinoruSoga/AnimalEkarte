@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import { Check, Octagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ interface PetSelectionResultsTableProps {
   onSelect: (pet: Pet) => void;
 }
 
-export function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResultsTableProps) {
+export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResultsTableProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -110,4 +111,4 @@ export function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResults
       </div>
     </div>
   );
-}
+});

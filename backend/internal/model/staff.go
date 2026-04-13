@@ -23,15 +23,16 @@ type Staff struct {
 	OccupationID  *uint64        `                                                      json:"occupation_id,omitempty"`
 	LicenseNumber string         `gorm:"default:''"                                     json:"license_number"`
 	SortOrder     int            `gorm:"type:integer;default:0"                         json:"sort_order"`
-	DeletedAt     gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt     gorm.DeletedAt `                                                      json:"-"`
 	CreatedAt     time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// LINE予約用フィールド
-	StaffType           StaffType `gorm:"type:staff_type;not null;default:'doctor'"      json:"staff_type"`
-	ReservationVisible  bool      `gorm:"not null;default:true"                          json:"reservation_visible"`
-	ReservationComment  string    `gorm:"not null;default:''"                            json:"reservation_comment"`
-	ReservationImageURL string    `gorm:"not null;default:''"                            json:"reservation_image_url"`
+	StaffType              StaffType `gorm:"type:staff_type;not null;default:'doctor'"      json:"staff_type"`
+	ReservationDisplayName string    `gorm:"not null;default:''"                            json:"reservation_display_name"` // 空ならNameをフォールバック
+	ReservationVisible     bool      `gorm:"not null;default:true"                          json:"reservation_visible"`
+	ReservationComment     string    `gorm:"not null;default:''"                            json:"reservation_comment"`
+	ReservationImageURL    string    `gorm:"not null;default:''"                            json:"reservation_image_url"`
 
 	// Relations
 	Account           *Account                `gorm:"foreignKey:AccountID" json:"account,omitempty"`
@@ -59,12 +60,54 @@ type ShiftEntry struct {
 	ShiftType ShiftType `gorm:"type:shift_type;not null"                       json:"shift_type"`
 	StartTime *string   `gorm:"type:time"                                     json:"start_time,omitempty"`
 	EndTime   *string   `gorm:"type:time"                                     json:"end_time,omitempty"`
-	Note      string    `gorm:"default:''"                                     json:"note"`
+	Notes     string    `gorm:"default:''"                                     json:"notes"`
 	CreatedAt time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
+	Staff  *Staff            `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
+	Breaks []ShiftEntryBreak `gorm:"foreignKey:ShiftEntryID" json:"breaks,omitempty"`
 }
 
 func (ShiftEntry) TableName() string { return "shift_entries" }
+
+// ClinicHoliday は病院が設定した個別休診日を表す
+type ClinicHoliday struct {
+	ID        uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID  uint64    `gorm:"not null"                                       json:"clinic_id"`
+	Date      time.Time `gorm:"type:date;not null"                             json:"date"`
+	Reason    string    `gorm:"not null;default:''"                            json:"reason"`
+	CreatedAt time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+}
+
+func (ClinicHoliday) TableName() string { return "clinic_holidays" }
+
+// ShiftTemplate はシフトテンプレートマスタを表す
+type ShiftTemplate struct {
+	ID        uint64               `gorm:"primaryKey;autoIncrement"                        json:"id"`
+	ClinicID  uint64               `gorm:"not null"                                        json:"clinic_id"`
+	Name      string               `gorm:"not null"                                        json:"name"`
+	ShiftType ShiftType            `gorm:"type:shift_type;not null;default:'full'"         json:"shift_type"`
+	StartTime *string              `gorm:"type:time"                                       json:"start_time,omitempty"`
+	EndTime   *string              `gorm:"type:time"                                       json:"end_time,omitempty"`
+	Notes     string               `gorm:"default:''"                                      json:"notes"`
+	SortOrder int                  `gorm:"default:0"                                       json:"sort_order"`
+	IsActive  bool                 `gorm:"default:true"                                    json:"is_active"`
+	CreatedAt time.Time            `gorm:"autoCreateTime"                                  json:"created_at"`
+	UpdatedAt time.Time            `gorm:"autoUpdateTime"                                  json:"updated_at"`
+	DeletedAt gorm.DeletedAt       `                                                       json:"-"`
+	Breaks    []ShiftTemplateBreak `gorm:"foreignKey:ShiftTemplateID"                      json:"breaks,omitempty"`
+}
+
+func (ShiftTemplate) TableName() string { return "shift_templates" }
+
+// ShiftTemplateBreak はシフトテンプレートの休憩時間を表す
+type ShiftTemplateBreak struct {
+	ID              uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
+	ShiftTemplateID uint64 `gorm:"not null"                 json:"shift_template_id"`
+	BreakStart      string `gorm:"type:time;not null"       json:"break_start"`
+	BreakEnd        string `gorm:"type:time;not null"       json:"break_end"`
+}
+
+func (ShiftTemplateBreak) TableName() string { return "shift_template_breaks" }

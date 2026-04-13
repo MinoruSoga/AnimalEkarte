@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -14,9 +13,12 @@ import (
 // UpdateInquiry godoc
 // PATCH /medical-records/:id/inquiries
 func (h *Handler) UpdateInquiry(c *gin.Context) {
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var req updateInquiryRequest
@@ -25,10 +27,11 @@ func (h *Handler) UpdateInquiry(c *gin.Context) {
 		return
 	}
 	inquiry, err := h.svc.Inquiry.Upsert(c.Request.Context(), service.UpsertInquiryInput{
-		MedicalRecordID:          medicalRecordID,
-		ChiefComplaintCategoryID: req.ChiefComplaintCategoryID,
-		ChiefComplaint:           req.ChiefComplaint,
-		Notes:                    req.Notes,
+		ClinicID:             clinicID,
+		MedicalRecordID:      medicalRecordID,
+		ChiefComplaintTypeID: req.ChiefComplaintTypeID,
+		ChiefComplaint:       req.ChiefComplaint,
+		Notes:                req.Notes,
 	})
 	if err != nil {
 		RespondError(c, err)

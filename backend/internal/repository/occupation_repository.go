@@ -32,7 +32,7 @@ func NewOccupationRepository(db *gorm.DB) OccupationRepository {
 func (r *occupationRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Occupation, error) {
 	occupations := make([]model.Occupation, 0)
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ?", clinicID).
+		Scopes(clinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&occupations).Error
 	if err != nil {
@@ -43,7 +43,7 @@ func (r *occupationRepository) FindAll(ctx context.Context, clinicID uint64) ([]
 
 func (r *occupationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
 	var occupation model.Occupation
-	err := r.db.WithContext(ctx).First(&occupation, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&occupation).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "occupation", fmt.Sprintf("%d", id))
 	}
@@ -64,7 +64,7 @@ func (r *occupationRepository) Create(ctx context.Context, occupation *model.Occ
 func (r *occupationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Occupation{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "occupation", fmt.Sprintf("%d", id))
@@ -76,7 +76,7 @@ func (r *occupationRepository) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (r *occupationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Occupation{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Occupation{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "occupation", fmt.Sprintf("%d", id))
 	}
@@ -99,22 +99,5 @@ func (r *occupationRepository) CountStaffsByOccupationID(ctx context.Context, oc
 }
 
 func (r *occupationRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.Occupation{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "occupation", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("occupation id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return apperrors.Wrap(err, "reorder occupation")
-	}
-	return nil
+	return reorderByClinicID(ctx, r.db, &model.Occupation{}, "occupation", clinicID, ids)
 }

@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, useDeferredValue, useTransition } from "react";
+import { useState, useRef, useMemo, useCallback, useDeferredValue, useTransition, useEffect } from "react";
 
 // External
 import { toast } from "sonner";
@@ -156,6 +156,9 @@ export function useMasterCRUD<T extends MasterEntity>({
   const [editTarget, setEditTarget] = useState<T | "new" | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<T | null>(null);
+  // rerender-dependencies: pendingDelete オブジェクトを ref 経由で参照し handleDeleteConfirm deps から除外
+  const pendingDeleteRef = useRef<T | null>(null);
+  useEffect(() => { pendingDeleteRef.current = pendingDelete; }, [pendingDelete]);
   const [isSavePending, startSaveTransition] = useTransition();
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
@@ -199,8 +202,9 @@ export function useMasterCRUD<T extends MasterEntity>({
   const handleDeleteCancel = useCallback(() => setPendingDelete(null), []);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDelete) return;
-    deleteMutation.mutate(pendingDelete.id, {
+    const target = pendingDeleteRef.current;
+    if (!target) return;
+    deleteMutation.mutate(target.id, {
       onSuccess: () => {
         setPendingDelete(null);
         setEditTarget(null);
@@ -208,7 +212,7 @@ export function useMasterCRUD<T extends MasterEntity>({
       },
       onError: (error) => handleApiError(error, `${entityLabel}の削除`),
     });
-  }, [pendingDelete, deleteMutation, entityLabel]);
+  }, [deleteMutation, entityLabel]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
     setActiveSorts(sorts);

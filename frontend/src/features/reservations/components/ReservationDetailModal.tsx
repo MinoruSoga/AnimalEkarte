@@ -1,5 +1,6 @@
+import { memo } from "react";
 import { ICON, C } from "@/lib/design-tokens";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Calendar, Clock, Stethoscope, FileText, Pencil, Scissors, Building2, FilePlus2, PawPrint, Tag } from "lucide-react";
@@ -8,21 +9,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
-import type { ReservationAppointment, ReservationStatus } from "../types";
+import type { Appointment, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import { useServiceTypeColorMap } from "@/features/master";
+import { useReservationTypeColorMap } from "@/features/master";
 import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/utils/constants/status-colors";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEdit?: (appointment: ReservationAppointment) => void;
-  onDelete?: (appointment: ReservationAppointment) => void;
-  onCreateRecord?: (appointment: ReservationAppointment) => void;
-  onStatusChange?: (appointment: ReservationAppointment, status: ReservationStatus) => void;
-  appointment: ReservationAppointment | null;
+  onEdit?: (appointment: Appointment) => void;
+  onDelete?: (appointment: Appointment) => void;
+  onCreateRecord?: (appointment: Appointment) => void;
+  onStatusChange?: (appointment: Appointment, status: ReservationStatus) => void;
+  appointment: Appointment | null;
 }
 
 // STATUS_OPTIONS は RESERVATION_STATUS_COLORS に集約済み（status-colors.ts）
@@ -43,6 +44,17 @@ const DEFAULT_ACTION_CONFIG: ActionConfig = {
   Icon: FilePlus2,
 };
 
+// rendering-hoist-jsx: 静的な定数から生成する JSX はモジュールレベルで巻き上げ
+const RESERVATION_STATUS_SELECT_ITEMS = (Object.entries(RESERVATION_STATUS_COLORS) as [ReservationStatus, typeof RESERVATION_STATUS_COLORS[ReservationStatus]][]).map(([value, colors]) => (
+  <SelectItem key={value} value={value} className="text-sm">
+    <div className="flex items-center gap-2">
+      {/* BUG-323: Status Dot Icon Token 使用統一 */}
+      <span className={`${ICON.dot} rounded-full ${colors.dot}`} />
+      {colors.label}
+    </div>
+  </SelectItem>
+));
+
 // getVisitTypeAccent は getVisitTypeColor に集約済み（status-colors.ts）
 
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
@@ -54,7 +66,7 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export function ReservationDetailModal({
+export const ReservationDetailModal = memo(function ReservationDetailModal({
   isOpen,
   onClose,
   onEdit,
@@ -63,7 +75,7 @@ export function ReservationDetailModal({
   onStatusChange,
   appointment,
 }: ReservationDetailModalProps) {
-  const { getColor } = useServiceTypeColorMap();
+  const { getColor } = useReservationTypeColorMap();
 
   if (!appointment) return null;
 
@@ -80,7 +92,7 @@ export function ReservationDetailModal({
         <DialogHeader className="px-5 pt-4 pb-0 pr-12">
           <div className="flex items-center gap-2.5">
             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm ${visitAccent.bg} ${visitAccent.text} ${visitAccent.border} border`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${visitAccent.dot}`} />
+              <span className={`${ICON.dotSm} rounded-full ${visitAccent.dot}`} />
               {appointment.visitType === "first" ? "初診" : "再診"}
             </div>
             <DialogTitle className={`text-sm ${C.text}`}>
@@ -97,7 +109,8 @@ export function ReservationDetailModal({
           {onStatusChange ? (
             <div className={`flex items-center justify-between rounded-lg border px-3 py-2 ${currentStatus.bg} ${currentStatus.text} border-transparent`}>
               <div className="flex items-center gap-2 text-sm">
-                <span className={`w-2 h-2 rounded-full ${currentStatus.dot}`} />
+                {/* BUG-323: Status Dot Icon Token 使用統一 */}
+                <span className={`${ICON.dot} rounded-full ${currentStatus.dot}`} />
                 <span>{getReservationStatusLabel(appointment.status)}</span>
               </div>
               <Select
@@ -111,14 +124,7 @@ export function ReservationDetailModal({
                   <SelectValue placeholder="変更" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.entries(RESERVATION_STATUS_COLORS) as [ReservationStatus, typeof RESERVATION_STATUS_COLORS[ReservationStatus]][]).map(([value, colors]) => (
-                    <SelectItem key={value} value={value} className="text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                        {colors.label}
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {RESERVATION_STATUS_SELECT_ITEMS}
                 </SelectContent>
               </Select>
             </div>
@@ -180,9 +186,10 @@ export function ReservationDetailModal({
                   ) : null}
                 </div>
               </InfoRow>
-              <InfoRow label="診療サービス">
+              <InfoRow label="予約区分">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={appointment ? getColor(appointment.type).dotStyle : undefined} />
+                  {/* BUG-323: Status Dot Icon Token 使用統一 */}
+                  <span className={`${ICON.dot} rounded-full shrink-0`} style={appointment ? getColor(appointment.type).dotStyle : undefined} />
                   <Tag className={`${ICON.xs} ${C.text40}`} />
                   {getReservationTypeName(appointment.type)}
                 </div>
@@ -235,4 +242,4 @@ export function ReservationDetailModal({
       </DialogContent>
     </Dialog>
   );
-}
+});

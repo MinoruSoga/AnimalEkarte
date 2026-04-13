@@ -3,7 +3,7 @@ package handler
 type createTreatmentPlanRequest struct {
 	TreatmentContent string  `json:"treatment_content" binding:"required"`
 	Memo             string  `json:"memo"`
-	Insurance        bool    `json:"insurance"`
+	IsInsurance      bool    `json:"is_insurance"`
 	UnitPrice        int64   `json:"unit_price"`
 	Quantity         float64 `json:"quantity"`
 	DiscountRate     float64 `json:"discount_rate"`
@@ -15,7 +15,7 @@ type createTreatmentPlanRequest struct {
 type updateTreatmentPlanRequest struct {
 	TreatmentContent *string  `json:"treatment_content"`
 	Memo             *string  `json:"memo"`
-	Insurance        *bool    `json:"insurance"`
+	IsInsurance      *bool    `json:"is_insurance"`
 	UnitPrice        *int64   `json:"unit_price"`
 	Quantity         *float64 `json:"quantity"`
 	DiscountRate     *float64 `json:"discount_rate"`

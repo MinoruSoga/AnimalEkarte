@@ -5,8 +5,15 @@ import type { Pet } from "@/types";
 import type { Owner } from "@/types/owner";
 import type { Owner as BackendOwner } from "@/types/generated/models";
 
+// BUG-324: /v1/owners API レスポンスは owner_name / owner_name_kana を返す（models.ts の name と乖離）
+// ownerResponse DTO (owner_response.go) が `json:"owner_name"` を使うため
+interface OwnerApiListItem extends Omit<BackendOwner, "name" | "name_kana"> {
+  owner_name: string;
+  owner_name_kana: string;
+}
+
 interface OwnersResponse {
-  data: BackendOwner[];
+  data: OwnerApiListItem[];
   total: number;
   page: number;
   limit: number;
@@ -43,9 +50,15 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
 
     // 各飼主のペットをフラット化。ペットなし飼主は owner 情報のみの空ペット行を1件追加。
     const allPets: Pet[] = allOwners.flatMap(owner => {
+      // BUG-324: API は owner_name / owner_name_kana を返す。BackendOwner (name) に正規化して transform に渡す。
+      const normalizedOwner: BackendOwner = {
+        ...owner,
+        name: owner.owner_name ?? "",
+        name_kana: owner.owner_name_kana ?? "",
+      };
       const pets = owner.pets ?? [];
       if (pets.length > 0) {
-        return pets.map(pet => transformBackendPetToFrontend({ ...pet, owner }));
+        return pets.map(pet => transformBackendPetToFrontend({ ...pet, owner: normalizedOwner }));
       }
       // ペットなし飼主: owner 情報のみを持つ空ペット行を直接構築
       const ownerAddress = [owner.address1, owner.address2].filter(Boolean).join(" ") || undefined;
@@ -53,7 +66,7 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
         id: `owner-${owner.id}`,
         ownerId: String(owner.id),
         ownerNumber: owner.id,
-        ownerName: owner.owner_name,
+        ownerName: owner.owner_name ?? "",
         ownerNameKana: owner.owner_name_kana ?? undefined,
         address: ownerAddress,
         phone: owner.phone,

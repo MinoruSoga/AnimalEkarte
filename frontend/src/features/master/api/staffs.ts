@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Staff as ModelStaff } from "@/types/generated/models";
 
@@ -14,6 +15,12 @@ export interface CreateStaffRequest {
   license_number?: string;
   occupation_id?: string | null;
   sort_order?: number;
+  // LINE予約用
+  staff_type?: string;
+  reservation_display_name?: string;
+  reservation_visible?: boolean;
+  reservation_comment?: string;
+  reservation_image_url?: string;
 }
 
 export interface UpdateStaffRequest {
@@ -23,6 +30,12 @@ export interface UpdateStaffRequest {
   occupation_id?: string | null;
   sort_order?: number;
   password?: string;
+  // LINE予約用
+  staff_type?: string;
+  reservation_display_name?: string;
+  reservation_visible?: boolean;
+  reservation_comment?: string;
+  reservation_image_url?: string;
 }
 
 // ─────────────────────────────────────────────────
@@ -49,6 +62,12 @@ function transformStaff(data: ModelStaff & { email?: string }) {
     email,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
+    // LINE予約用フィールド
+    staffType: data.staff_type ?? "doctor",
+    reservationDisplayName: data.reservation_display_name ?? "",
+    reservationVisible: data.reservation_visible ?? true,
+    reservationComment: data.reservation_comment ?? "",
+    reservationImageUrl: data.reservation_image_url ?? "",
   };
 }
 
@@ -117,6 +136,7 @@ export function useCreateStaff() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "作成"),
   });
 }
 
@@ -128,6 +148,7 @@ export function useUpdateStaff() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "更新"),
   });
 }
 
@@ -138,6 +159,7 @@ export function useDeleteStaff() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
     },
+    onError: (error) => handleApiError(error, "削除"),
   });
 }
 
@@ -165,6 +187,7 @@ export function useGetAllStaffPermissionGroupMap(staffIds: string[]) {
             );
             map.set(id, (data.group_ids ?? []).map(String));
           } catch {
+            // バッチ取得: 個別スタッフの失敗（404含む）はスキップして継続
             map.set(id, []);
           }
         }),
@@ -211,6 +234,7 @@ export function useSetStaffPermissionGroups() {
         queryKey: STAFF_PERM_GROUPS_KEY(variables.staffId),
       });
     },
+    onError: (error) => handleApiError(error, "設定"),
   });
 }
 
@@ -280,5 +304,51 @@ export function useSetStaffClinics() {
         queryKey: STAFF_CLINICS_KEY(variables.staffId),
       });
     },
+    onError: (error) => handleApiError(error, "設定"),
+  });
+}
+
+// ─────────────────────────────────────────────────
+// Staff Excluded Service Types API
+// ─────────────────────────────────────────────────
+
+const STAFF_EXCLUDED_ST_KEY = (staffId: string) =>
+  [...STAFFS_QUERY_KEY, staffId, "excluded-reservation-types"] as const;
+
+export function useGetStaffExcludedReservationTypes(staffId: string | null) {
+  return useQuery({
+    queryKey: STAFF_EXCLUDED_ST_KEY(staffId ?? ""),
+    queryFn: async (): Promise<string[]> => {
+      const { data } = await axios.get<{ reservation_type_ids: number[] }>(
+        `/v1/masters/staffs/${staffId}/excluded-reservation-types`,
+      );
+      return (data.reservation_type_ids ?? []).map(String);
+    },
+    enabled: staffId !== null,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
+  });
+}
+
+export function useSetStaffExcludedReservationTypes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      staffId,
+      reservationTypeIds,
+    }: {
+      staffId: string;
+      reservationTypeIds: string[];
+    }) => {
+      await axios.put(`/v1/masters/staffs/${staffId}/excluded-reservation-types`, {
+        reservation_type_ids: reservationTypeIds.map((id) => parseInt(id, 10)),
+      });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: STAFF_EXCLUDED_ST_KEY(variables.staffId),
+      });
+    },
+    onError: (error) => handleApiError(error, "設定"),
   });
 }

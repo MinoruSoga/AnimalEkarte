@@ -64,9 +64,8 @@ func (h *Handler) GetEstimate(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	estimate, err := h.svc.Estimate.GetByID(c.Request.Context(), clinicID, id)
@@ -124,9 +123,8 @@ func (h *Handler) UpdateEstimate(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -168,9 +166,8 @@ func (h *Handler) DeleteEstimate(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.Estimate.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -178,14 +175,4 @@ func (h *Handler) DeleteEstimate(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
-}
-
-// RegisterEstimateRoutes は見積書関連のルートを登録する
-func (h *Handler) RegisterEstimateRoutes(rg *gin.RouterGroup) {
-	estimates := rg.Group("/estimates")
-	estimates.GET("", h.ListEstimates)
-	estimates.POST("", h.CreateEstimate)
-	estimates.GET("/:id", h.GetEstimate)
-	estimates.PATCH("/:id", h.UpdateEstimate)
-	estimates.DELETE("/:id", h.DeleteEstimate)
 }

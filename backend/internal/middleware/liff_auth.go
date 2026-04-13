@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -34,19 +35,19 @@ type lineVerifyResponse struct {
 	ErrorDesc string `json:"error_description"`
 }
 
-// ReservationCustomerLookup はLINE顧客を特定・作成するためのインターフェース。
-type ReservationCustomerLookup interface {
-	FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.ReservationCustomer, error)
+// LineCustomerLookup はLINE顧客を特定・作成するためのインターフェース。
+type LineCustomerLookup interface {
+	FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.LineCustomer, error)
 }
 
-// ReservationSettingLookup はLIFF認証でクリニックの設定を取得するインターフェース。
-type ReservationSettingLookup interface {
-	FindByClinicID(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error)
+// LineReservationSettingLookup はLIFF認証でクリニックの設定を取得するインターフェース。
+type LineReservationSettingLookup interface {
+	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 }
 
 // LiffAuth はLIFF ID Tokenを検証してcontext に顧客情報をセットするミドルウェア。
 // settingLookup でクリニックの LiffID を取得し、LINE API の client_id 照合に使用する。
-func LiffAuth(lookup ReservationCustomerLookup, settingLookup ReservationSettingLookup) gin.HandlerFunc {
+func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// ローカル開発用: LIFF_MOCK=true で認証バイパス
 		if os.Getenv("LIFF_MOCK") == "true" {
@@ -114,7 +115,7 @@ func LiffAuth(lookup ReservationCustomerLookup, settingLookup ReservationSetting
 			return
 		}
 
-		// reservation_customers から顧客を特定（なければ新規作成）
+		// line_customers から顧客を特定（なければ新規作成）
 		customer, err := lookup.FindOrCreateByLineUserID(c.Request.Context(), clinicID, lineUser.Sub, lineUser.Name)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve customer"})
@@ -138,11 +139,12 @@ var lineVerifyURL = "https://api.line.me/oauth2/v2.1/verify"
 // verifyLiffIDToken は LINE の ID Token 検証 API を呼び出してユーザー情報を返す。
 // clientID にはクリニックの LINEログインチャンネル ID を渡すこと。
 func verifyLiffIDToken(ctx context.Context, idToken, clientID string) (*lineVerifyResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, lineVerifyURL, strings.NewReader(
-		"id_token="+idToken+"&client_id="+clientID,
-	))
+	params := url.Values{}
+	params.Set("id_token", idToken)
+	params.Set("client_id", clientID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, lineVerifyURL, strings.NewReader(params.Encode()))
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create http request")
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
@@ -151,7 +153,7 @@ func verifyLiffIDToken(ctx context.Context, idToken, clientID string) (*lineVeri
 	if err != nil {
 		return nil, fmt.Errorf("line verify request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // レスポンスボディのクローズ失敗は復旧不可のため無視
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -1,5 +1,6 @@
 import { ICON, C } from "@/lib/design-tokens";
-import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
+import { paths } from "@/config/paths";
+import { LoadingFallback } from "@/components/shared/DataStates";
 import { memo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { FileText } from 'lucide-react';
@@ -19,6 +20,7 @@ import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
 import { NotionDatePicker } from '@/components/shared/NotionDatePicker/NotionDatePicker';
 import { NavigationBlocker } from '@/components/shared/NavigationBlocker';
 import { NumberInput } from '@/components/shared/NumberInput/NumberInput';
+import { FormFieldError } from '@/components/shared/FormFieldError';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useGetEstimate } from '../api/get-estimate';
 import { useEstimateForm } from '../hooks/use-estimate-form';
@@ -48,6 +50,7 @@ interface BasicInfoSectionProps {
   status: EstimateStatus;
   validUntil: string;
   onChange: (key: string, value: unknown) => void;
+  titleError?: string;
 }
 
 const BasicInfoSection = memo(function BasicInfoSection({
@@ -55,6 +58,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
   status,
   validUntil,
   onChange,
+  titleError,
 }: BasicInfoSectionProps) {
   return (
     <>
@@ -70,6 +74,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
           placeholder="見積書タイトルを入力"
           className="h-9 text-sm"
         />
+        <FormFieldError message={titleError} />
       </div>
 
       {/* ステータス */}
@@ -257,18 +262,20 @@ function EstimateFormContent({ id }: { id?: string }) {
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   // React 19 Action の成功を検知して遷移
+  // rerender-dependencies: estimate（オブジェクト）の代わりに estimate?.id（primitive）を deps に使用
+  const estimateId = estimate?.id;
   useEffect(() => {
     if (formState.success) {
       markClean();
-      if (isEdit && estimate) {
-        navigate(`/estimates/${estimate.id}`);
+      if (isEdit && estimateId != null) {
+        navigate(paths.estimates.detail.getHref(estimateId));
       } else {
         // Since we don't have the new ID easily here, we might need to handle it in hook
         // but for now redirect to list
-        navigate('/estimates');
+        navigate(paths.estimates.getHref());
       }
     }
-  }, [formState.success, formState.timestamp, navigate, markClean, isEdit, estimate]);
+  }, [formState.success, formState.timestamp, navigate, markClean, isEdit, estimateId]);
 
   // rerender-memo: memo'd セクションに渡すハンドラを useCallback で安定化
   const handleChangeWithDirty = useCallback(
@@ -315,6 +322,7 @@ function EstimateFormContent({ id }: { id?: string }) {
           status={form.status}
           validUntil={form.validUntil}
           onChange={handleChangeWithDirty}
+          titleError={formState.fieldErrors?.title}
         />
 
         {/* rerender-memo: AmountSection — 基本情報/テキスト変更では再レンダーしない */}

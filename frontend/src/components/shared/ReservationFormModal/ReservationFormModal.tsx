@@ -1,11 +1,10 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
-import { useState, useEffect, useCallback, memo } from "react";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { format as dateFnsFormat } from "date-fns";
 
 // External
 import { Calendar, CalendarCheck, PawPrint, X, Search } from "lucide-react";
-import { toast } from "sonner";
-
 // Internal
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -16,18 +15,21 @@ import { useGetPet } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 
+// Features
+import { useGetClinicHolidays } from "@/features/shifts";
+
 // Relative
 import { PatientSelectionTable } from "./PatientSelectionTable";
 import { ReservationFormFields } from "./ReservationFormFields";
 
 // Types
-import type { Pet, ReservationAppointment } from "@/types";
+import type { Pet, Appointment } from "@/types";
 
 interface ReservationFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Partial<ReservationAppointment>, selectedPets: Pet[]) => void;
-  initialData: Partial<ReservationAppointment> | null;
+  onSave: (data: Partial<Appointment>, selectedPets: Pet[]) => void;
+  initialData: Partial<Appointment> | null;
   canCreate?: boolean;
   canEdit?: boolean;
 }
@@ -69,7 +71,7 @@ const SelectedPetChip = memo(function SelectedPetChip({ pet, onRemove }: { pet: 
   );
 });
 
-export function ReservationFormModal({
+export const ReservationFormModal = memo(function ReservationFormModal({
   isOpen,
   onClose,
   onSave,
@@ -77,10 +79,21 @@ export function ReservationFormModal({
   canCreate = false,
   canEdit = false,
 }: ReservationFormModalProps) {
-  const [formData, setFormData] = useState<Partial<ReservationAppointment>>({});
+  const [formData, setFormData] = useState<Partial<Appointment>>({});
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<"search" | "form">("search");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [calendarMonth, setCalendarMonth] = useState<string>(() => dateFnsFormat(new Date(), "yyyy-MM"));
+
+  // BUG-343: 定休日を取得して Calendar で disabled にする
+  const { data: clinicHolidays = [] } = useGetClinicHolidays(calendarMonth);
+  const holidayDates = useMemo(
+    () => new Set(clinicHolidays.map((h) => h.date)),
+    [clinicHolidays]
+  );
+  const handleCalendarMonthChange = useCallback((yearMonth: string) => {
+    setCalendarMonth(yearMonth);
+  }, []);
 
   const {
     selectedPets,
@@ -104,6 +117,7 @@ export function ReservationFormModal({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- モーダル open 時にフォームをリセット。key prop パターンの代替
     setValidationErrors({});
     setMobilePanel("search");
+    setCalendarMonth(dateFnsFormat(new Date(), "yyyy-MM")); // BUG-343: 月またぎ表示リセット
     if (initialData) {
       setFormData({ ...initialData });
       if (initialData.petId) {
@@ -142,7 +156,7 @@ export function ReservationFormModal({
       errors.date = "日付を選択してください";
     }
     if (!formData.type) {
-      errors.type = "診療サービスを選択してください";
+      errors.type = "予約区分を選択してください";
     }
     // BUG-034: end_time > start_time バリデーション
     if (formData.start && formData.end && formData.end <= formData.start) {
@@ -161,9 +175,6 @@ export function ReservationFormModal({
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
-      toast.error("入力内容を確認してください", {
-        description: Object.values(errors).join("、"),
-      });
       return;
     }
 
@@ -173,7 +184,7 @@ export function ReservationFormModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[98%] sm:max-w-[1200px] h-[90vh] flex flex-col p-0 gap-0 bg-white overflow-hidden rounded-xl">
+      <DialogContent className={`${LAYOUT.modal.full} flex flex-col p-0 gap-0 bg-white overflow-hidden rounded-xl`}>
         <DialogHeader className="p-4 border-b shrink-0 h-auto flex flex-col gap-3 space-y-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -247,6 +258,7 @@ export function ReservationFormModal({
               <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgAccentLight50} ${C.borderAccentLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
                 <Label className={`text-[12px] ${C.text40} font-bold tracking-widest uppercase block mb-3`}>
                   予約対象（選択中）
+                  <span style={{ color: C.danger }} className="ml-1 normal-case" aria-hidden="true">*</span>
                 </Label>
 
                 {selectedPets.length > 0 ? (
@@ -296,6 +308,8 @@ export function ReservationFormModal({
                       return next;
                     })
                   }
+                  holidayDates={holidayDates}
+                  onMonthChange={handleCalendarMonthChange}
                 />
               </div>
             </div>
@@ -326,4 +340,4 @@ export function ReservationFormModal({
       </DialogContent>
     </Dialog>
   );
-}
+});

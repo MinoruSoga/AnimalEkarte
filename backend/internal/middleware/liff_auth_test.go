@@ -18,25 +18,25 @@ import (
 // ---- モック実装 ----
 
 type mockSettingLookup struct {
-	findFn func(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error)
+	findFn func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 }
 
-func (m *mockSettingLookup) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ReservationSetting, error) {
+func (m *mockSettingLookup) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 	return m.findFn(ctx, clinicID)
 }
 
 type mockCustomerLookup struct {
-	findOrCreateFn func(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.ReservationCustomer, error)
+	findOrCreateFn func(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.LineCustomer, error)
 }
 
-func (m *mockCustomerLookup) FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.ReservationCustomer, error) {
+func (m *mockCustomerLookup) FindOrCreateByLineUserID(ctx context.Context, clinicID uint64, lineUserID, displayName string) (*model.LineCustomer, error) {
 	return m.findOrCreateFn(ctx, clinicID, lineUserID, displayName)
 }
 
 // ---- テストヘルパー ----
 
 // newLiffAuthRouter はLiffAuth ミドルウェアを組み込んだテスト用 Gin ルーターを返す。
-func newLiffAuthRouter(lookup ReservationCustomerLookup, settingLookup ReservationSettingLookup) *gin.Engine {
+func newLiffAuthRouter(lookup LineCustomerLookup, settingLookup LineReservationSettingLookup) *gin.Engine {
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
 		// clinicId パラメータを URL から取得するために /:clinicId ルートが必要
@@ -56,14 +56,14 @@ func newLiffAuthRouter(lookup ReservationCustomerLookup, settingLookup Reservati
 }
 
 // startMockLINEServer は LINE ID Token 検証 API のモックサーバーを起動する。
-func startMockLINEServer(t *testing.T, statusCode int, resp lineVerifyResponse) *httptest.Server {
+func startMockLINEServer(t *testing.T, statusCode int, resp *lineVerifyResponse) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
 		assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(statusCode)
-		json.NewEncoder(w).Encode(resp) //nolint:errcheck
+		json.NewEncoder(w).Encode(resp) //nolint:errcheck // テスト用モックサーバーのレスポンス書き込みエラーは無視してよい
 	}))
 	t.Cleanup(func() { srv.Close() })
 	return srv
@@ -72,8 +72,8 @@ func startMockLINEServer(t *testing.T, statusCode int, resp lineVerifyResponse) 
 // validSettingLookup は正常なクリニック設定を返すモック。
 func validSettingLookup(liffID string) *mockSettingLookup {
 	return &mockSettingLookup{
-		findFn: func(_ context.Context, _ uint64) (*model.ReservationSetting, error) {
-			return &model.ReservationSetting{ClinicID: 3, LiffID: liffID}, nil
+		findFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{ClinicID: 3, LiffID: liffID}, nil
 		},
 	}
 }
@@ -81,8 +81,8 @@ func validSettingLookup(liffID string) *mockSettingLookup {
 // validCustomerLookup は正常な顧客を返すモック。
 func validCustomerLookup() *mockCustomerLookup {
 	return &mockCustomerLookup{
-		findOrCreateFn: func(_ context.Context, _ uint64, _ string, _ string) (*model.ReservationCustomer, error) {
-			return &model.ReservationCustomer{ID: 1, ClinicID: 3, DisplayName: "テストユーザー"}, nil
+		findOrCreateFn: func(_ context.Context, _ uint64, _ string, _ string) (*model.LineCustomer, error) {
+			return &model.LineCustomer{ID: 1, ClinicID: 3, DisplayName: "テストユーザー"}, nil
 		},
 	}
 }
@@ -97,8 +97,8 @@ func TestLiffAuth(t *testing.T) {
 		authHeader string
 		clinicID   string
 		setupLine  func(t *testing.T) // lineVerifyURL を設定
-		setting    ReservationSettingLookup
-		customer   ReservationCustomerLookup
+		setting    LineReservationSettingLookup
+		customer   LineCustomerLookup
 		wantStatus int
 		wantBody   string
 	}{
@@ -157,7 +157,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer validtoken",
 			clinicID:   "3",
 			setupLine:  nil,
-			setting: &mockSettingLookup{findFn: func(_ context.Context, _ uint64) (*model.ReservationSetting, error) {
+			setting: &mockSettingLookup{findFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 				return nil, errors.New("connection refused")
 			}},
 			customer:   validCustomerLookup(),
@@ -179,7 +179,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer invalidtoken",
 			clinicID:   "3",
 			setupLine: func(t *testing.T) {
-				srv := startMockLINEServer(t, http.StatusBadRequest, lineVerifyResponse{
+				srv := startMockLINEServer(t, http.StatusBadRequest, &lineVerifyResponse{
 					Error:     "invalid_token",
 					ErrorDesc: "The ID token is invalid",
 				})
@@ -195,7 +195,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer emptysub",
 			clinicID:   "3",
 			setupLine: func(t *testing.T) {
-				srv := startMockLINEServer(t, http.StatusOK, lineVerifyResponse{
+				srv := startMockLINEServer(t, http.StatusOK, &lineVerifyResponse{
 					Sub:  "", // empty
 					Name: "テスト",
 				})
@@ -211,7 +211,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer validtoken",
 			clinicID:   "3",
 			setupLine: func(t *testing.T) {
-				srv := startMockLINEServer(t, http.StatusOK, lineVerifyResponse{
+				srv := startMockLINEServer(t, http.StatusOK, &lineVerifyResponse{
 					Sub:  "U1234567890",
 					Name: "テストユーザー",
 				})
@@ -219,7 +219,7 @@ func TestLiffAuth(t *testing.T) {
 			},
 			setting: validSettingLookup("2009755544-abcdefgh"),
 			customer: &mockCustomerLookup{
-				findOrCreateFn: func(_ context.Context, _ uint64, _, _ string) (*model.ReservationCustomer, error) {
+				findOrCreateFn: func(_ context.Context, _ uint64, _, _ string) (*model.LineCustomer, error) {
 					return nil, errors.New("db write error")
 				},
 			},
@@ -231,7 +231,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer validtoken",
 			clinicID:   "3",
 			setupLine: func(t *testing.T) {
-				srv := startMockLINEServer(t, http.StatusOK, lineVerifyResponse{
+				srv := startMockLINEServer(t, http.StatusOK, &lineVerifyResponse{
 					Sub:  "U1234567890",
 					Name: "テストユーザー",
 				})
@@ -244,6 +244,9 @@ func TestLiffAuth(t *testing.T) {
 		},
 	}
 
+	// LIFF_MOCK=true はローカル開発用バイパスで、テスト中は無効にする
+	t.Setenv("LIFF_MOCK", "false")
+
 	originalURL := lineVerifyURL
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -254,7 +257,7 @@ func TestLiffAuth(t *testing.T) {
 			}
 
 			r := newLiffAuthRouter(tt.customer, tt.setting)
-			req := httptest.NewRequest(http.MethodGet, "/api/liff/"+tt.clinicID+"/test", nil)
+			req := httptest.NewRequest(http.MethodGet, "/api/liff/"+tt.clinicID+"/test", http.NoBody)
 			if tt.authHeader != "" {
 				req.Header.Set("Authorization", tt.authHeader)
 			}
@@ -274,7 +277,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 	t.Cleanup(func() { lineVerifyURL = originalURL })
 
 	t.Run("LINE APIが正常レスポンスを返す", func(t *testing.T) {
-		srv := startMockLINEServer(t, http.StatusOK, lineVerifyResponse{
+		srv := startMockLINEServer(t, http.StatusOK, &lineVerifyResponse{
 			Sub:      "U9999999",
 			Name:     "田中太郎",
 			ClientID: "2009755544",
@@ -288,7 +291,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 	})
 
 	t.Run("LINE APIがエラーフィールドを返す", func(t *testing.T) {
-		srv := startMockLINEServer(t, http.StatusBadRequest, lineVerifyResponse{
+		srv := startMockLINEServer(t, http.StatusBadRequest, &lineVerifyResponse{
 			Error:     "invalid_request",
 			ErrorDesc: "The id_token is expired",
 		})
@@ -300,7 +303,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 	})
 
 	t.Run("Subフィールドがemptyのとき InvalidInput", func(t *testing.T) {
-		srv := startMockLINEServer(t, http.StatusOK, lineVerifyResponse{
+		srv := startMockLINEServer(t, http.StatusOK, &lineVerifyResponse{
 			Sub:  "",
 			Name: "不明ユーザー",
 		})
@@ -314,7 +317,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 	t.Run("モックサーバーが不正なJSONを返す", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("NOT JSON")) //nolint:errcheck
+			w.Write([]byte("NOT JSON")) //nolint:errcheck // テスト用モックサーバーの書き込みエラーは無視してよい
 		}))
 		t.Cleanup(func() { srv.Close() })
 		lineVerifyURL = srv.URL
@@ -339,6 +342,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 // channelID が正しく取り出されることを検証する（LiffAuth 内のロジック）。
 func TestLiffChannelIDExtraction(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("LIFF_MOCK", "false")
 	originalURL := lineVerifyURL
 	t.Cleanup(func() { lineVerifyURL = originalURL })
 
@@ -347,21 +351,21 @@ func TestLiffChannelIDExtraction(t *testing.T) {
 		require.NoError(t, r.ParseForm())
 		capturedClientID = r.FormValue("client_id")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(lineVerifyResponse{Sub: "U0001", Name: "ユーザー"}) //nolint:errcheck
+		json.NewEncoder(w).Encode(lineVerifyResponse{Sub: "U0001", Name: "ユーザー"}) //nolint:errcheck // テスト用モックサーバーのレスポンス書き込みエラーは無視してよい
 	}))
 	t.Cleanup(func() { srv.Close() })
 	lineVerifyURL = srv.URL
 
 	setting := &mockSettingLookup{
-		findFn: func(_ context.Context, _ uint64) (*model.ReservationSetting, error) {
+		findFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 			// LIFF ID = "{channelID}-{appID}" 形式
-			return &model.ReservationSetting{ClinicID: 3, LiffID: "2009755544-nvKfG3Cp"}, nil
+			return &model.LineReservationSetting{ClinicID: 3, LiffID: "2009755544-nvKfG3Cp"}, nil
 		},
 	}
 	customer := validCustomerLookup()
 
 	r := newLiffAuthRouter(customer, setting)
-	req := httptest.NewRequest(http.MethodGet, "/api/liff/3/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/liff/3/test", http.NoBody)
 	req.Header.Set("Authorization", "Bearer sometoken")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

@@ -154,8 +154,8 @@ export interface AuditLog {
   action: string;
   resource: string;
   resource_id?: number /* uint64 */;
-  old_value: string /* []byte */;
-  new_value: string /* []byte */;
+  old_value: any /* json.RawMessage */;
+  new_value: any /* json.RawMessage */;
   ip_address: string;
   user_agent: string;
   created_at: string;
@@ -179,10 +179,6 @@ export const AuditActionPermissionRulesUpdate = "permission_rules.update";
 /**
  * 監査アクション定数
  */
-export const AuditActionUserPermissionGroupSet = "user_permission_group.set";
-/**
- * 監査アクション定数
- */
 export const AuditActionAuthLoginSuccess = "auth.login.success";
 /**
  * 監査アクション定数
@@ -194,60 +190,22 @@ export const AuditActionAuthLoginFailure = "auth.login.failure";
 export const AuditActionAuthLogout = "auth.logout";
 
 //////////
-// source: auth.go
+// source: billing_confirmation.go
 
 /**
- * RefreshToken はリフレッシュトークンのDBモデル
+ * ConfirmationStatus は会計医師確認ステータス
  */
-export interface RefreshToken {
-  id: number /* uint64 */;
-  user_id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  expires_at: string;
-  revoked_at?: string;
-  created_at: string;
-}
+export type ConfirmationStatus = string;
+export const ConfirmationStatusPending: ConfirmationStatus = "pending";
+export const ConfirmationStatusConfirmed: ConfirmationStatus = "confirmed";
+export const ConfirmationStatusReturned: ConfirmationStatus = "returned";
 /**
- * PasswordResetToken はパスワードリセットトークンのDBモデル
+ * BillingConfirmation は会計医師確認（v7.0追加）
  */
-export interface PasswordResetToken {
-  id: number /* uint64 */;
-  user_id: number /* uint64 */;
-  expires_at: string;
-  used_at?: string;
-  created_at: string;
-}
-
-//////////
-// source: billing_refund.go
-
-export interface BillingRefund {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  billing_id: number /* uint64 */;
-  amount: number /* int64 */; // 返金額（正の整数、円）
-  reason: string;
-  refunded_at: string;
-  created_at: string;
-}
-
-//////////
-// source: billing_review.go
-
-/**
- * BillingReviewStatus は会計医師確認ステータス
- */
-export type BillingReviewStatus = string;
-export const BillingReviewStatusPending: BillingReviewStatus = "pending";
-export const BillingReviewStatusConfirmed: BillingReviewStatus = "confirmed";
-export const BillingReviewStatusReturned: BillingReviewStatus = "returned";
-/**
- * BillingReview は会計医師確認（v7.0追加）
- */
-export interface BillingReview {
+export interface BillingConfirmation {
   id: number /* uint64 */;
   medical_record_id: number /* uint64 */;
-  status: BillingReviewStatus;
+  status: ConfirmationStatus;
   confirmed_by?: number /* uint64 */;
   confirmed_at?: string;
   returned_by?: number /* uint64 */;
@@ -262,6 +220,19 @@ export interface BillingReview {
   medical_record?: MedicalRecord;
   confirmed_staff?: Staff;
   returned_staff?: Staff;
+}
+
+//////////
+// source: billing_refund.go
+
+export interface BillingRefund {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  billing_id: number /* uint64 */;
+  amount: number /* int64 */; // 返金額（正の整数、円）
+  reason: string;
+  refunded_at: string;
+  created_at: string;
 }
 
 //////////
@@ -333,16 +304,16 @@ export interface CheckupType {
 }
 
 //////////
-// source: chief_complaint_category.go
+// source: chief_complaint_type.go
 
 /**
- * ChiefComplaintCategory は主訴区分マスタ（v11.0追加）
+ * ChiefComplaintType は主訴区分マスタ
  */
-export interface ChiefComplaintCategory {
+export interface ChiefComplaintType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  description: string;
+  Description: string;
   is_active: boolean;
   sort_order: number /* int */;
   created_at: string;
@@ -382,9 +353,9 @@ export interface ClinicalPlan {
   id: number /* uint64 */;
   medical_record_id: number /* uint64 */;
   physical_exam: string;
-  diagnosis_category_id?: number /* uint64 */;
+  diagnosis_type_id?: number /* uint64 */;
   diagnosis_name_id?: number /* uint64 */;
-  diagnosis_2_category_id?: number /* uint64 */;
+  diagnosis_2_type_id?: number /* uint64 */;
   diagnosis_2_name_id?: number /* uint64 */;
   diagnosis_details: string;
   treatment_policy: string;
@@ -394,9 +365,9 @@ export interface ClinicalPlan {
    * Relations
    */
   medical_record?: MedicalRecord;
-  diagnosis_category?: DiagnosisCategory;
+  diagnosis_type?: DiagnosisType;
   diagnosis_name?: DiagnosisName;
-  diagnosis_2_category?: DiagnosisCategory;
+  diagnosis_2_category?: DiagnosisType;
   diagnosis_2_name?: DiagnosisName;
 }
 
@@ -446,7 +417,7 @@ export interface Consultation {
 //////////
 // source: diagnosis.go
 
-export interface DiagnosisCategory {
+export interface DiagnosisType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
@@ -466,14 +437,14 @@ export interface DiagnosisName {
   name: string;
   is_active: boolean;
   description: string;
-  diagnosis_category_id: number /* uint64 */;
+  diagnosis_type_id: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
   /**
    * Relations
    */
-  category?: DiagnosisCategory;
+  category?: DiagnosisType;
 }
 
 //////////
@@ -580,18 +551,18 @@ export interface Examination {
   pet?: Pet;
   exam_type?: ExaminationType;
   doctor?: Staff;
-  items?: ExaminationItem[];
+  items?: ExamResult[];
 }
-export interface ExaminationItem {
+export interface ExamResult {
   id: number /* uint64 */;
   exam_id: number /* uint64 */;
-  exam_type_item_id?: number /* uint64 */;
+  exam_type_field_id?: number /* uint64 */;
   name: string;
   inspection_value: string;
   normal_value: string;
   result: string;
   unit: string;
-  ref: string;
+  reference_value: string;
   ref_min?: number /* float64 */;
   ref_max?: number /* float64 */;
   is_abnormal: boolean;
@@ -602,7 +573,7 @@ export interface ExaminationItem {
   /**
    * Relations
    */
-  exam_type_item?: ExaminationTypeItem;
+  exam_type_field?: ExamTypeField;
 }
 
 //////////
@@ -622,9 +593,9 @@ export interface ExaminationType {
   /**
    * Relations
    */
-  items?: ExaminationTypeItem[];
+  items?: ExamTypeField[];
 }
-export interface ExaminationTypeItem {
+export interface ExamTypeField {
   id: number /* uint64 */;
   exam_type_id: number /* uint64 */;
   name: string;
@@ -717,7 +688,7 @@ export interface TreatmentPlan {
   hospitalization_id?: number /* uint64 */;
   treatment_content: string;
   memo: string;
-  insurance: boolean;
+  is_insurance: boolean;
   unit_price: number /* int64 */;
   quantity: number /* float64 */;
   discount_rate: number /* float64 */;
@@ -743,8 +714,8 @@ export interface DailyRecord {
    * Relations
    */
   vital_records?: VitalRecord[];
-  care_log_records?: CareLogRecord[];
-  staff_note_records?: StaffNoteRecord[];
+  care_logs?: CareLog[];
+  staff_notes?: StaffNote[];
 }
 export type CareLogType = string;
 export const CareLogTypeFood: CareLogType = "food";
@@ -756,7 +727,7 @@ export type CareLogStatus = string;
 export const CareLogStatusCompleted: CareLogStatus = "completed";
 export const CareLogStatusPartial: CareLogStatus = "partial";
 export const CareLogStatusSkipped: CareLogStatus = "skipped";
-export interface CareLogRecord {
+export interface CareLog {
   id: number /* uint64 */;
   daily_record_id: number /* uint64 */;
   time: string;
@@ -772,7 +743,7 @@ export interface CareLogRecord {
    */
   staff?: Staff;
 }
-export interface StaffNoteRecord {
+export interface StaffNote {
   id: number /* uint64 */;
   daily_record_id: number /* uint64 */;
   time: string;
@@ -837,7 +808,7 @@ export const WaterIntakeLevelNone: WaterIntakeLevel = "none";
 export interface Inquiry {
   id: number /* uint64 */;
   medical_record_id: number /* uint64 */;
-  chief_complaint_category_id?: number /* uint64 */;
+  chief_complaint_type_id?: number /* uint64 */;
   chief_complaint: string;
   history: string;
   current_medications: string;
@@ -856,7 +827,7 @@ export interface Inquiry {
    * Relations
    */
   medical_record?: MedicalRecord;
-  chief_complaint_category?: ChiefComplaintCategory;
+  chief_complaint_type?: ChiefComplaintType;
   staff?: Staff;
 }
 
@@ -924,6 +895,61 @@ export interface InventoryItem {
 }
 
 //////////
+// source: line_customer.go
+
+export interface LineCustomer {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  line_user_id: string;
+  display_name: string;
+  real_name: string;
+  additional_fields: string /* []byte */;
+  owner_id?: number /* uint64 */;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  owner?: Owner;
+}
+
+//////////
+// source: line_reservation_setting.go
+
+export interface LineReservationSetting {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  status: string;
+  header_text: string;
+  reservation_notice: string;
+  cancel_notice: string;
+  privacy_policy: string;
+  closed_weekdays: string /* []byte */;
+  closed_dates: string /* []byte */;
+  national_holiday_closed: boolean;
+  business_hours: string /* []byte */;
+  business_hours_by_weekday?: string /* []byte */;
+  break_hours: string /* []byte */;
+  daily_limit?: number /* int */;
+  monthly_limit?: number /* int */;
+  booking_window_max_days: number /* int */;
+  booking_window_min_days: number /* int */;
+  calendar_months: number /* int */;
+  phone_number: string;
+  notification_email: string;
+  request_example: string;
+  time_slot_mode: string;
+  time_slot_interval_minutes: number /* int */;
+  no_staff_mode: string;
+  show_no_staff_option: boolean;
+  additional_fields: string /* []byte */;
+  line_channel_id: string;
+  liff_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: medical_record.go
 
 export type MedicalRecordStatus = string;
@@ -937,7 +963,7 @@ export interface MedicalRecord {
   owner_id?: number /* uint64 */;
   pet_id?: number /* uint64 */;
   doctor_id?: number /* uint64 */;
-  reservation_appointment_id?: number /* uint64 */;
+  appointment_id?: number /* uint64 */;
   status: MedicalRecordStatus;
   version: number /* int */;
   created_at: string;
@@ -957,8 +983,50 @@ export interface MedicalRecord {
   vaccinations?: Vaccination[];
   checkups?: Checkup[];
   estimates?: Estimate[];
-  billing_review?: BillingReview;
+  billing_confirmation?: BillingConfirmation;
   billing?: Billing;
+}
+
+//////////
+// source: medical_record_image.go
+
+/**
+ * MedicalImageType は診療画像種別
+ */
+export type MedicalImageType = string;
+export const MedicalImageTypeXray: MedicalImageType = "xray";
+export const MedicalImageTypeEcho: MedicalImageType = "echo";
+export const MedicalImageTypePhoto: MedicalImageType = "photo";
+export const MedicalImageTypeEndoscope: MedicalImageType = "endoscope";
+export const MedicalImageTypeCT: MedicalImageType = "ct";
+export const MedicalImageTypeMRI: MedicalImageType = "mri";
+export const MedicalImageTypeMicroscope: MedicalImageType = "microscope";
+export const MedicalImageTypeOther: MedicalImageType = "other";
+/**
+ * MedicalRecordImage は診療画像（v7.0追加）
+ */
+export interface MedicalRecordImage {
+  id: number /* uint64 */;
+  medical_record_id: number /* uint64 */;
+  image_url: string;
+  thumbnail_url: string;
+  file_name: string;
+  file_size: number /* int64 */;
+  mime_type: string;
+  image_type: MedicalImageType;
+  description: string;
+  taken_at?: string;
+  exam_id?: number /* uint64 */;
+  staff_id?: number /* uint64 */;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  medical_record?: MedicalRecord;
+  exam?: Examination;
+  staff?: Staff;
 }
 
 //////////
@@ -1046,8 +1114,8 @@ export const MembershipTypeTransferred: MembershipType = "transferred";
 export interface Owner {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
-  owner_name: string;
-  owner_name_kana: string;
+  name: string;
+  name_kana: string;
   birth_date?: string;
   company: string;
   postal_code: string;
@@ -1097,7 +1165,7 @@ export const ResourceHospitalSettings: Resource = "hospital-settings";
  */
 export const ResourceMasterAnimalSpecies: Resource = "master-animal-species";
 export const ResourceMasterMedical: Resource = "master-medical";
-export const ResourceMasterServiceType: Resource = "master-service-type";
+export const ResourceMasterReservationType: Resource = "master-reservation-type";
 export const ResourceMasterHospitalization: Resource = "master-hospitalization";
 export const ResourceMasterTrimming: Resource = "master-trimming";
 export const ResourceMasterPermission: Resource = "master-permission";
@@ -1185,7 +1253,7 @@ export interface Pet {
   animal_species_id: number /* uint64 */;
   pet_number: string;
   name: string;
-  pet_name_kana: string;
+  name_kana: string;
   gender: PetGender;
   status: PetStatus;
   birth_date?: string;
@@ -1237,48 +1305,6 @@ export interface Procedure {
 }
 
 //////////
-// source: record_image.go
-
-/**
- * MedicalImageType は診療画像種別
- */
-export type MedicalImageType = string;
-export const MedicalImageTypeXray: MedicalImageType = "xray";
-export const MedicalImageTypeEcho: MedicalImageType = "echo";
-export const MedicalImageTypePhoto: MedicalImageType = "photo";
-export const MedicalImageTypeEndoscope: MedicalImageType = "endoscope";
-export const MedicalImageTypeCT: MedicalImageType = "ct";
-export const MedicalImageTypeMRI: MedicalImageType = "mri";
-export const MedicalImageTypeMicroscope: MedicalImageType = "microscope";
-export const MedicalImageTypeOther: MedicalImageType = "other";
-/**
- * RecordImage は診療画像（v7.0追加）
- */
-export interface RecordImage {
-  id: number /* uint64 */;
-  medical_record_id: number /* uint64 */;
-  image_url: string;
-  thumbnail_url: string;
-  file_name: string;
-  file_size: number /* int64 */;
-  mime_type: string;
-  image_type: MedicalImageType;
-  description: string;
-  taken_at?: string;
-  exam_id?: number /* uint64 */;
-  staff_id?: number /* uint64 */;
-  sort_order: number /* int */;
-  created_at: string;
-  updated_at: string;
-  /**
-   * Relations
-   */
-  medical_record?: MedicalRecord;
-  exam?: Examination;
-  staff?: Staff;
-}
-
-//////////
 // source: reservation.go
 
 export type ReservationStatus = string;
@@ -1298,7 +1324,7 @@ export const VisitTypeRevisit: VisitType = "revisit";
 export type ReservationSource = string;
 export const ReservationSourceManual: ReservationSource = "manual";
 export const ReservationSourceLine: ReservationSource = "line";
-export interface ReservationAppointment {
+export interface Appointment {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   start_time: string;
@@ -1306,7 +1332,7 @@ export interface ReservationAppointment {
   owner_id?: number /* uint64 */;
   pet_id?: number /* uint64 */;
   visit_type: VisitType;
-  service_type_id: number /* uint64 */;
+  reservation_type_id: number /* uint64 */;
   doctor_id?: number /* uint64 */;
   is_designated: boolean;
   status: ReservationStatus;
@@ -1325,70 +1351,13 @@ export interface ReservationAppointment {
    */
   owner?: Owner;
   pet?: Pet;
-  service_type?: ServiceType;
+  reservation_type?: ReservationType;
   doctor?: Staff;
-  line_customer?: ReservationCustomer;
+  line_customer?: LineCustomer;
 }
 
 //////////
-// source: reservation_customer.go
-
-export interface ReservationCustomer {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  line_user_id: string;
-  display_name: string;
-  real_name: string;
-  additional_fields: string /* []byte */;
-  owner_id?: number /* uint64 */;
-  created_at: string;
-  updated_at: string;
-  /**
-   * Relations
-   */
-  owner?: Owner;
-}
-
-//////////
-// source: reservation_setting.go
-
-export interface ReservationSetting {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  status: string;
-  header_text: string;
-  reservation_notice: string;
-  cancel_notice: string;
-  privacy_policy: string;
-  closed_weekdays: string /* []byte */;
-  closed_dates: string /* []byte */;
-  national_holiday_closed: boolean;
-  business_hours: string /* []byte */;
-  business_hours_by_weekday?: string /* []byte */;
-  break_hours: string /* []byte */;
-  daily_limit?: number /* int */;
-  monthly_limit?: number /* int */;
-  booking_window_max_days: number /* int */;
-  booking_window_min_days: number /* int */;
-  calendar_months: number /* int */;
-  phone_number: string;
-  notification_email: string;
-  request_example: string;
-  time_slot_mode: string;
-  time_slot_interval_minutes: number /* int */;
-  no_staff_mode: string;
-  show_no_staff_option: boolean;
-  additional_fields: string /* []byte */;
-  line_channel_id: string;
-  line_channel_secret: string;
-  liff_id: string;
-  line_access_token: string;
-  created_at: string;
-  updated_at: string;
-}
-
-//////////
-// source: service_type.go
+// source: reservation_type.go
 
 /**
  * ReservationDayOption defines which weekdays a service type is available for LINE reservation.
@@ -1398,12 +1367,15 @@ export const DayOptionNone: ReservationDayOption = "none";
 export const DayOptionSaturday: ReservationDayOption = "saturday";
 export const DayOptionWeekday: ReservationDayOption = "weekday";
 export const DayOptionAnyday: ReservationDayOption = "anyday";
-export interface ServiceType {
+/**
+ * ReservationType はサービス種別（予約区分）マスタ
+ */
+export interface ReservationType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
   is_active: boolean;
-  description: string;
+  Description: string;
   color: string;
   sort_order: number /* int */;
   created_at: string;
@@ -1411,14 +1383,37 @@ export interface ServiceType {
   /**
    * LINE予約用フィールド
    */
+  ReservationDisplayName: string;
   duration_minutes: number /* int */;
-  short_name: string;
+  ShortName: string;
   show_short_name: boolean;
   reservation_visible: boolean;
-  reservation_comment: string;
-  reservation_image_url: string;
+  ReservationComment: string;
+  ReservationImageURL: string;
   reservation_day_option: ReservationDayOption;
   is_internal: boolean;
+  /**
+   * グループ（カレンダー凡例用）
+   */
+  group_id?: number /* uint64 */;
+  group?: ReservationTypeGroup;
+}
+
+//////////
+// source: reservation_type_group.go
+
+/**
+ * ReservationTypeGroup は予約区分のグループ（カレンダー凡例用）
+ */
+export interface ReservationTypeGroup {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  color: string;
+  sort_order: number /* int */;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -1459,6 +1454,7 @@ export interface Staff {
    * LINE予約用フィールド
    */
   staff_type: StaffType;
+  reservation_display_name: string; // 空ならNameをフォールバック
   reservation_visible: boolean;
   reservation_comment: string;
   reservation_image_url: string;
@@ -1483,27 +1479,68 @@ export interface ShiftEntry {
   shift_type: ShiftType;
   start_time?: string;
   end_time?: string;
-  note: string;
+  notes: string;
   created_at: string;
   updated_at: string;
   /**
    * Relations
    */
   staff?: Staff;
+  breaks?: ShiftEntryBreak[];
+}
+/**
+ * ClinicHoliday は病院が設定した個別休診日を表す
+ */
+export interface ClinicHoliday {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  date: string;
+  reason: string;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * ShiftTemplate はシフトテンプレートマスタを表す
+ */
+export interface ShiftTemplate {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  shift_type: ShiftType;
+  start_time?: string;
+  end_time?: string;
+  notes: string;
+  sort_order: number /* int */;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  breaks?: ShiftTemplateBreak[];
+}
+/**
+ * ShiftTemplateBreak はシフトテンプレートの休憩時間を表す
+ */
+export interface ShiftTemplateBreak {
+  id: number /* uint64 */;
+  shift_template_id: number /* uint64 */;
+  break_start: string;
+  break_end: string;
 }
 
 //////////
-// source: staff_excluded_service_type.go
+// source: staff_reservation_exclusion.go
 
-export interface StaffExcludedServiceType {
+/**
+ * StaffReservationExclusion records which reservation types a staff member cannot handle.
+ */
+export interface StaffReservationExclusion {
   id: number /* uint64 */;
   staff_id: number /* uint64 */;
-  service_type_id: number /* uint64 */;
+  reservation_type_id: number /* uint64 */;
   /**
    * Relations
    */
   staff?: Staff;
-  service_type?: ServiceType;
+  reservation_type?: ReservationType;
 }
 
 //////////
@@ -1537,12 +1574,12 @@ export interface Treatment {
   inventory_id?: number /* uint64 */;
   unit_price: number /* int64 */;
   quantity: number /* float64 */;
-  selected: boolean;
+  is_selected: boolean;
   status: TreatmentStatus;
   content: string;
   memo: string;
   admin_route: string;
-  insurance: boolean;
+  is_insurance: boolean;
   discount_rate: number /* float64 */;
   discount_amount: number /* int64 */;
   sort_order: number /* int */;
@@ -1574,9 +1611,9 @@ export interface TrimmingRecord {
   course_id?: number /* uint64 */;
   status: TrimmingStatus;
   style_request: string;
-  bw?: number /* float64 */;
+  body_weight?: number /* float64 */;
   bw_unit: BodyWeightUnit;
-  bt?: number /* float64 */;
+  body_temperature?: number /* float64 */;
   used_shampoo: string;
   used_ribbon: string;
   remarks: string;
@@ -1630,7 +1667,7 @@ export interface TrimmingOption {
   is_active: boolean;
   description: string;
   duration?: number /* int */;
-  combinable: boolean;
+  is_combinable: boolean;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -1701,22 +1738,20 @@ export type BodyWeightUnit = string;
 export const BodyWeightUnitKg: BodyWeightUnit = "Kg";
 export const BodyWeightUnitG: BodyWeightUnit = "g";
 export interface VitalRecord {
-  ID: number /* uint64 */;
-  PetID: number /* uint64 */;
-  MedicalRecordID?: number /* uint64 */;
-  DailyRecordID?: number /* uint64 */;
-  RecordedAt: string;
-  StaffID?: number /* uint64 */;
-  Temperature?: number /* float64 */;
-  HeartRate?: number /* int */;
-  RespirationRate?: number /* int */;
-  Weight?: number /* float64 */;
-  WeightUnit: BodyWeightUnit;
-  Notes: string;
-  CreatedAt: string;
-  UpdatedAt: string;
-  Pet?: Pet;
-  MedicalRecord?: MedicalRecord;
-  DailyRecord?: DailyRecord;
-  Staff?: Staff;
+  id: number /* uint64 */;
+  pet_id: number /* uint64 */;
+  medical_record_id?: number /* uint64 */;
+  daily_record_id?: number /* uint64 */;
+  recorded_at: string;
+  staff_id?: number /* uint64 */;
+  temperature?: number /* float64 */;
+  heart_rate?: number /* int */;
+  respiration_rate?: number /* int */;
+  weight?: number /* float64 */;
+  weight_unit: BodyWeightUnit;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+  pet?: Pet;
+  staff?: Staff;
 }

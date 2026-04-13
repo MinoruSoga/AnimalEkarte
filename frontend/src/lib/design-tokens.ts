@@ -28,6 +28,15 @@ export const PALETTE = {
   /** White */
   white: "#ffffff",
 
+  /* ── External brand colors ── */
+  /** LINE official brand green */
+  lineGreen: "#06C755",
+
+  /** Tailwind gray-500 — default color for permission group color pickers */
+  pickerDefaultGray: "#6B7280",
+  /** Tailwind blue-500 — default color for reservation category color pickers */
+  pickerDefaultBlue: "#3B82F6",
+
   /* ── Brand (hospital main color) ── */
   /** Brand primary — veterinary teal */
   brand: "#038B94",
@@ -172,7 +181,7 @@ export const PALETTE = {
   /* ── Master settings default colors (DB-configurable) ── */
   /** Default gray for badge when no color set */
   defaultGray: "#6B7280",
-  /** Default blue for service type when no color set */
+  /** Default blue for reservation category when no color set */
   defaultBlue: "#3B82F6",
   /** Light border for unselected items (Tailwind gray-200) */
   borderUnselected: "#e5e7eb",
@@ -631,6 +640,18 @@ export const ICON = {
   lg:      "size-6",
   /** 空状態イラスト・大型装飾アイコン (32px) */
   xl:      "size-8",
+  /** コンパクトアクション — バッジ・ボタン内アイコン (16px) */
+  sm:      "size-4",
+  /** インラインスモール — シェブロン・タグ・LINE状態 (14px) */
+  smXs:    "size-3.5",
+  /** 極小インジケーター — ステータス補完 (12px) */
+  xxs:     "size-3",
+  /** 極小ステータスドット / 通知バッジ (8px) */
+  dot:     "size-2",
+  /** 小ステータスドット / 色ラベル (10px) */
+  dotMd:   "size-2.5",
+  /** 最小インジケーター (6px) */
+  dotSm:   "size-1.5",
 } as const;
 
 /* ================================================================== */
@@ -710,7 +731,7 @@ export const LAYOUT = {
     md:   "sm:max-w-lg",
     lg:   "sm:max-w-3xl",
     xl:   "sm:max-w-[1000px] max-h-[90vh]",
-    full: "w-[98%] sm:max-w-[1200px] h-[90vh]",
+    full: "w-[98%] sm:max-w-[1400px] h-[90vh]",
   },
 
   /** Notion page title style */
@@ -773,6 +794,8 @@ export const STYLE = {
     `text-base ${C.text70} py-2.5`,
   tableEmpty:
     `text-center py-12 ${C.text70} text-base`,
+  tableEmptySm:
+    `text-center py-12 ${C.text40} text-sm`,
   tableActionBtn:
     `h-11 w-11 ${C.text60} ${C.hoverText}`,
 
@@ -802,7 +825,7 @@ export const STYLE = {
   sidebarItemIdle:
     `${C.text65} ${C.hoverBgPrimary4} ${C.hoverText}`,
   sidebarToggle:
-    `h-7 w-7 p-0 ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-[3px]`,
+    `size-7 flex items-center justify-center ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-[3px] transition-colors`,
 
   /* ── Notion Property Row ── */
   propertyRow:
@@ -819,6 +842,16 @@ export const STYLE = {
     "flex items-center justify-between h-[48px] px-3 shrink-0",
   sidePeekToolbarBtn:
     `size-9 flex items-center justify-center rounded-[3px] ${C.text45} ${C.hoverBgMedium} transition-colors`,
+
+  /* ── Compact Icon Buttons (size-8=32px / size-7=28px / size-6=24px) ── */
+  /** 32px アイコンボタン基底クラス (医療記録タブ・認証フォーム) */
+  iconBtn32: `size-8 flex items-center justify-center rounded-[3px] transition-colors`,
+  /** 28px アイコンボタン基底クラス (サイドバー・TreatmentRow) */
+  iconBtn28: `size-7 flex items-center justify-center rounded-[3px] transition-colors`,
+  /** 24px アイコンボタン基底クラス (BUG-322) */
+  iconBtn24: `size-6 flex items-center justify-center rounded-[3px] transition-colors`,
+  /** 20px アイコンボタン基底クラス (折りたたみトグル等) */
+  iconBtn20: `size-5 flex items-center justify-center rounded-[3px] transition-colors`,
   sidePeekBody:
     "flex-1 overflow-y-auto",
   sidePeekFooter:

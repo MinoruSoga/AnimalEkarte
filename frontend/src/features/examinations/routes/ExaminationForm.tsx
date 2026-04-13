@@ -17,6 +17,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
+import { MasterLink } from "@/components/shared/MasterLink";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import type { SortOrder } from "@/types";
@@ -25,7 +26,7 @@ import type { SortOrder } from "@/types";
 import { useExaminationForm } from "../hooks/use-examination-form";
 import { useGetExaminations } from "../api/get-examinations";
 import { ExaminationCard } from "../components/ExaminationCard";
-import { useMasterItems } from "@/hooks/use-master-items";
+import { useMasterItems } from "@/features/master";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/features/auth";
 import type { ExaminationRecord } from "@/types";
@@ -47,6 +48,7 @@ interface FormFieldsSectionProps {
   formData: Partial<ExaminationRecord>;
   examTypes: { id: string; name: string }[];
   staffList: { id: string; name: string }[];
+  masterLoading: boolean;
   isEdit: boolean;
   isSaving: boolean;
   isDeleting: boolean;
@@ -63,6 +65,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
   formData,
   examTypes,
   staffList,
+  masterLoading,
   isEdit,
   isDeleting,
   isConfirmed,
@@ -74,6 +77,20 @@ const FormFieldsSection = memo(function FormFieldsSection({
   onDeleteClick,
 }: FormFieldsSectionProps) {
   const canSubmit = isEdit ? canEdit : canCreate;
+
+  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
+  const examTypeSelectItems = useMemo(
+    () => examTypes.map((item) => (
+      <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
+    )),
+    [examTypes]
+  );
+  const staffSelectItems = useMemo(
+    () => staffList.map((staff) => (
+      <SelectItem key={staff.id} value={String(staff.id)}>{staff.name}</SelectItem>
+    )),
+    [staffList]
+  );
   return (
     <div className={`${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
       {isConfirmed ? (
@@ -81,48 +98,54 @@ const FormFieldsSection = memo(function FormFieldsSection({
       ) : null}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label className={`text-sm ${C.text60}`}>検査種別</Label>
-          <Select
-            value={formData.testTypeId ?? ""}
-            disabled={isConfirmed}
-            onValueChange={(v) => {
-              const item = examTypes.find((e) => e.id === v);
-              onSetFormData({ testTypeId: v, testType: item?.name ?? v });
-            }}
-          >
-            <SelectTrigger id="testTypeId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
-              <SelectValue placeholder="選択してください" />
-            </SelectTrigger>
-            <SelectContent>
-              {examTypes.map((item) => (
-                <SelectItem key={item.id} value={String(item.id)}>
-                  {item.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center justify-between">
+            <Label className={`text-sm ${C.text60}`}>検査種別</Label>
+            <MasterLink category="examination" label="編集" className="text-[11px]" />
+          </div>
+          {masterLoading ? (
+            <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+          ) : (
+            <Select
+              value={formData.testTypeId ?? ""}
+              disabled={isConfirmed}
+              onValueChange={(v) => {
+                const item = examTypes.find((e) => e.id === v);
+                onSetFormData({ testTypeId: v, testType: item?.name ?? v });
+              }}
+            >
+              <SelectTrigger id="testTypeId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
+                <SelectValue placeholder="選択してください" />
+              </SelectTrigger>
+              <SelectContent>
+                {examTypeSelectItems}
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="space-y-1.5">
-          <Label className={`text-sm ${C.text60}`}>担当医</Label>
-          <Select
-            value={formData.doctorId ?? ""}
-            disabled={isConfirmed}
-            onValueChange={(v) => {
-              const staff = staffList.find((s) => String(s.id) === v);
-              onSetFormData({ doctorId: v, doctor: staff?.name ?? v });
-            }}
-          >
-            <SelectTrigger id="doctorId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
-              <SelectValue placeholder="選択してください" />
-            </SelectTrigger>
-            <SelectContent>
-              {staffList.map((staff) => (
-                <SelectItem key={staff.id} value={String(staff.id)}>
-                  {staff.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center justify-between">
+            <Label className={`text-sm ${C.text60}`}>担当医</Label>
+            <MasterLink category="staff" label="編集" className="text-[11px]" />
+          </div>
+          {masterLoading ? (
+            <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+          ) : (
+            <Select
+              value={formData.doctorId ?? ""}
+              disabled={isConfirmed}
+              onValueChange={(v) => {
+                const staff = staffList.find((s) => String(s.id) === v);
+                onSetFormData({ doctorId: v, doctor: staff?.name ?? v });
+              }}
+            >
+              <SelectTrigger id="doctorId" className={`h-10 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
+                <SelectValue placeholder="選択してください" />
+              </SelectTrigger>
+              <SelectContent>
+                {staffSelectItems}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
@@ -190,6 +213,9 @@ const FormFieldsSection = memo(function FormFieldsSection({
   );
 });
 
+// rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
+const EXAMINATION_PRIORITY_FIELDS = ["testTypeId", "doctorId"] as const;
+
 export function ExaminationForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -199,8 +225,9 @@ export function ExaminationForm() {
   const medicalRecordId = searchParams.get("medicalRecordId");
   const { canEdit, canCreate, canDelete } = usePermission("examinations");
 
-  const { data: examTypesRaw } = useMasterItems("examination");
-  const { data: staffListRaw } = useMasterItems("staff");
+  const { data: examTypesRaw, isLoading: examTypesLoading } = useMasterItems("examination");
+  const { data: staffListRaw, isLoading: staffLoading } = useMasterItems("staff");
+  const masterLoading = examTypesLoading || staffLoading;
   const examTypes = useMemo(
     () => examTypesRaw.map((t) => ({ id: String(t.id), name: t.name })),
     [examTypesRaw],
@@ -244,8 +271,7 @@ export function ExaminationForm() {
     const errorFields = Object.keys(formState.fieldErrors || {});
     if (errorFields.length === 0) return;
 
-    const PRIORITY_FIELDS = ["testTypeId", "doctorId"];
-    const firstError = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
+    const firstError = EXAMINATION_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
 
     const element = document.getElementById(firstError);
     if (element) {
@@ -358,7 +384,7 @@ export function ExaminationForm() {
               petNumber={selectedPet.petNumber || selectedPet.id}
               weight={selectedPet.weight || "-"}
               staffName="医師A"
-              serviceType="検査"
+              reservationType="検査"
               petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
               insuranceName={selectedPet.insuranceName || "保険情報未登録"}
               insuranceDetails={selectedPet.insuranceDetails || "-"}
@@ -375,6 +401,7 @@ export function ExaminationForm() {
                 formData={formData}
                 examTypes={examTypes}
                 staffList={staffList}
+                masterLoading={masterLoading}
                 isEdit={isEdit}
                 isSaving={isSaving}
                 isDeleting={isDeleting}

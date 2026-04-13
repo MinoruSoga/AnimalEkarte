@@ -15,32 +15,32 @@ import (
 // ---- Treatment モック ----
 
 type mockTreatmentRepository struct {
-	listByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) ([]model.Treatment, error)
-	findByIDFn              func(ctx context.Context, treatmentID uint64) (*model.Treatment, error)
+	listByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
+	findByIDFn              func(ctx context.Context, clinicID, treatmentID uint64) (*model.Treatment, error)
 	createFn                func(ctx context.Context, treatment *model.Treatment) error
-	updateFn                func(ctx context.Context, treatmentID uint64, fields map[string]any) error
-	deleteFn                func(ctx context.Context, treatmentID uint64) error
+	updateFn                func(ctx context.Context, clinicID, treatmentID uint64, fields map[string]any) error
+	deleteFn                func(ctx context.Context, clinicID, treatmentID uint64) error
 	bulkUpdateSortOrderFn   func(ctx context.Context, updates []repository.TreatmentSortUpdate) error
 }
 
-func (m *mockTreatmentRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Treatment, error) {
-	return m.listByMedicalRecordIDFn(ctx, medicalRecordID)
+func (m *mockTreatmentRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
+	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockTreatmentRepository) FindByID(ctx context.Context, treatmentID uint64) (*model.Treatment, error) {
-	return m.findByIDFn(ctx, treatmentID)
+func (m *mockTreatmentRepository) FindByID(ctx context.Context, clinicID, treatmentID uint64) (*model.Treatment, error) {
+	return m.findByIDFn(ctx, clinicID, treatmentID)
 }
 
 func (m *mockTreatmentRepository) Create(ctx context.Context, treatment *model.Treatment) error {
 	return m.createFn(ctx, treatment)
 }
 
-func (m *mockTreatmentRepository) Update(ctx context.Context, treatmentID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, treatmentID, fields)
+func (m *mockTreatmentRepository) Update(ctx context.Context, clinicID, treatmentID uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, treatmentID, fields)
 }
 
-func (m *mockTreatmentRepository) Delete(ctx context.Context, treatmentID uint64) error {
-	return m.deleteFn(ctx, treatmentID)
+func (m *mockTreatmentRepository) Delete(ctx context.Context, clinicID, treatmentID uint64) error {
+	return m.deleteFn(ctx, clinicID, treatmentID)
 }
 
 func (m *mockTreatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates []repository.TreatmentSortUpdate) error {
@@ -50,6 +50,8 @@ func (m *mockTreatmentRepository) BulkUpdateSortOrder(ctx context.Context, updat
 // ---- Tests ----
 
 func TestTreatmentService_List(t *testing.T) {
+	const clinicID = uint64(1)
+
 	tests := []struct {
 		name            string
 		medicalRecordID uint64
@@ -89,7 +91,7 @@ func TestTreatmentService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTreatmentRepository{
-				listByMedicalRecordIDFn: func(_ context.Context, _ uint64) ([]model.Treatment, error) {
+				listByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
 					return tt.repoTreatments, tt.repoErr
 				},
 			}
@@ -98,7 +100,7 @@ func TestTreatmentService_List(t *testing.T) {
 				Inventory: &mockInventoryRepository{},
 			})
 
-			treatments, err := svc.List(context.Background(), tt.medicalRecordID)
+			treatments, err := svc.List(context.Background(), clinicID, tt.medicalRecordID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -111,6 +113,7 @@ func TestTreatmentService_List(t *testing.T) {
 }
 
 func TestTreatmentService_Create(t *testing.T) {
+	const clinicID = uint64(1)
 	procedureID := uint64(1)
 	unitPrice := int64(10000)
 	discountRate := 0.1
@@ -131,7 +134,7 @@ func TestTreatmentService_Create(t *testing.T) {
 				ProcedureID:  &procedureID,
 				UnitPrice:    unitPrice,
 				Quantity:     quantity,
-				Selected:     true,
+				IsSelected:   true,
 				DiscountRate: discountRate,
 			},
 			repoErr: nil,
@@ -198,12 +201,12 @@ func TestTreatmentService_Create(t *testing.T) {
 				Treatment: repo,
 				Inventory: invRepo,
 			}
-			repos.TransactionFn = func(fn func(*repository.Repositories) error) error {
+			repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
 				return fn(repos)
 			}
 			svc := NewTreatmentService(repos)
 
-			treatment, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
+			treatment, err := svc.Create(context.Background(), clinicID, tt.medicalRecordID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -219,6 +222,7 @@ func TestTreatmentService_Create(t *testing.T) {
 }
 
 func TestTreatmentService_Update(t *testing.T) {
+	const clinicID = uint64(1)
 	newUnitPrice := int64(15000)
 	newQuantity := 2.0
 	newStatus := string(model.TreatmentStatusCompleted)
@@ -345,10 +349,10 @@ func TestTreatmentService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTreatmentRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Treatment, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Treatment, error) {
 					return tt.repoTreatment, tt.findByIDErr
 				},
-				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.updateErr
 				},
 			}
@@ -357,7 +361,7 @@ func TestTreatmentService_Update(t *testing.T) {
 				Inventory: &mockInventoryRepository{},
 			})
 
-			treatment, err := svc.Update(context.Background(), tt.medicalRecordID, tt.treatmentID, tt.input)
+			treatment, err := svc.Update(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -370,6 +374,8 @@ func TestTreatmentService_Update(t *testing.T) {
 }
 
 func TestTreatmentService_Delete(t *testing.T) {
+	const clinicID = uint64(1)
+
 	tests := []struct {
 		name            string
 		medicalRecordID uint64
@@ -429,10 +435,10 @@ func TestTreatmentService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTreatmentRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Treatment, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Treatment, error) {
 					return tt.repoTreatment, tt.findByIDErr
 				},
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.deleteErr
 				},
 			}
@@ -441,7 +447,7 @@ func TestTreatmentService_Delete(t *testing.T) {
 				Inventory: &mockInventoryRepository{},
 			})
 
-			err := svc.Delete(context.Background(), tt.medicalRecordID, tt.treatmentID)
+			err := svc.Delete(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -453,6 +459,8 @@ func TestTreatmentService_Delete(t *testing.T) {
 }
 
 func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
+	const clinicID = uint64(1)
+
 	tests := []struct {
 		name            string
 		medicalRecordID uint64
@@ -507,7 +515,7 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 				Inventory: &mockInventoryRepository{},
 			})
 
-			err := svc.BulkUpdateSortOrder(context.Background(), tt.medicalRecordID, tt.input)
+			err := svc.BulkUpdateSortOrder(context.Background(), clinicID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)

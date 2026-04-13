@@ -74,18 +74,6 @@ func (r *animalSpeciesRepository) Update(ctx context.Context, id uint64, fields 
 }
 
 func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
-	// pets テーブルで使用中かチェック
-	var count int64
-	if err := r.db.WithContext(ctx).
-		Model(&model.Pet{}).
-		Where("animal_species_id = ?", id).
-		Count(&count).Error; err != nil {
-		return apperrors.FromGORM(err, "animal_species", fmt.Sprintf("%d", id))
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("この動物種はペットで使用中のため削除できません。先にペットを削除またはこの種を変更してください")
-	}
-
 	result := r.db.WithContext(ctx).
 		Where("id = ?", id).
 		Delete(&model.AnimalSpecies{})
@@ -100,21 +88,5 @@ func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
 
 // Reorder はトランザクション内で sort_order を ids の順序で更新する
 func (r *animalSpeciesRepository) Reorder(ctx context.Context, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.AnimalSpecies{}).
-				Where("id = ?", id).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder animal species")
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("animal_species id %d not found", id))
-			}
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "reorder animal species")
-	}
-	return nil
+	return reorderGlobal(ctx, r.db, &model.AnimalSpecies{}, "animal_species", ids)
 }

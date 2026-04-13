@@ -36,6 +36,8 @@ export function handleApiError(err: unknown, context: string): void {
   }
 
   // Non-Axios errors (unexpected)
-  console.error("Non-Axios Error:", err);
+  if (import.meta.env.DEV) {
+    console.error("Non-Axios Error:", err);
+  }
   toast.error(`${context}中に予期しないエラーが発生しました。`);
 }

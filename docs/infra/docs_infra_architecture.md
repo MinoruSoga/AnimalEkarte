@@ -148,6 +148,7 @@ Terraform により構築・管理され、ECS(Fargate) 上の Go API を ALB �
     - `DB_SSL_MODE=require`
     - `CORS_ALLOWED_ORIGIN=https://stg.noah-karte.com,https://api.stg.noah-karte.com`
     - `JWT_SECRET`（本番必須、config.Validate() で起動時に検証）
+    - `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM`（通知用）
   - Secrets（SSM）:
     - `DB_NAME` / `DB_USER` / `DB_PASSWORD`
   - Logs:

@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useCallback, useMemo, useTransition } from "react";
+import { memo, useState, useCallback, useMemo, useTransition } from "react";
 
 // External
 import { Loader2, PlusCircle } from "lucide-react";
@@ -8,6 +8,7 @@ import { Loader2, PlusCircle } from "lucide-react";
 // Internal
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
 import { DailyDateNav } from "@/features/hospitalization/components/DailyRecordsTab/DailyDateNav";
@@ -15,10 +16,10 @@ import { DailyVitalsSection } from "@/features/hospitalization/components/DailyR
 import { DailyCareLogsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyCareLogsSection";
 import { DailyStaffNotesSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyStaffNotesSection";
 import { useDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "@/features/hospitalization/api/daily-records";
-import { usePermission } from "@/features/auth";
+import { usePermission, useAuth } from "@/features/auth";
 
 // Types
-import type { CreateVitalRecordRequest, CreateCareLogRecordRequest, CreateStaffNoteRecordRequest } from "@/features/hospitalization/api/daily-records-types";
+import type { CreateVitalRecordRequest, CreateCareLogRequest, CreateStaffNoteRequest } from "@/features/hospitalization/api/daily-records-types";
 
 interface DailyRecordsTabProps {
     hospitalizationId: string;
@@ -36,12 +37,14 @@ function clampDate(date: string, min: string, max: string): string {
     return date;
 }
 
-export function DailyRecordsTab({
+export const DailyRecordsTab = memo(function DailyRecordsTab({
     hospitalizationId,
     admissionDate,
     dischargeDate,
 }: DailyRecordsTabProps) {
     const { canCreate } = usePermission("hospitalization");
+    const { user } = useAuth();
+    const currentUserId = Number(user?.id ?? 0);
     // rerender-simple-expression-in-memo: string primitive は値比較のため useMemo 不要
     const today = getTodayStr();
     const effectiveMax = useMemo(
@@ -76,40 +79,56 @@ export function DailyRecordsTab({
 
     const handleCreateDailyRecord = useCallback(() => {
         startCreateRecordTransition(async () => {
-            await createDailyRecord.mutateAsync(selectedDate);
+            try {
+                await createDailyRecord.mutateAsync(selectedDate);
+            } catch (error) {
+                handleApiError(error, "日次記録の作成");
+            }
         });
     }, [createDailyRecord, selectedDate]);
 
     const handleAddVital = useCallback(
         (payload: CreateVitalRecordRequest) => {
             startVitalTransition(async () => {
-                await createVital.mutateAsync(payload);
+                try {
+                    await createVital.mutateAsync({ ...payload, staff_id: currentUserId });
+                } catch (error) {
+                    handleApiError(error, "バイタル追加");
+                }
             });
         },
-        [createVital]
+        [createVital, currentUserId]
     );
 
     const handleAddCareLog = useCallback(
-        (payload: CreateCareLogRecordRequest) => {
+        (payload: CreateCareLogRequest) => {
             startCareLogTransition(async () => {
-                await createCareLog.mutateAsync(payload);
+                try {
+                    await createCareLog.mutateAsync({ ...payload, staff_id: currentUserId });
+                } catch (error) {
+                    handleApiError(error, "ケアログ追加");
+                }
             });
         },
-        [createCareLog]
+        [createCareLog, currentUserId]
     );
 
     const handleAddStaffNote = useCallback(
-        (payload: CreateStaffNoteRecordRequest) => {
+        (payload: CreateStaffNoteRequest) => {
             startStaffNoteTransition(async () => {
-                await createStaffNote.mutateAsync(payload);
+                try {
+                    await createStaffNote.mutateAsync({ ...payload, staff_id: currentUserId });
+                } catch (error) {
+                    handleApiError(error, "スタッフメモ追加");
+                }
             });
         },
-        [createStaffNote]
+        [createStaffNote, currentUserId]
     );
 
     const vitals = record?.vital_records ?? [];
-    const careLogs = record?.care_log_records ?? [];
-    const staffNotes = record?.staff_note_records ?? [];
+    const careLogs = record?.care_logs ?? [];
+    const staffNotes = record?.staff_notes ?? [];
 
     return (
         <div className="flex flex-col gap-4">
@@ -175,4 +194,4 @@ export function DailyRecordsTab({
             )}
         </div>
     );
-}
+});

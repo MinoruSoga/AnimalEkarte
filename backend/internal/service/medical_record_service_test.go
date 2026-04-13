@@ -84,6 +84,9 @@ func (m *mrMockOwnerRepo) FindByEmail(_ context.Context, _ uint64, _ string) (*m
 func (m *mrMockOwnerRepo) FindByPhone(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
 	return nil, nil
 }
+func (m *mrMockOwnerRepo) FindByNameAndPhone(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
+	return nil, nil
+}
 func (m *mrMockOwnerRepo) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }

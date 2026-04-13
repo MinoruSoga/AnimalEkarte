@@ -30,13 +30,25 @@ func NewCheckupTypeService(repo repository.CheckupTypeRepository) CheckupTypeSer
 }
 
 func (s *checkupTypeService) List(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
-	return s.repo.FindAll(ctx, clinicID)
+	items, err := s.repo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list checkup types")
+	}
+	return items, nil
 }
 func (s *checkupTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get checkup type")
+	}
+	return result, nil
 }
 func (s *checkupTypeService) Create(ctx context.Context, checkupType *model.CheckupType) error {
-	return s.repo.Create(ctx, checkupType)
+	if err := s.repo.Create(ctx, checkupType); err != nil {
+		return apperrors.Wrap(err, "failed to create checkup type")
+	}
+	slog.InfoContext(ctx, "checkup type created", slog.Uint64("checkup_type_id", checkupType.ID))
+	return nil
 }
 func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, input UpdateCheckupTypeInput) (*model.CheckupType, error) {
 	fields := buildCheckupTypeUpdateFields(input)
@@ -58,14 +70,21 @@ func (s *checkupTypeService) Delete(ctx context.Context, clinicID, id uint64) er
 	if count > 0 {
 		return apperrors.WrapConflict("この定期健診種別は健診記録で使用中のため削除できません")
 	}
-	return s.repo.Delete(ctx, clinicID, id)
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete checkup type")
+	}
+	slog.InfoContext(ctx, "checkup type deleted", slog.Uint64("checkup_type_id", id), slog.Uint64("clinic_id", clinicID))
+	return nil
 }
 
 func (s *checkupTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
 		return apperrors.WrapInvalidInput("ids must not be empty")
 	}
-	return s.repo.Reorder(ctx, clinicID, ids)
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder checkup types")
+	}
+	return nil
 }
 
 // UpdateCheckupTypeInput はチェックアップ種別更新のサービス入力 DTO

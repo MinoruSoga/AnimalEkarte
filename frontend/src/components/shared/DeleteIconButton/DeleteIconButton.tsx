@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ICON, C } from "@/lib/design-tokens";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ interface DeleteIconButtonProps {
  * テーブル行・カード等でのアイコン削除ボタン共通コンポーネント。
  * shadcn Button variant="ghost" size="icon" + Trash2 アイコンを統一スタイルで提供する。
  */
-export function DeleteIconButton({
+export const DeleteIconButton = memo(function DeleteIconButton({
   onClick,
   disabled,
   className,
@@ -35,4 +36,4 @@ export function DeleteIconButton({
       <Trash2 className={ICON.action} />
     </Button>
   );
-}
+});

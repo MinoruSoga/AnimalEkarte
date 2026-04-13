@@ -31,7 +31,7 @@ func NewCheckupTypeRepository(db *gorm.DB) CheckupTypeRepository {
 
 func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
 	checkupTypes := make([]model.CheckupType, 0)
-	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&checkupTypes).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&checkupTypes).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup_type", "")
 	}
@@ -40,7 +40,7 @@ func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([
 
 func (r *checkupTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
 	var checkupType model.CheckupType
-	err := r.db.WithContext(ctx).First(&checkupType, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&checkupType).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup_type", fmt.Sprintf("%d", id))
 	}
@@ -61,7 +61,7 @@ func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.C
 func (r *checkupTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.CheckupType{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
@@ -73,7 +73,7 @@ func (r *checkupTypeRepository) UpdateFields(ctx context.Context, clinicID, id u
 }
 
 func (r *checkupTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.CheckupType{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.CheckupType{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
 	}
@@ -84,24 +84,7 @@ func (r *checkupTypeRepository) Delete(ctx context.Context, clinicID, id uint64)
 }
 
 func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.CheckupType{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("checkup_type id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return apperrors.Wrap(err, "reorder checkup type")
-	}
-	return nil
+	return reorderByClinicID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, ids)
 }
 
 // CountUsageByCheckupTypeID は定期健診種別を参照している checkup_records の件数を返す（BUG-107）

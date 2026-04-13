@@ -2,14 +2,13 @@ package service
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
-	"gorm.io/gorm"
-
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ReservationLimitError は予約制限違反エラー。
@@ -25,8 +24,10 @@ func (e *ReservationLimitError) Error() string {
 }
 
 // IsReservationLimitError は err が ReservationLimitError かどうかを返す。
+// エラーチェーンを辿るため errors.As を使用する。
 func IsReservationLimitError(err error) (*ReservationLimitError, bool) {
-	if e, ok := err.(*ReservationLimitError); ok {
+	var e *ReservationLimitError
+	if errors.As(err, &e) {
 		return e, true
 	}
 	return nil, false
@@ -34,33 +35,34 @@ func IsReservationLimitError(err error) (*ReservationLimitError, bool) {
 
 // ReservationValidators は予約制限チェックのインターフェース。
 type ReservationValidators interface {
-	ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.ReservationAppointment, error)
+	ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Appointment, error)
 }
 
 // CreateReservationInput は予約作成の入力。
 type CreateReservationInput struct {
-	ClinicID       uint64
-	CustomerID     uint64
-	ServiceTypeID  uint64
-	StaffID        uint64 // 0 = 指名なし
-	Date           time.Time
-	StartTime      string // "HHMM"
-	EndTime        string // "HHMM"
-	CustomerFields json.RawMessage
-	RequestText    string
-	Settings       *model.ReservationSetting
+	ClinicID          uint64
+	CustomerID        uint64
+	ReservationTypeID uint64
+	StaffID           uint64 // 0 = 指名なし
+	Date              time.Time
+	StartTime         string // "HHMM"
+	EndTime           string // "HHMM"
+	CustomerFields    []byte
+	RequestText       string
+	Settings          *model.LineReservationSetting
 }
 
 type reservationValidators struct {
-	db *gorm.DB
+	tx   repository.Transactor
+	repo repository.ReservationRepository
 }
 
 // NewReservationValidators はバリデーターを初期化して返す。
-func NewReservationValidators(db *gorm.DB) ReservationValidators {
-	return &reservationValidators{db: db}
+func NewReservationValidators(tx repository.Transactor, repo repository.ReservationRepository) ReservationValidators {
+	return &reservationValidators{tx: tx, repo: repo}
 }
 
-func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.ReservationAppointment, error) {
+func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Appointment, error) {
 	settings := input.Settings
 
 	// 稼働状態チェック
@@ -71,8 +73,8 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		}
 	}
 
-	var result *model.ReservationAppointment
-	err := v.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	var result *model.Appointment
+	if err := v.tx.WithTx(ctx, func(ctx context.Context) error {
 		// 時間枠を SELECT FOR UPDATE でロック
 		startDT, err := toDateTime(input.Date, input.StartTime)
 		if err != nil {
@@ -82,49 +84,42 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		if err != nil {
 			return apperrors.WrapInvalidInput(err.Error())
 		}
-
-		// 既存予約をロックしながら取得（楽観ロック）
-		var existing []model.ReservationAppointment
-		query := tx.Raw(`
-			SELECT * FROM reservation_appointments
-			WHERE clinic_id = ?
-			  AND deleted_at IS NULL
-			  AND status NOT IN ('cancelled')
-			  AND start_time < ?
-			  AND end_time > ?
-			  AND (? = 0 OR doctor_id = ?)
-			FOR UPDATE`,
-			input.ClinicID,
-			endDT,
-			startDT,
-			input.StaffID, input.StaffID,
-		).Scan(&existing)
-		if query.Error != nil {
-			return apperrors.Wrap(query.Error, "lock reservations")
+		if err := validateTimeRange(startDT, endDT); err != nil {
+			return err
 		}
 
-		// 時間枠の空きチェック
-		if len(existing) > 0 {
-			return &ReservationLimitError{
-				Code:         "SLOT_TAKEN",
-				Message:      "選択された時間枠は既に予約が入っています。別の時間をお選びください。",
-				RedirectStep: 5,
+		// 時間枠の空きチェック（医師指定時は同一医師の重複、未指定時は出勤医師数を上限）
+		var doctorIDPtr *uint64
+		if input.StaffID != 0 {
+			id := input.StaffID
+			doctorIDPtr = &id
+		}
+		if err := checkSlotConflict(ctx, v.repo, input.ClinicID, doctorIDPtr, startDT, endDT, nil); err != nil {
+			// 出勤医師不在と通常の満員を区別する（RedirectStep: 4=日付選択, 5=時間選択）
+			if errors.Is(err, errNoDoctorsOnDuty) {
+				return &ReservationLimitError{
+					Code:         "SLOT_TAKEN",
+					Message:      "本日は医師が出勤していません。別の日をお選びください。",
+					RedirectStep: 4,
+				}
 			}
+			if errors.Is(err, apperrors.ErrConflict) {
+				return &ReservationLimitError{
+					Code:         "SLOT_TAKEN",
+					Message:      "選択された時間枠は既に予約が入っています。別の時間をお選びください。",
+					RedirectStep: 5,
+				}
+			}
+			return err
 		}
 
 		// 同日予約制限チェック
 		if settings.DailyLimit != nil && *settings.DailyLimit > 0 {
-			var dailyCount int64
-			dateStr := input.Date.Format("2006-01-02")
-			if err := tx.Model(&model.ReservationAppointment{}).
-				Where(`clinic_id = ? AND line_customer_id = ? AND deleted_at IS NULL
-				  AND status NOT IN ('cancelled')
-				  AND start_time >= ? AND start_time < ?`,
-					input.ClinicID, input.CustomerID,
-					dateStr+" 00:00:00",
-					dateStr+" 23:59:59",
-				).Count(&dailyCount).Error; err != nil {
-				return apperrors.Wrap(err, "count daily reservations")
+			dayStart := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, input.Date.Location())
+			dayEnd := dayStart.Add(24 * time.Hour)
+			dailyCount, err := v.repo.CountByCustomerAndDateRange(ctx, input.ClinicID, input.CustomerID, dayStart, dayEnd)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to count daily reservations")
 			}
 			if int(dailyCount) >= *settings.DailyLimit {
 				return &ReservationLimitError{
@@ -137,17 +132,11 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 
 		// 同月予約制限チェック
 		if settings.MonthlyLimit != nil && *settings.MonthlyLimit > 0 {
-			var monthlyCount int64
 			monthStart := time.Date(input.Date.Year(), input.Date.Month(), 1, 0, 0, 0, 0, input.Date.Location())
 			monthEnd := monthStart.AddDate(0, 1, 0)
-			if err := tx.Model(&model.ReservationAppointment{}).
-				Where(`clinic_id = ? AND line_customer_id = ? AND deleted_at IS NULL
-				  AND status NOT IN ('cancelled')
-				  AND start_time >= ? AND start_time < ?`,
-					input.ClinicID, input.CustomerID,
-					monthStart, monthEnd,
-				).Count(&monthlyCount).Error; err != nil {
-				return apperrors.Wrap(err, "count monthly reservations")
+			monthlyCount, err := v.repo.CountByCustomerAndDateRange(ctx, input.ClinicID, input.CustomerID, monthStart, monthEnd)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to count monthly reservations")
 			}
 			if int(monthlyCount) >= *settings.MonthlyLimit {
 				return &ReservationLimitError{
@@ -159,9 +148,9 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		}
 
 		// 確認番号生成
-		confirmationNumber, err := generateConfirmationNumber(tx, input.ClinicID, input.Date)
+		confirmationNumber, err := generateConfirmationNumber(ctx, v.repo, input.ClinicID, input.Date)
 		if err != nil {
-			return apperrors.Wrap(err, "generate confirmation number")
+			return apperrors.Wrap(err, "failed to generate confirmation number")
 		}
 
 		// 予約作成
@@ -182,28 +171,27 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			}
 		}
 
-		appt := &model.ReservationAppointment{
-			ClinicID:         input.ClinicID,
-			StartTime:        startDT,
-			EndTime:          endDT,
-			ServiceTypeID:    input.ServiceTypeID,
-			DoctorID:         doctorID,
-			Status:           model.ReservationStatusConfirmed,
-			Source:           model.ReservationSourceLine,
-			LineCustomerID:   &input.CustomerID,
-			IsStaffDelegated: input.StaffID == 0,
-			CustomerFields:   customerFields,
-			Notes:            notes,
-			VisitType:        model.VisitTypeRevisit,
+		appt := &model.Appointment{
+			ClinicID:          input.ClinicID,
+			StartTime:         startDT,
+			EndTime:           endDT,
+			ReservationTypeID: input.ReservationTypeID,
+			DoctorID:          doctorID,
+			Status:            model.ReservationStatusConfirmed,
+			Source:            model.ReservationSourceLine,
+			LineCustomerID:    &input.CustomerID,
+			IsStaffDelegated:  input.StaffID == 0,
+			CustomerFields:    customerFields,
+			Notes:             notes,
+			VisitType:         model.VisitTypeRevisit,
 		}
-		if err := tx.Create(appt).Error; err != nil {
-			return apperrors.Wrap(err, "create reservation")
+		if err := v.repo.Create(ctx, appt); err != nil {
+			return apperrors.Wrap(err, "failed to create reservation")
 		}
 		result = appt
 		return nil
-	})
-	if err != nil {
-		return nil, err
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create line reservation")
 	}
 	return result, nil
 }
@@ -221,13 +209,9 @@ func toDateTime(date time.Time, hhmm string) (time.Time, error) {
 
 // generateConfirmationNumber は "R-YYYYMMDD-XXXX" 形式の確認番号を生成する。
 // 同日の予約件数+1をシーケンス番号として使用する。
-func generateConfirmationNumber(tx *gorm.DB, clinicID uint64, date time.Time) (string, error) {
-	dateStr := date.Format("2006-01-02")
-	var count int64
-	if err := tx.Model(&model.ReservationAppointment{}).
-		Where("clinic_id = ? AND DATE(start_time) = ? AND source = ?",
-			clinicID, dateStr, model.ReservationSourceLine).
-		Count(&count).Error; err != nil {
+func generateConfirmationNumber(ctx context.Context, repo repository.ReservationRepository, clinicID uint64, date time.Time) (string, error) {
+	count, err := repo.CountByDateAndSource(ctx, clinicID, date, model.ReservationSourceLine)
+	if err != nil {
 		return "", err
 	}
 	seq := int(count) + 1

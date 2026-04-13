@@ -598,7 +598,7 @@ components:
           type: string
     ReservationAppointment:
       type: object
-      required: [start_time, end_time, service_type_id]
+      required: [start_time, end_time, reservation_type_id]
       properties:
         id:
           type: integer
@@ -627,7 +627,7 @@ components:
         visit_type:
           type: string
           enum: [first, revisit]
-        service_type_id:
+        reservation_type_id:
           type: integer
           format: int64
         doctor_id:
@@ -659,7 +659,7 @@ components:
           $ref: '#/components/schemas/PetSummary'
           description: ペット情報（owner含む、Preload時のみ含まれる）
           nullable: true
-        service_type:
+        reservation_type:
           $ref: '#/components/schemas/ServiceTypeSummary'
           description: サービス種別情報（Preload時のみ含まれる）
           nullable: true
@@ -2939,8 +2939,8 @@ components:
           type: integer
           nullable: true
 
-    # ─── BillingReview ────────────────────────────────────────────────────────
-    BillingReview:
+    # ─── BillingConfirmation ────────────────────────────────────────────────────────
+    BillingConfirmation:
       type: object
       properties:
         id:
@@ -2979,8 +2979,8 @@ components:
           type: string
           format: date-time
 
-    # ─── RecordImage (診療画像) ───────────────────────────────────────────────
-    RecordImage:
+    # ─── MedicalRecordImage (診療画像) ───────────────────────────────────────────────
+    MedicalRecordImage:
       type: object
       properties:
         id:
@@ -3027,7 +3027,7 @@ components:
           type: string
           format: date-time
 
-    CreateRecordImageRequest:
+    CreateMedicalRecordImageRequest:
       type: object
       required: [image_url]
       properties:
@@ -6468,7 +6468,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/service-types:
+  /masters/reservation-types:
     get:
       operationId: listServiceTypes
       summary: サービス種別一覧
@@ -6507,7 +6507,7 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/service-types/550e8400-e29b-41d4-a716-446655440000
+                example: /masters/reservation-types/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -6522,7 +6522,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/service-types/reorder:
+  /masters/reservation-types/reorder:
     patch:
       operationId: reorderServiceTypes
       summary: 予約区分マスタ一括並び替え
@@ -6558,7 +6558,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/service-types/{id}:
+  /masters/reservation-types/{id}:
     patch:
       operationId: updateServiceType
       summary: サービス種別更新
@@ -7497,7 +7497,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/diagnosis-categories:
+  /masters/diagnosis-types:
     get:
       operationId: listDiagnosisCategories
       summary: 診断カテゴリ一覧
@@ -7536,7 +7536,7 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/diagnosis-categories/550e8400-e29b-41d4-a716-446655440000
+                example: /masters/diagnosis-types/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -7551,7 +7551,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/diagnosis-categories/reorder:
+  /masters/diagnosis-types/reorder:
     patch:
       operationId: reorderDiagnosisCategories
       summary: 診断カテゴリ一括並び替え
@@ -7587,7 +7587,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/diagnosis-categories/{id}:
+  /masters/diagnosis-types/{id}:
     patch:
       operationId: updateDiagnosisCategory
       summary: 診断カテゴリ更新
@@ -9599,10 +9599,10 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  # ─── Medical Records nested: billing-review ──────────────────
-  /medical-records/{id}/billing-review:
+  # ─── Medical Records nested: billing-confirmation ──────────────────
+  /medical-records/{id}/billing-confirmation:
     get:
-      operationId: getBillingReview
+      operationId: getBillingConfirmation
       summary: 会計医師確認取得
       description: 指定カルテの会計医師確認を取得または初期化して返す
       tags: [MedicalRecords]
@@ -9619,14 +9619,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillingReview'
+                $ref: '#/components/schemas/BillingConfirmation'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-  /medical-records/{id}/billing-review/confirm:
+  /medical-records/{id}/billing-confirmation/confirm:
     post:
-      operationId: confirmBillingReview
+      operationId: confirmBillingConfirmation
       summary: 会計医師確認
       tags: [MedicalRecords]
       parameters:
@@ -9654,16 +9654,16 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillingReview'
+                $ref: '#/components/schemas/BillingConfirmation'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-  /medical-records/{id}/billing-review/return:
+  /medical-records/{id}/billing-confirmation/return:
     post:
-      operationId: returnBillingReview
+      operationId: returnBillingConfirmation
       summary: 会計差し戻し
       tags: [MedicalRecords]
       parameters:
@@ -9693,7 +9693,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillingReview'
+                $ref: '#/components/schemas/BillingConfirmation'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -9704,7 +9704,7 @@ paths:
   # ─── Medical Records nested: images ──────────────────────────
   /medical-records/{id}/images:
     get:
-      operationId: listRecordImages
+      operationId: listMedicalRecordImages
       summary: 診療画像一覧
       tags: [MedicalRecords]
       parameters:
@@ -9722,13 +9722,13 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/RecordImage'
+                  $ref: '#/components/schemas/MedicalRecordImage'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
     post:
-      operationId: createRecordImage
+      operationId: createMedicalRecordImage
       summary: 診療画像追加
       tags: [MedicalRecords]
       parameters:
@@ -9743,14 +9743,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateRecordImageRequest'
+              $ref: '#/components/schemas/CreateMedicalRecordImageRequest'
       responses:
         '201':
           description: 追加成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RecordImage'
+                $ref: '#/components/schemas/MedicalRecordImage'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -9759,7 +9759,7 @@ paths:
           $ref: '#/components/responses/InternalError'
   /medical-records/{id}/images/{imageId}:
     delete:
-      operationId: deleteRecordImage
+      operationId: deleteMedicalRecordImage
       summary: 診療画像削除
       tags: [MedicalRecords]
       parameters:

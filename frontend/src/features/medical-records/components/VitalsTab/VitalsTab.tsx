@@ -8,7 +8,10 @@ import { toast } from "sonner";
 // Internal
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
+import { ErrorFallback } from "@/components/shared/DataStates";
 
 // rendering-hoist-jsx: design token は定数なので module-level に巻き上げ
 const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-full`;
@@ -60,8 +63,8 @@ interface AddFormState {
   recorded_at: string;
   temperature: string;
   heart_rate: string;
-  respiratory_rate: string;
-  body_weight: string;
+  respiration_rate: string;
+  weight: string;
   weight_unit: BodyWeightUnit;
   note: string;
 }
@@ -70,8 +73,8 @@ const EMPTY_ADD_FORM: AddFormState = {
   recorded_at: "",
   temperature: "",
   heart_rate: "",
-  respiratory_rate: "",
-  body_weight: "",
+  respiration_rate: "",
+  weight: "",
   weight_unit: "Kg",
   note: "",
 };
@@ -100,8 +103,8 @@ function buildEditRowForm(vital: Vital) {
       : "",
     temperature: vital.temperature != null ? String(vital.temperature) : "",
     heart_rate: vital.heart_rate != null ? String(vital.heart_rate) : "",
-    respiratory_rate: vital.respiratory_rate != null ? String(vital.respiratory_rate) : "",
-    body_weight: vital.body_weight != null ? String(vital.body_weight) : "",
+    respiration_rate: vital.respiration_rate != null ? String(vital.respiration_rate) : "",
+    weight: vital.weight != null ? String(vital.weight) : "",
     weight_unit: vital.weight_unit ?? "Kg",
     note: vital.note ?? "",
   };
@@ -110,6 +113,7 @@ function buildEditRowForm(vital: Vital) {
 const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: EditRowProps) {
   // lazy initializer — 初回マウント時のみ buildEditRowForm() が実行される
   const [form, setForm] = useState(() => buildEditRowForm(vital));
+  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
 
   const handleChange = useCallback(
     (field: string, value: string | BodyWeightUnit) => {
@@ -119,28 +123,32 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
   );
 
   const handleSave = useCallback(() => {
+    const errors: Record<string, string> = {};
     if (!form.recorded_at) {
-      toast.error("記録日時は必須です");
-      return;
+      errors.recorded_at = "記録日時は必須です";
+    } else {
+      const recordedDate = new Date(form.recorded_at);
+      if (recordedDate > new Date()) {
+        errors.recorded_at = "未来の日時は入力できません";
+      }
     }
-    const recordedDate = new Date(form.recorded_at);
-    if (recordedDate > new Date()) {
-      toast.error("未来の日時は入力できません");
-      return;
-    }
-
     const temp = parseNumField(form.temperature);
     if (temp !== null && (temp < 30 || temp > 45)) {
-      toast.error("体温は30〜45℃の範囲で入力してください");
+      errors.temperature = "体温は30〜45℃の範囲で入力してください";
+    }
+    if (Object.keys(errors).length > 0) {
+      setEditFormErrors(errors);
       return;
     }
+    setEditFormErrors({});
 
+    const recordedDate = new Date(form.recorded_at);
     const input: UpdateVitalInput = {
       recorded_at: recordedDate.toISOString(),
       temperature: temp,
       heart_rate: parseNumField(form.heart_rate),
-      respiratory_rate: parseNumField(form.respiratory_rate),
-      body_weight: parseNumField(form.body_weight),
+      respiration_rate: parseNumField(form.respiration_rate),
+      weight: parseNumField(form.weight),
       weight_unit: form.weight_unit as BodyWeightUnit,
       note: form.note.trim() || null,
     };
@@ -156,6 +164,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           onChange={(e) => handleChange("recorded_at", e.target.value)}
           className={EDIT_INPUT_CLASS}
         />
+        <FormFieldError message={editFormErrors.recorded_at} />
       </td>
       <td className="px-3 py-2">
         <input
@@ -166,6 +175,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           placeholder="-"
           className={EDIT_INPUT_CLASS}
         />
+        <FormFieldError message={editFormErrors.temperature} />
       </td>
       <td className="px-3 py-2">
         <input
@@ -179,8 +189,8 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
       <td className="px-3 py-2">
         <input
           type="number"
-          value={form.respiratory_rate}
-          onChange={(e) => handleChange("respiratory_rate", e.target.value)}
+          value={form.respiration_rate}
+          onChange={(e) => handleChange("respiration_rate", e.target.value)}
           placeholder="-"
           className={EDIT_INPUT_CLASS}
         />
@@ -190,8 +200,8 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           <input
             type="number"
             step="0.01"
-            value={form.body_weight}
-            onChange={(e) => handleChange("body_weight", e.target.value)}
+            value={form.weight}
+            onChange={(e) => handleChange("weight", e.target.value)}
             placeholder="-"
             className={`${EDIT_INPUT_CLASS} text-right`}
           />
@@ -218,7 +228,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           <button
             onClick={handleSave}
             disabled={isPending}
-            className={`size-8 flex items-center justify-center rounded-[3px] ${C.textStatusGreen} ${C.hoverBgStatusGreen} transition-colors`}
+            className={`${STYLE.iconBtn32} ${C.textStatusGreen} ${C.hoverBgStatusGreen}`}
             title="保存"
           >
             <Check className={`${ICON.xs}`} />
@@ -226,7 +236,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           <button
             onClick={onCancel}
             disabled={isPending}
-            className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverBgLight} transition-colors`}
+            className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverBgLight}`}
             title="キャンセル"
           >
             <X className={`${ICON.xs}`} />
@@ -284,17 +294,21 @@ interface VitalsTabProps {
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
+export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
-  const { data: vitals, isLoading } = useGetVitals(medicalRecordId);
+  const { data: vitals, isLoading, isError } = useGetVitals(medicalRecordId);
   const createMutation = useCreateVital(medicalRecordId);
+  const { mutate: createVitalFn } = createMutation;
   const updateMutation = useUpdateVital(medicalRecordId);
+  const { mutate: updateVitalFn } = updateMutation;
   const deleteMutation = useDeleteVital(medicalRecordId);
+  const { mutate: deleteVitalFn } = deleteMutation;
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addForm, setAddForm] = useState<AddFormState>(EMPTY_ADD_FORM);
+  const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
   const [showGraph, setShowGraph] = useState(false);
 
   // recorded_at 昇順ソート済みリスト
@@ -316,68 +330,73 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
 
   const handleAddSubmit = useCallback(() => {
     if (!canCreate) return;
+    const errors: Record<string, string> = {};
     if (!addForm.recorded_at) {
-      toast.error("記録日時は必須です");
-      return;
+      errors.recorded_at = "記録日時は必須です";
+    } else {
+      const recordedDate = new Date(addForm.recorded_at);
+      if (recordedDate > new Date()) {
+        errors.recorded_at = "未来の日時は入力できません";
+      }
     }
-    const recordedDate = new Date(addForm.recorded_at);
-    if (recordedDate > new Date()) {
-      toast.error("未来の日時は入力できません");
-      return;
-    }
-
     const temp = parseNumField(addForm.temperature);
     if (temp !== null && (temp < 30 || temp > 45)) {
-      toast.error("体温は30〜45℃の範囲で入力してください");
-      return;
+      errors.temperature = "体温は30〜45℃の範囲で入力してください";
     }
-
     // BUG-044: 数値フィールドがすべて未入力の場合は保存しない（サーバー500回避）
     const heartRate = parseNumField(addForm.heart_rate);
-    const respiratoryRate = parseNumField(addForm.respiratory_rate);
-    const bodyWeight = parseNumField(addForm.body_weight);
+    const respiratoryRate = parseNumField(addForm.respiration_rate);
+    const bodyWeight = parseNumField(addForm.weight);
     if (temp === null && heartRate === null && respiratoryRate === null && bodyWeight === null) {
-      toast.error("体温・心拍数・呼吸数・体重のいずれかを入力してください");
+      errors.temperature = errors.temperature ?? "体温・心拍数・呼吸数・体重のいずれかを入力してください";
+    }
+    if (Object.keys(errors).length > 0) {
+      setAddFormErrors(errors);
       return;
     }
+    setAddFormErrors({});
 
+    const recordedDate = new Date(addForm.recorded_at);
     const input: CreateVitalInput = {
       recorded_at: recordedDate.toISOString(),
       temperature: temp,
       heart_rate: heartRate,
-      respiratory_rate: respiratoryRate,
-      body_weight: bodyWeight,
+      respiration_rate: respiratoryRate,
+      weight: bodyWeight,
       weight_unit: addForm.weight_unit,
       note: addForm.note.trim() || null,
     };
-    createMutation.mutate(input, {
+    createVitalFn(input, {
       onSuccess: () => {
         setAddForm(EMPTY_ADD_FORM);
         setIsAdding(false);
         toast.success("バイタルを追加しました");
       },
+      onError: (error) => handleApiError(error, "バイタル追加"),
     });
-  }, [canCreate, addForm, createMutation]);
+  }, [canCreate, addForm, createVitalFn]);
 
   const handleAddCancel = useCallback(() => {
     setAddForm(EMPTY_ADD_FORM);
+    setAddFormErrors({});
     setIsAdding(false);
   }, []);
 
   const handleEditSave = useCallback(
     (vitalId: string, input: UpdateVitalInput) => {
       if (!canEdit) return;
-      updateMutation.mutate(
+      updateVitalFn(
         { vitalId, input },
         {
           onSuccess: () => {
             setEditingId(null);
             toast.success("バイタルを更新しました");
           },
+          onError: (error) => handleApiError(error, "バイタル更新"),
         }
       );
     },
-    [canEdit, updateMutation]
+    [canEdit, updateVitalFn]
   );
 
   const handleEditCancel = useCallback(() => {
@@ -386,13 +405,14 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
 
   const handleDeleteConfirm = useCallback(() => {
     if (!canDelete || !deletingId) return;
-    deleteMutation.mutate(deletingId, {
+    deleteVitalFn(deletingId, {
       onSuccess: () => {
         setDeletingId(null);
         toast.success("バイタルを削除しました");
       },
+      onError: (error) => handleApiError(error, "バイタル削除"),
     });
-  }, [canDelete, deletingId, deleteMutation]);
+  }, [canDelete, deletingId, deleteVitalFn]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeletingId(null);
@@ -407,6 +427,8 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
       </div>
     );
   }
+
+  if (isError) return <ErrorFallback />;
 
   return (
     <div className="flex flex-col gap-3 pb-24">
@@ -455,7 +477,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
           <tbody>
             {sortedVitals.length === 0 ? (
               <tr>
-                <td colSpan={7} className={`text-center py-12 text-sm ${C.text40}`}>
+                <td colSpan={7} className={STYLE.tableEmptySm}>
                   バイタル記録がありません。下の「記録を追加」ボタンから追加してください。
                 </td>
               </tr>
@@ -484,10 +506,10 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
                       {displayNum(vital.heart_rate)}
                     </td>
                     <td className={`px-3 text-sm text-right ${C.text}`}>
-                      {displayNum(vital.respiratory_rate)}
+                      {displayNum(vital.respiration_rate)}
                     </td>
                     <td className={`px-3 text-sm text-right ${C.text}`}>
-                      {displayNum(vital.body_weight)}
+                      {displayNum(vital.weight)}
                       <span className={`ml-0.5 text-[10px] ${C.text40}`}>{vital.weight_unit}</span>
                     </td>
                     <td className={`px-3 text-sm ${C.text60}`}>
@@ -498,7 +520,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
                         {canEdit ? (
                           <button
                             onClick={() => setEditingId(vital.id)}
-                            className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
+                            className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverText} ${C.hoverBgLight}`}
                             title="編集"
                           >
                             <Pencil className={`${ICON.xs}`} />
@@ -521,22 +543,28 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
 
         {/* インライン追加フォーム */}
         {isAdding ? (
-          <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
-            <input
-              autoFocus
-              type="datetime-local"
-              value={addForm.recorded_at}
-              onChange={(e) => handleAddFormChange("recorded_at", e.target.value)}
-              className={`${ADD_INPUT_CLASS} w-40`}
-            />
-            <input
-              type="number"
-              step="0.1"
-              value={addForm.temperature}
-              onChange={(e) => handleAddFormChange("temperature", e.target.value)}
-              placeholder="体温"
-              className={`${ADD_INPUT_CLASS} w-20`}
-            />
+          <div className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
+            <div className="flex flex-col">
+              <input
+                autoFocus
+                type="datetime-local"
+                value={addForm.recorded_at}
+                onChange={(e) => handleAddFormChange("recorded_at", e.target.value)}
+                className={`${ADD_INPUT_CLASS} w-40`}
+              />
+              <FormFieldError message={addFormErrors.recorded_at} />
+            </div>
+            <div className="flex flex-col">
+              <input
+                type="number"
+                step="0.1"
+                value={addForm.temperature}
+                onChange={(e) => handleAddFormChange("temperature", e.target.value)}
+                placeholder="体温"
+                className={`${ADD_INPUT_CLASS} w-20`}
+              />
+              <FormFieldError message={addFormErrors.temperature} />
+            </div>
             <input
               type="number"
               value={addForm.heart_rate}
@@ -546,8 +574,8 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
             />
             <input
               type="number"
-              value={addForm.respiratory_rate}
-              onChange={(e) => handleAddFormChange("respiratory_rate", e.target.value)}
+              value={addForm.respiration_rate}
+              onChange={(e) => handleAddFormChange("respiration_rate", e.target.value)}
               placeholder="呼吸数"
               className={`${ADD_INPUT_CLASS} w-20`}
             />
@@ -555,8 +583,8 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
               <input
                 type="number"
                 step="0.01"
-                value={addForm.body_weight}
-                onChange={(e) => handleAddFormChange("body_weight", e.target.value)}
+                value={addForm.weight}
+                onChange={(e) => handleAddFormChange("weight", e.target.value)}
                 placeholder="体重"
                 className={`${ADD_INPUT_CLASS} w-20 text-right`}
               />
@@ -625,4 +653,4 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
       ) : null}
     </div>
   );
-}
+});

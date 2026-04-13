@@ -31,7 +31,7 @@ func NewHospitalizationPlanRepository(db *gorm.DB) HospitalizationPlanRepository
 
 func (r *hospitalizationPlanRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error) {
 	plans := make([]model.HospitalizationPlan, 0)
-	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&plans).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&plans).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization_plan", "")
 	}
@@ -40,7 +40,7 @@ func (r *hospitalizationPlanRepository) FindAll(ctx context.Context, clinicID ui
 
 func (r *hospitalizationPlanRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error) {
 	var plan model.HospitalizationPlan
-	err := r.db.WithContext(ctx).First(&plan, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&plan).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization_plan", fmt.Sprintf("%d", id))
 	}
@@ -61,7 +61,7 @@ func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.
 func (r *hospitalizationPlanRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.HospitalizationPlan{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "hospitalization_plan", fmt.Sprintf("%d", id))
@@ -73,7 +73,7 @@ func (r *hospitalizationPlanRepository) UpdateFields(ctx context.Context, clinic
 }
 
 func (r *hospitalizationPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.HospitalizationPlan{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.HospitalizationPlan{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "hospitalization_plan", fmt.Sprintf("%d", id))
 	}
@@ -96,22 +96,5 @@ func (r *hospitalizationPlanRepository) CountCarePlanItemsByPlanID(ctx context.C
 }
 
 func (r *hospitalizationPlanRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.HospitalizationPlan{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "hospitalization_plan", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("hospitalization_plan id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return apperrors.Wrap(err, "reorder hospitalization plan")
-	}
-	return nil
+	return reorderByClinicID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, ids)
 }

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -57,6 +56,7 @@ func (h *Handler) CreateBillingItem(c *gin.Context) {
 	}
 
 	input := &service.CreateBillingItemInput{
+		ClinicID:              clinicID,
 		BillingID:             req.BillingID,
 		Category:              model.ItemCategory(req.Category),
 		Name:                  req.Name,
@@ -84,9 +84,8 @@ func (h *Handler) UpdateBillingItem(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -129,9 +128,8 @@ func (h *Handler) DeleteBillingItem(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 

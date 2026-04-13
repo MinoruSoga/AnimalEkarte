@@ -15,15 +15,15 @@ import (
 // ---- ShiftEntry モック ----
 
 type mockShiftEntryRepository struct {
-	listFn     func(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error)
+	findAllFn  func(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error)
 	createFn   func(ctx context.Context, entry *model.ShiftEntry) error
 	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockShiftEntryRepository) List(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
-	return m.listFn(ctx, clinicID, filter)
+func (m *mockShiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
+	return m.findAllFn(ctx, clinicID, filter)
 }
 
 func (m *mockShiftEntryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error) {
@@ -42,8 +42,16 @@ func (m *mockShiftEntryRepository) Delete(ctx context.Context, clinicID, id uint
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockShiftEntryRepository) ReplaceBreaks(_ context.Context, _ uint64, _ []model.ShiftEntryBreak) error {
+	return nil
+}
+
 func (m *mockShiftEntryRepository) ExistsByStaffID(_ context.Context, _ uint64) (bool, error) {
 	return false, nil
+}
+
+func (m *mockShiftEntryRepository) FindOnDutyStaffs(_ context.Context, _ uint64, _ time.Time) ([]model.Staff, error) {
+	return nil, nil
 }
 
 // ---- Tests ----
@@ -114,7 +122,7 @@ func TestShiftEntryService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockShiftEntryRepository{
-				listFn: func(_ context.Context, _ uint64, _ repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
 					return tt.repoEntries, tt.repoErr
 				},
 			}
@@ -157,7 +165,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 				ShiftType: model.ShiftTypeMorning,
 				StartTime: &startTime,
 				EndTime:   &endTime,
-				Note:      "Regular shift",
+				Notes:     "Regular shift",
 			},
 			repoErr:          nil,
 			wantErr:          false,
@@ -170,7 +178,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 				StaffID:   1,
 				Date:      date,
 				ShiftType: model.ShiftTypeOff,
-				Note:      "Day off",
+				Notes:     "Day off",
 			},
 			repoErr:          nil,
 			wantErr:          false,
@@ -285,7 +293,7 @@ func TestShiftEntryService_Update(t *testing.T) {
 			input: &UpdateShiftEntryInput{
 				ShiftType: &newShiftType,
 				StartTime: &newStartTime,
-				Note:      &newNote,
+				Notes:     &newNote,
 			},
 			repoUpdateErr: nil,
 			repoReturnEntry: &model.ShiftEntry{
@@ -308,7 +316,7 @@ func TestShiftEntryService_Update(t *testing.T) {
 			clinicID: 1,
 			id:       1,
 			input: &UpdateShiftEntryInput{
-				Note: &newNote,
+				Notes: &newNote,
 			},
 			repoUpdateErr:   errors.New("db error"),
 			repoReturnEntry: nil,

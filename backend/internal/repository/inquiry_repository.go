@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -11,8 +12,8 @@ import (
 
 // InquiryRepository は医療記録問診の永続化インターフェース
 type InquiryRepository interface {
-	UpsertByMedicalRecordID(ctx context.Context, inquiry *model.Inquiry) (*model.Inquiry, error)
-	CountByChiefComplaintCategoryID(ctx context.Context, categoryID uint64) (int64, error)
+	UpsertByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
+	CountByChiefComplaintTypeID(ctx context.Context, categoryID uint64) (int64, error)
 }
 
 type inquiryRepository struct {
@@ -26,11 +27,24 @@ func NewInquiryRepository(db *gorm.DB) InquiryRepository {
 
 // UpsertByMedicalRecordID は medical_record_id に対応する Inquiry を upsert する。
 // レコードが存在しない場合は INSERT、存在する場合は UPDATE する。
+// clinicID により clinic 境界を検証する。
 //
 // BUG-079 修正: FirstOrCreate+Assign に同一ポインタを渡すと既存レコード取得後の
 // Assign が無効になるため、FirstOrCreate でレコードを確保してから
 // map[string]any で明示的に Updates する 2 ステップ方式に変更。
-func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, inquiry *model.Inquiry) (*model.Inquiry, error) {
+func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+	// Verify the medical_record belongs to this clinic before upserting
+	var mrCount int64
+	if err := r.db.WithContext(ctx).
+		Table("medical_records").
+		Scopes(clinicScope(clinicID)).Where("id = ?", inquiry.MedicalRecordID).
+		Count(&mrCount).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "inquiry", "")
+	}
+	if mrCount == 0 {
+		return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", inquiry.MedicalRecordID))
+	}
+
 	// Step 1: medical_record_id で既存レコードを取得または新規作成
 	var existing model.Inquiry
 	if err := r.db.WithContext(ctx).
@@ -41,19 +55,19 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, inquiry
 
 	// Step 2: 更新フィールドを map[string]any で明示的に Updates（GORM ゼロ値問題を回避）
 	updates := map[string]any{
-		"chief_complaint":             inquiry.ChiefComplaint,
-		"notes":                       inquiry.Notes,
-		"history":                     inquiry.History,
-		"current_medications":         inquiry.CurrentMedications,
-		"allergy_info":                inquiry.AllergyInfo,
-		"last_meal":                   inquiry.LastMeal,
-		"last_defecation":             inquiry.LastDefecation,
-		"last_urination":              inquiry.LastUrination,
-		"owner_observations":          inquiry.OwnerObservations,
-		"chief_complaint_category_id": inquiry.ChiefComplaintCategoryID,
-		"appetite":                    inquiry.Appetite,
-		"water_intake":                inquiry.WaterIntake,
-		"staff_id":                    inquiry.StaffID,
+		"chief_complaint":         inquiry.ChiefComplaint,
+		"notes":                   inquiry.Notes,
+		"history":                 inquiry.History,
+		"current_medications":     inquiry.CurrentMedications,
+		"allergy_info":            inquiry.AllergyInfo,
+		"last_meal":               inquiry.LastMeal,
+		"last_defecation":         inquiry.LastDefecation,
+		"last_urination":          inquiry.LastUrination,
+		"owner_observations":      inquiry.OwnerObservations,
+		"chief_complaint_type_id": inquiry.ChiefComplaintTypeID,
+		"appetite":                inquiry.Appetite,
+		"water_intake":            inquiry.WaterIntake,
+		"staff_id":                inquiry.StaffID,
 	}
 	if err := r.db.WithContext(ctx).
 		Model(&existing).
@@ -71,7 +85,7 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, inquiry
 	existing.LastDefecation = inquiry.LastDefecation
 	existing.LastUrination = inquiry.LastUrination
 	existing.OwnerObservations = inquiry.OwnerObservations
-	existing.ChiefComplaintCategoryID = inquiry.ChiefComplaintCategoryID
+	existing.ChiefComplaintTypeID = inquiry.ChiefComplaintTypeID
 	existing.Appetite = inquiry.Appetite
 	existing.WaterIntake = inquiry.WaterIntake
 	existing.StaffID = inquiry.StaffID
@@ -79,13 +93,13 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, inquiry
 	return &existing, nil
 }
 
-// CountByChiefComplaintCategoryID は指定カテゴリIDを参照するInquiryの件数を返す。
+// CountByChiefComplaintTypeID は指定カテゴリIDを参照するInquiryの件数を返す。
 // Delete の FK チェックに使用する。
-func (r *inquiryRepository) CountByChiefComplaintCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
+func (r *inquiryRepository) CountByChiefComplaintTypeID(ctx context.Context, categoryID uint64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Inquiry{}).
-		Where("chief_complaint_category_id = ?", categoryID).
+		Where("chief_complaint_type_id = ?", categoryID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "inquiry", "")

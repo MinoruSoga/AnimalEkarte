@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
+import { memo, useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,10 +9,11 @@ import { toast } from "sonner";
 
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { MasterLink } from "@/components/shared/MasterLink";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { PET_GENDER_VALUES, ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES, PetFormData } from "../types";
-import { useGetAnimalSpecies } from "../api/get-animal-species";
+import { useAnimalSpecies } from "../hooks/use-animal-species";
 import { useGetInsurances } from "../api/get-insurances";
 import { usePermission } from "@/features/auth";
 
@@ -70,7 +71,7 @@ interface PetEditModalProps {
   onChangeOwner?: (newOwner: { id: string; name: string }) => void;
 }
 
-export function PetEditModal({
+export const PetEditModal = memo(function PetEditModal({
   open,
   onOpenChange,
   ownerName = "飼主名",
@@ -79,7 +80,11 @@ export function PetEditModal({
   onChangeOwner,
 }: PetEditModalProps) {
   const { canEdit } = usePermission("owners");
-  const { data: animalSpeciesList = [], isLoading: isLoadingSpecies } = useGetAnimalSpecies();
+  // BUG-321: 編集モード時に削除済み種類も含めて取得
+  const { allSpecies, activeSpecies, isLoading: isLoadingSpecies } = useAnimalSpecies({
+    includeInactive: !!petData?.id, // 編集モード時に削除済み種類を含める
+  });
+  const animalSpeciesList = petData?.id ? allSpecies : activeSpecies;
   const { data: insuranceList = [], isLoading: isLoadingInsurances } = useGetInsurances();
 
   const [formData, setFormData] = useState<PetFormData>(() => ({
@@ -152,9 +157,16 @@ export function PetEditModal({
   // animalSpeciesList / insuranceList は React Query でキャッシュされた API マスタデータ。
   // formData のキー入力ごとにモーダルが再レンダーされるが、リストが変わらない限り
   // useMemo で JSX ノードの再生成を防ぐ。
+  // BUG-321: 削除済み種類は label に "(利用不可)" を付与して表示
   const animalSpeciesSelectItems = useMemo(() =>
     animalSpeciesList.map((s) => (
-      <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+      <SelectItem
+        key={s.id}
+        value={String(s.id)}
+        disabled={s.isInactive}
+      >
+        {s.label || s.name}
+      </SelectItem>
     )),
     [animalSpeciesList]
   );
@@ -213,9 +225,6 @@ export function PetEditModal({
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      toast.error("必須項目が未入力です", {
-        description: Object.values(errors).join("、"),
-      });
       return;
     }
 
@@ -532,9 +541,10 @@ export function PetEditModal({
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="insuranceId" className={LABEL_CLS}>
-                保険
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="insuranceId" className={LABEL_CLS}>保険</Label>
+                <MasterLink category="insurance" label="編集" className="text-[11px]" />
+              </div>
               <Select
                 value={formData.insuranceId || "none"}
                 onValueChange={handleInsuranceChange}
@@ -629,4 +639,4 @@ export function PetEditModal({
       ) : null}
     </Dialog>
   );
-}
+});

@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 
 // External
 import { Check, Search, SearchX, RotateCcw } from "lucide-react";
@@ -32,7 +32,7 @@ const FIELDS = [
 
 const MAX_RESULTS = 20;
 
-export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelectionTableProps) {
+export const PatientSelectionTable = memo(function PatientSelectionTable({ onSelect, selectedPets }: PatientSelectionTableProps) {
   const [searchParams, setSearchParams] = useState({
     ownerId: "",
     ownerName: "",
@@ -222,4 +222,4 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
       </div>
     </div>
   );
-}
+});

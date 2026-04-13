@@ -1,13 +1,13 @@
 package handler
 
-type createDiagnosisCategoryRequest struct {
+type createDiagnosisTypeRequest struct {
 	Name        string `json:"name"        binding:"required"`
 	IsActive    bool   `json:"is_active"`
 	Description string `json:"description"`
 	SortOrder   int    `json:"sort_order"`
 }
 
-type updateDiagnosisCategoryRequest struct {
+type updateDiagnosisTypeRequest struct {
 	Name        *string `json:"name"`
 	IsActive    *bool   `json:"is_active"`
 	Description *string `json:"description"`
@@ -15,23 +15,23 @@ type updateDiagnosisCategoryRequest struct {
 }
 
 type createDiagnosisNameRequest struct {
-	Name                string `json:"name"                  binding:"required"`
-	DiagnosisCategoryID uint64 `json:"diagnosis_category_id" binding:"required"`
-	IsActive            bool   `json:"is_active"`
-	Description         string `json:"description"`
-	SortOrder           int    `json:"sort_order"`
+	Name            string `json:"name"                  binding:"required"`
+	DiagnosisTypeID uint64 `json:"diagnosis_type_id" binding:"required"`
+	IsActive        bool   `json:"is_active"`
+	Description     string `json:"description"`
+	SortOrder       int    `json:"sort_order"`
 }
 
 type updateDiagnosisNameRequest struct {
-	Name                *string `json:"name"`
-	DiagnosisCategoryID *uint64 `json:"diagnosis_category_id"`
-	IsActive            *bool   `json:"is_active"`
-	Description         *string `json:"description"`
-	SortOrder           *int    `json:"sort_order"`
+	Name            *string `json:"name"`
+	DiagnosisTypeID *uint64 `json:"diagnosis_type_id"`
+	IsActive        *bool   `json:"is_active"`
+	Description     *string `json:"description"`
+	SortOrder       *int    `json:"sort_order"`
 }
 
-// reorderDiagnosisCategoryRequest (#019)
-type reorderDiagnosisCategoryRequest struct {
+// reorderDiagnosisTypeRequest (#019)
+type reorderDiagnosisTypeRequest struct {
 	IDs []uint64 `json:"ids" binding:"required,min=1"`
 }
 

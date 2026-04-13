@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Edit } from "lucide-react";
 import { cn } from "@/components/ui/utils";
@@ -10,7 +11,7 @@ interface RowActionButtonProps {
   "aria-label"?: string;
 }
 
-export function RowActionButton({ icon: Icon = Edit, onClick, className, "aria-label": ariaLabel = "操作" }: RowActionButtonProps) {
+export const RowActionButton = memo(function RowActionButton({ icon: Icon = Edit, onClick, className, "aria-label": ariaLabel = "操作" }: RowActionButtonProps) {
   return (
     <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
         <Button
@@ -27,4 +28,4 @@ export function RowActionButton({ icon: Icon = Edit, onClick, className, "aria-l
         </Button>
     </div>
   );
-}
+});

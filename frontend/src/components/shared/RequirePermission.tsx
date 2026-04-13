@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
+import { C } from "@/lib/design-tokens";
 import type { Resource } from "@/types/generated/models";
 import { useAuth } from "@/features/auth";
 import type { ResourceAction } from "@/features/auth";
@@ -16,7 +17,7 @@ interface RequirePermissionProps {
  * デフォルト action は "view"（ページアクセス制御に使用）。
  * isSystemAdmin=true の場合は常に children を表示する。
  */
-export function RequirePermission({
+export const RequirePermission = memo(function RequirePermission({
   resource,
   action = "view",
   children,
@@ -29,13 +30,13 @@ export function RequirePermission({
   }
 
   return <>{children}</>;
-}
+});
 
 function AccessDenied() {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
-      <p className="text-lg font-medium text-foreground">アクセス権限がありません</p>
-      <p className="text-sm text-muted-foreground">
+      <p className={`text-lg font-medium ${C.text}`}>アクセス権限がありません</p>
+      <p className={`text-sm ${C.text50}`}>
         このページを表示するための権限が付与されていません。
       </p>
     </div>

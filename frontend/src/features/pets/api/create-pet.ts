@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import type { Pet } from "@/types";
+import { handleApiError } from "@/lib/handle-api-error";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import type { Pet as BackendPet } from "@/types/generated/models";
 import type { CreatePetRequest } from "@/types/pet";
@@ -18,5 +19,6 @@ export const useCreatePet = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pets"] });
     },
+    onError: (error) => handleApiError(error, "ペット登録"),
   });
 };

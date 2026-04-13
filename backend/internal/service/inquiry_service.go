@@ -11,10 +11,11 @@ import (
 
 // UpsertInquiryInput は問診 upsert の入力 DTO（nil = 未送信フィールド）
 type UpsertInquiryInput struct {
-	MedicalRecordID          uint64
-	ChiefComplaintCategoryID *uint64
-	ChiefComplaint           *string
-	Notes                    *string
+	ClinicID             uint64
+	MedicalRecordID      uint64
+	ChiefComplaintTypeID *uint64
+	ChiefComplaint       *string
+	Notes                *string
 }
 
 // InquiryService は医療記録問診のビジネスロジックインターフェース
@@ -36,8 +37,8 @@ func (s *inquiryService) Upsert(ctx context.Context, input UpsertInquiryInput) (
 	inquiry := &model.Inquiry{
 		MedicalRecordID: input.MedicalRecordID,
 	}
-	if input.ChiefComplaintCategoryID != nil {
-		inquiry.ChiefComplaintCategoryID = input.ChiefComplaintCategoryID
+	if input.ChiefComplaintTypeID != nil {
+		inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
 	}
 	if input.ChiefComplaint != nil {
 		inquiry.ChiefComplaint = *input.ChiefComplaint
@@ -46,7 +47,7 @@ func (s *inquiryService) Upsert(ctx context.Context, input UpsertInquiryInput) (
 		inquiry.Notes = *input.Notes
 	}
 
-	result, err := s.repo.UpsertByMedicalRecordID(ctx, inquiry)
+	result, err := s.repo.UpsertByMedicalRecordID(ctx, input.ClinicID, inquiry)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to upsert inquiry",
 			slog.Uint64("medical_record_id", input.MedicalRecordID),

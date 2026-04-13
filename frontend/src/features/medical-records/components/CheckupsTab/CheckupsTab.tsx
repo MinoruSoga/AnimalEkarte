@@ -8,6 +8,7 @@ import { toast } from "sonner";
 // Internal
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
@@ -141,7 +142,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
           <button
             onClick={handleSave}
             disabled={isPending}
-            className={`size-8 flex items-center justify-center rounded-[3px] ${C.textStatusGreen} ${C.hoverBgStatusGreen} transition-colors`}
+            className={`${STYLE.iconBtn32} ${C.textStatusGreen} ${C.hoverBgStatusGreen}`}
             title="保存"
           >
             <Check className={`${ICON.xs}`} />
@@ -149,7 +150,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
           <button
             onClick={onCancel}
             disabled={isPending}
-            className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverBgLight} transition-colors`}
+            className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverBgLight}`}
             title="キャンセル"
           >
             <X className={`${ICON.xs}`} />
@@ -168,18 +169,22 @@ interface CheckupsTabProps {
 
 // ── Component ──────────────────────────────────────────────────────────
 
-export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
+export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const createMutation = useCreateCheckup(medicalRecordId);
+  const { mutate: createCheckupFn } = createMutation;
   const updateMutation = useUpdateCheckup(medicalRecordId);
+  const { mutate: updateCheckupFn } = updateMutation;
   const deleteMutation = useDeleteCheckup(medicalRecordId);
+  const { mutate: deleteCheckupFn } = deleteMutation;
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   // BUG-090: lazy init で本日日付をデフォルト値にセット
   const [addForm, setAddForm] = useState<AddFormState>(() => makeDefaultAddForm());
+  const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
 
   // js-cache-function-results: checkupTypes 由来の option リストをキャッシュ
   const checkupTypeOptions = useMemo(
@@ -203,24 +208,28 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
 
   const handleAddSubmit = useCallback(() => {
     if (!canCreate) return;
-    if (!addForm.date || !addForm.checkup_type_id) {
-      toast.error("日付と健診種別IDは必須です");
+    const errors: Record<string, string> = {};
+    if (!addForm.date) errors.date = "日付は必須です";
+    if (!addForm.checkup_type_id) errors.checkup_type_id = "健診種別は必須です";
+    if (Object.keys(errors).length > 0) {
+      setAddFormErrors(errors);
       return;
     }
+    setAddFormErrors({});
     const input: CreateCheckupInput = {
       checkup_type_id: Number(addForm.checkup_type_id),
       date: addForm.date,
       next_date: addForm.next_date || null,
       result: addForm.result,
     };
-    createMutation.mutate(input, {
+    createCheckupFn(input, {
       onSuccess: () => {
         setAddForm(makeDefaultAddForm());
         setIsAdding(false);
         toast.success("健診記録を追加しました");
       },
     });
-  }, [canCreate, addForm, createMutation]);
+  }, [canCreate, addForm, createCheckupFn]);
 
   const handleAddCancel = useCallback(() => {
     setAddForm(EMPTY_ADD_FORM);
@@ -230,7 +239,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
   const handleEditSave = useCallback(
     (checkupId: string, input: UpdateCheckupInput) => {
       if (!canEdit) return;
-      updateMutation.mutate(
+      updateCheckupFn(
         { checkupId, input },
         {
           onSuccess: () => {
@@ -240,7 +249,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
         }
       );
     },
-    [canEdit, updateMutation]
+    [canEdit, updateCheckupFn]
   );
 
   const handleEditCancel = useCallback(() => {
@@ -250,13 +259,13 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
   const handleDelete = useCallback(
     (checkupId: string) => {
       if (!canDelete) return;
-      deleteMutation.mutate(checkupId, {
+      deleteCheckupFn(checkupId, {
         onSuccess: () => {
           toast.success("健診記録を削除しました");
         },
       });
     },
-    [canDelete, deleteMutation]
+    [canDelete, deleteCheckupFn]
   );
 
   // ── render ──
@@ -279,7 +288,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
           <tbody>
             {checkupList.length === 0 ? (
               <tr>
-                <td colSpan={6} className={`text-center py-12 text-sm ${C.text40}`}>
+                <td colSpan={6} className={STYLE.tableEmptySm}>
                   健診記録がありません。下の「記録を追加」ボタンから追加してください。
                 </td>
               </tr>
@@ -315,7 +324,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
                         {canEdit ? (
                           <button
                             onClick={() => setEditingId(checkup.id)}
-                            className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
+                            className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverText} ${C.hoverBgLight}`}
                             title="編集"
                           >
                             <Pencil className={`${ICON.xs}`} />
@@ -338,21 +347,27 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
 
         {/* インライン追加フォーム */}
         {isAdding ? (
-          <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
-            <NotionDatePicker
-              value={addForm.date}
-              onChange={(v) => handleAddFormChange("date", v)}
-              placeholder="日付"
-              className="h-8 w-32"
-            />
-            <select
-              value={addForm.checkup_type_id}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("checkup_type_id", e.target.value)}
-              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-32`}
-            >
-              <option value="">選択</option>
-              {checkupTypeOptions}
-            </select>
+          <div className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
+            <div className="flex flex-col">
+              <NotionDatePicker
+                value={addForm.date}
+                onChange={(v) => handleAddFormChange("date", v)}
+                placeholder="日付"
+                className="h-8 w-32"
+              />
+              <FormFieldError message={addFormErrors.date} />
+            </div>
+            <div className="flex flex-col">
+              <select
+                value={addForm.checkup_type_id}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("checkup_type_id", e.target.value)}
+                className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+              >
+                <option value="">選択</option>
+                {checkupTypeOptions}
+              </select>
+              <FormFieldError message={addFormErrors.checkup_type_id} />
+            </div>
             <NotionDatePicker
               value={addForm.next_date}
               onChange={(v) => handleAddFormChange("next_date", v)}
@@ -408,4 +423,4 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
       ) : null}
     </div>
   );
-}
+});

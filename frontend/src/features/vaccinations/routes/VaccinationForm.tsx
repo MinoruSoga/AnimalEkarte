@@ -17,6 +17,7 @@ import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { MasterLink } from "@/components/shared/MasterLink";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,6 +49,13 @@ const NEXT_SCHEDULE_ITEMS = (
   </>
 );
 
+// rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
+const VACCINATION_PRIORITY_FIELDS = ["date", "vaccineId"] as const;
+const VACCINATION_FIELD_ID_MAP: Record<string, string> = {
+  date: "vaccination-date",
+  vaccineId: "vaccine-select",
+};
+
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -75,14 +83,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
     const errorFields = Object.keys(formState.fieldErrors || {});
     if (errorFields.length === 0) return;
 
-    const PRIORITY_FIELDS = ["date", "vaccineId"];
-    const firstError = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
-
-    const idMap: Record<string, string> = {
-      date: "vaccination-date",
-      vaccineId: "vaccine-select",
-    };
-    const targetId = idMap[firstError] || firstError;
+    const firstError = VACCINATION_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
+    const targetId = VACCINATION_FIELD_ID_MAP[firstError] || firstError;
 
     const element = document.getElementById(targetId);
     if (element) {
@@ -124,6 +126,9 @@ export const VaccinationForm = memo(function VaccinationForm() {
   // --- 履歴セクション ---
   const { data: allVaccinations = [] } = useGetVaccinations();
 
+  // rerender-dependencies: オブジェクト参照ではなく primitive を deps に渡す
+  const { historySearchTerm, filterStartDate, filterEndDate, sortOrder } = historyFilter;
+
   const petHistory = useMemo(() => {
     if (!selectedPet) return [];
 
@@ -132,7 +137,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
     );
 
     // キーワード検索
-    const term = historyFilter.historySearchTerm.toLowerCase();
+    const term = historySearchTerm.toLowerCase();
     if (term) {
       result = result.filter((v) =>
         v.vaccineName.toLowerCase().includes(term),
@@ -140,22 +145,22 @@ export const VaccinationForm = memo(function VaccinationForm() {
     }
 
     // 日付フィルタ
-    if (historyFilter.filterStartDate) {
-      result = result.filter((v) => v.date >= historyFilter.filterStartDate);
+    if (filterStartDate) {
+      result = result.filter((v) => v.date >= filterStartDate);
     }
-    if (historyFilter.filterEndDate) {
-      result = result.filter((v) => v.date <= historyFilter.filterEndDate);
+    if (filterEndDate) {
+      result = result.filter((v) => v.date <= filterEndDate);
     }
 
     // ソート
     result = [...result].sort((a, b) =>
-      historyFilter.sortOrder === "asc"
+      sortOrder === "asc"
         ? a.date.localeCompare(b.date)
         : b.date.localeCompare(a.date),
     );
 
     return result;
-  }, [allVaccinations, selectedPet, id, historyFilter]);
+  }, [allVaccinations, selectedPet, id, historySearchTerm, filterStartDate, filterEndDate, sortOrder]);
 
   if (!selectedPet && !isEdit) {
     return (
@@ -227,9 +232,12 @@ export const VaccinationForm = memo(function VaccinationForm() {
                   <FormFieldError message={fieldErrors.date} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="vaccine-select">
-                    ワクチン<span className={`${C.textRequired} ml-1`}>*</span>
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="vaccine-select">
+                      ワクチン<span className={`${C.textRequired} ml-1`}>*</span>
+                    </Label>
+                    <MasterLink category="vaccine" label="編集" className="text-[11px]" />
+                  </div>
                   <Select value={vaccineId} onValueChange={(v) => { markDirty(); setVaccineId(v); }}>
                     <SelectTrigger id="vaccine-select">
                       <SelectValue placeholder="選択してください" />

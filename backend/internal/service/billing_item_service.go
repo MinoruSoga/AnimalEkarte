@@ -24,6 +24,7 @@ const (
 
 // CreateBillingItemInput は billing_item 作成の入力DTO
 type CreateBillingItemInput struct {
+	ClinicID              uint64
 	BillingID             uint64
 	Category              model.ItemCategory
 	Name                  string
@@ -69,10 +70,9 @@ func buildBillingItemUpdateFields(input *UpdateBillingItemInput) map[string]any 
 
 // BillingItemService は billing_items の CRUD とトータル再計算を担うインターフェース
 type BillingItemService interface {
-	GetByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error)
 	CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
-	UpdateItem(ctx context.Context, clinicID uint64, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
-	DeleteItem(ctx context.Context, clinicID uint64, id uint64) error
+	UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
+	DeleteItem(ctx context.Context, clinicID, id uint64) error
 }
 
 type billingItemService struct {
@@ -82,14 +82,6 @@ type billingItemService struct {
 // NewBillingItemService は BillingItemService を初期化して返す
 func NewBillingItemService(repo repository.BillingItemRepository) BillingItemService {
 	return &billingItemService{repo: repo}
-}
-
-func (s *billingItemService) GetByID(ctx context.Context, clinicID uint64, id uint64) (*model.BillingItem, error) {
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get billing item")
-	}
-	return result, nil
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
@@ -120,7 +112,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		return nil, apperrors.Wrap(err, "failed to create billing item")
 	}
 
-	if err := s.recalculateTotals(ctx, input.BillingID); err != nil {
+	if err := s.recalculateTotals(ctx, input.ClinicID, input.BillingID); err != nil {
 		slog.WarnContext(ctx, "failed to recalculate billing totals after create",
 			slog.Uint64("billing_id", input.BillingID),
 			slog.String("error", err.Error()),
@@ -134,7 +126,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	return item, nil
 }
 
-func (s *billingItemService) UpdateItem(ctx context.Context, clinicID uint64, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
+func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
 	item, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get billing item")
@@ -148,11 +140,11 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID uint64, id
 		return item, nil
 	}
 
-	if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
+	if err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update billing item")
 	}
 
-	if err := s.recalculateTotals(ctx, item.BillingID); err != nil {
+	if err := s.recalculateTotals(ctx, clinicID, item.BillingID); err != nil {
 		slog.WarnContext(ctx, "failed to recalculate billing totals after update",
 			slog.Uint64("billing_id", item.BillingID),
 			slog.String("error", err.Error()),
@@ -163,21 +155,25 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID uint64, id
 		slog.Uint64("item_id", id),
 		slog.Uint64("billing_id", item.BillingID),
 	)
-	return s.repo.FindByID(ctx, clinicID, id)
+	updated, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get billing item after update")
+	}
+	return updated, nil
 }
 
-func (s *billingItemService) DeleteItem(ctx context.Context, clinicID uint64, id uint64) error {
+func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64) error {
 	item, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get billing item")
 	}
 	billingID := item.BillingID
 
-	if err := s.repo.Delete(ctx, id); err != nil {
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete billing item")
 	}
 
-	if err := s.recalculateTotals(ctx, billingID); err != nil {
+	if err := s.recalculateTotals(ctx, clinicID, billingID); err != nil {
 		slog.WarnContext(ctx, "failed to recalculate billing totals after delete",
 			slog.Uint64("billing_id", billingID),
 			slog.String("error", err.Error()),
@@ -192,11 +188,14 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID uint64, id
 }
 
 // recalculateTotals は billing の全明細から subtotal/tax_total/total_amount を再計算して保存する
-func (s *billingItemService) recalculateTotals(ctx context.Context, billingID uint64) error {
-	items, err := s.repo.FindByBillingID(ctx, billingID)
+func (s *billingItemService) recalculateTotals(ctx context.Context, clinicID, billingID uint64) error {
+	items, err := s.repo.FindByBillingID(ctx, clinicID, billingID)
 	if err != nil {
-		return apperrors.Wrap(err, "find billing items")
+		return apperrors.Wrap(err, "failed to find billing items")
 	}
 	subtotal, taxTotal, totalAmount := CalculateBillingTotals(items)
-	return s.repo.UpdateBillingTotals(ctx, billingID, subtotal, taxTotal, totalAmount)
+	if err := s.repo.UpdateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount); err != nil {
+		return apperrors.Wrap(err, "failed to update billing totals")
+	}
+	return nil
 }

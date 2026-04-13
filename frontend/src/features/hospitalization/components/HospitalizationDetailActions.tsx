@@ -11,6 +11,7 @@ import { usePermission } from "@/features/auth";
 // Relative
 import { H_STYLES } from "../styles";
 import { C } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 
 // Types
 import type { Hospitalization } from "@/types";
@@ -39,7 +40,7 @@ export function HospitalizationDetailActions({ hospitalization, onDischargeClick
             {canEdit ? (
                 <Button
                     variant="outline"
-                    onClick={() => navigate(`/hospitalization/${hospitalization.id}/edit`)}
+                    onClick={() => navigate(paths.hospitalization.edit.getHref(hospitalization.id))}
                     className={`gap-2 ${H_STYLES.button.action}`}
                 >
                     <Settings className={H_STYLES.button.icon} />

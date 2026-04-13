@@ -215,18 +215,20 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   });
 
   // BUG-049: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  // rerender-dependencies: pagination（オブジェクト）を destructure し primitive を deps に使用
+  const { totalPages, currentPage, goToPage } = pagination;
   useEffect(() => {
-    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
-    if (clampedPage !== pagination.currentPage) {
-      pagination.goToPage(clampedPage);
+    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
+    if (clampedPage !== currentPage) {
+      goToPage(clampedPage);
     }
-  // pagination.goToPage は安定した参照、totalPages は依存として必要
+  // goToPage は安定した参照、totalPages は依存として必要
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlPage, pagination.totalPages]);
+  }, [urlPage, totalPages]);
 
   // BUG-049: ページ変更時にURLクエリパラメータを更新
   const handlePageChange = useCallback((page: number) => {
-    pagination.goToPage(page);
+    goToPage(page);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (page === 1) {
@@ -236,7 +238,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       }
       return next;
     }, { replace: true });
-  }, [pagination, setSearchParams]);
+  }, [goToPage, setSearchParams]);
 
   // フィルタ計算が遅延中（入力値 ≠ deferred 値）の視覚フィードバック
   const isFiltering = searchTerm !== deferredSearchTerm;
@@ -247,7 +249,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
 
   // rerender-functional-setstate: useCallback で安定した関数参照を維持
   const handleEdit = useCallback((ownerId: string) => {
-    navigate(`/owners/${ownerId}`);
+    navigate(paths.owners.detail.getHref(ownerId));
   }, [navigate]);
 
   // 行クリック → 飼主編集・ペット一覧ページに遷移

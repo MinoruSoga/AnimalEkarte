@@ -3,10 +3,11 @@ import { PetSelectionSearchForm } from "@/components/shared/PetSelection/PetSele
 import { PetSelectionResultsTable } from "@/components/shared/PetSelection/PetSelectionResultsTable";
 import { usePetSelectionPage } from "@/hooks/use-pet-selection-page";
 import { ResourceTrimming } from "@/types/generated/models";
+import { paths } from "@/config/paths";
 
 export function TrimmingPetSelection() {
   const { searchParams, setSearchParams, filteredPets, handleSearch, handleClear, handleSelect, handleBack } =
-    usePetSelectionPage({ selectPath: "/trimming/new", backPath: "/trimming" });
+    usePetSelectionPage({ selectPath: paths.trimming.new.getHref(), backPath: paths.trimming.getHref() });
 
   return (
     <PageLayout title="トリミング登録 - ペット選択" onBack={handleBack} resource={ResourceTrimming} maxWidth="max-w-full">

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Shift } from "@/features/shifts/types";
 import { ShiftCell } from "@/features/shifts/components/ShiftCell/ShiftCell";
+import type { ClinicHoliday } from "@/features/shifts/api/clinic-holidays";
 
 const ShiftFormDialog = lazy(() =>
   import("@/features/shifts/components/ShiftFormDialog/ShiftFormDialog").then((m) => ({ default: m.ShiftFormDialog }))
@@ -17,7 +18,7 @@ export interface StaffItem {
 
 // ─── ヘッダー列（静的 JSX）: rendering-hoist-jsx ───────────────────────
 const STAFF_HEADER = (
-  <div className={`sticky left-0 z-20 bg-white px-3 py-2 text-xs font-semibold ${C.text60} border-r border-b ${C.borderLight} min-w-[100px]`}>
+  <div className={`sticky left-0 z-20 bg-white px-3 py-2 text-xs font-semibold ${C.text60} border-r border-b ${C.borderLight} w-[120px] min-w-[120px] shrink-0`}>
     スタッフ
   </div>
 );
@@ -42,6 +43,7 @@ interface ShiftCalendarProps {
   yearMonth: string; // YYYY-MM
   shifts: Shift[];
   staffs: StaffItem[];
+  holidays: ClinicHoliday[];
   selectedStaffId: string;
   canCreate: boolean;
   canEdit: boolean;
@@ -49,12 +51,14 @@ interface ShiftCalendarProps {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onStaffChange: (staffId: string) => void;
+  onDateHeaderClick?: (dateStr: string) => void;
 }
 
 export const ShiftCalendar = memo(function ShiftCalendar({
   yearMonth,
   shifts,
   staffs,
+  holidays,
   selectedStaffId,
   canCreate,
   canEdit,
@@ -62,6 +66,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
   onPrevMonth,
   onNextMonth,
   onStaffChange,
+  onDateHeaderClick,
 }: ShiftCalendarProps) {
   const [dialog, setDialog] = useState<DialogState>(CLOSED_DIALOG);
 
@@ -85,6 +90,9 @@ export const ShiftCalendar = memo(function ShiftCalendar({
         : staffs.filter((s) => s.id === selectedStaffId),
     [staffs, selectedStaffId],
   );
+
+  // 定休日を日付文字列でインデックス化
+  const holidaySet = useMemo(() => new Set(holidays.map((h) => h.date)), [holidays]);
 
   // シフトを (staffId, date) でインデックス化
   const shiftIndex = useMemo(() => {
@@ -181,20 +189,32 @@ export const ShiftCalendar = memo(function ShiftCalendar({
             {days.map(({ day, dateStr, dayOfWeek }) => {
               const isSun = dayOfWeek === 0;
               const isSat = dayOfWeek === 6;
-              const colorClass = isSun
+              const isHoliday = holidaySet.has(dateStr);
+              const colorClass = isHoliday
                 ? C.danger
-                : isSat
-                  ? C.accent
-                  : C.text70;
+                : isSun
+                  ? C.danger
+                  : isSat
+                    ? C.accent
+                    : C.text70;
+              const isClickable = !!onDateHeaderClick && canCreate;
               return (
                 <div
                   key={dateStr}
-                  className={`min-w-[52px] w-[52px] px-1 py-2 text-center text-xs font-medium border-r ${C.borderLight} ${colorClass}`}
+                  role={isClickable ? "button" : undefined}
+                  tabIndex={isClickable ? 0 : undefined}
+                  aria-label={isClickable ? `${dateStr} の定休日設定` : undefined}
+                  onClick={isClickable ? () => onDateHeaderClick(dateStr) : undefined}
+                  onKeyDown={isClickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDateHeaderClick(dateStr); } } : undefined}
+                  className={`min-w-[52px] w-[52px] px-1 py-2 text-center text-xs font-medium border-r ${C.borderLight} ${colorClass} relative${isClickable ? " cursor-pointer hover:bg-gray-50 transition-colors" : ""}`}
                 >
                   <div>{day}</div>
                   <div className="text-[10px] opacity-70">
                     {["日", "月", "火", "水", "木", "金", "土"][dayOfWeek]}
                   </div>
+                  {isHoliday ? (
+                    <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-red-500" aria-label="定休日" />
+                  ) : null}
                 </div>
               );
             })}
@@ -204,8 +224,8 @@ export const ShiftCalendar = memo(function ShiftCalendar({
           {visibleStaffs.map((staff) => (
             <div key={staff.id} className={`flex border-b ${C.borderDivider} ${C.hoverBgPageHalf}`}>
               {/* スタッフ名列 */}
-              <div className={`sticky left-0 z-10 bg-white min-w-[100px] px-3 py-2 border-r ${C.borderLight} flex items-center`}>
-                <span className={`text-xs font-medium ${C.text} truncate max-w-[88px]`}>
+              <div className={`sticky left-0 z-10 bg-white w-[120px] min-w-[120px] shrink-0 px-3 py-2 border-r ${C.borderLight} flex items-center overflow-x-auto`}>
+                <span className={`text-xs font-medium ${C.text} whitespace-nowrap`}>
                   {staff.name}
                 </span>
               </div>

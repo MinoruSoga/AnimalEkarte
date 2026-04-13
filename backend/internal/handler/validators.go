@@ -40,17 +40,6 @@ func validateItemSource(v string) error {
 	}
 }
 
-// validateTreatmentItemType は治療項目種別文字列がドメイン上有効かを検証する
-func validateTreatmentItemType(v string) error {
-	switch model.TreatmentItemType(v) {
-	case model.TreatmentItemTypeConsultation, model.TreatmentItemTypeProcedure,
-		model.TreatmentItemTypeMedicine, model.TreatmentItemTypeOther:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid item_type: %s", v))
-	}
-}
-
 // validatePassword はパスワード複雑性を検証する（BUG-139）。
 // 8文字以上、英字1文字以上、数字1文字以上が必須。
 func validatePassword(pw string) error {

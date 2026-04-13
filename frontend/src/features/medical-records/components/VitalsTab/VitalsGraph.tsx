@@ -5,14 +5,14 @@ import { useState, memo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // Internal
-import { C, PALETTE } from "@/lib/design-tokens";
+import { C, ICON, PALETTE } from "@/lib/design-tokens";
 
 // Relative
 import type { Vital } from "@/features/medical-records/types";
 
 // ── 表示可能な指標定義 ────────────────────────────────────────────────
 
-type MetricKey = "temperature" | "heart_rate" | "respiratory_rate" | "body_weight";
+type MetricKey = "temperature" | "heart_rate" | "respiration_rate" | "weight";
 
 interface MetricDef {
   key: MetricKey;
@@ -26,8 +26,8 @@ interface MetricDef {
 const METRICS: MetricDef[] = [
   { key: "temperature",      label: "体温",   unit: "℃",    color: PALETTE.chartTemperature, yAxisId: "left",  domain: [30, 45] },
   { key: "heart_rate",       label: "心拍数", unit: "bpm",  color: PALETTE.accent,             yAxisId: "right", domain: [0, "auto"] },
-  { key: "respiratory_rate", label: "呼吸数", unit: "/min", color: PALETTE.chartRespiratory,   yAxisId: "right", domain: [0, "auto"] },
-  { key: "body_weight",      label: "体重",   unit: "",     color: PALETTE.chartWeight,        yAxisId: "left",  domain: [0, "auto"] },
+  { key: "respiration_rate", label: "呼吸数", unit: "/min", color: PALETTE.chartRespiratory,   yAxisId: "right", domain: [0, "auto"] },
+  { key: "weight",      label: "体重",   unit: "",     color: PALETTE.chartWeight,        yAxisId: "left",  domain: [0, "auto"] },
 ];
 
 // ── ユーティリティ ────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ interface VitalsGraphProps {
 export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProps) {
   // 初期状態: 体温と体重を表示
   const [activeMetrics, setActiveMetrics] = useState<Set<MetricKey>>(
-    () => new Set<MetricKey>(["temperature", "body_weight"])
+    () => new Set<MetricKey>(["temperature", "weight"])
   );
 
   const toggleMetric = (key: MetricKey) => {
@@ -106,8 +106,8 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
     recorded_at:      formatXAxis(v.recorded_at),
     temperature:      v.temperature ?? undefined,
     heart_rate:       v.heart_rate ?? undefined,
-    respiratory_rate: v.respiratory_rate ?? undefined,
-    body_weight:      v.body_weight ?? undefined,
+    respiration_rate: v.respiration_rate ?? undefined,
+    weight:      v.weight ?? undefined,
   }));
 
   // 右 Y 軸に表示する指標があるか
@@ -135,7 +135,7 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
               style={active ? { backgroundColor: m.color, borderColor: m.color } : {}}
             >
               <span
-                className="size-2 rounded-full shrink-0"
+                className={`${ICON.dot} rounded-full shrink-0`}
                 style={{ backgroundColor: active ? PALETTE.whiteAlpha80 : m.color }}
               />
               {m.label}

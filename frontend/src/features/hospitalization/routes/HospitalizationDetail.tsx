@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { DischargeAlertDialog } from "../components/DischargeAlertDialog";
@@ -22,6 +22,7 @@ export function HospitalizationDetail() {
     const {
         hospitalization,
         isLoading,
+        isError,
         dischargeHospitalization
     } = useHospitalizationDetail(id);
 
@@ -44,9 +45,9 @@ export function HospitalizationDetail() {
         }
     }, [dischargeHospitalization, navigate, hospitalizationPetId]);
 
-    if (isLoading || !hospitalization) {
-        return <LoadingFallback />;
-    }
+    if (isLoading) return <LoadingFallback />;
+    if (isError) return <ErrorFallback />;
+    if (!hospitalization) return <LoadingFallback />;
 
     return (
         <PageLayout

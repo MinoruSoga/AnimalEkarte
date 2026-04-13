@@ -27,7 +27,7 @@ func (h *Handler) ListVitals(c *gin.Context) {
 		return
 	}
 
-	vitals, err := h.svc.Vital.List(c.Request.Context(), medicalRecordID)
+	vitals, err := h.svc.Vital.List(c.Request.Context(), clinicID, medicalRecordID)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -1,12 +1,13 @@
 import { useState, useCallback, memo, useActionState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { isAxiosError } from "axios";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { useAuth } from "../hooks/use-auth";
@@ -22,20 +23,21 @@ interface DemoCredential {
   isSystemAdmin?: boolean;
 }
 
-const DEMO_ACCOUNTS: readonly DemoCredential[] = [
+const DEMO_ACCOUNTS: readonly DemoCredential[] = import.meta.env.DEV ? [
   // システム管理者（全医院）
-  { email: "admin@noavet.jp",        displayName: "システム管理 太郎", occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "全医院", isSystemAdmin: true },
+  { email: "hayashi@noah-vet.co.jp", displayName: "林 文明",     occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "全医院",   isSystemAdmin: true },
+  { email: "admin@noavet.jp",        displayName: "ノア",         occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "全医院",   isSystemAdmin: true },
   // 八王子院
-  { email: "admin@example.com",      displayName: "執行 太郎",       occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "八王子院" },
-  { email: "vet@example.com",        displayName: "一般 花子",       occupationLabel: "獣医師",   permissionLabel: "一般", clinicLabel: "八王子院" },
-  { email: "nurse@example.com",      displayName: "一般 美咲",       occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子院" },
-  { email: "reception@example.com",  displayName: "一般 一郎",       occupationLabel: "受付",     permissionLabel: "一般", clinicLabel: "八王子院" },
-  { email: "trimmer@example.com",    displayName: "一般 さくら",     occupationLabel: "トリマー", permissionLabel: "一般", clinicLabel: "八王子院" },
+  { email: "admin@example.com",      displayName: "安田 希恵",   occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子院" },
+  { email: "vet@example.com",        displayName: "倉田 春香",   occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子院" },
+  { email: "nurse@example.com",      displayName: "梶原 梨夢",   occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子院" },
+  { email: "reception@example.com",  displayName: "髙木 賀央里", occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子院" },
+  { email: "trimmer@example.com",    displayName: "さくら",      occupationLabel: "トリマー", permissionLabel: "一般", clinicLabel: "八王子院" },
   // 城東医院
-  { email: "joto-vet@example.com",   displayName: "城東 獣医",       occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "城東医院" },
+  { email: "joto-vet@example.com",   displayName: "城東 獣医",   occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "城東医院" },
   // 敷島医院
-  { email: "shiki-vet@example.com",  displayName: "敷島 獣医",       occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "敷島医院" },
-];
+  { email: "shiki-vet@example.com",  displayName: "敷島 獣医",   occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "敷島医院" },
+] : [];
 
 const DemoAccount = memo(function DemoAccount({
   email,
@@ -86,7 +88,7 @@ const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} bo
 
 /* ---- Login Form ---- */
 
-export function LoginForm() {
+export const LoginForm = memo(function LoginForm() {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -109,9 +111,12 @@ export function LoginForm() {
 
         // 1. location.state から取得 (内部遷移)
         // 2. URL クエリパラメータから取得 (Axios インターセプター等からの強制遷移)
-        const searchParams = new URLSearchParams(window.location.search);
-        const queryFrom = searchParams.get("from");
-        const from = (location.state as { from?: string })?.from || queryFrom || "/";
+        // オープンリダイレクト対策: "/" 始まりかつ "//" 始まりでないパスのみ許可
+        const isSafePath = (s: string | null | undefined): s is string =>
+          typeof s === "string" && s.startsWith("/") && !s.startsWith("//");
+        const stateFrom = (location.state as { from?: string })?.from;
+        const queryFrom = new URLSearchParams(window.location.search).get("from");
+        const from = isSafePath(stateFrom) ? stateFrom : isSafePath(queryFrom) ? queryFrom : "/";
 
         navigate(from, { replace: true });
         return { success: true, error: null, timestamp: Date.now() };
@@ -145,7 +150,7 @@ export function LoginForm() {
 
   // ログイン済みなら即リダイレクト（直接 /login にアクセスした場合）
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={paths.home.getHref()} replace />;
   }
 
   return (
@@ -206,7 +211,7 @@ export function LoginForm() {
             <button
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
-              className={`absolute right-1 top-1/2 -translate-y-1/2 size-8 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} transition-colors`}
+              className={`absolute right-1 top-1/2 -translate-y-1/2 ${STYLE.iconBtn32} ${C.text35} ${C.hoverText}`}
               aria-label={showPassword ? "パスワードを非表示" : "パスワードを表示"}
             >
               {showPassword ? <EyeOff className={ICON.action} /> : <Eye className={ICON.action} />}
@@ -226,7 +231,7 @@ export function LoginForm() {
 
         <div className="text-center">
           <Link
-            to="/forgot-password"
+            to={paths.auth.forgotPassword.getHref()}
             className={`text-sm ${C.text50} hover:underline`}
           >
             パスワードをお忘れですか？
@@ -256,4 +261,4 @@ export function LoginForm() {
       ) : null}
     </div>
   );
-}
+});

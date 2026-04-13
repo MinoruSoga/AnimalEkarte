@@ -1,15 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
-import type { ReservationCustomer } from "./types";
+import type { LineCustomer } from "./types";
 
 export async function updateOwnerLink(
   clinicId: string,
   customerId: number,
   ownerID: number | null,
-): Promise<ReservationCustomer> {
-  const { data } = await axios.patch<ReservationCustomer>(
-    `/v1/clinics/${clinicId}/reservation-customers/${customerId}/link-owner`,
+): Promise<LineCustomer> {
+  const { data } = await axios.patch<LineCustomer>(
+    `/v1/clinics/${clinicId}/line-customers/${customerId}/link-owner`,
     { owner_id: ownerID },
   );
   return data;
@@ -26,7 +26,7 @@ export function useUpdateOwnerLink(clinicId: string | null) {
       ownerID: number | null;
     }) => updateOwnerLink(clinicId!, customerId, ownerID),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reservation-customers", clinicId] });
+      queryClient.invalidateQueries({ queryKey: ["line-customers", clinicId] });
     },
     onError: (error) => {
       handleApiError(error, "オーナー紐付け");

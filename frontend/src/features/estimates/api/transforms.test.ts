@@ -101,10 +101,10 @@ describe("transformEstimate", () => {
     expect(result.items[0].quantity).toBe(2);
   });
 
-  it("owner.owner_name を ownerName にマップする", () => {
+  it("owner.name を ownerName にマップする", () => {
     const result = transformEstimate({
       ...minimal,
-      owner: { id: 5, clinic_id: 1, owner_name: "田中太郎" } as BackendEstimate["owner"],
+      owner: { id: 5, clinic_id: 1, name: "田中太郎" } as BackendEstimate["owner"],
     });
     expect(result.ownerName).toBe("田中太郎");
   });

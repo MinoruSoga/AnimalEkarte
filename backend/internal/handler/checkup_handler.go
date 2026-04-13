@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,9 +13,13 @@ import (
 
 // ListCheckups は指定カルテに紐づく健診記録の一覧を返す
 func (h *Handler) ListCheckups(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical_record id"))
+	_, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -35,9 +38,8 @@ func (h *Handler) CreateCheckup(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical_record id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -80,15 +82,18 @@ func (h *Handler) CreateCheckup(c *gin.Context) {
 
 // UpdateCheckup は健診記録を部分更新する
 func (h *Handler) UpdateCheckup(c *gin.Context) {
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical_record id"))
+	clinicID, ok := extractClinicID(c)
+	if !ok {
 		return
 	}
 
-	checkupID, err := strconv.ParseUint(c.Param("checkupId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid checkup id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+
+	checkupID, ok := parseIDParam(c, "checkupId")
+	if !ok {
 		return
 	}
 
@@ -117,7 +122,7 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 		updateNextDate = &nd
 	}
 
-	checkup, err := h.svc.Checkup.Update(c.Request.Context(), medicalRecordID, checkupID, &service.UpdateCheckupInput{
+	checkup, err := h.svc.Checkup.Update(c.Request.Context(), clinicID, medicalRecordID, checkupID, &service.UpdateCheckupInput{
 		CheckupTypeID: req.CheckupTypeID,
 		PetID:         req.PetID,
 		Date:          updateDate,
@@ -134,19 +139,22 @@ func (h *Handler) UpdateCheckup(c *gin.Context) {
 
 // DeleteCheckup は健診記録を soft delete する
 func (h *Handler) DeleteCheckup(c *gin.Context) {
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical_record id"))
+	clinicID, ok := extractClinicID(c)
+	if !ok {
 		return
 	}
 
-	checkupID, err := strconv.ParseUint(c.Param("checkupId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid checkup id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
-	if err := h.svc.Checkup.Delete(c.Request.Context(), medicalRecordID, checkupID); err != nil {
+	checkupID, ok := parseIDParam(c, "checkupId")
+	if !ok {
+		return
+	}
+
+	if err := h.svc.Checkup.Delete(c.Request.Context(), clinicID, medicalRecordID, checkupID); err != nil {
 		RespondError(c, err)
 		return
 	}

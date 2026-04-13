@@ -93,12 +93,13 @@ export function DailyCareLogDialog({ open, onOpenChange, type, onSave }: DailyCa
         >
             <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                    <Label>記録時刻</Label>
-                    <Input type="time" value={form.time} onChange={e => setForm(prev => ({...prev, time: e.target.value}))} className={H_STYLES.text.base} />
+                    <Label htmlFor="care-log-time">記録時刻</Label>
+                    <Input id="care-log-time" type="time" value={form.time} onChange={e => setForm(prev => ({...prev, time: e.target.value}))} className={H_STYLES.text.base} />
                 </div>
                 <div className="space-y-2">
-                    <Label>内容・量</Label>
+                    <Label htmlFor="care-log-value">内容・量</Label>
                     <Input
+                        id="care-log-value"
                         placeholder={getPlaceholder()}
                         value={form.value}
                         onChange={e => setForm(prev => ({...prev, value: e.target.value}))}

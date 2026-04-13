@@ -1,4 +1,4 @@
-// Package repository provides data access implementations for DiagnosisCategory and DiagnosisName entities.
+// Package repository provides data access implementations for DiagnosisType and DiagnosisName entities.
 package repository
 
 import (
@@ -11,99 +11,99 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ---- DiagnosisCategory ----
+// ---- DiagnosisType ----
 
-type DiagnosisCategoryRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error)
-	FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error)
-	Create(ctx context.Context, category *model.DiagnosisCategory) error
+type DiagnosisTypeRepository interface {
+	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
+	Create(ctx context.Context, category *model.DiagnosisType) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountNamesByCategoryID(ctx context.Context, categoryID uint64) (int64, error)
 }
 
-type diagnosisCategoryRepository struct{ db *gorm.DB }
+type diagnosisTypeRepository struct{ db *gorm.DB }
 
-func NewDiagnosisCategoryRepository(db *gorm.DB) DiagnosisCategoryRepository {
-	return &diagnosisCategoryRepository{db: db}
+func NewDiagnosisTypeRepository(db *gorm.DB) DiagnosisTypeRepository {
+	return &diagnosisTypeRepository{db: db}
 }
 
-func (r *diagnosisCategoryRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error) {
-	categories := make([]model.DiagnosisCategory, 0)
+func (r *diagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
+	categories := make([]model.DiagnosisType, 0)
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		return r.db.WithContext(ctx).Model(&model.DiagnosisCategory{}).Where("clinic_id = ?", clinicID)
+		return r.db.WithContext(ctx).Model(&model.DiagnosisType{}).Scopes(clinicScope(clinicID))
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "diagnosis_category", "")
+		return nil, 0, apperrors.FromGORM(err, "diagnosis_type", "")
 	}
 	if err := buildBase().
 		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "diagnosis_category", "")
+		return nil, 0, apperrors.FromGORM(err, "diagnosis_type", "")
 	}
 	return categories, total, nil
 }
 
-func (r *diagnosisCategoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error) {
-	var category model.DiagnosisCategory
+func (r *diagnosisTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error) {
+	var category model.DiagnosisType
 	err := r.db.WithContext(ctx).
 		Preload("Names").
-		First(&category, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&category).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "diagnosis_category", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(err, "diagnosis_type", fmt.Sprintf("%d", id))
 	}
 	return &category, nil
 }
 
-func (r *diagnosisCategoryRepository) Create(ctx context.Context, category *model.DiagnosisCategory) error {
+func (r *diagnosisTypeRepository) Create(ctx context.Context, category *model.DiagnosisType) error {
 	err := r.db.WithContext(ctx).Create(category).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.FromGORM(err, "diagnosis_category", "")
+		return apperrors.FromGORM(err, "diagnosis_type", "")
 	}
 	return nil
 }
 
-func (r *diagnosisCategoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *diagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
-		Model(&model.DiagnosisCategory{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Model(&model.DiagnosisType{}).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "diagnosis_category", fmt.Sprintf("%d", id))
+		return apperrors.FromGORM(result.Error, "diagnosis_type", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("diagnosis_category", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("diagnosis_type", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
 
-func (r *diagnosisCategoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+func (r *diagnosisTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
-		Delete(&model.DiagnosisCategory{})
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
+		Delete(&model.DiagnosisType{})
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "diagnosis_category", fmt.Sprintf("%d", id))
+		return apperrors.FromGORM(result.Error, "diagnosis_type", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("diagnosis_category", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("diagnosis_type", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
 
 // CountNamesByCategoryID は指定カテゴリに属する diagnosis_names の件数を返す（BUG-113 補足）
-func (r *diagnosisCategoryRepository) CountNamesByCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
+func (r *diagnosisTypeRepository) CountNamesByCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.DiagnosisName{}).
-		Where("diagnosis_category_id = ?", categoryID).
+		Where("diagnosis_type_id = ?", categoryID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "diagnosis_name", "")
 	}
@@ -111,25 +111,8 @@ func (r *diagnosisCategoryRepository) CountNamesByCategoryID(ctx context.Context
 }
 
 // Reorder はトランザクション内でカテゴリの sort_order を ids の順序で更新する (#019)
-func (r *diagnosisCategoryRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.DiagnosisCategory{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "diagnosis_category", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("diagnosis_category id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return apperrors.Wrap(err, "reorder diagnosis category")
-	}
-	return nil
+func (r *diagnosisTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return reorderByClinicID(ctx, r.db, &model.DiagnosisType{}, "diagnosis_type", clinicID, ids)
 }
 
 // ---- DiagnosisName ----
@@ -156,7 +139,7 @@ func (r *diagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, 
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Where("clinic_id = ?", clinicID)
+		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(clinicScope(clinicID))
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
@@ -177,7 +160,8 @@ func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID
 
 	buildBase := func() *gorm.DB {
 		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).
-			Where("clinic_id = ? AND diagnosis_category_id = ?", clinicID, categoryID)
+			Scopes(clinicScope(clinicID)).
+			Where("diagnosis_type_id = ?", categoryID)
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
@@ -195,7 +179,7 @@ func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID
 func (r *diagnosisNameRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
 	var name model.DiagnosisName
 	err := r.db.WithContext(ctx).
-		First(&name, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&name).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "diagnosis_name", fmt.Sprintf("%d", id))
 	}
@@ -216,7 +200,7 @@ func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.Diagno
 func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.DiagnosisName{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))
@@ -229,7 +213,7 @@ func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint6
 
 func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.DiagnosisName{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))
@@ -255,22 +239,5 @@ func (r *diagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(ctx contex
 
 // Reorder はトランザクション内で診断名の sort_order を ids の順序で更新する (#019)
 func (r *diagnosisNameRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.DiagnosisName{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("diagnosis_name id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return apperrors.Wrap(err, "reorder diagnosis name")
-	}
-	return nil
+	return reorderByClinicID(ctx, r.db, &model.DiagnosisName{}, "diagnosis_name", clinicID, ids)
 }

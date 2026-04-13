@@ -34,7 +34,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 			q = q.Where("vaccinations.pet_id = ?", *petID)
 		}
 		if ownerID != nil {
-			q = q.Joins("JOIN pets ON pets.id = vaccinations.pet_id").Where("pets.owner_id = ?", *ownerID)
+			q = q.Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.deleted_at IS NULL").Where("pets.owner_id = ?", *ownerID)
 		}
 		if startDate != nil {
 			q = q.Where("vaccinations.date >= ?", *startDate)
@@ -85,7 +85,7 @@ func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.V
 func (r *vaccinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))
@@ -98,7 +98,7 @@ func (r *vaccinationRepository) UpdateFields(ctx context.Context, clinicID, id u
 
 func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.Vaccination{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))

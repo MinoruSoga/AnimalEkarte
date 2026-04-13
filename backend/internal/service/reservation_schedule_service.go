@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -53,8 +54,8 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 		return []ScheduleEntry{}, nil
 	}
 	entryIDs := make([]uint64, len(entries))
-	for i, e := range entries {
-		entryIDs[i] = e.ID
+	for i := range entries {
+		entryIDs[i] = entries[i].ID
 	}
 	breaksMap, err := s.repo.FindBreaksByEntryIDs(ctx, entryIDs)
 	if err != nil {
@@ -97,6 +98,10 @@ func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staff
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to load schedule breaks after upsert")
 	}
+	slog.InfoContext(ctx, "schedule upserted",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("staff_id", staffID),
+		slog.String("date", date.Format("2006-01-02")))
 	return &ScheduleEntry{Entry: *entry, Breaks: savedBreaks}, nil
 }
 
@@ -104,5 +109,9 @@ func (s *reservationScheduleService) Delete(ctx context.Context, clinicID, staff
 	if err := s.repo.DeleteByDate(ctx, clinicID, staffID, date); err != nil {
 		return apperrors.Wrap(err, "failed to delete schedule")
 	}
+	slog.InfoContext(ctx, "schedule deleted",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("staff_id", staffID),
+		slog.String("date", date.Format("2006-01-02")))
 	return nil
 }

@@ -18,11 +18,11 @@ type TreatmentSortUpdate struct {
 
 // TreatmentRepository は治療項目の永続化インターフェース
 type TreatmentRepository interface {
-	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Treatment, error)
-	FindByID(ctx context.Context, id uint64) (*model.Treatment, error)
+	ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	Create(ctx context.Context, treatment *model.Treatment) error
-	Update(ctx context.Context, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, id uint64) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	BulkUpdateSortOrder(ctx context.Context, updates []TreatmentSortUpdate) error
 }
 
@@ -35,24 +35,26 @@ func NewTreatmentRepository(db *gorm.DB) TreatmentRepository {
 	return &treatmentRepository{db: db}
 }
 
-func (r *treatmentRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Treatment, error) {
+func (r *treatmentRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
 	treatments := make([]model.Treatment, 0)
 	if err := r.db.WithContext(ctx).
+		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
+		Where("medical_records.clinic_id = ? AND treatments.medical_record_id = ? AND treatments.deleted_at IS NULL", clinicID, medicalRecordID).
 		Preload("Consultation").
 		Preload("Procedure").
 		Preload("Medicine").
-		Where("medical_record_id = ? AND deleted_at IS NULL", medicalRecordID).
-		Order("sort_order ASC").
+		Order("treatments.sort_order ASC").
 		Find(&treatments).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "treatment", "")
 	}
 	return treatments, nil
 }
 
-func (r *treatmentRepository) FindByID(ctx context.Context, id uint64) (*model.Treatment, error) {
+func (r *treatmentRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error) {
 	var treatment model.Treatment
 	err := r.db.WithContext(ctx).
-		Where("id = ? AND deleted_at IS NULL", id).
+		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
+		Where("medical_records.clinic_id = ? AND treatments.id = ? AND treatments.deleted_at IS NULL", clinicID, id).
 		First(&treatment).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", id))
@@ -67,10 +69,11 @@ func (r *treatmentRepository) Create(ctx context.Context, treatment *model.Treat
 	return nil
 }
 
-func (r *treatmentRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Treatment{}).
-		Where("id = ? AND deleted_at IS NULL", id).
+		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
+		Where("medical_records.clinic_id = ? AND treatments.id = ? AND treatments.deleted_at IS NULL", clinicID, id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", id))
@@ -81,8 +84,11 @@ func (r *treatmentRepository) Update(ctx context.Context, id uint64, fields map[
 	return nil
 }
 
-func (r *treatmentRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Treatment{}, id)
+func (r *treatmentRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).
+		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
+		Where("medical_records.clinic_id = ? AND treatments.id = ? AND treatments.deleted_at IS NULL", clinicID, id).
+		Delete(&model.Treatment{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", id))
 	}
@@ -99,12 +105,12 @@ func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates [
 				Where("id = ? AND deleted_at IS NULL", u.ID).
 				Update("sort_order", u.SortOrder)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, fmt.Sprintf("bulk update sort_order for treatment %d", u.ID))
+				return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", u.ID))
 			}
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "bulk update treatment sort order")
+		return apperrors.Wrap(err, "bulk update sort order")
 	}
 	return nil
 }

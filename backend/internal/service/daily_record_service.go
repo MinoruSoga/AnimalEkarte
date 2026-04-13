@@ -22,8 +22,8 @@ type CreateVitalRecordInput struct {
 	StaffID         *uint64
 }
 
-// CreateCareLogRecordInput はケアログ記録作成のサービス入力DTO
-type CreateCareLogRecordInput struct {
+// CreateCareLogInput はケアログ記録作成のサービス入力DTO
+type CreateCareLogInput struct {
 	Time    time.Time
 	Type    string
 	Status  string
@@ -32,8 +32,8 @@ type CreateCareLogRecordInput struct {
 	Notes   string
 }
 
-// CreateStaffNoteRecordInput はスタッフメモ記録作成のサービス入力DTO
-type CreateStaffNoteRecordInput struct {
+// CreateStaffNoteInput はスタッフメモ記録作成のサービス入力DTO
+type CreateStaffNoteInput struct {
 	Time    time.Time
 	Content string
 	StaffID *uint64
@@ -41,11 +41,11 @@ type CreateStaffNoteRecordInput struct {
 
 // DailyRecordService は日次記録のビジネスロジックインターフェース
 type DailyRecordService interface {
-	List(ctx context.Context, hospitalizationID uint64) ([]model.DailyRecord, error)
-	GetOrCreateByDate(ctx context.Context, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
-	AddVitalRecord(ctx context.Context, hospitalizationID uint64, date time.Time, input *CreateVitalRecordInput) (*model.DailyRecord, error)
-	AddCareLogRecord(ctx context.Context, hospitalizationID uint64, date time.Time, input *CreateCareLogRecordInput) (*model.DailyRecord, error)
-	AddStaffNoteRecord(ctx context.Context, hospitalizationID uint64, date time.Time, input *CreateStaffNoteRecordInput) (*model.DailyRecord, error)
+	List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error)
+	GetOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
+	AddVitalRecord(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *CreateVitalRecordInput) (*model.DailyRecord, error)
+	AddCareLog(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *CreateCareLogInput) (*model.DailyRecord, error)
+	AddStaffNote(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *CreateStaffNoteInput) (*model.DailyRecord, error)
 }
 
 type dailyRecordService struct {
@@ -57,24 +57,24 @@ func NewDailyRecordService(repo repository.DailyRecordRepository) DailyRecordSer
 	return &dailyRecordService{repo: repo}
 }
 
-func (s *dailyRecordService) List(ctx context.Context, hospitalizationID uint64) ([]model.DailyRecord, error) {
-	result, err := s.repo.ListByHospitalizationID(ctx, hospitalizationID)
+func (s *dailyRecordService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
+	result, err := s.repo.ListByHospitalizationID(ctx, clinicID, hospitalizationID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list daily record")
 	}
 	return result, nil
 }
 
-func (s *dailyRecordService) GetOrCreateByDate(ctx context.Context, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
-	result, err := s.repo.GetOrCreateByDate(ctx, hospitalizationID, date)
+func (s *dailyRecordService) GetOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+	result, err := s.repo.GetOrCreateByDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create daily record")
 	}
 	return result, nil
 }
 
-func (s *dailyRecordService) AddVitalRecord(ctx context.Context, hospitalizationID uint64, date time.Time, input *CreateVitalRecordInput) (*model.DailyRecord, error) {
-	daily, err := s.repo.GetOrCreateByDate(ctx, hospitalizationID, date)
+func (s *dailyRecordService) AddVitalRecord(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *CreateVitalRecordInput) (*model.DailyRecord, error) {
+	daily, err := s.repo.GetOrCreateByDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create daily record")
 	}
@@ -95,18 +95,19 @@ func (s *dailyRecordService) AddVitalRecord(ctx context.Context, hospitalization
 	}
 
 	slog.InfoContext(ctx, "vital record added",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("daily_record_id", daily.ID),
 		slog.Uint64("vital_record_id", vr.ID))
 
-	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, hospitalizationID, date)
+	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get daily record after adding vital")
 	}
 	return result, nil
 }
 
-func (s *dailyRecordService) AddCareLogRecord(ctx context.Context, hospitalizationID uint64, date time.Time, input *CreateCareLogRecordInput) (*model.DailyRecord, error) {
+func (s *dailyRecordService) AddCareLog(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *CreateCareLogInput) (*model.DailyRecord, error) {
 	careLogType := model.CareLogType(input.Type)
 	switch careLogType {
 	case model.CareLogTypeFood, model.CareLogTypeExcretion, model.CareLogTypeMedicine,
@@ -127,12 +128,12 @@ func (s *dailyRecordService) AddCareLogRecord(ctx context.Context, hospitalizati
 		}
 	}
 
-	daily, err := s.repo.GetOrCreateByDate(ctx, hospitalizationID, date)
+	daily, err := s.repo.GetOrCreateByDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create daily record")
 	}
 
-	cr := &model.CareLogRecord{
+	cr := &model.CareLog{
 		DailyRecordID: daily.ID,
 		Time:          input.Time,
 		Type:          careLogType,
@@ -141,44 +142,46 @@ func (s *dailyRecordService) AddCareLogRecord(ctx context.Context, hospitalizati
 		StaffID:       input.StaffID,
 		Notes:         input.Notes,
 	}
-	if err := s.repo.CreateCareLogRecord(ctx, cr); err != nil {
+	if err := s.repo.CreateCareLog(ctx, cr); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create care log record")
 	}
 
 	slog.InfoContext(ctx, "care log record added",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("daily_record_id", daily.ID),
-		slog.Uint64("care_log_record_id", cr.ID))
+		slog.Uint64("care_log_id", cr.ID))
 
-	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, hospitalizationID, date)
+	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get daily record after adding care log")
 	}
 	return result, nil
 }
 
-func (s *dailyRecordService) AddStaffNoteRecord(ctx context.Context, hospitalizationID uint64, date time.Time, input *CreateStaffNoteRecordInput) (*model.DailyRecord, error) {
-	daily, err := s.repo.GetOrCreateByDate(ctx, hospitalizationID, date)
+func (s *dailyRecordService) AddStaffNote(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *CreateStaffNoteInput) (*model.DailyRecord, error) {
+	daily, err := s.repo.GetOrCreateByDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create daily record")
 	}
 
-	sn := &model.StaffNoteRecord{
+	sn := &model.StaffNote{
 		DailyRecordID: daily.ID,
 		Time:          input.Time,
 		Content:       input.Content,
 		StaffID:       input.StaffID,
 	}
-	if err := s.repo.CreateStaffNoteRecord(ctx, sn); err != nil {
+	if err := s.repo.CreateStaffNote(ctx, sn); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create staff note record")
 	}
 
 	slog.InfoContext(ctx, "staff note record added",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("daily_record_id", daily.ID),
-		slog.Uint64("staff_note_record_id", sn.ID))
+		slog.Uint64("staff_note_id", sn.ID))
 
-	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, hospitalizationID, date)
+	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get daily record after adding staff note")
 	}

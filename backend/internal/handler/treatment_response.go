@@ -17,12 +17,12 @@ type treatmentResponse struct {
 	InventoryID     *string   `json:"inventory_id,omitempty"`
 	UnitPrice       int64     `json:"unit_price"`
 	Quantity        float64   `json:"quantity"`
-	Selected        bool      `json:"selected"`
+	Selected        bool      `json:"is_selected"`
 	Status          string    `json:"status"`
 	Content         string    `json:"content"`
 	Memo            string    `json:"memo"`
 	AdminRoute      string    `json:"admin_route"`
-	Insurance       bool      `json:"insurance"`
+	Insurance       bool      `json:"is_insurance"`
 	DiscountRate    float64   `json:"discount_rate"`
 	DiscountAmount  int64     `json:"discount_amount"`
 	SortOrder       int       `json:"sort_order"`
@@ -41,12 +41,12 @@ func toTreatmentResponse(t *model.Treatment) treatmentResponse {
 		InventoryID:     uint64PtrToStringPtr(t.InventoryID),
 		UnitPrice:       t.UnitPrice,
 		Quantity:        t.Quantity,
-		Selected:        t.Selected,
+		Selected:        t.IsSelected,
 		Status:          string(t.Status),
 		Content:         t.Content,
 		Memo:            t.Memo,
 		AdminRoute:      t.AdminRoute,
-		Insurance:       t.Insurance,
+		Insurance:       t.IsInsurance,
 		DiscountRate:    t.DiscountRate,
 		DiscountAmount:  t.DiscountAmount,
 		SortOrder:       t.SortOrder,

@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
-import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } from "../api/billing-review";
+import { useGetBillingConfirmation, useConfirmBillingConfirmation, useReturnBillingConfirmation } from "../api/billing-confirmation";
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
 import { useAuth, usePermission } from "@/features/auth";
 import { CheckCircle2, RotateCcw } from "lucide-react";
@@ -33,20 +33,21 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
 
   // ── API ──
   const { data: treatments = [] } = useGetTreatments(medicalRecordId);
-  const { data: billingReview } = useGetBillingReview(medicalRecordId);
+  const { data: billingConfirmation } = useGetBillingConfirmation(medicalRecordId);
   const createTreatmentMutation = useCreateTreatment(medicalRecordId);
-  const updateTreatmentMutation = useUpdateTreatment(medicalRecordId);
-  const confirmMutation = useConfirmBillingReview(medicalRecordId);
+  const { mutate: updateTreatment } = useUpdateTreatment(medicalRecordId);
+  const confirmMutation = useConfirmBillingConfirmation(medicalRecordId);
   const userId = Number(user?.id ?? 0);
-  const returnMutation = useReturnBillingReview(medicalRecordId, userId);
+  const returnMutation = useReturnBillingConfirmation(medicalRecordId, userId);
 
   const [isConfirmPending, startConfirmTransition] = useTransition();
 
+  const { mutateAsync: confirmBillingAsync } = confirmMutation;
   const handleConfirm = useCallback(() => {
     if (!canEdit) return;
     startConfirmTransition(async () => {
       try {
-        await confirmMutation.mutateAsync({
+        await confirmBillingAsync({
           confirmed_by: Number(userId ?? 0),
           memo: "医師確認済み",
         });
@@ -55,31 +56,33 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         handleApiError(error, "会計確認");
       }
     });
-  }, [canEdit, confirmMutation, userId]);
+  }, [canEdit, confirmBillingAsync, userId]);
 
+  const { mutate: returnBillingFn } = returnMutation;
   const handleReturn = useCallback(() => {
     if (!canEdit) return;
-    returnMutation.mutate({
+    returnBillingFn({
       return_reason: "医師による差し戻し",
     }, {
       onSuccess: () => {
         toast.success("会計確認を差し戻しました");
-      }
+      },
+      onError: (error) => handleApiError(error, "会計確認の差し戻し"),
     });
-  }, [canEdit, returnMutation]);
+  }, [canEdit, returnBillingFn]);
 
   const items: TreatmentItem[] = useMemo(() => {
     return treatments.map(t => ({
       id: Number(t.id),
       content: t.content,
       memo: t.memo,
-      insurance: t.insurance,
+      is_insurance: t.is_insurance,
       unitPrice: t.unit_price,
       quantity: t.quantity,
       discountRate: t.discount_rate,
       discountAmount: t.discount_amount,
       status: t.status,
-      selected: t.selected
+      is_selected: t.is_selected
     }));
   }, [treatments]);
 
@@ -88,41 +91,46 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     const input: UpdateTreatmentInput = {};
     if (field === "content") input.content = String(value);
     if (field === "memo") input.memo = String(value);
-    if (field === "insurance") input.insurance = Boolean(value);
+    if (field === "is_insurance") input.is_insurance = Boolean(value);
     if (field === "unitPrice") input.unit_price = Number(value);
     if (field === "quantity") input.quantity = Number(value);
     if (field === "discountRate") input.discount_rate = Number(value) / 100;
     if (field === "discountAmount") input.discount_amount = Number(value);
     if (field === "status") input.status = String(value);
-    if (field === "selected") input.selected = Boolean(value);
+    if (field === "is_selected") input.is_selected = Boolean(value);
 
-    updateTreatmentMutation.mutate({ treatmentId: String(id), input });
-  }, [canEdit, updateTreatmentMutation]);
+    updateTreatment({ treatmentId: String(id), input });
+  }, [canEdit, updateTreatment]);
 
-  const deleteMutation = useDeleteTreatment(medicalRecordId);
+  const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId);
 
   const handleRemoveItem = useCallback((id: number) => {
     if (!canDelete) return;
-    deleteMutation.mutate(String(id));
-  }, [canDelete, deleteMutation]);
+    deleteTreatmentFn(String(id));
+  }, [canDelete, deleteTreatmentFn]);
+
+  // rerender-dependencies: treatments 配列を deps から除外するため nextOrder を useMemo で事前計算
+  const nextOrder = useMemo(
+    () => treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0,
+    [treatments],
+  );
 
   const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
     if (!canEdit) return;
-    const nextOrder = treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0;
     const input: CreateTreatmentInput = {
       item_type: (item.category === "薬品" ? "medicine" : item.category === "処置" ? "procedure" : "other") as TreatmentItemType,
       content: item.name,
       memo: item.category,
       unit_price: item.unitPrice,
       quantity: 1,
-      selected: true,
-      insurance: true,
+      is_selected: true,
+      is_insurance: true,
       discount_amount: 0,
       sort_order: nextOrder,
     };
     createTreatmentMutation.mutate(input);
     setIsSearchOpen(false);
-  }, [canEdit, treatments, createTreatmentMutation]);
+  }, [canEdit, nextOrder, createTreatmentMutation]);
 
   const { subtotal, tax, total } = useMemo(() => {
     const result = calculateBillingTotals(items, ownerDiscountRate, globalDiscountAmount);
@@ -141,7 +149,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     );
   }
 
-  const isConfirmed = billingReview?.status === "confirmed";
+  const isConfirmed = billingConfirmation?.status === "confirmed";
 
   return (
     <div className="flex flex-col gap-4 relative h-full">
@@ -150,7 +158,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
           <h2 className={`text-sm font-bold ${C.text}`}>会計確認 (医師)</h2>
           {isConfirmed ? (
             <div className={`px-2 py-1 rounded ${C.bgStatusGreen} ${C.textStatusGreen} text-xs font-bold flex items-center gap-1`}>
-              <CheckCircle2 className="size-3" />
+              <CheckCircle2 className={ICON.xxs} />
               確認済み
             </div>
           ) : (

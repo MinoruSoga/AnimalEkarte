@@ -6,18 +6,19 @@
 - **コンポーネント**: `[R] TrimmingSettings`
 
 ## 画面構成とタブ
-2つのタブに分けて管理します。
+Radix UI を用いた 2 つのタブで構成されます。
 1. **コース** (`course`): シャンプーコース、カットコースなど。
-2. **オプション** (`option`): 薬用シャンプー、歯磨き、リボン付けなど。
+2. **オプション** (`option`): 薬用シャンプー、歯磨きなど。
 
 ## 機能詳細
 
-### 1. オプションの組合せ可否（CombinablePill）
-- オプションには「組合せ可否（`combinable`）」フラグが存在し、複数のオプションを同時適用できるか否かを管理します。
-- 一覧およびフォーム上では、色付きのピル（バッジ）で視覚的に識別可能（可=緑、不可=グレー）。
+### 1. オプションの組合せ可否 (`CombinablePill`)
+- オプションタブの一覧およびサイドパネルにおいて、「組合せ可否」を `CombinablePill` で表示します。
+  - **可**: 背景 `C.bgStatusGreen` / 文字 `C.textStatusGreen`
+  - **不可**: 背景 `C.bgInactive` / 文字 `C.text60`
 
 ### 2. 対象サイズの紐付け
-- コース設定において、小型犬・中型犬などの対象サイズ（`TargetSize`）を紐付けることができ、予約・カルテ入力時のサジェストに利用されます。
+- コース設定において、小型/中型/大型/特大などの対象サイズ（`TargetSize`）を選択可能。
 
 ## 表示・フォーム項目
 
@@ -25,21 +26,22 @@
 | フィールド | 項目ID | 入力部品 | 必須 | 備考 |
 |-----------|--------|---------|------|------|
 | コース名 | `name` | `Input` | ✅ | タイトルエリア |
-| ステータス | `isActive` | `StatusToggleButton` | - | |
-| 対象サイズ | `targetSize` | `Select` | - | 指定なし / 小型犬 / 中型犬... |
-| 所要時間 | `duration` | `PropInput(number)`| - | 単位: 分 |
-| 単価(税込) | `price` | `MoneyInput` | - | |
-| 備考 | `description`| `PropInput` | - | |
+| ステータス | `isActive` | `NotionStatusPill` | - | |
+| 対象サイズ | `targetSize` | `Select` | - | 小型 / 中型 / 大型 / 特大 / 指定なし |
+| 所要時間(分) | `duration` | `PropertyInput`| - | 数値入力 |
+| 単価(税込) | `price` | `input(number)` | - | |
+| 備考 | `description`| `PropertyInput` | - | |
 
 ### フォーム項目（オプション）
 | フィールド | 項目ID | 入力部品 | 必須 | 備考 |
 |-----------|--------|---------|------|------|
 | オプション名| `name` | `Input` | ✅ | タイトルエリア |
-| ステータス | `isActive` | `StatusToggleButton` | - | |
-| 所要時間 | `duration` | `PropInput(number)`| - | 単位: 分 |
-| 組合せ可否 | `combinable`| トグルボタン | - | |
-| 単価(税込) | `price` | `MoneyInput` | - | |
-| 備考 | `description`| `PropInput` | - | |
+| ステータス | `isActive` | `NotionStatusPill` | - | |
+| 所要時間(分) | `duration` | `PropertyInput`| - | 数値入力 |
+| 組合せ可否 | `combinable`| `CombinablePill`| - | クリックでトグル |
+| 単価(税込) | `price` | `input(number)` | - | |
+| 備考 | `description`| `PropertyInput` | - | |
+
 
 ## API連携
 | メソッド | エンドポイント | 用途 | 状態 |

@@ -9,12 +9,12 @@ import (
 type Account struct {
 	ID            uint64         `gorm:"primaryKey;autoIncrement"   json:"id"`
 	Email         string         `gorm:"not null;uniqueIndex"       json:"email"`
-	PasswordHash  string         `gorm:"not null"                   json:"-" swaggerignore:"true"`
+	PasswordHash  string         `gorm:"not null"                   json:"-"`
 	IsActive      bool           `gorm:"default:true"               json:"is_active"`
 	IsSystemAdmin bool           `gorm:"default:false"              json:"is_system_admin"`
 	CreatedAt     time.Time      `gorm:"autoCreateTime"             json:"created_at"`
 	UpdatedAt     time.Time      `gorm:"autoUpdateTime"             json:"updated_at"`
-	DeletedAt     gorm.DeletedAt `                                  json:"-" swaggerignore:"true"`
+	DeletedAt     gorm.DeletedAt `                                  json:"-"`
 
 	// Relations
 	Staff *Staff `gorm:"foreignKey:AccountID" json:"staff,omitempty"`

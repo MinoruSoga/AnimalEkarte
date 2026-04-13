@@ -463,7 +463,7 @@ describe("useMedicalRecordForm", () => {
     });
 
     it("recordId あり & 問診タブ → updateInquiryMutation.mutateAsync を呼ぶ", async () => {
-      const { useUpdateInquiry } = await import("../api/inquiries");
+      const { useUpdateInquiry: _useUpdateInquiry } = await import("../api/inquiries");
       const mockMutateAsync = vi.fn().mockResolvedValue({});
       vi.doMock("../api/inquiries", () => ({
         useUpdateInquiry: () => ({ mutateAsync: mockMutateAsync, isPending: false }),
@@ -483,7 +483,6 @@ describe("useMedicalRecordForm", () => {
     });
 
     it("recordId あり & 診察/治療プランタブ & diagnosis1CategoryId あり & diagnosis1NameId なし → バリデーションエラー（line 183-188）", async () => {
-      const { toast } = await import("sonner");
       const { result } = renderHook(() => useMedicalRecordForm("10"));
 
       // タブを診察/治療プランに切り替え
@@ -495,9 +494,9 @@ describe("useMedicalRecordForm", () => {
         await result.current.formAction(new FormData());
       });
 
-      expect(toast.error).toHaveBeenCalledWith("診断名を選択してください");
+      // toast.error は使わず fieldErrors でインライン表示する
       expect(result.current.formState.success).toBe(false);
-      expect(result.current.formState.fieldErrors?.diagnosis1_name_id).toBeDefined();
+      expect(result.current.formState.fieldErrors?.diagnosis1_name_id).toBe("診断名を選択してください");
     });
   });
 });

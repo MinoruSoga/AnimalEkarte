@@ -61,7 +61,7 @@ describe("transformTrimming", () => {
         id: 10,
         name: "ポチ",
         pet_number: "P-001",
-        owner: { id: 20, owner_name: "田中太郎" } as BackendTrimming["pet"]["owner"],
+        owner: { id: 20, name: "田中太郎" } as BackendTrimming["pet"]["owner"],
       } as BackendTrimming["pet"],
     });
     expect(result.petId).toBe("10");
@@ -85,12 +85,12 @@ describe("transformTrimming", () => {
     expect(result.staffId).toBe("5");
   });
 
-  it("bw / bt / usedShampoo / remarks を正しく変換する", () => {
+  it("body_weight / body_temperature / usedShampoo / remarks を正しく変換する", () => {
     const result = transformTrimming({
       ...minimalBackend,
-      bw: "3.5",
+      body_weight: 3.5,
       bw_unit: "Kg",
-      bt: "38.5",
+      body_temperature: 38.5,
       used_shampoo: "シャンプーA",
       remarks: "特記なし",
     });

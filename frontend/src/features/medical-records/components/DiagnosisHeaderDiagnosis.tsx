@@ -1,6 +1,7 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
-import { memo } from "react";
+import { memo, useMemo } from "react";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 
 // External
 import { ChevronRight } from "lucide-react";
@@ -12,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Relative
-import { useGetDiagnosisCategories, useGetDiagnosisNames } from "../api/get-diagnosis-options";
+import { useGetDiagnosisTypes, useGetDiagnosisNames } from "../api/get-diagnosis-options";
 
 interface DiagnosisHeaderDiagnosisProps {
   diagnosisDetails: string;
@@ -26,6 +27,7 @@ interface DiagnosisHeaderDiagnosisProps {
   diagnosis2NameId?: number | null;
   setDiagnosis2NameId?: (id: number | null) => void;
   canEdit: boolean;
+  diagnosis1NameIdError?: string | null;
 }
 
 export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
@@ -40,10 +42,31 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
   diagnosis2NameId,
   setDiagnosis2NameId,
   canEdit,
+  diagnosis1NameIdError,
 }: DiagnosisHeaderDiagnosisProps) {
-  const { data: categories = [], isLoading: isCategoriesLoading } = useGetDiagnosisCategories();
+  const { data: categories = [], isLoading: isTypesLoading } = useGetDiagnosisTypes();
   const { data: names1 = [], isLoading: isNames1Loading } = useGetDiagnosisNames(diagnosis1CategoryId);
   const { data: names2 = [], isLoading: isNames2Loading } = useGetDiagnosisNames(diagnosis2CategoryId);
+
+  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
+  const categorySelectItems = useMemo(
+    () => categories.map((cat) => (
+      <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
+    )),
+    [categories]
+  );
+  const names1SelectItems = useMemo(
+    () => names1.map((name) => (
+      <SelectItem key={name.id} value={String(name.id)}>{name.name}</SelectItem>
+    )),
+    [names1]
+  );
+  const names2SelectItems = useMemo(
+    () => names2.map((name) => (
+      <SelectItem key={name.id} value={String(name.id)}>{name.name}</SelectItem>
+    )),
+    [names2]
+  );
 
   return (
     <div className="col-span-5 flex flex-col min-h-0">
@@ -56,45 +79,40 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
         </CardHeader>
         <CardContent className="p-0 flex-1 flex flex-col gap-2 min-h-0">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60}`}>
-                診断1
-              </Label>
-              <Select
-                value={diagnosis1CategoryId ? String(diagnosis1CategoryId) : ""}
-                onValueChange={(value) => {
-                  setDiagnosis1CategoryId?.(value ? Number(value) : null);
-                  setDiagnosis1NameId?.(null);
-                }}
-                disabled={isCategoriesLoading || !canEdit}
-              >
-                <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
-                  <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
-                </SelectTrigger>
-                <SelectContent className="z-[9999]">
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={String(cat.id)}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={diagnosis1NameId ? String(diagnosis1NameId) : ""}
-                onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
-                disabled={isNames1Loading || !diagnosis1CategoryId || !canEdit}
-              >
-                <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
-                  <SelectValue placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"} />
-                </SelectTrigger>
-                <SelectContent className="z-[9999]">
-                  {names1.map((name) => (
-                    <SelectItem key={name.id} value={String(name.id)}>
-                      {name.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2">
+                <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60}`}>
+                  診断1
+                </Label>
+                <Select
+                  value={diagnosis1CategoryId ? String(diagnosis1CategoryId) : ""}
+                  onValueChange={(value) => {
+                    setDiagnosis1CategoryId?.(value ? Number(value) : null);
+                    setDiagnosis1NameId?.(null);
+                  }}
+                  disabled={isTypesLoading || !canEdit}
+                >
+                  <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
+                    <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
+                    {categorySelectItems}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={diagnosis1NameId ? String(diagnosis1NameId) : ""}
+                  onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
+                  disabled={isNames1Loading || !diagnosis1CategoryId || !canEdit}
+                >
+                  <SelectTrigger className={`flex-1 bg-white ${diagnosis1NameIdError ? C.borderDanger : C.borderMedium} h-10 text-sm`}>
+                    <SelectValue placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"} />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
+                    {names1SelectItems}
+                  </SelectContent>
+                </Select>
+              </div>
+              <FormFieldError message={diagnosis1NameIdError} />
             </div>
 
             <div className="flex items-center gap-2">
@@ -107,17 +125,13 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                   setDiagnosis2CategoryId?.(value ? Number(value) : null);
                   setDiagnosis2NameId?.(null);
                 }}
-                disabled={isCategoriesLoading || !canEdit}
+                disabled={isTypesLoading || !canEdit}
               >
                 <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
-                  <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
+                  <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={String(cat.id)}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
+                  {categorySelectItems}
                 </SelectContent>
               </Select>
               <Select
@@ -129,11 +143,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
                   <SelectValue placeholder={isNames2Loading ? "読み込み中..." : "病名を選択"} />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
-                  {names2.map((name) => (
-                    <SelectItem key={name.id} value={String(name.id)}>
-                      {name.name}
-                    </SelectItem>
-                  ))}
+                  {names2SelectItems}
                 </SelectContent>
               </Select>
             </div>

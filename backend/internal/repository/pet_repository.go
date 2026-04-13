@@ -42,7 +42,7 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 			pattern := "%" + escaped + "%"
 			q = q.Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.deleted_at IS NULL").
 				Where(
-					`(pets.name ILIKE ? ESCAPE '\' OR pets.pet_name_kana ILIKE ? ESCAPE '\' OR owners.owner_name ILIKE ? ESCAPE '\')`,
+					`(pets.name ILIKE ? ESCAPE '\' OR pets.name_kana ILIKE ? ESCAPE '\' OR owners.owner_name ILIKE ? ESCAPE '\')`,
 					pattern, pattern, pattern,
 				)
 		}
@@ -65,7 +65,7 @@ func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*mod
 		Preload("Owner").
 		Preload("AnimalSpecies").
 		Preload("Insurance").
-		First(&pet, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&pet).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
 	}
@@ -75,7 +75,8 @@ func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*mod
 func (r *petRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
-		Where("clinic_id = ? AND owner_id = ?", clinicID, ownerID).
+		Scopes(clinicScope(clinicID)).
+		Where("owner_id = ?", ownerID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}
@@ -110,7 +111,7 @@ func (r *petRepository) Create(ctx context.Context, pet *model.Pet) error {
 func (r *petRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Pet{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", id))
@@ -118,7 +119,8 @@ func (r *petRepository) Update(ctx context.Context, clinicID, id uint64, fields 
 	if result.RowsAffected == 0 {
 		var count int64
 		if err := r.db.WithContext(ctx).Model(&model.Pet{}).
-			Where("id = ? AND clinic_id = ?", id, clinicID).
+			Scopes(clinicScope(clinicID)).
+			Where("id = ?", id).
 			Count(&count).Error; err != nil {
 			return apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
 		}
@@ -131,7 +133,7 @@ func (r *petRepository) Update(ctx context.Context, clinicID, id uint64, fields 
 }
 
 func (r *petRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Pet{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Pet{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", id))
 	}

@@ -1,10 +1,12 @@
+import { memo } from "react";
 import { C, ICON } from "@/lib/design-tokens";
 import { Settings } from "lucide-react";
 import { Link } from "react-router";
+import { paths } from "@/config/paths";
 
 /** 設定ページへのリンクに対応する全マスタカテゴリ */
 export type MasterLinkCategory =
-  | "serviceType"
+  | "reservationType"
   | "vaccine"
   | "examination"
   | "cage"
@@ -16,39 +18,39 @@ export type MasterLinkCategory =
   | "hospitalization"
   | "insurance"
   | "staff"
-  | "diagnosis_category"
+  | "diagnosis_type"
   | "diagnosis_name"
   | "chief_complaint"
   | "interview_template";
 
 const CATEGORY_PATH_MAP: Record<MasterLinkCategory, string> = {
-  serviceType: "/settings/service-type",
-  vaccine: "/settings/vaccine",
-  examination: "/settings/examination",
-  cage: "/settings/cage",
-  trimming_course: "/settings/trimming-course",
-  trimming_option: "/settings/trimming-option",
-  medicine: "/settings/medicine",
-  consultation: "/settings/consultation",
-  procedure: "/settings/procedure",
-  hospitalization: "/settings/hospitalization",
-  insurance: "/settings/insurance",
-  staff: "/settings/staff",
-  diagnosis_category: "/settings/diagnosis-category",
-  diagnosis_name: "/settings/diagnosis-name",
-  chief_complaint: "/settings/interview/chief-complaint",
-  interview_template: "/settings/interview/templates",
+  reservationType: paths.settings.reservationType.getHref(),
+  vaccine: paths.settings.vaccine.getHref(),
+  examination: paths.settings.examination.getHref(),
+  cage: paths.settings.cage.getHref(),
+  trimming_course: paths.settings.trimmingCourse.getHref(),
+  trimming_option: paths.settings.trimmingOption.getHref(),
+  medicine: paths.settings.medicine.getHref(),
+  consultation: paths.settings.consultation.getHref(),
+  procedure: paths.settings.procedure.getHref(),
+  hospitalization: paths.settings.hospitalization.getHref(),
+  insurance: paths.settings.insurance.getHref(),
+  staff: paths.settings.staff.getHref(),
+  diagnosis_type: paths.settings.diagnosisType.getHref(),
+  diagnosis_name: paths.settings.diagnosisName.getHref(),
+  chief_complaint: paths.settings.interview.chiefComplaint.getHref(),
+  interview_template: paths.settings.interview.interviewTemplate.getHref(),
 };
 
 interface MasterLinkProps {
-  /** Master category key (e.g. "serviceType", "vaccine") */
+  /** Master category key (e.g. "reservationType", "vaccine") */
   category: MasterLinkCategory;
   /** Override the display label. Defaults to "マスタ管理" */
   label?: string;
   className?: string;
 }
 
-export function MasterLink({ category, label = "マスタ管理", className }: MasterLinkProps) {
+export const MasterLink = memo(function MasterLink({ category, label = "マスタ管理", className }: MasterLinkProps) {
   const path = CATEGORY_PATH_MAP[category] || "/settings";
 
   return (
@@ -60,4 +62,4 @@ export function MasterLink({ category, label = "マスタ管理", className }: M
       <span>{label}</span>
     </Link>
   );
-}
+});

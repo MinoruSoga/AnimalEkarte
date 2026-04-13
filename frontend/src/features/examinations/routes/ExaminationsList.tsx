@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -12,6 +12,7 @@ import { Plus, TestTube, Calendar, CircleDot, FlaskConical, User } from "lucide-
 // Internal
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -93,7 +94,7 @@ export function ExaminationsList() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords, allExaminations, isLoading } = useFilterExaminationRecords(deferredSearch, filters, activeFilters);
+  const { data: filteredRecords, allExaminations, isLoading, error } = useFilterExaminationRecords(deferredSearch, filters, activeFilters);
 
   // js-cache-function-results: ロード済みデータから検査種別・担当医の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
@@ -124,17 +125,19 @@ export function ExaminationsList() {
   const urlPage = Number(searchParams.get("page") ?? 1);
 
   // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  // rerender-dependencies: pagination（オブジェクト）を destructure し primitive を deps に使用
+  const { totalPages, currentPage, goToPage } = pagination;
   useEffect(() => {
-    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
-    if (clampedPage !== pagination.currentPage) {
-      pagination.goToPage(clampedPage);
+    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
+    if (clampedPage !== currentPage) {
+      goToPage(clampedPage);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlPage, pagination.totalPages]);
+  }, [urlPage, totalPages]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新
   const handlePageChange = useCallback((page: number) => {
-    pagination.goToPage(page);
+    goToPage(page);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (page === 1) {
@@ -144,27 +147,27 @@ export function ExaminationsList() {
       }
       return next;
     }, { replace: true });
-  }, [pagination, setSearchParams]);
+  }, [goToPage, setSearchParams]);
 
   const handleCreate = useCallback(() => {
     navigate(paths.examinations.selectPet.getHref());
   }, [navigate]);
 
   const handleEdit = useCallback((id: string) => {
-    navigate(`/examinations/${id}`);
+    navigate(paths.examinations.detail.getHref(id));
   }, [navigate]);
 
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((r: ExaminationRecord) => (
     <DataTableRow key={r.id} onClick={canEdit ? () => handleEdit(r.id) : undefined}>
-      <TableCell className={`font-mono text-base ${C.text} py-2.5`}>{r.date}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2.5`}>{r.ownerName}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2.5`}>{r.petName}</TableCell>
-      <TableCell className={`text-base font-medium ${C.text} py-2.5`}>{r.testType}</TableCell>
-      <TableCell className="text-base text-muted-foreground truncate max-w-[200px] py-2.5 hidden lg:table-cell">
+      <TableCell className={STYLE.tableCellMono}>{r.date}</TableCell>
+      <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
+      <TableCell className={STYLE.tableCell}>{r.petName}</TableCell>
+      <TableCell className={`${STYLE.tableCell} font-medium`}>{r.testType}</TableCell>
+      <TableCell className={`text-base ${C.text60} truncate max-w-[200px] py-2.5 hidden lg:table-cell`}>
         {r.resultSummary || "-"}
       </TableCell>
-      <TableCell className={`text-base ${C.text} py-2.5`}>{r.doctor}</TableCell>
+      <TableCell className={STYLE.tableCell}>{r.doctor}</TableCell>
       <TableCell className="py-2.5">
         <StatusBadge colorClass={getExaminationStatusColor(r.status)}>
           {r.status}
@@ -237,6 +240,9 @@ export function ExaminationsList() {
     },
     { header: "操作", className: "w-[80px]", align: "right" as const },
   ], [directionFor, toggleSort]);
+
+  if (isLoading) return <LoadingFallback />;
+  if (error) return <ErrorFallback />;
 
   return (
     <PageLayout

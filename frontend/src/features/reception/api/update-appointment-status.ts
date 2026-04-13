@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { ReservationStatus } from "@/types";
 
 interface UpdateStatusPayload {
@@ -26,5 +27,6 @@ export function useUpdateAppointmentStatus() {
       // reception クエリキーを持つ全クエリを無効化して再取得
       queryClient.invalidateQueries({ queryKey: ["reception"] });
     },
+    onError: (error) => handleApiError(error, "受付ステータスの更新"),
   });
 }

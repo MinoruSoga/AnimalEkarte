@@ -123,7 +123,7 @@ func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 
 func TestClinicalPlanService_Update(t *testing.T) {
 	physicalExam := "Abnormal findings"
-	diagnosisCategoryID := uint64(1)
+	diagnosisTypeID := uint64(1)
 	diagnosisNameID := uint64(5)
 	diagnosisDetails := "Suspected infection"
 	treatmentPolicy := "Prescribe antibiotics"
@@ -142,8 +142,8 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			name:            "updates clinical plan successfully",
 			medicalRecordID: 1,
 			input: &UpdateClinicalPlanInput{
-				PhysicalExam:        &physicalExam,
-				DiagnosisCategoryID: &diagnosisCategoryID,
+				PhysicalExam:    &physicalExam,
+				DiagnosisTypeID: &diagnosisTypeID,
 			},
 			repoFindPlan: &model.ClinicalPlan{
 				ID:              1,
@@ -152,10 +152,10 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			repoFindErr:   nil,
 			repoUpdateErr: nil,
 			repoReturnPlan: &model.ClinicalPlan{
-				ID:                  1,
-				MedicalRecordID:     1,
-				PhysicalExam:        physicalExam,
-				DiagnosisCategoryID: &diagnosisCategoryID,
+				ID:              1,
+				MedicalRecordID: 1,
+				PhysicalExam:    physicalExam,
+				DiagnosisTypeID: &diagnosisTypeID,
 			},
 			wantErr: false,
 		},
@@ -193,11 +193,11 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			name:            "updates multiple fields",
 			medicalRecordID: 1,
 			input: &UpdateClinicalPlanInput{
-				PhysicalExam:        &physicalExam,
-				DiagnosisCategoryID: &diagnosisCategoryID,
-				DiagnosisNameID:     &diagnosisNameID,
-				DiagnosisDetails:    &diagnosisDetails,
-				TreatmentPolicy:     &treatmentPolicy,
+				PhysicalExam:     &physicalExam,
+				DiagnosisTypeID:  &diagnosisTypeID,
+				DiagnosisNameID:  &diagnosisNameID,
+				DiagnosisDetails: &diagnosisDetails,
+				TreatmentPolicy:  &treatmentPolicy,
 			},
 			repoFindPlan: &model.ClinicalPlan{
 				ID:              1,
@@ -206,13 +206,13 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			repoFindErr:   nil,
 			repoUpdateErr: nil,
 			repoReturnPlan: &model.ClinicalPlan{
-				ID:                  1,
-				MedicalRecordID:     1,
-				PhysicalExam:        physicalExam,
-				DiagnosisCategoryID: &diagnosisCategoryID,
-				DiagnosisNameID:     &diagnosisNameID,
-				DiagnosisDetails:    diagnosisDetails,
-				TreatmentPolicy:     treatmentPolicy,
+				ID:               1,
+				MedicalRecordID:  1,
+				PhysicalExam:     physicalExam,
+				DiagnosisTypeID:  &diagnosisTypeID,
+				DiagnosisNameID:  &diagnosisNameID,
+				DiagnosisDetails: diagnosisDetails,
+				TreatmentPolicy:  treatmentPolicy,
 			},
 			wantErr: false,
 		},

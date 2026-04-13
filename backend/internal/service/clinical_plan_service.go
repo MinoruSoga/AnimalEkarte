@@ -12,7 +12,7 @@ import (
 // UpdateClinicalPlanInput は診察所見・診断・治療方針更新の入力DTO（nil = 未送信フィールド）
 type UpdateClinicalPlanInput struct {
 	PhysicalExam         *string
-	DiagnosisCategoryID  *uint64
+	DiagnosisTypeID      *uint64
 	DiagnosisNameID      *uint64
 	Diagnosis2CategoryID *uint64
 	Diagnosis2NameID     *uint64
@@ -99,8 +99,8 @@ func buildClinicalPlanUpdateFields(input *UpdateClinicalPlanInput) map[string]an
 	if input.PhysicalExam != nil {
 		fields["physical_exam"] = *input.PhysicalExam
 	}
-	if input.DiagnosisCategoryID != nil {
-		fields["diagnosis_category_id"] = *input.DiagnosisCategoryID
+	if input.DiagnosisTypeID != nil {
+		fields["diagnosis_type_id"] = *input.DiagnosisTypeID
 	}
 	if input.DiagnosisNameID != nil {
 		fields["diagnosis_name_id"] = *input.DiagnosisNameID

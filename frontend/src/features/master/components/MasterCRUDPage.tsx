@@ -20,8 +20,7 @@ interface Column {
   align?: "left" | "center" | "right";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-interface SidePanelRenderProps<T, TForm = any> {
+interface SidePanelRenderProps<T, TForm = Record<string, unknown>> {
   item: T | null;
   onClose: () => void;
   onSave: (data: TForm) => void;
@@ -30,8 +29,7 @@ interface SidePanelRenderProps<T, TForm = any> {
   readOnly?: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-interface MasterCRUDPageProps<T extends MasterEntity, TForm = any> {
+interface MasterCRUDPageProps<T extends MasterEntity, TForm = Record<string, unknown>> {
   /** Page title (e.g. "役職マスタ") */
   title: string;
   /** Page icon element */
@@ -78,8 +76,7 @@ interface MasterCRUDPageProps<T extends MasterEntity, TForm = any> {
 // Component
 // ─────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntity, TForm = any>({
+export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntity, TForm = Record<string, unknown>>({
   title,
   icon,
   entityLabel,
@@ -150,5 +147,4 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
       )}
     </MasterListPage>
   );
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-}) as <T extends MasterEntity, TForm = any>(props: MasterCRUDPageProps<T, TForm>) => ReactNode;
+}) as <T extends MasterEntity, TForm = Record<string, unknown>>(props: MasterCRUDPageProps<T, TForm>) => ReactNode;

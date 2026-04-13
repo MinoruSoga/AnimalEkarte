@@ -1,5 +1,5 @@
 // External
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 
@@ -30,7 +30,7 @@ interface AccountingDocumentProps {
   clinic: ClinicInfo | null;
 }
 
-export function AccountingDocument({ type, accounting, paymentInfo, clinic }: AccountingDocumentProps) {
+export const AccountingDocument = memo(function AccountingDocument({ type, accounting, paymentInfo, clinic }: AccountingDocumentProps) {
   const currentDate = useMemo(
     () => format(new Date(), "yyyy年MM月dd日", { locale: ja }),
     [],
@@ -191,4 +191,4 @@ export function AccountingDocument({ type, accounting, paymentInfo, clinic }: Ac
       </div>
     </div>
   );
-}
+});

@@ -41,7 +41,11 @@ func NewCompanyService(repo repository.CompanyRepository) CompanyService {
 
 // Get は法人情報シングルトンを取得する
 func (s *companyService) Get(ctx context.Context) (*model.Company, error) {
-	return s.repo.Get(ctx)
+	result, err := s.repo.Get(ctx)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get company")
+	}
+	return result, nil
 }
 
 // Update は法人情報を部分更新する
@@ -54,7 +58,11 @@ func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) 
 		return nil, apperrors.Wrap(err, "failed to update company")
 	}
 	slog.InfoContext(ctx, "company updated")
-	return s.repo.Get(ctx)
+	result, err := s.repo.Get(ctx)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get company after update")
+	}
+	return result, nil
 }
 
 func buildCompanyUpdateFields(input *UpdateCompanyInput) map[string]any {

@@ -20,12 +20,15 @@ type ShiftEntryFilter struct {
 
 // ShiftEntryRepository はシフト管理のデータアクセスインターフェース
 type ShiftEntryRepository interface {
-	List(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error)
+	FindAll(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error)
 	Create(ctx context.Context, entry *model.ShiftEntry) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
+	ReplaceBreaks(ctx context.Context, shiftEntryID uint64, breaks []model.ShiftEntryBreak) error
+	// FindOnDutyStaffs は指定日にシフトが登録されているスタッフ一覧を返す (BUG-344)
+	FindOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error)
 }
 
 type shiftEntryRepository struct{ db *gorm.DB }
@@ -35,10 +38,11 @@ func NewShiftEntryRepository(db *gorm.DB) ShiftEntryRepository {
 	return &shiftEntryRepository{db: db}
 }
 
-func (r *shiftEntryRepository) List(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error) {
+func (r *shiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error) {
 	q := r.db.WithContext(ctx).
 		Preload("Staff").
-		Where("clinic_id = ?", clinicID).
+		Preload("Breaks").
+		Scopes(clinicScope(clinicID)).
 		Order("date ASC, staff_id ASC")
 
 	if filter.YearMonth != "" {
@@ -65,7 +69,8 @@ func (r *shiftEntryRepository) FindByID(ctx context.Context, clinicID, id uint64
 	var entry model.ShiftEntry
 	err := r.db.WithContext(ctx).
 		Preload("Staff").
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Preload("Breaks").
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		First(&entry).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "shift_entry", strconv.FormatUint(id, 10))
@@ -88,7 +93,7 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ShiftEntry{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "shift_entry", strconv.FormatUint(id, 10))
@@ -101,13 +106,34 @@ func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, 
 
 func (r *shiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.ShiftEntry{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "shift_entry", strconv.FormatUint(id, 10))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("shift_entry", strconv.FormatUint(id, 10))
+	}
+	return nil
+}
+
+func (r *shiftEntryRepository) ReplaceBreaks(ctx context.Context, shiftEntryID uint64, breaks []model.ShiftEntryBreak) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("shift_entry_id = ?", shiftEntryID).Delete(&model.ShiftEntryBreak{}).Error; err != nil {
+			return apperrors.FromGORM(err, "shift_entry_break", fmt.Sprintf("%d", shiftEntryID))
+		}
+		if len(breaks) == 0 {
+			return nil
+		}
+		for i := range breaks {
+			breaks[i].ShiftEntryID = shiftEntryID
+		}
+		if err := tx.Create(&breaks).Error; err != nil {
+			return apperrors.FromGORM(err, "shift_entry_break", "")
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to replace shift entry breaks")
 	}
 	return nil
 }
@@ -121,4 +147,23 @@ func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, staffID uint
 		return false, apperrors.FromGORM(err, "shift_entry", "")
 	}
 	return count > 0, nil
+}
+
+// FindOnDutyStaffs は指定日にシフトが登録されているスタッフ一覧を返す (BUG-344)
+func (r *shiftEntryRepository) FindOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
+	var staffs []model.Staff
+	dateStr := date.Format("2006-01-02")
+	// shift_entries テーブルは deleted_at カラムを持たない（論理削除なし）
+	// staffs テーブルは clinic_id を持たない（テナント非依存）。clinic フィルタは JOIN 条件の shift_entries.clinic_id で担保する。
+	err := r.db.WithContext(ctx).
+		Joins("JOIN shift_entries ON shift_entries.staff_id = staffs.id"+
+			" AND shift_entries.clinic_id = ?"+
+			" AND DATE(shift_entries.date) = ?", clinicID, dateStr).
+		Where("staffs.deleted_at IS NULL AND staffs.is_active = true").
+		Distinct("staffs.*").
+		Find(&staffs).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "on_duty_staffs", dateStr)
+	}
+	return staffs, nil
 }

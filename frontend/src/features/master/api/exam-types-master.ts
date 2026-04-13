@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformExaminationType } from "@/lib/transforms/treatment";
-import type { ExaminationTypeItem } from "@/lib/transforms/treatment";
+import type { ExamTypeField } from "@/lib/transforms/treatment";
 import type { ExaminationType } from "@/types/generated/models";
 import type {
   CreateExaminationTypeRequest,
@@ -10,9 +11,9 @@ import type {
   ReorderTreatmentRequest,
 } from "@/types/treatment";
 
-export type { ExaminationTypeItem };
+export type { ExamTypeField };
 
-export const getAllExaminationTypes = async (): Promise<ExaminationTypeItem[]> => {
+export const getAllExaminationTypes = async (): Promise<ExamTypeField[]> => {
   const { data } = await axios.get<ExaminationType[]>("/v1/masters/examination-types");
   return data.map(transformExaminationType);
 };
@@ -28,7 +29,7 @@ export const useGetAllExaminationTypes = () =>
 export const useCreateExaminationType = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (req: CreateExaminationTypeRequest): Promise<ExaminationTypeItem> => {
+    mutationFn: async (req: CreateExaminationTypeRequest): Promise<ExamTypeField> => {
       const { data } = await axios.post<ExaminationType>(
         "/v1/masters/examination-types",
         req,
@@ -36,6 +37,7 @@ export const useCreateExaminationType = () => {
       return transformExaminationType(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
+    onError: (error) => handleApiError(error, "操作"),
   });
 };
 
@@ -48,7 +50,7 @@ export const useUpdateExaminationType = () => {
     }: {
       id: string;
       req: UpdateExaminationTypeRequest;
-    }): Promise<ExaminationTypeItem> => {
+    }): Promise<ExamTypeField> => {
       const { data } = await axios.patch<ExaminationType>(
         `/v1/masters/examination-types/${id}`,
         req,
@@ -56,6 +58,7 @@ export const useUpdateExaminationType = () => {
       return transformExaminationType(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
+    onError: (error) => handleApiError(error, "操作"),
   });
 };
 
@@ -64,6 +67,7 @@ export const useDeleteExaminationType = () => {
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/examination-types/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
+    onError: (error) => handleApiError(error, "操作"),
   });
 };
 
@@ -73,5 +77,6 @@ export const useReorderExaminationTypes = () => {
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/examination-types/reorder", req),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
+    onError: (error) => handleApiError(error, "操作"),
   });
 };

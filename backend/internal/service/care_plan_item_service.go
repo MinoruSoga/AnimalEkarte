@@ -46,10 +46,10 @@ type UpdateCarePlanItemInput struct {
 
 // CarePlanItemService はケアプランアイテムのビジネスロジックインターフェース
 type CarePlanItemService interface {
-	List(ctx context.Context, hospitalizationID uint64) ([]model.CarePlanItem, error)
-	Create(ctx context.Context, hospitalizationID uint64, input *CreateCarePlanItemInput) (*model.CarePlanItem, error)
-	Update(ctx context.Context, hospitalizationID, itemID uint64, input *UpdateCarePlanItemInput) (*model.CarePlanItem, error)
-	Delete(ctx context.Context, hospitalizationID, itemID uint64) error
+	List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error)
+	Create(ctx context.Context, clinicID, hospitalizationID uint64, input *CreateCarePlanItemInput) (*model.CarePlanItem, error)
+	Update(ctx context.Context, clinicID, hospitalizationID, itemID uint64, input *UpdateCarePlanItemInput) (*model.CarePlanItem, error)
+	Delete(ctx context.Context, clinicID, hospitalizationID, itemID uint64) error
 }
 
 type carePlanItemService struct {
@@ -61,15 +61,15 @@ func NewCarePlanItemService(repo repository.CarePlanItemRepository) CarePlanItem
 	return &carePlanItemService{repo: repo}
 }
 
-func (s *carePlanItemService) List(ctx context.Context, hospitalizationID uint64) ([]model.CarePlanItem, error) {
-	items, err := s.repo.ListByHospitalizationID(ctx, hospitalizationID)
+func (s *carePlanItemService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
+	items, err := s.repo.ListByHospitalizationID(ctx, clinicID, hospitalizationID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list care plan items")
 	}
 	return items, nil
 }
 
-func (s *carePlanItemService) Create(ctx context.Context, hospitalizationID uint64, input *CreateCarePlanItemInput) (*model.CarePlanItem, error) {
+func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizationID uint64, input *CreateCarePlanItemInput) (*model.CarePlanItem, error) {
 	planType := model.CarePlanType(input.Type)
 	if err := validateCarePlanType(planType); err != nil {
 		return nil, err
@@ -104,19 +104,20 @@ func (s *carePlanItemService) Create(ctx context.Context, hospitalizationID uint
 	}
 
 	slog.InfoContext(ctx, "care plan item created",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("care_plan_item_id", item.ID))
 
-	created, err := s.repo.FindByID(ctx, item.ID)
+	created, err := s.repo.FindByID(ctx, clinicID, item.ID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get created care plan item")
 	}
 	return created, nil
 }
 
-func (s *carePlanItemService) Update(ctx context.Context, hospitalizationID, itemID uint64, input *UpdateCarePlanItemInput) (*model.CarePlanItem, error) {
-	// Verify item belongs to this hospitalization
-	existing, err := s.repo.FindByID(ctx, itemID)
+func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizationID, itemID uint64, input *UpdateCarePlanItemInput) (*model.CarePlanItem, error) {
+	// Verify item belongs to this clinic + hospitalization
+	existing, err := s.repo.FindByID(ctx, clinicID, itemID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get care plan item")
 	}
@@ -140,23 +141,24 @@ func (s *carePlanItemService) Update(ctx context.Context, hospitalizationID, ite
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	if err := s.repo.Update(ctx, itemID, fields); err != nil {
+	if err := s.repo.Update(ctx, clinicID, itemID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update care plan item")
 	}
 
 	slog.InfoContext(ctx, "care plan item updated",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("care_plan_item_id", itemID))
 
-	updated, err := s.repo.FindByID(ctx, itemID)
+	updated, err := s.repo.FindByID(ctx, clinicID, itemID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get updated care plan item")
 	}
 	return updated, nil
 }
 
-func (s *carePlanItemService) Delete(ctx context.Context, hospitalizationID, itemID uint64) error {
-	existing, err := s.repo.FindByID(ctx, itemID)
+func (s *carePlanItemService) Delete(ctx context.Context, clinicID, hospitalizationID, itemID uint64) error {
+	existing, err := s.repo.FindByID(ctx, clinicID, itemID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get care plan item")
 	}
@@ -164,11 +166,12 @@ func (s *carePlanItemService) Delete(ctx context.Context, hospitalizationID, ite
 		return apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", itemID))
 	}
 
-	if err := s.repo.Delete(ctx, itemID); err != nil {
+	if err := s.repo.Delete(ctx, clinicID, itemID); err != nil {
 		return apperrors.Wrap(err, "failed to delete care plan item")
 	}
 
 	slog.InfoContext(ctx, "care plan item deleted",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("hospitalization_id", hospitalizationID),
 		slog.Uint64("care_plan_item_id", itemID))
 

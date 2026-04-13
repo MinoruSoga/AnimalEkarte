@@ -12,11 +12,11 @@ import (
 
 // VitalRepository はバイタル記録のデータアクセスインターフェース
 type VitalRepository interface {
-	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error)
-	FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.VitalRecord, error)
+	ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.VitalRecord, error)
 	Create(ctx context.Context, vital *model.VitalRecord) error
-	Update(ctx context.Context, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, id uint64) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type vitalRepository struct {
@@ -28,21 +28,22 @@ func NewVitalRepository(db *gorm.DB) VitalRepository {
 	return &vitalRepository{db: db}
 }
 
-func (r *vitalRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error) {
+func (r *vitalRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	vitals := make([]model.VitalRecord, 0)
 	if err := r.db.WithContext(ctx).
-		Where("medical_record_id = ?", medicalRecordID).
-		Order("recorded_at ASC").
+		Joins("JOIN medical_records ON medical_records.id = vital_records.medical_record_id AND medical_records.deleted_at IS NULL").
+		Where("medical_records.clinic_id = ? AND vital_records.medical_record_id = ?", clinicID, medicalRecordID).
+		Order("vital_records.recorded_at ASC").
 		Find(&vitals).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "vital", "")
 	}
 	return vitals, nil
 }
 
-func (r *vitalRepository) FindByID(ctx context.Context, clinicID uint64, id uint64) (*model.VitalRecord, error) {
+func (r *vitalRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.VitalRecord, error) {
 	var vital model.VitalRecord
 	err := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = vital_records.medical_record_id AND medical_records.clinic_id = ?", clinicID).
+		Joins("JOIN medical_records ON medical_records.id = vital_records.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
 		Where("vital_records.id = ?", id).
 		First(&vital).Error
 	if err != nil {
@@ -58,7 +59,11 @@ func (r *vitalRepository) Create(ctx context.Context, vital *model.VitalRecord) 
 	return nil
 }
 
-func (r *vitalRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	// Verify clinic ownership before mutating
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
 	result := r.db.WithContext(ctx).
 		Model(&model.VitalRecord{}).
 		Where("id = ?", id).
@@ -72,7 +77,11 @@ func (r *vitalRepository) Update(ctx context.Context, id uint64, fields map[stri
 	return nil
 }
 
-func (r *vitalRepository) Delete(ctx context.Context, id uint64) error {
+func (r *vitalRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	// Verify clinic ownership before mutating
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
 	result := r.db.WithContext(ctx).
 		Where("id = ?", id).
 		Delete(&model.VitalRecord{})

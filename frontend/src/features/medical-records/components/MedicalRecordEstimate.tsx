@@ -4,6 +4,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { EstimateForm } from "./EstimateForm";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
@@ -25,6 +26,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   onRegisterSave,
 }: MedicalRecordEstimateProps) {
   const [subject, setSubject] = useState("");
+  const [subjectError, setSubjectError] = useState<string>("");
   const [comment, setComment] = useState("");
   const [remarks, setRemarks] = useState("");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
@@ -60,7 +62,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
         id: Date.now(),
         content: "",
         memo: "",
-        insurance: false,
+        is_insurance: false,
         unitPrice: 0,
         quantity: 1,
         discountRate: 0,
@@ -100,9 +102,10 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       return;
     }
     if (!subject.trim()) {
-      toast.error("件名を入力してください");
+      setSubjectError("件名を入力してください");
       return;
     }
+    setSubjectError("");
 
     const payload = {
       title: subject,
@@ -158,6 +161,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-24 pr-1">
       {/* Subject */}
       <EstimateForm subject={subject} onSubjectChange={setSubject} canEdit={canEdit} />
+      <FormFieldError message={subjectError} />
 
       {/* Items Table */}
       <TreatmentTable

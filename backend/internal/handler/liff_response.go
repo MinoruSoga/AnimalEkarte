@@ -21,7 +21,7 @@ type liffSettingsResponse struct {
 	BookingWindowMaxDays int    `json:"booking_window"`
 }
 
-func toLiffSettingsResponse(s *model.ReservationSetting) liffSettingsResponse {
+func toLiffSettingsResponse(s *model.LineReservationSetting) liffSettingsResponse {
 	return liffSettingsResponse{
 		Status:               s.Status,
 		HeaderText:           s.HeaderText,
@@ -48,10 +48,22 @@ type liffCourseResponse struct {
 	SortOrder           int    `json:"sort_order"`
 }
 
-func toLiffCourseResponse(st model.ServiceType) liffCourseResponse {
+func toLiffCourseResponse(st *model.ReservationType) liffCourseResponse {
+	// 名前のフォールバックチェーン:
+	// 1. ReservationDisplayName（LINE表示名）
+	// 2. ShortName（ShowShortName が true の場合）
+	// 3. Name（元の名称）
+	name := st.ReservationDisplayName
+	if name == "" {
+		if st.ShowShortName && st.ShortName != "" {
+			name = st.ShortName
+		} else {
+			name = st.Name
+		}
+	}
 	return liffCourseResponse{
 		ID:                  st.ID,
-		Name:                st.Name,
+		Name:                name,
 		ShortName:           st.ShortName,
 		ShowShortName:       st.ShowShortName,
 		DurationMinutes:     st.DurationMinutes,
@@ -70,10 +82,14 @@ type liffStaffResponse struct {
 	SortOrder           int    `json:"sort_order"`
 }
 
-func toLiffStaffResponse(st model.Staff) liffStaffResponse {
+func toLiffStaffResponse(st *model.Staff) liffStaffResponse {
+	name := st.ReservationDisplayName
+	if name == "" {
+		name = st.Name
+	}
 	return liffStaffResponse{
 		ID:                  st.ID,
-		Name:                st.Name,
+		Name:                name,
 		ReservationComment:  st.ReservationComment,
 		ReservationImageURL: st.ReservationImageURL,
 		SortOrder:           st.SortOrder,
@@ -113,7 +129,7 @@ type liffReservationResponse struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-func toLiffReservationResponse(r model.ReservationAppointment) liffReservationResponse {
+func toLiffReservationResponse(r *model.Appointment) liffReservationResponse {
 	res := liffReservationResponse{
 		ID:        r.ID,
 		Date:      r.StartTime.Format("2006-01-02"),
@@ -123,11 +139,21 @@ func toLiffReservationResponse(r model.ReservationAppointment) liffReservationRe
 		Notes:     r.Notes,
 		CreatedAt: r.CreatedAt,
 	}
-	if r.ServiceType != nil {
-		res.CourseName = r.ServiceType.Name
+	if r.ReservationType != nil {
+		res.CourseName = r.ReservationType.ReservationDisplayName
+		if res.CourseName == "" {
+			if r.ReservationType.ShowShortName && r.ReservationType.ShortName != "" {
+				res.CourseName = r.ReservationType.ShortName
+			} else {
+				res.CourseName = r.ReservationType.Name
+			}
+		}
 	}
 	if r.Doctor != nil {
-		res.StaffName = r.Doctor.Name
+		res.StaffName = r.Doctor.ReservationDisplayName
+		if res.StaffName == "" {
+			res.StaffName = r.Doctor.Name
+		}
 	}
 	return res
 }

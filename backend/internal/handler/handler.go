@@ -16,16 +16,15 @@ import (
 
 // Handler はHTTPハンドラーのルートコンテナ
 type Handler struct {
-	cfg       *config.Config
-	svc       *service.Services
-	repos     *repository.Repositories
-	auditRepo repository.AuditRepository
-	uploader  infra.FileUploader
+	cfg      *config.Config
+	svc      *service.Services
+	repos    *repository.Repositories
+	uploader infra.FileUploader
 }
 
 // New はHandlerを初期化して返す
 func New(cfg *config.Config, svc *service.Services, repos *repository.Repositories, uploader infra.FileUploader) *Handler {
-	return &Handler{cfg: cfg, svc: svc, repos: repos, auditRepo: repos.Audit, uploader: uploader}
+	return &Handler{cfg: cfg, svc: svc, repos: repos, uploader: uploader}
 }
 
 // PaginatedResponse はページネーション付きレスポンスの共通構造
@@ -65,7 +64,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 
 	protected := api.Group("")
 	protected.Use(middleware.Auth(h.cfg.JWTSecret))
-	protected.Use(middleware.SanitizeNullBytes()) // BUG-067: NULL バイト・制御文字を除去
+	// NOTE: SanitizeNullBytes は main.go でグローバル登録済み（BUG-067）
 
 	protected.GET("/me", h.GetMe)
 	protected.PUT("/users/me/password", h.ChangeMyPassword) // BUG-148: 自分のパスワード変更
@@ -85,6 +84,8 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterClinicRoutes(protected)
 	h.registerEstimateRoutesWithAuth(protected)
 	h.RegisterShiftRoutes(protected)
+	h.RegisterShiftTemplateRoutes(protected)
+	h.RegisterClinicHolidayRoutes(protected)
 	h.RegisterCompanyRoutes(protected)
 	h.RegisterGlobalCheckupRoutes(protected)
 	h.RegisterBillingItemRoutes(protected)
@@ -115,8 +116,8 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 
 	h.RegisterVitalRoutes(records)
 	h.RegisterTreatmentRoutes(records)
-	h.RegisterBillingReviewRoutes(records)
-	h.RegisterRecordImageRoutes(records)
+	h.RegisterBillingConfirmationRoutes(records)
+	h.RegisterMedicalRecordImageRoutes(records)
 	h.RegisterTreatmentPlanMedicalRecordRoutes(records)
 	h.RegisterClinicalPlanRoutes(records)
 	h.RegisterCheckupRoutes(records)
@@ -204,5 +205,3 @@ func (h *Handler) registerEstimateRoutesWithAuth(rg *gin.RouterGroup) {
 	estimates.PATCH("/:id", h.RequirePermission(string(model.ResourceEstimates), "edit"), h.UpdateEstimate)
 	estimates.DELETE("/:id", h.RequirePermission(string(model.ResourceEstimates), "delete"), h.DeleteEstimate)
 }
-
-// registerPermissionGroupRoutesWithAuth は権限グループ管理ルートを認可ミドルウェア付きで登録する

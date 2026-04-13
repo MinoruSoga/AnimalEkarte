@@ -3,7 +3,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -23,9 +22,8 @@ func (h *Handler) ListAnimalSpecies(c *gin.Context) {
 
 // GetAnimalSpecies godoc
 func (h *Handler) GetAnimalSpecies(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	species, err := h.svc.AnimalSpecies.GetByID(c.Request.Context(), id)
@@ -58,9 +56,8 @@ func (h *Handler) CreateAnimalSpecies(c *gin.Context) {
 
 // UpdateAnimalSpecies godoc
 func (h *Handler) UpdateAnimalSpecies(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -84,9 +81,8 @@ func (h *Handler) UpdateAnimalSpecies(c *gin.Context) {
 
 // DeleteAnimalSpecies godoc
 func (h *Handler) DeleteAnimalSpecies(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.AnimalSpecies.Delete(c.Request.Context(), id); err != nil {

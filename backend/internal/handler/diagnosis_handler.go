@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for DiagnosisCategory and DiagnosisName entities.
+// Package handler provides HTTP handler implementations for DiagnosisType and DiagnosisName entities.
 package handler
 
 import (
@@ -11,29 +11,28 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// ---- DiagnosisCategory ----
+// ---- DiagnosisType ----
 
-// GetDiagnosisCategory godoc
-func (h *Handler) GetDiagnosisCategory(c *gin.Context) {
+// GetDiagnosisType godoc
+func (h *Handler) GetDiagnosisType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
-	category, err := h.svc.DiagnosisCategory.GetByID(c.Request.Context(), clinicID, id)
+	category, err := h.svc.DiagnosisType.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toDiagnosisCategoryResponse(category))
+	c.JSON(http.StatusOK, toDiagnosisTypeResponse(category))
 }
 
-// ListDiagnosisCategories godoc
-func (h *Handler) ListDiagnosisCategories(c *gin.Context) {
+// ListDiagnosisTypes godoc
+func (h *Handler) ListDiagnosisTypes(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -45,28 +44,28 @@ func (h *Handler) ListDiagnosisCategories(c *gin.Context) {
 		return
 	}
 
-	categories, _, err := h.svc.DiagnosisCategory.List(c.Request.Context(), clinicID, page, limit)
+	categories, _, err := h.svc.DiagnosisType.List(c.Request.Context(), clinicID, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toDiagnosisCategoryResponseList(categories))
+	c.JSON(http.StatusOK, toDiagnosisTypeResponseList(categories))
 }
 
-// CreateDiagnosisCategory godoc
-func (h *Handler) CreateDiagnosisCategory(c *gin.Context) {
+// CreateDiagnosisType godoc
+func (h *Handler) CreateDiagnosisType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
 
-	var req createDiagnosisCategoryRequest
+	var req createDiagnosisTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	category, err := h.svc.DiagnosisCategory.Create(c.Request.Context(), clinicID, &service.CreateDiagnosisCategoryInput{
+	category, err := h.svc.DiagnosisType.Create(c.Request.Context(), clinicID, &service.CreateDiagnosisTypeInput{
 		Name:        req.Name,
 		IsActive:    req.IsActive,
 		Description: req.Description,
@@ -76,28 +75,27 @@ func (h *Handler) CreateDiagnosisCategory(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, toDiagnosisCategoryResponse(category))
+	c.JSON(http.StatusCreated, toDiagnosisTypeResponse(category))
 }
 
-// UpdateDiagnosisCategory godoc
-func (h *Handler) UpdateDiagnosisCategory(c *gin.Context) {
+// UpdateDiagnosisType godoc
+func (h *Handler) UpdateDiagnosisType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
-	var req updateDiagnosisCategoryRequest
+	var req updateDiagnosisTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
-	category, err := h.svc.DiagnosisCategory.Update(c.Request.Context(), clinicID, id, &service.UpdateDiagnosisCategoryInput{
+	category, err := h.svc.DiagnosisType.Update(c.Request.Context(), clinicID, id, &service.UpdateDiagnosisTypeInput{
 		Name:        req.Name,
 		IsActive:    req.IsActive,
 		Description: req.Description,
@@ -107,39 +105,38 @@ func (h *Handler) UpdateDiagnosisCategory(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toDiagnosisCategoryResponse(category))
+	c.JSON(http.StatusOK, toDiagnosisTypeResponse(category))
 }
 
-// DeleteDiagnosisCategory godoc
-func (h *Handler) DeleteDiagnosisCategory(c *gin.Context) {
+// DeleteDiagnosisType godoc
+func (h *Handler) DeleteDiagnosisType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
-	if err := h.svc.DiagnosisCategory.Delete(c.Request.Context(), clinicID, id); err != nil {
+	if err := h.svc.DiagnosisType.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
 }
 
-// ReorderDiagnosisCategories godoc (#019)
-func (h *Handler) ReorderDiagnosisCategories(c *gin.Context) {
+// ReorderDiagnosisTypes godoc (#019)
+func (h *Handler) ReorderDiagnosisTypes(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	var req reorderDiagnosisCategoryRequest
+	var req reorderDiagnosisTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	if err := h.svc.DiagnosisCategory.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+	if err := h.svc.DiagnosisType.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -154,9 +151,8 @@ func (h *Handler) GetDiagnosisName(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	diagnosisName, err := h.svc.DiagnosisName.GetByID(c.Request.Context(), clinicID, id)
@@ -181,10 +177,10 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 	}
 
 	var resp any
-	if catIDStr := c.Query("category_id"); catIDStr != "" {
-		catID, parseErr := strconv.ParseUint(catIDStr, 10, 64)
+	if typeIDStr := c.Query("type_id"); typeIDStr != "" {
+		catID, parseErr := strconv.ParseUint(typeIDStr, 10, 64)
 		if parseErr != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid category_id"))
+			RespondError(c, apperrors.WrapInvalidInput("invalid type_id"))
 			return
 		}
 		names, _, svcErr := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
@@ -219,11 +215,11 @@ func (h *Handler) CreateDiagnosisName(c *gin.Context) {
 	}
 
 	diagnosisName, err := h.svc.DiagnosisName.Create(c.Request.Context(), clinicID, &service.CreateDiagnosisNameInput{
-		Name:                req.Name,
-		DiagnosisCategoryID: req.DiagnosisCategoryID,
-		IsActive:            req.IsActive,
-		Description:         req.Description,
-		SortOrder:           req.SortOrder,
+		Name:            req.Name,
+		DiagnosisTypeID: req.DiagnosisTypeID,
+		IsActive:        req.IsActive,
+		Description:     req.Description,
+		SortOrder:       req.SortOrder,
 	})
 	if err != nil {
 		RespondError(c, err)
@@ -238,9 +234,8 @@ func (h *Handler) UpdateDiagnosisName(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -251,11 +246,11 @@ func (h *Handler) UpdateDiagnosisName(c *gin.Context) {
 	}
 
 	diagnosisName, err := h.svc.DiagnosisName.Update(c.Request.Context(), clinicID, id, &service.UpdateDiagnosisNameInput{
-		Name:                req.Name,
-		DiagnosisCategoryID: req.DiagnosisCategoryID,
-		IsActive:            req.IsActive,
-		Description:         req.Description,
-		SortOrder:           req.SortOrder,
+		Name:            req.Name,
+		DiagnosisTypeID: req.DiagnosisTypeID,
+		IsActive:        req.IsActive,
+		Description:     req.Description,
+		SortOrder:       req.SortOrder,
 	})
 	if err != nil {
 		RespondError(c, err)
@@ -270,9 +265,8 @@ func (h *Handler) DeleteDiagnosisName(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.DiagnosisName.Delete(c.Request.Context(), clinicID, id); err != nil {

@@ -130,6 +130,8 @@ func (s *clinicService) CreateClinic(ctx context.Context, clinic *model.Clinic) 
 	if err := s.repo.Create(ctx, clinic); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create clinic")
 	}
+	slog.InfoContext(ctx, "clinic created",
+		slog.Uint64("clinic_id", clinic.ID))
 	return clinic, nil
 }
 
@@ -154,6 +156,8 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get updated clinic")
 	}
+	slog.InfoContext(ctx, "clinic updated",
+		slog.Uint64("clinic_id", id))
 	return updated, nil
 }
 

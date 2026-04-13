@@ -23,6 +23,13 @@ type CreateStaffInput struct {
 	OccupationID  *uint64
 	SortOrder     int
 	AccountID     *uint64
+
+	// LINE予約用フィールド
+	StaffType              string
+	ReservationDisplayName string
+	ReservationVisible     bool
+	ReservationComment     string
+	ReservationImageURL    string
 }
 
 // CreateStaffWithAccountInput はアカウント（email/password）を同時に作成するスタッフ登録用入力DTO。
@@ -34,6 +41,13 @@ type CreateStaffWithAccountInput struct {
 	SortOrder     int
 	Email         string
 	Password      string
+
+	// LINE予約用フィールド
+	StaffType              string
+	ReservationDisplayName string
+	ReservationVisible     bool
+	ReservationComment     string
+	ReservationImageURL    string
 }
 
 // UpdateStaffInput はスタッフ部分更新の入力DTO。nil = 未送信フィールド。
@@ -43,6 +57,13 @@ type UpdateStaffInput struct {
 	OccupationID  *uint64
 	SortOrder     *int
 	IsActive      *bool
+
+	// LINE予約用フィールド
+	StaffType              *string
+	ReservationDisplayName *string
+	ReservationVisible     *bool
+	ReservationComment     *string
+	ReservationImageURL    *string
 }
 
 type StaffService interface {
@@ -63,14 +84,24 @@ type StaffService interface {
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	// GetPermissionGroupIDs はスタッフが所属する権限グループIDリストを返す
+	GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error)
+	// SetPermissionGroupIDs はスタッフの権限グループを全置換する
+	SetPermissionGroupIDs(ctx context.Context, staffID uint64, groupIDs []uint64) error
+	// GetExcludedReservationTypeIDs はスタッフの除外サービス種別IDリストを返す
+	GetExcludedReservationTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error)
+	// SetExcludedReservationTypeIDs はスタッフの除外サービス種別を全置換する
+	SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error
 }
 
 type staffService struct {
-	repo            repository.StaffRepository
-	accountRepo     repository.AccountRepository
-	assignmentRepo  repository.StaffClinicAssignmentRepository
-	reservationRepo repository.ReservationRepository
-	shiftEntryRepo  repository.ShiftEntryRepository
+	repo                repository.StaffRepository
+	accountRepo         repository.AccountRepository
+	assignmentRepo      repository.StaffClinicAssignmentRepository
+	reservationRepo     repository.ReservationRepository
+	shiftEntryRepo      repository.ShiftEntryRepository
+	permissionGroupRepo repository.PermissionGroupRepository
+	resStaffRepo        repository.ReservationStaffRepository
 }
 
 func NewStaffService(
@@ -79,13 +110,17 @@ func NewStaffService(
 	assignmentRepo repository.StaffClinicAssignmentRepository,
 	reservationRepo repository.ReservationRepository,
 	shiftEntryRepo repository.ShiftEntryRepository,
+	permissionGroupRepo repository.PermissionGroupRepository,
+	resStaffRepo repository.ReservationStaffRepository,
 ) StaffService {
 	return &staffService{
-		repo:            repo,
-		accountRepo:     accountRepo,
-		assignmentRepo:  assignmentRepo,
-		reservationRepo: reservationRepo,
-		shiftEntryRepo:  shiftEntryRepo,
+		repo:                repo,
+		accountRepo:         accountRepo,
+		assignmentRepo:      assignmentRepo,
+		reservationRepo:     reservationRepo,
+		shiftEntryRepo:      shiftEntryRepo,
+		permissionGroupRepo: permissionGroupRepo,
+		resStaffRepo:        resStaffRepo,
 	}
 }
 
@@ -119,13 +154,23 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 	}
 	input.Name = strings.TrimSpace(input.Name)
 
+	staffType := model.StaffType(input.StaffType)
+	if staffType == "" {
+		staffType = model.StaffTypeDoctor
+	}
+
 	staff := &model.Staff{
-		Name:          input.Name,
-		LicenseNumber: input.LicenseNumber,
-		OccupationID:  input.OccupationID,
-		SortOrder:     input.SortOrder,
-		IsActive:      true,
-		AccountID:     input.AccountID,
+		Name:                   input.Name,
+		LicenseNumber:          input.LicenseNumber,
+		OccupationID:           input.OccupationID,
+		SortOrder:              input.SortOrder,
+		IsActive:               true,
+		AccountID:              input.AccountID,
+		StaffType:              staffType,
+		ReservationDisplayName: input.ReservationDisplayName,
+		ReservationVisible:     input.ReservationVisible,
+		ReservationComment:     input.ReservationComment,
+		ReservationImageURL:    input.ReservationImageURL,
 	}
 
 	if err := s.repo.Create(ctx, staff); err != nil {
@@ -169,13 +214,23 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 
 	slog.InfoContext(ctx, "account created for staff", slog.String("email", input.Email))
 
+	staffType := model.StaffType(input.StaffType)
+	if staffType == "" {
+		staffType = model.StaffTypeDoctor
+	}
+
 	staff := &model.Staff{
-		Name:          name,
-		LicenseNumber: input.LicenseNumber,
-		OccupationID:  input.OccupationID,
-		SortOrder:     input.SortOrder,
-		IsActive:      true,
-		AccountID:     &account.ID,
+		Name:                   name,
+		LicenseNumber:          input.LicenseNumber,
+		OccupationID:           input.OccupationID,
+		SortOrder:              input.SortOrder,
+		IsActive:               true,
+		AccountID:              &account.ID,
+		StaffType:              staffType,
+		ReservationDisplayName: input.ReservationDisplayName,
+		ReservationVisible:     input.ReservationVisible,
+		ReservationComment:     input.ReservationComment,
+		ReservationImageURL:    input.ReservationImageURL,
 	}
 	if err := s.repo.Create(ctx, staff); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create staff")
@@ -186,21 +241,13 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 
 // UpdatePassword はスタッフに紐づくアカウントのパスワードを更新する。
 func (s *staffService) UpdatePassword(ctx context.Context, accountID uint64, newPassword string) error {
-	account, err := s.accountRepo.GetByID(ctx, accountID)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return apperrors.Wrap(err, "failed to get account")
+		return apperrors.Wrap(err, "failed to hash password")
 	}
-
-	hashed, hashErr := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-	if hashErr != nil {
-		return apperrors.Wrap(hashErr, "failed to hash password")
-	}
-
-	account.PasswordHash = string(hashed)
-	if err := s.accountRepo.Update(ctx, account); err != nil {
+	if err := s.accountRepo.Update(ctx, accountID, map[string]any{"password_hash": string(hashed)}); err != nil {
 		return apperrors.Wrap(err, "failed to update account password")
 	}
-
 	slog.InfoContext(ctx, "password updated", slog.Uint64("account_id", accountID))
 	return nil
 }
@@ -264,6 +311,21 @@ func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
 	if input.IsActive != nil {
 		fields["is_active"] = *input.IsActive
 	}
+	if input.StaffType != nil {
+		fields["staff_type"] = *input.StaffType
+	}
+	if input.ReservationDisplayName != nil {
+		fields["reservation_display_name"] = *input.ReservationDisplayName
+	}
+	if input.ReservationVisible != nil {
+		fields["reservation_visible"] = *input.ReservationVisible
+	}
+	if input.ReservationComment != nil {
+		fields["reservation_comment"] = *input.ReservationComment
+	}
+	if input.ReservationImageURL != nil {
+		fields["reservation_image_url"] = *input.ReservationImageURL
+	}
 	return fields
 }
 
@@ -295,6 +357,44 @@ func (s *staffService) Reorder(ctx context.Context, clinicID uint64, ids []uint6
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder staff")
+	}
+	return nil
+}
+
+// GetPermissionGroupIDs はスタッフが所属する権限グループIDリストを返す
+func (s *staffService) GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
+	ids, err := s.permissionGroupRepo.GetGroupIDsByStaffID(ctx, staffID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get permission group ids")
+	}
+	return ids, nil
+}
+
+// SetPermissionGroupIDs はスタッフの権限グループを全置換する
+func (s *staffService) SetPermissionGroupIDs(ctx context.Context, staffID uint64, groupIDs []uint64) error {
+	if err := s.permissionGroupRepo.SetStaffGroups(ctx, staffID, groupIDs); err != nil {
+		return apperrors.Wrap(err, "failed to set permission group ids")
+	}
+	return nil
+}
+
+// GetExcludedReservationTypeIDs はスタッフの除外サービス種別IDリストを返す
+func (s *staffService) GetExcludedReservationTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
+	items, err := s.resStaffRepo.FindExcludedReservationTypes(ctx, staffID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get excluded service type ids")
+	}
+	ids := make([]uint64, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ReservationTypeID)
+	}
+	return ids, nil
+}
+
+// SetExcludedReservationTypeIDs はスタッフの除外サービス種別を全置換する
+func (s *staffService) SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error {
+	if err := s.resStaffRepo.ReplaceExcludedReservationTypes(ctx, staffID, typeIDs); err != nil {
+		return apperrors.Wrap(err, "failed to set excluded service type ids")
 	}
 	return nil
 }

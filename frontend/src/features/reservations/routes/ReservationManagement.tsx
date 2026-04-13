@@ -14,7 +14,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { getCalendarViewLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import type { CalendarView, ReservationAppointment } from "../types";
+import type { CalendarView, Appointment } from "../types";
 import { CALENDAR_VIEW_VALUES } from "../types";
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
@@ -22,7 +22,7 @@ const ReservationFormModal = lazy(() =>
   })),
 );
 import { useReservationManagement } from "../hooks/use-reservation-management";
-import { useServiceTypeColorMap } from "@/features/master";
+import { useReservationTypeColorMap } from "@/features/master";
 import { usePermission } from "@/features/auth";
 
 const MonthView = lazy(() =>
@@ -36,6 +36,21 @@ const ReservationDetailModal = lazy(() =>
     default: m.ReservationDetailModal,
   })),
 );
+
+// rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+const SOURCE_FILTER_SELECT_ITEMS = (
+  <>
+    <SelectItem value="all">すべて</SelectItem>
+    <SelectItem value="manual">手動予約</SelectItem>
+    <SelectItem value="line">LINE予約</SelectItem>
+  </>
+);
+
+const CALENDAR_VIEW_SELECT_ITEMS = CALENDAR_VIEW_VALUES.map((v) => (
+  <SelectItem key={v} value={v}>
+    {getCalendarViewLabel(v)}
+  </SelectItem>
+));
 
 /** Navigation step per calendar view */
 const VIEW_NAV_PREV: Record<CalendarView, (d: Date) => Date> = {
@@ -52,8 +67,9 @@ export function ReservationManagement() {
   const { canCreate, canEdit, canDelete } = usePermission("reservations");
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
 
-  const { activeEntries, colorMap: dynamicColorMap } = useServiceTypeColorMap();
+  const { activeEntries, colorMap: dynamicColorMap } = useReservationTypeColorMap();
 
   const {
     appointments,
@@ -80,10 +96,10 @@ export function ReservationManagement() {
     handlePetSelectConfirm,
   } = useReservationManagement();
 
-  // BUG-069: ReservationAppointment → ReservationFormData 変換を行うラッパー
-  // handleOpenForm は ReservationFormData を期待するが、詳細モーダルからは ReservationAppointment が来る
+  // BUG-069: Appointment → ReservationFormData 変換を行うラッパー
+  // handleOpenForm は ReservationFormData を期待するが、詳細モーダルからは Appointment が来る
   const handleOpenFormFromAppointment = useCallback(
-    (appointment: ReservationAppointment) => {
+    (appointment: Appointment) => {
       handleOpenForm({
         id: appointment.id,
         start: appointment.start,
@@ -91,7 +107,7 @@ export function ReservationManagement() {
         ownerName: appointment.ownerName,
         petName: appointment.petName,
         visitType: appointment.visitType,
-        type: appointment.serviceTypeId ?? "",
+        type: appointment.reservationTypeId ?? "",
         doctor: appointment.doctorId ?? "",
         isDesignated: appointment.isDesignated,
         status: appointment.status,
@@ -110,12 +126,26 @@ export function ReservationManagement() {
     [appointments],
   );
 
+  // js-cache-function-results: API データから生成する JSX リストを useMemo でキャッシュ
+  const doctorNameSelectItems = useMemo(
+    () => doctorNames.map((name) => (
+      <SelectItem key={name} value={name}>{name}</SelectItem>
+    )),
+    [doctorNames]
+  );
+
   const filteredAppointments = useMemo(
-    () =>
-      doctorFilter === "all"
-        ? appointments
-        : appointments.filter((a) => a.doctor === doctorFilter),
-    [appointments, doctorFilter],
+    () => {
+      let result = appointments;
+      if (doctorFilter !== "all") {
+        result = result.filter((a) => a.doctor === doctorFilter);
+      }
+      if (sourceFilter !== "all") {
+        result = result.filter((a) => a.source === sourceFilter);
+      }
+      return result;
+    },
+    [appointments, doctorFilter, sourceFilter],
   );
 
   const navigateToday = useCallback(() => setCurrentDate(new Date()), []);
@@ -189,6 +219,14 @@ export function ReservationManagement() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Source Filter */}
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className={`w-[140px] bg-white ${C.borderMedium} h-10 text-base`}>
+                <SelectValue placeholder="予約ソース" />
+              </SelectTrigger>
+              <SelectContent>{SOURCE_FILTER_SELECT_ITEMS}</SelectContent>
+            </Select>
+
             {/* Doctor Filter */}
             <Select value={doctorFilter} onValueChange={setDoctorFilter}>
               <SelectTrigger className={`w-[160px] bg-white ${C.borderMedium} h-10 text-base`}>
@@ -196,11 +234,7 @@ export function ReservationManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">すべての医師</SelectItem>
-                {doctorNames.map((name) => (
-                  <SelectItem key={name} value={name}>
-                    {name}
-                  </SelectItem>
-                ))}
+                {doctorNameSelectItems}
               </SelectContent>
             </Select>
 
@@ -212,11 +246,7 @@ export function ReservationManagement() {
                 <SelectValue placeholder="表示切替" />
               </SelectTrigger>
               <SelectContent>
-                {CALENDAR_VIEW_VALUES.map((v) => (
-                  <SelectItem key={v} value={v}>
-                    {getCalendarViewLabel(v)}
-                  </SelectItem>
-                ))}
+                {CALENDAR_VIEW_SELECT_ITEMS}
               </SelectContent>
             </Select>
           </div>
@@ -226,8 +256,9 @@ export function ReservationManagement() {
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           {activeEntries.map((entry) => (
             <div key={entry.name} className="flex items-center gap-1.5">
+              {/* BUG-323: Status Dot Icon Token 使用統一 */}
               <span
-                className="w-2.5 h-2.5 rounded-full"
+                className={`${ICON.dotMd} rounded-full`}
                 style={entry.color.dotStyle}
               />
               <span className={`text-base ${C.text60}`}>{entry.name}</span>

@@ -63,22 +63,40 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 			RespondError(c, err)
 			return
 		}
+		reservationVisible := true
+		if req.ReservationVisible != nil {
+			reservationVisible = *req.ReservationVisible
+		}
 		staff, err = h.svc.Staff.CreateWithAccount(ctx, &service.CreateStaffWithAccountInput{
-			ClinicID:      clinicID,
-			Name:          req.Name,
-			LicenseNumber: req.LicenseNumber,
-			OccupationID:  req.OccupationID,
-			SortOrder:     req.SortOrder,
-			Email:         email,
-			Password:      req.Password,
+			ClinicID:               clinicID,
+			Name:                   req.Name,
+			LicenseNumber:          req.LicenseNumber,
+			OccupationID:           req.OccupationID,
+			SortOrder:              req.SortOrder,
+			Email:                  email,
+			Password:               req.Password,
+			StaffType:              req.StaffType,
+			ReservationDisplayName: req.ReservationDisplayName,
+			ReservationVisible:     reservationVisible,
+			ReservationComment:     req.ReservationComment,
+			ReservationImageURL:    req.ReservationImageURL,
 		})
 	} else {
+		reservationVisible := true
+		if req.ReservationVisible != nil {
+			reservationVisible = *req.ReservationVisible
+		}
 		staff, err = h.svc.Staff.Create(ctx, &service.CreateStaffInput{
-			ClinicID:      clinicID,
-			Name:          req.Name,
-			LicenseNumber: req.LicenseNumber,
-			OccupationID:  req.OccupationID,
-			SortOrder:     req.SortOrder,
+			ClinicID:               clinicID,
+			Name:                   req.Name,
+			LicenseNumber:          req.LicenseNumber,
+			OccupationID:           req.OccupationID,
+			SortOrder:              req.SortOrder,
+			StaffType:              req.StaffType,
+			ReservationDisplayName: req.ReservationDisplayName,
+			ReservationVisible:     reservationVisible,
+			ReservationComment:     req.ReservationComment,
+			ReservationImageURL:    req.ReservationImageURL,
 		})
 	}
 	if err != nil {
@@ -96,8 +114,8 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 		return
 	}
 
-	// Account を Preload して email を返すため再取得する
-	if reloaded, reloadErr := h.repos.Staff.FindByID(ctx, staff.ID); reloadErr == nil {
+	// NOTE: Best-effort reload for Preload data. Create already succeeded.
+	if reloaded, reloadErr := h.svc.Staff.GetByID(ctx, staff.ID); reloadErr == nil {
 		staff = reloaded
 	}
 	c.JSON(http.StatusCreated, toStaffResponse(staff))
@@ -121,7 +139,8 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	}
 
 	// パスワードのみの更新かどうかを判定（BUG-131）
-	hasProfileUpdate := req.Name != nil || req.LicenseNumber != nil || req.OccupationID != nil || req.SortOrder != nil || req.IsActive != nil
+	hasProfileUpdate := req.Name != nil || req.LicenseNumber != nil || req.OccupationID != nil || req.SortOrder != nil || req.IsActive != nil ||
+		req.StaffType != nil || req.ReservationDisplayName != nil || req.ReservationVisible != nil || req.ReservationComment != nil || req.ReservationImageURL != nil
 	hasPasswordUpdate := req.Password != nil && *req.Password != ""
 
 	if !hasProfileUpdate && !hasPasswordUpdate {
@@ -133,11 +152,16 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	if hasProfileUpdate {
 		var svcErr error
 		staff, svcErr = h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
-			Name:          req.Name,
-			LicenseNumber: req.LicenseNumber,
-			OccupationID:  req.OccupationID,
-			SortOrder:     req.SortOrder,
-			IsActive:      req.IsActive,
+			Name:                   req.Name,
+			LicenseNumber:          req.LicenseNumber,
+			OccupationID:           req.OccupationID,
+			SortOrder:              req.SortOrder,
+			IsActive:               req.IsActive,
+			StaffType:              req.StaffType,
+			ReservationDisplayName: req.ReservationDisplayName,
+			ReservationVisible:     req.ReservationVisible,
+			ReservationComment:     req.ReservationComment,
+			ReservationImageURL:    req.ReservationImageURL,
 		})
 		if svcErr != nil {
 			RespondError(c, svcErr)
@@ -173,6 +197,12 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 
 // GetStaff godoc
 func (h *Handler) GetStaff(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to service/repo for tenant isolation (Staff is multi-clinic via assignments)
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -207,12 +237,18 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 // GetStaffPermissionGroups godoc
 // GET /v1/masters/staffs/:id/permission-groups
 func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to repo for tenant isolation
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	groupIDs, err := h.repos.PermissionGroup.GetGroupIDsByStaffID(c.Request.Context(), id)
+	groupIDs, err := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -223,6 +259,12 @@ func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
 // SetStaffPermissionGroups godoc
 // PUT /v1/masters/staffs/:id/permission-groups
 func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to repo for tenant isolation
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -238,7 +280,7 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 	if req.GroupIDs == nil {
 		req.GroupIDs = []uint64{}
 	}
-	if err := h.repos.PermissionGroup.SetStaffGroups(c.Request.Context(), id, req.GroupIDs); err != nil {
+	if err := h.svc.Staff.SetPermissionGroupIDs(c.Request.Context(), id, req.GroupIDs); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -248,6 +290,12 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 // GetStaffClinicAssignments godoc
 // GET /v1/masters/staffs/:id/clinics
 func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to service/repo for tenant isolation
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -268,6 +316,12 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 // SetStaffClinicAssignments godoc
 // PUT /v1/masters/staffs/:id/clinics
 func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to service/repo for tenant isolation
+	_ = clinicID
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -290,6 +344,59 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"clinic_ids": req.ClinicIDs})
+}
+
+// GetStaffExcludedReservationTypes godoc
+// GET /v1/masters/staffs/:id/excluded-reservation-types
+func (h *Handler) GetStaffExcludedReservationTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to repo for tenant isolation
+	_ = clinicID
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	ids, err := h.svc.Staff.GetExcludedReservationTypeIDs(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"reservation_type_ids": ids})
+}
+
+// SetStaffExcludedReservationTypes godoc
+// PUT /v1/masters/staffs/:id/excluded-reservation-types
+func (h *Handler) SetStaffExcludedReservationTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	// TODO: pass clinicID to repo for tenant isolation
+	_ = clinicID
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	var req struct {
+		ReservationTypeIDs []uint64 `json:"reservation_type_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if req.ReservationTypeIDs == nil {
+		req.ReservationTypeIDs = []uint64{}
+	}
+	if err := h.svc.Staff.SetExcludedReservationTypeIDs(c.Request.Context(), id, req.ReservationTypeIDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"reservation_type_ids": req.ReservationTypeIDs})
 }
 
 // ReorderStaffs godoc
@@ -338,6 +445,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PUT("/staffs/:id/permission-groups", perm(model.ResourceMasterStaff, "edit"), h.SetStaffPermissionGroups)
 	masters.GET("/staffs/:id/clinics", h.GetStaffClinicAssignments)
 	masters.PUT("/staffs/:id/clinics", perm(model.ResourceMasterStaff, "edit"), h.SetStaffClinicAssignments)
+	masters.GET("/staffs/:id/excluded-reservation-types", h.GetStaffExcludedReservationTypes)
+	masters.PUT("/staffs/:id/excluded-reservation-types", perm(model.ResourceMasterStaff, "edit"), h.SetStaffExcludedReservationTypes)
 
 	// Cages
 	masters.GET("/cages", h.ListCages)
@@ -371,13 +480,21 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PATCH("/insurances/:id", perm(model.ResourceMasterInsurance, "edit"), h.UpdateInsurance)
 	masters.DELETE("/insurances/:id", perm(model.ResourceMasterInsurance, "delete"), h.DeleteInsurance)
 
-	// Service Types
-	masters.GET("/service-types", h.ListServiceTypes)
-	masters.POST("/service-types", perm(model.ResourceMasterServiceType, "create"), h.CreateServiceType)
-	masters.PATCH("/service-types/reorder", perm(model.ResourceMasterServiceType, "edit"), h.ReorderServiceTypes)
-	masters.GET("/service-types/:id", h.GetServiceType)
-	masters.PATCH("/service-types/:id", perm(model.ResourceMasterServiceType, "edit"), h.UpdateServiceType)
-	masters.DELETE("/service-types/:id", perm(model.ResourceMasterServiceType, "delete"), h.DeleteServiceType)
+	// Reservation Category Groups
+	masters.GET("/reservation-type-groups", h.ListReservationTypeGroups)
+	masters.POST("/reservation-type-groups", perm(model.ResourceMasterReservationType, "create"), h.CreateReservationTypeGroup)
+	masters.PATCH("/reservation-type-groups/reorder", perm(model.ResourceMasterReservationType, "edit"), h.ReorderReservationTypeGroups)
+	masters.GET("/reservation-type-groups/:id", h.GetReservationTypeGroup)
+	masters.PATCH("/reservation-type-groups/:id", perm(model.ResourceMasterReservationType, "edit"), h.UpdateReservationTypeGroup)
+	masters.DELETE("/reservation-type-groups/:id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteReservationTypeGroup)
+
+	// Reservation Types
+	masters.GET("/reservation-types", h.ListReservationTypes)
+	masters.POST("/reservation-types", perm(model.ResourceMasterReservationType, "create"), h.CreateReservationType)
+	masters.PATCH("/reservation-types/reorder", perm(model.ResourceMasterReservationType, "edit"), h.ReorderReservationTypes)
+	masters.GET("/reservation-types/:id", h.GetReservationType)
+	masters.PATCH("/reservation-types/:id", perm(model.ResourceMasterReservationType, "edit"), h.UpdateReservationType)
+	masters.DELETE("/reservation-types/:id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteReservationType)
 
 	// Consultations
 	masters.GET("/consultations", h.ListConsultations)
@@ -428,12 +545,12 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.DELETE("/examination-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteExaminationType)
 
 	// Diagnosis Categories
-	masters.GET("/diagnosis-categories", h.ListDiagnosisCategories)
-	masters.POST("/diagnosis-categories", perm(model.ResourceMasterMedical, "create"), h.CreateDiagnosisCategory)
-	masters.PATCH("/diagnosis-categories/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderDiagnosisCategories)
-	masters.GET("/diagnosis-categories/:id", h.GetDiagnosisCategory)
-	masters.PATCH("/diagnosis-categories/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateDiagnosisCategory)
-	masters.DELETE("/diagnosis-categories/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteDiagnosisCategory)
+	masters.GET("/diagnosis-types", h.ListDiagnosisTypes)
+	masters.POST("/diagnosis-types", perm(model.ResourceMasterMedical, "create"), h.CreateDiagnosisType)
+	masters.PATCH("/diagnosis-types/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderDiagnosisTypes)
+	masters.GET("/diagnosis-types/:id", h.GetDiagnosisType)
+	masters.PATCH("/diagnosis-types/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateDiagnosisType)
+	masters.DELETE("/diagnosis-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteDiagnosisType)
 
 	// Diagnosis Names
 	masters.GET("/diagnosis-names", h.ListDiagnosisNames)
@@ -469,11 +586,11 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PUT("/permission-groups/:id/rules", perm(model.ResourceMasterPermission, "edit"), h.SetPermissionGroupRules)
 
 	// Chief Complaint Categories
-	masters.GET("/chief-complaint-categories", h.ListChiefComplaints)
-	masters.POST("/chief-complaint-categories", perm(model.ResourceMasterMedical, "create"), h.CreateChiefComplaint)
-	masters.GET("/chief-complaint-categories/:id", h.GetChiefComplaint)
-	masters.PATCH("/chief-complaint-categories/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateChiefComplaint)
-	masters.DELETE("/chief-complaint-categories/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteChiefComplaint)
+	masters.GET("/chief-complaint-types", h.ListChiefComplaints)
+	masters.POST("/chief-complaint-types", perm(model.ResourceMasterMedical, "create"), h.CreateChiefComplaint)
+	masters.GET("/chief-complaint-types/:id", h.GetChiefComplaint)
+	masters.PATCH("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateChiefComplaint)
+	masters.DELETE("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteChiefComplaint)
 
 	// Inquiry Templates
 	masters.GET("/inquiry-templates", h.ListInquiryTemplates)

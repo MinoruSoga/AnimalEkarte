@@ -21,12 +21,12 @@ type CreateTreatmentInput struct {
 	InventoryID    *uint64
 	UnitPrice      int64
 	Quantity       float64
-	Selected       bool
+	IsSelected     bool
 	Status         string
 	Content        string
 	Memo           string
 	AdminRoute     string
-	Insurance      bool
+	IsInsurance    bool
 	DiscountRate   float64
 	DiscountAmount int64
 	SortOrder      int
@@ -41,12 +41,12 @@ type UpdateTreatmentInput struct {
 	InventoryID    *uint64
 	UnitPrice      *int64
 	Quantity       *float64
-	Selected       *bool
+	IsSelected     *bool
 	Status         *string
 	Content        *string
 	Memo           *string
 	AdminRoute     *string
-	Insurance      *bool
+	IsInsurance    *bool
 	DiscountRate   *float64
 	DiscountAmount *int64
 	SortOrder      *int
@@ -67,10 +67,10 @@ type BulkTreatmentItem struct {
 
 // TreatmentService は治療項目のビジネスロジックインターフェース
 type TreatmentService interface {
-	List(ctx context.Context, medicalRecordID uint64) ([]model.Treatment, error)
-	Create(ctx context.Context, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error)
-	Update(ctx context.Context, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error)
-	Delete(ctx context.Context, medicalRecordID, treatmentID uint64) error
+	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
+	Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error)
+	Update(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error)
+	Delete(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error
 	BulkUpdateSortOrder(ctx context.Context, medicalRecordID uint64, input *BulkUpdateTreatmentsInput) error
 }
 
@@ -87,15 +87,15 @@ func NewTreatmentService(repos *repository.Repositories) TreatmentService {
 	}
 }
 
-func (s *treatmentService) List(ctx context.Context, medicalRecordID uint64) ([]model.Treatment, error) {
-	treatments, err := s.repos.Treatment.ListByMedicalRecordID(ctx, medicalRecordID)
+func (s *treatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
+	treatments, err := s.repos.Treatment.ListByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list treatments")
 	}
 	return treatments, nil
 }
 
-func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error) {
+func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error) {
 	if err := validateTreatmentItemType(input.ItemType); err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 	var treatment *model.Treatment
 
 	// ─── Transaction ───
-	err := s.repos.Transaction(func(txRepos *repository.Repositories) error {
+	err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
 		treatment = &model.Treatment{
 			MedicalRecordID: medicalRecordID,
 			ItemType:        input.ItemType,
@@ -131,12 +131,12 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 			InventoryID:     input.InventoryID,
 			UnitPrice:       input.UnitPrice,
 			Quantity:        input.Quantity,
-			Selected:        input.Selected,
+			IsSelected:      input.IsSelected,
 			Status:          status,
 			Content:         input.Content,
 			Memo:            input.Memo,
 			AdminRoute:      input.AdminRoute,
-			Insurance:       input.Insurance,
+			IsInsurance:     input.IsInsurance,
 			DiscountRate:    input.DiscountRate,
 			DiscountAmount:  input.DiscountAmount,
 			SortOrder:       input.SortOrder,
@@ -158,7 +158,7 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 
 			if targetInvID > 0 {
 				if err := txRepos.Inventory.DecreaseStock(ctx, targetInvID, input.Quantity); err != nil {
-					return apperrors.Wrap(err, "在庫の減算に失敗しました")
+					return apperrors.Wrap(err, "failed to decrease inventory stock")
 				}
 			}
 		}
@@ -172,14 +172,15 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 
 	slog.InfoContext(ctx, "treatment created with atomic inventory sync",
 		slog.Uint64("treatment_id", treatment.ID),
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 
 	return treatment, nil
 }
 
-func (s *treatmentService) Update(ctx context.Context, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error) {
-	// 所属確認
-	existing, err := s.repos.Treatment.FindByID(ctx, treatmentID)
+func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error) {
+	// 所属確認（clinic_id + id で検索）
+	existing, err := s.repos.Treatment.FindByID(ctx, clinicID, treatmentID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get treatment")
 	}
@@ -212,23 +213,24 @@ func (s *treatmentService) Update(ctx context.Context, medicalRecordID, treatmen
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	if err := s.repos.Treatment.Update(ctx, treatmentID, fields); err != nil {
+	if err := s.repos.Treatment.Update(ctx, clinicID, treatmentID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update treatment")
 	}
 
 	slog.InfoContext(ctx, "treatment updated",
 		slog.Uint64("treatment_id", treatmentID),
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 
-	treatment, err := s.repos.Treatment.FindByID(ctx, treatmentID)
+	treatment, err := s.repos.Treatment.FindByID(ctx, clinicID, treatmentID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get updated treatment")
 	}
 	return treatment, nil
 }
 
-func (s *treatmentService) Delete(ctx context.Context, medicalRecordID, treatmentID uint64) error {
-	existing, err := s.repos.Treatment.FindByID(ctx, treatmentID)
+func (s *treatmentService) Delete(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error {
+	existing, err := s.repos.Treatment.FindByID(ctx, clinicID, treatmentID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get treatment")
 	}
@@ -236,12 +238,13 @@ func (s *treatmentService) Delete(ctx context.Context, medicalRecordID, treatmen
 		return apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
 	}
 
-	if err := s.repos.Treatment.Delete(ctx, treatmentID); err != nil {
+	if err := s.repos.Treatment.Delete(ctx, clinicID, treatmentID); err != nil {
 		return apperrors.Wrap(err, "failed to delete treatment")
 	}
 
 	slog.InfoContext(ctx, "treatment deleted",
 		slog.Uint64("treatment_id", treatmentID),
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 
 	return nil
@@ -294,8 +297,8 @@ func buildTreatmentUpdateFields(input *UpdateTreatmentInput) map[string]any {
 	if input.Quantity != nil {
 		fields["quantity"] = *input.Quantity
 	}
-	if input.Selected != nil {
-		fields["selected"] = *input.Selected
+	if input.IsSelected != nil {
+		fields["is_selected"] = *input.IsSelected
 	}
 	if input.Status != nil {
 		fields["status"] = *input.Status
@@ -309,8 +312,8 @@ func buildTreatmentUpdateFields(input *UpdateTreatmentInput) map[string]any {
 	if input.AdminRoute != nil {
 		fields["admin_route"] = *input.AdminRoute
 	}
-	if input.Insurance != nil {
-		fields["insurance"] = *input.Insurance
+	if input.IsInsurance != nil {
+		fields["is_insurance"] = *input.IsInsurance
 	}
 	if input.DiscountRate != nil {
 		fields["discount_rate"] = *input.DiscountRate

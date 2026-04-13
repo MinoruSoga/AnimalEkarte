@@ -1,5 +1,5 @@
 import { ICON, C } from "@/lib/design-tokens";
-import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback } from "@/components/shared/DataStates";
 import { useState, useMemo, useDeferredValue, useCallback, useTransition } from "react";
 import { useNavigate } from "react-router";
 import { usePermission } from "@/features/auth";
@@ -153,8 +153,8 @@ export function EstimateList() {
           if (sort.key === "totalAmount") {
             cmp = a.totalAmount - b.totalAmount;
           } else {
-            const aVal = String((a as unknown as Record<string, unknown>)[sort.key] ?? "");
-            const bVal = String((b as unknown as Record<string, unknown>)[sort.key] ?? "");
+            const aVal = String(a[sort.key as keyof Estimate] ?? "");
+            const bVal = String(b[sort.key as keyof Estimate] ?? "");
             cmp = aVal.localeCompare(bVal, "ja");
           }
           if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
@@ -172,19 +172,23 @@ export function EstimateList() {
     resetKey: deferredSearch,
   });
 
+  // rerender-dependencies: deleteModal オブジェクトでなく primitive/安定参照を deps に
+  const deleteItemId = deleteModal.item;
+  const closeDeleteModal = deleteModal.close;
   const handleDeleteConfirm = useCallback(() => {
-    const itemId = deleteModal.item;
-    if (itemId == null) return;
+    if (deleteItemId == null) return;
     startDeleteTransition(() => {
-      deleteEstimate(itemId);
-      deleteModal.close();
+      deleteEstimate(deleteItemId, {
+        onSuccess: () => closeDeleteModal(),
+      });
     });
-  }, [deleteModal, deleteEstimate]);
+  }, [deleteItemId, closeDeleteModal, deleteEstimate]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
     setActiveSorts(sorts);
   }, []);
 
+  const openDeleteModal = deleteModal.open;
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((estimate: Estimate) => (
     <DataTableRow key={estimate.id} onClick={() => navigate(paths.estimates.detail.getHref(estimate.id))}>
@@ -218,14 +222,14 @@ export function EstimateList() {
                 label: "削除",
                 icon: Trash2,
                 variant: "destructive" as const,
-                onClick: () => deleteModal.open(estimate.id),
+                onClick: () => openDeleteModal(estimate.id),
               }] : []),
             ]}
           />
         ) : null}
       </TableCell>
     </DataTableRow>
-  ), [navigate, canEdit, canDelete, deleteModal]);
+  ), [navigate, canEdit, canDelete, openDeleteModal]);
 
   if (isLoading) {
     return <LoadingFallback />;
@@ -241,7 +245,7 @@ export function EstimateList() {
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
-          <PrimaryButton onClick={() => navigate("/estimates/new")}>
+          <PrimaryButton onClick={() => navigate(paths.estimates.new.getHref())}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規見積書登録
           </PrimaryButton>

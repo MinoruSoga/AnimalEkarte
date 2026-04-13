@@ -23,15 +23,12 @@
 | フィールド | 項目ID | 入力部品 | 必須 | 備考 |
 |-----------|--------|---------|------|------|
 | 名称 | `name` | `Input` | ✅ | タイトルエリア |
-| ステータス | `isActive` | `StatusToggleButton`| - | |
-| 補償率(%) | `coverageRate`| `Input(number)`| - | 0〜100 |
-| 連絡先 | `contactPhone`| `Input(tel)` | - | |
-| 備考 | `description`| `PropInput` | - | |
+| ステータス | `isActive` | `StatusToggleButton`| - | 有効/無効トグル |
+| 補償率(%) | `coverageRate`| `input(number)`| - | 0〜100 の数値を入力 |
+| 連絡先 | `contactPhone`| `input(tel)` | - | 保険会社の電話番号 |
+| 備考 | `description`| `PropertyInput` | - | 補足情報など |
 
-## API連携
-| メソッド | エンドポイント | 用途 |
-|---------|--------------|------|
-| GET | `/api/v1/masters/insurances` | 一覧取得 |
-| POST | `/api/v1/masters/insurances` | 新規作成 |
-| PATCH | `/api/v1/masters/insurances/:id` | 更新 |
-| DELETE | `/api/v1/masters/insurances/:id` | 削除 |
+## 主要機能
+- **Notionスタイル**: `MasterSidePanel` を使用した一貫性のある編集 UI。
+- **検索・フィルタ**: `NotionFilter` により、名称でのキーワード検索および有効/無効ステータスでの絞り込みが可能。
+- **権限管理**: `ResourceMasterInsurance` 権限により操作を制御。

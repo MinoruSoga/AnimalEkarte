@@ -13,10 +13,11 @@ import { C, PALETTE } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 // Types
-import type { ReservationAppointment, ReservationStatus } from "@/types";
+import type { Appointment, ReservationStatus } from "@/types";
 
-// Reduced height for High Density UI
-const HOUR_HEIGHT = 120;
+// 15分予約が narrow モード（petName + ownerName 表示）に収まる最小高さ
+// 15min = 40px (> isCompact 閾値 35px), 30min = 80px (full モード)
+const HOUR_HEIGHT = 160;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 const WHILE_DRAG_FULL = {
@@ -38,7 +39,7 @@ const STATUS_DOT_STYLE: Partial<Record<ReservationStatus, { color: string; label
   cancelled:       { color: C.bgNotionRed, label: "キャンセル" },
 };
 
-interface ServiceTypeColor {
+interface ReservationTypeColor {
   style: React.CSSProperties;
   dotStyle: React.CSSProperties;
   hex: string;
@@ -46,23 +47,23 @@ interface ServiceTypeColor {
 
 interface WeekViewProps {
   currentDate: Date;
-  appointments: ReservationAppointment[];
-  onAppointmentClick: (appointment: ReservationAppointment) => void;
+  appointments: Appointment[];
+  onAppointmentClick: (appointment: Appointment) => void;
   onTimeSlotClick?: (date: Date) => void;
-  onAppointmentUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  /** Dynamic color map from serviceType master (name → ServiceTypeColor) */
-  dynamicColorMap?: Map<string, ServiceTypeColor>;
+  onAppointmentUpdate?: (appointment: Appointment, newStart: Date, newEnd: Date) => void;
+  /** Dynamic color map from reservationType master (name → ReservationTypeColor) */
+  dynamicColorMap?: Map<string, ReservationTypeColor>;
 }
 
 // Helper: Calculate event layout (overlapping)
 const calculateEventLayout = (
-  dayAppointments: ReservationAppointment[]
+  dayAppointments: Appointment[]
 ): Record<string, { left: string; width: string }> => {
   const sorted = [...dayAppointments].sort(
     (a, b) => a.start.getTime() - b.start.getTime()
   );
-  const clusters: ReservationAppointment[][] = [];
-  let currentCluster: ReservationAppointment[] = [];
+  const clusters: Appointment[][] = [];
+  let currentCluster: Appointment[] = [];
   let clusterEnd = 0;
 
   sorted.forEach((ev) => {
@@ -85,7 +86,7 @@ const calculateEventLayout = (
   const styles: Record<string, { left: string; width: string }> = {};
 
   clusters.forEach((cluster) => {
-    const columns: ReservationAppointment[][] = [];
+    const columns: Appointment[][] = [];
     const eventColIndex: Record<string, number> = {};
 
     cluster.forEach((ev) => {
@@ -126,11 +127,22 @@ const TimeSidebar = memo(function TimeSidebar() {
       {HOURS.map((hour) => (
         <div
           key={hour}
-          className={`text-sm ${C.text40} text-right pr-2 pt-1 relative leading-none`}
+          className={`relative flex-shrink-0 text-xs ${C.text40} text-right pr-2 pt-0.5 leading-none`}
           style={{ height: `${HOUR_HEIGHT}px` }}
         >
           {hour}:00
           <div className={`absolute top-0 right-0 w-1.5 h-[1px] ${C.bgLight}`} />
+          {/* :30 half-hour label */}
+          <div
+            className={`absolute right-0 pr-2 text-xs leading-none`}
+            style={{ top: `${HOUR_HEIGHT / 2}px`, transform: "translateY(-50%)", opacity: 0.45 }}
+          >
+            :30
+          </div>
+          <div
+            className={`absolute right-0 w-[5px] h-[1px] ${C.bgLight}`}
+            style={{ top: `${HOUR_HEIGHT / 2}px` }}
+          />
         </div>
       ))}
     </div>
@@ -145,11 +157,11 @@ const AppointmentCard = memo(function AppointmentCard({
   onUpdate,
   dynamicColorMap,
 }: {
-  appointment: ReservationAppointment;
+  appointment: Appointment;
   layoutStyle: { left: string; width: string };
-  onClick: (appointment: ReservationAppointment) => void;
-  onUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  dynamicColorMap?: Map<string, ServiceTypeColor>;
+  onClick: (appointment: Appointment) => void;
+  onUpdate?: (appointment: Appointment, newStart: Date, newEnd: Date) => void;
+  dynamicColorMap?: Map<string, ReservationTypeColor>;
 }) {
   const startHour = appointment.start.getHours();
   const startMin = appointment.start.getMinutes();
@@ -176,8 +188,9 @@ const AppointmentCard = memo(function AppointmentCard({
   const isCancelled = appointment.status === "cancelled";
 
   // Layout mode based on available height
-  const isCompact = height <= 35; // 15min
-  const isNarrow = !isCompact && height <= 65; // 30min
+  // 15min = 40px → compact (single-line), 30min = 80px → narrow (multi-line)
+  const isCompact = height <= 44;
+  const isNarrow = !isCompact && height <= 85;
 
   // Status indicator dot
   const dotInfo = STATUS_DOT_STYLE[appointment.status];
@@ -350,11 +363,11 @@ const DayColumn = memo(function DayColumn({
   dynamicColorMap,
 }: {
   date: Date;
-  appointments: ReservationAppointment[];
-  onAppointmentClick: (appointment: ReservationAppointment) => void;
+  appointments: Appointment[];
+  onAppointmentClick: (appointment: Appointment) => void;
   onTimeSlotClick?: (date: Date) => void;
-  onAppointmentUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  dynamicColorMap?: Map<string, ServiceTypeColor>;
+  onAppointmentUpdate?: (appointment: Appointment, newStart: Date, newEnd: Date) => void;
+  dynamicColorMap?: Map<string, ReservationTypeColor>;
 }) {
   const layoutStyles = useMemo(
     () => calculateEventLayout(appointments),
@@ -427,14 +440,32 @@ const DayColumn = memo(function DayColumn({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Grid Lines */}
+      {/* Grid Lines — :00 solid, :30 dashed, :15/:45 dotted */}
       <div className="absolute inset-0 flex flex-col pointer-events-none z-0">
         {HOURS.map((_, h) => (
           <div
             key={h}
-            className={`border-b ${C.borderDivider} w-full`}
+            className="relative w-full flex-shrink-0"
             style={{ height: `${HOUR_HEIGHT}px` }}
-          />
+          >
+            {/* :15 dotted */}
+            <div
+              className={`absolute left-0 right-0 border-t border-dotted ${C.borderDivider}`}
+              style={{ top: `${HOUR_HEIGHT / 4}px`, opacity: 0.3 }}
+            />
+            {/* :30 dashed */}
+            <div
+              className={`absolute left-0 right-0 border-t border-dashed ${C.borderDivider}`}
+              style={{ top: `${HOUR_HEIGHT / 2}px`, opacity: 0.55 }}
+            />
+            {/* :45 dotted */}
+            <div
+              className={`absolute left-0 right-0 border-t border-dotted ${C.borderDivider}`}
+              style={{ top: `${(HOUR_HEIGHT * 3) / 4}px`, opacity: 0.3 }}
+            />
+            {/* :00 solid hour line */}
+            <div className={`absolute bottom-0 left-0 right-0 border-b ${C.borderDivider}`} />
+          </div>
         ))}
       </div>
 
@@ -464,7 +495,7 @@ const DayColumn = memo(function DayColumn({
 });
 
 // Main Component
-export function WeekView({
+export const WeekView = memo(function WeekView({
   currentDate,
   appointments,
   onAppointmentClick,
@@ -477,11 +508,27 @@ export function WeekView({
     [currentDate]
   );
 
+  // Pre-compute appointments grouped by date key for O(1) per-day lookup
+  const appointmentsByDay = useMemo(() => {
+    const map = new Map<string, Appointment[]>();
+    for (const app of appointments) {
+      const key = format(app.start, "yyyy-MM-dd");
+      const existing = map.get(key);
+      if (existing) {
+        existing.push(app);
+      } else {
+        map.set(key, [app]);
+      }
+    }
+    return map;
+  }, [appointments]);
+
   const headerDays = useMemo(
     () =>
       WEEK_DAYS.map((i) => {
         const day = addDays(startDate, i);
         const isToday = isSameDay(day, new Date());
+        const count = appointmentsByDay.get(format(day, "yyyy-MM-dd"))?.length ?? 0;
         return (
           <div
             key={i}
@@ -501,33 +548,27 @@ export function WeekView({
             >
               {format(day, "E", { locale: ja })}
             </div>
-            <div
-              className={`text-lg font-bold ${
-                isToday ? C.accent : C.text
-              }`}
-            >
-              {format(day, "d")}
+            <div className="flex items-center justify-center">
+              <div
+                className={`relative text-lg font-bold ${
+                  isToday ? C.accent : C.text
+                }`}
+              >
+                {format(day, "d")}
+                {count > 0 ? (
+                  <span
+                    className={`absolute -right-7 bottom-0 text-xs whitespace-nowrap ${C.accent}`}
+                  >
+                    {count}件
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
         );
       }),
-    [startDate]
+    [startDate, appointmentsByDay]
   );
-
-  // Pre-compute appointments grouped by date key for O(1) per-day lookup
-  const appointmentsByDay = useMemo(() => {
-    const map = new Map<string, ReservationAppointment[]>();
-    for (const app of appointments) {
-      const key = format(app.start, "yyyy-MM-dd");
-      const existing = map.get(key);
-      if (existing) {
-        existing.push(app);
-      } else {
-        map.set(key, [app]);
-      }
-    }
-    return map;
-  }, [appointments]);
 
   return (
     <div className={`flex-1 border ${C.borderMedium} rounded-lg bg-white overflow-auto relative`}>
@@ -566,4 +607,4 @@ export function WeekView({
       </div>
     </div>
   );
-}
+});

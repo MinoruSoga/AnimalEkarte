@@ -29,7 +29,7 @@ func NewProcedureRepository(db *gorm.DB) ProcedureRepository { return &procedure
 
 func (r *procedureRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
 	procedures := make([]model.Procedure, 0)
-	if err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&procedures).Error; err != nil {
+	if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&procedures).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "procedure", "")
 	}
 	return procedures, nil
@@ -37,7 +37,7 @@ func (r *procedureRepository) FindAll(ctx context.Context, clinicID uint64) ([]m
 
 func (r *procedureRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
 	var procedure model.Procedure
-	err := r.db.WithContext(ctx).First(&procedure, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&procedure).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "procedure", fmt.Sprintf("%d", id))
 	}
@@ -57,7 +57,7 @@ func (r *procedureRepository) Create(ctx context.Context, procedure *model.Proce
 func (r *procedureRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Procedure{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "procedure", fmt.Sprintf("%d", id))
@@ -69,7 +69,7 @@ func (r *procedureRepository) UpdateFields(ctx context.Context, clinicID, id uin
 }
 
 func (r *procedureRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Procedure{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Procedure{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "procedure", fmt.Sprintf("%d", id))
 	}
@@ -98,21 +98,5 @@ func (r *procedureRepository) CountUsageByProcedureID(ctx context.Context, proce
 }
 
 func (r *procedureRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.Procedure{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder procedure")
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("procedure id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "reorder procedure")
-	}
-	return nil
+	return reorderByClinicID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, ids)
 }

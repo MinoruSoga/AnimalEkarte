@@ -5,7 +5,7 @@ import {
   COLUMN_ID_TO_TITLE,
   RECEPTION_COLUMNS,
 } from "./transforms";
-import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
+import type { Appointment as BackendReservation } from "@/types/generated/models";
 
 const minimal: BackendReservation = {
   id: 1,
@@ -13,6 +13,7 @@ const minimal: BackendReservation = {
   start_time: "2026-03-25T10:00:00Z",
   end_time: "2026-03-25T10:30:00Z",
   visit_type: "first",
+  reservation_type_id: 1,
   status: "confirmed",
   is_designated: false,
   pet_id: 10,
@@ -63,10 +64,10 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(transformReservationToReceptionAppointment({ ...minimal, status: "completed" }).status).toBe("completed");
   });
 
-  it("owner.owner_name を ownerName にマップする", () => {
+  it("owner.name を ownerName にマップする", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
-      owner: { id: 20, clinic_id: 1, owner_name: "田中太郎" } as BackendReservation["owner"],
+      owner: { id: 20, clinic_id: 1, name: "田中太郎" } as BackendReservation["owner"],
     });
     expect(result.ownerName).toBe("田中太郎");
   });
@@ -79,12 +80,12 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.petName).toBe("ポチ");
   });
 
-  it("service_type.name を serviceType にマップする", () => {
+  it("reservation_type.name を reservationType にマップする", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
-      service_type: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["service_type"],
+      reservation_type: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["reservation_type"],
     });
-    expect(result.serviceType).toBe("診療");
+    expect(result.reservationType).toBe("診療");
   });
 
   it("is_designated をそのまま返す", () => {

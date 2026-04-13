@@ -4,7 +4,7 @@ package handler
 type createPetForOwnerRequest struct {
 	Name            string    `json:"name"              binding:"required"`
 	AnimalSpeciesID uint64    `json:"animal_species_id" binding:"required"`
-	PetNameKana     string    `json:"pet_name_kana"`
+	NameKana        string    `json:"name_kana"`
 	Breed           string    `json:"breed"`
 	Color           string    `json:"color"`
 	Gender          string    `json:"gender"`

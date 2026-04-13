@@ -47,10 +47,10 @@ describe("transformToAccounting", () => {
     expect(transformToAccounting({ ...minimal, pet_id: 20 }).petId).toBe("20");
   });
 
-  it("owner.owner_name を ownerName にマップする", () => {
+  it("owner.name を ownerName にマップする", () => {
     const result = transformToAccounting({
       ...minimal,
-      owner: { id: 10, clinic_id: 1, owner_name: "田中太郎" } as BackendAccounting["owner"],
+      owner: { id: 10, clinic_id: 1, name: "田中太郎" } as BackendAccounting["owner"],
     });
     expect(result.ownerName).toBe("田中太郎");
   });

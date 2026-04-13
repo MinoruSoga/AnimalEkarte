@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { axios } from "@/lib/axios";
 import { transformReservationsToReceptionColumns } from "./transforms";
-import type { ReservationAppointment as BackendReceptionReservation } from "@/types/generated/models";
+import type { Appointment as BackendReceptionReservation } from "@/types/generated/models";
 import type { ReceptionColumn } from "./types";
 
 interface ReservationsResponse {

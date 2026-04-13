@@ -1,3 +1,6 @@
+// React/Framework
+import { memo } from "react";
+
 // Internal
 import { Input } from "@/components/ui/input";
 import { C } from "@/lib/design-tokens";
@@ -17,7 +20,7 @@ interface NumberInputProps {
   id?: string;
 }
 
-export function NumberInput({
+export const NumberInput = memo(function NumberInput({
   value,
   onChange,
   placeholder = "0",
@@ -51,4 +54,4 @@ export function NumberInput({
       ) : null}
     </div>
   );
-}
+});

@@ -30,7 +30,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Pagination } from "@/components/shared/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { getTrimmingStatusColor } from "@/utils/status-helpers";
@@ -44,6 +44,7 @@ import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
 import type { TrimmingFilters } from "../api/get-trimmings";
 import { usePermission } from "@/features/auth";
 import { ResourceTrimming } from "@/types/generated/models";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // rerender-memo + js-cache-function-results: renderRow インライン closure を memo コンポーネントに抽出
 interface TrimmingTableRowProps {
@@ -232,7 +233,7 @@ export function TrimmingList() {
   const deleteModal = useModalState<{ id: string; label: string }>();
 
   const handleEdit = useCallback((id: string) => {
-    navigate(`/trimming/${id}`, { state: { from: "/trimming" } });
+    navigate(paths.trimming.detail.getHref(id), { state: { from: paths.trimming.getHref() } });
   }, [navigate]);
 
   // rerender-dependencies: deleteModal のメソッドを primitive に抽出して deps を安定化
@@ -250,9 +251,15 @@ export function TrimmingList() {
 
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTargetId && deleteTargetLabel) {
-      deleteRecord(deleteTargetId);
-      toast.success("削除しました", { description: deleteTargetLabel });
-      closeDeleteModal();
+      deleteRecord(deleteTargetId, {
+        onSuccess: () => {
+          toast.success("削除しました", { description: deleteTargetLabel });
+          closeDeleteModal();
+        },
+        onError: (error) => {
+          handleApiError(error, "トリミング削除");
+        },
+      });
     }
   }, [deleteTargetId, deleteTargetLabel, deleteRecord, closeDeleteModal]);
 

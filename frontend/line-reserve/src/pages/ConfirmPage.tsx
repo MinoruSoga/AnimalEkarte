@@ -18,6 +18,9 @@ interface ConfirmPageProps {
   clinicId: string;
   idToken: string;
   flow: ReservationFlow;
+  reservationNotice?: string;
+  cancelNotice?: string;
+  privacyPolicy?: string;
   onConfirm: (reservationId: number, notes: string) => void;
   onSlotTaken: (message: string, redirectStep: number) => void;
   onBack: () => void;
@@ -52,6 +55,10 @@ async function sendLiffMessage(flow: ReservationFlow, notes: string): Promise<vo
   const confirmNum = notes.match(/R-\d{8}-\d{4}/)?.[0] ?? '';
   const time = `${formatTime(flow.startTime)}〜${formatTime(flow.endTime)}`;
 
+  const petList = flow.customerInfo.pets
+    .map(p => p.type ? `${p.name}(${p.type})` : p.name)
+    .join('、');
+
   const text = [
     'ご予約を承りました。',
     '',
@@ -59,6 +66,7 @@ async function sendLiffMessage(flow: ReservationFlow, notes: string): Promise<vo
     `■ 日時: ${formatDatePadded(flow.date)} ${time}`,
     `■ コース: ${flow.courseName}`,
     flow.staffId > 0 ? `■ 担当: ${flow.staffName}` : '',
+    petList ? `■ ペット: ${petList}` : '',
     '',
     'キャンセルはLINEメニューの',
     '「予約確認・キャンセル」から行えます。',
@@ -75,6 +83,9 @@ export function ConfirmPage({
   clinicId,
   idToken,
   flow,
+  reservationNotice,
+  cancelNotice,
+  privacyPolicy,
   onConfirm,
   onSlotTaken,
   onBack,
@@ -100,8 +111,11 @@ export function ConfirmPage({
             customer_name: flow.customerInfo.name,
             phone: flow.customerInfo.phone,
             owner_name: flow.customerInfo.ownerName,
-            pet_name: flow.customerInfo.petName,
-            pet_type: flow.customerInfo.petType,
+            pets: flow.customerInfo.pets.map(p => ({
+              name: p.name,
+              type: p.type,
+              is_new: p.isNew,
+            })),
           },
           request_text: flow.requestText,
         },
@@ -123,12 +137,15 @@ export function ConfirmPage({
     }
   }, [clinicId, idToken, flow, onConfirm, onSlotTaken]);
 
+  const petDisplay = flow.customerInfo.pets.length > 0
+    ? flow.customerInfo.pets.map(p => p.type ? `${p.name}（${p.type}）` : p.name).join('、')
+    : '—';
+
   const rows: Array<{ label: string; value: string }> = [
     { label: 'お名前', value: flow.customerInfo.name },
     { label: '電話番号', value: flow.customerInfo.phone },
     { label: '飼い主名', value: flow.customerInfo.ownerName || '—' },
-    { label: 'ペット名', value: flow.customerInfo.petName || '—' },
-    { label: 'ペット種類', value: flow.customerInfo.petType || '—' },
+    { label: 'ペット', value: petDisplay },
     { label: 'コース', value: flow.courseName },
     { label: 'スタッフ', value: flow.staffName || '指名なし' },
     { label: '日付', value: formatDate(flow.date) },
@@ -177,6 +194,20 @@ export function ConfirmPage({
             ))}
           </div>
 
+          {reservationNotice ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+              <p className="text-xs font-medium text-blue-700 mb-1">ご予約にあたって</p>
+              <p className="text-sm text-blue-800 whitespace-pre-wrap">{reservationNotice}</p>
+            </div>
+          ) : null}
+
+          {cancelNotice ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+              <p className="text-xs font-medium text-gray-500 mb-1">キャンセルポリシー</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{cancelNotice}</p>
+            </div>
+          ) : null}
+
           {error ? (
             <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
               <p className="text-sm text-red-700" role="alert">{error}</p>
@@ -184,7 +215,10 @@ export function ConfirmPage({
           ) : null}
         </div>
 
-        <div className="px-4 py-6">
+        <div className="px-4 py-6 space-y-3">
+          {privacyPolicy ? (
+            <p className="text-xs text-center text-gray-500 whitespace-pre-wrap">{privacyPolicy}</p>
+          ) : null}
           <PrimaryButton onClick={handleConfirm} disabled={submitting}>
             {submitting ? '送信中...' : '予約を確定する'}
           </PrimaryButton>

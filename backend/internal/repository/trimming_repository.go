@@ -37,7 +37,7 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 	}
 	if ownerID != nil {
 		q = q.Select("trimming_records.*").
-			Joins("JOIN pets ON pets.id = trimming_records.pet_id").Where("pets.owner_id = ?", *ownerID)
+			Joins("JOIN pets ON pets.id = trimming_records.pet_id AND pets.deleted_at IS NULL").Where("pets.owner_id = ?", *ownerID)
 	}
 	if startDate != nil {
 		q = q.Where("trimming_records.date >= ?", *startDate)
@@ -69,7 +69,7 @@ func (r *trimmingRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 		Preload("Staff").
 		Preload("Course").
 		Preload("Options").
-		First(&trimming, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&trimming).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "trimming_record", fmt.Sprintf("%d", id))
 	}
@@ -91,7 +91,7 @@ func (r *trimmingRepository) Update(ctx context.Context, clinicID uint64, trimmi
 	trimming.ClinicID = clinicID
 	result := r.db.WithContext(ctx).
 		Model(&model.TrimmingRecord{}).
-		Where("id = ? AND clinic_id = ?", trimming.ID, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", trimming.ID).
 		Updates(trimming)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "trimming", fmt.Sprintf("%d", trimming.ID))
@@ -103,7 +103,7 @@ func (r *trimmingRepository) Update(ctx context.Context, clinicID uint64, trimmi
 }
 
 func (r *trimmingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.TrimmingRecord{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.TrimmingRecord{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "trimming", fmt.Sprintf("%d", id))
 	}
@@ -117,7 +117,7 @@ func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, op
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		record := &model.TrimmingRecord{ID: recordID}
 		if err := tx.Model(record).Association("Options").Unscoped().Clear(); err != nil {
-			return apperrors.Wrap(err, "failed to clear trimming options")
+			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("record_id=%d", recordID))
 		}
 		if len(optionIDs) == 0 {
 			return nil
@@ -127,11 +127,11 @@ func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, op
 			options = append(options, model.TrimmingOption{ID: id})
 		}
 		if err := tx.Model(record).Association("Options").Replace(options); err != nil {
-			return apperrors.Wrap(err, "failed to set trimming options")
+			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("record_id=%d", recordID))
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "set options trimming record")
+		return apperrors.Wrap(err, "failed to set trimming options")
 	}
 	return nil
 }

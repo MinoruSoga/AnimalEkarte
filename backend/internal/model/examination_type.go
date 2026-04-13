@@ -17,12 +17,12 @@ type ExaminationType struct {
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	Items []ExaminationTypeItem `gorm:"foreignKey:ExamTypeID" json:"items,omitempty"`
+	Items []ExamTypeField `gorm:"foreignKey:ExamTypeID" json:"items,omitempty"`
 }
 
 func (ExaminationType) TableName() string { return "exam_types" }
 
-type ExaminationTypeItem struct {
+type ExamTypeField struct {
 	ID              uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ExamTypeID      uint64    `gorm:"not null"                                       json:"exam_type_id"`
 	Name            string    `gorm:"not null"                                       json:"name"`
@@ -34,4 +34,4 @@ type ExaminationTypeItem struct {
 	UpdatedAt       time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
 
-func (ExaminationTypeItem) TableName() string { return "exam_type_items" }
+func (ExamTypeField) TableName() string { return "exam_type_fields" }

@@ -1,6 +1,7 @@
 import { useState, useCallback, useActionState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from "sonner";
+import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { Estimate, EstimateStatus } from '../types';
 import { useCreateEstimate } from '../api/create-estimate';
@@ -42,6 +43,7 @@ function buildInitialState(estimate?: Estimate): EstimateFormState {
 interface FormState {
   success: boolean;
   timestamp: number;
+  fieldErrors?: Record<string, string>;
 }
 
 export function useEstimateForm(estimate?: Estimate) {
@@ -66,8 +68,7 @@ export function useEstimateForm(estimate?: Estimate) {
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
       if (!form.title.trim()) {
-        toast.error("タイトルを入力してください");
-        return { success: false, timestamp: Date.now() };
+        return { success: false, fieldErrors: { title: "タイトルを入力してください" }, timestamp: Date.now() };
       }
 
       try {
@@ -123,9 +124,9 @@ export function useEstimateForm(estimate?: Estimate) {
 
   const handleCancel = useCallback(() => {
     if (isEdit && estimate) {
-      navigate(`/estimates/${estimate.id}`);
+      navigate(paths.estimates.detail.getHref(estimate.id));
     } else {
-      navigate('/estimates');
+      navigate(paths.estimates.getHref());
     }
   }, [isEdit, estimate, navigate]);
 

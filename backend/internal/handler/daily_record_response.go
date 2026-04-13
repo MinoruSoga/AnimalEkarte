@@ -20,7 +20,7 @@ type vitalRecordResponse struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
-type careLogRecordResponse struct {
+type careLogResponse struct {
 	ID            string    `json:"id"`
 	DailyRecordID string    `json:"daily_record_id"`
 	Time          string    `json:"time"`
@@ -32,7 +32,7 @@ type careLogRecordResponse struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
-type staffNoteRecordResponse struct {
+type staffNoteResponse struct {
 	ID            string    `json:"id"`
 	DailyRecordID string    `json:"daily_record_id"`
 	Time          string    `json:"time"`
@@ -42,14 +42,14 @@ type staffNoteRecordResponse struct {
 }
 
 type dailyRecordResponse struct {
-	ID                string                    `json:"id"`
-	HospitalizationID string                    `json:"hospitalization_id"`
-	Date              time.Time                 `json:"date"`
-	CreatedAt         time.Time                 `json:"created_at"`
-	UpdatedAt         time.Time                 `json:"updated_at"`
-	VitalRecords      []vitalRecordResponse     `json:"vital_records"`
-	CareLogRecords    []careLogRecordResponse   `json:"care_log_records"`
-	StaffNoteRecords  []staffNoteRecordResponse `json:"staff_note_records"`
+	ID                string                `json:"id"`
+	HospitalizationID string                `json:"hospitalization_id"`
+	Date              time.Time             `json:"date"`
+	CreatedAt         time.Time             `json:"created_at"`
+	UpdatedAt         time.Time             `json:"updated_at"`
+	VitalRecords      []vitalRecordResponse `json:"vital_records"`
+	CareLogs          []careLogResponse     `json:"care_logs"`
+	StaffNotes        []staffNoteResponse   `json:"staff_notes"`
 }
 
 func toVitalRecordResponse(vr *model.VitalRecord) vitalRecordResponse {
@@ -75,8 +75,8 @@ func toVitalRecordResponse(vr *model.VitalRecord) vitalRecordResponse {
 	return r
 }
 
-func toCareLogRecordResponse(cr *model.CareLogRecord) careLogRecordResponse {
-	r := careLogRecordResponse{
+func toCareLogResponse(cr *model.CareLog) careLogResponse {
+	r := careLogResponse{
 		ID:            strconv.FormatUint(cr.ID, 10),
 		DailyRecordID: strconv.FormatUint(cr.DailyRecordID, 10),
 		Time:          cr.Time.Format("15:04:05"),
@@ -93,8 +93,8 @@ func toCareLogRecordResponse(cr *model.CareLogRecord) careLogRecordResponse {
 	return r
 }
 
-func toStaffNoteRecordResponse(sn *model.StaffNoteRecord) staffNoteRecordResponse {
-	r := staffNoteRecordResponse{
+func toStaffNoteResponse(sn *model.StaffNote) staffNoteResponse {
+	r := staffNoteResponse{
 		ID:            strconv.FormatUint(sn.ID, 10),
 		DailyRecordID: strconv.FormatUint(sn.DailyRecordID, 10),
 		Time:          sn.Time.Format("15:04:05"),
@@ -114,14 +114,14 @@ func toDailyRecordResponse(dr *model.DailyRecord) dailyRecordResponse {
 		vitals = append(vitals, toVitalRecordResponse(&dr.VitalRecords[i]))
 	}
 
-	careLogs := make([]careLogRecordResponse, 0, len(dr.CareLogRecords))
-	for i := range dr.CareLogRecords {
-		careLogs = append(careLogs, toCareLogRecordResponse(&dr.CareLogRecords[i]))
+	careLogs := make([]careLogResponse, 0, len(dr.CareLogs))
+	for i := range dr.CareLogs {
+		careLogs = append(careLogs, toCareLogResponse(&dr.CareLogs[i]))
 	}
 
-	staffNotes := make([]staffNoteRecordResponse, 0, len(dr.StaffNoteRecords))
-	for i := range dr.StaffNoteRecords {
-		staffNotes = append(staffNotes, toStaffNoteRecordResponse(&dr.StaffNoteRecords[i]))
+	staffNotes := make([]staffNoteResponse, 0, len(dr.StaffNotes))
+	for i := range dr.StaffNotes {
+		staffNotes = append(staffNotes, toStaffNoteResponse(&dr.StaffNotes[i]))
 	}
 
 	return dailyRecordResponse{
@@ -131,7 +131,7 @@ func toDailyRecordResponse(dr *model.DailyRecord) dailyRecordResponse {
 		CreatedAt:         dr.CreatedAt,
 		UpdatedAt:         dr.UpdatedAt,
 		VitalRecords:      vitals,
-		CareLogRecords:    careLogs,
-		StaffNoteRecords:  staffNotes,
+		CareLogs:          careLogs,
+		StaffNotes:        staffNotes,
 	}
 }

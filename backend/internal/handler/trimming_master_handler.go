@@ -204,14 +204,14 @@ func (h *Handler) CreateTrimmingOption(c *gin.Context) {
 	}
 
 	option := &model.TrimmingOption{
-		ClinicID:    clinicID,
-		Name:        req.Name,
-		Price:       req.Price,
-		IsActive:    req.IsActive,
-		Description: req.Description,
-		Duration:    req.Duration,
-		Combinable:  req.Combinable,
-		SortOrder:   req.SortOrder,
+		ClinicID:     clinicID,
+		Name:         req.Name,
+		Price:        req.Price,
+		IsActive:     req.IsActive,
+		Description:  req.Description,
+		Duration:     req.Duration,
+		IsCombinable: req.IsCombinable,
+		SortOrder:    req.SortOrder,
 	}
 
 	if err := h.svc.TrimmingOption.Create(c.Request.Context(), option); err != nil {
@@ -239,13 +239,13 @@ func (h *Handler) UpdateTrimmingOption(c *gin.Context) {
 	}
 
 	svcInput := service.UpdateTrimmingOptionInput{
-		Name:        req.Name,
-		Price:       req.Price,
-		IsActive:    req.IsActive,
-		Description: req.Description,
-		Duration:    req.Duration,
-		Combinable:  req.Combinable,
-		SortOrder:   req.SortOrder,
+		Name:         req.Name,
+		Price:        req.Price,
+		IsActive:     req.IsActive,
+		Description:  req.Description,
+		Duration:     req.Duration,
+		IsCombinable: req.IsCombinable,
+		SortOrder:    req.SortOrder,
 	}
 
 	option, err := h.svc.TrimmingOption.Update(c.Request.Context(), clinicID, id, svcInput)

@@ -53,7 +53,7 @@ func TestExtractClinicID(t *testing.T) {
 			},
 			wantClinicID:    0,
 			wantOK:          false,
-			wantStatus:      http.StatusInternalServerError,
+			wantStatus:      http.StatusBadRequest,
 			wantBodyContain: "invalid clinic context",
 		},
 		{
@@ -63,7 +63,7 @@ func TestExtractClinicID(t *testing.T) {
 			},
 			wantClinicID:    0,
 			wantOK:          false,
-			wantStatus:      http.StatusInternalServerError,
+			wantStatus:      http.StatusBadRequest,
 			wantBodyContain: "invalid clinic context",
 		},
 		{
@@ -73,7 +73,7 @@ func TestExtractClinicID(t *testing.T) {
 			},
 			wantClinicID:    0,
 			wantOK:          false,
-			wantStatus:      http.StatusInternalServerError,
+			wantStatus:      http.StatusBadRequest,
 			wantBodyContain: "invalid clinic context",
 		},
 		{
@@ -83,7 +83,7 @@ func TestExtractClinicID(t *testing.T) {
 			},
 			wantClinicID:    0,
 			wantOK:          false,
-			wantStatus:      http.StatusInternalServerError,
+			wantStatus:      http.StatusBadRequest,
 			wantBodyContain: "invalid clinic context",
 		},
 	}

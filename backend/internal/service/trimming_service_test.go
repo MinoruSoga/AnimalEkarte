@@ -317,7 +317,7 @@ func TestTrimmingService_Create(t *testing.T) {
 
 func TestTrimmingService_Update(t *testing.T) {
 	staffID := uint64(2)
-	courseID := uint64(1)
+	typeID := uint64(1)
 	optionIDs := []uint64{10, 20}
 	emptyOptions := []uint64{}
 
@@ -337,7 +337,7 @@ func TestTrimmingService_Update(t *testing.T) {
 			id:       1,
 			input: UpdateTrimmingInput{
 				StaffID:  &staffID,
-				CourseID: &courseID,
+				CourseID: &typeID,
 			},
 			repoErr: nil,
 			wantErr: false,

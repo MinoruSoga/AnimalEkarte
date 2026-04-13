@@ -38,6 +38,22 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
     );
   }, [availableDates]);
 
+  const reasonMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const REASON_LABELS: Record<string, string> = {
+      closed:   '休診日',
+      holiday:  '祝日休診',
+      staff_off: 'スタッフ不在',
+      no_slots:  '満席',
+    };
+    for (const d of availableDates) {
+      if (!d.available && d.reason) {
+        map.set(d.date, REASON_LABELS[d.reason] ?? '予約不可');
+      }
+    }
+    return map;
+  }, [availableDates]);
+
   const daysInMonth = useMemo(() => {
     return new Date(viewYear, viewMonth + 1, 0).getDate();
   }, [viewYear, viewMonth]);
@@ -149,27 +165,37 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
           const isBeyondWindow = cellDate > maxDate;
           const isDisabled = !isAvailable || isPast || isBeyondWindow;
 
+          const reasonLabel = reasonMap.get(dateStr);
+          const ariaLabel = `${viewYear}年${viewMonth + 1}月${cell.day}日${reasonLabel ? `（${reasonLabel}）` : isDisabled ? '（予約不可）' : ''}`;
+
           return (
-            <button
-              key={dateStr}
-              type="button"
-              onClick={() => !isDisabled && onSelect(dateStr)}
-              disabled={isDisabled}
-              className={`aspect-square flex items-center justify-center text-sm transition-colors ${
-                isSelected
-                  ? 'bg-noah-teal text-white rounded-full mx-1 my-1'
-                  : isDisabled
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : dayOfWeek === 0
-                      ? 'text-red-500 hover:bg-red-50'
-                      : dayOfWeek === 6
-                        ? 'text-noah-teal hover:bg-noah-teal-light'
-                        : 'text-noah-text hover:bg-noah-teal-light'
-              }`}
-              aria-label={`${viewYear}年${viewMonth + 1}月${cell.day}日${isAvailable ? '' : '（予約不可）'}`}
-            >
-              {cell.day}
-            </button>
+            <div key={dateStr} className="relative group">
+              <button
+                type="button"
+                onClick={() => !isDisabled && onSelect(dateStr)}
+                disabled={isDisabled}
+                title={reasonLabel}
+                className={`w-full aspect-square flex items-center justify-center text-sm transition-colors ${
+                  isSelected
+                    ? 'bg-noah-teal text-white rounded-full mx-1 my-1'
+                    : isDisabled
+                      ? 'text-gray-300 cursor-not-allowed'
+                      : dayOfWeek === 0
+                        ? 'text-red-500 hover:bg-red-50'
+                        : dayOfWeek === 6
+                          ? 'text-noah-teal hover:bg-noah-teal-light'
+                          : 'text-noah-text hover:bg-noah-teal-light'
+                }`}
+                aria-label={ariaLabel}
+              >
+                {cell.day}
+              </button>
+              {reasonLabel ? (
+                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block whitespace-nowrap rounded bg-gray-800 px-2 py-0.5 text-xs text-white z-10">
+                  {reasonLabel}
+                </span>
+              ) : null}
+            </div>
           );
         })}
       </div>

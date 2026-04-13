@@ -1,11 +1,12 @@
 import { lazy, Suspense } from "react";
 import { createBrowserRouter, Outlet } from "react-router";
 
+import { C } from "@/lib/design-tokens";
 import { Layout } from "@/components/shared/Layout/Layout";
 import { RootErrorBoundary, RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
 import { RequirePermission } from "@/components/shared/RequirePermission";
 import { AuthProvider } from "@/features/auth";
-import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceHospitalization, ResourceTrimming, ResourceExaminations, ResourceAccounting, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceEstimates, ResourceShifts, ResourceHospitalSettings, ResourceMasterStaff, ResourceMasterMedical, ResourceMasterServiceType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceMasterAnimalSpecies } from "@/types/generated/models";
+import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedicalRecords, ResourceHospitalization, ResourceTrimming, ResourceExaminations, ResourceAccounting, ResourceVaccinations, ResourceCheckups, ResourceInventory, ResourceEstimates, ResourceShifts, ResourceHospitalSettings, ResourceMasterStaff, ResourceMasterMedical, ResourceMasterReservationType, ResourceMasterHospitalization, ResourceMasterTrimming, ResourceMasterPermission, ResourceMasterInsurance, ResourceMasterMerchandise, ResourceMasterAnimalSpecies } from "@/types/generated/models";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
 const Login = lazy(() =>
@@ -37,14 +38,14 @@ export const router = createBrowserRouter([
       {
         path: "/forgot-password",
         lazy: async () => {
-          const { ForgotPasswordPage } = await import("@/features/auth/routes/ForgotPasswordPage");
+          const { ForgotPasswordPage } = await import("@/features/auth");
           return { Component: ForgotPasswordPage };
         },
       },
       {
         path: "/reset-password",
         lazy: async () => {
-          const { ResetPasswordPage } = await import("@/features/auth/routes/ResetPasswordPage");
+          const { ResetPasswordPage } = await import("@/features/auth");
           return { Component: ResetPasswordPage };
         },
       },
@@ -398,7 +399,7 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { AccountingList } = await import("@/features/accounting/routes/AccountingList");
+              const { AccountingList } = await import("@/features/accounting");
               return { Component: AccountingList };
             },
           },
@@ -408,9 +409,7 @@ export const router = createBrowserRouter([
             children: [{
               index: true,
               lazy: async () => {
-                const { AccountingPetSelection } = await import(
-                  "@/features/accounting/routes/AccountingPetSelection"
-                );
+                const { AccountingPetSelection } = await import("@/features/accounting");
                 return { Component: AccountingPetSelection };
               },
             }],
@@ -732,13 +731,13 @@ export const router = createBrowserRouter([
             }],
           },
           {
-            path: "service-type",
-            element: <RequirePermission resource={ResourceMasterServiceType}><Outlet /></RequirePermission>,
+            path: "reservation-type",
+            element: <RequirePermission resource={ResourceMasterReservationType}><Outlet /></RequirePermission>,
             children: [{
               index: true,
               lazy: async () => {
-                const { ServiceTypeSettings } = await import("@/features/master");
-                return { Component: ServiceTypeSettings };
+                const { ReservationTypeSettings } = await import("@/features/master");
+                return { Component: ReservationTypeSettings };
               },
             }],
           },
@@ -841,6 +840,17 @@ export const router = createBrowserRouter([
               },
             }],
           },
+          {
+            path: "shift-template",
+            element: <RequirePermission resource={ResourceShifts}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { ShiftTemplateSettings } = await import("@/features/master");
+                return { Component: ShiftTemplateSettings };
+              },
+            }],
+          },
         ],
       },
 
@@ -857,29 +867,8 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { LineReservationCalendar } = await import("@/features/line-reservation");
-              return { Component: LineReservationCalendar };
-            },
-          },
-          {
-            path: "calendar",
-            lazy: async () => {
-              const { LineReservationCalendar } = await import("@/features/line-reservation");
-              return { Component: LineReservationCalendar };
-            },
-          },
-          {
-            path: "courses",
-            lazy: async () => {
-              const { LineReservationCourses } = await import("@/features/line-reservation");
-              return { Component: LineReservationCourses };
-            },
-          },
-          {
-            path: "staffs",
-            lazy: async () => {
-              const { LineReservationStaffs } = await import("@/features/line-reservation");
-              return { Component: LineReservationStaffs };
+              const { LineReservationSettings } = await import("@/features/line-reservation");
+              return { Component: LineReservationSettings };
             },
           },
           {
@@ -890,24 +879,10 @@ export const router = createBrowserRouter([
             },
           },
           {
-            path: "schedule",
-            lazy: async () => {
-              const { LineStaffSchedule } = await import("@/features/line-reservation");
-              return { Component: LineStaffSchedule };
-            },
-          },
-          {
             path: "page-editor",
             lazy: async () => {
               const { LineReservationPageEditor } = await import("@/features/line-reservation");
               return { Component: LineReservationPageEditor };
-            },
-          },
-          {
-            path: "customers",
-            lazy: async () => {
-              const { LineReservationCustomersPage } = await import("@/app/pages/LineReservationCustomersPage");
-              return { Component: LineReservationCustomersPage };
             },
           },
         ],
@@ -938,7 +913,7 @@ export const router = createBrowserRouter([
         path: "*",
         element: (
           <div className="flex-1 p-5 flex items-center justify-center">
-            <p className="text-muted-foreground">ページが見つかりません</p>
+            <p className={C.text50}>ページが見つかりません</p>
           </div>
         ),
       },

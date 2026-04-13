@@ -7,7 +7,7 @@ import { useSearchParams } from "react-router";
 import { Plus, LayoutGrid, List, Building2, Calendar, PawPrint } from "lucide-react";
 
 // Internal
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -204,17 +204,19 @@ export function HospitalizationList() {
   const urlPage = Number(searchParams.get("page") ?? 1);
 
   // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  // rerender-dependencies: pagination（オブジェクト）を destructure し primitive を deps に使用
+  const { totalPages, currentPage, goToPage } = pagination;
   useEffect(() => {
-    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
-    if (clampedPage !== pagination.currentPage) {
-      pagination.goToPage(clampedPage);
+    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
+    if (clampedPage !== currentPage) {
+      goToPage(clampedPage);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlPage, pagination.totalPages]);
+  }, [urlPage, totalPages]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新
   const handlePageChange = useCallback((page: number) => {
-    pagination.goToPage(page);
+    goToPage(page);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (page === 1) {
@@ -224,7 +226,7 @@ export function HospitalizationList() {
       }
       return next;
     }, { replace: true });
-  }, [pagination, setSearchParams]);
+  }, [goToPage, setSearchParams]);
 
   if (hospitalizationsLoading) return <LoadingFallback />;
   if (hospitalizationsError) return <ErrorFallback />;

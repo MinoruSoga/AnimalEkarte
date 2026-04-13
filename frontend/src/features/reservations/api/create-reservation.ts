@@ -1,13 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { ReservationAppointment } from "@/types";
+import { handleApiError } from "@/lib/handle-api-error";
+import type { Appointment } from "@/types";
 import { transformReservation } from "./transforms";
-import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
+import type { Appointment as BackendReservation } from "@/types/generated/models";
 import type { CreateReservationRequest } from "./types";
 
 export const createReservation = async (
   req: CreateReservationRequest
-): Promise<ReservationAppointment> => {
+): Promise<Appointment> => {
   const { data } = await axios.post<BackendReservation>(
     "/v1/reservations",
     req
@@ -23,5 +24,6 @@ export const useCreateReservation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
     },
+    onError: (error) => handleApiError(error, "予約作成"),
   });
 };

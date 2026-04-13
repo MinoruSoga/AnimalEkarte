@@ -22,6 +22,9 @@ const DEFAULT_TREATMENT_POLICY = "# 治療方針";
 const DEFAULT_PLAN = "# 治療方針";
 const DEFAULT_ASSESSMENT = "# 診断詳細";
 
+// rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
+const MEDICAL_RECORD_PRIORITY_FIELDS = ["treatment_policy", "diagnosis1_category_id"] as const;
+
 export function useMedicalRecordForm(recordId?: string) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,8 +45,7 @@ export function useMedicalRecordForm(recordId?: string) {
 
     // 優先順位に基づいたエラーフィールドの特定
     // key は API のフィールド名、value は DOM ID またはタブ切り替えロジック
-    const PRIORITY_FIELDS = ["treatment_policy", "diagnosis1_category_id"];
-    const firstError = PRIORITY_FIELDS.find(f => errorFields.includes(f)) || errorFields[0];
+    const firstError = MEDICAL_RECORD_PRIORITY_FIELDS.find(f => errorFields.includes(f)) || errorFields[0];
 
     // 治療方針にエラーがある場合は「問診」タブへ強制移動
     if (["treatment_policy"].includes(firstError)) {
@@ -68,7 +70,7 @@ export function useMedicalRecordForm(recordId?: string) {
 
   // 問診タブの状態
   const [chiefComplaint, setChiefComplaint] = useState(DEFAULT_CHIEF_COMPLAINT);
-  const [chiefComplaintCategoryId, setChiefComplaintCategoryId] = useState<number | null>(null);
+  const [chiefComplaintTypeId, setChiefComplaintTypeId] = useState<number | null>(null);
   const [treatmentPolicy, setTreatmentPolicy] = useState(DEFAULT_TREATMENT_POLICY);
 
   // 診察/治療プランタブの状態（SOAPS）
@@ -101,7 +103,10 @@ export function useMedicalRecordForm(recordId?: string) {
         if (draft.diagnosis2CategoryId) setDiagnosis2CategoryId(draft.diagnosis2CategoryId);
         if (draft.diagnosis2NameId) setDiagnosis2NameId(draft.diagnosis2NameId);
         toast.info("未保存の下書きを復元しました", { duration: 2000 });
-      } catch { /* ignore */ }
+      } catch {
+        // localStorage の下書きが破損している場合は静かにスキップ（復元失敗は非致命的）
+        localStorage.removeItem(DRAFT_KEY);
+      }
     }
   }, [recordId, DRAFT_KEY]);
 
@@ -173,7 +178,7 @@ export function useMedicalRecordForm(recordId?: string) {
           case "問診":
             await updateInquiryMutation.mutateAsync({
               chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
-              chief_complaint_category_id: chiefComplaintCategoryId,
+              chief_complaint_type_id: chiefComplaintTypeId,
               notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
             });
             break;
@@ -183,16 +188,15 @@ export function useMedicalRecordForm(recordId?: string) {
             if (diagnosis1CategoryId && !diagnosis1NameId) {
               const diagError = { diagnosis1_name_id: "診断名を選択してください" };
               setManualErrors(diagError);
-              toast.error("診断名を選択してください");
               return { success: false, fieldErrors: diagError, timestamp: Date.now() };
             }
             // BUG-102: DEFAULT値でも常に送信する（undefined を送ると BE が 400 を返す）
             const treatmentPlanPayload = {
               treatment_policy: plan,
               diagnosis_details: assessment,
-              diagnosis_category_id: diagnosis1CategoryId ?? undefined,
+              diagnosis_type_id: diagnosis1CategoryId ?? undefined,
               diagnosis_name_id: diagnosis1NameId ?? undefined,
-              diagnosis_2_category_id: diagnosis2CategoryId ?? undefined,
+              diagnosis_2_type_id: diagnosis2CategoryId ?? undefined,
               diagnosis_2_name_id: diagnosis2NameId ?? undefined,
             };
             await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
@@ -319,8 +323,8 @@ export function useMedicalRecordForm(recordId?: string) {
     // 問診タブ
     chiefComplaint,
     setChiefComplaint,
-    chiefComplaintCategoryId,
-    setChiefComplaintCategoryId,
+    chiefComplaintTypeId,
+    setChiefComplaintTypeId,
     treatmentPolicy,
     setTreatmentPolicy,
     // 診察/治療プランタブ（SOAPS）

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Calendar, FlaskConical, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +28,7 @@ function getStatusBadge(status: ExaminationRecord["status"]): string {
   }
 }
 
-export function ExaminationCard({
+export const ExaminationCard = memo(function ExaminationCard({
   examination,
   onClick,
   className,
@@ -77,4 +78,4 @@ export function ExaminationCard({
       </CardContent>
     </Card>
   );
-}
+});

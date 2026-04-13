@@ -36,7 +36,7 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.MerchandiseItem{}).Where("clinic_id = ?", clinicID)
+		q := r.db.WithContext(ctx).Model(&model.MerchandiseItem{}).Scopes(clinicScope(clinicID))
 		if category != "" {
 			q = q.Where("category = ?", category)
 		}
@@ -58,7 +58,7 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
 	var item model.MerchandiseItem
 	err := r.db.WithContext(ctx).
-		First(&item, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&item).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
 	}
@@ -78,16 +78,20 @@ func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.Merc
 func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.MerchandiseItem{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		var count int64
-		r.db.WithContext(ctx).Model(&model.MerchandiseItem{}).
-			Where("id = ? AND clinic_id = ?", id, clinicID).
-			Count(&count)
+		if err := r.db.WithContext(ctx).Model(&model.MerchandiseItem{}).
+			Scopes(clinicScope(clinicID)).
+			Where("id = ?", id).
+			Count(&count).Error; err != nil {
+			return apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
+		}
 		if count == 0 {
 			return apperrors.WrapNotFound("merchandise_item", fmt.Sprintf("%d", id))
 		}
@@ -96,23 +100,7 @@ func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uin
 }
 
 func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.MerchandiseItem{}).
-				Where("id = ? AND clinic_id = ?", id, clinicID).
-				Update("sort_order", i+1)
-			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder merchandise item")
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("merchandise_item id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "reorder merchandise item")
-	}
-	return nil
+	return reorderByClinicID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, ids)
 }
 
 // CountUsageByMerchandiseItemID は物販品目を参照している billing_items と estimate_items の件数の合計を返す（BUG-109）
@@ -139,7 +127,7 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 }
 
 func (r *merchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.MerchandiseItem{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.MerchandiseItem{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
 	}

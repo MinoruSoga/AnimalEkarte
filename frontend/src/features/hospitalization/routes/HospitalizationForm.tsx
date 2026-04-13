@@ -18,13 +18,14 @@ import { useAuth, usePermission } from "@/features/auth";
 import { useHospitalizationForm } from "../hooks/use-hospitalization-form";
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
-import { useMasterItems } from "@/hooks/use-master-items";
+import { useMasterItems } from "@/features/master";
 import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo";
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { LoadingFallback } from "@/components/shared/DataStates/DataStates";
+import { LoadingFallback } from "@/components/shared/DataStates";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
@@ -157,7 +158,7 @@ export function HospitalizationForm() {
                     variant="outline"
                     type="button"
                     className={`gap-2 h-10 text-sm px-4 ${C.text}`}
-                    onClick={() => navigate(`/hospitalization/${hospitalizationId}`)}
+                    onClick={() => navigate(paths.hospitalization.detail.getHref(String(hospitalizationId)))}
                   >
                     <FileText className={ICON.action} />
                     デイリーカルテ
@@ -195,7 +196,7 @@ export function HospitalizationForm() {
               petNumber={selectedPet.petNumber || selectedPet.id}
               weight={selectedPet.weight || "-"}
               staffName={user?.displayName ?? ""}
-              serviceType={formData.hospitalizationType}
+              reservationType={formData.hospitalizationType}
               petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
               insuranceName={selectedPet.insuranceName || "保険情報未登録"}
               insuranceDetails={selectedPet.insuranceDetails || "-"}
@@ -203,6 +204,7 @@ export function HospitalizationForm() {
               nextVisitContent="-"
             />
         ) : null}
+        <FormFieldError message={formState.fieldErrors?.pet} />
 
         {/* Main Form Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">

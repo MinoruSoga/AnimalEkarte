@@ -8,6 +8,7 @@ import type {
   AvailableTime,
   Reservation,
   CreateReservationBody,
+  CreateReservationResponse,
 } from '../types/models';
 import { API_BASE_URL } from '../lib/liff-config';
 
@@ -81,8 +82,8 @@ export const liffApi = {
     clinicId: string,
     body: CreateReservationBody,
     idToken: string,
-  ): Promise<Reservation> => {
-    const res = await httpClient.post<Reservation>(`/api/liff/${clinicId}/reservations`, body, {
+  ): Promise<CreateReservationResponse> => {
+    const res = await httpClient.post<CreateReservationResponse>(`/api/liff/${clinicId}/reservations`, body, {
       headers: authHeaders(idToken),
     });
     return res.data;

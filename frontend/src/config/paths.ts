@@ -17,6 +17,14 @@ export const paths = {
       path: "/login",
       getHref: () => "/login",
     },
+    forgotPassword: {
+      path: "/forgot-password",
+      getHref: () => "/forgot-password",
+    },
+    resetPassword: {
+      path: "/reset-password",
+      getHref: () => "/reset-password",
+    },
   },
 
   owners: {
@@ -181,13 +189,8 @@ export const paths = {
   lineReservation: {
     path: "/line-reservation",
     getHref: () => "/line-reservation",
-    courses: { path: "/line-reservation/courses", getHref: () => "/line-reservation/courses" },
-    staffs: { path: "/line-reservation/staffs", getHref: () => "/line-reservation/staffs" },
     settings: { path: "/line-reservation/settings", getHref: () => "/line-reservation/settings" },
-    schedule: { path: "/line-reservation/schedule", getHref: () => "/line-reservation/schedule" },
-    calendar: { path: "/line-reservation/calendar", getHref: () => "/line-reservation/calendar" },
     pageEditor: { path: "/line-reservation/page-editor", getHref: () => "/line-reservation/page-editor" },
-    customers: { path: "/line-reservation/customers", getHref: () => "/line-reservation/customers" },
   },
 
   settings: {
@@ -221,9 +224,9 @@ export const paths = {
       path: "/settings/medicine",
       getHref: () => "/settings/medicine",
     },
-    serviceType: {
-      path: "/settings/service-type",
-      getHref: () => "/settings/service-type",
+    reservationType: {
+      path: "/settings/reservation-type",
+      getHref: () => "/settings/reservation-type",
     },
     hospitalization: {
       path: "/settings/hospitalization",
@@ -252,6 +255,38 @@ export const paths = {
     merchandiseItems: {
       path: "/settings/merchandise-items",
       getHref: () => "/settings/merchandise-items",
+    },
+    vaccine: {
+      path: "/settings/vaccine",
+      getHref: () => "/settings/vaccine",
+    },
+    examination: {
+      path: "/settings/examination",
+      getHref: () => "/settings/examination",
+    },
+    trimmingCourse: {
+      path: "/settings/trimming-course",
+      getHref: () => "/settings/trimming-course",
+    },
+    trimmingOption: {
+      path: "/settings/trimming-option",
+      getHref: () => "/settings/trimming-option",
+    },
+    consultation: {
+      path: "/settings/consultation",
+      getHref: () => "/settings/consultation",
+    },
+    procedure: {
+      path: "/settings/procedure",
+      getHref: () => "/settings/procedure",
+    },
+    diagnosisType: {
+      path: "/settings/diagnosis-type",
+      getHref: () => "/settings/diagnosis-type",
+    },
+    diagnosisName: {
+      path: "/settings/diagnosis-name",
+      getHref: () => "/settings/diagnosis-name",
     },
     interview: {
       chiefComplaint: {

@@ -2,6 +2,9 @@
 import { memo, useCallback } from "react";
 import { useNavigate } from "react-router";
 
+// Internal
+import { paths } from "@/config/paths";
+
 // External
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -24,7 +27,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { getVisitTypeColor } from "@/utils/constants/status-colors";
 
 // Types
-import type { Appointment } from "@/types";
+import type { ReceptionAppointment } from "../api/types";
 
 interface ServiceIconProps {
   service: string;
@@ -39,9 +42,9 @@ function ServiceIcon({ service }: ServiceIconProps) {
 }
 
 interface AppointmentCardProps {
-  appointment: Appointment;
+  appointment: ReceptionAppointment;
   columnTitle: string;
-  onCardClick: (appointment: Appointment) => void;
+  onCardClick: (appointment: ReceptionAppointment) => void;
   isDragOverlay?: boolean;
 }
 
@@ -72,35 +75,47 @@ export const AppointmentCard = memo(function AppointmentCard({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const isTrimming = appointment.serviceType.includes("トリミング");
-  const isHospitalization = appointment.serviceType.includes("入院");
+  const isTrimming = appointment.reservationType.includes("トリミング");
+  const isHospitalization = appointment.reservationType.includes("入院");
   const visitColor = getVisitTypeColor(appointment.visitType);
 
   const handleKarteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (isTrimming) {
-      navigate(appointment.petId ? `/trimming/new?petId=${appointment.petId}` : "/trimming/new", {
-        state: { from: "/" },
-      });
+      navigate(
+        appointment.petId
+          ? `${paths.trimming.new.getHref()}?petId=${appointment.petId}`
+          : paths.trimming.new.getHref(),
+        { state: { from: "/" } },
+      );
     } else {
-      navigate(appointment.petId ? `/medical-records/new?petId=${appointment.petId}` : "/medical-records/select-pet", {
-        state: { from: "/", appointmentId: appointment.id },
-      });
+      navigate(
+        appointment.petId
+          ? `${paths.medicalRecords.new.getHref()}?petId=${appointment.petId}`
+          : paths.medicalRecords.selectPet.getHref(),
+        { state: { from: "/", appointmentId: appointment.id } },
+      );
     }
   }, [navigate, isTrimming, appointment.petId, appointment.id]);
 
   const handleAccountingClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(appointment.petId ? `/accounting/new?petId=${appointment.petId}` : "/accounting/new", {
-      state: { from: "/", appointmentId: appointment.id },
-    });
+    navigate(
+      appointment.petId
+        ? `${paths.accounting.new.getHref()}?petId=${appointment.petId}`
+        : paths.accounting.new.getHref(),
+      { state: { from: "/", appointmentId: appointment.id } },
+    );
   }, [navigate, appointment.petId, appointment.id]);
 
   const handleHospitalizationClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(appointment.petId ? `/hospitalization/new?petId=${appointment.petId}` : "/hospitalization/new", {
-      state: { from: "/" },
-    });
+    navigate(
+      appointment.petId
+        ? `${paths.hospitalization.new.getHref()}?petId=${appointment.petId}`
+        : paths.hospitalization.new.getHref(),
+      { state: { from: "/" } },
+    );
   }, [navigate, appointment.petId]);
 
   return (
@@ -147,8 +162,8 @@ export const AppointmentCard = memo(function AppointmentCard({
               {appointment.visitType}
             </Badge>
             <Badge variant="outline" className="flex items-center gap-1 text-sm px-[7.5px] h-[22px] bg-white tracking-[var(--tracking-notion-sm)]">
-              <ServiceIcon service={appointment.serviceType} />
-              <span className="truncate max-w-[80px]">{appointment.serviceType}</span>
+              <ServiceIcon service={appointment.reservationType} />
+              <span className="truncate max-w-[80px]">{appointment.reservationType}</span>
             </Badge>
 
             {/* BUG-037: 担当医バッジ — doctor が未設定でも「担当医未設定」として表示 */}

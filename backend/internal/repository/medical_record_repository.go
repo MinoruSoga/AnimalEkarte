@@ -32,7 +32,7 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 	records := make([]model.MedicalRecord, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Scopes(clinicScope(clinicID))
 	if petID != nil {
 		q = q.Where("pet_id = ?", *petID)
 	}
@@ -64,7 +64,7 @@ func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uin
 		Preload("Doctor").
 		Preload("Owner").
 		Preload("Pet.AnimalSpecies").
-		First(&record, "id = ? AND clinic_id = ?", id, clinicID).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&record).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
 	}
@@ -85,7 +85,7 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 func (r *medicalRecordRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
@@ -97,7 +97,7 @@ func (r *medicalRecordRepository) UpdateFields(ctx context.Context, clinicID, id
 }
 
 func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.MedicalRecord{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.MedicalRecord{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
 	}
@@ -112,7 +112,8 @@ func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, pe
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
-		Where("clinic_id = ? AND pet_id = ?", clinicID, petID).
+		Scopes(clinicScope(clinicID)).
+		Where("pet_id = ?", petID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", "")

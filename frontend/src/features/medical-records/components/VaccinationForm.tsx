@@ -1,14 +1,16 @@
 // React/Framework
-import { memo } from "react";
+import { memo, useMemo } from "react";
 
 // Internal
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
-import { C } from "@/lib/design-tokens";
+import { MasterLink } from "@/components/shared/MasterLink";
+import { C, STYLE } from "@/lib/design-tokens";
 
 interface VaccineOption {
   value: string;
@@ -37,6 +39,8 @@ interface VaccinationFormProps {
   setNextDate: (v: string) => void;
   remarks: string;
   setRemarks: (v: string) => void;
+  onSave?: () => void;
+  isSaving?: boolean;
 }
 
 export const VaccinationForm = memo(function VaccinationForm({
@@ -61,25 +65,32 @@ export const VaccinationForm = memo(function VaccinationForm({
   setNextDate,
   remarks,
   setRemarks,
+  onSave,
+  isSaving,
 }: VaccinationFormProps) {
+  // js-cache-function-results: props 配列から生成する JSX リストを useMemo でキャッシュ
+  const vaccineSelectItems = useMemo(
+    () => vaccineOptions.map((opt) => (
+      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+    )),
+    [vaccineOptions]
+  );
+
   return (
     <div className="col-span-6 flex flex-col gap-4">
       {/* Row 1: Name and Date */}
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            予防接種名
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label className={`text-sm font-medium ${C.text60}`}>予防接種名</Label>
+            <MasterLink category="vaccine" label="編集" className="text-[11px]" />
+          </div>
           <Select value={vaccineName} onValueChange={setVaccineName}>
             <SelectTrigger className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}>
               <SelectValue placeholder="ワクチンを選択" />
             </SelectTrigger>
             <SelectContent className="z-[9999]">
-              {vaccineOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
+              {vaccineSelectItems}
             </SelectContent>
           </Select>
         </div>
@@ -231,6 +242,20 @@ export const VaccinationForm = memo(function VaccinationForm({
           className={`flex-1 resize-none bg-white ${C.borderMedium} p-3 text-sm ${C.text} leading-relaxed`}
         />
       </div>
+
+      {/* Save Button */}
+      {onSave ? (
+        <div className="pt-2">
+          <Button
+            type="button"
+            onClick={onSave}
+            disabled={isSaving}
+            className={STYLE.btnPrimary}
+          >
+            {isSaving ? "登録中..." : "接種記録を追加"}
+          </Button>
+        </div>
+      ) : null}
 
     </div>
   );

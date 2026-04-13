@@ -21,14 +21,18 @@ func (h *Handler) ListReservationStaffs(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	staffIDs := make([]uint64, len(staffs))
+	for i := range staffs {
+		staffIDs[i] = staffs[i].ID
+	}
+	excludedMap, err := h.svc.ReservationStaff.ListExcludedByStaffIDs(c.Request.Context(), staffIDs)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 	list := make([]reservationStaffResponse, 0, len(staffs))
 	for i := range staffs {
-		excluded, err := h.repos.ReservationStaff.FindExcludedServiceTypes(c.Request.Context(), staffs[i].ID)
-		if err != nil {
-			RespondError(c, err)
-			return
-		}
-		list = append(list, toReservationStaffResponse(&staffs[i], excluded))
+		list = append(list, toReservationStaffResponse(&staffs[i], excludedMap[staffs[i].ID]))
 	}
 	c.JSON(http.StatusOK, list)
 }
@@ -50,13 +54,13 @@ func (h *Handler) CreateReservationStaff(c *gin.Context) {
 		ReservationVisible: req.ReservationVisible,
 		ReservationComment: req.ReservationComment,
 		SortOrder:          req.SortOrder,
-		ExcludedCourseIDs:  req.ExcludedCourseIDs,
+		ExcludedTypeIDs:    req.ExcludedTypeIDs,
 	})
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	excluded, err := h.repos.ReservationStaff.FindExcludedServiceTypes(c.Request.Context(), staff.ID)
+	excluded, err := h.svc.ReservationStaff.GetExcludedReservationTypes(c.Request.Context(), staff.ID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -86,13 +90,13 @@ func (h *Handler) UpdateReservationStaff(c *gin.Context) {
 		ReservationVisible: req.ReservationVisible,
 		ReservationComment: req.ReservationComment,
 		SortOrder:          req.SortOrder,
-		ExcludedCourseIDs:  req.ExcludedCourseIDs,
+		ExcludedTypeIDs:    req.ExcludedTypeIDs,
 	})
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	excluded, err := h.repos.ReservationStaff.FindExcludedServiceTypes(c.Request.Context(), staff.ID)
+	excluded, err := h.svc.ReservationStaff.GetExcludedReservationTypes(c.Request.Context(), staff.ID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -139,7 +143,7 @@ func (h *Handler) PatchReservationStaffStatus(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	excluded, err := h.repos.ReservationStaff.FindExcludedServiceTypes(c.Request.Context(), staff.ID)
+	excluded, err := h.svc.ReservationStaff.GetExcludedReservationTypes(c.Request.Context(), staff.ID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -172,5 +176,5 @@ func (h *Handler) PatchReservationStaffSortOrder(c *gin.Context) {
 
 // UploadReservationStaffImage godoc — v2 スコープ：未実装
 func (h *Handler) UploadReservationStaffImage(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+	RespondError(c, apperrors.WrapInternalServerError("この機能は未実装です"))
 }

@@ -48,6 +48,7 @@ export interface EstimateLineItem {
   category: string;
   unitPrice: number;
   quantity: number;
+  taxType: string;
   taxRate: number;
   discountRate: number;
   discountAmount: number;

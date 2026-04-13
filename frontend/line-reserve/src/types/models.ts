@@ -7,8 +7,17 @@ export interface LiffSettings {
   phone_number: string;
   status: 'running' | 'stopped';
   request_example: string;
+  reservation_notice: string;
+  cancel_notice: string;
+  privacy_policy: string;
   show_no_staff_option: boolean;
   booking_window: number; // 予約可能な日数（今日から何日後まで）
+}
+
+export interface OwnerPet {
+  id: number;
+  name: string;
+  animal_species?: { name: string };
 }
 
 export interface LiffProfile {
@@ -18,8 +27,13 @@ export interface LiffProfile {
     name?: string;
     phone?: string;
     owner_name?: string;
-    pet_name?: string;
-    pet_type?: string;
+    pets?: Array<{ name: string; type: string; is_new?: boolean }>;
+  };
+  // 自動紐付けされたオーナー情報（紐付け済みの場合のみ存在）
+  owner?: {
+    owner_name: string;
+    phone: string;
+    pets?: OwnerPet[];
   };
 }
 
@@ -37,12 +51,15 @@ export interface Course {
 export interface Staff {
   id: number;
   name: string;
-  description: string;
+  reservation_comment: string;
+  reservation_image_url: string;
+  sort_order: number;
 }
 
 export interface AvailableDate {
   date: string; // "YYYY-MM-DD"
   available: boolean;
+  reason?: 'closed' | 'holiday' | 'staff_off' | 'no_slots'; // 予約不可の理由
 }
 
 export interface AvailableTime {
@@ -56,19 +73,30 @@ export interface Reservation {
   course_name: string;
   staff_name: string;
   date: string;       // "YYYY-MM-DD"
-  start_time: string; // "HHMM"
-  end_time: string;   // "HHMM"
+  start_time: string; // "HH:MM"
+  end_time: string;   // "HH:MM"
   status: 'confirmed' | 'cancelled' | 'completed';
   notes: string;
   created_at: string;
+}
+
+/** POST /reservations のレスポンス（予約作成直後は id と notes のみ返す） */
+export interface CreateReservationResponse {
+  id: number;
+  notes: string;
+}
+
+export interface PetSelection {
+  name: string;
+  type: string;
+  isNew?: boolean;   // true = 自由入力で追加した新規ペット
 }
 
 export interface CustomerFields {
   customer_name?: string;
   phone?: string;
   owner_name?: string;
-  pet_name?: string;
-  pet_type?: string;
+  pets?: Array<{ name: string; type: string; is_new?: boolean }>;
 }
 
 export interface CreateReservationBody {
@@ -85,8 +113,7 @@ export interface CustomerInfo {
   name: string;
   phone: string;
   ownerName: string;
-  petName: string;
-  petType: string;
+  pets: PetSelection[];
 }
 
 export interface ReservationFlow {

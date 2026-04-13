@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Calendar, Syringe, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { C, ICON } from "@/lib/design-tokens";
@@ -16,7 +17,7 @@ function isOverdue(nextDate: string): boolean {
   return next < new Date();
 }
 
-export function VaccinationCard({
+export const VaccinationCard = memo(function VaccinationCard({
   vaccination,
   onClick,
   className,
@@ -73,4 +74,4 @@ export function VaccinationCard({
       </CardContent>
     </Card>
   );
-}
+});

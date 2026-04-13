@@ -154,14 +154,13 @@ SELECT pg_terminate_backend(pid)
 DROP DATABASE IF EXISTS ekarte_db;
 CREATE DATABASE ekarte_db OWNER ekarte_user;
 
-\c ekarte_db
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 \q
 ```
 
 ### ステップ 4: マイグレーション再実行（自動）
 
-ECS タスクを再デプロイすると GORM AutoMigrate が走り全テーブルが再作成される。
+ECS タスクを再デプロイすると、アプリケーション起動時に `backend/migrations/*.sql` が順次適用され、スキーマが再構築されます。
+※ 本システムは GORM AutoMigrate を使用せず、SQL ファイルによる厳格なバージョン管理を行っています。
 
 ```bash
 aws ecs update-service \

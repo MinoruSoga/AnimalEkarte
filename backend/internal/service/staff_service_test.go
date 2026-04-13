@@ -60,22 +60,22 @@ type mockReservationForStaff struct {
 	existsByStaffIDFn func(ctx context.Context, staffID uint64) (bool, error)
 }
 
-func (m *mockReservationForStaff) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
+func (m *mockReservationForStaff) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Appointment, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockReservationForStaff) FindByID(_ context.Context, _, _ uint64) (*model.ReservationAppointment, error) {
+func (m *mockReservationForStaff) FindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
 	return nil, nil
 }
-func (m *mockReservationForStaff) Create(_ context.Context, _ *model.ReservationAppointment) error {
+func (m *mockReservationForStaff) Create(_ context.Context, _ *model.Appointment) error {
 	return nil
 }
-func (m *mockReservationForStaff) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationAppointment, error) {
+func (m *mockReservationForStaff) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Appointment, error) {
 	return nil, nil
 }
 func (m *mockReservationForStaff) Delete(_ context.Context, _, _ uint64) error {
 	return nil
 }
-func (m *mockReservationForStaff) ExistsByServiceTypeID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockReservationForStaff) ExistsByReservationTypeID(_ context.Context, _ uint64) (bool, error) {
 	return false, nil
 }
 func (m *mockReservationForStaff) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
@@ -85,11 +85,31 @@ func (m *mockReservationForStaff) ExistsByStaffID(ctx context.Context, staffID u
 	return false, nil
 }
 
-func (m *mockReservationForStaff) FindByStaffAndTimeSlot(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+func (m *mockReservationForStaff) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockReservationForStaff) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+	return nil, nil
+}
+
+func (m *mockReservationForStaff) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
 	return false, nil
 }
 
-func (m *mockReservationForStaff) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockReservationForStaff) CountOnDutyDoctors(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+	return 1, nil
+}
+
+func (m *mockReservationForStaff) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockReservationForStaff) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockReservationForStaff) CountByDateAndSource(_ context.Context, _ uint64, _ time.Time, _ model.ReservationSource) (int64, error) {
 	return 0, nil
 }
 
@@ -98,7 +118,7 @@ type mockShiftEntryForStaff struct {
 	existsByStaffIDFn func(ctx context.Context, staffID uint64) (bool, error)
 }
 
-func (m *mockShiftEntryForStaff) List(_ context.Context, _ uint64, _ repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
+func (m *mockShiftEntryForStaff) FindAll(_ context.Context, _ uint64, _ repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
 	return nil, nil
 }
 func (m *mockShiftEntryForStaff) FindByID(_ context.Context, _, _ uint64) (*model.ShiftEntry, error) {
@@ -113,6 +133,9 @@ func (m *mockShiftEntryForStaff) Update(_ context.Context, _, _ uint64, _ map[st
 func (m *mockShiftEntryForStaff) Delete(_ context.Context, _, _ uint64) error {
 	return nil
 }
+func (m *mockShiftEntryForStaff) ReplaceBreaks(_ context.Context, _ uint64, _ []model.ShiftEntryBreak) error {
+	return nil
+}
 func (m *mockShiftEntryForStaff) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
 	if m.existsByStaffIDFn != nil {
 		return m.existsByStaffIDFn(ctx, staffID)
@@ -120,15 +143,19 @@ func (m *mockShiftEntryForStaff) ExistsByStaffID(ctx context.Context, staffID ui
 	return false, nil
 }
 
+func (m *mockShiftEntryForStaff) FindOnDutyStaffs(_ context.Context, _ uint64, _ time.Time) ([]model.Staff, error) {
+	return nil, nil
+}
+
 // mockAccountForStaff は Staff テストで使用する AccountRepository のスタブ
 type mockAccountForStaff struct {
 	findByEmailFn func(ctx context.Context, email string) (*model.Account, error)
 	getByIDFn     func(ctx context.Context, id uint64) (*model.Account, error)
 	createFn      func(ctx context.Context, account *model.Account) error
-	updateFn      func(ctx context.Context, account *model.Account) error
+	updateFn      func(ctx context.Context, id uint64, fields map[string]any) error
 }
 
-func (m *mockAccountForStaff) GetByID(ctx context.Context, id uint64) (*model.Account, error) {
+func (m *mockAccountForStaff) FindByID(ctx context.Context, id uint64) (*model.Account, error) {
 	if m.getByIDFn != nil {
 		return m.getByIDFn(ctx, id)
 	}
@@ -147,9 +174,9 @@ func (m *mockAccountForStaff) Create(ctx context.Context, account *model.Account
 	account.ID = 1
 	return nil
 }
-func (m *mockAccountForStaff) Update(ctx context.Context, account *model.Account) error {
+func (m *mockAccountForStaff) Update(ctx context.Context, id uint64, fields map[string]any) error {
 	if m.updateFn != nil {
-		return m.updateFn(ctx, account)
+		return m.updateFn(ctx, id, fields)
 	}
 	return nil
 }
@@ -184,8 +211,73 @@ func (m *mockAssignmentForStaff) DeleteByStaffID(ctx context.Context, staffID ui
 	return nil
 }
 
+// mockPermissionGroupForStaff は Staff テストで使用する PermissionGroupRepository のスタブ
+type mockPermissionGroupForStaff struct{}
+
+func (m *mockPermissionGroupForStaff) FindAll(_ context.Context, _ uint64) ([]model.PermissionGroup, error) {
+	return nil, nil
+}
+func (m *mockPermissionGroupForStaff) FindByID(_ context.Context, _, _ uint64) (*model.PermissionGroup, error) {
+	return nil, nil
+}
+func (m *mockPermissionGroupForStaff) Create(_ context.Context, _ *model.PermissionGroup) error {
+	return nil
+}
+func (m *mockPermissionGroupForStaff) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+	return nil
+}
+func (m *mockPermissionGroupForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *mockPermissionGroupForStaff) SetRules(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+	return nil
+}
+func (m *mockPermissionGroupForStaff) CountStaffsByGroupID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+func (m *mockPermissionGroupForStaff) Reorder(_ context.Context, _ uint64, _ []uint64) error {
+	return nil
+}
+func (m *mockPermissionGroupForStaff) GetEffectivePermissionsByStaffID(_ context.Context, _ uint64) ([]model.PermissionGroupRule, error) {
+	return nil, nil
+}
+func (m *mockPermissionGroupForStaff) GetGroupIDsByStaffID(_ context.Context, _ uint64) ([]uint64, error) {
+	return nil, nil
+}
+func (m *mockPermissionGroupForStaff) SetStaffGroups(_ context.Context, _ uint64, _ []uint64) error {
+	return nil
+}
+
+// mockResStaffForStaff は Staff テストで使用する ReservationStaffRepository のスタブ
+type mockResStaffForStaff struct{}
+
+func (m *mockResStaffForStaff) FindAllByClinicID(_ context.Context, _ uint64) ([]model.Staff, error) {
+	return nil, nil
+}
+func (m *mockResStaffForStaff) FindByID(_ context.Context, _ uint64) (*model.Staff, error) {
+	return nil, nil
+}
+func (m *mockResStaffForStaff) FindByIDAndClinicID(_ context.Context, _, _ uint64) (*model.Staff, error) {
+	return nil, nil
+}
+func (m *mockResStaffForStaff) Create(_ context.Context, _ *model.Staff, _ uint64) error { return nil }
+func (m *mockResStaffForStaff) Update(_ context.Context, _ uint64, _ map[string]any) error {
+	return nil
+}
+func (m *mockResStaffForStaff) SoftDelete(_ context.Context, _ uint64) error { return nil }
+func (m *mockResStaffForStaff) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
+	return nil
+}
+func (m *mockResStaffForStaff) FindExcludedReservationTypes(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
+	return nil, nil
+}
+func (m *mockResStaffForStaff) FindExcludedReservationTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
+	return nil, nil
+}
+func (m *mockResStaffForStaff) ReplaceExcludedReservationTypes(_ context.Context, _ uint64, _ []uint64) error {
+	return nil
+}
+
 func newTestStaffService(repo *mockStaffRepository) StaffService {
-	return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{})
+	return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{})
 }
 
 func TestStaffService_List(t *testing.T) {
@@ -632,7 +724,7 @@ func TestStaffService_Delete(t *testing.T) {
 					return tt.shiftExists, tt.checkShiftErr
 				},
 			}
-			svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, reservationRepo, shiftRepo)
+			svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, reservationRepo, shiftRepo, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 

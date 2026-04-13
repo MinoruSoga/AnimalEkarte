@@ -48,20 +48,20 @@ type MedicalRecordService interface {
 	// 失敗しても呼び出し元のカルテ作成は完了済みのためエラーは握りつぶす（slog.Warn のみ）。
 	CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput)
 	// AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。
-	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.ReservationAppointment)
+	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Appointment)
 }
 
 // CreateSubRecordsInput はカルテ作成時の inquiry / clinical_plan サブレコード作成 DTO
 type CreateSubRecordsInput struct {
-	ChiefComplaintCategoryID *uint64
-	ChiefComplaint           *string
-	Notes                    *string
-	Plan                     *string // → ClinicalPlan.TreatmentPolicy
-	Assessment               *string // → ClinicalPlan.DiagnosisDetails
-	Diagnosis1CategoryID     *uint64
-	Diagnosis1NameID         *uint64
-	Diagnosis2CategoryID     *uint64
-	Diagnosis2NameID         *uint64
+	ChiefComplaintTypeID *uint64
+	ChiefComplaint       *string
+	Notes                *string
+	Plan                 *string // → ClinicalPlan.TreatmentPolicy
+	Assessment           *string // → ClinicalPlan.DiagnosisDetails
+	Diagnosis1CategoryID *uint64
+	Diagnosis1NameID     *uint64
+	Diagnosis2CategoryID *uint64
+	Diagnosis2NameID     *uint64
 }
 
 type medicalRecordService struct {
@@ -89,15 +89,27 @@ func NewMedicalRecordService(
 }
 
 func (s *medicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list medical records")
+	}
+	return items, total, nil
 }
 
 func (s *medicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get medical record")
+	}
+	return result, nil
 }
 
 func (s *medicalRecordService) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
-	return s.repo.CountByPetID(ctx, clinicID, petID)
+	count, err := s.repo.CountByPetID(ctx, clinicID, petID)
+	if err != nil {
+		return 0, apperrors.Wrap(err, "failed to count medical records by pet")
+	}
+	return count, nil
 }
 
 func (s *medicalRecordService) Create(ctx context.Context, record *model.MedicalRecord) error {
@@ -168,18 +180,21 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete medical record")
 	}
+	slog.InfoContext(ctx, "medical record deleted",
+		slog.Uint64("record_id", id),
+		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 
 // UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO
 type UpdateMedicalRecordInput struct {
-	Date                     *time.Time
-	OwnerID                  *uint64
-	PetID                    *uint64
-	DoctorID                 *uint64
-	ReservationAppointmentID *uint64
-	Status                   *model.MedicalRecordStatus
-	Version                  *int // 楽観的ロック用: nil の場合はチェックをスキップ
+	Date          *time.Time
+	OwnerID       *uint64
+	PetID         *uint64
+	DoctorID      *uint64
+	AppointmentID *uint64
+	Status        *model.MedicalRecordStatus
+	Version       *int // 楽観的ロック用: nil の場合はチェックをスキップ
 }
 
 func buildMedicalRecordUpdateFields(input UpdateMedicalRecordInput) map[string]any {
@@ -196,8 +211,8 @@ func buildMedicalRecordUpdateFields(input UpdateMedicalRecordInput) map[string]a
 	if input.DoctorID != nil {
 		fields["doctor_id"] = *input.DoctorID
 	}
-	if input.ReservationAppointmentID != nil {
-		fields["reservation_appointment_id"] = *input.ReservationAppointmentID
+	if input.AppointmentID != nil {
+		fields["appointment_id"] = *input.AppointmentID
 	}
 	if input.Status != nil {
 		fields["status"] = *input.Status
@@ -212,8 +227,8 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 	inquiry := &model.Inquiry{
 		MedicalRecordID: recordID,
 	}
-	if input.ChiefComplaintCategoryID != nil {
-		inquiry.ChiefComplaintCategoryID = input.ChiefComplaintCategoryID
+	if input.ChiefComplaintTypeID != nil {
+		inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
 	}
 	if input.ChiefComplaint != nil {
 		inquiry.ChiefComplaint = *input.ChiefComplaint
@@ -221,7 +236,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 	if input.Notes != nil {
 		inquiry.Notes = *input.Notes
 	}
-	if _, err := s.inquiryRepo.UpsertByMedicalRecordID(ctx, inquiry); err != nil {
+	if _, err := s.inquiryRepo.UpsertByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
 		slog.WarnContext(ctx, "createSubRecords: failed to upsert inquiry",
 			slog.Uint64("medical_record_id", recordID),
 			slog.String("error", err.Error()))
@@ -253,7 +268,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 			fields["diagnosis_details"] = *input.Assessment
 		}
 		if input.Diagnosis1CategoryID != nil {
-			fields["diagnosis_category_id"] = *input.Diagnosis1CategoryID
+			fields["diagnosis_type_id"] = *input.Diagnosis1CategoryID
 		}
 		if input.Diagnosis1NameID != nil {
 			fields["diagnosis_name_id"] = *input.Diagnosis1NameID
@@ -275,7 +290,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 // AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。
 // 同日同ペットのカルテが既に存在する場合はスキップする（重複防止）。
 // 失敗してもメイン処理（予約更新）には影響しない。
-func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.ReservationAppointment) {
+func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Appointment) {
 	if reservation.PetID == nil || reservation.OwnerID == nil {
 		slog.WarnContext(ctx, "autoCreateFromReservation: skipped — reservation has no pet_id or owner_id",
 			slog.Uint64("reservation_id", reservation.ID))
@@ -299,12 +314,12 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 	}
 
 	record := &model.MedicalRecord{
-		ClinicID:                 clinicID,
-		Date:                     reservation.StartTime,
-		OwnerID:                  reservation.OwnerID,
-		PetID:                    reservation.PetID,
-		ReservationAppointmentID: &reservation.ID,
-		Status:                   model.MedicalRecordStatusDraft,
+		ClinicID:      clinicID,
+		Date:          reservation.StartTime,
+		OwnerID:       reservation.OwnerID,
+		PetID:         reservation.PetID,
+		AppointmentID: &reservation.ID,
+		Status:        model.MedicalRecordStatusDraft,
 	}
 	if reservation.DoctorID != nil {
 		record.DoctorID = reservation.DoctorID

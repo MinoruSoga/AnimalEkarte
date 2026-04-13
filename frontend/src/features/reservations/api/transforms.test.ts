@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { transformReservation, transformToCreateRequest } from "./transforms";
-import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
-import type { ReservationAppointment } from "@/types";
+import type { Appointment as BackendReservation } from "@/types/generated/models";
+import type { Appointment } from "@/types";
 
 /** BackendReservation の最小スタブ */
 const minimalBackend: BackendReservation = {
@@ -10,6 +10,7 @@ const minimalBackend: BackendReservation = {
   start_time: "2026-03-25T10:00:00Z",
   end_time: "2026-03-25T10:30:00Z",
   visit_type: "first",
+  reservation_type_id: 1,
   status: "confirmed",
   is_designated: false,
   created_at: "2026-03-25T00:00:00Z",
@@ -55,7 +56,7 @@ describe("transformReservation", () => {
   });
 
   it("status をそのままマップする", () => {
-    const statuses: ReservationAppointment["status"][] = [
+    const statuses: Appointment["status"][] = [
       "confirmed", "pending", "checked_in", "in_consultation", "accounting", "completed", "cancelled",
     ];
     for (const status of statuses) {
@@ -69,22 +70,22 @@ describe("transformReservation", () => {
     expect(result.status).toBe("pending");
   });
 
-  it("owner.owner_name を ownerName にマップする", () => {
+  it("owner.name を ownerName にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,
-      owner: { id: 1, clinic_id: 1, owner_name: "田中太郎" } as BackendReservation["owner"],
+      owner: { id: 1, clinic_id: 1, name: "田中太郎" } as BackendReservation["owner"],
     });
     expect(result.ownerName).toBe("田中太郎");
   });
 
-  it("owner が未設定でも pet.owner.owner_name を ownerName にマップする", () => {
+  it("owner が未設定でも pet.owner.name を ownerName にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,
       owner: undefined,
       pet: {
         id: 1,
         clinic_id: 1,
-        owner: { id: 1, clinic_id: 1, owner_name: "佐藤花子" } as BackendReservation["pet"]["owner"],
+        owner: { id: 1, clinic_id: 1, name: "佐藤花子" } as BackendReservation["pet"]["owner"],
       } as BackendReservation["pet"],
     });
     expect(result.ownerName).toBe("佐藤花子");
@@ -103,10 +104,10 @@ describe("transformReservation", () => {
     expect(result.petName).toBe("ポチ");
   });
 
-  it("service_type.name を type にマップする", () => {
+  it("reservation_type.name を type にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,
-      service_type: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["service_type"],
+      reservation_type: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["reservation_type"],
     });
     expect(result.type).toBe("診療");
   });
@@ -146,7 +147,7 @@ describe("transformReservation", () => {
 });
 
 describe("transformToCreateRequest", () => {
-  const baseData: Partial<ReservationAppointment> = {
+  const baseData: Partial<Appointment> = {
     start: new Date("2026-03-25T10:00:00Z"),
     end: new Date("2026-03-25T10:30:00Z"),
     visitType: "first",
@@ -176,9 +177,9 @@ describe("transformToCreateRequest", () => {
     expect(result.visit_type).toBe("first");
   });
 
-  it("type を service_type_id (number) に変換する", () => {
+  it("type を reservation_type_id (number) に変換する", () => {
     const result = transformToCreateRequest({ ...baseData, type: "3" }, "1", "1");
-    expect(result.service_type_id).toBe(3);
+    expect(result.reservation_type_id).toBe(3);
   });
 
   it("notes を正しく渡す", () => {

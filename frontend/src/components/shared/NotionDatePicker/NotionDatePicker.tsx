@@ -1,5 +1,5 @@
 import { C, ICON } from "@/lib/design-tokens";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import { CalendarIcon, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { ja } from "date-fns/locale";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -163,14 +163,14 @@ const NAV_BTN =
  * - `mode="single"` (default): single date selection with text input + Today button
  * - `mode="range"`: date range selection (from ~ to)
  */
-export function NotionDatePicker(props: NotionDatePickerProps) {
+export const NotionDatePicker = memo(function NotionDatePicker(props: NotionDatePickerProps) {
   const isRange = props.mode === "range";
 
   if (isRange) {
     return <RangePicker {...props} />;
   }
   return <SinglePicker {...props} />;
-}
+});
 
 // ─── Single Mode ──────────────────────────────────────────────
 
@@ -221,7 +221,7 @@ function SinglePicker({
   );
 
   const handleClear = useCallback(
-    (e: React.MouseEvent<HTMLSpanElement>) => {
+    (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
       onChange("");
       setInputText("");
@@ -416,7 +416,7 @@ function RangePicker({
   );
 
   const handleClear = useCallback(
-    (e: React.MouseEvent<HTMLSpanElement>) => {
+    (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
       onChange("");
     },
@@ -596,20 +596,15 @@ function MonthGrid({
 }
 
 /** Clear (×) button for the trigger */
-function ClearButton({ onClick }: { onClick: (e: React.MouseEvent<HTMLSpanElement>) => void }) {
+function ClearButton({ onClick }: { onClick: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
   return (
-    <span
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ")
-          onClick(e as unknown as React.MouseEvent<HTMLSpanElement>);
-      }}
       className={`ml-1 shrink-0 rounded p-0.5 ${C.text40} ${C.hoverBgPrimary10} ${C.hoverText}/70 cursor-pointer`}
       aria-label="日付をクリア"
     >
       <X className={ICON.action} />
-    </span>
+    </button>
   );
 }

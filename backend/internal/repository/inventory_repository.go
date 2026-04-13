@@ -32,7 +32,7 @@ func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, cate
 	items := make([]model.InventoryItem, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.InventoryItem{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.InventoryItem{}).Scopes(clinicScope(clinicID))
 	if category != nil {
 		q = q.Where("category = ?", *category)
 	}
@@ -50,7 +50,7 @@ func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, cate
 
 func (r *inventoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
 	var item model.InventoryItem
-	err := r.db.WithContext(ctx).First(&item, "id = ? AND clinic_id = ?", id, clinicID).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&item).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", id))
 	}
@@ -72,7 +72,7 @@ func (r *inventoryRepository) Create(ctx context.Context, clinicID uint64, item 
 func (r *inventoryRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.InventoryItem{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("%d", id))
@@ -84,7 +84,7 @@ func (r *inventoryRepository) UpdateFields(ctx context.Context, clinicID, id uin
 }
 
 func (r *inventoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.InventoryItem{}, "id = ? AND clinic_id = ?", id, clinicID)
+	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.InventoryItem{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("%d", id))
 	}

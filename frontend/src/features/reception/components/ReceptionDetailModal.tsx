@@ -21,11 +21,14 @@ import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { RECEPTION_STATUS_COLORS, RECEPTION_STATUS_COLOR_FALLBACK } from "@/utils/constants/status-colors";
 
+// Internal
+import { paths } from "@/config/paths";
+
 // Types
-import type { Appointment } from "@/types";
+import type { ReceptionAppointment as Appointment } from "../api/types";
 
 // Module-level constants — avoid recreating compound class strings on every render
 const SECTION_LABEL = `text-sm font-semibold ${C.text60} uppercase tracking-wider`;
@@ -188,7 +191,7 @@ const ActionButtons = memo(function ActionButtons({
               <FileText className={ICON.action} />
               カルテ作成
             </Button>
-            <span className="text-[10px] text-muted-foreground">※カルテ作成と同時に「診療中」へ移動します</span>
+            <span className={`text-[10px] ${C.text40}`}>※カルテ作成と同時に「診療中」へ移動します</span>
           </div>
         ) : (
           onConfirm ? (
@@ -330,21 +333,21 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
 
   const handleCreateMedicalRecord = useCallback((tab?: string) => {
     const base = petId
-      ? `/medical-records/new?petId=${petId}${tab ? `&tab=${tab}` : ""}`
-      : "/medical-records/select-pet";
+      ? `${paths.medicalRecords.new.getHref()}?petId=${petId}${tab ? `&tab=${tab}` : ""}`
+      : paths.medicalRecords.selectPet.getHref();
     navigateAndClose(base, { appointmentId });
   }, [petId, appointmentId, navigateAndClose]);
 
   const handleCreateTrimming = useCallback(() =>
-    navigateAndClose(petId ? `/trimming/new?petId=${petId}` : "/trimming/new"),
+    navigateAndClose(petId ? `${paths.trimming.new.getHref()}?petId=${petId}` : paths.trimming.new.getHref()),
   [petId, navigateAndClose]);
 
   const handleCreateHospitalization = useCallback(() =>
-    navigateAndClose(petId ? `/hospitalization/new?petId=${petId}` : "/hospitalization/new"),
+    navigateAndClose(petId ? `${paths.hospitalization.new.getHref()}?petId=${petId}` : paths.hospitalization.new.getHref()),
   [petId, navigateAndClose]);
 
   const handleCreateAccounting = useCallback(() =>
-    navigateAndClose(petId ? `/accounting/new?petId=${petId}` : "/accounting/new", {
+    navigateAndClose(petId ? `${paths.accounting.new.getHref()}?petId=${petId}` : paths.accounting.new.getHref(), {
       appointmentId,
     }),
   [petId, appointmentId, navigateAndClose]);
@@ -359,13 +362,13 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
 
   if (!appointment) return null;
 
-  const isTrimming = appointment.serviceType.includes("トリミング");
-  const isHospitalization = appointment.serviceType.includes("入院");
-  const isMedical = appointment.serviceType.includes("診療") || (!isTrimming && !isHospitalization);
+  const isTrimming = appointment.reservationType.includes("トリミング");
+  const isHospitalization = appointment.reservationType.includes("入院");
+  const isMedical = appointment.reservationType.includes("診療") || (!isTrimming && !isHospitalization);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[480px] p-0 gap-0 overflow-hidden bg-white">
+      <DialogContent className={`${LAYOUT.modal.sm} p-0 gap-0 overflow-hidden bg-white`}>
         {/* Header */}
         <DialogHeader className={`p-5 pb-4 border-b ${C.borderLight} pr-12`}>
           <div className="flex items-center justify-between gap-4">
@@ -378,7 +381,7 @@ export const ReceptionDetailModal = memo(function ReceptionDetailModal({
                 {appointment.visitType === "初診" ? "初" : "再"}
               </span>
               <DialogTitle className={`text-lg font-bold ${C.text}`}>
-                {appointment.serviceType}
+                {appointment.reservationType}
               </DialogTitle>
             </div>
             {currentStatus ? (

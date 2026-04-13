@@ -74,9 +74,8 @@ func (h *Handler) GetAccounting(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	accounting, err := h.svc.Accounting.GetByID(c.Request.Context(), clinicID, id)
@@ -134,9 +133,8 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var input updateAccountingRequest
@@ -179,9 +177,8 @@ func (h *Handler) DeleteAccounting(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.Accounting.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -189,16 +186,4 @@ func (h *Handler) DeleteAccounting(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
-}
-
-// RegisterAccountingRoutes は会計関連のルートを登録する
-func (h *Handler) RegisterAccountingRoutes(rg *gin.RouterGroup) {
-	accountings := rg.Group("/accountings")
-	accountings.GET("", h.ListAccountings)
-	accountings.POST("", h.CreateAccounting)
-	accountings.GET("/:id", h.GetAccounting)
-	accountings.PATCH("/:id", h.UpdateAccounting)
-	accountings.DELETE("/:id", h.DeleteAccounting)
-	accountings.GET("/:id/refunds", h.ListRefunds)
-	accountings.POST("/:id/refunds", h.CreateRefund)
 }

@@ -49,7 +49,7 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
   diagnosisDetails,
   treatments = [],
 }: MedicalRecordPrintViewProps) {
-  const medicineTreatments = treatments.filter((t) => t.item_type === "medicine" && t.selected);
+  const medicineTreatments = treatments.filter((t) => t.item_type === "medicine" && t.is_selected);
 
   return (
     <div className="font-sans text-[12pt] text-black w-full max-w-[210mm] mx-auto p-8">

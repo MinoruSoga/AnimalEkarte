@@ -7,11 +7,7 @@ import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSele
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
-import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
-import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
-import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { PropertyRow, StatusToggleButton, MoneyInput, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";

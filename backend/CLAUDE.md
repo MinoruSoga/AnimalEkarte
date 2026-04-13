@@ -256,6 +256,34 @@ r.db.Raw("SELECT * FROM owners WHERE name = '" + name + "'")
 r.db.Where("name = ?", name).Find(&owners)
 ```
 
+### マルチテナント: clinicScope（必須）
+
+プライマリテーブルが直接 `clinic_id` を持つ場合は、`clinicScope` を使用する。
+
+```go
+// ❌ 禁止: 手動で clinic_id を WHERE に記述
+r.db.WithContext(ctx).Where("clinic_id = ? AND id = ?", clinicID, id).First(&x)
+
+// ✅ 必須: clinicScope を使用
+r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&x)
+```
+
+**JOIN 経由でテナント判定する場合**（billing_items→billings、treatments→medical_records 等）は
+JOIN 条件に `AND テーブル名.clinic_id = ?` を明示する。`clinicScope` は使用不可。
+
+```go
+// ✅ JOIN 経由のテナント判定
+r.db.WithContext(ctx).
+    Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id"+
+        " AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+    Where("treatments.id = ?", id).
+    First(&treatment)
+```
+
+**JOIN を含む repository メソッドのレビューチェックリスト:**
+- [ ] JOIN 先テーブルの `clinic_id` フィルタが JOIN 条件に含まれているか
+- [ ] JOIN 先テーブルの `deleted_at IS NULL` が JOIN 条件に含まれているか
+
 ---
 
 ## 命名規則

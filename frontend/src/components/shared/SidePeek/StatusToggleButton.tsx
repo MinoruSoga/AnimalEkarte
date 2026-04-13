@@ -14,6 +14,7 @@ export function StatusToggleButton({ isActive, onToggle }: StatusToggleButtonPro
       <button
         type="button"
         onClick={onToggle}
+        aria-label="ステータスを切り替え"
         className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
       >
         <NotionStatusPill isActive={isActive} />

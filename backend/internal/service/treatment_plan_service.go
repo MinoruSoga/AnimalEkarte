@@ -12,7 +12,7 @@ import (
 type CreateTreatmentPlanInput struct {
 	TreatmentContent string
 	Memo             string
-	Insurance        bool
+	IsInsurance      bool
 	UnitPrice        int64
 	Quantity         float64
 	DiscountRate     float64
@@ -24,7 +24,7 @@ type CreateTreatmentPlanInput struct {
 type UpdateTreatmentPlanInput struct {
 	TreatmentContent *string
 	Memo             *string
-	Insurance        *bool
+	IsInsurance      *bool
 	UnitPrice        *int64
 	Quantity         *float64
 	DiscountRate     *float64
@@ -34,11 +34,11 @@ type UpdateTreatmentPlanInput struct {
 }
 
 type TreatmentPlanService interface {
-	ListByMedicalRecord(ctx context.Context, medicalRecordID uint64) ([]model.TreatmentPlan, error)
-	ListByHospitalization(ctx context.Context, hospitalizationID uint64) ([]model.TreatmentPlan, error)
-	Create(ctx context.Context, medicalRecordID, hospitalizationID *uint64, input *CreateTreatmentPlanInput) (*model.TreatmentPlan, error)
-	Update(ctx context.Context, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error)
-	Delete(ctx context.Context, id uint64) error
+	ListByMedicalRecord(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error)
+	ListByHospitalization(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
+	Create(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64, input *CreateTreatmentPlanInput) (*model.TreatmentPlan, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type treatmentPlanService struct {
@@ -49,15 +49,23 @@ func NewTreatmentPlanService(repo repository.TreatmentPlanRepository) TreatmentP
 	return &treatmentPlanService{repo: repo}
 }
 
-func (s *treatmentPlanService) ListByMedicalRecord(ctx context.Context, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
-	return s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
+func (s *treatmentPlanService) ListByMedicalRecord(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
+	plans, err := s.repo.ListByMedicalRecordID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list treatment plans by medical record")
+	}
+	return plans, nil
 }
 
-func (s *treatmentPlanService) ListByHospitalization(ctx context.Context, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
-	return s.repo.ListByHospitalizationID(ctx, hospitalizationID)
+func (s *treatmentPlanService) ListByHospitalization(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
+	plans, err := s.repo.ListByHospitalizationID(ctx, clinicID, hospitalizationID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list treatment plans by hospitalization")
+	}
+	return plans, nil
 }
 
-func (s *treatmentPlanService) Create(ctx context.Context, medicalRecordID, hospitalizationID *uint64, input *CreateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64, input *CreateTreatmentPlanInput) (*model.TreatmentPlan, error) {
 	subtotal := input.Subtotal
 	if subtotal == 0 && input.UnitPrice > 0 {
 		qty := input.Quantity
@@ -72,7 +80,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, medicalRecordID, hosp
 		HospitalizationID: hospitalizationID,
 		TreatmentContent:  input.TreatmentContent,
 		Memo:              input.Memo,
-		Insurance:         input.Insurance,
+		IsInsurance:       input.IsInsurance,
 		UnitPrice:         input.UnitPrice,
 		Quantity:          input.Quantity,
 		DiscountRate:      input.DiscountRate,
@@ -84,23 +92,33 @@ func (s *treatmentPlanService) Create(ctx context.Context, medicalRecordID, hosp
 		return nil, apperrors.Wrap(err, "failed to create treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan created", slog.Uint64("treatment_plan_id", plan.ID))
-	return s.repo.FindByID(ctx, plan.ID)
+
+	result, err := s.repo.FindByID(ctx, clinicID, plan.ID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to reload treatment plan after create")
+	}
+	return result, nil
 }
 
-func (s *treatmentPlanService) Update(ctx context.Context, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
 	fields := buildTreatmentPlanUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	if err := s.repo.Update(ctx, id, fields); err != nil {
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan updated", slog.Uint64("treatment_plan_id", id))
-	return s.repo.FindByID(ctx, id)
+
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to reload treatment plan after update")
+	}
+	return result, nil
 }
 
-func (s *treatmentPlanService) Delete(ctx context.Context, id uint64) error {
-	if err := s.repo.Delete(ctx, id); err != nil {
+func (s *treatmentPlanService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan deleted", slog.Uint64("treatment_plan_id", id))
@@ -115,8 +133,8 @@ func buildTreatmentPlanUpdateFields(input *UpdateTreatmentPlanInput) map[string]
 	if input.Memo != nil {
 		fields["memo"] = *input.Memo
 	}
-	if input.Insurance != nil {
-		fields["insurance"] = *input.Insurance
+	if input.IsInsurance != nil {
+		fields["is_insurance"] = *input.IsInsurance
 	}
 	if input.UnitPrice != nil {
 		fields["unit_price"] = *input.UnitPrice

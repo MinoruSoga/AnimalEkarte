@@ -25,7 +25,7 @@ function transformMerchandiseItem(item: MerchandiseItem): FrontendMerchandiseIte
 
 export const useGetAllMerchandiseItems = () => {
   return useQuery({
-    queryKey: ["masters", "merchandise-items"],
+    queryKey: ["accounting", "merchandise-items"],
     queryFn: async (): Promise<FrontendMerchandiseItem[]> => {
       const { data } = await axios.get<MerchandiseItem[] | { data: MerchandiseItem[] }>("/v1/masters/merchandise-items");
       const items = Array.isArray(data) ? data : data.data;

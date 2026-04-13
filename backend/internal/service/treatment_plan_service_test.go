@@ -13,39 +13,41 @@ import (
 // ---- TreatmentPlan モック ----
 
 type mockTreatmentPlanRepository struct {
-	listByMedicalRecordIDFn   func(ctx context.Context, medicalRecordID uint64) ([]model.TreatmentPlan, error)
-	listByHospitalizationIDFn func(ctx context.Context, hospitalizationID uint64) ([]model.TreatmentPlan, error)
-	findByIDFn                func(ctx context.Context, id uint64) (*model.TreatmentPlan, error)
+	listByMedicalRecordIDFn   func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error)
+	listByHospitalizationIDFn func(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
+	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	createFn                  func(ctx context.Context, plan *model.TreatmentPlan) error
-	updateFn                  func(ctx context.Context, id uint64, fields map[string]any) error
-	deleteFn                  func(ctx context.Context, id uint64) error
+	updateFn                  func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockTreatmentPlanRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
-	return m.listByMedicalRecordIDFn(ctx, medicalRecordID)
+func (m *mockTreatmentPlanRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
+	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockTreatmentPlanRepository) ListByHospitalizationID(ctx context.Context, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
-	return m.listByHospitalizationIDFn(ctx, hospitalizationID)
+func (m *mockTreatmentPlanRepository) ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
+	return m.listByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
 }
 
-func (m *mockTreatmentPlanRepository) FindByID(ctx context.Context, id uint64) (*model.TreatmentPlan, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockTreatmentPlanRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockTreatmentPlanRepository) Create(ctx context.Context, plan *model.TreatmentPlan) error {
 	return m.createFn(ctx, plan)
 }
 
-func (m *mockTreatmentPlanRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, id, fields)
+func (m *mockTreatmentPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockTreatmentPlanRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockTreatmentPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 // ---- Tests ----
+
+const testClinicIDTP = uint64(1)
 
 func TestTreatmentPlanService_ListByMedicalRecord(t *testing.T) {
 	tests := []struct {
@@ -87,13 +89,13 @@ func TestTreatmentPlanService_ListByMedicalRecord(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTreatmentPlanRepository{
-				listByMedicalRecordIDFn: func(_ context.Context, _ uint64) ([]model.TreatmentPlan, error) {
+				listByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]model.TreatmentPlan, error) {
 					return tt.repoPlans, tt.repoErr
 				},
 			}
 			svc := NewTreatmentPlanService(repo)
 
-			plans, err := svc.ListByMedicalRecord(context.Background(), tt.medicalRecordID)
+			plans, err := svc.ListByMedicalRecord(context.Background(), testClinicIDTP, tt.medicalRecordID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -144,13 +146,13 @@ func TestTreatmentPlanService_ListByHospitalization(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTreatmentPlanRepository{
-				listByHospitalizationIDFn: func(_ context.Context, _ uint64) ([]model.TreatmentPlan, error) {
+				listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.TreatmentPlan, error) {
 					return tt.repoPlans, tt.repoErr
 				},
 			}
 			svc := NewTreatmentPlanService(repo)
 
-			plans, err := svc.ListByHospitalization(context.Background(), tt.hospitalizationID)
+			plans, err := svc.ListByHospitalization(context.Background(), testClinicIDTP, tt.hospitalizationID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -182,7 +184,7 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 				TreatmentContent: "Office visit",
 				UnitPrice:        100,
 				Quantity:         1,
-				Insurance:        true,
+				IsInsurance:      true,
 			},
 			repoErr: nil,
 			wantErr: false,
@@ -232,7 +234,7 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.TreatmentPlan) error {
 					return tt.repoErr
 				},
-				findByIDFn: func(_ context.Context, _ uint64) (*model.TreatmentPlan, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
 					return &model.TreatmentPlan{
 						MedicalRecordID:   tt.medicalRecordID,
 						HospitalizationID: tt.hospitalizationID,
@@ -241,7 +243,7 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 			}
 			svc := NewTreatmentPlanService(repo)
 
-			plan, err := svc.Create(context.Background(), tt.medicalRecordID, tt.hospitalizationID, tt.input)
+			plan, err := svc.Create(context.Background(), testClinicIDTP, tt.medicalRecordID, tt.hospitalizationID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -304,16 +306,16 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTreatmentPlanRepository{
-				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoUpdateErr
 				},
-				findByIDFn: func(_ context.Context, _ uint64) (*model.TreatmentPlan, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
 					return tt.repoReturnPlan, nil
 				},
 			}
 			svc := NewTreatmentPlanService(repo)
 
-			plan, err := svc.Update(context.Background(), tt.id, tt.input)
+			plan, err := svc.Update(context.Background(), testClinicIDTP, tt.id, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -355,13 +357,13 @@ func TestTreatmentPlanService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTreatmentPlanRepository{
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewTreatmentPlanService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), testClinicIDTP, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

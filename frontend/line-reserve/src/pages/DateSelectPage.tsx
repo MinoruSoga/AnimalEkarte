@@ -34,7 +34,6 @@ export function DateSelectPage({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
     liffApi.getAvailableDates(clinicId, courseId, staffId, idToken)
       .then(data => {
         setAvailableDates(data);

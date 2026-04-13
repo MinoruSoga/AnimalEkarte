@@ -38,7 +38,7 @@ type Hospitalization struct {
 	StaffNotes          string                `gorm:"default:''"                                     json:"staff_notes"`
 	CreatedAt           time.Time             `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt           time.Time             `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt           gorm.DeletedAt        `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt           gorm.DeletedAt        `                                                      json:"-"`
 
 	// Relations
 	Owner          *Owner          `gorm:"foreignKey:OwnerID"           json:"owner,omitempty"`
@@ -110,14 +110,14 @@ type TreatmentPlan struct {
 	HospitalizationID *uint64        `                                                      json:"hospitalization_id,omitempty"`
 	TreatmentContent  string         `gorm:"not null;default:''"                            json:"treatment_content"`
 	Memo              string         `gorm:"default:''"                                     json:"memo"`
-	Insurance         bool           `gorm:"default:false"                                  json:"insurance"`
+	IsInsurance       bool           `gorm:"column:is_insurance;default:false"              json:"is_insurance"`
 	UnitPrice         int64          `gorm:"default:0"                                      json:"unit_price"`
 	Quantity          float64        `gorm:"type:numeric(10,1);default:1"                   json:"quantity"`
 	DiscountRate      float64        `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
 	DiscountAmount    int64          `gorm:"default:0"                                      json:"discount_amount"`
 	Subtotal          int64          `gorm:"default:0"                                      json:"subtotal"`
 	SortOrder         int            `gorm:"type:integer;default:0"                         json:"sort_order"`
-	DeletedAt         gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
+	DeletedAt         gorm.DeletedAt `                                                      json:"-"`
 	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -137,9 +137,9 @@ type DailyRecord struct {
 	UpdatedAt         time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	VitalRecords     []VitalRecord     `gorm:"foreignKey:DailyRecordID" json:"vital_records,omitempty"`
-	CareLogRecords   []CareLogRecord   `gorm:"foreignKey:DailyRecordID" json:"care_log_records,omitempty"`
-	StaffNoteRecords []StaffNoteRecord `gorm:"foreignKey:DailyRecordID" json:"staff_note_records,omitempty"`
+	VitalRecords []VitalRecord `gorm:"foreignKey:DailyRecordID" json:"vital_records,omitempty"`
+	CareLogs     []CareLog     `gorm:"foreignKey:DailyRecordID" json:"care_logs,omitempty"`
+	StaffNotes   []StaffNote   `gorm:"foreignKey:DailyRecordID" json:"staff_notes,omitempty"`
 }
 
 func (DailyRecord) TableName() string { return "daily_records" }
@@ -162,7 +162,7 @@ const (
 	CareLogStatusSkipped   CareLogStatus = "skipped"
 )
 
-type CareLogRecord struct {
+type CareLog struct {
 	ID            uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	DailyRecordID uint64        `gorm:"not null"                                       json:"daily_record_id"`
 	Time          time.Time     `gorm:"type:time;not null"                             json:"time"`
@@ -178,9 +178,9 @@ type CareLogRecord struct {
 	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
 }
 
-func (CareLogRecord) TableName() string { return "care_log_records" }
+func (CareLog) TableName() string { return "care_logs" }
 
-type StaffNoteRecord struct {
+type StaffNote struct {
 	ID            uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	DailyRecordID uint64    `gorm:"not null"                                       json:"daily_record_id"`
 	Time          time.Time `gorm:"type:time;not null"                             json:"time"`
@@ -193,4 +193,4 @@ type StaffNoteRecord struct {
 	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
 }
 
-func (StaffNoteRecord) TableName() string { return "staff_note_records" }
+func (StaffNote) TableName() string { return "staff_notes" }

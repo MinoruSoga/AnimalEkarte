@@ -27,6 +27,12 @@ func normalizeTimeString(s *string) *string {
 	return nil
 }
 
+// ShiftBreakInput は休憩時間の入力DTO
+type ShiftBreakInput struct {
+	BreakStart string
+	BreakEnd   string
+}
+
 // CreateShiftEntryInput はシフト作成の入力DTO
 type CreateShiftEntryInput struct {
 	StaffID   uint64
@@ -34,7 +40,8 @@ type CreateShiftEntryInput struct {
 	ShiftType model.ShiftType
 	StartTime *string
 	EndTime   *string
-	Note      string
+	Notes     string
+	Breaks    []ShiftBreakInput
 }
 
 // UpdateShiftEntryInput はシフト更新の入力DTO（nil = 未変更）
@@ -42,7 +49,8 @@ type UpdateShiftEntryInput struct {
 	ShiftType *model.ShiftType
 	StartTime *string
 	EndTime   *string
-	Note      *string
+	Notes     *string
+	Breaks    *[]ShiftBreakInput
 }
 
 // ShiftEntryService はシフト管理のビジネスロジックインターフェース
@@ -51,6 +59,8 @@ type ShiftEntryService interface {
 	Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateShiftEntryInput) (*model.ShiftEntry, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	// GetOnDutyStaffs は指定日に出勤しているスタッフ一覧を返す (BUG-344)
+	GetOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error)
 }
 
 type shiftEntryService struct {
@@ -72,7 +82,11 @@ func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth
 		YearMonth: yearMonth,
 		StaffID:   staffID,
 	}
-	return s.repo.List(ctx, clinicID, filter)
+	items, err := s.repo.FindAll(ctx, clinicID, filter)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list shift entries")
+	}
+	return items, nil
 }
 
 // requiresTimeSlot は時刻（start_time/end_time）が必要なシフト種別かどうかを返す。
@@ -126,15 +140,29 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 		ShiftType: input.ShiftType,
 		StartTime: startTime,
 		EndTime:   endTime,
-		Note:      input.Note,
+		Notes:     input.Notes,
 	}
 	if err := s.repo.Create(ctx, entry); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create shift entry")
 	}
+	// 休憩時間を保存
+	if len(input.Breaks) > 0 {
+		breaks := make([]model.ShiftEntryBreak, 0, len(input.Breaks))
+		for _, b := range input.Breaks {
+			breaks = append(breaks, model.ShiftEntryBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
+		}
+		if err := s.repo.ReplaceBreaks(ctx, entry.ID, breaks); err != nil {
+			return nil, apperrors.Wrap(err, "failed to save shift breaks")
+		}
+	}
 	slog.InfoContext(ctx, "shift entry created",
 		slog.Uint64("shift_entry_id", entry.ID),
 		slog.Uint64("clinic_id", clinicID))
-	return s.repo.FindByID(ctx, clinicID, entry.ID)
+	result, err := s.repo.FindByID(ctx, clinicID, entry.ID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get shift entry after create")
+	}
+	return result, nil
 }
 
 func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateShiftEntryInput) (*model.ShiftEntry, error) {
@@ -169,8 +197,22 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update shift entry")
 	}
+	// 休憩時間の更新（送信された場合のみ）
+	if input.Breaks != nil {
+		breaks := make([]model.ShiftEntryBreak, 0, len(*input.Breaks))
+		for _, b := range *input.Breaks {
+			breaks = append(breaks, model.ShiftEntryBreak{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
+		}
+		if err := s.repo.ReplaceBreaks(ctx, id, breaks); err != nil {
+			return nil, apperrors.Wrap(err, "failed to save shift breaks")
+		}
+	}
 	slog.InfoContext(ctx, "shift entry updated", slog.Uint64("shift_entry_id", id))
-	return s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get shift entry after update")
+	}
+	return result, nil
 }
 
 func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -192,8 +234,8 @@ func buildShiftEntryUpdateFields(input *UpdateShiftEntryInput) map[string]any {
 	if input.EndTime != nil {
 		fields["end_time"] = normalizeTimeString(input.EndTime)
 	}
-	if input.Note != nil {
-		fields["note"] = *input.Note
+	if input.Notes != nil {
+		fields["notes"] = *input.Notes
 	}
 	return fields
 }
@@ -209,6 +251,15 @@ func validateYearMonth(yearMonth string) error {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid year_month value: %s", yearMonth))
 	}
 	return nil
+}
+
+// GetOnDutyStaffs は指定日に出勤しているスタッフ一覧を返す (BUG-344)
+func (s *shiftEntryService) GetOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
+	staffs, err := s.repo.FindOnDutyStaffs(ctx, clinicID, date)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get on-duty staffs")
+	}
+	return staffs, nil
 }
 
 var _ ShiftEntryService = (*shiftEntryService)(nil)

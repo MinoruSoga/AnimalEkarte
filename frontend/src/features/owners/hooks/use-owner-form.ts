@@ -149,7 +149,6 @@ export function useOwnerForm(
 
 
       if (Object.keys(errors).length > 0) {
-        toast.error("必須項目が未入力です");
         return { success: false, fieldErrors: errors, timestamp: Date.now() };
       }
 
@@ -182,7 +181,6 @@ export function useOwnerForm(
         } else {
           const createData: CreateOwnerRequest = {
             ...ownerRequestPayload,
-            owner_name: ownerData.ownerName,
           };
           const newOwner = await createOwner(createData);
           await queryClient.invalidateQueries({ queryKey: ["owners"] });
@@ -319,7 +317,6 @@ export function useOwnerForm(
     } else {
       if (!id) {
         if (!petData.animalSpeciesId) {
-          toast.error("動物種を選択してください");
           return;
         }
         const tempId = `temp-${Date.now()}`;
@@ -328,7 +325,6 @@ export function useOwnerForm(
       }
 
       if (!petData.animalSpeciesId) {
-        toast.error("動物種を選択してください");
         return;
       }
 
