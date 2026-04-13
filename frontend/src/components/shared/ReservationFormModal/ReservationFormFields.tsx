@@ -1,4 +1,5 @@
 import { memo, useMemo, useCallback, useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { isBefore, startOfDay, format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { C, ICON } from "@/lib/design-tokens";
@@ -280,7 +281,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
               <span>{selectedTypeLabel ?? "選択してください"}</span>
               <ChevronsUpDown className={`${ICON.action} ${C.text40} flex-shrink-0`} />
             </button>
-            {typeComboOpen && dropdownRect ? (
+            {typeComboOpen && dropdownRect ? createPortal(
               <div
                 ref={typeDropdownRef}
                 style={{
@@ -322,7 +323,8 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                     ))}
                   </CommandList>
                 </Command>
-              </div>
+              </div>,
+              document.body
             ) : null}
           </div>
           {validationErrors?.type ? (
