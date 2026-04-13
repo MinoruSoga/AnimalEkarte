@@ -17,6 +17,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
+import { MasterLink } from "@/components/shared/MasterLink";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import type { SortOrder } from "@/types";
@@ -97,7 +98,10 @@ const FormFieldsSection = memo(function FormFieldsSection({
       ) : null}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label className={`text-sm ${C.text60}`}>検査種別</Label>
+          <div className="flex items-center justify-between">
+            <Label className={`text-sm ${C.text60}`}>検査種別</Label>
+            <MasterLink category="examination" label="編集" className="text-[11px]" />
+          </div>
           {masterLoading ? (
             <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
           ) : (
@@ -119,7 +123,10 @@ const FormFieldsSection = memo(function FormFieldsSection({
           )}
         </div>
         <div className="space-y-1.5">
-          <Label className={`text-sm ${C.text60}`}>担当医</Label>
+          <div className="flex items-center justify-between">
+            <Label className={`text-sm ${C.text60}`}>担当医</Label>
+            <MasterLink category="staff" label="編集" className="text-[11px]" />
+          </div>
           {masterLoading ? (
             <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
           ) : (
