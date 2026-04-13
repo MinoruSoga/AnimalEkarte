@@ -94,7 +94,6 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
       if (!current.doctorId) errors.doctorId = "担当医を選択してください";
 
       if (Object.keys(errors).length > 0) {
-        toast.error("未入力の項目があります");
         return { success: false, fieldErrors: errors, timestamp: Date.now() };
       }
 
