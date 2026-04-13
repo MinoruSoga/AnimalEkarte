@@ -1,7 +1,7 @@
 import type { Pet as BackendPet } from "@/types/generated/models";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
 
-export const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
+const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
   alive: "生存",
   deceased: "死亡",
 };
@@ -12,13 +12,13 @@ export const PET_STATUS_REVERSE_MAP: Record<string, "alive" | "deceased"> = {
   "死亡": "deceased",
 };
 
-export const PET_GENDER_MAP: Record<string, string> = {
+const PET_GENDER_MAP: Record<string, string> = {
   male: "雄",
   female: "雌",
   unknown: "不明",
 };
 
-export const PET_GENDER_REVERSE_MAP: Record<string, string> = {
+const PET_GENDER_REVERSE_MAP: Record<string, string> = {
   "雄": "male",
   "雌": "female",
   "不明": "unknown",
