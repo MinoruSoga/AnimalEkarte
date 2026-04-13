@@ -5,7 +5,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -235,11 +235,14 @@ export const ReservationFormFields = memo(function ReservationFormFields({
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent className="max-h-[280px]">
-              {groupedReservationTypes.map((group) => (
+              {groupedReservationTypes.map((group, idx) => (
                 <SelectGroup key={group.label}>
-                  <SelectLabel>{group.label}</SelectLabel>
+                  {idx > 0 ? <SelectSeparator /> : null}
+                  <SelectLabel className={`text-xs font-semibold tracking-wider uppercase ${C.text40} px-2 pt-2 pb-1`}>
+                    {group.label}
+                  </SelectLabel>
                   {group.types.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)}>
+                    <SelectItem key={t.id} value={String(t.id)} className="pl-4">
                       {t.name}
                     </SelectItem>
                   ))}
