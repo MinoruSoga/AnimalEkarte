@@ -119,6 +119,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- モーダル open 時にフォームをリセット。key prop パターンの代替
     setValidationErrors({});
     setMobilePanel("search");
+    setCalendarMonth(dateFnsFormat(new Date(), "yyyy-MM")); // BUG-343: 月またぎ表示リセット
     if (initialData) {
       setFormData({ ...initialData });
       if (initialData.petId) {

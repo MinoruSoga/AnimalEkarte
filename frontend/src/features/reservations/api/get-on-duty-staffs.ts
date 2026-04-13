@@ -10,7 +10,7 @@ export interface OnDutyStaff {
 
 // GET /api/v1/shifts/on-duty-staffs?date=YYYY-MM-DD
 const fetchOnDutyStaffs = async (date: string): Promise<OnDutyStaff[]> => {
-  const { data } = await axios.get<OnDutyStaff[]>("/api/v1/shifts/on-duty-staffs", {
+  const { data } = await axios.get<OnDutyStaff[]>("/v1/shifts/on-duty-staffs", {
     params: { date },
   });
   return data;

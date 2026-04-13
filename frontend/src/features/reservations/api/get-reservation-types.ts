@@ -25,9 +25,9 @@ export interface GroupedReservationTypes {
   types: ReservationTypeRaw[];
 }
 
-// GET /api/v1/masters/reservation-types — グループ情報を保持したまま取得
+// GET /v1/masters/reservation-types — グループ情報を保持したまま取得
 const fetchReservationTypesRaw = async (): Promise<ReservationTypeRaw[]> => {
-  const { data } = await axios.get<ReservationTypeRaw[]>("/api/v1/masters/reservation-types");
+  const { data } = await axios.get<ReservationTypeRaw[]>("/v1/masters/reservation-types");
   return data;
 };
 
