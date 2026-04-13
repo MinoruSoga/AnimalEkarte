@@ -1,15 +1,16 @@
-import { memo, useMemo, useCallback } from "react";
+import { memo, useMemo, useCallback, useState } from "react";
 import { isBefore, startOfDay, format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { C, ICON } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, ArrowRight, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/features/master";
 import { useGetReservationTypesGrouped, useGetOnDutyStaffs } from "@/features/reservations";
@@ -76,6 +77,15 @@ export const ReservationFormFields = memo(function ReservationFormFields({
 }: ReservationFormFieldsProps) {
   // BUG-341: グループ情報付きで取得（useMasterItems は group 情報を捨てるため専用フック使用）
   const { data: groupedReservationTypes = [] } = useGetReservationTypesGrouped();
+  const [typeComboOpen, setTypeComboOpen] = useState(false);
+  // 現在選択中の予約区分名（Combobox トリガー表示用）
+  const selectedTypeLabel = useMemo(() => {
+    for (const group of groupedReservationTypes) {
+      const found = group.types.find((t) => String(t.id) === formData.type);
+      if (found) return found.name;
+    }
+    return null;
+  }, [groupedReservationTypes, formData.type]);
 
   const handleMonthChange = useCallback((month: Date) => {
     onMonthChange?.(format(month, "yyyy-MM"));
@@ -225,26 +235,55 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           >
             予約区分
           </FieldLabel>
-          <Select
-            value={formData.type || ""}
-            onValueChange={(v: string) => onChange({ ...formData, type: v })}
-          >
-            <SelectTrigger className={TRIGGER_CLASS}>
-              <SelectValue placeholder="選択してください" />
-            </SelectTrigger>
-            <SelectContent>
-              {groupedReservationTypes.map((group) => (
-                <SelectGroup key={group.label}>
-                  <SelectLabel className="text-[11px] font-semibold px-2 py-1">{group.label}</SelectLabel>
-                  {group.types.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)}>
-                      {t.name}
-                    </SelectItem>
+          {/* BUG-341: Combobox（検索＋グループ階層表示） */}
+          <Popover open={typeComboOpen} onOpenChange={setTypeComboOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                role="combobox"
+                aria-expanded={typeComboOpen}
+                className={cn(
+                  `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
+                  !selectedTypeLabel && C.text40
+                )}
+              >
+                <span>{selectedTypeLabel ?? "選択してください"}</span>
+                <ChevronsUpDown className={`${ICON.action} ${C.text40} flex-shrink-0`} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="予約区分を検索..." className="h-9" />
+                <CommandList>
+                  <CommandEmpty className={`py-4 text-sm ${C.text40}`}>
+                    該当する予約区分がありません
+                  </CommandEmpty>
+                  {groupedReservationTypes.map((group) => (
+                    <CommandGroup key={group.label} heading={group.label}>
+                      {group.types.map((t) => (
+                        <CommandItem
+                          key={t.id}
+                          value={`${group.label} ${t.name}`}
+                          onSelect={() => {
+                            onChange({ ...formData, type: String(t.id) });
+                            setTypeComboOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              `${ICON.action} flex-shrink-0`,
+                              String(t.id) === formData.type ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {t.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
                   ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
           {validationErrors?.type ? (
             <FormFieldError id="res-type-error" message={validationErrors.type} />
           ) : null}

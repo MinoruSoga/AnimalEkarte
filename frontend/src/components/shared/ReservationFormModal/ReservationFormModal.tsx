@@ -263,6 +263,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
               <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgAccentLight50} ${C.borderAccentLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
                 <Label className={`text-[12px] ${C.text40} font-bold tracking-widest uppercase block mb-3`}>
                   予約対象（選択中）
+                  <span style={{ color: C.danger }} className="ml-1 normal-case" aria-hidden="true">*</span>
                 </Label>
 
                 {selectedPets.length > 0 ? (
