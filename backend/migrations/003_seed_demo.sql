@@ -2067,3 +2067,474 @@ SELECT
 FROM generate_series('2026-04-13'::date, '2026-06-13'::date, '1 day') d
 CROSS JOIN staff_clinic sc
 ON CONFLICT DO NOTHING;
+
+-- =============================================================================
+-- J. マスタデータ均一化 — 城東医院 (clinic_id=4) + 敷島医院 (clinic_id=5)
+-- 八王子院 (clinic_id=3) と同水準のマスタデータを追加
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- J-1. cages（ケージ追加）
+-- 城東: IDs 17-20 (+4 → 計8件), 敷島: IDs 21-24 (+4 → 計8件)
+-- -----------------------------------------------------------------------------
+INSERT INTO cages (id, clinic_id, name, price, is_active, description, cage_type, cage_size, sort_order) VALUES
+    (17, 4, '犬用ケージ（大）',   3800, true, '大型犬・術後管理用',             'dog',     'large',  5),
+    (18, 4, '猫用ケージ（小）',   2800, true, '猫専用・ストレス軽減設計',       'cat',     'small',  6),
+    (19, 4, '猫用ケージ（中）',   3000, true, '猫専用・中型',                   'cat',     'medium', 7),
+    (20, 4, '汎用ケージ',          2500, true, '小動物・鳥類等対応',             'general', 'small',  8),
+    (21, 5, 'ICUケージB',          8000, true, '酸素吸入可・重症患者用（副）',   'icu',     'medium', 5),
+    (22, 5, '犬用ケージ（中）',   3600, true, '中型犬・一般入院用',             'dog',     'medium', 6),
+    (23, 5, '猫用ケージ（小）',   2900, true, '猫専用・ストレス軽減設計',       'cat',     'small',  7),
+    (24, 5, '汎用ケージ',          2400, true, '小動物・鳥類等対応',             'general', 'small',  8)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('cages', 'id'), (SELECT MAX(id) FROM cages));
+
+-- -----------------------------------------------------------------------------
+-- J-2. exam_types + exam_type_fields
+-- 城東: IDs 12-13 (+2 → 計5件), 敷島: IDs 14-15 (+2 → 計5件)
+-- -----------------------------------------------------------------------------
+INSERT INTO exam_types (id, clinic_id, name, price, is_active, description, sort_order) VALUES
+    (12, 4, '超音波検査（エコー）', 5200, true, '腹部エコー・心臓エコー',                 4),
+    (13, 4, '尿検査',               1600, true, '尿試験紙・尿沈渣検査',                   5),
+    (14, 5, '血液化学検査',          5000, true, '肝機能・腎機能・血糖値など生化学的検査', 4),
+    (15, 5, 'レントゲン検査',        3200, true, 'X線撮影（胸部・腹部・四肢）',            5)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('exam_types', 'id'), (SELECT MAX(id) FROM exam_types));
+
+INSERT INTO exam_type_fields (id, exam_type_id, name, inspection_value, normal_value, sort_order) VALUES
+    -- 城東 exam_type 12 (超音波)
+    (34, 12, '腹部エコー', '', '異常なし', 1),
+    (35, 12, '心臓エコー', '', '異常なし', 2),
+    -- 城東 exam_type 13 (尿検査)
+    (36, 13, '尿比重',     '', '1.015-1.045', 1),
+    (37, 13, '尿pH',       '', '5.5-7.5',     2),
+    (38, 13, '尿タンパク', '', '陰性',         3),
+    -- 敷島 exam_type 14 (血液化学)
+    (39, 14, 'ALT（GPT）',          '', '10-125 U/L',    1),
+    (40, 14, 'BUN（尿素窒素）',     '', '7-27 mg/dL',    2),
+    (41, 14, 'CRE（クレアチニン）', '', '0.5-1.8 mg/dL', 3),
+    (42, 14, 'GLU（血糖値）',       '', '74-143 mg/dL',  4),
+    -- 敷島 exam_type 15 (レントゲン)
+    (43, 15, '胸部正面', '', '異常なし', 1),
+    (44, 15, '腹部正面', '', '異常なし', 2)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('exam_type_fields', 'id'), (SELECT MAX(id) FROM exam_type_fields));
+
+-- -----------------------------------------------------------------------------
+-- J-3. vaccines
+-- 城東: IDs 21-25 (+5 → 計10件), 敷島: IDs 26-30 (+5 → 計10件)
+-- -----------------------------------------------------------------------------
+INSERT INTO vaccines (id, clinic_id, name, price, is_active, description, species, interval, sort_order) VALUES
+    (21, 4, '混合ワクチン10種（犬）',  8200, true, '5種＋レプトスピラ5種',                                          'dog', '1年',    6),
+    (22, 4, '混合ワクチン5種（猫）',   5600, true, '3種＋猫白血病・猫クラミジア',                                   'cat', '1年',    7),
+    (23, 4, 'フィラリア予防薬（中型犬）', 1100, true, '体重11-25kg犬用フィラリア予防',                              'dog', '1ヶ月', 8),
+    (24, 4, 'フィラリア予防薬（大型犬）', 1500, true, '体重26kg以上犬用フィラリア予防',                             'dog', '1ヶ月', 9),
+    (25, 4, '混合ワクチン6種（犬）',   5600, true, '5種＋コロナウイルス',                                          'dog', '1年',   10),
+    (26, 5, '混合ワクチン6種（犬）',   5800, true, '5種＋コロナウイルス',                                          'dog', '1年',    6),
+    (27, 5, 'フィラリア予防薬（小型犬）', 950, true, '体重10kg以下犬用フィラリア予防',                              'dog', '1ヶ月', 7),
+    (28, 5, 'フィラリア予防薬（中型犬）', 1150, true, '体重11-25kg犬用フィラリア予防',                             'dog', '1ヶ月', 8),
+    (29, 5, 'フィラリア予防薬（大型犬）', 1550, true, '体重26kg以上犬用フィラリア予防',                            'dog', '1ヶ月', 9),
+    (30, 5, '混合ワクチン5種（猫）プレミアム', 5800, true, '3種＋猫白血病・猫クラミジア（高免疫原性）', 'cat', '1年', 10)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('vaccines', 'id'), (SELECT MAX(id) FROM vaccines));
+
+-- -----------------------------------------------------------------------------
+-- J-4. medicines（カテゴリ + 薬剤）
+-- 城東: カテゴリ 2006-2009 (+4 → 計9件), 薬剤 111-115 (+5 → 計15件)
+-- 敷島: カテゴリ 3005-3009 (+5 → 計9件), 薬剤 211-215 (+5 → 計15件)
+-- -----------------------------------------------------------------------------
+INSERT INTO medicines (id, clinic_id, name, price, is_active, description, sort_order) VALUES
+    (2006, 4, '制吐剤',       NULL, true, '制吐剤カテゴリ',         6),
+    (2007, 4, '消化器用薬',   NULL, true, '消化器用薬カテゴリ',     7),
+    (2008, 4, '神経系薬',     NULL, true, '神経系薬カテゴリ',       8),
+    (2009, 4, '輸液（追加）', NULL, true, '輸液・補液カテゴリ',     9),
+    (3005, 5, '消炎剤',       NULL, true, '消炎鎮痛剤カテゴリ',     5),
+    (3006, 5, '利尿剤',       NULL, true, '利尿剤カテゴリ',         6),
+    (3007, 5, '神経系薬',     NULL, true, '神経系薬カテゴリ',       7),
+    (3008, 5, '駆虫剤',       NULL, true, '駆虫剤カテゴリ',         8),
+    (3009, 5, '輸液（追加）', NULL, true, '輸液・補液カテゴリ',     9)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO medicines (id, clinic_id, name, price, is_active, description, dosage_form, medicine_unit, default_quantity, sort_order, parent_id) VALUES
+    (111, 4, 'マロピタント 16mg',              820, true, '制吐剤（乗り物酔い・嘔吐治療）',    'tablet',    'per_tablet', 1,   11, 2006),
+    (112, 4, 'オメプラゾール 10mg',            360, true, 'プロトンポンプ阻害薬（胃酸抑制）',  'tablet',    'per_tablet', 1,   12, 2007),
+    (113, 4, 'ラクツロース液',                 510, true, '便秘・肝性脳症の治療',              'liquid',    'per_ml',     5,   13, 2007),
+    (114, 4, 'ガバペンチン 100mg',             560, true, '神経因性疼痛・てんかん補助療法',    'tablet',    'per_tablet', 1,   14, 2008),
+    (115, 4, '乳酸リンゲル液 500ml',           450, true, '補液・電解質補正',                  'liquid',    'per_ml',     500, 15, 2009),
+    (211, 5, 'メロキシカム経口液',             710, true, 'NSAIDs・痛み・炎症の緩和',          'liquid',    'per_ml',     1,   11, 3005),
+    (212, 5, 'カルプロフェン 25mg',            670, true, 'NSAIDs・術後疼痛管理',              'tablet',    'per_tablet', 1,   12, 3005),
+    (213, 5, 'フロセミド注射液',               820, true, '利尿剤（心臓・腎臓病の浮腫治療）',  'injection', 'per_ml',     2,   13, 3006),
+    (214, 5, 'ガバペンチン 100mg',             560, true, '神経因性疼痛・てんかん補助療法',    'tablet',    'per_tablet', 1,   14, 3007),
+    (215, 5, 'ノミ・ダニ駆除薬（犬用）',      2550, true, '外部寄生虫予防・駆除（スポットオン）', 'topical', 'per_dose',   1,   15, 3008)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('medicines', 'id'), (SELECT MAX(id) FROM medicines));
+
+-- -----------------------------------------------------------------------------
+-- J-5. consultations
+-- 城東: IDs 12-13 (+2 → 計5件), 敷島: IDs 14-15 (+2 → 計5件)
+-- -----------------------------------------------------------------------------
+INSERT INTO consultations (id, clinic_id, name, price, is_active, description, time_condition, duration, sort_order) VALUES
+    (12, 4, '往診料',       5200, true, '自宅への往診料（基本料金）',       'anytime',    60, 4),
+    (13, 4, '電話相談料',    500, true, '電話による診察相談',               'anytime',    15, 5),
+    (14, 5, '時間外診療料', 3100, true, '診療時間外・休日の緊急診察',       'after_hours', 30, 4),
+    (15, 5, '電話相談料',    500, true, '電話による診察相談',               'anytime',    15, 5)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('consultations', 'id'), (SELECT MAX(id) FROM consultations));
+
+-- -----------------------------------------------------------------------------
+-- J-6. procedures
+-- 城東: IDs 21-25 (+5 → 計10件), 敷島: IDs 26-30 (+5 → 計10件)
+-- -----------------------------------------------------------------------------
+INSERT INTO procedures (id, clinic_id, name, price, is_active, description, duration, anesthesia, sort_order) VALUES
+    (21, 4, '歯石除去',       15500, true, '全身麻酔下での歯石除去・歯周治療',  45, 'general', 6),
+    (22, 4, '皮膚縫合',        5200, true, '裂傷・切傷の縫合処置',              30, 'local',   7),
+    (23, 4, '骨折整復',       82000, true, '骨折の外科的整復・固定',           120, 'general', 8),
+    (24, 4, '胃洗浄',         10500, true, '異物誤飲時の胃洗浄処置',            30, 'general', 9),
+    (25, 4, '腫瘍摘出',       21000, true, '皮膚腫瘍の外科的摘出',              60, 'local',   10),
+    (26, 5, '歯科処置（歯石除去）', 15200, true, '全身麻酔下での歯石除去・歯周治療', 45, 'general', 6),
+    (27, 5, '耳洗浄',          2600, true, '外耳炎治療・耳道内の洗浄処置',      15, 'none',    7),
+    (28, 5, '皮膚縫合',        5100, true, '裂傷・切傷の縫合処置',              30, 'local',   8),
+    (29, 5, '胃洗浄',         10200, true, '異物誤飲時の胃洗浄処置',            30, 'general', 9),
+    (30, 5, '点滴処置',        3100, true, '静脈内点滴（1時間）',               60, 'none',    10)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('procedures', 'id'), (SELECT MAX(id) FROM procedures));
+
+-- -----------------------------------------------------------------------------
+-- J-7. hospitalization_plans
+-- 城東: IDs 12-13 (+2 → 計5件), 敷島: IDs 14-15 (+2 → 計5件)
+-- -----------------------------------------------------------------------------
+INSERT INTO hospitalization_plans (id, clinic_id, name, price, is_active, description, body_size, billing_unit, sort_order) VALUES
+    (12, 4, 'ICU入院（ハイケア）', 8800, true, '集中治療室・ハイケア管理料（1日）', 'small',  'per_day',   4),
+    (13, 4, 'ホテル（小型）',     2700, true, '体重10kg以下のペットホテル（1泊）', 'small',  'per_night', 5),
+    (14, 5, '一般入院（中型）',   3900, true, '体重10-25kgの入院管理料（1日）',   'medium', 'per_day',   4),
+    (15, 5, 'ICU入院',            8500, true, '集中治療室管理料（1日）',           'small',  'per_day',   5)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('hospitalization_plans', 'id'), (SELECT MAX(id) FROM hospitalization_plans));
+
+-- -----------------------------------------------------------------------------
+-- J-8. trimming_courses
+-- 城東: IDs 12-13 (+2 → 計5件), 敷島: IDs 14-15 (+2 → 計5件)
+-- -----------------------------------------------------------------------------
+INSERT INTO trimming_courses (id, clinic_id, name, price, is_active, description, target_size, duration, sort_order) VALUES
+    (12, 4, 'シャンプー&ブロー（中型）', 5700, true, 'シャンプー・ブロー・ブラッシング',            'medium', 90,  4),
+    (13, 4, 'フルコース（大型）',        12500, true, 'カット・シャンプー・ブロー・爪切り・耳掃除', 'large',  180, 5),
+    (14, 5, 'シャンプー&ブロー（大型）', 6800, true, 'シャンプー・ブロー・ブラッシング',            'large',  120, 4),
+    (15, 5, 'フルコース（中型）',        9200, true, 'カット・シャンプー・ブロー・爪切り・耳掃除', 'medium', 150, 5)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('trimming_courses', 'id'), (SELECT MAX(id) FROM trimming_courses));
+
+-- -----------------------------------------------------------------------------
+-- J-9. trimming_options
+-- 城東: IDs 12-13 (+2 → 計5件), 敷島: IDs 14-15 (+2 → 計5件)
+-- -----------------------------------------------------------------------------
+INSERT INTO trimming_options (id, clinic_id, name, price, is_active, description, duration, is_combinable, sort_order) VALUES
+    (12, 4, '歯磨き',     520, true, '歯ブラシによるデンタルケア',    15, true, 4),
+    (13, 4, 'リボン装着', 210, true, '仕上げのアクセサリー装着',       5, true, 5),
+    (14, 5, '肛門腺絞り', 310, true, '肛門嚢の分泌液除去',             5, true, 4),
+    (15, 5, 'リボン装着', 200, true, '仕上げのアクセサリー装着',       5, true, 5)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('trimming_options', 'id'), (SELECT MAX(id) FROM trimming_options));
+
+-- -----------------------------------------------------------------------------
+-- J-10. diagnosis_types
+-- 城東: IDs 19-21 (+3 → 計8件), 敷島: IDs 22-24 (+3 → 計8件)
+-- -----------------------------------------------------------------------------
+INSERT INTO diagnosis_types (id, clinic_id, name, is_active, description, sort_order) VALUES
+    (19, 4, '腫瘍',           true, '良性・悪性腫瘍（がん）',               6),
+    (20, 4, '外傷・骨格',     true, '骨折・咬傷・関節疾患など',             7),
+    (21, 4, '神経系',         true, '脳・脊髄・末梢神経などの神経系疾患',   8),
+    (22, 5, '呼吸器系',       true, '肺・気管・鼻腔などの呼吸器系疾患',     6),
+    (23, 5, '神経系',         true, '脳・脊髄・末梢神経などの神経系疾患',   7),
+    (24, 5, '感染症・寄生虫', true, '細菌・ウイルス・寄生虫感染症',         8)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('diagnosis_types', 'id'), (SELECT MAX(id) FROM diagnosis_types));
+
+-- -----------------------------------------------------------------------------
+-- J-11. diagnosis_names
+-- 城東: IDs 43-52 (+10), 敷島: IDs 53-62 (+10)
+-- -----------------------------------------------------------------------------
+INSERT INTO diagnosis_names (id, clinic_id, name, is_active, description, diagnosis_type_id, sort_order) VALUES
+    -- 城東: 既存カテゴリへの追加
+    (43, 4, '肝疾患',               true, '肝炎・肝不全・脂肪肝など',           9,  3),
+    (44, 4, '腸重積',               true, '腸管の重積（緊急外科適応）',         9,  4),
+    (45, 4, '肺炎',                 true, '肺の感染性・非感染性炎症',           10, 3),
+    (46, 4, '喉頭炎',               true, '喉頭部の炎症',                       10, 4),
+    (47, 4, '外耳炎',               true, '外耳道の炎症・細菌/真菌/寄生虫感染', 11, 3),
+    (48, 4, '腎不全',               true, '急性・慢性腎不全',                   12, 3),
+    (49, 4, '尿路結石',             true, '腎結石・膀胱結石・尿道結石',         12, 4),
+    -- 城東: 新カテゴリ
+    (50, 4, '肥満細胞腫',           true, '皮膚または内臓の肥満細胞腫瘍',       19, 1),
+    (51, 4, '骨折',                 true, '各部位の骨折',                       20, 1),
+    (52, 4, 'てんかん',             true, '反復性の痙攣発作',                   21, 1),
+    -- 敷島: 既存カテゴリへの追加
+    (53, 5, '膵炎',                 true, '膵臓の炎症',                         14, 3),
+    (54, 5, '腸重積',               true, '腸管の重積（緊急外科適応）',         14, 4),
+    (55, 5, '外耳炎',               true, '外耳道の炎症・細菌/真菌/寄生虫感染', 15, 4),
+    (56, 5, '脂漏症',               true, '皮脂分泌異常による皮膚疾患',         15, 5),
+    (57, 5, '腎不全',               true, '急性・慢性腎不全',                   16, 3),
+    (58, 5, 'FLUTD',               true, '猫下部尿路疾患',                      16, 4),
+    (59, 5, 'リンパ腫',             true, '悪性リンパ腫',                       17, 2),
+    -- 敷島: 新カテゴリ
+    (60, 5, '気管支炎',             true, '気管支の炎症',                       22, 1),
+    (61, 5, 'てんかん',             true, '反復性の痙攣発作',                   23, 1),
+    (62, 5, 'フィラリア症',         true, '犬糸状虫による心肺疾患',             24, 1)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('diagnosis_names', 'id'), (SELECT MAX(id) FROM diagnosis_names));
+
+-- -----------------------------------------------------------------------------
+-- J-12. checkup_types
+-- 城東: ID 11 (+1 → 計4件), 敷島: ID 12 (+1 → 計4件)
+-- -----------------------------------------------------------------------------
+INSERT INTO checkup_types (id, clinic_id, name, price, is_active, description, interval, target_age, sort_order) VALUES
+    (11, 4, '歯科検診', 3100, true, '歯周病チェック・歯石付着度の確認', '1年', '成犬', 4),
+    (12, 5, 'フィラリア検査', 2600, true, 'フィラリア抗原検査（予防シーズン前）', '1年', '成犬', 4)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('checkup_types', 'id'), (SELECT MAX(id) FROM checkup_types));
+
+-- -----------------------------------------------------------------------------
+-- J-13. chief_complaint_types
+-- 城東: IDs 15-16 (+2 → 計6件), 敷島: IDs 17-18 (+2 → 計6件)
+-- -----------------------------------------------------------------------------
+INSERT INTO chief_complaint_types (id, clinic_id, name, is_active, sort_order) VALUES
+    (15, 4, '外傷・骨折',   true, 5),
+    (16, 4, '呼吸困難',     true, 6),
+    (17, 5, '皮膚・被毛異常', true, 5),
+    (18, 5, '排尿・排泄異常', true, 6)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('chief_complaint_types', 'id'), (SELECT MAX(id) FROM chief_complaint_types));
+
+-- -----------------------------------------------------------------------------
+-- J-14. merchandise_items
+-- 城東: IDs 16-18 (+3 → 計7件), 敷島: IDs 19-21 (+3 → 計7件)
+-- -----------------------------------------------------------------------------
+INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_rate, sort_order) VALUES
+    (16, 4, 'エリザベスカラー（M）',             'goods', 1050, 0.10, 5),
+    (17, 4, 'ノミ・ダニ予防首輪',               'goods', 1650, 0.10, 6),
+    (18, 4, '時間外診療費',                     'other', 5200, 0.10, 7),
+    (19, 5, 'ヒルズ i/d（犬用・消化器ケア）',    'food',  3200, 0.10, 5),
+    (20, 5, 'ペット用歯ブラシセット',            'goods', 1200, 0.10, 6),
+    (21, 5, '時間外診療費',                     'other', 5100, 0.10, 7)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
+
+-- =============================================================================
+-- K. トランザクションデータ — 城東医院 (clinic_id=4)
+-- doctors: staff 16(木村), 17(佐々木), 18(高橋)
+-- owners: 23-30 / pets: 29-38
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- K-1. medical_records（城東: 8件、IDs 21-28）
+-- -----------------------------------------------------------------------------
+INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, doctor_id, status) VALUES
+    (21, 4, 'C-2025-001', '2025-11-10', 23, 29, 16, 'finalized'),
+    (22, 4, 'C-2025-002', '2025-10-20', 24, 31, 17, 'finalized'),
+    (23, 4, 'C-2025-003', '2025-12-15', 25, 32, 16, 'finalized'),
+    (24, 4, 'C-2026-001', '2026-01-08', 26, 33, 18, 'finalized'),
+    (25, 4, 'C-2025-004', '2025-12-01', 27, 34, 16, 'finalized'),
+    (26, 4, 'C-2025-005', '2025-09-05', 28, 35, 17, 'finalized'),
+    (27, 4, 'C-2026-002', '2026-01-15', 29, 37, 16, 'finalized'),
+    (28, 4, 'C-2026-003', '2026-02-20', 30, 38, 18, 'draft')
+ON CONFLICT (id) DO UPDATE SET updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
+
+-- -----------------------------------------------------------------------------
+-- K-2. inquiries（城東: 8件、IDs 25-32）
+-- -----------------------------------------------------------------------------
+INSERT INTO inquiries (id, medical_record_id, chief_complaint_type_id, chief_complaint, notes, staff_id) VALUES
+    (25, 21, NULL,  '定期健診・フィラリア検査',           '体調良好。フィラリア陰性。',           16),
+    (26, 22, NULL,  '3種混合ワクチン接種',                 'ワクチン接種。体調問題なし。',         17),
+    (27, 23, NULL,  '血液検査・一般健診',                   '年次健診。',                           16),
+    (28, 24, 9,     '皮膚の痒み・発赤',                     '2週間前から痒がる。アトピー疑い。',   18),
+    (29, 25, 7,     '食欲低下',                             '3日前から食欲落ちている。',             16),
+    (30, 26, NULL,  '3種混合ワクチン接種（猫）',           'ワクチン接種。良好。',                 17),
+    (31, 27, NULL,  '再診（足の不調）',                     '前回から改善傾向。',                   16),
+    (32, 28, 7,     '食欲不振・嘔吐',                       '初診。昨日から嘔吐1回。',             18)
+ON CONFLICT (id) DO UPDATE SET medical_record_id = EXCLUDED.medical_record_id, updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('inquiries', 'id'), (SELECT MAX(id) FROM inquiries));
+
+-- -----------------------------------------------------------------------------
+-- K-3. clinical_plans（城東: 8件、IDs 21-28）
+-- -----------------------------------------------------------------------------
+INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_type_id, diagnosis_name_id, diagnosis_details, treatment_policy) VALUES
+    (21, 21, '体重28kg。体温38.4℃。心肺音正常。', NULL, NULL, 'フィラリア陰性。健康良好。', 'フィラリア検査・次回予防薬処方。'),
+    (22, 22, '体重3.8kg。良好。',                 NULL, NULL, 'ワクチン適応あり。',         'ワクチン接種実施。'),
+    (23, 23, 'シニア期。体重変化なし。',           NULL, NULL, '経過良好。',                 '血液検査実施。結果説明。'),
+    (24, 24, '全身に搔痒。皮膚発赤あり。',         11,   47,   'アトピー性皮膚炎疑い。',    '抗ヒスタミン薬処方。薬用シャンプー推奨。'),
+    (25, 25, '腹部軽度緊張。体温38.8℃。',         9,    21,   '急性胃腸炎疑い。',           '絶食指示・皮下補液実施。'),
+    (26, 26, '体重3.0kg。体調良好。',             NULL, NULL, 'ワクチン適応あり。',         'ワクチン接種実施。'),
+    (27, 27, '跛行改善傾向。',                     20,   51,   '前肢骨折（回復期）。',       '運動制限継続。次回X線確認。'),
+    (28, 28, '腹部触診で軽度抵抗感。',             9,    21,   '急性胃腸炎。',               '補液・制吐剤投与。食事制限。')
+ON CONFLICT (id) DO UPDATE SET updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('clinical_plans', 'id'), (SELECT MAX(id) FROM clinical_plans));
+
+-- -----------------------------------------------------------------------------
+-- K-4. vaccinations（城東: 3件、IDs 6-8）
+-- -----------------------------------------------------------------------------
+INSERT INTO vaccinations (id, clinic_id, medical_record_id, pet_id, vaccine_id, doctor_id, date, lot1, next_schedule_type, next_date, remarks) VALUES
+    (6, 4, 22, 31, 13, 17, '2025-10-20', 'LOT-2025-J001', '1year',  '2026-10-20', '3種混合ワクチン接種。体調良好。'),
+    (7, 4, 26, 35, 13, 17, '2025-09-05', 'LOT-2025-J002', '1year',  '2026-09-05', '3種混合ワクチン接種。'),
+    (8, 4, 21, 29, 11, 16, '2025-11-10', 'LOT-2025-J003', '1year',  '2026-11-10', '5種混合ワクチン接種。体調良好。')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
+
+-- -----------------------------------------------------------------------------
+-- K-5. exams（城東: 2件、IDs 4-5）
+-- -----------------------------------------------------------------------------
+INSERT INTO exams (id, clinic_id, medical_record_id, exam_type_id, doctor_id, date, result_summary, status) VALUES
+    (4, 4, 23, 6, 16, '2025-12-15', 'CBC全項目正常範囲内。', 'completed'),
+    (5, 4, 25, 8, 16, '2025-12-01', '腹部正面：腸管ガス像あり。他異常なし。', 'completed')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
+
+INSERT INTO exam_results (id, exam_id, exam_type_field_id, inspection_value, status) VALUES
+    -- Exam 4 (CBC for MR23, 城東)
+    (46, 4, 18, '8.5',  'normal'),
+    (47, 4, 19, '6.8',  'normal'),
+    (48, 4, 20, '46',   'normal'),
+    -- Exam 5 (Xray for MR25, 城東)
+    (49, 5, 24, '腸管ガス像あり', 'high'),
+    (50, 5, 25, '異常なし',       'normal')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('exam_results', 'id'), (SELECT MAX(id) FROM exam_results));
+
+-- -----------------------------------------------------------------------------
+-- K-6. treatments（城東: 5件、IDs 9-13）
+-- -----------------------------------------------------------------------------
+INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, procedure_id, medicine_id, inventory_id, is_selected, status, content, unit_price, quantity, sort_order) VALUES
+    (9,  21, 'consultation', 7,    NULL, NULL, NULL, true, 'completed', '再診料',                      900,  1, 1),
+    (10, 22, 'consultation', 6,    NULL, NULL, NULL, true, 'completed', '初診料',                     2200,  1, 1),
+    (11, 24, 'medicine',     NULL, NULL, 104,  NULL, true, 'completed', 'プレドニゾロン 5mg x 7日分',  420,  7, 2),
+    (12, 25, 'consultation', 7,    NULL, NULL, NULL, true, 'completed', '再診料',                      900,  1, 1),
+    (13, 25, 'medicine',     NULL, NULL, 101,  NULL, true, 'completed', 'アモキシシリン 50mg x 5日分', 520,  5, 2)
+ON CONFLICT (id) DO UPDATE SET updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
+
+-- =============================================================================
+-- L. トランザクションデータ — 敷島医院 (clinic_id=5)
+-- doctors: staff 26(藤原), 27(松本)
+-- owners: 31-38 / pets: 39-48
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- L-1. medical_records（敷島: 8件、IDs 29-36）
+-- -----------------------------------------------------------------------------
+INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, doctor_id, status) VALUES
+    (29, 5, 'S-2025-001', '2025-10-05', 31, 39, 26, 'finalized'),
+    (30, 5, 'S-2025-002', '2025-12-18', 32, 40, 27, 'finalized'),
+    (31, 5, 'S-2026-001', '2026-01-08', 33, 41, 26, 'finalized'),
+    (32, 5, 'S-2026-002', '2026-02-15', 34, 42, 27, 'finalized'),
+    (33, 5, 'S-2025-003', '2025-09-20', 35, 44, 26, 'finalized'),
+    (34, 5, 'S-2026-003', '2026-03-01', 36, 45, 26, 'draft'),
+    (35, 5, 'S-2025-004', '2025-11-25', 37, 46, 27, 'finalized'),
+    (36, 5, 'S-2026-004', '2026-02-10', 38, 47, 26, 'finalized')
+ON CONFLICT (id) DO UPDATE SET updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
+
+-- -----------------------------------------------------------------------------
+-- L-2. inquiries（敷島: 8件、IDs 33-40）
+-- -----------------------------------------------------------------------------
+INSERT INTO inquiries (id, medical_record_id, chief_complaint_type_id, chief_complaint, notes, staff_id) VALUES
+    (33, 29, NULL,  '年次健診・ワクチン接種',           '体調良好。体重24kg。',                 26),
+    (34, 30, NULL,  '3種混合ワクチン接種（猫）',         'ワクチン接種。体調良好。',             27),
+    (35, 31, NULL,  '血液検査（年次健診）',               'シニア健診。',                         26),
+    (36, 32, 12,    '嘔吐・下痢',                         '昨日から嘔吐2回。軟便あり。',         27),
+    (37, 33, 17,    '皮膚の痒み・かさぶた',               'アレルギー疑い。フリーズドライ投与。', 26),
+    (38, 34, NULL,  '初診・一般診察',                     '初めての来院。',                       26),
+    (39, 35, NULL,  '耳を痒がる',                         '外耳炎疑い。耳垢あり。',               27),
+    (40, 36, NULL,  '3種混合ワクチン接種（猫）',         'ワクチン接種。体重4.0kg。',            26)
+ON CONFLICT (id) DO UPDATE SET medical_record_id = EXCLUDED.medical_record_id, updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('inquiries', 'id'), (SELECT MAX(id) FROM inquiries));
+
+-- -----------------------------------------------------------------------------
+-- L-3. clinical_plans（敷島: 8件、IDs 29-36）
+-- -----------------------------------------------------------------------------
+INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_type_id, diagnosis_name_id, diagnosis_details, treatment_policy) VALUES
+    (29, 29, '体温38.3℃。体重24kg。心肺音正常。', NULL, NULL, '健康良好。ワクチン接種可。', '5種混合ワクチン接種実施。フィラリア予防薬処方。'),
+    (30, 30, '体重4.8kg。良好。',                 NULL, NULL, 'ワクチン適応あり。',         'ワクチン接種実施。'),
+    (31, 31, 'シニア期。体重31kg。',               NULL, NULL, '経過良好。',                 '血液化学検査実施。結果説明。'),
+    (32, 32, '脱水傾向あり。腹部緊張。',           14,   31,   '急性胃腸炎。',               '補液・絶食・制吐剤処方。'),
+    (33, 33, '体幹・四肢に紅斑。搔痒感強。',       15,   33,   'アトピー性皮膚炎。',        'ステロイド処方。薬用シャンプー推奨。'),
+    (34, 34, '一般状態良好。', NULL, NULL, '初診。特異所見なし。', '経過観察。次回再診。'),
+    (35, 35, '耳道内に暗褐色の耳垢。臭気あり。',  NULL, NULL, '外耳炎。',                   '耳洗浄・点耳薬処方。'),
+    (36, 36, '体重4.0kg。体調良好。',             NULL, NULL, 'ワクチン適応あり。',         'ワクチン接種実施。')
+ON CONFLICT (id) DO UPDATE SET updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('clinical_plans', 'id'), (SELECT MAX(id) FROM clinical_plans));
+
+-- -----------------------------------------------------------------------------
+-- L-4. vaccinations（敷島: 4件、IDs 9-12）
+-- -----------------------------------------------------------------------------
+INSERT INTO vaccinations (id, clinic_id, medical_record_id, pet_id, vaccine_id, doctor_id, date, lot1, next_schedule_type, next_date, remarks) VALUES
+    ( 9, 5, 29, 39, 16, 26, '2025-10-05', 'LOT-2025-S001', '1year',  '2026-10-05', '5種混合ワクチン接種。体調良好。'),
+    (10, 5, 30, 40, 18, 27, '2025-12-18', 'LOT-2025-S002', '1year',  '2026-12-18', '3種混合ワクチン接種（猫）。'),
+    (11, 5, 36, 47, 19, 26, '2026-02-10', 'LOT-2026-S001', '1year',  '2027-02-10', '5種混合ワクチン（猫）接種。'),
+    (12, 5, 29, 39, 20, 26, '2025-10-05', 'LOT-2025-S003', '1year',  '2026-10-05', '狂犬病ワクチン接種。')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
+
+-- -----------------------------------------------------------------------------
+-- L-5. exams（敷島: 3件、IDs 6-8）
+-- -----------------------------------------------------------------------------
+INSERT INTO exams (id, clinic_id, medical_record_id, exam_type_id, doctor_id, date, result_summary, status) VALUES
+    (6, 5, 31, 9,  26, '2026-01-08', 'CBC全項目正常範囲内。加齢による軽度変化のみ。', 'completed'),
+    (7, 5, 32, 10, 27, '2026-02-15', '尿比重低下（1.010）。腎機能低下疑い。',        'completed'),
+    (8, 5, 33, 11, 26, '2025-09-20', '腹部エコー：異常なし。皮膚問題は別要因。',      'completed')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('exams', 'id'), (SELECT MAX(id) FROM exams));
+
+INSERT INTO exam_results (id, exam_id, exam_type_field_id, inspection_value, status) VALUES
+    -- Exam 6 (CBC for MR31, 敷島)
+    (51, 6, 26, '9.2',  'normal'),
+    (52, 6, 27, '7.0',  'normal'),
+    (53, 6, 28, '320',  'normal'),
+    -- Exam 7 (尿検査 for MR32, 敷島)
+    (54, 7, 29, '1.010',  'low'),
+    (55, 7, 30, '6.5',    'normal'),
+    (56, 7, 31, '陰性',   'normal'),
+    -- Exam 8 (超音波 for MR33, 敷島)
+    (57, 8, 32, '異常なし', 'normal'),
+    (58, 8, 33, '異常なし', 'normal')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('exam_results', 'id'), (SELECT MAX(id) FROM exam_results));
+
+-- -----------------------------------------------------------------------------
+-- L-6. treatments（敷島: 5件、IDs 14-18）
+-- -----------------------------------------------------------------------------
+INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, procedure_id, medicine_id, inventory_id, is_selected, status, content, unit_price, quantity, sort_order) VALUES
+    (14, 29, 'consultation', 9,    NULL, NULL, NULL, true, 'completed', '初診料',                      1900, 1, 1),
+    (15, 30, 'consultation', 10,   NULL, NULL, NULL, true, 'completed', '再診料',                       800, 1, 1),
+    (16, 32, 'consultation', 10,   NULL, NULL, NULL, true, 'completed', '再診料',                       800, 1, 1),
+    (17, 32, 'medicine',     NULL, NULL, 201,  NULL, true, 'completed', 'アモキシシリン 50mg x 5日分',  510, 5, 2),
+    (18, 35, 'procedure',    NULL, 27,   NULL, NULL, true, 'completed', '耳道洗浄・点耳薬処置',        2600, 1, 1)
+ON CONFLICT (id) DO UPDATE SET updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
+
