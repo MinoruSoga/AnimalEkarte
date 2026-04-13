@@ -282,8 +282,8 @@ func (m *mockResStaffForStaff) ReplaceExcludedReservationTypes(_ context.Context
 // noopTransactor はテスト用のトランザクションモック。fn を直接実行するだけ。
 type noopTransactor struct{}
 
-func (noopTransactor) WithTx(_ context.Context, fn func(context.Context) error) error {
-	return fn(context.Background())
+func (noopTransactor) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx) //nolint:contextcheck // テスト用: 親 context をそのまま伝播
 }
 
 func newTestStaffService(repo *mockStaffRepository) StaffService {
