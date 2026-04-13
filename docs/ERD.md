@@ -42,27 +42,6 @@
 
 ---
 
-## システム全体 ER図
-
-```mermaid
-erDiagram
-    %% ... (略) ...
-    audit_logs {
-        bigint id PK
-        bigint clinic_id FK
-        bigint actor_id "操作者ID"
-        varchar actor_type "staff/system"
-        varchar action "create/update/delete"
-        varchar resource "リソース名"
-        bigint resource_id "対象ID"
-        jsonb old_value
-        jsonb new_value
-        inet ip_address
-        text user_agent
-        timestamptz created_at
-    }
-```
-
 ---
 
 ## 変更概要（v27.0 → v28.0）
@@ -174,7 +153,7 @@ erDiagram
 
 | 変更内容 | 詳細 |
 |---------|------|
-| v17.0 | 論理削除（deleted_at）全主要テーブルに追加。C-1〜C-6 Critical 修正、billings-payments 関係修正、record_no/estimate_no UNIQUE スコープ修正、medical_records に reservation_appointment_id FK 追加、treatment_plans CHECK 排他的 OR 強化 |
+| v17.0 | 論理削除（deleted_at）全主要テーブルに追加。C-1〜C-6 Critical 修正、billings-payments 関係修正、record_no/estimate_no UNIQUE スコープ修正、medical_records に appointment_id FK 追加、treatment_plans CHECK 排他的 OR 強化 |
 
 ## 変更概要（v15.0 → v16.0）
 
@@ -872,7 +851,7 @@ erDiagram
         bigint owner_id FK
         bigint pet_id FK
         bigint doctor_id FK
-        bigint reservation_appointment_id FK
+        bigint appointment_id FK
         medical_record_status status
         integer version "DEFAULT 1"
         timestamptz created_at
@@ -1496,7 +1475,7 @@ erDiagram
     staffs ||--o{ billing_confirmations : "returned_by"
 
     %% 予約
-    appointments ||--o{ medical_records : "reservation_appointment_id"
+    appointments ||--o{ medical_records : "appointment_id"
     pets ||--o{ appointments : "pet_id"
     reservation_types ||--o{ appointments : "reservation_type_id"
     reservation_type_groups ||--o{ reservation_types : "group_id"
@@ -2460,7 +2439,7 @@ erDiagram
 | owner_id | bigint | YES | | FK → owners(id) RESTRICT |
 | pet_id | bigint | YES | | FK → pets(id) RESTRICT |
 | doctor_id | bigint | YES | | FK → staffs(id) SET NULL（担当医師） |
-| reservation_appointment_id | bigint | YES | NULL | appointments.id FK SET NULL（紐づく予約） |
+| appointment_id | bigint | YES | NULL | appointments.id FK SET NULL（紐づく予約） |
 | status | medical_record_status | YES | 'draft' | カルテ状態 |
 | version | integer | NO | 1 | 楽観的ロック用バージョン |
 | created_at | timestamptz | NO | now() | 作成日時 |
@@ -2472,7 +2451,7 @@ erDiagram
 - `owner_id` → `owners.id` (RESTRICT)
 - `pet_id` → `pets.id` (RESTRICT)
 - `doctor_id` → `staffs.id` (SET NULL)
-- `reservation_appointment_id` → `appointments.id` (SET NULL)
+- `appointment_id` → `appointments.id` (SET NULL)
 
 **インデックス:** `(clinic_id)`
 
@@ -3658,7 +3637,7 @@ FK なし（監査ログの独立性を担保するため、clinic_id / actor_id
 | doctor_id | staffs.id | SET NULL |
 | owner_id | owners.id | RESTRICT |
 | pet_id | pets.id | RESTRICT |
-| reservation_appointment_id | appointments.id | SET NULL |
+| appointment_id | appointments.id | SET NULL |
 
 ### clinics
 
