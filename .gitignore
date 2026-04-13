@@ -48,6 +48,7 @@ service-account-key.json
 # Local development configuration
 .claude/settings.local.json
 .claude/logs/
+.claude/scheduled_tasks.lock
 .vscode/settings.json
 .DS_Store
 
