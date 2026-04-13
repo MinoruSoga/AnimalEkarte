@@ -2574,7 +2574,7 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | bigint | NO | BIGSERIAL | PK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
 | pet_id | bigint | NO | | pets.id FK |
 | medical_record_id | bigint | YES | | medical_records.id FK（外来時） |
 | daily_record_id | bigint | YES | | daily_records.id FK（入院時） |
