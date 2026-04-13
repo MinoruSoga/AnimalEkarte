@@ -14,29 +14,15 @@
 backend/
 ├── cmd/
 │   └── api/
-│       └── main.go              # エントリーポイント + DI配線（唯一の汚い場所）
+│       └── main.go              # エントリーポイント + DI配線
 ├── internal/
-│   ├── handler/                 # HTTP受付層
-│   │   ├── handler.go           # Handler struct・共通ヘルパー
-│   │   ├── owner_handler.go
-│   │   ├── owner_request.go     # binding struct（handler専用）
-│   │   ├── owner_response.go    # response struct（handler専用）
-│   │   ├── pet_handler.go
-│   │   ├── pet_request.go
-│   │   ├── pet_response.go
-│   │   └── ...
-│   ├── service/                 # 業務処理層
-│   │   ├── owner_service.go
-│   │   ├── pet_service.go
-│   │   ├── validators.go        # 業務バリデーション関数
-│   │   └── ...
-├── repository/              # データアクセス層
-│   │   ├── owner_repository.go
-│   │   ├── pet_repository.go
-│   │   ├── db.go                # DB接続管理（旧 internal/db）
-│   │   └── ...
-├── model/                   # GORMモデル（DBスキーマ対応）
-
+│   ├── handler/                 # HTTP受付層（binding, response 定義含む）
+│   ├── service/                 # 業務処理層（インターフェース、バリデータ含む）
+│   ├── repository/              # データアクセス層（GORM）
+│   ├── model/                   # GORMモデル（単一の真実）
+│   ├── errors/                  # センチネルエラーと AppError 型（handler では apperrors と別名定義）
+│   ├── middleware/              # 認証・ログ・CORS
+│   └── infra/                   # 外部連携（LINE, Storage 等）
 ├── migrations/                  # SQLマイグレーション
 ├── go.mod
 └── go.sum
@@ -51,36 +37,77 @@ backend/
 **責務**: HTTP の受け取りと返却のみ。
 
 - `*gin.Context` を扱うのはこの層だけ
-- リクエストの bind / 型変換
-- service の呼び出し
-- レスポンスの返却
+- `RespondError(c, err)` を使用した統一エラーレスポンス（`internal/errors` パッケージ連動）
+- `ShouldBindJSON` エラー時は `RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))` を徹底（`apperrors` は `internal/errors` の別名）
 - `RegisterXxxRoutes(rg *gin.RouterGroup)` でルートを自己登録
 
 **禁止事項**:
 - SQL / GORM を書かない
-- 業務判断をしない
 - `repository` を直接呼ばない
+
+### service/
+
+**責務**: 業務処理の中核。
+
+- Service インターフェースと DTO (Input) をこの層で定義
+- 業務バリデーションを `validators.go` に集約
+- 削除時は `CountUsageByXxxID()` 等で外部キー整合性をチェックし、使用中の場合は `apperrors.WrapConflict` を返却
+- slog による構造化ログ
+
+### repository/
+
+**責務**: DB アクセスの永続化処理のみ。
+
+- Repository インターフェースをこの層で定義
+- DB エラーをセンチネルエラーに変換（`gorm.ErrRecordNotFound` → `apperrors.WrapNotFound`）
+
+### model/
+
+**責務**: GORM モデル（DB スキーマ対応）。
+
+- **Single Source of Truth**: フロントエンドの型定義（`models.ts`）の生成元
+- `json:"-"` で内部フィールドを非公開
+
+---
+
+## フロントエンド・アーキテクチャ
+
+React 19 + TypeScript + Vite 6 + Tailwind 4。
+
+- **Feature-Based 構造**: `src/features/[feature]/` にカプセル化（api, components, hooks, routes, types）
+- **Dependency Inversion**: Feature 間 import は禁止。`src/app/pages/` でのみ合成。
+- **React 19 パターン**: `useActionState` (Form), `useTransition` (Pending), `useDeferredValue` (Performance)。
+- **中央ルーター**: React Router 7 Data Mode (`createBrowserRouter`)。
 
 ```go
 // handler/owner_handler.go
 func (h *Handler) CreateOwner(c *gin.Context) {
-    var req createOwnerRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+    clinicID, ok := extractClinicID(c)
+    if !ok {
         return
     }
+
+    var req createOwnerRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+        return
+    }
+
     input := service.CreateOwnerInput{
         OwnerName: req.OwnerName,
         Email:     req.Email,
+        // ... 他のフィールド
     }
+
     owner, err := h.svc.Owner.CreateWithPets(c.Request.Context(), clinicID, &input)
     if err != nil {
         RespondError(c, err)
         return
     }
+
     c.JSON(http.StatusCreated, toOwnerResponse(owner))
 }
-
+```
 func (h *Handler) RegisterOwnerRoutes(rg *gin.RouterGroup) {
     owners := rg.Group("/owners")
     owners.GET("", h.ListOwners)

@@ -48,13 +48,13 @@
 
 | アクション | トリガー | 処理内容 | 遷移先 |
 |-----------|---------|---------|--------|
-| 新規作成 | 「新規作成」ボタン | ペット選択画面へ | `/medical-records/select-pet` |
+| 新規作成 | 「新規作成」ボタン | ペット選択画面へ | `/medical-records/new` |
 | 編集 | 行クリック or 「編集」 | カルテ編集フォームへ | `/medical-records/:id` |
 | 削除 | 「削除」アクション | `ConfirmDialog` 後に論理削除 | 同画面 |
-| 関連会計参照 | 関連列のアイコンクリック | 会計詳細画面へ | `/accounting/:accountingId` |
+| 関連会計参照 | 関連列のアイコンクリック | 会計詳細画面へ | `/accounting/:billingId` |
 
 ## API連携
 | メソッド | エンドポイント | 用途 |
 |---------|--------------|------|
-| GET | `/api/v1/medical-records` | カルテ一覧取得 |
+| GET | `/api/v1/medical-records` | カルテ一覧取得（page/per_page/search パラメータ対応） |
 | DELETE | `/api/v1/medical-records/:id` | カルテ削除 |

@@ -25,14 +25,22 @@
 
 | フィールド名 | 型 | 説明 | 備考 |
 |------------|-----|------|------|
-| 時刻 | time | 予約時刻（Clock アイコン付き、等幅フォント） | `appointment.time` |
+| 時刻 | string | 予約時刻（Clock アイコン付き、等幅フォント） | `appointment.time` (HH:mm 形式) |
 | 次回予約バッジ | enum | 「次回予約済」=secondary / 「精算未確認」=destructive+AlertCircle | `appointment.nextAppointment` |
 | 飼い主名 | string | 飼い主氏名（太字） | `appointment.ownerName` |
 | ペット情報 | string | `petType - petName`（Dog アイコン付き） | `appointment.petName`, `appointment.petType` |
-| 初診/再診 | string | visitType バッジ（初診=青背景 / 再診=スレート背景） | `appointment.visitType` |
-| 診療区分 | string | serviceType バッジ | `appointment.serviceType` |
-| 担当医 | string | 担当医バッジ（指名時はオレンジ背景＋「指」ラベル） | `appointment.doctor`, `appointment.isDesignated` |
-| ミニアクション | buttons | 下部のクイックリンク（カルテ/施術、会計、入院） | |
+| 初診/再診 | string | visitType バッジ（`getVisitTypeColor` により動的配色） | `appointment.visitType` |
+| 診療区分 | string | reservationType バッジ（名称に応じてアイコン動的切替） | `appointment.reservationType` |
+| 担当医 | string | 担当医バッジ（未設定時は「担当医未設定」。指名時は「指」ラベル表示） | `appointment.doctor`, `appointment.isDesignated` |
+| ミニアクション | buttons | 下部のクイックリンク。診療区分や入院フラグにより動的に変化 | 詳細は下記参照 |
+
+### ミニアクションの動的挙動
+
+| アクション | アイコン | ラベル | 表示条件 | 遷移先 |
+|-----------|---------|-------|---------|--------|
+| カルテ / 施術 | `FileText` / `Scissors` | カルテ / 施術 | 常時表示。診療区分に「トリミング」を含む場合は施術モード | `/medical-records/new` / `/trimming/new` |
+| 会計 | `CreditCard` | 会計 | 「診療中」カラム以外で表示 | `/accounting/new` |
+| 入院 | `BedDouble` | 入院 | 「診療中」カラム以外、かつ診療区分に「入院」を含む場合に表示 | `/hospitalization/new` |
 
 ## 表示項目（ReceptionDetailModal）
 

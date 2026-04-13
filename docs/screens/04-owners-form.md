@@ -22,16 +22,16 @@
 
 | フィールド名 | 項目ID | 入力部品 | 必須 | 備考 |
 |------------|--------|---------|------|------|
-| 飼主No | `ownerId` | `Input` | - | 編集時無効 |
+| 飼主No | `id` | `Input` | - | 編集時無効 |
 | 郵便番号 | `postalCode` | `Input` + 検索 | - | 会社 |
 | 会社名 | `company` | `Input` | - | |
-| 会員区分 | `membershipType` | `ButtonGroup` | - | `non_member`(非会員), `member`(会員), `deceased`(退亡者), `transferred`(他診), `associate`(準) |
-| 飼主名 | `ownerName` | `Input` | ✅ | |
+| 会員区分 | `membershipType` | `ButtonGroup` | - | `non_member`, `member`, `deceased`, `transferred` |
+| 飼主名 | `name` | `Input` | ✅ | |
 | 住所1 | `address1` | `Input` | - | 会社 |
 | 郵便番号(自宅)| `homePostalCode`| `Input` + 検索 | - | |
 | 危険人物 | `isDangerous` | `Switch` | - | |
 | 備考・特記事項| `remarks` | `Textarea` | - | |
-| 飼主名(カナ) | `ownerNameKana` | `Input` | ✅ | 必須（カタカナバリデーションあり） |
+| 飼主名(カナ) | `name_kana` | `Input` | ✅ | 必須（カタカナバリデーションあり） |
 | 住所2 | `address2` | `Input` | - | 会社 |
 | 住所1(自宅) | `homeAddress1` | `Input` | - | |
 | 飼主生年月日 | `birthDate` | `NotionDatePicker` | - | |
@@ -63,8 +63,10 @@
 | 備考・特記事項| `remarks` | `Textarea` | - | |
 
 ## 特徴的な機能
+- **React 19 パターン**: `useActionState` によるサーバーサイドバリデーションの反映、`useTransition` による保存中のローディング制御、`useFormStatus` によるボタンの `disabled` 制御。
 - **郵便番号検索**: 会社・自宅それぞれの郵便番号から住所を自動入力。
-- **フォーム離脱保護**: 未保存の変更がある場合、`NavigationBlocker` により確認ダイアログを表示。
+- **フォーム離脱保護**: 未保存の変更がある場合、`NavigationBlocker` により確認ダイアログを表示（React Router 7 `unstable_useBlocker` ）。
+- **ペット一括保存**: 飼主新規作成時、`pets` 配列を含めることで一回の API コールで飼主と全ペットを保存可能。
 - **品種サジェスト**: 動物種（犬・猫等）の選択状態に応じて、代表的な品種名がサジェストされる（自由入力も可能）。
 - **飼主変更**: `PetEditModal` 内からペットの飼主を別の既存飼主に変更可能（編集モードのみ）。
 

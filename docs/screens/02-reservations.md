@@ -22,7 +22,7 @@
 ```
 
 ## 主要機能
-- **動的カラー凡例**: 予約種別ごとの配色（背景色・文字色）は `ServiceTypeMaster.color` と連動し、ツールバー上に動的に凡例が生成される。
+- **動的カラー凡例**: 予約区分ごとの配色（背景色・文字色）は `ReservationTypeGroup.color` と連動し、ツールバー上に動的に凡例が生成される。
 - **ビュー遷移同期**: 月表示 (`MonthView`) の日付セルをクリックすると、その日を開始日とした週表示 (`WeekView`) へ自動的に遷移・同期する。
 - **臨床安全ガード (ペット未紐付け)**: LINE予約などから作成されたペットID未紐付けの予約をクリックした際、即座に「ペット選択画面」への誘導ダイアログが表示される。
 - **ドラッグ&ドロップ**: `motion/react` を使用。週表示において、Y軸方向のドラッグにより15分単位で予約時間を変更可能。
@@ -33,7 +33,7 @@
 |-----|------|
 | 日付ナビゲーション | 前/次（月単位 or 週単位）、今日ボタン |
 | 年月表示 | `yyyy年 M月` 形式 |
-| 予約種別カラー凡例 | 動的マスタ連動（`ServiceTypeMaster.color`）。診療=#dbeafe(bg)/#5b8def(text) / 検診=#dcfce7/#16a34a / 手術=#ffe2e2/#f87171 / ワクチン=#f3e8ff/#a855f7 / 入院=#cefafe/#0891b2 / トリミング=#ffedd4/#f97316 |
+| 予約種別カラー凡例 | 動적マスタ連動（`ReservationTypeGroup.color`）。診療=#dbeafe(bg)/#5b8def(text) / 検診=#dcfce7/#16a34a / 手術=#ffe2e2/#f87171 / ワクチン=#f3e8ff/#a855f7 / 入院=#cefafe/#0891b2 / トリミング=#ffedd4/#f97316 |
 | 予約ソースフィルタ | Select。「すべて」/「手動予約」/「LINE予約」。`source` フィールドでクライアントサイド絞り込み |
 | 担当医フィルタ | Stethoscope アイコン付き Select。「すべての医師」＋全予約データから動的抽出した医師名一覧 |
 | 表示切替 | 月表示 / 週表示 Select（`CalendarView`） |
@@ -80,7 +80,7 @@
 | 日付 | `Popover` + `Calendar` | 日付選択 |
 | 時間帯（開始） | `Select`（30分刻み 0:00〜23:30） | Clock アイコン付き |
 | 時間帯（終了） | `Select`（30分刻み 0:00〜23:30） | ArrowRight で接続 |
-| 予約区分 | `Select`（serviceType マスタ連動） | `MasterLink` 付き |
+| 予約区分 | `Select`（reservationType マスタ連動） | `MasterLink` 付き |
 | 初診/再診 | `RadioGroup`（first / revisit） | カスタムラベルUI（カラードット付き） |
 | 担当者 | `Select`（staff マスタ連動、active のみ） | `MasterLink` 付き |
 | メモ | `Textarea` | |
@@ -157,9 +157,9 @@
 
 ## 実装状況
 - フロントエンド: 実装済（`features/reservations`）
-- バックエンドAPI: 実装済（`handler/reservation_handler.go`）
+- バックエンドAPI: 実装済（`handler/appointment_handler.go`）
 
 ## 備考
-- 予約種別カラーはマスタ（`service_types.color`）と連動し、動的に凡例を生成する
+- 予約種別カラーはマスタ（`reservation_type_groups.color`）と連動し、動的に凡例を生成する
 - WeekView のドラッグ&ドロップは `motion/react` を使用（Y軸ドラッグで時間変更、15分単位スナップ）
 - 旧仕様では検索コンポーネントが `PatientSearch` のみだったが、Step1 に `PatientSelectionTable`（`SelectedPetChip` 表示付き）が追加されている

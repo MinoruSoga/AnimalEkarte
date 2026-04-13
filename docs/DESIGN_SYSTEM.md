@@ -119,36 +119,32 @@ Tailwindの任意値構文（`text-[#37352F]/60`など）を使用して透明�
 
 > シフトタイプ別カラーは `/features/shifts/types/index.ts` の `SHIFT_TYPE_COLOR_MAP` で一元管理。ロールバッジも同パレット（医師=グリーン、スタッフ=ブルー、トリマー=パープル）で統一。
 
-#### 予約カレンダーカラー（Figma準拠パステルパレット）
+#### 予約カレンダーカラー（動的カラーシステム）
 
-**デザイン方針**: Figmaデザインから抽出した明るく柔らかいパステルカラーを採用。暗い色は極力使用せず、目に優しく美しいトーンで統一。
-
-| 診療種別 | 背景色 | テキスト色 | ボーダー色 | ドット色（凡例） | 説明 |
-|---|---|---|---|---|---|
-| **診療** | `#dbeafe` | `#5b8def` | `#93c5fd` | `#5b8def` | 明るい青（Figma pale blue） |
-| **検診** | `#dcfce7` | `#16a34a` | `#86efac` | `#16a34a` | 明るい緑（Figma pale green） |
-| **手術** | `#ffe2e2` | `#f87171` | `#fca5a5` | `#f87171` | 明るいコーラルレッド（Figma pale red） |
-| **ワクチン** | `#f3e8ff` | `#a855f7` | `#c084fc` | `#a855f7` | 明るいラベンダー紫（Figma pale purple） |
-| **入院** | `#cefafe` | `#0891b2` | `#67e8f9` | `#0891b2` | 明るいターコイズ（Figma pale cyan） |
-| **トリミング** | `#ffedd4` | `#f97316` | `#fdba74` | `#f97316` | 明るいピーチオレンジ（Figma pale orange） |
+**デザイン方針**: 各予約区分（またはグループ）に設定されたベースカラーから、背景色（透過率10%）、ボーダー色（透過率30%）、テキスト色（ベースカラーそのまま）を動的に生成します。これにより、マスタ設定で自由な色を選択しつつ、一貫したパステル調の視覚効果を維持します。
 
 **実装場所**:
-- `/lib/design-tokens.ts`: `bgFigmaBlue` / `textFigmaBlue` / `borderFigmaBlue` / `dotFigmaBlue` などのTailwindクラス
-- `/features/master/constants/service-type-colors.ts`: `SERVICE_TYPE_COLOR_MAP` でマスタ連動
-- 予約カレンダー（`/features/reservations/routes/ReservationManagement.tsx`）で`useServiceTypeColorMap`フックにより動的適用
-- カラーは`ServiceTypeMaster.color`フィールドで管理され、マスタ設定から変更可能
+- `/features/master/hooks/use-reservation-type-color-map.ts`: `useReservationTypeColorMap` フックによる動的スタイル生成
+- `/lib/design-tokens.ts`: `PALETTE.pickerDefaultBlue` (デフォルト色)
+- 予約カレンダー（`/features/reservations/routes/ReservationManagement.tsx`）およびダッシュボードで使用
+
+**色の解決ルール**:
+1. **グループ色優先**: 予約区分が属する `ReservationTypeGroup.color` が設定されていればそれを使用。
+2. **区分個別色**: グループ未設定（またはグループに色がない）場合は `ReservationType.color` を使用。
+3. **デフォルト**: いずれも未設定の場合は `PALETTE.grayMedium` を使用。
 
 **使用例**:
 ```tsx
-// 診療種別マスタの色設定
-const serviceType = {
-  name: "診療",
-  color: "blue", // → bgFigmaBlue + textFigmaBlue + borderFigmaBlue
-};
+const { getColor } = useReservationTypeColorMap();
+const color = getColor(appointment.reservationType.name);
 
-// カレンダーレジェンド
-<span className={`w-2.5 h-2.5 rounded-full ${C.dotFigmaBlue}`} />
-<span className={`text-xs ${C.text60}`}>診療</span>
+// 予約カードのスタイル
+<div style={color.style}>
+  {appointment.petName}
+</div>
+
+// 凡例のドット
+<span style={color.dotStyle} className="w-2.5 h-2.5 rounded-full" />
 ```
 
 ---

@@ -60,8 +60,8 @@ LINE予約ページの各セクションに表示されるテキストコンテ�
 ## API連携
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/clinics/:id/line-reservation-setting` | 設定情報の取得 | 実装済 |
-| PATCH | `/api/v1/clinics/:id/line-reservation-setting` | 設定情報の更新 | 実装済 |
+| GET | `/api/v1/clinics/:id/line-reservation-settings` | 設定情報の取得 | 実装済 |
+| PUT | `/api/v1/clinics/:id/line-reservation-settings` | 設定情報の更新 | 実装済 |
 
 ## 特記事項
 - **JSONB フィールドの扱い**: 営業時間や定休日などの複雑なデータ構造は、DB上で JSONB 形式で保存されており、フロントエンドでは適切なオブジェクト/配列としてパースして管理されます。
