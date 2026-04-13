@@ -313,7 +313,7 @@ export interface ChiefComplaintType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  Description: string;
+  description: string;
   is_active: boolean;
   sort_order: number /* int */;
   created_at: string;
@@ -1375,7 +1375,7 @@ export interface ReservationType {
   clinic_id: number /* uint64 */;
   name: string;
   is_active: boolean;
-  Description: string;
+  description: string;
   color: string;
   sort_order: number /* int */;
   created_at: string;
@@ -1383,13 +1383,13 @@ export interface ReservationType {
   /**
    * LINE予約用フィールド
    */
-  ReservationDisplayName: string;
+  reservation_display_name: string;
   duration_minutes: number /* int */;
-  ShortName: string;
+  short_name: string;
   show_short_name: boolean;
   reservation_visible: boolean;
-  ReservationComment: string;
-  ReservationImageURL: string;
+  reservation_comment: string;
+  reservation_image_url: string;
   reservation_day_option: ReservationDayOption;
   is_internal: boolean;
   /**
