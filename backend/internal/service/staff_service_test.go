@@ -143,6 +143,10 @@ func (m *mockShiftEntryForStaff) ExistsByStaffID(ctx context.Context, staffID ui
 	return false, nil
 }
 
+func (m *mockShiftEntryForStaff) FindOnDutyStaffs(_ context.Context, _ uint64, _ time.Time) ([]model.Staff, error) {
+	return nil, nil
+}
+
 // mockAccountForStaff は Staff テストで使用する AccountRepository のスタブ
 type mockAccountForStaff struct {
 	findByEmailFn func(ctx context.Context, email string) (*model.Account, error)

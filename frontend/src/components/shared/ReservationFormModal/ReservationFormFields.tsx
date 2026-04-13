@@ -1,17 +1,18 @@
-import { memo } from "react";
+import { memo, useMemo, useCallback } from "react";
+import { isBefore, startOfDay, format } from "date-fns";
+import { ja } from "date-fns/locale";
 import { C, ICON } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
-import { format } from "date-fns";
-import { ja } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/features/master";
+import { useGetReservationTypesGrouped, useGetOnDutyStaffs } from "@/features/reservations";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { isOneOf } from "@/lib/type-utils";
 import type { Appointment } from "@/types";
@@ -36,14 +37,18 @@ const TIME_OPTIONS = generateTimeOptions();
 
 interface FieldLabelProps {
   children: React.ReactNode;
+  required?: boolean;
   trailing?: React.ReactNode;
 }
 
-function FieldLabel({ children, trailing }: FieldLabelProps) {
+function FieldLabel({ children, required, trailing }: FieldLabelProps) {
   return (
     <div className="flex items-center justify-between gap-2">
       <Label className={`text-[12px] ${C.text40} tracking-wide font-medium`}>
         {children}
+        {required ? (
+          <span style={{ color: C.danger }} className="ml-1" aria-hidden="true">*</span>
+        ) : null}
       </Label>
       {trailing ? <div>{trailing}</div> : null}
     </div>
@@ -55,6 +60,10 @@ interface ReservationFormFieldsProps {
   onChange: (data: Partial<Appointment>) => void;
   validationErrors?: Record<string, string>;
   onClearError?: (field: string) => void;
+  /** 定休日の日付文字列セット (YYYY-MM-DD 形式) — BUG-343 */
+  holidayDates?: Set<string>;
+  /** カレンダーの月が変わったときに呼ばれるコールバック (YYYY-MM 形式) — BUG-343 */
+  onMonthChange?: (yearMonth: string) => void;
 }
 
 export const ReservationFormFields = memo(function ReservationFormFields({
@@ -62,17 +71,40 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   onChange,
   validationErrors,
   onClearError: _onClearError,
+  holidayDates,
+  onMonthChange,
 }: ReservationFormFieldsProps) {
-  const { data: reservationTypes } = useMasterItems("reservationType");
+  // BUG-341: グループ情報付きで取得（useMasterItems は group 情報を捨てるため専用フック使用）
+  const { data: groupedReservationTypes = [] } = useGetReservationTypesGrouped();
+
+  const handleMonthChange = useCallback((month: Date) => {
+    onMonthChange?.(format(month, "yyyy-MM"));
+  }, [onMonthChange]);
+
+  const isCalendarDateDisabled = useCallback((date: Date): boolean => {
+    if (isBefore(date, startOfDay(new Date()))) return true;
+    if (holidayDates) return holidayDates.has(format(date, "yyyy-MM-dd"));
+    return false;
+  }, [holidayDates]);
   const { data: staffItems } = useMasterItems("staff");
   const activeStaff = staffItems.filter((s) => s.status === "active");
+
+  // BUG-344: 選択日に出勤しているスタッフのみに絞り込む
+  const selectedDateStr = formData.start ? format(formData.start, "yyyy-MM-dd") : null;
+  const { data: onDutyStaffs } = useGetOnDutyStaffs(selectedDateStr);
+  const staffOptions = useMemo(() => {
+    if (selectedDateStr === null || onDutyStaffs === undefined) return activeStaff;
+    // 出勤スタッフの ID セットで絞り込む
+    const onDutyIdSet = new Set(onDutyStaffs.map((s) => String(s.id)));
+    return activeStaff.filter((s) => onDutyIdSet.has(String(s.id)));
+  }, [selectedDateStr, onDutyStaffs, activeStaff]);
 
   return (
     <div className="space-y-4">
       {/* Date + Time Group */}
       <div className={`rounded-lg border ${C.bgSubtle} p-3 space-y-3 ${C.borderMediumLight}`}>
         <div className="space-y-1.5">
-          <FieldLabel>日付</FieldLabel>
+          <FieldLabel required>日付</FieldLabel>
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -110,6 +142,8 @@ export const ReservationFormFields = memo(function ReservationFormFields({
 
                   onChange({ ...formData, start: newStart, end: newEnd });
                 }}
+                disabled={isCalendarDateDisabled}
+                onMonthChange={handleMonthChange}
                 initialFocus
               />
             </PopoverContent>
@@ -123,6 +157,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           <div className={`flex items-center gap-2 text-[12px] ${C.text40} tracking-wide font-medium`}>
             <Clock className={ICON.action} />
             時間
+            <span style={{ color: C.danger }} className="ml-0.5" aria-hidden="true">*</span>
           </div>
           <div className="flex items-center gap-2">
             <Select
@@ -178,6 +213,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <FieldLabel
+            required
             trailing={
               <MasterLink
                 category="reservationType"
@@ -196,10 +232,15 @@ export const ReservationFormFields = memo(function ReservationFormFields({
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent>
-              {reservationTypes.map((item) => (
-                <SelectItem key={item.id} value={String(item.id)}>
-                  {item.name}
-                </SelectItem>
+              {groupedReservationTypes.map((group) => (
+                <SelectGroup key={group.label}>
+                  <SelectLabel className="text-[11px] font-semibold px-2 py-1">{group.label}</SelectLabel>
+                  {group.types.map((t) => (
+                    <SelectItem key={t.id} value={String(t.id)}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
@@ -270,18 +311,18 @@ export const ReservationFormFields = memo(function ReservationFormFields({
             <SelectValue placeholder="選択してください" />
           </SelectTrigger>
           <SelectContent>
-            {activeStaff.length > 0 ? (
-              activeStaff.map((s) => (
+            {staffOptions.length > 0 ? (
+              staffOptions.map((s) => (
                 <SelectItem key={s.id} value={String(s.id)}>
                   {s.name}
                 </SelectItem>
               ))
             ) : (
-              <>
-                <SelectItem value="医師A">医師A</SelectItem>
-                <SelectItem value="医師B">医師B</SelectItem>
-                <SelectItem value="スタッフA">スタッフA</SelectItem>
-              </>
+              <div className={`px-3 py-2 text-sm ${C.text40}`}>
+                {selectedDateStr !== null
+                  ? "この日に出勤しているスタッフがいません"
+                  : "スタッフが登録されていません"}
+              </div>
             )}
           </SelectContent>
         </Select>

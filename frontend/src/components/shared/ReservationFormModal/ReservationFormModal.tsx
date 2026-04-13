@@ -1,6 +1,7 @@
 // React/Framework
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
-import { useState, useEffect, useCallback, memo } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { format as dateFnsFormat } from "date-fns";
 
 // External
 import { Calendar, CalendarCheck, PawPrint, X, Search } from "lucide-react";
@@ -15,6 +16,9 @@ import { cn } from "@/lib/utils";
 import { useGetPet } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+
+// Features
+import { useGetClinicHolidays } from "@/features/shifts";
 
 // Relative
 import { PatientSelectionTable } from "./PatientSelectionTable";
@@ -81,6 +85,17 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<"search" | "form">("search");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [calendarMonth, setCalendarMonth] = useState<string>(() => dateFnsFormat(new Date(), "yyyy-MM"));
+
+  // BUG-343: 定休日を取得して Calendar で disabled にする
+  const { data: clinicHolidays = [] } = useGetClinicHolidays(calendarMonth);
+  const holidayDates = useMemo(
+    () => new Set(clinicHolidays.map((h) => h.date)),
+    [clinicHolidays]
+  );
+  const handleCalendarMonthChange = useCallback((yearMonth: string) => {
+    setCalendarMonth(yearMonth);
+  }, []);
 
   const {
     selectedPets,
@@ -296,6 +311,8 @@ export const ReservationFormModal = memo(function ReservationFormModal({
                       return next;
                     })
                   }
+                  holidayDates={holidayDates}
+                  onMonthChange={handleCalendarMonthChange}
                 />
               </div>
             </div>

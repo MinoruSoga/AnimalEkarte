@@ -50,6 +50,10 @@ func (m *mockShiftEntryRepository) ExistsByStaffID(_ context.Context, _ uint64) 
 	return false, nil
 }
 
+func (m *mockShiftEntryRepository) FindOnDutyStaffs(_ context.Context, _ uint64, _ time.Time) ([]model.Staff, error) {
+	return nil, nil
+}
+
 // ---- Tests ----
 
 func TestShiftEntryService_List(t *testing.T) {

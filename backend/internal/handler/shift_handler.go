@@ -149,10 +149,42 @@ func (h *Handler) DeleteShiftEntry(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// GetOnDutyStaffs は指定日に出勤しているスタッフ一覧を返す (BUG-344)
+// GET /api/v1/shifts/on-duty-staffs?date=YYYY-MM-DD
+func (h *Handler) GetOnDutyStaffs(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	dateStr := c.Query("date")
+	if dateStr == "" {
+		RespondError(c, apperrors.WrapInvalidInput("date query parameter is required (YYYY-MM-DD)"))
+		return
+	}
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid date format: expected YYYY-MM-DD"))
+		return
+	}
+	staffs, err := h.svc.ShiftEntry.GetOnDutyStaffs(c.Request.Context(), clinicID, date)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	result := make([]staffSummaryResponse, 0, len(staffs))
+	for i := range staffs {
+		if s := toStaffSummary(&staffs[i]); s != nil {
+			result = append(result, *s)
+		}
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 // RegisterShiftRoutes はシフト関連のルートを登録する
 func (h *Handler) RegisterShiftRoutes(rg *gin.RouterGroup) {
 	shifts := rg.Group("/shifts")
 	shifts.GET("", h.ListShiftEntries)
+	shifts.GET("/on-duty-staffs", h.GetOnDutyStaffs) // BUG-344
 	shifts.POST("", h.RequirePermission(string(model.ResourceShifts), "create"), h.CreateShiftEntry)
 	shifts.PATCH("/:id", h.RequirePermission(string(model.ResourceShifts), "edit"), h.UpdateShiftEntry)
 	shifts.DELETE("/:id", h.RequirePermission(string(model.ResourceShifts), "delete"), h.DeleteShiftEntry)

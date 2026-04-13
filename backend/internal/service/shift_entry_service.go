@@ -59,6 +59,8 @@ type ShiftEntryService interface {
 	Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateShiftEntryInput) (*model.ShiftEntry, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	// GetOnDutyStaffs は指定日に出勤しているスタッフ一覧を返す (BUG-344)
+	GetOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error)
 }
 
 type shiftEntryService struct {
@@ -249,6 +251,15 @@ func validateYearMonth(yearMonth string) error {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid year_month value: %s", yearMonth))
 	}
 	return nil
+}
+
+// GetOnDutyStaffs は指定日に出勤しているスタッフ一覧を返す (BUG-344)
+func (s *shiftEntryService) GetOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
+	staffs, err := s.repo.FindOnDutyStaffs(ctx, clinicID, date)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get on-duty staffs")
+	}
+	return staffs, nil
 }
 
 var _ ShiftEntryService = (*shiftEntryService)(nil)

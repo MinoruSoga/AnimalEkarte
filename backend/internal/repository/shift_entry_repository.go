@@ -27,6 +27,8 @@ type ShiftEntryRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
 	ReplaceBreaks(ctx context.Context, shiftEntryID uint64, breaks []model.ShiftEntryBreak) error
+	// FindOnDutyStaffs は指定日にシフトが登録されているスタッフ一覧を返す (BUG-344)
+	FindOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error)
 }
 
 type shiftEntryRepository struct{ db *gorm.DB }
@@ -145,4 +147,22 @@ func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, staffID uint
 		return false, apperrors.FromGORM(err, "shift_entry", "")
 	}
 	return count > 0, nil
+}
+
+// FindOnDutyStaffs は指定日にシフトが登録されているスタッフ一覧を返す (BUG-344)
+func (r *shiftEntryRepository) FindOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
+	var staffs []model.Staff
+	dateStr := date.Format("2006-01-02")
+	err := r.db.WithContext(ctx).
+		Joins("JOIN shift_entries ON shift_entries.staff_id = staffs.id"+
+			" AND shift_entries.clinic_id = ?"+
+			" AND DATE(shift_entries.date) = ?"+
+			" AND shift_entries.deleted_at IS NULL", clinicID, dateStr).
+		Where("staffs.clinic_id = ? AND staffs.deleted_at IS NULL AND staffs.is_active = true", clinicID).
+		Distinct("staffs.*").
+		Find(&staffs).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "on_duty_staffs", dateStr)
+	}
+	return staffs, nil
 }
