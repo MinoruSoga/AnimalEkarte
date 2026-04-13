@@ -19,8 +19,8 @@
 | 変更内容 | 詳細 |
 |---------|------|
 | テーブル総数 65 → 66 | `shift_entry_breaks` を含めた正確なカウントに修正 |
-| `audit_logs` カラム長修正 | `actor_type varchar(30)` に修正 |
-| `permission_groups` カラム長修正 | `name varchar(100)` に修正 |
+| `audit_logs` カラム長修正 | `actor_type varchar(30) に修正 |
+| `permission_groups` カラム長修正 | `name varchar(100) に修正 |
 
 ---
 
@@ -53,14 +53,16 @@
 
 ## テーブル一覧（67テーブル）
 
+> テーブル順序は `001_init.sql` の CREATE TABLE 順に準拠。
+
 | # | テーブル名 | 区分 | 説明 |
 |---|-----------|------|------|
 | 1 | `companies` | 法人情報 | 法人（ノア動物病院）情報 |
 | 2 | `clinics` | 医院情報 | 各医院（八王子・城東・敷島） |
 | 3 | `animal_species` | マスタ | ペット種類マスタ（犬・猫・鳥等） |
 | 4 | `occupations` | マスタ | 職種マスタ（clinic単位） |
-| 5 | `accounts` | 認証 | ログインアカウント |
-| 6 | `staffs` | マスタ | スタッフ |
+| 5 | `accounts` | 認証 | ログインアカウント（email/password_hash/is_system_admin 管理） |
+| 6 | `staffs` | マスタ | スタッフ（獣医師・看護師等）。account_id FK + occupation_id FK |
 | 7 | `owners` | コア | 飼い主 |
 | 8 | `inventory_items` | 在庫 | 在庫アイテム |
 | 9 | `exam_types` | マスタ | 検査種別 |
@@ -69,8 +71,8 @@
 | 12 | `medicines` | マスタ | 薬剤 |
 | 13 | `insurances` | マスタ | 保険 |
 | 14 | `cages` | マスタ | ケージ |
-| 15 | `reservation_type_groups` | 予約マスタ | 予約区分グループ |
-| 16 | `reservation_types` | 予約マスタ | 予約区分マスタ |
+| 15 | `reservation_type_groups` | 予約マスタ | 予約区分グループ（色・表示順管理） |
+| 16 | `reservation_types` | 予約マスタ | 予約区分マスタ（LINE表示設定・所要時間等） |
 | 17 | `consultations` | マスタ | 診察項目 |
 | 18 | `procedures` | マスタ | 処置項目 |
 | 19 | `hospitalization_plans` | マスタ | 入院プラン |
@@ -82,27 +84,27 @@
 | 25 | `chief_complaint_types` | マスタ | 主訴区分マスタ |
 | 26 | `inquiry_templates` | マスタ | 問診定型文マスタ |
 | 27 | `pets` | コア | ペット |
-| 28 | `staff_clinic_assignments` | 認証 | スタッフ-クリニック中間テーブル |
-| 29 | `permission_groups` | 権限 | 権限グループマスタ |
-| 30 | `permission_group_rules` | 権限 | 権限グループルール |
-| 31 | `staff_permission_groups` | 権限 | スタッフ-権限グループ中間テーブル |
-| 32 | `appointments` | 予約 | 予約 |
+| 28 | `staff_clinic_assignments` | 認証 | スタッフ-クリニック中間テーブル（N:N関係、is_main フラグ） |
+| 29 | `permission_groups` | 権限 | 権限グループマスタ（clinic単位、RBAC） |
+| 30 | `permission_group_rules` | 権限 | 権限グループルール（リソース×CRUD） |
+| 31 | `staff_permission_groups` | 権限 | スタッフ-権限グループ中間テーブル（N:N） |
+| 32 | `appointments` | 予約 | 予約（LINE予約・手動予約統合） |
 | 33 | `hospitalizations` | 入院 | 入院・ホテル |
 | 34 | `trimming_records` | トリミング | トリミング記録 |
-| 35 | `medical_records` | 診療 | カルテ |
+| 35 | `medical_records` | 診療 | カルテ（診療記録） |
 | 36 | `vaccinations` | 診療 | ワクチン接種記録 |
 | 37 | `checkups` | 診療 | 健診記録 |
 | 38 | `exams` | 診療 | 検査記録 |
-| 39 | `inquiries` | 診療 | 問診情報 |
-| 40 | `clinical_plans` | 診療 | 診察所見・診断・治療方針 |
+| 39 | `inquiries` | 診療 | 問診情報（カルテ問診タブ） |
+| 40 | `clinical_plans` | 診療 | 診察所見・診断・治療方針（診察/治療タブ） |
 | 41 | `treatments` | 診療 | 処置・診察・薬剤明細 |
-| 42 | `treatment_plans` | 診療 | 治療プラン |
-| 43 | `medical_record_images` | 診療 | 診療画像 |
+| 42 | `treatment_plans` | 診療 | 治療プラン（外来・入院共用） |
+| 43 | `medical_record_images` | 診療 | 診療画像（レントゲン・エコー等） |
 | 44 | `billing_confirmations` | 診療 | 会計医師確認 |
 | 45 | `estimates` | 診療 | 見積書 |
 | 46 | `exam_results` | 診療 | 検査記録の検査結果項目 |
 | 47 | `daily_records` | 入院 | 入院日次記録 |
-| 48 | `vital_records` | 診療・入院 | バイタル記録 |
+| 48 | `vital_records` | 診療・入院 | バイタル記録（外来・入院統合） |
 | 49 | `care_plan_items` | 入院 | ケアプラン項目 |
 | 50 | `estimate_items` | 診療 | 見積書明細 |
 | 51 | `care_logs` | 入院 | ケアログ |
@@ -111,19 +113,17 @@
 | 54 | `billings` | 会計 | 会計 |
 | 55 | `billing_items` | 会計 | 会計明細 |
 | 56 | `payments` | 会計 | 支払い情報 |
-| 57 | `billing_refunds` | 会計 | 返金レコード |
+| 57 | `billing_refunds` | 会計 | 返金レコード（Stripe モデル） |
 | 58 | `shift_entries` | シフト | スタッフシフト |
 | 59 | `clinic_holidays` | シフト | 医院個別休診日 |
 | 60 | `merchandise_items` | マスタ | 物販・フード・その他マスタ |
 | 61 | `audit_logs` | 監査 | 操作監査ログ |
-| 62 | `line_reservation_settings` | LINE予約 | LINE予約基本設定 |
-| 63 | `line_customers` | LINE予約 | LINE予約ユーザー管理 |
-| 64 | `staff_reservation_exclusions` | 予約マスタ | スタッフ × 非対応予約区分 |
+| 62 | `line_reservation_settings` | LINE予約 | LINE予約基本設定（JSONB多数、clinic UNIQUE） |
+| 63 | `line_customers` | LINE予約 | LINE予約ユーザー管理（clinic_id + line_user_id UNIQUE） |
+| 64 | `staff_reservation_exclusions` | 予約マスタ | スタッフ × 非対応予約区分（N:N中間テーブル） |
 | 65 | `shift_entry_breaks` | シフト | シフト中の休憩時間管理 |
 | 66 | `shift_templates` | マスタ | シフトテンプレートマスタ |
 | 67 | `shift_template_breaks` | マスタ | シフトテンプレートの休憩時間管理 |
-
----
 
 ---
 
@@ -288,48 +288,10 @@
 
 | 変更内容 | 詳細 |
 |---------|------|
-| マルチテナント対応 | 24テーブルに `clinic_id FK → clinics(id)` を追加 |
+| マルチテナント対応 | 24テーブルに `clinic_id FK → clinics(id) を追加 |
 | カルテ直接所有エンティティ | medical_records, owners, pets, appointments, hospitalizations, trimming_records, shift_entries, billings |
 | マスタデータ | staffs, inventory_items, cages, service_types, consultations, procedures, medicines, hospitalization_plans, trimming_courses, trimming_options, exam_types, vaccines, insurances, diagnosis_types, diagnosis_names, checkup_types |
 | 設計方針 | medical_records/hospitalizations の子テーブルは親経由でclinicを特定するため除外 |
-
-## 変更概要（v8.0 → v9.0）
-
-| 変更内容 | 詳細 |
-|---------|------|
-| `clinical_plans` テーブル追加 | 診察/治療タブ専用。`medical_records` から診察・診断フィールドを移動。1:1 |
-| `medical_records` スリム化 | `physical_exam`, `treatment_policy`, `diagnosis_details`, `diagnosis1/2` FK を `clinical_plans` に移動 |
-| テーブル総数 | 50 → 51 |
-
-## 変更概要（v5.0 → v6.0）
-
-| 変更内容 | 詳細 |
-|---------|------|
-| 法人テーブル追加 | `company`（ノア動物病院法人情報、シングルトン） |
-| 医院テーブル追加 | `clinics`（八王子医院・城東医院・敷島医院等） |
-| clinic_id追加予定 | `003_add_clinic_id.sql` にて以下テーブルに追加予定: owners, staffs, inventory_items, cages, service_types, consultations, procedures, hospitalization_plans, trimming_courses, trimming_options, exam_types, vaccines, medicines, insurances, diagnosis_types, checkup_types |
-| clinic_id保持済 | `staff_clinic_assignments`, `permission_groups` のみ現時点で保持（`user_permissions` / `user_clinic_memberships` は廃止済み） |
-
-## 変更概要（v7.0 → v8.0）
-
-| 変更内容 | 詳細 |
-|---------|------|
-| 命名規則統一 | `_records`/`_entries`/`_items` サフィックスを排除し、短縮形に統一 |
-| `examination_records` → `exams` | 検査記録 |
-| `examination_record_items` → `exam_results` | 検査結果項目 |
-| `examination_types` → `exam_types` | 検査種別マスタ |
-| `examination_type_items` → `exam_type_fields` | 検査項目定義マスタ |
-| `treatment_items` → `treatments` | 治療項目 |
-| `vital_entries` / `vitals` → `vital_records` | バイタル記録（外来・入院統合） |
-| `vaccination_records` → `vaccinations` | 予防接種記録 |
-| `checkup_records` → `checkups` | 健診記録 |
-| `accountings` → `billings` | 会計 |
-| `accounting_items` → `billing_items` | 会計明細 |
-| `payment_infos` → `payments` | 支払情報 |
-| `medical_inquiries` → `inquiries` | 問診（不要なプレフィックス削除） |
-| `medical_images` → `medical_record_images` | 診療画像 |
-| `billing_confirmations` → `billing_confirmations` | 会計医師確認 |
-| テーブル総数 | 50テーブル（変更なし） |
 
 ---
 
@@ -1600,7 +1562,6 @@ erDiagram
     clinics ||--o{ chief_complaint_types : "clinic_id"
     clinics ||--o{ inquiry_templates : "clinic_id"
     owners ||--o{ line_customers : "owner_id"
-```
 
 ---
 
@@ -1759,12 +1720,12 @@ erDiagram
 - `staff_id` → `staffs.id` (CASCADE)
 - `clinic_id` → `clinics.id` (CASCADE)
 
-**UNIQUE制約:** `(staff_id, clinic_id)`
+**UNIQUE制約:** `(staff_id, clinic_id)
 
 **インデックス:**
 - `(staff_id)`
 - `(clinic_id)`
-- `(staff_id, is_main)` UNIQUE（フィルタ: is_main = true）
+- `(staff_id, is_main) UNIQUE（フィルタ: is_main = true）`
 
 **設計方針:**
 - スタッフは複数医院に所属可能
@@ -2358,7 +2319,7 @@ erDiagram
 
 #### `diagnosis_names`
 
-用途: 診断病名マスタ。診断カテゴリに属する具体的な診断病名。self-referencing廃止・明示的FK採用。
+用途: 診断病名マスタ。診断カテゴリに属する具体的な診断病名。self-referencing廃出し、明示的FK採用。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
@@ -2404,7 +2365,7 @@ erDiagram
 - `clinic_id` → `clinics.id` (RESTRICT)
 - `parent_id` → `checkup_types.id` (SET NULL)
 
-**インデックス:** `(clinic_id)`, `(parent_id)`, `(deleted_at)`
+**インデックス:** `(clinic_id)`, `(parent_id), `(deleted_at)`
 
 ---
 
@@ -2516,7 +2477,7 @@ erDiagram
 - `diagnosis_2_type_id` → `diagnosis_types.id` (SET NULL)
 - `diagnosis_2_name_id` → `diagnosis_names.id` (SET NULL)
 
-**インデックス:** `medical_record_id` UNIQUE（1:1保証）
+**インデックス:** `medical_record_id` UNIQUE（1:1保証）`
 
 ---
 
@@ -2904,9 +2865,9 @@ erDiagram
 
 **CHECK制約:** `chk_reservation_times` — end_time >= start_time
 
-**UNIQUE制約:** `uk_appointment_staff_time` — `(clinic_id, doctor_id, start_time)` WHERE `deleted_at IS NULL AND status != 'cancelled'`
+**UNIQUE制約:** `uk_appointment_staff_time` — `(clinic_id, doctor_id, start_time) WHERE `deleted_at IS NULL AND status != 'cancelled'`
 
-**インデックス:** `(clinic_id)`, `(owner_id)`, `(line_customer_id) WHERE deleted_at IS NULL`
+**インデックス:** `(clinic_id)`, `(owner_id), `(line_customer_id) WHERE deleted_at IS NULL`
 
 ---
 
@@ -2967,7 +2928,7 @@ erDiagram
 - `hospitalization_id` → `hospitalizations.id` (CASCADE)
 - `clinic_id` → `clinics.id` (RESTRICT)
 
-**インデックス:** `(hospitalization_id, date)` UNIQUE
+**インデックス:** `(hospitalization_id, date) UNIQUE
 
 ---
 
@@ -3073,7 +3034,7 @@ erDiagram
 - `medical_record_id` → `medical_records.id` (CASCADE)
 - `hospitalization_id` → `hospitalizations.id` (CASCADE)
 
-**CHECK制約:** `chk_treatment_plans_ref` — `((medical_record_id IS NOT NULL AND hospitalization_id IS NULL) OR (medical_record_id IS NULL AND hospitalization_id IS NOT NULL))`
+**CHECK制約:** `chk_treatment_plans_ref` — `((medical_record_id IS NOT NULL AND hospitalization_id IS NULL) OR (medical_record_id IS NULL AND hospitalization_id IS NOT NULL))
 
 ---
 
@@ -3134,7 +3095,7 @@ erDiagram
 - `trimming_record_id` → `trimming_records.id` (CASCADE)
 - `option_id` → `trimming_options.id` (RESTRICT)
 
-**インデックス:** `(trimming_record_id, option_id)` UNIQUE
+**インデックス:** `(trimming_record_id, option_id) UNIQUE
 
 ---
 
@@ -3285,7 +3246,7 @@ erDiagram
 - `clinic_id` → `clinics.id` (RESTRICT)
 - `staff_id` → `staffs.id` (RESTRICT)
 
-**UNIQUE制約:** `uk_shift_staff_date` — `(clinic_id, staff_id, date)`
+**UNIQUE制約:** `uk_shift_staff_date` — `(clinic_id, staff_id, date)
 
 **インデックス:** `(staff_id, date)`
 
@@ -3307,7 +3268,7 @@ erDiagram
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
 
-**UNIQUE制約:** `uk_clinic_holidays_clinic_date` — `(clinic_id, date)`
+**UNIQUE制約:** `uk_clinic_holidays_clinic_date` — `(clinic_id, date)
 
 **インデックス:** `(clinic_id, date)`
 
@@ -3449,7 +3410,7 @@ erDiagram
 - `clinic_id` → `clinics.id` (NO ACTION)
 - `owner_id` → `owners.id` (SET NULL)
 
-**UNIQUE制約:** `(clinic_id, line_user_id)`
+**UNIQUE制約:** `(clinic_id, line_user_id)
 
 **インデックス:** `(owner_id)`
 
@@ -3469,7 +3430,7 @@ erDiagram
 - `staff_id` → `staffs.id` (CASCADE)
 - `reservation_type_id` → `reservation_types.id` (CASCADE)
 
-**UNIQUE制約:** `(staff_id, reservation_type_id)`
+**UNIQUE制約:** `(staff_id, reservation_type_id)
 
 ---
 
@@ -3522,19 +3483,18 @@ erDiagram
 
 **インデックス:**
 - `UNIQUE (clinic_id, name) WHERE deleted_at IS NULL`
-- `(clinic_id) WHERE deleted_at IS NULL`
 
 ---
 
 #### `permission_group_rules`
 
-用途: 権限グループの個別ルール。1グループに対して複数リソースの CRUD 権限を定義。
+用途: 権限グループに紐づくリソースごとの権限制御。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
-| group_id | bigint | NO | - | FK → permission_groups(id) CASCADE |
-| resource | varchar(50) | NO | | リソース名（例: owners, pets, medical_records） |
+| group_id | bigint | NO | | FK → permission_groups(id) CASCADE |
+| resource | varchar(50) | NO | | リソース名（owners, pets, medical_records 等） |
 | can_view | boolean | NO | false | 閲覧権限 |
 | can_create | boolean | NO | false | 作成権限 |
 | can_edit | boolean | NO | false | 編集権限 |
@@ -3542,748 +3502,25 @@ erDiagram
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
 
-**インデックス:**
-- `UNIQUE (group_id, resource)`
-- `(group_id)`
+**FK:**
+- `group_id` → `permission_groups.id` (CASCADE)
+
+**UNIQUE制約:** `(group_id, resource)
 
 ---
 
 #### `staff_permission_groups`
 
-用途: スタッフと権限グループの中間テーブル（N:N）。1スタッフに複数の権限グループを割り当て可能。
+用途: スタッフと権限グループの紐付け（多対多）。スタッフベースの RBAC を実現。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| staff_id | bigint | NO | - | FK → staffs(id) CASCADE（複合PK） |
-| group_id | bigint | NO | - | FK → permission_groups(id) CASCADE（複合PK） |
+| staff_id | bigint | NO | | staffs.id FK |
+| group_id | bigint | NO | | permission_groups.id FK |
 | created_at | timestamptz | NO | now() | 作成日時 |
 
-**PK:** `(staff_id, group_id)`
-
-**インデックス:**
-- `(staff_id)`
-- `(group_id)`
-
----
-
-## FK関係一覧
-
-### animal_species
-
-FK なし（システム共通マスタ）
-
-### audit_logs
-
-FK なし（監査ログの独立性を担保するため、clinic_id / actor_id に FK 制約を設けない設計）
-
-### billings
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| medical_record_id | medical_records.id | SET NULL |
-| hospitalization_id | hospitalizations.id | SET NULL |
-| owner_id | owners.id | SET NULL |
-| pet_id | pets.id | SET NULL |
-
-### billing_confirmations
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| medical_record_id | medical_records.id | CASCADE |
-| confirmed_by | staffs.id | SET NULL |
-| returned_by | staffs.id | SET NULL |
-
-### estimate_items
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| estimate_id | estimates.id | CASCADE |
-| consultation_id | consultations.id | SET NULL |
-| procedure_id | procedures.id | SET NULL |
-| medicine_id | medicines.id | SET NULL |
-| merchandise_item_id | merchandise_items.id | SET NULL |
-
-### estimates
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| medical_record_id | medical_records.id | RESTRICT |
-| owner_id | owners.id | SET NULL |
-| created_by | staffs.id | SET NULL |
-
-### medical_record_images
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| medical_record_id | medical_records.id | CASCADE |
-| exam_id | exams.id | SET NULL |
-| staff_id | staffs.id | SET NULL |
-
-### inquiries
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| medical_record_id | medical_records.id | CASCADE |
-| chief_complaint_type_id | chief_complaint_types.id | SET NULL |
-| staff_id | staffs.id | SET NULL |
-
-### billing_items
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| billing_id | billings.id | CASCADE |
-| merchandise_item_id | merchandise_items.id | SET NULL |
-
-### care_logs
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| daily_record_id | daily_records.id | CASCADE |
-| staff_id | staffs.id | SET NULL |
-
-### care_plan_items
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| hospitalization_id | hospitalizations.id | CASCADE |
-| hospitalization_plan_id | hospitalization_plans.id | SET NULL |
-| medicine_id | medicines.id | SET NULL |
-| procedure_id | procedures.id | SET NULL |
-
-### checkups
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| checkup_type_id | checkup_types.id | RESTRICT |
-| clinic_id | clinics.id | RESTRICT |
-| doctor_id | staffs.id | SET NULL |
-| medical_record_id | medical_records.id | CASCADE |
-| pet_id | pets.id | RESTRICT |
-
-### daily_records
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| hospitalization_id | hospitalizations.id | CASCADE |
-
-### diagnosis_names
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| diagnosis_type_id | diagnosis_types.id | CASCADE |
-
-### exam_results
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| exam_id | exams.id | CASCADE |
-| exam_type_field_id | exam_type_fields.id | SET NULL |
-
-### exams
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| doctor_id | staffs.id | SET NULL |
-| exam_type_id | exam_types.id | RESTRICT |
-| medical_record_id | medical_records.id | CASCADE |
-| pet_id | pets.id | RESTRICT |
-
-### exam_type_fields
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| exam_type_id | exam_types.id | CASCADE |
-
-### hospitalizations
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| cage_id | cages.id | SET NULL |
-| doctor_id | staffs.id | SET NULL |
-| owner_id | owners.id | RESTRICT |
-| pet_id | pets.id | RESTRICT |
-
-### medical_records
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| doctor_id | staffs.id | SET NULL |
-| owner_id | owners.id | RESTRICT |
-| pet_id | pets.id | RESTRICT |
-| appointment_id | appointments.id | SET NULL |
-
-### clinics
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| company_id | companies.id | NO ACTION |
-
-### clinical_plans
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| medical_record_id | medical_records.id | CASCADE |
-| diagnosis_type_id | diagnosis_types.id | SET NULL |
-| diagnosis_name_id | diagnosis_names.id | SET NULL |
-| diagnosis_2_type_id | diagnosis_types.id | SET NULL |
-| diagnosis_2_name_id | diagnosis_names.id | SET NULL |
-
-### medicines
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| parent_id | medicines.id | SET NULL |
-| inventory_id | inventory_items.id | SET NULL |
-
-### payments
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| billing_id | billings.id | CASCADE |
-
-### billing_refunds
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| billing_id | billings.id | CASCADE |
-
-### merchandise_items
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### pets
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| animal_species_id | animal_species.id | RESTRICT |
-| clinic_id | clinics.id | RESTRICT |
-| insurance_id | insurances.id | SET NULL |
-| owner_id | owners.id | RESTRICT |
-
-### appointments
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| owner_id | owners.id | SET NULL |
-| doctor_id | staffs.id | SET NULL |
-| pet_id | pets.id | SET NULL |
-| reservation_type_id | reservation_types.id | RESTRICT |
-| line_customer_id | line_customers.id | SET NULL |
-
-### shift_entries
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| staff_id | staffs.id | RESTRICT |
-
-### staff_notes
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| daily_record_id | daily_records.id | CASCADE |
-| staff_id | staffs.id | SET NULL |
-
-### treatments
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| consultation_id | consultations.id | SET NULL |
-| inventory_id | inventory_items.id | SET NULL |
-| medical_record_id | medical_records.id | CASCADE |
-| medicine_id | medicines.id | SET NULL |
-| procedure_id | procedures.id | SET NULL |
-
-### treatment_plans
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| medical_record_id | medical_records.id | CASCADE |
-| hospitalization_id | hospitalizations.id | CASCADE |
-
-### trimming_record_options
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| option_id | trimming_options.id | RESTRICT |
-| trimming_record_id | trimming_records.id | CASCADE |
-
-### trimming_records
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| course_id | trimming_courses.id | SET NULL |
-| pet_id | pets.id | RESTRICT |
-| staff_id | staffs.id | SET NULL |
-
-### cages
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### checkup_types
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| parent_id | checkup_types.id | SET NULL |
-
-### chief_complaint_types
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### consultations
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| parent_id | consultations.id | SET NULL |
-
-### diagnosis_types
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### exam_types
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| parent_id | exam_types.id | SET NULL |
-
-### hospitalization_plans
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### insurances
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### inquiry_templates
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### inventory_items
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### owners
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### procedures
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| parent_id | procedures.id | SET NULL |
-
-### reservation_type_groups
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### reservation_types
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| group_id | reservation_type_groups.id | SET NULL |
-
-### line_reservation_settings
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | NO ACTION |
-
-### line_customers
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | NO ACTION |
-| owner_id | owners.id | SET NULL |
-
-### staff_reservation_exclusions
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| staff_id | staffs.id | CASCADE |
-| reservation_type_id | reservation_types.id | CASCADE |
-
-### clinic_holidays
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### shift_entry_breaks
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| shift_entry_id | shift_entries.id | CASCADE |
-
-### staffs
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| account_id | accounts.id | SET NULL |
-| occupation_id | occupations.id | SET NULL |
-
-### occupations
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### trimming_courses
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### trimming_options
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### vaccines
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| inventory_id | inventory_items.id | SET NULL |
-| parent_id | vaccines.id | SET NULL |
-
-### staff_clinic_assignments
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| staff_id | staffs.id | CASCADE |
-| clinic_id | clinics.id | CASCADE |
-
-### permission_groups
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-
-### permission_group_rules
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| group_id | permission_groups.id | CASCADE |
-
-### staff_permission_groups
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| staff_id | staffs.id | CASCADE |
-| group_id | permission_groups.id | CASCADE |
-
-### vaccinations
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| clinic_id | clinics.id | RESTRICT |
-| doctor_id | staffs.id | SET NULL |
-| medical_record_id | medical_records.id | CASCADE |
-| pet_id | pets.id | RESTRICT |
-| vaccine_id | vaccines.id | RESTRICT |
-
-### vital_records
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| pet_id | pets.id | CASCADE |
-| medical_record_id | medical_records.id | CASCADE |
-| daily_record_id | daily_records.id | CASCADE |
-| staff_id | staffs.id | SET NULL |
-
----
-
-## インデックス一覧
-
-### UNIQUE制約・インデックス
-
-| テーブル | カラム | 備考 |
-| --------- | ------- | ------ |
-| accounts | email | メールアドレスの一意性 |
-| animal_species | (name) WHERE is_active = true | 種別名の一意性（アクティブのみ） |
-| appointments | (clinic_id, doctor_id, start_time) WHERE deleted_at IS NULL AND status != 'cancelled' | 担当医の時間枠重複防止 |
-| billing_confirmations | medical_record_id | 1カルテ1医師確認（1:1保証） |
-| billings | medical_record_id | 1カルテ1会計（1対1） |
-| cages | (clinic_id, name) | ケージ名の一意性（医院スコープ） |
-| checkup_types | (clinic_id, name) | 健診種別名の一意性（医院スコープ） |
-| chief_complaint_types | (clinic_id, name) | 主訴種別名の一意性（医院スコープ） |
-| clinic_holidays | (clinic_id, date) | 同日重複登録防止 |
-| clinical_plans | medical_record_id | 1カルテ1診察記録（1:1保証） |
-| consultations | (clinic_id, name) | 相談種別名の一意性（医院スコープ） |
-| daily_records | (hospitalization_id, date) | 1入院1日1件 |
-| diagnosis_types | (clinic_id, name) | 診断種別名の一意性（医院スコープ） |
-| estimates | (clinic_id, estimate_no) | 見積書番号の一意性（医院スコープ） |
-| exam_types | (clinic_id, name) | 検査種別名の一意性（医院スコープ） |
-| hospitalization_plans | (clinic_id, name) | 入院計画名の一意性（医院スコープ） |
-| inquiries | medical_record_id | 1カルテ1問診（1:1保証） |
-| insurances | (clinic_id, name) | 保険名の一意性（医院スコープ） |
-| line_customers | (clinic_id, line_user_id) | LINE ユーザーの重複防止 |
-| line_reservation_settings | clinic_id | 1クリニック1設定 |
-| medical_records | (clinic_id, record_no) | カルテ番号の一意性（医院スコープ） |
-| medicines | (clinic_id, name) | 薬品名の一意性（医院スコープ） |
-| merchandise_items | (clinic_id, name) | 物販商品名の一意性（医院スコープ） |
-| occupations | (clinic_id, name) | 職業名の一意性（医院スコープ） |
-| owners | (clinic_id, email) WHERE deleted_at IS NULL AND email IS NOT NULL AND email != '' | メールアドレスの一意性（医院スコープ・論理削除除外） |
-| payments | billing_id | 1会計1支払情報（1対1） |
-| permission_group_rules | (group_id, resource) | 権限グループルールの重複防止 |
-| permission_groups | (clinic_id, name) | 権限グループ名の一意性（医院スコープ） |
-| procedures | (clinic_id, name) | 処置種別名の一意性（医院スコープ） |
-| reservation_types | (clinic_id, name) | 予約種別名の一意性（医院スコープ） |
-| shift_entries | (clinic_id, staff_id, date) | 1スタッフ1日1シフト（医院スコープ、uk_shift_staff_date） |
-| shift_entries | (staff_id, date) | スタッフ単位の重複防止（idx_shift_entries_staff_date） |
-| staff_clinic_assignments | (staff_id, clinic_id) | 重複所属防止 |
-| staff_reservation_exclusions | (staff_id, reservation_type_id) | 除外設定の重複防止 |
-| trimming_courses | (clinic_id, name) | トリミングコース名の一意性（医院スコープ） |
-| trimming_options | (clinic_id, name) | トリミングオプション名の一意性（医院スコープ） |
-| trimming_record_options | (trimming_record_id, option_id) | 重複オプション防止 |
-| vaccines | (clinic_id, name) | ワクチン名の一意性（医院スコープ） |
-
-### v7.0 追加テーブルのインデックス
-
-| テーブル | カラム | 備考 |
-| --------- | ------- | ------ |
-| inquiries | (medical_record_id) UNIQUE | 1:1保証 |
-| medical_record_images | (medical_record_id) | カルテ別画像検索 |
-| medical_record_images | (image_type) | 種別フィルタ |
-| medical_record_images | (taken_at DESC) | 撮影日時ソート |
-| medical_record_images | (exam_id) WHERE NOT NULL | 検査別画像検索 |
-| estimates | (clinic_id, estimate_no) UNIQUE | 見積書番号の一意性（医院スコープ） |
-| estimates | (medical_record_id) | カルテ別見積書検索 |
-| estimates | (status) | ステータスフィルタ |
-| estimates | (owner_id) | 飼主別見積書検索 |
-| estimate_items | (estimate_id) | 見積書明細検索 |
-| billing_confirmations | (medical_record_id) UNIQUE | 1:1保証 |
-| billing_confirmations | (status) | ステータスフィルタ |
-
-### 主要 FK 列のインデックス（v18.0 W-14）
-
-```sql
--- medical_records 子テーブル FK インデックス
-CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
-CREATE INDEX idx_vital_records_pet_id ON vital_records(pet_id);
-CREATE INDEX idx_vital_records_medical_record_id ON vital_records(medical_record_id);
-CREATE INDEX idx_vital_records_daily_record_id ON vital_records(daily_record_id);
-CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id);
-CREATE INDEX idx_exams_pet_id ON exams(pet_id);
-CREATE INDEX idx_vaccinations_medical_record_id ON vaccinations(medical_record_id);
-CREATE INDEX idx_vaccinations_pet_id ON vaccinations(pet_id);
-CREATE INDEX idx_checkups_medical_record_id ON checkups(medical_record_id);
-CREATE INDEX idx_checkups_pet_id ON checkups(pet_id);
-CREATE INDEX idx_clinical_plans_medical_record_id ON clinical_plans(medical_record_id);
-CREATE INDEX idx_inquiries_medical_record_id ON inquiries(medical_record_id);
-CREATE INDEX idx_medical_record_images_medical_record_id ON medical_record_images(medical_record_id);
-CREATE INDEX idx_treatment_plans_medical_record_id ON treatment_plans(medical_record_id);
-CREATE INDEX idx_treatment_plans_hospitalization_id ON treatment_plans(hospitalization_id);
-
--- hospitalization 子テーブル FK インデックス
-CREATE INDEX idx_hospitalizations_pet_id ON hospitalizations(pet_id);
-CREATE INDEX idx_hospitalizations_owner_id ON hospitalizations(owner_id);
-CREATE INDEX idx_hospitalizations_cage_id ON hospitalizations(cage_id);
-CREATE INDEX idx_care_plan_items_hospitalization_id ON care_plan_items(hospitalization_id);
-CREATE INDEX idx_daily_records_hospitalization_id ON daily_records(hospitalization_id);
-
--- billing 子テーブル FK インデックス
-CREATE INDEX idx_billing_items_billing_id ON billing_items(billing_id);
-CREATE INDEX idx_billings_pet_id ON billings(pet_id);
-CREATE INDEX idx_billings_owner_id ON billings(owner_id);
-CREATE INDEX idx_billings_medical_record_id ON billings(medical_record_id);
-
--- reservation FK インデックス
-CREATE INDEX idx_appointments_pet_id ON appointments(pet_id);
-CREATE INDEX idx_appointments_reservation_type_id ON appointments(reservation_type_id);
-CREATE INDEX idx_appointments_doctor_id ON appointments(doctor_id);
-CREATE INDEX idx_appointments_line_customer ON appointments(line_customer_id) WHERE deleted_at IS NULL;
-
--- 予約区分インデックス
-CREATE INDEX idx_rtg_clinic ON reservation_type_groups(clinic_id);
-CREATE INDEX idx_reservation_types_group_id ON reservation_types(group_id);
-
--- LINE予約インデックス
-CREATE INDEX idx_line_customers_owner ON line_customers(owner_id);
-
--- シフト・休診日インデックス
-CREATE INDEX idx_clinic_holidays_clinic_date ON clinic_holidays(clinic_id, date);
-CREATE INDEX idx_shift_entry_breaks_entry ON shift_entry_breaks(shift_entry_id);
-
--- 担当医 FK インデックス（staffs）
-CREATE INDEX idx_vital_records_staff_id ON vital_records(staff_id);
-CREATE INDEX idx_trimming_records_staff_id ON trimming_records(staff_id);
-```
-
-### 全文検索インデックス（pg_trgm）
-
-```sql
--- 全文検索インデックス（中間一致検索対応）
--- 事前に: CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE INDEX idx_owners_name_trgm ON owners USING gin (name gin_trgm_ops) WHERE deleted_at IS NULL;
-CREATE INDEX idx_owners_name_kana_trgm ON owners USING gin (name_kana gin_trgm_ops) WHERE deleted_at IS NULL;
-CREATE INDEX idx_owners_phone_trgm ON owners USING gin (phone gin_trgm_ops) WHERE deleted_at IS NULL;
-CREATE INDEX idx_pets_name_trgm ON pets USING gin (name gin_trgm_ops) WHERE deleted_at IS NULL;
--- record_no は UNIQUE インデックス (clinic_id, record_no) で前方一致検索に対応済み
-```
-
-### パフォーマンス最適化インデックス（論理削除考慮）
-
-```sql
--- ダッシュボード・カレンダー（最高頻度）
-CREATE INDEX idx_appointments_clinic_date
-  ON appointments(clinic_id, start_time)
-  WHERE deleted_at IS NULL;
-
-CREATE INDEX idx_appointments_clinic_status
-  ON appointments(clinic_id, status)
-  WHERE deleted_at IS NULL;
-
-CREATE INDEX idx_appointments_pet_date
-  ON appointments(pet_id, start_time)
-  WHERE deleted_at IS NULL;
-
--- カルテ一覧・検索
-CREATE INDEX idx_medical_records_clinic_date
-  ON medical_records(clinic_id, date DESC)
-  WHERE deleted_at IS NULL;
-
-CREATE INDEX idx_medical_records_clinic_pet
-  ON medical_records(clinic_id, pet_id)
-  WHERE deleted_at IS NULL;
-
-CREATE INDEX idx_medical_records_clinic_owner
-  ON medical_records(clinic_id, owner_id)
-  WHERE deleted_at IS NULL;
-
-CREATE INDEX idx_medical_records_clinic_status
-  ON medical_records(clinic_id, status)
-  WHERE deleted_at IS NULL;
-
--- ペット一覧（飼主別）
-CREATE INDEX idx_pets_owner_id
-  ON pets(owner_id)
-  WHERE deleted_at IS NULL;
-
--- 会計一覧
-CREATE INDEX idx_billings_clinic_date
-  ON billings(clinic_id, scheduled_date)
-  WHERE deleted_at IS NULL;
-
-CREATE INDEX idx_billings_clinic_status
-  ON billings(clinic_id, status)
-  WHERE deleted_at IS NULL;
-
-CREATE INDEX idx_billings_has_insurance
-  ON billings(clinic_id, has_insurance)
-  WHERE deleted_at IS NULL;
-
--- 入院管理
-CREATE INDEX idx_hospitalizations_clinic_status
-  ON hospitalizations(clinic_id, status)
-  WHERE deleted_at IS NULL;
-
-CREATE INDEX idx_hospitalizations_clinic_doctor
-  ON hospitalizations(clinic_id, doctor_id)
-  WHERE deleted_at IS NULL;
-
--- トリミング一覧
-CREATE INDEX idx_trimming_records_clinic_date
-  ON trimming_records(clinic_id, date DESC)
-  WHERE deleted_at IS NULL;
-```
-
----
-
-## カルテ詳細 API 設計方針（lazy load）
-
-カルテ詳細画面は11テーブル超のJOINが発生するため、タブ単位のlazy load方式を採用する。
-
-| API エンドポイント | 取得テーブル | タイミング |
-|------------------|------------|-----------|
-| GET /medical-records/:id | medical_records + inquiries + clinical_plans | 初期表示（必須） |
-| GET /medical-records/:id/treatments | treatment_plans + treatments | Tab2/3 開時 |
-| GET /medical-records/:id/vitals | vital_records | Tab1 詳細展開時 |
-| GET /medical-records/:id/exams | exams + exam_results | Tab4 開時 |
-| GET /medical-records/:id/billing | estimates + billing_confirmations | Tab7/8 開時 |
-
----
-
-## 未対応事項・今後の予定
-
-### clinic_id 追加（003_add_clinic_id.sql 実施済み・v10.0）
-
-v10.0 にて24テーブル、v19.0 にて estimates を追加し計25テーブルへの `clinic_id` 追加完了。医院ごとにデータを独立管理できる。
-
-| テーブル | 用途 |
-| --------- | ------ |
-| owners | 医院別の飼い主管理 |
-| pets | 医院別のペット管理 |
-| medical_records | 医院別のカルテ管理 |
-| appointments | 医院別の予約管理 |
-| hospitalizations | 医院別の入院管理 |
-| trimming_records | 医院別のトリミング記録 |
-| shift_entries | 医院別のシフト管理 |
-| billings | 医院別の会計管理 |
-| estimates | 医院別の見積書管理（v19.0追加） |
-| staffs | 医院別のスタッフ管理 |
-| inventory_items | 医院別の在庫管理 |
-| cages | 医院別のケージ管理 |
-| reservation_types | 医院別の予約区分 |
-| reservation_type_groups | 医院別の予約区分グループ |
-| consultations | 医院別の診察項目 |
-| procedures | 医院別の処置項目 |
-| hospitalization_plans | 医院別の入院プラン |
-| trimming_courses | 医院別のトリミングコース |
-| trimming_options | 医院別のトリミングオプション |
-| exam_types | 医院別の検査種別 |
-| vaccines | 医院別のワクチン |
-| medicines | 医院別の薬剤 |
-| insurances | 医院別の保険 |
-| diagnosis_types | 医院別の診断カテゴリ |
-| diagnosis_names | 医院別の診断名 |
-| checkup_types | 医院別の健診種別 |
-
-**clinic_id を保持するテーブル（全体）:** `staff_clinic_assignments`, `permission_groups`, `occupations` + 上記25テーブル（計28テーブル）。
-
-### chief_complaint 移行（004_migrate_chief_complaint.sql 予定）
-
-`medical_records.chief_complaint` を `inquiries.chief_complaint` に移行するマイグレーション。
-
-| 作業 | 内容 |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 004_migrate_chief_complaint.sql | `inquiries` レコードを既存 `medical_records` 分だけ生成し、`chief_complaint` の値をコピー後、`medical_records.chief_complaint` カラムを削除 |
-
-> v7.0 時点では `medical_records.chief_complaint` は削除済み。新規カルテ作成時は `inquiries` に書き込むこと。
+**PK:** `(staff_id, group_id)
+
+**FK:**
+- `staff_id` → `staffs.id` (CASCADE)
+- `group_id` → `permission_groups.id` (CASCADE)
