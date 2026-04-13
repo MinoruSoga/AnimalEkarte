@@ -292,6 +292,9 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                   zIndex: 9999,
                 }}
                 className="rounded-md border shadow-md bg-white overflow-hidden"
+                /* react-remove-scroll が document レベルで wheel を止めるため
+                   ここで stopPropagation して先に捕捉する（preventDefault は呼ばない） */
+                onWheel={(e) => e.stopPropagation()}
               >
                 <Command>
                   <CommandInput placeholder="予約区分を検索..." />
