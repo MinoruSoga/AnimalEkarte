@@ -251,10 +251,10 @@ export const ReservationFormFields = memo(function ReservationFormFields({
                 <ChevronsUpDown className={`${ICON.action} ${C.text40} flex-shrink-0`} />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 flex flex-col overflow-hidden max-h-[280px]" align="start">
-              <Command className="flex flex-col overflow-hidden h-full">
-                <CommandInput placeholder="予約区分を検索..." className="h-9 shrink-0" />
-                <CommandList className="flex-1 overflow-y-auto min-h-0">
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="予約区分を検索..." className="h-9" />
+                <CommandList>
                   <CommandEmpty className={`py-4 text-sm ${C.text40}`}>
                     該当する予約区分がありません
                   </CommandEmpty>
