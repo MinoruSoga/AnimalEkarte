@@ -53,18 +53,18 @@
               │    ┌─────────▼──────────────┐                       
               │    │   PostgreSQL            │                       
               │    │                         │                       
-              │    │  reservation_settings   │                       
-              │    │  reservation_customers  │                       
-              │    │  reservation_appointments│                      
+              │    │  line_reservation_settings│                       
+              │    │  line_customers         │                       
+              │    │  appointments           │                      
               │    │  shift_entries + breaks  │                       
-              │    │  service_types (拡張)    │                       
+              │    │  reservation_types (拡張)│                       
               │    │  staffs (拡張)           │                       
               │    └─────────────────────────┘                       
               │                                                      
               │    ┌─────────────────────────────────────────┐       
               │    │    管理画面 (既存 AnimalEkarte)          │       
               │    │                                         │       
-              │    │  /settings/service-type  (LINE項目統合)  │       
+              │    │  /settings/reservation-type (LINE項目統合)│       
               │    │  /settings/staff         (LINE項目統合)  │       
               │    │  /shifts                (休憩時間統合)   │       
               │    │  /reservations          (sourceフィルタ) │       
