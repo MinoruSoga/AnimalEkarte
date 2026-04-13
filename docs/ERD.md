@@ -10,7 +10,9 @@
 
 | 変更内容 | 詳細 |
 |---------|------|
-| テーブル総数 65 → 67 | `shift_templates`, `shift_template_breaks` を追加 |
+| テーブル総数 66 → 67 | `shift_templates`, `shift_template_breaks` を追加 |
+| `audit_logs` カラム長修正 | `actor_type varchar(30)` に修正 |
+| `permission_groups` カラム長修正 | `name varchar(100)` に修正 |
 
 ---
 
@@ -19,8 +21,6 @@
 | 変更内容 | 詳細 |
 |---------|------|
 | テーブル総数 65 → 66 | `shift_entry_breaks` を含めた正確なカウントに修正 |
-| `audit_logs` カラム長修正 | `actor_type varchar(30) に修正 |
-| `permission_groups` カラム長修正 | `name varchar(100) に修正 |
 
 ---
 
