@@ -1,26 +1,67 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v29.0（migration 同期 - occupations / permission 詳細定義追加）
-更新日: 2026-04-08
+バージョン: v31.0（LINE予約・予約区分グループ・clinic_holidays 等 6テーブル追加）
+更新日: 2026-04-13
 状態: Production Ready
-
-本ドキュメントは、Animal Ekarteの全59テーブルとそのリレーションを定義します。
-PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
 
-## 変更概要（v28.0 → v29.0）
+## 変更概要（v30.0 → v31.0）
 
 | 変更内容 | 詳細 |
 |---------|------|
-| `job_titles` 廃止 → `occupations` に置換 | migration に `job_titles` は存在せず `occupations` が正。staffs.job_title_id → staffs.occupation_id に修正 |
-| `staff_role` ENUM 削除 | migration の staffs テーブルに `staff_role` カラムは存在しない。ERD から削除 |
-| `accounts.is_system_admin` 追加 | migration に存在するカラムが ERD に未記載だった |
-| `permission_groups` 詳細定義追加 | FK情報のみだった3テーブル（permission_groups, permission_group_rules, staff_permission_groups）にカラム定義・インデックス情報を追加 |
-| `occupations` テーブル追加 | migration に存在していたが ERD に未記載だったテーブルを追加 |
-| `user_accounts` / `user_clinic_memberships` FK一覧削除 | 廃止済みテーブルのFK情報が残っていたため削除 |
-| テーブル総数 57 → 59 | migration の CREATE TABLE 文（59個）と一致させた。テーブル一覧順序も migration 順に変更 |
-| mermaid ER図更新 | staffs, occupations, permission_groups 系のエンティティ・リレーションを追加・修正 |
+| `company` → `companies` | テーブル名を migration の複数形に統一 |
+| `service_types` 廃止 → `reservation_type_groups` + `reservation_types` に置換 | 予約区分のグループ管理・LINE表示カスタマイズを考慮した構造に移行。`reservation_types` は `service_types` のカラムをすべて継承しつつ `group_id` FK を追加 |
+| `appointments.service_type_id` → `reservation_type_id` | 上記置換に伴う FK 変更。加えて `source`, `is_staff_delegated`, `customer_fields`, `line_customer_id` の 4 カラムを追加（LINE予約対応） |
+| `staffs` に 5 カラム追加 | `staff_type`, `reservation_display_name`, `reservation_visible`, `reservation_comment`, `reservation_image_url`（mermaid は既反映済み、detail セクションを修正） |
+| `line_reservation_settings` テーブル追加 | LINE予約基本設定（クリニック単位 UNIQUE、JSONB 多数） |
+| `line_customers` テーブル追加 | LINE予約ユーザー管理（clinic_id + line_user_id UNIQUE） |
+| `staff_reservation_exclusions` テーブル追加 | スタッフ × 非対応予約区分の中間テーブル |
+| `clinic_holidays` テーブル追加 | 医院個別休診日管理 |
+| `shift_entry_breaks` テーブル追加 | シフト中の休憩時間管理 |
+| テーブル総数 59 → 65 | migration の CREATE TABLE 数に一致させた |
+
+---
+
+## 変更概要（v29.0 → v30.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| `audit_logs` 詳細定義追加 | migration に存在するが詳細セクションが未記載だった |
+| `billing_refunds` clinic_id 追加 | マルチテナント分離のため追加済みマイグレーションを反映 |
+| `company.invoice_registration_number` | 会計印字用のインボイス登録番号フィールドを明記 |
+
+---
+
+## テーブル一覧（65テーブル）
+
+| # | テーブル名 | 区分 | 説明 |
+|---|-----------|------|------|
+...
+| 59 | `audit_logs` | 監査 | 操作監査ログ（作成、更新、削除の履歴） |
+
+---
+
+## システム全体 ER図
+
+```mermaid
+erDiagram
+    %% ... (略) ...
+    audit_logs {
+        bigint id PK
+        bigint clinic_id FK
+        bigint actor_id "操作者ID"
+        varchar actor_type "staff/system"
+        varchar action "create/update/delete"
+        varchar resource "リソース名"
+        bigint resource_id "対象ID"
+        jsonb old_value
+        jsonb new_value
+        inet ip_address
+        text user_agent
+        timestamptz created_at
+    }
+```
 
 ---
 
@@ -274,7 +315,7 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 
 | # | テーブル名 | 区分 | 説明 |
 |---|-----------|------|------|
-| 1 | `company` | 法人情報 | 法人（ノア動物病院）情報シングルトン |
+| 1 | `companies` | 法人情報 | 法人（ノア動物病院）情報 |
 | 2 | `clinics` | 医院情報 | 各医院（八王子・城東・敷島） |
 | 3 | `animal_species` | マスタ | ペット種類マスタ（犬・猫・鳥等） |
 | 4 | `occupations` | マスタ | 職種マスタ（clinic単位） |
@@ -288,51 +329,57 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 | 12 | `medicines` | マスタ | 薬剤 |
 | 13 | `insurances` | マスタ | 保険 |
 | 14 | `cages` | マスタ | ケージ |
-| 15 | `service_types` | マスタ | サービス種別 |
-| 16 | `consultations` | マスタ | 診察項目 |
-| 17 | `procedures` | マスタ | 処置項目 |
-| 18 | `hospitalization_plans` | マスタ | 入院プラン |
-| 19 | `trimming_courses` | マスタ | トリミングコース |
-| 20 | `trimming_options` | マスタ | トリミングオプション |
-| 21 | `diagnosis_types` | マスタ | 診断カテゴリ |
-| 22 | `diagnosis_names` | マスタ | 診断病名 |
-| 23 | `checkup_types` | マスタ | 健診種別 |
-| 24 | `chief_complaint_types` | マスタ | 主訴区分マスタ |
-| 25 | `inquiry_templates` | マスタ | 問診定型文マスタ |
-| 26 | `pets` | コア | ペット |
-| 27 | `staff_clinic_assignments` | 認証 | スタッフ-クリニック中間テーブル（N:N関係、is_main フラグ） |
-| 28 | `permission_groups` | 権限 | 権限グループマスタ（clinic単位、RBAC） |
-| 29 | `permission_group_rules` | 権限 | 権限グループルール（リソース×CRUD） |
-| 30 | `staff_permission_groups` | 権限 | スタッフ-権限グループ中間テーブル（N:N） |
-| 31 | `appointments` | 予約 | 予約 |
-| 32 | `hospitalizations` | 入院 | 入院・ホテル |
-| 33 | `trimming_records` | トリミング | トリミング記録 |
-| 34 | `medical_records` | 診療 | カルテ（診療記録） |
-| 35 | `vaccinations` | 診療 | ワクチン接種記録 |
-| 36 | `checkups` | 診療 | 健診記録 |
-| 37 | `exams` | 診療 | 検査記録 |
-| 38 | `inquiries` | 診療 | 問診情報（カルテ問診タブ） |
-| 39 | `clinical_plans` | 診療 | 診察所見・診断・治療方針（診察/治療タブ） |
-| 40 | `treatments` | 診療 | 処置・診察・薬剤明細 |
-| 41 | `treatment_plans` | 診療 | 治療プラン（外来・入院共用） |
-| 42 | `medical_record_images` | 診療 | 診療画像（レントゲン・エコー等） |
-| 43 | `billing_confirmations` | 診療 | 会計医師確認 |
-| 44 | `estimates` | 診療 | 見積書 |
-| 45 | `exam_results` | 診療 | 検査記録の検査結果項目 |
-| 46 | `daily_records` | 入院 | 入院日次記録 |
-| 47 | `vital_records` | 診療・入院 | バイタル記録（外来・入院統合） |
-| 48 | `care_plan_items` | 入院 | ケアプラン項目 |
-| 49 | `estimate_items` | 診療 | 見積書明細 |
-| 50 | `care_logs` | 入院 | ケアログ |
-| 51 | `staff_notes` | 入院 | スタッフノート |
-| 52 | `trimming_record_options` | トリミング | トリミング記録のオプション選択 |
-| 53 | `billings` | 会計 | 会計 |
-| 54 | `billing_items` | 会計 | 会計明細 |
-| 55 | `payments` | 会計 | 支払い情報 |
-| 56 | `billing_refunds` | 会計 | 返金レコード（Stripe モデル） |
-| 57 | `shift_entries` | シフト | スタッフシフト |
-| 58 | `merchandise_items` | マスタ | 物販・フード・その他マスタ |
-| 59 | `audit_logs` | 監査 | 操作監査ログ |
+| 15 | `reservation_type_groups` | 予約マスタ | 予約区分グループ（色・表示順管理） |
+| 16 | `reservation_types` | 予約マスタ | 予約区分マスタ（LINE表示設定・所要時間等） |
+| 17 | `consultations` | マスタ | 診察項目 |
+| 18 | `procedures` | マスタ | 処置項目 |
+| 19 | `hospitalization_plans` | マスタ | 入院プラン |
+| 20 | `trimming_courses` | マスタ | トリミングコース |
+| 21 | `trimming_options` | マスタ | トリミングオプション |
+| 22 | `diagnosis_types` | マスタ | 診断カテゴリ |
+| 23 | `diagnosis_names` | マスタ | 診断病名 |
+| 24 | `checkup_types` | マスタ | 健診種別 |
+| 25 | `chief_complaint_types` | マスタ | 主訴区分マスタ |
+| 26 | `inquiry_templates` | マスタ | 問診定型文マスタ |
+| 27 | `pets` | コア | ペット |
+| 28 | `staff_clinic_assignments` | 認証 | スタッフ-クリニック中間テーブル（N:N関係、is_main フラグ） |
+| 29 | `permission_groups` | 権限 | 権限グループマスタ（clinic単位、RBAC） |
+| 30 | `permission_group_rules` | 権限 | 権限グループルール（リソース×CRUD） |
+| 31 | `staff_permission_groups` | 権限 | スタッフ-権限グループ中間テーブル（N:N） |
+| 32 | `appointments` | 予約 | 予約（LINE予約・手動予約統合） |
+| 33 | `hospitalizations` | 入院 | 入院・ホテル |
+| 34 | `trimming_records` | トリミング | トリミング記録 |
+| 35 | `medical_records` | 診療 | カルテ（診療記録） |
+| 36 | `vaccinations` | 診療 | ワクチン接種記録 |
+| 37 | `checkups` | 診療 | 健診記録 |
+| 38 | `exams` | 診療 | 検査記録 |
+| 39 | `inquiries` | 診療 | 問診情報（カルテ問診タブ） |
+| 40 | `clinical_plans` | 診療 | 診察所見・診断・治療方針（診察/治療タブ） |
+| 41 | `treatments` | 診療 | 処置・診察・薬剤明細 |
+| 42 | `treatment_plans` | 診療 | 治療プラン（外来・入院共用） |
+| 43 | `medical_record_images` | 診療 | 診療画像（レントゲン・エコー等） |
+| 44 | `billing_confirmations` | 診療 | 会計医師確認 |
+| 45 | `estimates` | 診療 | 見積書 |
+| 46 | `exam_results` | 診療 | 検査記録の検査結果項目 |
+| 47 | `daily_records` | 入院 | 入院日次記録 |
+| 48 | `vital_records` | 診療・入院 | バイタル記録（外来・入院統合） |
+| 49 | `care_plan_items` | 入院 | ケアプラン項目 |
+| 50 | `estimate_items` | 診療 | 見積書明細 |
+| 51 | `care_logs` | 入院 | ケアログ |
+| 52 | `staff_notes` | 入院 | スタッフノート |
+| 53 | `trimming_record_options` | トリミング | トリミング記録のオプション選択 |
+| 54 | `billings` | 会計 | 会計 |
+| 55 | `billing_items` | 会計 | 会計明細 |
+| 56 | `payments` | 会計 | 支払い情報 |
+| 57 | `billing_refunds` | 会計 | 返金レコード（Stripe モデル） |
+| 58 | `shift_entries` | シフト | スタッフシフト |
+| 59 | `clinic_holidays` | シフト | 医院個別休診日 |
+| 60 | `merchandise_items` | マスタ | 物販・フード・その他マスタ |
+| 61 | `audit_logs` | 監査 | 操作監査ログ |
+| 62 | `line_reservation_settings` | LINE予約 | LINE予約基本設定（JSONB多数、clinic UNIQUE） |
+| 63 | `line_customers` | LINE予約 | LINE予約ユーザー管理（clinic_id + line_user_id UNIQUE） |
+| 64 | `staff_reservation_exclusions` | 予約マスタ | スタッフ × 非対応予約区分（N:N中間テーブル） |
+| 65 | `shift_entry_breaks` | シフト | シフト中の休憩時間管理 |
 
 ---
 
@@ -341,7 +388,7 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 ```mermaid
 erDiagram
     %% ===== 法人・医院 =====
-    company {
+    companies {
         bigint id PK
         text name
         text postal_code
@@ -628,14 +675,26 @@ erDiagram
         timestamptz updated_at
     }
 
-    service_types {
+    reservation_type_groups {
+        bigint id PK
+        bigint clinic_id FK
+        text name
+        text color
+        integer sort_order
+        boolean is_active
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    reservation_types {
         bigint id PK
         bigint clinic_id FK
         text name
         boolean is_active
-        text color
         text description
+        text color
         integer sort_order
+        bigint group_id FK "FK → reservation_type_groups(id) SET NULL"
         text reservation_display_name "LINE表示名（空→name）"
         integer duration_minutes "所要時間（デフォルト15分）"
         text short_name "略称"
@@ -1048,14 +1107,18 @@ erDiagram
         bigint clinic_id FK
         timestamptz start_time
         timestamptz end_time
-        bigint pet_id FK
-        bigint service_type_id FK
-        bigint doctor_id FK
-        reservation_status status
         bigint owner_id FK
+        bigint pet_id FK
         visit_type visit_type
+        bigint reservation_type_id FK "FK → reservation_types(id) RESTRICT"
+        bigint doctor_id FK
         boolean is_designated
+        reservation_status status
         text notes
+        reservation_source source "manual/line"
+        boolean is_staff_delegated "スタッフ代理予約"
+        jsonb customer_fields "追加顧客情報"
+        bigint line_customer_id FK "FK → line_customers(id) SET NULL"
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
@@ -1279,10 +1342,80 @@ erDiagram
         timestamptz created_at
     }
 
+    %% ===== LINE予約 =====
+    line_reservation_settings {
+        bigint id PK
+        bigint clinic_id FK "UNIQUE FK → clinics(id)"
+        text status "stopped/active"
+        text header_text
+        text reservation_notice
+        text cancel_notice
+        text privacy_policy
+        jsonb closed_weekdays
+        jsonb closed_dates
+        boolean national_holiday_closed
+        jsonb business_hours
+        jsonb business_hours_by_weekday
+        jsonb break_hours
+        integer daily_limit
+        integer monthly_limit
+        integer booking_window_max_days
+        integer booking_window_min_days
+        integer calendar_months
+        text phone_number
+        text notification_email
+        text request_example
+        text time_slot_mode
+        integer time_slot_interval_minutes
+        text no_staff_mode
+        boolean show_no_staff_option
+        jsonb additional_fields
+        text line_channel_id
+        text line_channel_secret
+        text liff_id
+        text line_access_token
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    line_customers {
+        bigint id PK
+        bigint clinic_id FK
+        text line_user_id
+        text display_name
+        text real_name
+        jsonb additional_fields
+        bigint owner_id FK "FK → owners(id) SET NULL"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    staff_reservation_exclusions {
+        bigint id PK
+        bigint staff_id FK "FK → staffs(id) CASCADE"
+        bigint reservation_type_id FK "FK → reservation_types(id) CASCADE"
+    }
+
+    clinic_holidays {
+        bigint id PK
+        bigint clinic_id FK
+        date date
+        text reason
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    shift_entry_breaks {
+        bigint id PK
+        bigint shift_entry_id FK "FK → shift_entries(id) CASCADE"
+        time break_start
+        time break_end
+    }
+
     %% ===== リレーション =====
 
     %% 法人・認証
-    company ||--o{ clinics : "company_id"
+    companies ||--o{ clinics : "company_id"
     accounts ||--o{ staffs : "account_id"
     clinics ||--o{ staff_clinic_assignments : "clinic_id"
     staffs ||--o{ staff_clinic_assignments : "staff_id"
@@ -1365,9 +1498,13 @@ erDiagram
     %% 予約
     appointments ||--o{ medical_records : "reservation_appointment_id"
     pets ||--o{ appointments : "pet_id"
-    service_types ||--o{ appointments : "service_type_id"
+    reservation_types ||--o{ appointments : "reservation_type_id"
+    reservation_type_groups ||--o{ reservation_types : "group_id"
     staffs ||--o{ appointments : "doctor_id"
     owners ||--o{ appointments : "owner_id"
+    line_customers ||--o{ appointments : "line_customer_id"
+    staffs ||--o{ staff_reservation_exclusions : "staff_id"
+    reservation_types ||--o{ staff_reservation_exclusions : "reservation_type_id"
 
     %% 入院
     owners ||--o{ hospitalizations : "owner_id"
@@ -1412,6 +1549,7 @@ erDiagram
 
     %% シフト
     staffs ||--o{ shift_entries : "staff_id"
+    shift_entries ||--o{ shift_entry_breaks : "shift_entry_id"
 
     %% clinic_id マルチテナント（v10.0 + v22.0追加分）
     clinics ||--o{ vaccinations : "clinic_id"
@@ -1425,11 +1563,14 @@ erDiagram
     clinics ||--o{ hospitalizations : "clinic_id"
     clinics ||--o{ trimming_records : "clinic_id"
     clinics ||--o{ shift_entries : "clinic_id"
-    clinics ||--o{ billings : "clinic_id"
     clinics ||--o{ estimates : "clinic_id"
     clinics ||--o{ inventory_items : "clinic_id"
     clinics ||--o{ cages : "clinic_id"
-    clinics ||--o{ service_types : "clinic_id"
+    clinics ||--o{ reservation_type_groups : "clinic_id"
+    clinics ||--o{ reservation_types : "clinic_id"
+    clinics ||--o{ line_reservation_settings : "clinic_id"
+    clinics ||--o{ line_customers : "clinic_id"
+    clinics ||--o{ clinic_holidays : "clinic_id"
     clinics ||--o{ consultations : "clinic_id"
     clinics ||--o{ procedures : "clinic_id"
     clinics ||--o{ medicines : "clinic_id"
@@ -1445,6 +1586,7 @@ erDiagram
     clinics ||--o{ checkup_types : "clinic_id"
     clinics ||--o{ chief_complaint_types : "clinic_id"
     clinics ||--o{ inquiry_templates : "clinic_id"
+    owners ||--o{ line_customers : "owner_id"
 ```
 
 ---
@@ -1488,8 +1630,10 @@ erDiagram
 | `pet_gender` | male, female, unknown |
 | `pet_status` | alive, deceased |
 | `plan_timing` | morning, noon, night |
+| `reservation_source` | manual, line |
 | `reservation_status` | confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed |
 | `shift_type` | full, morning, afternoon, off, paid_leave |
+| `staff_type` | doctor, nurse, resource |
 | `target_size` | small, medium, large, cat |
 | `tax_type` | included（内税）, excluded（外税）, exempt（非課税） |
 | `treatment_item_type` | consultation, procedure, medicine, other |
@@ -1507,9 +1651,9 @@ erDiagram
 
 ---
 
-#### `company`
+#### `companies`
 
-用途: ノア動物病院の法人情報。システム全体で1件のみ存在するシングルトン。FK参照なし。
+用途: ノア動物病院の法人情報。clinics テーブルの親。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
@@ -1537,7 +1681,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
-| company_id | bigint | NO | | company.id FK |
+| company_id | bigint | NO | | companies.id FK |
 | name | text | NO | | 医院名 |
 | postal_code | text | NO | '' | 郵便番号 |
 | address | text | NO | '' | 住所 |
@@ -1752,6 +1896,11 @@ erDiagram
 | license_number | text | NO | '' | 免許番号 |
 | occupation_id | bigint | YES | NULL | FK → occupations(id) SET NULL（職種） |
 | sort_order | integer | YES | 0 | 並び順 |
+| staff_type | staff_type | NO | 'doctor' | スタッフ種別（doctor/nurse/resource） |
+| reservation_display_name | text | NO | '' | LINE予約表示名（空の場合は name を使用） |
+| reservation_visible | boolean | NO | true | LINE予約ページに表示するか |
+| reservation_comment | text | NO | '' | LINE予約ページ説明文 |
+| reservation_image_url | text | NO | '' | LINE予約プロフィール画像URL |
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
@@ -1766,6 +1915,7 @@ erDiagram
 - Account 分離により、スタッフは clinic に直接紐付かない（staff_clinic_assignments 経由）
 - 1 Account が複数の Staff に紐付く可能性あり（将来の拡張対応）
 - 職種は `occupations` マスタテーブルで管理（旧 `job_titles` / `staff_role` ENUM は廃止）
+- `reservation_*` カラムは LINE予約ページでのスタッフ表示カスタマイズ用
 
 
 ---
@@ -1954,19 +2104,18 @@ erDiagram
 
 ---
 
-#### `service_types`
+#### `reservation_type_groups`
 
-用途: サービス種別マスタ（予約に使用）。表示色を保持。
+用途: 予約区分のグループマスタ。`reservation_types` をグループ化して LINE 予約画面の表示を整理する。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| name | text | NO | | サービス種別名 |
-| is_active | boolean | NO | true | 状態 |
-| description | text | NO | '' | 説明 |
+| name | text | NO | | グループ名 |
 | color | text | NO | '#3B82F6' | 表示色（HEX） |
-| sort_order | integer | YES | 0 | 並び順 |
+| sort_order | integer | NO | 0 | 並び順 |
+| is_active | boolean | NO | true | 有効フラグ |
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
 
@@ -1974,6 +2123,40 @@ erDiagram
 - `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
+
+---
+
+#### `reservation_types`
+
+用途: 予約区分マスタ（旧 `service_types` を置換）。LINE予約のカスタム表示・所要時間・スタッフ除外対応。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| name | text | NO | | 予約区分名 |
+| is_active | boolean | NO | true | 有効フラグ |
+| description | text | NO | '' | 説明 |
+| color | text | NO | '#3B82F6' | 表示色（HEX） |
+| sort_order | integer | NO | 0 | 並び順 |
+| group_id | bigint | YES | NULL | FK → reservation_type_groups(id) SET NULL |
+| reservation_display_name | text | NO | '' | LINE表示名（空の場合は name を使用） |
+| duration_minutes | integer | NO | 15 | 所要時間（分） |
+| short_name | text | NO | '' | 略称 |
+| show_short_name | boolean | NO | false | 略称をLINE予約で使用するか |
+| reservation_visible | boolean | NO | true | LINE予約ページに表示するか |
+| reservation_comment | text | NO | '' | LINE予約ページ説明文 |
+| reservation_image_url | text | NO | '' | LINE予約画像URL |
+| reservation_day_option | text | NO | 'none' | 受付可能曜日オプション（none/weekday/saturday/anyday） |
+| is_internal | boolean | NO | false | 内部専用（LINE非表示）フラグ |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (RESTRICT)
+- `group_id` → `reservation_type_groups.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`, `(group_id)`
 
 ---
 
@@ -2674,7 +2857,7 @@ erDiagram
 
 #### `appointments`
 
-用途: 予約情報。ペット・サービス種別・担当医に紐づく。
+用途: 予約情報。手動予約と LINE 予約を `source` で統合管理。ペット・予約区分・担当医に紐づく。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
@@ -2682,14 +2865,18 @@ erDiagram
 | clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | start_time | timestamptz | NO | | 開始日時 |
 | end_time | timestamptz | NO | | 終了日時 |
-| owner_id | bigint | YES | | owners.id FK |
-| pet_id | bigint | YES | | pets.id FK |
+| owner_id | bigint | YES | NULL | owners.id FK（SET NULL） |
+| pet_id | bigint | YES | NULL | pets.id FK（SET NULL） |
 | visit_type | visit_type | NO | 'revisit' | 来院種別 |
-| service_type_id | bigint | NO  | | service_types.id FK |
-| doctor_id | bigint | YES | | staffs.id FK |
-| is_designated | boolean | YES | false | 担当医指名フラグ |
-| status | reservation_status | YES | 'pending' | 予約状態 |
+| reservation_type_id | bigint | NO  | | reservation_types.id FK（RESTRICT） |
+| doctor_id | bigint | YES | NULL | staffs.id FK（担当医・SET NULL） |
+| is_designated | boolean | NO | false | 担当医指名フラグ |
+| status | reservation_status | NO | 'pending' | 予約状態 |
 | notes | text | NO | '' | 備考 |
+| source | reservation_source | NO | 'manual' | 予約経路（manual/line） |
+| is_staff_delegated | boolean | NO | false | スタッフ代理予約フラグ |
+| customer_fields | jsonb | NO | '{}' | LINE予約追加顧客情報 |
+| line_customer_id | bigint | YES | NULL | line_customers.id FK（SET NULL） |
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
@@ -2698,12 +2885,15 @@ erDiagram
 - `clinic_id` → `clinics.id` (RESTRICT)
 - `owner_id` → `owners.id` (SET NULL)
 - `pet_id` → `pets.id` (SET NULL)
-- `service_type_id` → `service_types.id` (RESTRICT)
+- `reservation_type_id` → `reservation_types.id` (RESTRICT)
 - `doctor_id` → `staffs.id` (SET NULL)
+- `line_customer_id` → `line_customers.id` (SET NULL)
 
 **CHECK制約:** `chk_reservation_times` — end_time >= start_time
 
-**インデックス:** `(clinic_id)`, `(owner_id)`
+**UNIQUE制約:** `uk_appointment_staff_time` — `(clinic_id, doctor_id, start_time)` WHERE `deleted_at IS NULL AND status != 'cancelled'`
+
+**インデックス:** `(clinic_id)`, `(owner_id)`, `(line_customer_id) WHERE deleted_at IS NULL`
 
 ---
 
@@ -3074,7 +3264,7 @@ erDiagram
 | shift_type | shift_type | NO | | シフト種別 |
 | start_time | time | YES | | 開始時刻 |
 | end_time | time | YES | | 終了時刻 |
-| note | text | NO | '' | 備考 |
+| notes | text | NO | '' | 備考 |
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
 
@@ -3082,9 +3272,145 @@ erDiagram
 - `clinic_id` → `clinics.id` (RESTRICT)
 - `staff_id` → `staffs.id` (RESTRICT)
 
-**インデックス:**
-- `(staff_id, date)` UNIQUE
-- `(clinic_id)`
+**UNIQUE制約:** `uk_shift_staff_date` — `(clinic_id, staff_id, date)`
+
+**インデックス:** `(staff_id, date)`
+
+---
+
+#### `clinic_holidays`
+
+用途: 医院の個別休診日（年末年始・臨時休業等）を管理。LINE予約の受付可能日の判定に使用。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| date | date | NO | | 休診日 |
+| reason | text | NO | '' | 理由・メモ |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (RESTRICT)
+
+**UNIQUE制約:** `uk_clinic_holidays_clinic_date` — `(clinic_id, date)`
+
+**インデックス:** `(clinic_id, date)`
+
+---
+
+#### `shift_entry_breaks`
+
+用途: シフト中の休憩時間管理。1シフトに複数の休憩時間を登録可能。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| shift_entry_id | bigint | NO | | FK → shift_entries(id) CASCADE |
+| break_start | time | NO | | 休憩開始時刻 |
+| break_end | time | NO | | 休憩終了時刻 |
+
+**FK:**
+- `shift_entry_id` → `shift_entries.id` (CASCADE)
+
+**インデックス:** `(shift_entry_id)`
+
+---
+
+### LINE予約
+
+---
+
+#### `line_reservation_settings`
+
+用途: LINE予約システムの基本設定（医院単位）。営業時間・制限・LINE Messaging API 認証情報を保持。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO | | FK → clinics(id)（UNIQUE） |
+| status | text | NO | 'stopped' | 稼働状態（stopped/active） |
+| header_text | text | NO | '' | 予約ページヘッダー文 |
+| reservation_notice | text | NO | '' | 予約確認メッセージ |
+| cancel_notice | text | NO | '' | キャンセルメッセージ |
+| privacy_policy | text | NO | '' | プライバシーポリシー本文 |
+| closed_weekdays | jsonb | NO | '[]' | 定休曜日（例: [0, 6] = 日・土） |
+| closed_dates | jsonb | NO | '[]' | 個別休診日（YYYY-MM-DD 配列） |
+| national_holiday_closed | boolean | NO | false | 祝日休診フラグ |
+| business_hours | jsonb | NO | '{"start":"0900","end":"1900"}' | 基本営業時間 |
+| business_hours_by_weekday | jsonb | YES | NULL | 曜日別営業時間（上書き用） |
+| break_hours | jsonb | NO | '[{"start":"1200","end":"1300"}]' | 休憩時間 |
+| daily_limit | integer | NO | 1 | 1日の予約上限数 |
+| monthly_limit | integer | YES | NULL | 月次予約上限数（NULL=無制限） |
+| booking_window_max_days | integer | NO | 30 | 予約可能最大日数（何日先まで） |
+| booking_window_min_days | integer | NO | 2 | 予約可能最小日数（何日前まで） |
+| calendar_months | integer | NO | 2 | カレンダー表示月数 |
+| phone_number | text | NO | '' | 問い合わせ電話番号 |
+| notification_email | text | NO | '' | 予約通知メール |
+| request_example | text | NO | '' | お願い事項テキスト |
+| time_slot_mode | text | NO | 'minimize_gaps' | 空き時間生成モード |
+| time_slot_interval_minutes | integer | NO | 15 | 時間枠間隔（分） |
+| no_staff_mode | text | NO | 'first_available' | スタッフ未指定時の割当方法 |
+| show_no_staff_option | boolean | NO | true | 「指定なし」選択肢を表示するか |
+| additional_fields | jsonb | NO | '[ ... ]' | 追加顧客情報フィールド定義 |
+| line_channel_id | text | NO | '' | LINE Messaging API チャンネルID |
+| line_channel_secret | text | NO | '' | LINE Messaging API チャンネルシークレット |
+| liff_id | text | NO | '' | LIFF アプリID |
+| line_access_token | text | NO | '' | LINE アクセストークン |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id`（UNIQUE制約で1クリニック1設定）
+
+**設計方針:**
+- `additional_fields` に JSONB 配列でカスタム入力フィールドを定義（LINE予約フォーム拡張）
+- LINE認証情報（channel_id 等）は暗号化推奨
+
+---
+
+#### `line_customers`
+
+用途: LINE予約経由の顧客情報。LINE ユーザーIDと既存 Owner を紐づける。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO | | FK → clinics(id) RESTRICT |
+| line_user_id | text | NO | | LINE ユーザーID |
+| display_name | text | NO | '' | LINE 表示名 |
+| real_name | text | NO | '' | 本名（予約フォーム入力） |
+| additional_fields | jsonb | NO | '{}' | カスタム追加情報 |
+| owner_id | bigint | YES | NULL | FK → owners(id) SET NULL（既存飼主との紐付け） |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (RESTRICT)
+- `owner_id` → `owners.id` (SET NULL)
+
+**UNIQUE制約:** `(clinic_id, line_user_id)`
+
+**インデックス:** `(owner_id)`
+
+---
+
+#### `staff_reservation_exclusions`
+
+用途: スタッフが担当しない予約区分を管理する中間テーブル（M:N）。LINE予約のスタッフ選択肢から除外する用途。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| staff_id | bigint | NO | | FK → staffs(id) CASCADE |
+| reservation_type_id | bigint | NO | | FK → reservation_types(id) CASCADE |
+
+**FK:**
+- `staff_id` → `staffs.id` (CASCADE)
+- `reservation_type_id` → `reservation_types.id` (CASCADE)
+
+**UNIQUE制約:** `(staff_id, reservation_type_id)`
 
 ---
 
@@ -3338,7 +3664,7 @@ FK なし（監査ログの独立性を担保するため、clinic_id / actor_id
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| company_id | company.id | RESTRICT |
+| company_id | companies.id | RESTRICT |
 
 ### clinical_plans
 
@@ -3394,7 +3720,8 @@ FK なし（監査ログの独立性を担保するため、clinic_id / actor_id
 | owner_id | owners.id | SET NULL |
 | doctor_id | staffs.id | SET NULL |
 | pet_id | pets.id | SET NULL |
-| service_type_id | service_types.id | RESTRICT |
+| reservation_type_id | reservation_types.id | RESTRICT |
+| line_customer_id | line_customers.id | SET NULL |
 
 ### shift_entries
 
@@ -3519,11 +3846,50 @@ FK なし（監査ログの独立性を担保するため、clinic_id / actor_id
 | clinic_id | clinics.id | RESTRICT |
 | parent_id | procedures.id | SET NULL |
 
-### service_types
+### reservation_type_groups
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
 | clinic_id | clinics.id | RESTRICT |
+
+### reservation_types
+
+| FK元カラム | 参照先 | 削除時 |
+| ----------- | ------- | -------- |
+| clinic_id | clinics.id | RESTRICT |
+| group_id | reservation_type_groups.id | SET NULL |
+
+### line_reservation_settings
+
+| FK元カラム | 参照先 | 削除時 |
+| ----------- | ------- | -------- |
+| clinic_id | clinics.id | （UNIQUE制約） |
+
+### line_customers
+
+| FK元カラム | 参照先 | 削除時 |
+| ----------- | ------- | -------- |
+| clinic_id | clinics.id | RESTRICT |
+| owner_id | owners.id | SET NULL |
+
+### staff_reservation_exclusions
+
+| FK元カラム | 参照先 | 削除時 |
+| ----------- | ------- | -------- |
+| staff_id | staffs.id | CASCADE |
+| reservation_type_id | reservation_types.id | CASCADE |
+
+### clinic_holidays
+
+| FK元カラム | 参照先 | 削除時 |
+| ----------- | ------- | -------- |
+| clinic_id | clinics.id | RESTRICT |
+
+### shift_entry_breaks
+
+| FK元カラム | 参照先 | 削除時 |
+| ----------- | ------- | -------- |
+| shift_entry_id | shift_entries.id | CASCADE |
 
 ### staffs
 
@@ -3621,6 +3987,11 @@ FK なし（監査ログの独立性を担保するため、clinic_id / actor_id
 | accounts | email | メールアドレスの一意性 |
 | daily_records | (hospitalization_id, date) | 1入院1日1件 |
 | shift_entries | (staff_id, date) | 1スタッフ1日1シフト |
+| clinic_holidays | (clinic_id, date) | 同日重複登録防止 |
+| appointments | (clinic_id, doctor_id, start_time) WHERE deleted_at IS NULL AND status != 'cancelled' | 担当医の時間枠重複防止 |
+| line_reservation_settings | clinic_id | 1クリニック1設定 |
+| line_customers | (clinic_id, line_user_id) | LINE ユーザーの重複防止 |
+| staff_reservation_exclusions | (staff_id, reservation_type_id) | 除外設定の重複防止 |
 | staff_clinic_assignments | (staff_id, clinic_id) | 重複所属防止 |
 | staff_clinic_assignments | (staff_id) WHERE is_main = true | 主所属医院は1件のみ（部分インデックス） |
 | trimming_record_options | (trimming_record_id, option_id) | 重複オプション防止 |
@@ -3677,8 +4048,20 @@ CREATE INDEX idx_billings_medical_record_id ON billings(medical_record_id);
 
 -- reservation FK インデックス
 CREATE INDEX idx_appointments_pet_id ON appointments(pet_id);
-CREATE INDEX idx_appointments_service_type_id ON appointments(service_type_id);
+CREATE INDEX idx_appointments_reservation_type_id ON appointments(reservation_type_id);
 CREATE INDEX idx_appointments_doctor_id ON appointments(doctor_id);
+CREATE INDEX idx_appointments_line_customer ON appointments(line_customer_id) WHERE deleted_at IS NULL;
+
+-- 予約区分インデックス
+CREATE INDEX idx_rtg_clinic ON reservation_type_groups(clinic_id);
+CREATE INDEX idx_reservation_types_group_id ON reservation_types(group_id);
+
+-- LINE予約インデックス
+CREATE INDEX idx_line_customers_owner ON line_customers(owner_id);
+
+-- シフト・休診日インデックス
+CREATE INDEX idx_clinic_holidays_clinic_date ON clinic_holidays(clinic_id, date);
+CREATE INDEX idx_shift_entry_breaks_entry ON shift_entry_breaks(shift_entry_id);
 
 -- 担当医 FK インデックス（staffs）
 CREATE INDEX idx_treatments_doctor_id ON treatments(doctor_id);
@@ -3799,7 +4182,8 @@ v10.0 にて24テーブル、v19.0 にて estimates を追加し計25テーブ�
 | staffs | 医院別のスタッフ管理 |
 | inventory_items | 医院別の在庫管理 |
 | cages | 医院別のケージ管理 |
-| service_types | 医院別のサービス種別 |
+| reservation_types | 医院別の予約区分 |
+| reservation_type_groups | 医院別の予約区分グループ |
 | consultations | 医院別の診察項目 |
 | procedures | 医院別の処置項目 |
 | hospitalization_plans | 医院別の入院プラン |
