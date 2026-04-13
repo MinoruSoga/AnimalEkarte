@@ -8,9 +8,9 @@ type createEstimateRequest struct {
 	Title           string     `json:"title" binding:"required,min=1,max=255"`
 	OwnerID         *uint64    `json:"owner_id"`
 	Status          string     `json:"status"`
-	Subtotal        int64      `json:"subtotal"`
-	TaxTotal        int64      `json:"tax_total"`
-	TotalAmount     int64      `json:"total_amount"`
+	Subtotal        int64      `json:"subtotal"      binding:"min=0"`
+	TaxTotal        int64      `json:"tax_total"     binding:"min=0"`
+	TotalAmount     int64      `json:"total_amount"  binding:"min=0"`
 	InsuranceAmount int64      `json:"insurance_amount"`
 	DiscountAmount  int64      `json:"discount_amount"`
 	ValidUntil      *time.Time `json:"valid_until"`

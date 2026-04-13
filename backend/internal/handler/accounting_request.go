@@ -8,9 +8,9 @@ type createAccountingRequest struct {
 	HospitalizationID *uint64    `json:"hospitalization_id"`
 	OwnerID           *uint64    `json:"owner_id"`
 	PetID             *uint64    `json:"pet_id"`
-	Subtotal          int        `json:"subtotal"`
-	TaxTotal          int        `json:"tax_total"`
-	TotalAmount       int        `json:"total_amount"`
+	Subtotal          int        `json:"subtotal"      binding:"min=0"`
+	TaxTotal          int        `json:"tax_total"     binding:"min=0"`
+	TotalAmount       int        `json:"total_amount"  binding:"min=0"`
 	HasInsurance      bool       `json:"has_insurance"`
 	Status            string     `json:"status"`
 	ScheduledDate     time.Time  `json:"scheduled_date" binding:"required"`
@@ -50,8 +50,8 @@ type createBillingItemRequest struct {
 	BillingID             uint64  `json:"billing_id" binding:"required"`
 	Category              string  `json:"category"`
 	Name                  string  `json:"name" binding:"required"`
-	UnitPrice             int64   `json:"unit_price"`
-	Quantity              float64 `json:"quantity"`
+	UnitPrice             int64   `json:"unit_price"  binding:"min=0"`
+	Quantity              float64 `json:"quantity"    binding:"min=0"`
 	TaxType               string  `json:"tax_type"`
 	TaxRate               float64 `json:"tax_rate"`
 	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
