@@ -731,7 +731,7 @@ export const LAYOUT = {
     md:   "sm:max-w-lg",
     lg:   "sm:max-w-3xl",
     xl:   "sm:max-w-[1000px] max-h-[90vh]",
-    full: "w-[98%] sm:max-w-[1200px] h-[90vh]",
+    full: "w-[98%] sm:max-w-[1400px] h-[90vh]",
   },
 
   /** Notion page title style */
