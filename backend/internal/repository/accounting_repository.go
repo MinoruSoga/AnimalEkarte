@@ -145,26 +145,44 @@ func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billi
 }
 
 func (r *accountingRepository) UpsertPayment(ctx context.Context, payment *model.Payment) error {
-	result := r.db.WithContext(ctx).
-		Where(model.Payment{BillingID: payment.BillingID}).
-		Assign(model.Payment{
-			Subtotal:        payment.Subtotal,
-			TaxTotal:        payment.TaxTotal,
-			TotalAmount:     payment.TotalAmount,
-			InsuranceName:   payment.InsuranceName,
-			InsuranceRatio:  payment.InsuranceRatio,
-			InsuranceAmount: payment.InsuranceAmount,
-			DiscountAmount:  payment.DiscountAmount,
-			BillingAmount:   payment.BillingAmount,
-			ReceivedAmount:  payment.ReceivedAmount,
-			ChangeAmount:    payment.ChangeAmount,
-			Method:          payment.Method,
-			PaidBy:          payment.PaidBy,
-		}).
-		FirstOrCreate(payment)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
+	// map[string]any を使用してゼロ値（Subtotal=0 等）も確実に更新する。
+	// struct の Assign では GORM がゼロ値フィールドをスキップする問題がある。
+	fields := map[string]any{
+		"subtotal":         payment.Subtotal,
+		"tax_total":        payment.TaxTotal,
+		"total_amount":     payment.TotalAmount,
+		"insurance_name":   payment.InsuranceName,
+		"insurance_ratio":  payment.InsuranceRatio,
+		"insurance_amount": payment.InsuranceAmount,
+		"discount_amount":  payment.DiscountAmount,
+		"billing_amount":   payment.BillingAmount,
+		"received_amount":  payment.ReceivedAmount,
+		"change_amount":    payment.ChangeAmount,
+		"method":           payment.Method,
+		"paid_by":          payment.PaidBy,
 	}
+
+	var existing model.Payment
+	err := r.db.WithContext(ctx).
+		Where("billing_id = ?", payment.BillingID).
+		First(&existing).Error
+
+	if err != nil {
+		// レコードなし → 新規作成
+		if err := r.db.WithContext(ctx).Create(payment).Error; err != nil {
+			return apperrors.FromGORM(err, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
+		}
+		return nil
+	}
+
+	// 既存レコード → map で更新（ゼロ値も反映）
+	if err := r.db.WithContext(ctx).
+		Model(&model.Payment{}).
+		Where("billing_id = ?", payment.BillingID).
+		Updates(fields).Error; err != nil {
+		return apperrors.FromGORM(err, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
+	}
+	payment.ID = existing.ID
 	return nil
 }
 
