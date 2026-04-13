@@ -70,9 +70,8 @@ func (h *Handler) GetTrimming(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	trimming, err := h.svc.Trimming.GetByID(c.Request.Context(), clinicID, id)
@@ -135,9 +134,8 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var req updateTrimmingRequest
@@ -183,9 +181,8 @@ func (h *Handler) DeleteTrimming(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.Trimming.Delete(c.Request.Context(), clinicID, id); err != nil {

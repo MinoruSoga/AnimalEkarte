@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -47,9 +46,8 @@ func (h *Handler) ListMedicalRecordImages(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
@@ -76,9 +74,8 @@ func (h *Handler) CreateMedicalRecordImage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
@@ -125,18 +122,16 @@ func (h *Handler) DeleteMedicalRecordImage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 
-	imageID, err := strconv.ParseUint(c.Param("imageId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid image id"))
+	imageID, ok := parseIDParam(c, "imageId")
+	if !ok {
 		return
 	}
 
@@ -155,9 +150,8 @@ func (h *Handler) UploadMedicalRecordImage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {

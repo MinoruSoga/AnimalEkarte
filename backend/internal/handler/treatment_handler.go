@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,9 +17,8 @@ func (h *Handler) ListTreatments(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -44,9 +42,8 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -90,14 +87,12 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
-	treatmentID, err := strconv.ParseUint(c.Param("treatmentId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid treatmentId"))
+	treatmentID, ok := parseIDParam(c, "treatmentId")
+	if !ok {
 		return
 	}
 
@@ -144,14 +139,12 @@ func (h *Handler) DeleteTreatment(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
-	treatmentID, err := strconv.ParseUint(c.Param("treatmentId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid treatmentId"))
+	treatmentID, ok := parseIDParam(c, "treatmentId")
+	if !ok {
 		return
 	}
 
@@ -169,9 +162,8 @@ func (h *Handler) BulkUpdateTreatments(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var req bulkUpdateTreatmentsRequest

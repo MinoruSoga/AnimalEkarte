@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,9 +17,8 @@ func (h *Handler) ListRefunds(c *gin.Context) {
 		return
 	}
 
-	billingID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid billing id"))
+	billingID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -46,9 +44,8 @@ func (h *Handler) CreateRefund(c *gin.Context) {
 		return
 	}
 
-	billingID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid billing id"))
+	billingID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 
