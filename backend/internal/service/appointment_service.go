@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -77,9 +76,10 @@ func validateTimeRange(startTime, endTime time.Time) error {
 }
 
 // errNoDoctorsOnDuty は当日の出勤医師が 0 人のためスロット予約不可を示すセンチネルエラー。
-// apperrors.ErrConflict をラップしているため RespondError で 409 になる。
+// *apperrors.AppError なので RespondError が errors.As で Message を抽出し日本語メッセージを返す。
 // LINE パスでは reservation_validators.go が errors.Is でこれを識別し RedirectStep: 4 を返す。
-var errNoDoctorsOnDuty = fmt.Errorf("本日は医師が出勤していないため予約できません: %w", apperrors.ErrConflict)
+// ※ WrapConflict はパッケージレベル変数として固定ポインタを保持するため errors.Is が機能する。
+var errNoDoctorsOnDuty = apperrors.WrapConflict("本日は医師が出勤していないため予約できません")
 
 // checkDoctorSlotConflict は特定医師の時間枠重複をチェックする（SELECT FOR UPDATE）。
 func checkDoctorSlotConflict(ctx context.Context, repo repository.ReservationRepository, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) error {

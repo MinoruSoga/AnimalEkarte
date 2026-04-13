@@ -87,7 +87,8 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     return false;
   }, [holidayDates]);
   const { data: staffItems } = useMasterItems("staff");
-  const activeStaff = staffItems.filter((s) => s.status === "active");
+  // useMemo で参照を安定化（staffOptions の deps が毎レンダー新参照を受け取るのを防ぐ）
+  const activeStaff = useMemo(() => staffItems.filter((s) => s.status === "active"), [staffItems]);
 
   // BUG-344: 選択日に出勤しているスタッフのみに絞り込む
   const selectedDateStr = formData.start ? format(formData.start, "yyyy-MM-dd") : null;

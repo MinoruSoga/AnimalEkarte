@@ -153,11 +153,11 @@ func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, staffID uint
 func (r *shiftEntryRepository) FindOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
 	var staffs []model.Staff
 	dateStr := date.Format("2006-01-02")
+	// shift_entries テーブルは deleted_at カラムを持たない（論理削除なし）
 	err := r.db.WithContext(ctx).
 		Joins("JOIN shift_entries ON shift_entries.staff_id = staffs.id"+
 			" AND shift_entries.clinic_id = ?"+
-			" AND DATE(shift_entries.date) = ?"+
-			" AND shift_entries.deleted_at IS NULL", clinicID, dateStr).
+			" AND DATE(shift_entries.date) = ?", clinicID, dateStr).
 		Where("staffs.clinic_id = ? AND staffs.deleted_at IS NULL AND staffs.is_active = true", clinicID).
 		Distinct("staffs.*").
 		Find(&staffs).Error
