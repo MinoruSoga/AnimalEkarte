@@ -85,8 +85,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       if (!selectedPets.length) {
-        toast.error("ペットを選択してください");
-        return { success: false, timestamp: Date.now() };
+        return { success: false, fieldErrors: { pet: "ペットを選択してください" }, timestamp: Date.now() };
       }
 
       const pet = selectedPets[0];

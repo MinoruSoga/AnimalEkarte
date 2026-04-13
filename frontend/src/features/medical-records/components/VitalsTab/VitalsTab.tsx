@@ -8,6 +8,7 @@ import { toast } from "sonner";
 // Internal
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { ErrorFallback } from "@/components/shared/DataStates";
@@ -112,6 +113,7 @@ function buildEditRowForm(vital: Vital) {
 const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: EditRowProps) {
   // lazy initializer — 初回マウント時のみ buildEditRowForm() が実行される
   const [form, setForm] = useState(() => buildEditRowForm(vital));
+  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
 
   const handleChange = useCallback(
     (field: string, value: string | BodyWeightUnit) => {
@@ -121,22 +123,26 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
   );
 
   const handleSave = useCallback(() => {
+    const errors: Record<string, string> = {};
     if (!form.recorded_at) {
-      toast.error("記録日時は必須です");
-      return;
+      errors.recorded_at = "記録日時は必須です";
+    } else {
+      const recordedDate = new Date(form.recorded_at);
+      if (recordedDate > new Date()) {
+        errors.recorded_at = "未来の日時は入力できません";
+      }
     }
-    const recordedDate = new Date(form.recorded_at);
-    if (recordedDate > new Date()) {
-      toast.error("未来の日時は入力できません");
-      return;
-    }
-
     const temp = parseNumField(form.temperature);
     if (temp !== null && (temp < 30 || temp > 45)) {
-      toast.error("体温は30〜45℃の範囲で入力してください");
+      errors.temperature = "体温は30〜45℃の範囲で入力してください";
+    }
+    if (Object.keys(errors).length > 0) {
+      setEditFormErrors(errors);
       return;
     }
+    setEditFormErrors({});
 
+    const recordedDate = new Date(form.recorded_at);
     const input: UpdateVitalInput = {
       recorded_at: recordedDate.toISOString(),
       temperature: temp,
@@ -158,6 +164,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           onChange={(e) => handleChange("recorded_at", e.target.value)}
           className={EDIT_INPUT_CLASS}
         />
+        <FormFieldError message={editFormErrors.recorded_at} />
       </td>
       <td className="px-3 py-2">
         <input
@@ -168,6 +175,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           placeholder="-"
           className={EDIT_INPUT_CLASS}
         />
+        <FormFieldError message={editFormErrors.temperature} />
       </td>
       <td className="px-3 py-2">
         <input
@@ -300,6 +308,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addForm, setAddForm] = useState<AddFormState>(EMPTY_ADD_FORM);
+  const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
   const [showGraph, setShowGraph] = useState(false);
 
   // recorded_at 昇順ソート済みリスト
@@ -321,31 +330,33 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
 
   const handleAddSubmit = useCallback(() => {
     if (!canCreate) return;
+    const errors: Record<string, string> = {};
     if (!addForm.recorded_at) {
-      toast.error("記録日時は必須です");
-      return;
+      errors.recorded_at = "記録日時は必須です";
+    } else {
+      const recordedDate = new Date(addForm.recorded_at);
+      if (recordedDate > new Date()) {
+        errors.recorded_at = "未来の日時は入力できません";
+      }
     }
-    const recordedDate = new Date(addForm.recorded_at);
-    if (recordedDate > new Date()) {
-      toast.error("未来の日時は入力できません");
-      return;
-    }
-
     const temp = parseNumField(addForm.temperature);
     if (temp !== null && (temp < 30 || temp > 45)) {
-      toast.error("体温は30〜45℃の範囲で入力してください");
-      return;
+      errors.temperature = "体温は30〜45℃の範囲で入力してください";
     }
-
     // BUG-044: 数値フィールドがすべて未入力の場合は保存しない（サーバー500回避）
     const heartRate = parseNumField(addForm.heart_rate);
     const respiratoryRate = parseNumField(addForm.respiration_rate);
     const bodyWeight = parseNumField(addForm.weight);
     if (temp === null && heartRate === null && respiratoryRate === null && bodyWeight === null) {
-      toast.error("体温・心拍数・呼吸数・体重のいずれかを入力してください");
+      errors.temperature = errors.temperature ?? "体温・心拍数・呼吸数・体重のいずれかを入力してください";
+    }
+    if (Object.keys(errors).length > 0) {
+      setAddFormErrors(errors);
       return;
     }
+    setAddFormErrors({});
 
+    const recordedDate = new Date(addForm.recorded_at);
     const input: CreateVitalInput = {
       recorded_at: recordedDate.toISOString(),
       temperature: temp,
@@ -367,6 +378,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
 
   const handleAddCancel = useCallback(() => {
     setAddForm(EMPTY_ADD_FORM);
+    setAddFormErrors({});
     setIsAdding(false);
   }, []);
 
@@ -531,22 +543,28 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
 
         {/* インライン追加フォーム */}
         {isAdding ? (
-          <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
-            <input
-              autoFocus
-              type="datetime-local"
-              value={addForm.recorded_at}
-              onChange={(e) => handleAddFormChange("recorded_at", e.target.value)}
-              className={`${ADD_INPUT_CLASS} w-40`}
-            />
-            <input
-              type="number"
-              step="0.1"
-              value={addForm.temperature}
-              onChange={(e) => handleAddFormChange("temperature", e.target.value)}
-              placeholder="体温"
-              className={`${ADD_INPUT_CLASS} w-20`}
-            />
+          <div className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
+            <div className="flex flex-col">
+              <input
+                autoFocus
+                type="datetime-local"
+                value={addForm.recorded_at}
+                onChange={(e) => handleAddFormChange("recorded_at", e.target.value)}
+                className={`${ADD_INPUT_CLASS} w-40`}
+              />
+              <FormFieldError message={addFormErrors.recorded_at} />
+            </div>
+            <div className="flex flex-col">
+              <input
+                type="number"
+                step="0.1"
+                value={addForm.temperature}
+                onChange={(e) => handleAddFormChange("temperature", e.target.value)}
+                placeholder="体温"
+                className={`${ADD_INPUT_CLASS} w-20`}
+              />
+              <FormFieldError message={addFormErrors.temperature} />
+            </div>
             <input
               type="number"
               value={addForm.heart_rate}

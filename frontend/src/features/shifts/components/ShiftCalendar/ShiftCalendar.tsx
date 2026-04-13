@@ -18,7 +18,7 @@ export interface StaffItem {
 
 // ─── ヘッダー列（静的 JSX）: rendering-hoist-jsx ───────────────────────
 const STAFF_HEADER = (
-  <div className={`sticky left-0 z-20 bg-white px-3 py-2 text-xs font-semibold ${C.text60} border-r border-b ${C.borderLight} min-w-[100px]`}>
+  <div className={`sticky left-0 z-20 bg-white px-3 py-2 text-xs font-semibold ${C.text60} border-r border-b ${C.borderLight} w-[120px] min-w-[120px] shrink-0`}>
     スタッフ
   </div>
 );
@@ -224,8 +224,8 @@ export const ShiftCalendar = memo(function ShiftCalendar({
           {visibleStaffs.map((staff) => (
             <div key={staff.id} className={`flex border-b ${C.borderDivider} ${C.hoverBgPageHalf}`}>
               {/* スタッフ名列 */}
-              <div className={`sticky left-0 z-10 bg-white min-w-[100px] px-3 py-2 border-r ${C.borderLight} flex items-center`}>
-                <span className={`text-xs font-medium ${C.text} truncate max-w-[88px]`}>
+              <div className={`sticky left-0 z-10 bg-white w-[120px] min-w-[120px] shrink-0 px-3 py-2 border-r ${C.borderLight} flex items-center overflow-x-auto`}>
+                <span className={`text-xs font-medium ${C.text} whitespace-nowrap`}>
                   {staff.name}
                 </span>
               </div>

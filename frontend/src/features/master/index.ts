@@ -1,4 +1,5 @@
 export { MasterSettingsIndex } from "./routes/MasterSettingsIndex";
+export { ShiftTemplateSettings } from "./routes/ShiftTemplateSettings";
 export { AnimalSpeciesSettings } from "./routes/AnimalSpeciesSettings";
 export { CageSettings } from "./routes/CageSettings";
 export { ChiefComplaintSettings } from "./routes/ChiefComplaintSettings";

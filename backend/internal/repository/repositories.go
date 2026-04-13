@@ -53,6 +53,7 @@ type Repositories struct {
 	BillingConfirmation   BillingConfirmationRepository
 	CarePlanItem          CarePlanItemRepository
 	ShiftEntry            ShiftEntryRepository
+	ShiftTemplate         ShiftTemplateRepository
 	ClinicHoliday         ClinicHolidayRepository
 	TreatmentPlan         TreatmentPlanRepository
 	Vital                 VitalRepository
@@ -118,6 +119,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		BillingConfirmation:    NewBillingConfirmationRepository(db),
 		CarePlanItem:           NewCarePlanItemRepository(db),
 		ShiftEntry:             NewShiftEntryRepository(db),
+		ShiftTemplate:          NewShiftTemplateRepository(db),
 		ClinicHoliday:          NewClinicHolidayRepository(db),
 		TreatmentPlan:          NewTreatmentPlanRepository(db),
 		Vital:                  NewVitalRepository(db),

@@ -35,6 +35,7 @@ export interface DiagnosisPlanProps {
   medicalRecordId?: string;
   ownerDiscountRate?: number;
   onRegisterClinicalPlanSave?: (fn: () => Promise<void>) => void;
+  diagnosis1NameIdError?: string | null;
 }
 
 export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPlan({
@@ -55,6 +56,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   medicalRecordId,
   ownerDiscountRate = 0,
   onRegisterClinicalPlanSave,
+  diagnosis1NameIdError,
 }: DiagnosisPlanProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -166,6 +168,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
           setDiagnosis2CategoryId={setDiagnosis2CategoryId}
           diagnosis2NameId={diagnosis2NameId}
           setDiagnosis2NameId={setDiagnosis2NameId}
+          diagnosis1NameIdError={diagnosis1NameIdError}
         />
       </div>
 

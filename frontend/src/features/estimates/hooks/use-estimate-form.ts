@@ -43,6 +43,7 @@ function buildInitialState(estimate?: Estimate): EstimateFormState {
 interface FormState {
   success: boolean;
   timestamp: number;
+  fieldErrors?: Record<string, string>;
 }
 
 export function useEstimateForm(estimate?: Estimate) {
@@ -67,8 +68,7 @@ export function useEstimateForm(estimate?: Estimate) {
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
       if (!form.title.trim()) {
-        toast.error("タイトルを入力してください");
-        return { success: false, timestamp: Date.now() };
+        return { success: false, fieldErrors: { title: "タイトルを入力してください" }, timestamp: Date.now() };
       }
 
       try {

@@ -30,6 +30,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useGetDiagnosisTypes, useCreateDiagnosisType, useUpdateDiagnosisType, useDeleteDiagnosisType, useReorderDiagnosisTypes, useGetDiagnosisNames, useCreateDiagnosisName, useUpdateDiagnosisName, useDeleteDiagnosisName, useReorderDiagnosisNames } from "@/features/master/api/diagnosis";
@@ -212,6 +213,7 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [categoryError, setCategoryError] = useState("");
 
   // rerender-dependencies: useRef でオブジェクト deps を回避
   const formDataRef = useRef(formData);
@@ -226,6 +228,7 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   const handleCategoryChange = useCallback((v: string) => {
     setFormData((prev) => ({ ...prev, diagnosisTypeId: v }));
     setIsDirty(true);
+    if (v) setCategoryError("");
   }, []);
 
   const handleDescriptionChange = useCallback((v: string) => {
@@ -244,7 +247,12 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
       setNameError("診断病名を入力してください");
       return;
     }
+    if (!current.diagnosisTypeId) {
+      setCategoryError("カテゴリを選択してください");
+      return;
+    }
     setNameError("");
+    setCategoryError("");
     onSave(current);
     setIsDirty(false);
   }, [onSave]);
@@ -293,6 +301,7 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
           </SelectContent>
         </Select>
       </PropertyRow>
+      <FormFieldError message={categoryError} />
       <PropertyRow label="備考">
         <PropertyInput
           value={formData.description}
@@ -530,10 +539,6 @@ export function DiagnosisSettings() {
 
   const handleCategorySave = useCallback(
     (data: DiagnosisTypeFormData) => {
-      if (!data.name.trim()) {
-        toast.error("カテゴリ名は必須です");
-        return;
-      }
       catStartSave(() => {
         if (catEditTarget !== null && catEditTarget !== "new") {
           const req: UpdateDiagnosisTypeRequest = {
@@ -566,14 +571,6 @@ export function DiagnosisSettings() {
 
   const handleNameSave = useCallback(
     (data: DiagnosisNameFormData) => {
-      if (!data.name.trim()) {
-        toast.error("診断病名は必須です");
-        return;
-      }
-      if (!data.diagnosisTypeId) {
-        toast.error("カテゴリは必須です");
-        return;
-      }
       nameStartSave(() => {
         if (nameEditTarget !== null && nameEditTarget !== "new") {
           const req: UpdateDiagnosisNameRequest = {

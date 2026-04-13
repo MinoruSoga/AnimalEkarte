@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { UseMutationResult } from "@tanstack/react-query";
@@ -45,13 +45,16 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   const crudHandleClose = crud.handleClose;
   const crudStartSave = crud.startSaveTransition;
 
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const handleSave = useCallback(
     (data: TForm) => {
       const error = validate(data);
       if (error) {
-        toast.error(error);
+        setValidationError(error);
         return;
       }
+      setValidationError(null);
 
       crudStartSave(() => {
         if (editTargetId !== null) {
@@ -95,5 +98,5 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
     [editTargetId, crudHandleClose, crudStartSave, createMutation, updateMutation, validate, toCreateRequest, toUpdateRequest, onSuccess],
   );
 
-  return { handleSave };
+  return { handleSave, validationError };
 }

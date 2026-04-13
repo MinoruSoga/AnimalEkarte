@@ -22,6 +22,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useGetClinics, useCreateClinic, useUpdateClinic, useDeleteClinic } from "@/features/hospital-settings/api/clinics";
 
 // Types
@@ -158,6 +159,7 @@ export function ClinicMasterSettings() {
   interface FormState {
     success: boolean;
     timestamp: number;
+    nameError?: string;
   }
 
   /**
@@ -167,8 +169,7 @@ export function ClinicMasterSettings() {
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
       const fd = formData;
       if (!fd.name) {
-        toast.error("院名は必須です");
-        return { success: false, timestamp: Date.now() };
+        return { success: false, timestamp: Date.now(), nameError: "院名は必須です" };
       }
 
       try {
@@ -411,6 +412,7 @@ export function ClinicMasterSettings() {
                     }
                     placeholder="無題"
                   />
+                  <FormFieldError message={formState.nameError} />
                 </div>
 
                 {/* Separator */}

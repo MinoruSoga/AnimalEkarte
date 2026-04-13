@@ -82,3 +82,32 @@ type ClinicHoliday struct {
 }
 
 func (ClinicHoliday) TableName() string { return "clinic_holidays" }
+
+// ShiftTemplate はシフトテンプレートマスタを表す
+type ShiftTemplate struct {
+	ID        uint64               `gorm:"primaryKey;autoIncrement"                        json:"id"`
+	ClinicID  uint64               `gorm:"not null"                                        json:"clinic_id"`
+	Name      string               `gorm:"not null"                                        json:"name"`
+	ShiftType ShiftType            `gorm:"type:shift_type;not null;default:'full'"         json:"shift_type"`
+	StartTime *string              `gorm:"type:time"                                       json:"start_time,omitempty"`
+	EndTime   *string              `gorm:"type:time"                                       json:"end_time,omitempty"`
+	Notes     string               `gorm:"default:''"                                      json:"notes"`
+	SortOrder int                  `gorm:"default:0"                                       json:"sort_order"`
+	IsActive  bool                 `gorm:"default:true"                                    json:"is_active"`
+	CreatedAt time.Time            `gorm:"autoCreateTime"                                  json:"created_at"`
+	UpdatedAt time.Time            `gorm:"autoUpdateTime"                                  json:"updated_at"`
+	DeletedAt gorm.DeletedAt       `                                                       json:"-"`
+	Breaks    []ShiftTemplateBreak `gorm:"foreignKey:ShiftTemplateID"                      json:"breaks,omitempty"`
+}
+
+func (ShiftTemplate) TableName() string { return "shift_templates" }
+
+// ShiftTemplateBreak はシフトテンプレートの休憩時間を表す
+type ShiftTemplateBreak struct {
+	ID              uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
+	ShiftTemplateID uint64 `gorm:"not null"                 json:"shift_template_id"`
+	BreakStart      string `gorm:"type:time;not null"       json:"break_start"`
+	BreakEnd        string `gorm:"type:time;not null"       json:"break_end"`
+}
+
+func (ShiftTemplateBreak) TableName() string { return "shift_template_breaks" }

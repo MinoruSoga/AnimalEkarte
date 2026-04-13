@@ -26,6 +26,7 @@ import { useAuth, usePermission } from "@/features/auth";
 
 // Relative
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
@@ -115,6 +116,7 @@ const ItemListCard = memo(function ItemListCard({
   const [addMode, setAddMode] = useState<"master" | "manual">("master");
   const [manualName, setManualName] = useState("");
   const [manualPrice, setManualPrice] = useState("");
+  const [manualPriceError, setManualPriceError] = useState<string>("");
 
   // マスタデータ取得
   const { data: merchandiseItems = [] } = useGetAllMerchandiseItems();
@@ -335,6 +337,7 @@ const ItemListCard = memo(function ItemListCard({
                     placeholder="例: 3000"
                     className="h-9"
                   />
+                  <FormFieldError message={manualPriceError} />
                 </div>
                 <Button
                   type="button"
@@ -345,13 +348,14 @@ const ItemListCard = memo(function ItemListCard({
                     // BUG-072: 金額の範囲チェック（負の値・上限超過）
                     const priceNum = parseInt(manualPrice, 10);
                     if (isNaN(priceNum) || priceNum < 0) {
-                      toast.error("単価は0以上の整数で入力してください");
+                      setManualPriceError("単価は0以上の整数で入力してください");
                       return;
                     }
                     if (priceNum > 999999999) {
-                      toast.error("単価は999,999,999円以下で入力してください");
+                      setManualPriceError("単価は999,999,999円以下で入力してください");
                       return;
                     }
+                    setManualPriceError("");
                     onAddItem(manualName.trim(), manualPrice, "other");
                     setManualName("");
                     setManualPrice("");

@@ -636,11 +636,6 @@ export function MedicineSettings() {
   const [, startSaveTransition] = useTransition();
 
   const handleSave = useCallback(() => {
-    if (!formData.name.trim()) {
-      toast.error("薬品名は必須です");
-      return;
-    }
-
     // カテゴリ編集時は price を 0 に固定（disabled UI をバイパス対策）
     const effectivePrice = isCategoryMedicine(selectedMedicine) ? 0 : formData.price;
 

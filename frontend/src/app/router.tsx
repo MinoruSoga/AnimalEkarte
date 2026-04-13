@@ -840,6 +840,17 @@ export const router = createBrowserRouter([
               },
             }],
           },
+          {
+            path: "shift-template",
+            element: <RequirePermission resource={ResourceShifts}><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { ShiftTemplateSettings } = await import("@/features/master");
+                return { Component: ShiftTemplateSettings };
+              },
+            }],
+          },
         ],
       },
 

@@ -708,10 +708,6 @@ export function TreatmentPlanMaster() {
   const handleClose = useCallback(() => setEditTarget(null), []);
 
   const handleSave = useCallback((data: TreatmentFormData) => {
-    if (!data.name.trim()) {
-      toast.error("名称は必須です");
-      return;
-    }
     if (!currentConfig) return;
     if (selectedItem) {
       currentConfig.onUpdate(selectedItem.id, data, {

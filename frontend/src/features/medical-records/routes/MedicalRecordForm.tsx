@@ -387,6 +387,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               medicalRecordId={recordId}
               ownerDiscountRate={ownerDiscountRate}
               onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
+              diagnosis1NameIdError={formState.fieldErrors?.diagnosis1_name_id}
             />
           </div>
         ) : null}

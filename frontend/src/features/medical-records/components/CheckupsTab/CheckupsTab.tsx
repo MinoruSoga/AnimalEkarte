@@ -8,6 +8,7 @@ import { toast } from "sonner";
 // Internal
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
@@ -183,6 +184,7 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: Checku
   const [isAdding, setIsAdding] = useState(false);
   // BUG-090: lazy init で本日日付をデフォルト値にセット
   const [addForm, setAddForm] = useState<AddFormState>(() => makeDefaultAddForm());
+  const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
 
   // js-cache-function-results: checkupTypes 由来の option リストをキャッシュ
   const checkupTypeOptions = useMemo(
@@ -206,10 +208,14 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: Checku
 
   const handleAddSubmit = useCallback(() => {
     if (!canCreate) return;
-    if (!addForm.date || !addForm.checkup_type_id) {
-      toast.error("日付と健診種別IDは必須です");
+    const errors: Record<string, string> = {};
+    if (!addForm.date) errors.date = "日付は必須です";
+    if (!addForm.checkup_type_id) errors.checkup_type_id = "健診種別は必須です";
+    if (Object.keys(errors).length > 0) {
+      setAddFormErrors(errors);
       return;
     }
+    setAddFormErrors({});
     const input: CreateCheckupInput = {
       checkup_type_id: Number(addForm.checkup_type_id),
       date: addForm.date,
@@ -341,21 +347,27 @@ export const CheckupsTab = memo(function CheckupsTab({ medicalRecordId }: Checku
 
         {/* インライン追加フォーム */}
         {isAdding ? (
-          <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
-            <NotionDatePicker
-              value={addForm.date}
-              onChange={(v) => handleAddFormChange("date", v)}
-              placeholder="日付"
-              className="h-8 w-32"
-            />
-            <select
-              value={addForm.checkup_type_id}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("checkup_type_id", e.target.value)}
-              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-32`}
-            >
-              <option value="">選択</option>
-              {checkupTypeOptions}
-            </select>
+          <div className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
+            <div className="flex flex-col">
+              <NotionDatePicker
+                value={addForm.date}
+                onChange={(v) => handleAddFormChange("date", v)}
+                placeholder="日付"
+                className="h-8 w-32"
+              />
+              <FormFieldError message={addFormErrors.date} />
+            </div>
+            <div className="flex flex-col">
+              <select
+                value={addForm.checkup_type_id}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("checkup_type_id", e.target.value)}
+                className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+              >
+                <option value="">選択</option>
+                {checkupTypeOptions}
+              </select>
+              <FormFieldError message={addFormErrors.checkup_type_id} />
+            </div>
             <NotionDatePicker
               value={addForm.next_date}
               onChange={(v) => handleAddFormChange("next_date", v)}

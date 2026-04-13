@@ -550,10 +550,6 @@ export function TrimmingSettings() {
 
   const handleCourseSave = useCallback(
     (data: CourseFormData) => {
-      if (!data.name.trim()) {
-        toast.error("コース名は必須です");
-        return;
-      }
       const priceValue = data.price !== "" ? Number(data.price) : null;
       courseStartSave(() => {
         if (courseEditTarget !== null && courseEditTarget !== "new") {
@@ -593,10 +589,6 @@ export function TrimmingSettings() {
 
   const handleOptionSave = useCallback(
     (data: OptionFormData) => {
-      if (!data.name.trim()) {
-        toast.error("オプション名は必須です");
-        return;
-      }
       const priceValue = data.price !== "" ? Number(data.price) : null;
       optionStartSave(() => {
         if (optionEditTarget !== null && optionEditTarget !== "new") {

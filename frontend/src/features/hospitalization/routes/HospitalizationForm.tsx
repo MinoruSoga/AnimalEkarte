@@ -25,6 +25,7 @@ import { HospitalizationTreatmentTable } from "../components/HospitalizationTrea
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback } from "@/components/shared/DataStates";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
@@ -203,6 +204,7 @@ export function HospitalizationForm() {
               nextVisitContent="-"
             />
         ) : null}
+        <FormFieldError message={formState.fieldErrors?.pet} />
 
         {/* Main Form Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">

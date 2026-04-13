@@ -20,6 +20,7 @@ import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
 import { NotionDatePicker } from '@/components/shared/NotionDatePicker/NotionDatePicker';
 import { NavigationBlocker } from '@/components/shared/NavigationBlocker';
 import { NumberInput } from '@/components/shared/NumberInput/NumberInput';
+import { FormFieldError } from '@/components/shared/FormFieldError';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useGetEstimate } from '../api/get-estimate';
 import { useEstimateForm } from '../hooks/use-estimate-form';
@@ -49,6 +50,7 @@ interface BasicInfoSectionProps {
   status: EstimateStatus;
   validUntil: string;
   onChange: (key: string, value: unknown) => void;
+  titleError?: string;
 }
 
 const BasicInfoSection = memo(function BasicInfoSection({
@@ -56,6 +58,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
   status,
   validUntil,
   onChange,
+  titleError,
 }: BasicInfoSectionProps) {
   return (
     <>
@@ -71,6 +74,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
           placeholder="見積書タイトルを入力"
           className="h-9 text-sm"
         />
+        <FormFieldError message={titleError} />
       </div>
 
       {/* ステータス */}
@@ -318,6 +322,7 @@ function EstimateFormContent({ id }: { id?: string }) {
           status={form.status}
           validUntil={form.validUntil}
           onChange={handleChangeWithDirty}
+          titleError={formState.fieldErrors?.title}
         />
 
         {/* rerender-memo: AmountSection — 基本情報/テキスト変更では再レンダーしない */}

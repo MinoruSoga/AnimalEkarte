@@ -1,6 +1,7 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
 import { memo, useMemo } from "react";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 
 // External
 import { ChevronRight } from "lucide-react";
@@ -26,6 +27,7 @@ interface DiagnosisHeaderDiagnosisProps {
   diagnosis2NameId?: number | null;
   setDiagnosis2NameId?: (id: number | null) => void;
   canEdit: boolean;
+  diagnosis1NameIdError?: string | null;
 }
 
 export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
@@ -40,6 +42,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
   diagnosis2NameId,
   setDiagnosis2NameId,
   canEdit,
+  diagnosis1NameIdError,
 }: DiagnosisHeaderDiagnosisProps) {
   const { data: categories = [], isLoading: isTypesLoading } = useGetDiagnosisTypes();
   const { data: names1 = [], isLoading: isNames1Loading } = useGetDiagnosisNames(diagnosis1CategoryId);
@@ -76,37 +79,40 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
         </CardHeader>
         <CardContent className="p-0 flex-1 flex flex-col gap-2 min-h-0">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60}`}>
-                診断1
-              </Label>
-              <Select
-                value={diagnosis1CategoryId ? String(diagnosis1CategoryId) : ""}
-                onValueChange={(value) => {
-                  setDiagnosis1CategoryId?.(value ? Number(value) : null);
-                  setDiagnosis1NameId?.(null);
-                }}
-                disabled={isTypesLoading || !canEdit}
-              >
-                <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
-                  <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
-                </SelectTrigger>
-                <SelectContent className="z-[9999]">
-                  {categorySelectItems}
-                </SelectContent>
-              </Select>
-              <Select
-                value={diagnosis1NameId ? String(diagnosis1NameId) : ""}
-                onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
-                disabled={isNames1Loading || !diagnosis1CategoryId || !canEdit}
-              >
-                <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
-                  <SelectValue placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"} />
-                </SelectTrigger>
-                <SelectContent className="z-[9999]">
-                  {names1SelectItems}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2">
+                <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60}`}>
+                  診断1
+                </Label>
+                <Select
+                  value={diagnosis1CategoryId ? String(diagnosis1CategoryId) : ""}
+                  onValueChange={(value) => {
+                    setDiagnosis1CategoryId?.(value ? Number(value) : null);
+                    setDiagnosis1NameId?.(null);
+                  }}
+                  disabled={isTypesLoading || !canEdit}
+                >
+                  <SelectTrigger className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm`}>
+                    <SelectValue placeholder={isTypesLoading ? "読み込み中..." : "カテゴリを選択"} />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
+                    {categorySelectItems}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={diagnosis1NameId ? String(diagnosis1NameId) : ""}
+                  onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
+                  disabled={isNames1Loading || !diagnosis1CategoryId || !canEdit}
+                >
+                  <SelectTrigger className={`flex-1 bg-white ${diagnosis1NameIdError ? C.borderDanger : C.borderMedium} h-10 text-sm`}>
+                    <SelectValue placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"} />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
+                    {names1SelectItems}
+                  </SelectContent>
+                </Select>
+              </div>
+              <FormFieldError message={diagnosis1NameIdError} />
             </div>
 
             <div className="flex items-center gap-2">

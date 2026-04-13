@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useRef, useCallback, useActionState } from "react";
+import { memo, useState, useEffect, useRef, useCallback, useActionState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -16,6 +16,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { createShift } from "@/features/shifts/api/create-shift";
 import { updateShift } from "@/features/shifts/api/update-shift";
 import { useDeleteShift } from "@/features/shifts/api/delete-shift";
+import { useGetShiftTemplates } from "@/features/shifts/api/get-shift-templates";
 import { handleApiError } from "@/lib/handle-api-error";
 
 /**
@@ -67,6 +68,9 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
   // rerender-dependencies: editShift オブジェクトの代わりに primitive id を deps に使用
   const editShiftId = editShift?.id;
   const queryClient = useQueryClient();
+
+  // テンプレート選択
+  const { data: templates = [] } = useGetShiftTemplates();
 
   // Controlled state for Select and time inputs (needed for UI feedback and FormData relay)
   const [shiftType, setShiftType] = useState<ShiftType>(() => editShift?.shift_type ?? "full");
@@ -143,6 +147,18 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
   // BUG-092: 休日・有休は時刻入力不要
   const isTimeFieldDisabled = shiftType === ShiftTypeOff;
 
+  const handleApplyTemplate = useCallback(
+    (templateId: string) => {
+      const tpl = templates.find((t) => t.id === templateId);
+      if (!tpl) return;
+      setShiftType(tpl.shift_type);
+      setStartTime(tpl.start_time ?? "");
+      setEndTime(tpl.end_time ?? "");
+      setBreaks(tpl.breaks.map((b) => ({ break_start: b.break_start, break_end: b.break_end })));
+    },
+    [templates],
+  );
+
   const handleShiftTypeChange = useCallback((value: string) => {
     setShiftType(value as ShiftType);
   }, []);
@@ -161,6 +177,19 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
     setIsDeleteConfirmOpen(false);
     deleteShift(editShift.id, { onSuccess: () => onClose() });
   }, [editShift, deleteShift, onClose]);
+
+  // js-cache-function-results: テンプレート選択肢を useMemo でキャッシュ
+  const templateSelectItems = useMemo(
+    () =>
+      templates
+        .filter((t) => t.is_active)
+        .map((t) => (
+          <SelectItem key={t.id} value={t.id}>
+            {t.name}
+          </SelectItem>
+        )),
+    [templates],
+  );
 
   const formattedDate = date
     ? new Date(date + "T00:00:00").toLocaleDateString("ja-JP", {
@@ -186,6 +215,19 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
         <form action={dispatchFormAction} className="space-y-4">
           {/* hidden input を経由してコントロール値を FormData に渡す */}
           <input type="hidden" name="shiftType" value={shiftType} />
+
+          {/* テンプレート選択（テンプレートがある場合のみ表示） */}
+          {templateSelectItems.length > 0 ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="shift-template" className={`text-xs ${C.text50}`}>テンプレートから入力</Label>
+              <Select onValueChange={handleApplyTemplate}>
+                <SelectTrigger id="shift-template" className="h-8 text-sm">
+                  <SelectValue placeholder="テンプレートを選択..." />
+                </SelectTrigger>
+                <SelectContent>{templateSelectItems}</SelectContent>
+              </Select>
+            </div>
+          ) : null}
 
           <div className="space-y-1.5">
             <Label htmlFor="shift-type">シフト種別</Label>

@@ -188,7 +188,6 @@ export function useMedicalRecordForm(recordId?: string) {
             if (diagnosis1CategoryId && !diagnosis1NameId) {
               const diagError = { diagnosis1_name_id: "診断名を選択してください" };
               setManualErrors(diagError);
-              toast.error("診断名を選択してください");
               return { success: false, fieldErrors: diagError, timestamp: Date.now() };
             }
             // BUG-102: DEFAULT値でも常に送信する（undefined を送ると BE が 400 を返す）

@@ -1746,6 +1746,39 @@ CREATE TABLE shift_entry_breaks (
 CREATE INDEX idx_shift_entry_breaks_entry ON shift_entry_breaks(shift_entry_id);
 
 -- ------------------------------------
+-- 67. shift_templates（シフトテンプレートマスタ）
+-- ------------------------------------
+CREATE TABLE shift_templates (
+    id         BIGSERIAL    PRIMARY KEY,
+    clinic_id  bigint       NOT NULL REFERENCES clinics(id),
+    name       varchar(100) NOT NULL,
+    shift_type shift_type   NOT NULL DEFAULT 'full',
+    start_time time,
+    end_time   time,
+    notes      text         NOT NULL DEFAULT '',
+    sort_order integer      NOT NULL DEFAULT 0,
+    is_active  boolean      NOT NULL DEFAULT true,
+    created_at timestamptz  NOT NULL DEFAULT now(),
+    updated_at timestamptz  NOT NULL DEFAULT now(),
+    deleted_at timestamptz,
+    CONSTRAINT uk_shift_templates_clinic_name UNIQUE (clinic_id, name) WHERE deleted_at IS NULL
+);
+
+CREATE INDEX idx_shift_templates_clinic ON shift_templates(clinic_id) WHERE deleted_at IS NULL;
+
+-- ------------------------------------
+-- 68. shift_template_breaks（シフトテンプレートの休憩時間）
+-- ------------------------------------
+CREATE TABLE shift_template_breaks (
+    id                BIGSERIAL PRIMARY KEY,
+    shift_template_id bigint    NOT NULL REFERENCES shift_templates(id) ON DELETE CASCADE,
+    break_start       time      NOT NULL,
+    break_end         time      NOT NULL
+);
+
+CREATE INDEX idx_shift_template_breaks_template ON shift_template_breaks(shift_template_id);
+
+-- ------------------------------------
 -- appointments に line_customer_id FK を追加
 -- （line_customers テーブル作成後に実行）
 -- ------------------------------------

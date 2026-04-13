@@ -3,13 +3,13 @@ import { memo, useState, useCallback, useRef, useEffect, useLayoutEffect } from 
 
 // External
 import { ChevronUp, ChevronDown, Shield } from "lucide-react";
-import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, BADGE, ICON, STYLE } from "@/lib/design-tokens";
 
 // Relative
@@ -73,6 +73,8 @@ export const TreatmentRow = memo(function TreatmentRow({
     String(treatment.discount_amount)
   );
   const [localMemo, setLocalMemo] = useState(treatment.memo);
+  const [unitPriceError, setUnitPriceError] = useState<string>("");
+  const [discountAmountError, setDiscountAmountError] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   // 外部からの treatment 変更を反映
@@ -129,11 +131,10 @@ export const TreatmentRow = memo(function TreatmentRow({
     const val = parseFloat(localUnitPrice) || 0;
     // BUG-072: 金額は0以上
     if (val < 0) {
-      toast.error("金額は0以上を入力してください");
-      setLocalUnitPrice(String(treatment.unit_price));
-      setEditField(null);
+      setUnitPriceError("金額は0以上を入力してください");
       return;
     }
+    setUnitPriceError("");
     if (val !== treatment.unit_price) {
       onUpdate(treatment.id, { unit_price: val });
     }
@@ -152,11 +153,10 @@ export const TreatmentRow = memo(function TreatmentRow({
     const val = parseFloat(localDiscountAmount) || 0;
     // BUG-072: 値引き金額は0以上
     if (val < 0) {
-      toast.error("金額は0以上を入力してください");
-      setLocalDiscountAmount(String(treatment.discount_amount));
-      setEditField(null);
+      setDiscountAmountError("金額は0以上を入力してください");
       return;
     }
+    setDiscountAmountError("");
     if (val !== treatment.discount_amount) {
       onUpdate(treatment.id, { discount_amount: val });
     }
@@ -259,16 +259,19 @@ export const TreatmentRow = memo(function TreatmentRow({
       {/* 単価 */}
       <td className="px-3 py-2 w-28 text-right">
         {editField === "unit_price" ? (
-          <Input
-            ref={inputRef}
-            type="number"
-            min={0}
-            value={localUnitPrice}
-            onChange={(e) => setLocalUnitPrice(e.target.value)}
-            onBlur={commitUnitPrice}
-            onKeyDown={(e) => handleKeyDown(e, commitUnitPrice)}
-            className={`h-8 text-sm text-right px-2 ${C.borderMedium}`}
-          />
+          <>
+            <Input
+              ref={inputRef}
+              type="number"
+              min={0}
+              value={localUnitPrice}
+              onChange={(e) => setLocalUnitPrice(e.target.value)}
+              onBlur={commitUnitPrice}
+              onKeyDown={(e) => handleKeyDown(e, commitUnitPrice)}
+              className={`h-8 text-sm text-right px-2 ${C.borderMedium}`}
+            />
+            <FormFieldError message={unitPriceError} />
+          </>
         ) : (
           <button
             className={`w-full text-right text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors font-mono`}
@@ -306,16 +309,19 @@ export const TreatmentRow = memo(function TreatmentRow({
       {/* 値引き */}
       <td className="px-3 py-2 w-28 text-right">
         {editField === "discount_amount" ? (
-          <Input
-            ref={inputRef}
-            type="number"
-            min={0}
-            value={localDiscountAmount}
-            onChange={(e) => setLocalDiscountAmount(e.target.value)}
-            onBlur={commitDiscountAmount}
-            onKeyDown={(e) => handleKeyDown(e, commitDiscountAmount)}
-            className={`h-8 text-sm text-right px-2 ${C.borderMedium}`}
-          />
+          <>
+            <Input
+              ref={inputRef}
+              type="number"
+              min={0}
+              value={localDiscountAmount}
+              onChange={(e) => setLocalDiscountAmount(e.target.value)}
+              onBlur={commitDiscountAmount}
+              onKeyDown={(e) => handleKeyDown(e, commitDiscountAmount)}
+              className={`h-8 text-sm text-right px-2 ${C.borderMedium}`}
+            />
+            <FormFieldError message={discountAmountError} />
+          </>
         ) : (
           <button
             className={`w-full text-right text-sm ${
