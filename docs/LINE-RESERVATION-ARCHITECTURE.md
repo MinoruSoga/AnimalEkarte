@@ -60,6 +60,7 @@
               │    │  reservation_types (拡張)│                       
               │    │  staffs (拡張)           │                       
               │    └─────────────────────────┘                       
+
               │                                                      
               │    ┌─────────────────────────────────────────┐       
               │    │    管理画面 (既存 AnimalEkarte)          │       
@@ -376,8 +377,8 @@
 ```
   ── 電カル既存ページに統合 ──
 
-  /settings/service-type
-        診療サービスマスタ（LINE予約フィールド統合）
+  /settings/reservation-type
+        診療予約区分マスタ（LINE予約フィールド統合）
         ├─ 基本項目: 名称 / カラー / 備考 / ステータス
         └─ LINE予約設定（サイドパネル内セクション）:
            ├─ LINE表示名（reservation_display_name）
@@ -393,7 +394,7 @@
         │   ├─ LINE表示名 / 予約ページ表示
         │   ├─ スタッフ種別（医師/看護師/設備）
         │   ├─ LINE説明文 / 画像URL
-        │   └─ 対応不可コース（チェックボックスリスト）
+        │   └─ 対応不可予約区分（チェックボックスリスト）
         ├─ 所属医院設定
         └─ 権限グループ設定
 
@@ -459,14 +460,11 @@
 
 ### 管理者API — マスタ設定に統合済み `/v1/masters/`
 
-> コース・スタッフの LINE フィールドは既存マスタ API に統合。
-> 専用の reservation-courses / reservation-staffs API は**互換性のため残存**するが、管理画面は使用しない。
-
 | Method | Path | 説明 |
 |--------|------|------|
-| GET/POST/PATCH/DELETE | `/v1/masters/service-types[/:id]` | コース管理（LINE項目含む） |
+| GET/POST/PATCH/DELETE | `/v1/masters/reservation-types[/:id]` | 予約区分管理（LINE項目含む） |
 | GET/POST/PATCH/DELETE | `/v1/masters/staffs[/:id]` | スタッフ管理（LINE項目含む） |
-| GET/PUT | `/v1/masters/staffs/:id/excluded-service-types` | 対応不可コース設定 |
+| GET/PUT | `/v1/masters/staffs/:id/excluded-reservation-types` | 対応不可コース設定 |
 | GET/POST/PATCH/DELETE | `/v1/shifts[/:id]` | シフト管理（休憩時間含む） |
 | GET/POST/PATCH/DELETE | `/v1/reservations[/:id]` | 予約管理（`?source=` フィルタ対応） |
 
@@ -474,9 +472,8 @@
 
 | Method | Path | 説明 |
 |--------|------|------|
-| GET/PUT | `reservation-settings` | 基本設定 |
-| GET | `reservation-customers` | LINE顧客一覧 |
-| PATCH | `reservation-customers/:id/link-owner` | オーナー紐付け |
+| GET/PUT | `line-reservation-settings` | 基本設定 |
+| GET | `line-reservation-customers` | LINE顧客一覧 |
 
 ---
 

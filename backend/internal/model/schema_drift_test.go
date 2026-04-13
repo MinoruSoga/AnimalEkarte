@@ -98,6 +98,8 @@ func allModels() []any {
 		&model.LineCustomer{},
 		&model.StaffReservationExclusion{},
 		&model.ShiftEntryBreak{},
+		&model.ShiftTemplate{},
+		&model.ShiftTemplateBreak{},
 	}
 }
 
