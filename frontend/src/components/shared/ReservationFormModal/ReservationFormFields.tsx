@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -236,54 +236,54 @@ export const ReservationFormFields = memo(function ReservationFormFields({
             予約区分
           </FieldLabel>
           {/* BUG-341: Combobox（検索＋グループ階層表示） */}
-          <button
-            type="button"
-            role="combobox"
-            aria-expanded={typeComboOpen}
-            onClick={() => setTypeComboOpen(true)}
-            className={cn(
-              `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
-              !selectedTypeLabel && C.text40
-            )}
-          >
-            <span>{selectedTypeLabel ?? "選択してください"}</span>
-            <ChevronsUpDown className={`${ICON.action} ${C.text40} flex-shrink-0`} />
-          </button>
-          <CommandDialog
-            open={typeComboOpen}
-            onOpenChange={setTypeComboOpen}
-            title="予約区分を選択"
-            description="予約区分を検索・選択してください"
-          >
-            <CommandInput placeholder="予約区分を検索..." />
-            <CommandList className="max-h-[500px]">
-              <CommandEmpty className={`py-4 text-sm ${C.text40}`}>
-                該当する予約区分がありません
-              </CommandEmpty>
-              {groupedReservationTypes.map((group) => (
-                <CommandGroup key={group.label} heading={group.label}>
-                  {group.types.map((t) => (
-                    <CommandItem
-                      key={t.id}
-                      value={`${group.label} ${t.name}`}
-                      onSelect={() => {
-                        onChange({ ...formData, type: String(t.id) });
-                        setTypeComboOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          `${ICON.action} flex-shrink-0`,
-                          String(t.id) === formData.type ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {t.name}
-                    </CommandItem>
+          <Popover open={typeComboOpen} onOpenChange={setTypeComboOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                role="combobox"
+                aria-expanded={typeComboOpen}
+                className={cn(
+                  `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
+                  !selectedTypeLabel && C.text40
+                )}
+              >
+                <span>{selectedTypeLabel ?? "選択してください"}</span>
+                <ChevronsUpDown className={`${ICON.action} ${C.text40} flex-shrink-0`} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0" align="start">
+              <Command>
+                <CommandInput placeholder="予約区分を検索..." />
+                <CommandList className="max-h-[500px]">
+                  <CommandEmpty className={`py-4 text-sm ${C.text40}`}>
+                    該当する予約区分がありません
+                  </CommandEmpty>
+                  {groupedReservationTypes.map((group) => (
+                    <CommandGroup key={group.label} heading={group.label}>
+                      {group.types.map((t) => (
+                        <CommandItem
+                          key={t.id}
+                          value={`${group.label} ${t.name}`}
+                          onSelect={() => {
+                            onChange({ ...formData, type: String(t.id) });
+                            setTypeComboOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              `${ICON.action} flex-shrink-0`,
+                              String(t.id) === formData.type ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {t.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
                   ))}
-                </CommandGroup>
-              ))}
-            </CommandList>
-          </CommandDialog>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
           {validationErrors?.type ? (
             <FormFieldError id="res-type-error" message={validationErrors.type} />
           ) : null}
