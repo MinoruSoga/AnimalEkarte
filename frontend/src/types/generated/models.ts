@@ -1499,6 +1499,32 @@ export interface ClinicHoliday {
   created_at: string;
   updated_at: string;
 }
+/**
+ * ShiftTemplate はシフトテンプレートマスタを表す
+ */
+export interface ShiftTemplate {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  shift_type: ShiftType;
+  start_time?: string;
+  end_time?: string;
+  notes: string;
+  sort_order: number /* int */;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  breaks?: ShiftTemplateBreak[];
+}
+/**
+ * ShiftTemplateBreak はシフトテンプレートの休憩時間を表す
+ */
+export interface ShiftTemplateBreak {
+  id: number /* uint64 */;
+  shift_template_id: number /* uint64 */;
+  break_start: string;
+  break_end: string;
+}
 
 //////////
 // source: staff_reservation_exclusion.go

@@ -116,7 +116,7 @@ func (r *shiftTemplateRepository) ReplaceBreaks(ctx context.Context, templateID 
 }
 
 func (r *shiftTemplateRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.ShiftTemplate{}).
 				Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -129,5 +129,8 @@ func (r *shiftTemplateRepository) Reorder(ctx context.Context, clinicID uint64, 
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to reorder shift templates")
+	}
+	return nil
 }
