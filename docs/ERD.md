@@ -55,8 +55,73 @@
 
 | # | テーブル名 | 区分 | 説明 |
 |---|-----------|------|------|
-...
-| 59 | `audit_logs` | 監査 | 操作監査ログ（作成、更新、削除の履歴） |
+| 1 | `companies` | 法人情報 | 法人（ノア動物病院）情報 |
+| 2 | `clinics` | 医院情報 | 各医院（八王子・城東・敷島） |
+| 3 | `animal_species` | マスタ | ペット種類マスタ（犬・猫・鳥等） |
+| 4 | `occupations` | マスタ | 職種マスタ（clinic単位） |
+| 5 | `accounts` | 認証 | ログインアカウント |
+| 6 | `staffs` | マスタ | スタッフ |
+| 7 | `owners` | コア | 飼い主 |
+| 8 | `inventory_items` | 在庫 | 在庫アイテム |
+| 9 | `exam_types` | マスタ | 検査種別 |
+| 10 | `exam_type_fields` | マスタ | 検査種別の検査項目定義 |
+| 11 | `vaccines` | マスタ | ワクチン |
+| 12 | `medicines` | マスタ | 薬剤 |
+| 13 | `insurances` | マスタ | 保険 |
+| 14 | `cages` | マスタ | ケージ |
+| 15 | `reservation_type_groups` | 予約マスタ | 予約区分グループ |
+| 16 | `reservation_types` | 予約マスタ | 予約区分マスタ |
+| 17 | `consultations` | マスタ | 診察項目 |
+| 18 | `procedures` | マスタ | 処置項目 |
+| 19 | `hospitalization_plans` | マスタ | 入院プラン |
+| 20 | `trimming_courses` | マスタ | トリミングコース |
+| 21 | `trimming_options` | マスタ | トリミングオプション |
+| 22 | `diagnosis_types` | マスタ | 診断カテゴリ |
+| 23 | `diagnosis_names` | マスタ | 診断病名 |
+| 24 | `checkup_types` | マスタ | 健診種別 |
+| 25 | `chief_complaint_types` | マスタ | 主訴区分マスタ |
+| 26 | `inquiry_templates` | マスタ | 問診定型文マスタ |
+| 27 | `pets` | コア | ペット |
+| 28 | `staff_clinic_assignments` | 認証 | スタッフ-クリニック中間テーブル |
+| 29 | `permission_groups` | 権限 | 権限グループマスタ |
+| 30 | `permission_group_rules` | 権限 | 権限グループルール |
+| 31 | `staff_permission_groups` | 権限 | スタッフ-権限グループ中間テーブル |
+| 32 | `appointments` | 予約 | 予約 |
+| 33 | `hospitalizations` | 入院 | 入院・ホテル |
+| 34 | `trimming_records` | トリミング | トリミング記録 |
+| 35 | `medical_records` | 診療 | カルテ |
+| 36 | `vaccinations` | 診療 | ワクチン接種記録 |
+| 37 | `checkups` | 診療 | 健診記録 |
+| 38 | `exams` | 診療 | 検査記録 |
+| 39 | `inquiries` | 診療 | 問診情報 |
+| 40 | `clinical_plans` | 診療 | 診察所見・診断・治療方針 |
+| 41 | `treatments` | 診療 | 処置・診察・薬剤明細 |
+| 42 | `treatment_plans` | 診療 | 治療プラン |
+| 43 | `medical_record_images` | 診療 | 診療画像 |
+| 44 | `billing_confirmations` | 診療 | 会計医師確認 |
+| 45 | `estimates` | 診療 | 見積書 |
+| 46 | `exam_results` | 診療 | 検査記録の検査結果項目 |
+| 47 | `daily_records` | 入院 | 入院日次記録 |
+| 48 | `vital_records` | 診療・入院 | バイタル記録 |
+| 49 | `care_plan_items` | 入院 | ケアプラン項目 |
+| 50 | `estimate_items` | 診療 | 見積書明細 |
+| 51 | `care_logs` | 入院 | ケアログ |
+| 52 | `staff_notes` | 入院 | スタッフノート |
+| 53 | `trimming_record_options` | トリミング | トリミング記録のオプション選択 |
+| 54 | `billings` | 会計 | 会計 |
+| 55 | `billing_items` | 会計 | 会計明細 |
+| 56 | `payments` | 会計 | 支払い情報 |
+| 57 | `billing_refunds` | 会計 | 返金レコード |
+| 58 | `shift_entries` | シフト | スタッフシフト |
+| 59 | `clinic_holidays` | シフト | 医院個別休診日 |
+| 60 | `merchandise_items` | マスタ | 物販・フード・その他マスタ |
+| 61 | `audit_logs` | 監査 | 操作監査ログ |
+| 62 | `line_reservation_settings` | LINE予約 | LINE予約基本設定 |
+| 63 | `line_customers` | LINE予約 | LINE予約ユーザー管理 |
+| 64 | `staff_reservation_exclusions` | 予約マスタ | スタッフ × 非対応予約区分 |
+| 65 | `shift_entry_breaks` | シフト | シフト中の休憩時間管理 |
+| 66 | `shift_templates` | マスタ | シフトテンプレートマスタ |
+| 67 | `shift_template_breaks` | マスタ | シフトテンプレートの休憩時間管理 |
 
 ---
 
