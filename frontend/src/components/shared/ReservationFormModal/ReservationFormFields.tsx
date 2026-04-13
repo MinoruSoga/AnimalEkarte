@@ -1,17 +1,15 @@
-import { memo, useMemo, useCallback, useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { memo, useMemo, useCallback } from "react";
 import { isBefore, startOfDay, format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { C, ICON } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, Clock, ArrowRight, ChevronsUpDown, Check } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/features/master";
 import { useGetReservationTypesGrouped, useGetOnDutyStaffs } from "@/features/reservations";
@@ -78,52 +76,6 @@ export const ReservationFormFields = memo(function ReservationFormFields({
 }: ReservationFormFieldsProps) {
   // BUG-341: グループ情報付きで取得（useMasterItems は group 情報を捨てるため専用フック使用）
   const { data: groupedReservationTypes = [] } = useGetReservationTypesGrouped();
-  const [typeComboOpen, setTypeComboOpen] = useState(false);
-  const typeTriggerRef = useRef<HTMLButtonElement>(null);
-  const typeDropdownRef = useRef<HTMLDivElement>(null);
-  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
-
-  const handleTypeComboOpen = useCallback(() => {
-    if (typeTriggerRef.current) {
-      const r = typeTriggerRef.current.getBoundingClientRect();
-      setDropdownRect({ top: r.bottom + 4, left: r.left, width: r.width });
-    }
-    setTypeComboOpen(true);
-  }, []);
-
-  // 外クリックで閉じる
-  useEffect(() => {
-    if (!typeComboOpen) return;
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        !typeTriggerRef.current?.contains(target) &&
-        !typeDropdownRef.current?.contains(target)
-      ) {
-        setTypeComboOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [typeComboOpen]);
-
-  // react-remove-scroll が document で wheel を preventDefault するのを阻止。
-  // React の onWheel はポータル内でネイティブ伝播を止められないため native addEventListener を使う。
-  useEffect(() => {
-    const el = typeDropdownRef.current;
-    if (!el || !typeComboOpen) return;
-    const stop = (e: WheelEvent) => e.stopPropagation();
-    el.addEventListener("wheel", stop);
-    return () => el.removeEventListener("wheel", stop);
-  }, [typeComboOpen]);
-  // 現在選択中の予約区分名（Combobox トリガー表示用）
-  const selectedTypeLabel = useMemo(() => {
-    for (const group of groupedReservationTypes) {
-      const found = group.types.find((t) => String(t.id) === formData.type);
-      if (found) return found.name;
-    }
-    return null;
-  }, [groupedReservationTypes, formData.type]);
 
   const handleMonthChange = useCallback((month: Date) => {
     onMonthChange?.(format(month, "yyyy-MM"));
@@ -134,6 +86,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     if (holidayDates) return holidayDates.has(format(date, "yyyy-MM-dd"));
     return false;
   }, [holidayDates]);
+
   const { data: staffItems } = useMasterItems("staff");
   // useMemo で参照を安定化（staffOptions の deps が毎レンダー新参照を受け取るのを防ぐ）
   const activeStaff = useMemo(() => staffItems.filter((s) => s.status === "active"), [staffItems]);
@@ -273,70 +226,27 @@ export const ReservationFormFields = memo(function ReservationFormFields({
           >
             予約区分
           </FieldLabel>
-          {/* BUG-341: Combobox（検索＋グループ階層表示）
-               Radix Popover は Dialog 内で scroll-lock と干渉するため Portal を使わず
-               インライン絶対配置で実装 */}
-          <div>
-            <button
-              ref={typeTriggerRef}
-              type="button"
-              role="combobox"
-              aria-expanded={typeComboOpen}
-              onClick={handleTypeComboOpen}
-              className={cn(
-                `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
-                !selectedTypeLabel && C.text40
-              )}
-            >
-              <span>{selectedTypeLabel ?? "選択してください"}</span>
-              <ChevronsUpDown className={`${ICON.action} ${C.text40} flex-shrink-0`} />
-            </button>
-            {typeComboOpen && dropdownRect ? createPortal(
-              <div
-                ref={typeDropdownRef}
-                style={{
-                  position: "fixed",
-                  top: dropdownRect.top,
-                  left: dropdownRect.left,
-                  width: dropdownRect.width,
-                  zIndex: 9999,
-                }}
-                className="rounded-md border shadow-md bg-white overflow-hidden"
-              >
-                <Command>
-                  <CommandInput placeholder="予約区分を検索..." />
-                  <CommandList className="max-h-[240px]">
-                    <CommandEmpty className={`py-4 text-sm ${C.text40}`}>
-                      該当する予約区分がありません
-                    </CommandEmpty>
-                    {groupedReservationTypes.map((group) => (
-                      <CommandGroup key={group.label} heading={group.label}>
-                        {group.types.map((t) => (
-                          <CommandItem
-                            key={t.id}
-                            value={`${group.label} ${t.name}`}
-                            onSelect={() => {
-                              onChange({ ...formData, type: String(t.id) });
-                              setTypeComboOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                `${ICON.action} flex-shrink-0`,
-                                String(t.id) === formData.type ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {t.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    ))}
-                  </CommandList>
-                </Command>
-              </div>,
-              document.body
-            ) : null}
-          </div>
+          {/* BUG-341: グループ階層表示 — Select + SelectGroup で Dialog 内スクロール正常動作 */}
+          <Select
+            value={formData.type || ""}
+            onValueChange={(v) => onChange({ ...formData, type: v })}
+          >
+            <SelectTrigger className={cn(TRIGGER_CLASS, !formData.type && C.text40)}>
+              <SelectValue placeholder="選択してください" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[280px]">
+              {groupedReservationTypes.map((group) => (
+                <SelectGroup key={group.label}>
+                  <SelectLabel>{group.label}</SelectLabel>
+                  {group.types.map((t) => (
+                    <SelectItem key={t.id} value={String(t.id)}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
           {validationErrors?.type ? (
             <FormFieldError id="res-type-error" message={validationErrors.type} />
           ) : null}
