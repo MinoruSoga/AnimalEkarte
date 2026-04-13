@@ -13,9 +13,6 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- 2. ENUM型定義（全56テーブル対応）
 -- -----------------------------------------------------------------------------
 
--- 認証関連
-CREATE TYPE account_status AS ENUM ('active', 'inactive', 'locked');
-
 -- ペット関連
 CREATE TYPE pet_status AS ENUM ('alive', 'deceased');
 CREATE TYPE pet_gender AS ENUM ('male', 'female', 'unknown');
@@ -599,8 +596,6 @@ CREATE TABLE pets (
 );
 
 -- ------------------------------------
--- 27. user_clinic_memberships（ユーザー所属クリニック）
--- ------------------------------------
 -- 6a. staff_clinic_assignments（スタッフ-クリニック中間テーブル）
 -- ------------------------------------
 CREATE TABLE staff_clinic_assignments (
@@ -634,7 +629,6 @@ CREATE TABLE permission_groups (
 );
 
 CREATE UNIQUE INDEX uk_permission_groups ON permission_groups(clinic_id, name) WHERE deleted_at IS NULL;
-CREATE INDEX idx_permission_groups_clinic ON permission_groups(clinic_id) WHERE deleted_at IS NULL;
 
 -- ------------------------------------
 -- 28b. permission_group_rules（権限グループ-リソース×CRUD権限）
@@ -1320,14 +1314,9 @@ CREATE UNIQUE INDEX idx_daily_records_hosp_date ON daily_records(hospitalization
 -- シフト: 1スタッフ1日1シフト
 CREATE UNIQUE INDEX idx_shift_entries_staff_date ON shift_entries(staff_id, date);
 
--- Deleted: Indexes for user_clinic_memberships and permission_groups
--- These were removed in the auth refactor (Account-based authentication)
--- New indexes for staff_clinic_assignments are defined in section 4.2
 
 -- 飼主: clinic内でemail重複不可（論理削除を除く・空文字除く）
 CREATE UNIQUE INDEX uk_owners_clinic_email ON owners(clinic_id, email) WHERE deleted_at IS NULL AND email IS NOT NULL AND email != '';
-
--- Deleted: user_permission_groups index (auth refactor)
 
 -- トリミングオプション: 重複防止
 CREATE UNIQUE INDEX idx_trimming_record_options_unique ON trimming_record_options(trimming_record_id, option_id);
@@ -1340,7 +1329,6 @@ CREATE UNIQUE INDEX idx_billings_medical_record_id_unique ON billings(medical_re
 -- -----------------------------------------------------------------------------
 
 -- マスタテーブル clinic_id
--- Deleted: idx_staffs_clinic_id (staffs now uses account_id; clinic membership tracked via staff_clinic_assignments)
 CREATE INDEX idx_occupations_clinic_id ON occupations(clinic_id);
 CREATE INDEX idx_inventory_items_clinic_id ON inventory_items(clinic_id);
 CREATE INDEX idx_exam_types_clinic_id ON exam_types(clinic_id);
@@ -1373,13 +1361,11 @@ CREATE INDEX idx_owners_clinic_id ON owners(clinic_id);
 CREATE INDEX idx_pets_clinic_id ON pets(clinic_id);
 
 -- 診療テーブル clinic_id
-CREATE INDEX idx_medical_records_clinic_id ON medical_records(clinic_id);
 CREATE INDEX idx_appointments_clinic_id ON appointments(clinic_id);
 CREATE INDEX idx_hospitalizations_clinic_id ON hospitalizations(clinic_id);
 CREATE INDEX idx_trimming_records_clinic_id ON trimming_records(clinic_id);
 CREATE INDEX idx_billings_clinic_id ON billings(clinic_id);
 CREATE INDEX idx_shift_entries_clinic_id ON shift_entries(clinic_id);
-CREATE INDEX idx_estimates_clinic_id ON estimates(clinic_id);
 
 -- merchandise_items インデックス
 CREATE INDEX idx_merchandise_items_clinic ON merchandise_items(clinic_id) WHERE deleted_at IS NULL;
@@ -1415,14 +1401,12 @@ CREATE INDEX idx_hospitalizations_pet_id ON hospitalizations(pet_id);
 CREATE INDEX idx_hospitalizations_owner_id ON hospitalizations(owner_id);
 CREATE INDEX idx_hospitalizations_cage_id ON hospitalizations(cage_id);
 CREATE INDEX idx_care_plan_items_hospitalization_id ON care_plan_items(hospitalization_id);
-CREATE INDEX idx_daily_records_hospitalization_id ON daily_records(hospitalization_id);
 
 -- billing 子テーブル FK インデックス
 CREATE INDEX idx_billing_items_billing_id ON billing_items(billing_id);
 CREATE INDEX idx_billing_items_deleted_at ON billing_items(deleted_at);
 CREATE INDEX idx_billings_pet_id ON billings(pet_id);
 CREATE INDEX idx_billings_owner_id ON billings(owner_id);
-CREATE INDEX idx_billings_medical_record_id ON billings(medical_record_id);
 
 CREATE INDEX idx_billing_refunds_billing ON billing_refunds(billing_id);
 CREATE INDEX idx_billing_refunds_clinic_billing ON billing_refunds(clinic_id, billing_id);
@@ -1451,7 +1435,6 @@ CREATE INDEX idx_billing_confirmations_status ON billing_confirmations(status);
 -- 4.5 全文検索インデックス（pg_trgm GIN）
 -- -----------------------------------------------------------------------------
 CREATE INDEX idx_owners_name_trgm ON owners USING gin (name gin_trgm_ops) WHERE deleted_at IS NULL;
-CREATE INDEX idx_owners_name_kana_trgm ON owners USING gin (name_kana gin_trgm_ops) WHERE deleted_at IS NULL;
 CREATE INDEX idx_pets_name_trgm ON pets USING gin (name gin_trgm_ops) WHERE deleted_at IS NULL;
 
 -- -----------------------------------------------------------------------------
@@ -1525,7 +1508,6 @@ CREATE INDEX idx_owners_phone_trgm ON owners USING gin (phone gin_trgm_ops) WHER
 CREATE INDEX idx_inventory_items_category ON inventory_items(category) WHERE deleted_at IS NULL;
 
 -- 追加FKインデックス
--- Deleted: idx_user_accounts_staff_id, idx_user_accounts_job_title_id (user_accounts table removed)
 CREATE INDEX idx_staffs_occupation_id ON staffs(occupation_id);
 CREATE INDEX idx_pets_animal_species_id ON pets(animal_species_id);
 CREATE INDEX idx_pets_insurance_id ON pets(insurance_id) WHERE insurance_id IS NOT NULL;
@@ -1547,7 +1529,6 @@ CREATE INDEX idx_exams_clinic_id ON exams(clinic_id);
 CREATE INDEX idx_daily_records_clinic_id ON daily_records(clinic_id);
 
 -- マスタテーブル重複登録防止（同一クリニック内で同名マスタを防ぐ）
--- Deleted: idx_staffs_clinic_name (staffs no longer has clinic_id directly)
 CREATE UNIQUE INDEX idx_exam_types_clinic_name ON exam_types(clinic_id, name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_vaccines_clinic_name ON vaccines(clinic_id, name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_medicines_clinic_name ON medicines(clinic_id, name) WHERE is_active = true;
@@ -1596,7 +1577,6 @@ COMMENT ON TABLE checkup_types IS '健診種別マスタ';
 COMMENT ON TABLE chief_complaint_types IS '主訴区分マスタ';
 COMMENT ON TABLE inquiry_templates IS '問診定型文マスタ';
 COMMENT ON TABLE pets IS 'ペット情報';
--- Deleted: COMMENT ON TABLE user_clinic_memberships, permission_groups, permission_group_rules, user_permission_groups
 COMMENT ON TABLE appointments IS '予約';
 COMMENT ON TABLE hospitalizations IS '入院・ホテル管理';
 COMMENT ON TABLE trimming_records IS 'トリミング記録';
@@ -1765,7 +1745,6 @@ CREATE TABLE shift_templates (
 
 -- 部分 UNIQUE インデックス（WHERE 句は CREATE UNIQUE INDEX で記述する必要がある）
 CREATE UNIQUE INDEX uk_shift_templates_clinic_name ON shift_templates(clinic_id, name) WHERE deleted_at IS NULL;
-CREATE INDEX idx_shift_templates_clinic ON shift_templates(clinic_id) WHERE deleted_at IS NULL;
 
 -- ------------------------------------
 -- 68. shift_template_breaks（シフトテンプレートの休憩時間）

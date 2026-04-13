@@ -67,10 +67,6 @@ const deleteInsurance = async (id: string): Promise<void> => {
   await axios.delete(`/v1/masters/insurances/${id}`);
 };
 
-const reorderInsurances = async (req: { ids: number[] }): Promise<void> => {
-  await axios.patch("/v1/masters/insurances/reorder", req);
-};
-
 // ─────────────────────────────────────────────────
 // Query hooks
 // ─────────────────────────────────────────────────
@@ -118,13 +114,3 @@ export const useDeleteInsurance = () => {
   });
 };
 
-export const useReorderInsurances = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: reorderInsurances,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masters", "insurances"] });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-};

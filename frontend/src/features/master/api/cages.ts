@@ -64,16 +64,6 @@ export const getCageById = async (id: string): Promise<Cage> => {
   return transformCage(data);
 };
 
-export const useGetCageById = (id: string) => {
-  return useQuery({
-    queryKey: ["masters", "cages", id],
-    queryFn: () => getCageById(id),
-    enabled: !!id,
-    staleTime: QUERY_STALE_TIMES.STATIC,
-    gcTime: QUERY_GC_TIMES.LONG,
-  });
-};
-
 export const createCage = async (req: CreateCageRequest): Promise<Cage> => {
   const { data } = await axios.post<ModelCage>("/v1/masters/cages", req);
   return transformCage(data);
