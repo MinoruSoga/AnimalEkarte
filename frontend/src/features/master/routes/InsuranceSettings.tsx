@@ -1,5 +1,6 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { Shield } from "lucide-react";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -25,8 +26,8 @@ const COLUMNS = [
 interface InsuranceFormData { name: string; description: string; coverageRate: string; contactPhone: string; isActive: boolean; }
 
 const InsuranceSidePanel = memo(function InsuranceSidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly,
-}: { item: Insurance | null; onClose: () => void; onSave: (d: InsuranceFormData) => void; onDeleteRequest?: (i: Insurance) => void; readOnly?: boolean; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
+}: { item: Insurance | null; onClose: () => void; onSave: (d: InsuranceFormData) => void; onDeleteRequest?: (i: Insurance) => void; readOnly?: boolean; onDirtyChange?: (dirty: boolean) => void; }) {
   const [f, setF] = useState<InsuranceFormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "",
     coverageRate: item?.coverageRate != null ? String(item.coverageRate) : "0",
@@ -34,6 +35,9 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -107,7 +111,9 @@ export function InsuranceSettings() {
   const createMutation = useCreateInsurance();
   const updateMutation = useUpdateInsurance();
   const deleteMutation = useDeleteInsurance();
-  const crud = useMasterCRUD<Insurance>({ data, deleteMutation, entityLabel: "保険" });
+  const dirty = useSidePeekDirty();
+  const crud = useMasterCRUD<Insurance>({ data, deleteMutation, entityLabel: "保険", dirtyGuard: dirty });
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
   const { handleSave } = useMasterSave<Insurance, InsuranceFormData, CreateInsuranceRequest, UpdateInsuranceRequest>({
     crud, createMutation, updateMutation,
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
@@ -137,7 +143,7 @@ export function InsuranceSettings() {
           <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}
-      renderSidePanel={(props) => <InsuranceSidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={(props) => <InsuranceSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
     />
   );
 }

@@ -1,5 +1,6 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { Bed } from "lucide-react";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell } from "@/components/ui/table";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
@@ -30,8 +31,8 @@ const BILLING_UNIT_SELECT_ITEMS = BILLING_UNIT_OPTIONS.map((o) => <SelectItem ke
 interface HospitalizationFormData { name: string; price: number; description: string; isActive: boolean; bodySize: BodySize | ""; billingUnit: BillingUnit | ""; taxType: TaxType; taxRate: number; }
 
 const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly,
-}: { item: HospitalizationPlan | null; onClose: () => void; onSave: (d: HospitalizationFormData) => void; onDeleteRequest?: (i: HospitalizationPlan) => void; readOnly?: boolean; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
+}: { item: HospitalizationPlan | null; onClose: () => void; onSave: (d: HospitalizationFormData) => void; onDeleteRequest?: (i: HospitalizationPlan) => void; readOnly?: boolean; onDirtyChange?: (dirty: boolean) => void; }) {
   const [f, setF] = useState<HospitalizationFormData>(() => ({
     name: item?.name ?? "", price: item?.price ?? 0, description: item?.description ?? "",
     isActive: item?.isActive ?? true, bodySize: item?.bodySize ?? "", billingUnit: item?.billingUnit ?? "",
@@ -39,6 +40,9 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -143,7 +147,9 @@ export function HospitalizationSettings() {
   const createMutation = useCreateHospitalizationPlan();
   const updateMutation = useUpdateHospitalizationPlan();
   const deleteMutation = useDeleteHospitalizationPlan();
-  const crud = useMasterCRUD<HospitalizationPlan>({ data, deleteMutation, entityLabel: "入院プラン" });
+  const dirty = useSidePeekDirty();
+  const crud = useMasterCRUD<HospitalizationPlan>({ data, deleteMutation, entityLabel: "入院プラン", dirtyGuard: dirty });
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
   const { handleSave } = useMasterSave<HospitalizationPlan, HospitalizationFormData, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest>({
     crud, createMutation, updateMutation,
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
@@ -174,7 +180,7 @@ export function HospitalizationSettings() {
           <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}
-      renderSidePanel={(props) => <HospitalizationSidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={(props) => <HospitalizationSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
     />
   );
 }

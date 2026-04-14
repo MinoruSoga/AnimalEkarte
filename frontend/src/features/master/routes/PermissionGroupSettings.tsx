@@ -1,7 +1,8 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Lock } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -68,6 +69,7 @@ interface PermissionGroupSidePanelProps {
   onSave: (d: PermissionGroupFormData) => void;
   onDeleteRequest?: (i: PermissionGroup) => void;
   readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
@@ -76,6 +78,7 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
   onSave,
   onDeleteRequest,
   readOnly,
+  onDirtyChange,
 }: PermissionGroupSidePanelProps) {
   const isNew = item === null;
 
@@ -94,6 +97,9 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   // ── Handlers ─────────────────────────────────────
   const handleSave = useCallback(() => {
@@ -225,6 +231,7 @@ export function PermissionGroupSettings() {
   const setRulesMutation = useSetPermissionGroupRules();
   const reorderMutation = useReorderPermissionGroups();
 
+  const dirty = useSidePeekDirty();
   const crud = useMasterCRUD<PermissionGroup>({
     data,
     deleteMutation,
@@ -242,7 +249,9 @@ export function PermissionGroupSettings() {
       }
       return true;
     },
+    dirtyGuard: dirty,
   });
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: crud.filteredItems,
@@ -315,6 +324,7 @@ export function PermissionGroupSettings() {
           onSave={onSave}
           onDeleteRequest={onDeleteRequest}
           readOnly={readOnly}
+          onDirtyChange={handleDirtyChange}
         />
       )}
     >

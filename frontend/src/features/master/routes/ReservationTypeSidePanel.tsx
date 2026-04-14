@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { Activity, MessageCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,7 +35,7 @@ export interface CategoryFormData {
 export interface GroupOption { id: string; name: string; color: string; }
 
 export const CategorySidePanel = memo(function CategorySidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly, groups, defaultGroupId,
+  item, onClose, onSave, onDeleteRequest, readOnly, groups, defaultGroupId, onDirtyChange,
 }: {
   item: ReservationType | null;
   onClose: () => void;
@@ -44,6 +44,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
   readOnly?: boolean;
   groups: GroupOption[];
   defaultGroupId?: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [f, setF] = useState<CategoryFormData>(() => ({
     name: item?.name ?? "",
@@ -62,6 +63,9 @@ export const CategorySidePanel = memo(function CategorySidePanel({
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));

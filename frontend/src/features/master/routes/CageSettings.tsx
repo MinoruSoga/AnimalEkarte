@@ -1,7 +1,8 @@
-import { useState, memo, useCallback } from "react";
+import { useState, memo, useCallback, useEffect } from "react";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Plus, Building2, GripVertical } from "lucide-react";
 import { Table, TableBody, TableHeader, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -38,14 +39,17 @@ interface CageFormData { name: string; cageType: CageType; cageSize: CageSize; p
 
 // ─── SidePanel ───
 const CageSidePanel = memo(function CageSidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly,
-}: { item: Cage | null; onClose: () => void; onSave: (d: CageFormData) => void; onDeleteRequest?: (i: Cage) => void; readOnly?: boolean; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
+}: { item: Cage | null; onClose: () => void; onSave: (d: CageFormData) => void; onDeleteRequest?: (i: Cage) => void; readOnly?: boolean; onDirtyChange?: (dirty: boolean) => void; }) {
   const [f, setF] = useState<CageFormData>(() => ({
     name: item?.name ?? "", cageType: item?.cageType ?? "general", cageSize: item?.cageSize ?? "medium",
     price: item?.price ?? 0, description: item?.description ?? "", isActive: item?.isActive ?? true,
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -158,7 +162,9 @@ export function CageSettings() {
   const deleteMutation = useDeleteCage();
   const reorderMutation = useReorderCages();
 
-  const crud = useMasterCRUD<Cage>({ data, deleteMutation, entityLabel: "ケージ" });
+  const dirty = useSidePeekDirty();
+  const crud = useMasterCRUD<Cage>({ data, deleteMutation, entityLabel: "ケージ", dirtyGuard: dirty });
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   const { orderedItems: sortedCages, sensors, activeId, handleDragStart, handleDragCancel, handleDragEnd, resetOrder } =
     useSortableList({
@@ -186,7 +192,7 @@ export function CageSettings() {
       crud={crud} handleSave={handleSave}
       filterProperties={[MASTER_STATUS_FILTER]}
       columns={[]} renderRow={() => null}
-      renderSidePanel={({ readOnly, ...props }) => <CageSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />}
+      renderSidePanel={({ readOnly, ...props }) => <CageSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} onDirtyChange={handleDirtyChange} />}
     >
       <div className={STYLE.tableContainer}>
         <div className="flex-1 overflow-auto relative">

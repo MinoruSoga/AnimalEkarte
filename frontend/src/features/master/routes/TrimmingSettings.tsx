@@ -1,8 +1,9 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
+import { useState, useMemo, useCallback, memo, useDeferredValue, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { ResourceMasterTrimming } from "@/types/generated/models";
 import { usePermission } from "@/features/auth";
 
@@ -114,6 +115,7 @@ interface TrimmingCourseSidePanelProps {
   onSave: (data: CourseFormData) => void;
   onDeleteRequest?: (item: TrimmingCourse) => void;
   readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
@@ -122,6 +124,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
   onSave,
   onDeleteRequest,
   readOnly,
+  onDirtyChange,
 }: TrimmingCourseSidePanelProps) {
   const [formData, setFormData] = useState<CourseFormData>(() => ({
     name: item?.name ?? "",
@@ -132,6 +135,17 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
     isActive: item?.isActive ?? true,
   }));
   const [nameError, setNameError] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+
+  // dirty を自動的にマークする setFormData ラッパ
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
+
   const handleAction = () => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
@@ -139,13 +153,14 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
     }
     setNameError("");
     onSave(formData);
+    setIsDirty(false);
   };
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
+      onTitleChange={(v) => { setFormDataDirty((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
       action={readOnly ? undefined : handleAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
@@ -158,7 +173,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         <button
           type="button"
           onClick={() =>
-            setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
+            setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))
           }
           className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
@@ -187,7 +202,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         <PropertyInput
           type="number"
           value={formData.duration}
-          onChange={(v) => setFormData((prev) => ({ ...prev, duration: v }))}
+          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, duration: v }))}
           placeholder="90"
         />
       </PropertyRow>
@@ -201,7 +216,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
             className={`w-32 bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
             value={formData.price}
             onChange={(e) =>
-              setFormData((prev) => ({ ...prev, price: e.target.value }))
+              setFormDataDirty((prev) => ({ ...prev, price: e.target.value }))
             }
             placeholder="0"
           />
@@ -212,7 +227,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         <PropertyInput
           value={formData.description}
           onChange={(v) =>
-            setFormData((prev) => ({ ...prev, description: v }))
+            setFormDataDirty((prev) => ({ ...prev, description: v }))
           }
           placeholder="補足情報など"
         />
@@ -318,6 +333,7 @@ interface TrimmingOptionSidePanelProps {
   onSave: (data: OptionFormData) => void;
   onDeleteRequest?: (item: TrimmingOption) => void;
   readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
@@ -326,6 +342,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
   onSave,
   onDeleteRequest,
   readOnly,
+  onDirtyChange,
 }: TrimmingOptionSidePanelProps) {
   const [formData, setFormData] = useState<OptionFormData>(() => ({
     name: item?.name ?? "",
@@ -336,6 +353,15 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
     isActive: item?.isActive ?? true,
   }));
   const [nameError, setNameError] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
+
   const handleAction = () => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
@@ -343,13 +369,14 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
     }
     setNameError("");
     onSave(formData);
+    setIsDirty(false);
   };
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
+      onTitleChange={(v) => { setFormDataDirty((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
       action={readOnly ? undefined : handleAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
@@ -362,7 +389,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
         <button
           type="button"
           onClick={() =>
-            setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
+            setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))
           }
           className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
@@ -374,7 +401,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
         <PropertyInput
           type="number"
           value={formData.duration}
-          onChange={(v) => setFormData((prev) => ({ ...prev, duration: v }))}
+          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, duration: v }))}
           placeholder="30"
         />
       </PropertyRow>
@@ -383,7 +410,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
         <button
           type="button"
           onClick={() =>
-            setFormData((prev) => ({ ...prev, combinable: !prev.combinable }))
+            setFormDataDirty((prev) => ({ ...prev, combinable: !prev.combinable }))
           }
           className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
@@ -400,7 +427,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
             className={`w-32 bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
             value={formData.price}
             onChange={(e) =>
-              setFormData((prev) => ({ ...prev, price: e.target.value }))
+              setFormDataDirty((prev) => ({ ...prev, price: e.target.value }))
             }
             placeholder="0"
           />
@@ -411,7 +438,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
         <PropertyInput
           value={formData.description}
           onChange={(v) =>
-            setFormData((prev) => ({ ...prev, description: v }))
+            setFormDataDirty((prev) => ({ ...prev, description: v }))
           }
           placeholder="補足情報など"
         />
@@ -516,16 +543,22 @@ export function TrimmingSettings() {
   const updateOptionMutation = useUpdateTrimmingOption();
   const deleteOptionMutation = useDeleteTrimmingOption();
 
+  // BUG-380: タブ間共有の未保存ガード
+  const dirty = useSidePeekDirty();
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+
   const courseCrud = useMasterCRUD<TrimmingCourse>({
     data: undefined,
     deleteMutation: deleteCourseMutation,
     entityLabel: "トリミングコース",
+    dirtyGuard: dirty,
   });
 
   const optionCrud = useMasterCRUD<TrimmingOption>({
     data: undefined,
     deleteMutation: deleteOptionMutation,
     entityLabel: "トリミングオプション",
+    dirtyGuard: dirty,
   });
 
   // rerender-dependencies: destructure methods to avoid object reference instability in useCallback deps
@@ -541,12 +574,14 @@ export function TrimmingSettings() {
   const optionHandleClose = optionCrud.handleClose;
 
   const handleTabChange = useCallback((tab: string) => {
+    // BUG-380: タブ切替前に未保存破棄を確認
+    if (!dirty.confirmDiscard()) return;
     setSearchParams({ tab });
     courseSetEditTarget(null);
     optionSetEditTarget(null);
     courseSetPendingDelete(null);
     optionSetPendingDelete(null);
-  }, [setSearchParams, courseSetEditTarget, optionSetEditTarget, courseSetPendingDelete, optionSetPendingDelete]);
+  }, [setSearchParams, courseSetEditTarget, optionSetEditTarget, courseSetPendingDelete, optionSetPendingDelete, dirty]);
 
   const handleCourseSave = useCallback(
     (data: CourseFormData) => {
@@ -689,6 +724,7 @@ export function TrimmingSettings() {
             onSave={handleCourseSave}
             onDeleteRequest={canDelete ? courseCrud.setPendingDelete : undefined}
             readOnly={!canEdit}
+            onDirtyChange={handleDirtyChange}
           />
         ) : null}
         {activeTab === "option" && optionCrud.isEditing === true ? (
@@ -699,6 +735,7 @@ export function TrimmingSettings() {
             onSave={handleOptionSave}
             onDeleteRequest={canDelete ? optionCrud.setPendingDelete : undefined}
             readOnly={!canEdit}
+            onDirtyChange={handleDirtyChange}
           />
         ) : null}
       </div>

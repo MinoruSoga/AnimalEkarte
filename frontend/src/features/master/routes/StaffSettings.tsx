@@ -1,5 +1,6 @@
-import { memo, useState, useMemo, useCallback } from "react";
+import { memo, useState, useMemo, useCallback, useEffect } from "react";
 import { UserRound, Shield, Building2, MessageCircle, Ban } from "lucide-react";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Switch } from "@/components/ui/switch";
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -89,6 +90,7 @@ interface StaffSidePanelProps {
   onSave: (d: StaffFormData) => void;
   onDeleteRequest?: (i: Staff) => void;
   readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
   /** All occupations (職種) available in this clinic */
   allOccupations: Occupation[];
   /** All permission groups available in this clinic */
@@ -111,6 +113,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
   onSave,
   onDeleteRequest,
   readOnly,
+  onDirtyChange,
   allOccupations,
   allGroups,
   onSaveGroups,
@@ -137,6 +140,9 @@ const StaffSidePanel = memo(function StaffSidePanel({
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   // ── Occupation select items (memoized) ────────────
   const occupationSelectItems = useMemo(
@@ -592,6 +598,7 @@ export function StaffSettings() {
     [allOccupations],
   );
 
+  const dirty = useSidePeekDirty();
   const crud = useMasterCRUD<Staff>({
     data,
     deleteMutation,
@@ -613,7 +620,9 @@ export function StaffSettings() {
       }
       return true;
     },
+    dirtyGuard: dirty,
   });
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   const { handleSave } = useMasterSave<Staff, StaffFormData, CreateStaffRequest, UpdateStaffRequest>({
     crud,
@@ -740,6 +749,7 @@ export function StaffSettings() {
           onSave={onSave}
           onDeleteRequest={onDeleteRequest}
           readOnly={readOnly}
+          onDirtyChange={handleDirtyChange}
           allOccupations={allOccupations}
           allGroups={allGroups}
           onSaveGroups={handleSaveGroups}

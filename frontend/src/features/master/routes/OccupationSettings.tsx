@@ -1,5 +1,6 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { Briefcase } from "lucide-react";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -31,13 +32,14 @@ interface OccupationFormData {
 
 // ─── SidePanel ───
 const OccupationSidePanel = memo(function OccupationSidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly,
+  item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
 }: {
   item: Occupation | null;
   onClose: () => void;
   onSave: (d: OccupationFormData) => void;
   onDeleteRequest?: (i: Occupation) => void;
   readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [f, setF] = useState<OccupationFormData>(() => ({
     name: item?.name ?? "",
@@ -46,6 +48,9 @@ const OccupationSidePanel = memo(function OccupationSidePanel({
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -107,7 +112,9 @@ export function OccupationSettings() {
   const updateMutation = useUpdateOccupation();
   const deleteMutation = useDeleteOccupation();
 
-  const crud = useMasterCRUD<Occupation>({ data, deleteMutation, entityLabel: "職種" });
+  const dirty = useSidePeekDirty();
+  const crud = useMasterCRUD<Occupation>({ data, deleteMutation, entityLabel: "職種", dirtyGuard: dirty });
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   const { handleSave } = useMasterSave<Occupation, OccupationFormData, CreateOccupationRequest, UpdateOccupationRequest>({
     crud,
@@ -138,7 +145,7 @@ export function OccupationSettings() {
           <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}
-      renderSidePanel={(props) => <OccupationSidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={(props) => <OccupationSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
     />
   );
 }

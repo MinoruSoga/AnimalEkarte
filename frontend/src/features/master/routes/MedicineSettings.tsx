@@ -3,6 +3,7 @@ import { useState, useMemo, useCallback, useDeferredValue, useTransition, memo, 
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 
 // DnD
 import { DndContext, DragOverlay, closestCenter, type DragEndEvent } from "@dnd-kit/core";
@@ -601,12 +602,17 @@ export function MedicineSettings() {
     [orderedMedicinesById, updateMutation, handleFlatSortDragEnd],
   );
 
+  // BUG-380: 未保存破棄ガード
+  const dirty = useSidePeekDirty();
+
   const handleCloseEdit = useCallback(() => {
+    if (!dirty.confirmDiscard()) return;
     setEditTarget(null);
     setFormData(INITIAL_FORM);
-  }, []);
+  }, [dirty]);
 
   const handleEdit = useCallback((medicine: Medicine) => {
+    if (!dirty.confirmDiscard()) return;
     setEditTarget(medicine);
     setFormData({
       name: medicine.name,
@@ -619,19 +625,21 @@ export function MedicineSettings() {
       taxType: medicine.taxType ?? "excluded",
       taxRate: medicine.taxRate ?? 0.1,
     });
-  }, []);
+  }, [dirty]);
 
   const handleCreate = useCallback((parentId?: string) => {
+    if (!dirty.confirmDiscard()) return;
     setEditTarget("new");
     setFormData({
       ...INITIAL_FORM,
       parentId: parentId !== "uncategorized" ? (parentId ?? "") : "",
     });
-  }, []);
+  }, [dirty]);
 
   const updateForm = useCallback((updates: Partial<MedicineFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
-  }, []);
+    dirty.markDirty();
+  }, [dirty]);
 
   const [, startSaveTransition] = useTransition();
 
@@ -663,6 +671,7 @@ export function MedicineSettings() {
           {
             onSuccess: () => {
               toast.success("更新しました");
+              dirty.markClean();
               handleCloseEdit();
             },
             onError: (error) => handleApiError(error, "更新"),
@@ -683,13 +692,14 @@ export function MedicineSettings() {
         createMutation.mutate(req, {
           onSuccess: () => {
             toast.success("登録しました");
+            dirty.markClean();
             handleCloseEdit();
           },
           onError: (error) => handleApiError(error, "登録"),
         });
       }
     });
-  }, [formData, selectedMedicine, updateMutation, createMutation, handleCloseEdit]);
+  }, [formData, selectedMedicine, updateMutation, createMutation, handleCloseEdit, dirty]);
 
   const handleDeleteRequest = useCallback(() => {
     if (!selectedMedicine) return;

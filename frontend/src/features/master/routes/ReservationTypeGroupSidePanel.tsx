@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { Layers } from "lucide-react";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, PALETTE } from "@/lib/design-tokens";
@@ -11,13 +11,14 @@ export interface GroupFormData {
 }
 
 export const GroupSidePanel = memo(function GroupSidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly,
+  item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
 }: {
   item: ReservationTypeGroup | null;
   onClose: () => void;
   onSave: (d: GroupFormData) => void;
   onDeleteRequest?: (i: ReservationTypeGroup) => void;
   readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [f, setF] = useState<GroupFormData>(() => ({
     name: item?.name ?? "",
@@ -26,6 +27,9 @@ export const GroupSidePanel = memo(function GroupSidePanel({
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));

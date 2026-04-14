@@ -1,7 +1,8 @@
-import { useState, memo, useCallback } from "react";
+import { useState, memo, useCallback, useEffect } from "react";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Plus, ShoppingBag, GripVertical } from "lucide-react";
 import { Table, TableBody, TableHeader, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -59,12 +60,14 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
   onSave,
   onDeleteRequest,
   readOnly,
+  onDirtyChange,
 }: {
   item: FrontendMerchandiseItem | null;
   onClose: () => void;
   onSave: (d: MerchandiseFormData) => void;
   onDeleteRequest?: (i: FrontendMerchandiseItem) => void;
   readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [f, setF] = useState<MerchandiseFormData>(() => ({
     name: item?.name ?? "",
@@ -76,6 +79,9 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -215,11 +221,14 @@ export function MerchandiseItemSettings() {
   const deleteMutation = useDeleteMerchandiseItem();
   const reorderMutation = useReorderMerchandiseItems();
 
+  const dirty = useSidePeekDirty();
   const crud = useMasterCRUD<FrontendMerchandiseItem>({
     data,
     deleteMutation,
     entityLabel: "品目",
+    dirtyGuard: dirty,
   });
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   const {
     orderedItems: sortedItems,
@@ -281,7 +290,7 @@ export function MerchandiseItemSettings() {
       columns={[]}
       renderRow={() => null}
       renderSidePanel={({ readOnly, ...props }) => (
-        <MerchandiseSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />
+        <MerchandiseSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} onDirtyChange={handleDirtyChange} />
       )}
     >
       <div className={STYLE.tableContainer}>
