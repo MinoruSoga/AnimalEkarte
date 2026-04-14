@@ -23,6 +23,9 @@ const meClinicInfoSchema = z.object({
   email: z.string().default(""),
   website: z.string().default(""),
   logo_url: z.string().nullable().default(null),
+  // BUG-367: インボイス帳票用
+  standard_tax_rate: z.number().default(0.1),
+  reduced_tax_rate: z.number().default(0.08),
 });
 
 const resourcePermissionSchema = z.object({
@@ -63,6 +66,8 @@ function mapMeClinicInfo(raw: z.infer<typeof meClinicInfoSchema>): AuthClinic {
     email: raw.email,
     website: raw.website,
     logoUrl: raw.logo_url,
+    standardTaxRate: raw.standard_tax_rate,
+    reducedTaxRate: raw.reduced_tax_rate,
   };
 }
 

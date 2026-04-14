@@ -65,6 +65,8 @@ func buildMeResponse(staff *model.Staff, account *model.Account, mainClinicID st
 			Email:              cl.Email,
 			Website:            cl.Website,
 			LogoURL:            logoURL,
+			StandardTaxRate:    cl.StandardTaxRate,
+			ReducedTaxRate:     cl.ReducedTaxRate,
 		}
 		break
 	}

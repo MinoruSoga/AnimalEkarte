@@ -1,10 +1,10 @@
 // React/Framework
 import { ICON, C, LAYOUT } from "@/lib/design-tokens";
-import { useState, useMemo, useCallback, memo, useTransition, useDeferredValue, useActionState, useEffect } from "react";
+import { useState, useMemo, useCallback, memo, useTransition, useDeferredValue, useActionState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
-import { Plus, Save, CreditCard, Printer, FileText, RotateCcw } from "lucide-react";
+import { Plus, Save, CreditCard, Printer, RotateCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -43,6 +43,8 @@ import { queryKeys } from "@/lib/query-keys";
 import { handleApiError } from "@/lib/handle-api-error";
 import { calculateBillingTotals } from "@/lib/calculations";
 import { AccountingDocument } from "../components/AccountingDocument";
+import { cancelAccounting } from "../api/cancel-accounting";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { paths } from "@/config/paths";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
@@ -605,15 +607,15 @@ const PaymentCard = memo(function PaymentCard({
           <SubmitButton
             className="w-full h-14 text-lg font-bold mt-4"
             size="lg"
+            // BUG-371: 完了済でも edit 権限があれば修正保存可能。isCompleted は非 disable
             disabled={
               changeAmount < 0 ||
-              !receivedAmount ||
-              isCompleted
+              !receivedAmount
             }
             loadingText="処理中..."
           >
             <Save className={`mr-2 ${ICON.action}`} />
-            {isCompleted ? "精算完了済み" : "会計を確定する"}
+            {isCompleted ? "修正を保存する" : "会計を確定する"}
           </SubmitButton>
         ) : null}
       </CardContent>
@@ -878,9 +880,16 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const [newItemOpen, setNewItemOpen] = useState(false);
   const [isRefunding, startRefundTransition] = useTransition();
 
-  // Document Preview State
+  // BUG-367: 明細兼領収書プレビュー State（旧 previewType 廃止）
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewType, setPreviewType] = useState<"receipt" | "statement">("receipt");
+
+  // BUG-371: 精算済会計の修正確認 / キャンセル確認 モーダル状態
+  const [editConfirmOpen, setEditConfirmOpen] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [isCancelling, startCancelTransition] = useTransition();
+  // editConfirmedRef: 確認モーダル OK 後の formAction 再実行用フラグ
+  const editConfirmedRef = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   interface FormState {
     success: boolean;
@@ -893,6 +902,14 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const [formState, formAction, _isPending] = useActionState(
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
       if (!accounting || !calculation) return { success: false, timestamp: Date.now() };
+
+      // BUG-371: 精算済会計の修正時は確認モーダル経由を強制
+      // editConfirmed フラグが未設定の場合はモーダルを出して処理を中断
+      if (accounting.status === "completed" && !editConfirmedRef.current) {
+        setEditConfirmOpen(true);
+        return { success: false, timestamp: Date.now() };
+      }
+      editConfirmedRef.current = false;
 
       const paymentInfo: PaymentInfo = {
         subtotal: calculation.subtotal,
@@ -1089,17 +1106,33 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     setPaymentMethod(v as PaymentMethod);
   }, []);
 
-  const handlePrint = useCallback((type: "receipt" | "statement") => {
-    setPreviewType(type);
+  const handlePrint = useCallback(() => {
     setPreviewOpen(true);
   }, []);
+
+  // BUG-371: 会計キャンセル（論理削除）実行
+  const handleCancelConfirm = useCallback(() => {
+    if (!id) return;
+    startCancelTransition(async () => {
+      try {
+        await cancelAccounting(id);
+        toast.success("会計をキャンセルしました");
+        await queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
+        navigate(paths.accounting.getHref());
+      } catch (error) {
+        handleApiError(error, "会計のキャンセル");
+      } finally {
+        setCancelConfirmOpen(false);
+      }
+    });
+  }, [id, queryClient, navigate]);
 
   if (id && isLoading) return <LoadingFallback />;
   if (!accounting || !calculation) return <ErrorFallback message="データが見つかりません" />;
 
   return (
     <>
-    <form action={formAction}>
+    <form ref={formRef} action={formAction}>
       <PageLayout
         className="print:hidden"
         title="会計精算"
@@ -1109,14 +1142,21 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
         headerAction={
           accounting.status === "completed" ? (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => handlePrint("statement")}>
-                <FileText className={`mr-2 ${ICON.action}`} />
-                診療明細書
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handlePrint("receipt")}>
+              <Button variant="outline" size="sm" onClick={handlePrint}>
                 <Printer className={`mr-2 ${ICON.action}`} />
-                領収書発行
+                明細兼領収書
               </Button>
+              {canDelete ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCancelConfirmOpen(true)}
+                  className={C.danger}
+                  disabled={isCancelling}
+                >
+                  会計をキャンセル
+                </Button>
+              ) : null}
             </div>
           ) : undefined
         }
@@ -1182,16 +1222,13 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
         <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
           <DialogContent className="max-w-4xl h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
-              <DialogTitle>
-                {previewType === "receipt" ? "領収書プレビュー" : "診療明細書プレビュー"}
-              </DialogTitle>
+              <DialogTitle>明細兼領収書プレビュー</DialogTitle>
               <DialogDescription>印刷イメージを確認できます。</DialogDescription>
             </DialogHeader>
             <div className={`flex-1 ${C.bgActive} overflow-auto p-8 flex items-center justify-center`}>
               <div className="shadow-lg transform scale-100 origin-top">
                 {accounting.payment ? (
                   <AccountingDocument
-                    type={previewType}
                     accounting={accounting}
                     paymentInfo={accounting.payment}
                     clinic={clinicForDocument}
@@ -1210,6 +1247,36 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* BUG-371: 精算済修正の確認モーダル */}
+        <ConfirmDialog
+          open={editConfirmOpen}
+          onClose={() => setEditConfirmOpen(false)}
+          title="精算済みの会計を修正します"
+          description="この操作は会計データに変更を加えます。よろしいですか?"
+          confirmLabel="修正する"
+          cancelLabel="キャンセル"
+          onConfirm={() => {
+            editConfirmedRef.current = true;
+            setEditConfirmOpen(false);
+            requestAnimationFrame(() => {
+              formRef.current?.requestSubmit();
+            });
+          }}
+        />
+
+        {/* BUG-371: 会計キャンセル確認モーダル */}
+        <ConfirmDialog
+          open={cancelConfirmOpen}
+          onClose={() => setCancelConfirmOpen(false)}
+          title="この会計をキャンセルします"
+          description="元に戻せません。キャンセルされた会計はステータスが「cancelled」になります。"
+          confirmLabel="キャンセルする"
+          cancelLabel="戻る"
+          variant="destructive"
+          isPending={isCancelling}
+          onConfirm={handleCancelConfirm}
+        />
       </PageLayout>
     </form>
 
@@ -1224,7 +1291,6 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
           </style>
           <div className="p-8">
             <AccountingDocument
-              type={previewType}
               accounting={accounting}
               paymentInfo={accounting.payment}
               clinic={clinicForDocument}

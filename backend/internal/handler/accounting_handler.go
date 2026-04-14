@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -148,6 +149,17 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		return
 	}
 
+	// BUG-372: discount_amount にゼロ以外を指定する場合は discount:edit 権限要
+	// Payment 既存値取得用リポジトリが未整備のため、ゼロ値は通過・非ゼロのみ権限チェック。
+	// ゼロ値再送（通常操作）を阻害せず、非ゼロ（値引意図）のみ保護する。
+	if input.DiscountAmount != nil && *input.DiscountAmount != 0 {
+		zero := int64(0)
+		if err := h.requireDiscountEditInt(c, input.DiscountAmount, zero); err != nil {
+			RespondError(c, err)
+			return
+		}
+	}
+
 	updateInput := service.UpdateAccountingInput{
 		ID:                id,
 		ClinicID:          clinicID,
@@ -189,7 +201,60 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 	c.JSON(http.StatusOK, toAccountingResponse(updated))
 }
 
-func (h *Handler) DeleteAccounting(c *gin.Context) {
+// ListUnpaidBillings は月末未納者一覧を返す。BUG-370
+// GET /v1/accountings/unpaid?base_date=YYYY-MM-DD&group_by=owner|billing&page=N&limit=N
+func (h *Handler) ListUnpaidBillings(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	baseDatePtr, err := parseDateQuery(c, "base_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	baseDate := time.Now().Format("2006-01-02")
+	if baseDatePtr != nil {
+		baseDate = *baseDatePtr
+	}
+
+	groupBy := c.DefaultQuery("group_by", "owner")
+	ctx := c.Request.Context()
+
+	switch groupBy {
+	case "billing":
+		billings, total, err := h.svc.Accounting.ListUnpaidByBilling(ctx, clinicID, baseDate, page, limit)
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		responses := make([]accountingResponse, 0, len(billings))
+		for i := range billings {
+			responses = append(responses, toAccountingResponse(&billings[i]))
+		}
+		c.JSON(http.StatusOK, newPaginatedResponse(responses, total, page, limit))
+	case "owner":
+		aggregates, total, summary, err := h.svc.Accounting.ListUnpaidByOwner(ctx, clinicID, baseDate, page, limit)
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, toUnpaidByOwnerResponse(aggregates, total, page, limit, summary))
+	default:
+		RespondError(c, apperrors.WrapInvalidInput("group_by must be owner or billing"))
+	}
+}
+
+// CancelAccounting は会計を論理削除（status=cancelled）する。
+// BUG-371: 旧 DeleteAccounting (ハード削除) を本メソッドに置き換え。
+// POST /accountings/:id/cancel
+func (h *Handler) CancelAccounting(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -198,7 +263,7 @@ func (h *Handler) DeleteAccounting(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.svc.Accounting.Delete(c.Request.Context(), clinicID, id); err != nil {
+	if err := h.svc.Accounting.Cancel(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

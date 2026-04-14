@@ -415,6 +415,14 @@ export const router = createBrowserRouter([
             }],
           },
           {
+            // BUG-370: 月末未納者一覧
+            path: "unpaid",
+            lazy: async () => {
+              const { UnpaidCustomerList } = await import("@/features/accounting/routes/UnpaidCustomerList");
+              return { Component: UnpaidCustomerList };
+            },
+          },
+          {
             // BUG-020: create 権限ガード
             path: "new",
             element: (

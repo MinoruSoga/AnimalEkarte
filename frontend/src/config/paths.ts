@@ -128,6 +128,11 @@ export const paths = {
       path: "/accounting/new",
       getHref: () => "/accounting/new",
     },
+    // BUG-370: 月末未納者一覧
+    unpaid: {
+      path: "/accounting/unpaid",
+      getHref: () => "/accounting/unpaid",
+    },
     detail: {
       path: "/accounting/:id",
       getHref: (id: string | number) => `/accounting/${id}`,

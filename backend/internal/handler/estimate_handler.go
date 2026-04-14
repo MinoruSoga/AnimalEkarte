@@ -89,6 +89,12 @@ func (h *Handler) CreateEstimate(c *gin.Context) {
 		return
 	}
 
+	// BUG-372: discount_amount にゼロ以外を指定する場合は権限要
+	if err := h.requireDiscountCreateInt(c, req.DiscountAmount); err != nil {
+		RespondError(c, err)
+		return
+	}
+
 	input := &service.CreateEstimateInput{
 		MedicalRecordID: req.MedicalRecordID,
 		Title:           req.Title,
@@ -132,6 +138,19 @@ func (h *Handler) UpdateEstimate(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
+	}
+
+	// BUG-372: discount_amount を変更する場合は既存値と比較し権限チェック
+	if req.DiscountAmount != nil {
+		existing, err := h.svc.Estimate.GetByID(c.Request.Context(), clinicID, id)
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		if err := h.requireDiscountEditInt(c, req.DiscountAmount, existing.DiscountAmount); err != nil {
+			RespondError(c, err)
+			return
+		}
 	}
 
 	input := &service.UpdateEstimateInput{

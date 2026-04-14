@@ -32,6 +32,9 @@ type MeClinicInfo struct {
 	Email              string  `json:"email"`
 	Website            string  `json:"website"`
 	LogoURL            *string `json:"logo_url,omitempty"`
+	// BUG-367: インボイス対応帳票用（税率別内訳計算に使用）
+	StandardTaxRate float64 `json:"standard_tax_rate"`
+	ReducedTaxRate  float64 `json:"reduced_tax_rate"`
 }
 
 // MeClinicMembership はユーザーのクリニック所属情報

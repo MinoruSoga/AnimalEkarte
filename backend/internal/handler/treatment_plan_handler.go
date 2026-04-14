@@ -51,6 +51,15 @@ func (h *Handler) CreateTreatmentPlanForMedicalRecord(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
+	// BUG-372: discount フィールドにゼロ以外を指定する場合は権限要
+	if err := h.requireDiscountCreateFloat(c, req.DiscountRate); err != nil {
+		RespondError(c, err)
+		return
+	}
+	if err := h.requireDiscountCreateInt(c, req.DiscountAmount); err != nil {
+		RespondError(c, err)
+		return
+	}
 	input := &service.CreateTreatmentPlanInput{
 		TreatmentContent: req.TreatmentContent,
 		Memo:             req.Memo,
@@ -113,6 +122,15 @@ func (h *Handler) CreateTreatmentPlanForHospitalization(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
+	// BUG-372: discount フィールドにゼロ以外を指定する場合は権限要
+	if err := h.requireDiscountCreateFloat(c, req.DiscountRate); err != nil {
+		RespondError(c, err)
+		return
+	}
+	if err := h.requireDiscountCreateInt(c, req.DiscountAmount); err != nil {
+		RespondError(c, err)
+		return
+	}
 	input := &service.CreateTreatmentPlanInput{
 		TreatmentContent: req.TreatmentContent,
 		Memo:             req.Memo,
@@ -147,6 +165,22 @@ func buildUpdateTreatmentPlanInput(req updateTreatmentPlanRequest) *service.Upda
 	}
 }
 
+// BUG-372: 既存 TreatmentPlan を取得し discount フィールド変更時の権限チェックを行う。
+// 権限 OK なら nil を返す。NG または取得エラーならその error を返す。
+func (h *Handler) checkTreatmentPlanDiscountPermission(c *gin.Context, clinicID, planID uint64, req updateTreatmentPlanRequest) error {
+	if req.DiscountRate == nil && req.DiscountAmount == nil {
+		return nil
+	}
+	existing, err := h.repos.TreatmentPlan.FindByID(c.Request.Context(), clinicID, planID)
+	if err != nil {
+		return err
+	}
+	if err := h.requireDiscountEditFloat(c, req.DiscountRate, existing.DiscountRate); err != nil {
+		return err
+	}
+	return h.requireDiscountEditInt(c, req.DiscountAmount, existing.DiscountAmount)
+}
+
 // UpdateTreatmentPlanInMedicalRecord は MedicalRecord コンテキストでのプラン更新
 // PATCH /medical-records/:id/treatment-plans/:planId
 func (h *Handler) UpdateTreatmentPlanInMedicalRecord(c *gin.Context) {
@@ -168,6 +202,10 @@ func (h *Handler) UpdateTreatmentPlanInMedicalRecord(c *gin.Context) {
 	var req updateTreatmentPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if err := h.checkTreatmentPlanDiscountPermission(c, clinicID, planID, req); err != nil {
+		RespondError(c, err)
 		return
 	}
 	plan, err := h.svc.TreatmentPlan.Update(c.Request.Context(), clinicID, planID, buildUpdateTreatmentPlanInput(req))
@@ -225,6 +263,10 @@ func (h *Handler) UpdateTreatmentPlanInHospitalization(c *gin.Context) {
 	var req updateTreatmentPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if err := h.checkTreatmentPlanDiscountPermission(c, clinicID, planID, req); err != nil {
+		RespondError(c, err)
 		return
 	}
 	plan, err := h.svc.TreatmentPlan.Update(c.Request.Context(), clinicID, planID, buildUpdateTreatmentPlanInput(req))
