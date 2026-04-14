@@ -55,6 +55,7 @@ service-account-key.json
 # Issue tracking (local only)
 frontend/issues/
 backend/issues/
+docs/tasks/
 
 # Test results
 test-results/
