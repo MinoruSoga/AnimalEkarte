@@ -66,6 +66,12 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 		return
 	}
 
+	// BUG-372: discount_rate にゼロ以外を指定する場合は権限要
+	if err := h.requireDiscountCreateFloat(c, req.DiscountRate); err != nil {
+		RespondError(c, err)
+		return
+	}
+
 	pets := make([]service.CreatePetForOwnerInput, 0, len(req.Pets))
 	for i := range req.Pets {
 		p := &req.Pets[i]
@@ -131,6 +137,19 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
+	}
+
+	// BUG-372: discount_rate を変更する場合は既存値と比較し権限チェック
+	if req.DiscountRate != nil {
+		existing, err := h.svc.Owner.GetByID(c.Request.Context(), clinicID, id)
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		if err := h.requireDiscountEditFloat(c, req.DiscountRate, existing.DiscountRate); err != nil {
+			RespondError(c, err)
+			return
+		}
 	}
 
 	var membershipType *model.MembershipType

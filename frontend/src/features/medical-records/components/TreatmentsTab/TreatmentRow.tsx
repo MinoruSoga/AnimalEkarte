@@ -43,6 +43,8 @@ interface TreatmentRowProps {
   onMoveDown: (treatmentId: string) => void;
   isUpdating: boolean;
   canDelete?: boolean;
+  /** BUG-372: 割引権限（値引額編集可否） */
+  canEditDiscount?: boolean;
   /** 新規追加直後に数量フィールドへ自動フォーカスする */
   autoFocusQuantity?: boolean;
   /** autoFocusQuantity 完了後に親へ通知するコールバック */
@@ -61,6 +63,7 @@ export const TreatmentRow = memo(function TreatmentRow({
   onMoveDown,
   isUpdating,
   canDelete = true,
+  canEditDiscount = true,
   autoFocusQuantity = false,
   onAutoFocusDone,
 }: TreatmentRowProps) {
@@ -326,8 +329,10 @@ export const TreatmentRow = memo(function TreatmentRow({
           <button
             className={`w-full text-right text-sm ${
               treatment.discount_amount > 0 ? C.textDiscount : C.text40
-            } ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors font-mono`}
-            onClick={() => setEditField("discount_amount")}
+            } ${canEditDiscount ? C.hoverBgLight : ""} px-1 py-0.5 rounded-[3px] transition-colors font-mono ${!canEditDiscount ? "cursor-not-allowed opacity-60" : ""}`}
+            onClick={() => { if (canEditDiscount) setEditField("discount_amount"); }}
+            disabled={!canEditDiscount}
+            title={!canEditDiscount ? "値引の変更には権限が必要です" : undefined}
           >
             {treatment.discount_amount > 0
               ? `-¥${treatment.discount_amount.toLocaleString()}`

@@ -29,6 +29,9 @@ const (
 	ResourceMasterStaff           Resource = "master-staff"
 	ResourceMasterInsurance       Resource = "master-insurance"
 	ResourceMasterMerchandise     Resource = "master-merchandise"
+
+	// BUG-372: 割引フィールド専用権限（飼主/治療/入院/見積/会計の全割引フィールドを保護）
+	ResourceDiscount Resource = "discount"
 )
 
 // AllResources は全リソース一覧（is_system_admin=true 全権限バイパス用）
@@ -56,6 +59,7 @@ var AllResources = []Resource{
 	ResourceMasterStaff,
 	ResourceMasterInsurance,
 	ResourceMasterMerchandise,
+	ResourceDiscount,
 }
 
 // IsValidResource は指定されたリソース名が有効かどうかを判定する（BUG-146）

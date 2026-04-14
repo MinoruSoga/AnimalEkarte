@@ -23,10 +23,10 @@ interface PatientSelectionTableProps {
 const FIELDS = [
   { key: "ownerId", label: "飼主No", placeholder: "例: 30042" },
   { key: "ownerName", label: "飼主名", placeholder: "例: 林 文明" },
-  { key: "ownerNameKana", label: "飼主名(カナ)", placeholder: "例: ハヤシ" },
+  { key: "ownerNameKana", label: "飼主名よみ", placeholder: "例: はやし" },
   { key: "phone", label: "電話番号", placeholder: "例: 090..." },
   { key: "petName", label: "ペット名", placeholder: "例: Iris" },
-  { key: "petNameKana", label: "ペット名(カナ)", placeholder: "例: イリス" },
+  { key: "petNameKana", label: "ペット名よみ", placeholder: "例: いりす" },
   { key: "species", label: "種別", placeholder: "例: 犬" },
 ] as const;
 

@@ -173,11 +173,14 @@ func (h *Handler) registerVaccinationRoutesWithAuth(rg *gin.RouterGroup) {
 func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
 	accountings := rg.Group("/accountings")
 	accountings.GET("", h.ListAccountings)
+	// BUG-370: 月末未納者一覧
+	accountings.GET("/unpaid", h.ListUnpaidBillings)
 	accountings.GET("/:id", h.GetAccounting)
 	accountings.GET("/:id/refunds", h.ListRefunds)
 	accountings.POST("", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateAccounting)
 	accountings.PATCH("/:id", h.RequirePermission(string(model.ResourceAccounting), "edit"), h.UpdateAccounting)
-	accountings.DELETE("/:id", h.RequirePermission(string(model.ResourceAccounting), "delete"), h.DeleteAccounting)
+	// BUG-371: DELETE は廃止し論理削除 (POST /:id/cancel) に統合。status=cancelled に遷移させる。
+	accountings.POST("/:id/cancel", h.RequirePermission(string(model.ResourceAccounting), "delete"), h.CancelAccounting)
 	accountings.POST("/:id/refunds", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateRefund)
 }
 

@@ -53,6 +53,16 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 		return
 	}
 
+	// BUG-372: discount フィールドにゼロ以外を指定する場合は権限要
+	if err := h.requireDiscountCreateFloat(c, req.DiscountRate); err != nil {
+		RespondError(c, err)
+		return
+	}
+	if err := h.requireDiscountCreateInt(c, req.DiscountAmount); err != nil {
+		RespondError(c, err)
+		return
+	}
+
 	input := &service.CreateTreatmentInput{
 		ItemType:       model.TreatmentItemType(req.ItemType),
 		ConsultationID: req.ConsultationID,
@@ -100,6 +110,23 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
+	}
+
+	// BUG-372: discount フィールドを変更する場合は既存値と比較し権限チェック
+	if req.DiscountRate != nil || req.DiscountAmount != nil {
+		existing, err := h.repos.Treatment.FindByID(c.Request.Context(), clinicID, treatmentID)
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		if err := h.requireDiscountEditFloat(c, req.DiscountRate, existing.DiscountRate); err != nil {
+			RespondError(c, err)
+			return
+		}
+		if err := h.requireDiscountEditInt(c, req.DiscountAmount, existing.DiscountAmount); err != nil {
+			RespondError(c, err)
+			return
+		}
 	}
 
 	input := &service.UpdateTreatmentInput{

@@ -179,7 +179,7 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 
 	// BUG-LINE-012: 入力サイズ制限（DoS・DB 肥大化対策）。
 	// 値の内容検証（スキーマ準拠・HTML エスケープ）は将来の機能追加時に強化する。
-	if err := validateLiffReservationInput(req); err != nil {
+	if err := validateLiffReservationInput(&req); err != nil {
 		RespondError(c, err)
 		return
 	}

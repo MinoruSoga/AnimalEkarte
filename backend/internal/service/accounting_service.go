@@ -103,7 +103,11 @@ type AccountingService interface {
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error)
 	Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
+	// BUG-371: 論理削除（status=cancelled）。ハード削除（旧 Delete）の代替
+	Cancel(ctx context.Context, clinicID, id uint64) error
+	// BUG-370: 月末未納者一覧
+	ListUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
+	ListUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error)
 }
 
 type accountingService struct {
@@ -254,21 +258,45 @@ func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
 	return p
 }
 
-func (s *accountingService) Delete(ctx context.Context, clinicID, id uint64) error {
-	// FK依存チェック: 請求に紐付く請求明細が存在する場合は削除を拒否
-	itemCount, err := s.repo.CountItemsByBillingID(ctx, clinicID, id)
+// BUG-370: 月末未納者一覧（会計単位）
+func (s *accountingService) ListUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error) {
+	result, total, err := s.repo.FindUnpaidByBilling(ctx, clinicID, baseDate, page, limit)
 	if err != nil {
-		return apperrors.Wrap(err, "failed to check billing item dependencies")
+		return nil, 0, apperrors.Wrap(err, "failed to list unpaid billings")
 	}
-	if itemCount > 0 {
-		return apperrors.WrapConflict("請求明細が紐付いているため削除できません。先に請求明細を削除してください")
+	return result, total, nil
+}
+
+// BUG-370: 月末未納者一覧（飼主単位集約）
+func (s *accountingService) ListUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
+	result, total, summary, err := s.repo.FindUnpaidByOwner(ctx, clinicID, baseDate, page, limit)
+	if err != nil {
+		return nil, 0, summary, apperrors.Wrap(err, "failed to list unpaid by owner")
+	}
+	return result, total, summary, nil
+}
+
+// Cancel は会計を論理削除（status=cancelled）する。
+// BUG-371: ハード削除の代替。監査性のため物理削除しない。
+func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64) error {
+	// 既存値取得
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to find accounting for cancel")
+	}
+	// 既に cancelled 状態なら二重キャンセル防止（AC-12）
+	if existing.Status == model.BillingStatusCancelled {
+		return apperrors.WrapConflict("既にキャンセル済みの会計です")
 	}
 
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to delete accounting")
+	fields := map[string]any{
+		"status": model.BillingStatusCancelled,
+	}
+	if _, err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
+		return apperrors.Wrap(err, "failed to cancel accounting")
 	}
 
-	slog.InfoContext(ctx, "billing deleted",
+	slog.InfoContext(ctx, "billing cancelled",
 		slog.Uint64("billing_id", id),
 		slog.Uint64("clinic_id", clinicID))
 

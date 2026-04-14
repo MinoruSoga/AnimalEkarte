@@ -73,6 +73,8 @@ interface TreatmentsTabProps {
 
 export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: TreatmentsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
+  // BUG-372: 割引権限（値引額編集制御）
+  const { canEdit: canEditDiscount } = usePermission("discount");
   const { data: treatments, isLoading } = useGetTreatments(medicalRecordId);
   const createMutation = useCreateTreatment(medicalRecordId);
   const { mutate: createTreatmentFn } = createMutation;
@@ -289,6 +291,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({ medicalRecordId, owne
                     reorderMutation.isPending
                   }
                   canDelete={canDelete}
+                  canEditDiscount={canEditDiscount}
                   autoFocusQuantity={focusLastRow && idx === sortedTreatments.length - 1}
                   onAutoFocusDone={focusLastRow && idx === sortedTreatments.length - 1 ? () => setFocusLastRow(false) : undefined}
                 />

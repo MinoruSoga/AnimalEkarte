@@ -40,9 +40,16 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		q := r.db.WithContext(ctx).Model(&model.Owner{}).Scopes(clinicScope(clinicID))
 		if search != "" {
 			pattern := "%" + escapeLike(search) + "%"
+			// BUG-375: name_kana はひらがな⇔カタカナ正規化して比較
 			q = q.Where(
-				`(name ILIKE ? ESCAPE '\' OR phone ILIKE ? ESCAPE '\' OR email ILIKE ? ESCAPE '\')`,
-				pattern, pattern, pattern,
+				`(name ILIKE ? ESCAPE '\'`+
+					` OR translate(name_kana, ?, ?) ILIKE translate(? ESCAPE '\', ?, ?)`+
+					` OR phone ILIKE ? ESCAPE '\'`+
+					` OR email ILIKE ? ESCAPE '\')`,
+				pattern,
+				kanaSourceChars, kanaTargetChars, pattern, kanaSourceChars, kanaTargetChars,
+				pattern,
+				pattern,
 			)
 		}
 		return q

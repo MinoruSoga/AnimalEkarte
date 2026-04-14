@@ -1184,6 +1184,10 @@ export const ResourceMasterPermission: Resource = "master-permission";
 export const ResourceMasterStaff: Resource = "master-staff";
 export const ResourceMasterInsurance: Resource = "master-insurance";
 export const ResourceMasterMerchandise: Resource = "master-merchandise";
+/**
+ * BUG-372: 割引フィールド専用権限（飼主/治療/入院/見積/会計の全割引フィールドを保護）
+ */
+export const ResourceDiscount: Resource = "discount";
 
 //////////
 // source: permission_group.go

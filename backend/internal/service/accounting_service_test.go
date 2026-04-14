@@ -10,16 +10,15 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // mockAccountingRepository は AccountingRepository のテスト用モック実装
 type mockAccountingRepository struct {
-	findAllFn               func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
-	findByIDFn              func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
-	createFn                func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
-	updateFieldsFn          func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
-	deleteFn                func(ctx context.Context, clinicID, id uint64) error
-	countItemsByBillingIDFn func(ctx context.Context, clinicID, billingID uint64) (int64, error)
+	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	createFn       func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
+	updateFieldsFn func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 }
 
 func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
@@ -38,19 +37,17 @@ func (m *mockAccountingRepository) UpdateFields(ctx context.Context, clinicID, b
 	return m.updateFieldsFn(ctx, clinicID, billingID, fields)
 }
 
-func (m *mockAccountingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
-}
-
 func (m *mockAccountingRepository) UpsertPayment(_ context.Context, _ *model.Payment) error {
 	return nil
 }
 
-func (m *mockAccountingRepository) CountItemsByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error) {
-	if m.countItemsByBillingIDFn == nil {
-		return 0, nil
-	}
-	return m.countItemsByBillingIDFn(ctx, clinicID, billingID)
+// BUG-370: 月末未納者一覧 repository メソッドの mock
+func (m *mockAccountingRepository) FindUnpaidByBilling(_ context.Context, _ uint64, _ string, _, _ int) ([]model.Billing, int64, error) {
+	return nil, 0, nil
+}
+
+func (m *mockAccountingRepository) FindUnpaidByOwner(_ context.Context, _ uint64, _ string, _, _ int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
+	return nil, 0, repository.UnpaidSummary{}, nil
 }
 
 func ptrString(v string) *string { return &v }
@@ -408,81 +405,78 @@ func TestAccountingService_Update(t *testing.T) {
 	}
 }
 
-func TestAccountingService_Delete(t *testing.T) {
+// TestAccountingService_Cancel は BUG-371: 論理削除 (status=cancelled) の挙動を検証する。
+func TestAccountingService_Cancel(t *testing.T) {
 	tests := []struct {
-		name         string
-		clinicID     uint64
-		id           uint64
-		itemCount    int64
-		countItemErr error
-		repoErr      error
-		wantErr      bool
-		wantNF       bool
-		wantConflict bool
+		name           string
+		clinicID       uint64
+		id             uint64
+		findByIDResult *model.Billing
+		findByIDErr    error
+		updateErr      error
+		wantErr        bool
+		wantConflict   bool
+		wantNF         bool
 	}{
 		{
-			name:         "deletes billing successfully when no items exist",
-			clinicID:     1,
-			id:           10,
-			itemCount:    0,
-			countItemErr: nil,
-			repoErr:      nil,
-			wantErr:      false,
+			name:           "正常: waiting → cancelled に遷移する",
+			clinicID:       1,
+			id:             10,
+			findByIDResult: &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusWaiting},
+			wantErr:        false,
 		},
 		{
-			name:         "returns conflict error when billing has items",
-			clinicID:     1,
-			id:           10,
-			itemCount:    3,
-			countItemErr: nil,
-			repoErr:      nil,
-			wantErr:      true,
-			wantConflict: true,
+			name:           "正常: completed → cancelled に遷移する",
+			clinicID:       1,
+			id:             10,
+			findByIDResult: &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusCompleted},
+			wantErr:        false,
 		},
 		{
-			name:         "returns error when item count check fails",
-			clinicID:     1,
-			id:           10,
-			itemCount:    0,
-			countItemErr: errors.New("db error"),
-			repoErr:      nil,
-			wantErr:      true,
+			name:           "異常: 既に cancelled の場合は ErrConflict",
+			clinicID:       1,
+			id:             10,
+			findByIDResult: &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusCancelled},
+			wantErr:        true,
+			wantConflict:   true,
 		},
 		{
-			name:         "returns not found error when billing does not exist",
-			clinicID:     1,
-			id:           999,
-			itemCount:    0,
-			countItemErr: nil,
-			repoErr:      apperrors.WrapNotFound("billing", "999"),
-			wantErr:      true,
-			wantNF:       true,
+			name:        "異常: 存在しない場合は ErrNotFound 経由で error",
+			clinicID:    1,
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("billing", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
-			name:         "returns error on repository failure",
-			clinicID:     1,
-			id:           10,
-			itemCount:    0,
-			countItemErr: nil,
-			repoErr:      errors.New("db error"),
-			wantErr:      true,
-			wantNF:       false,
+			name:           "異常: UpdateFields 失敗時はエラー伝播",
+			clinicID:       1,
+			id:             10,
+			findByIDResult: &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusWaiting},
+			updateErr:      errors.New("db error"),
+			wantErr:        true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockAccountingRepository{
-				countItemsByBillingIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
-					return tt.itemCount, tt.countItemErr
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return tt.findByIDResult, nil
 				},
-				deleteFn: func(_ context.Context, _, _ uint64) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+					if tt.updateErr != nil {
+						return nil, tt.updateErr
+					}
+					return tt.findByIDResult, nil
 				},
 			}
 			svc := NewAccountingService(repo)
 
-			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
+			err := svc.Cancel(context.Background(), tt.clinicID, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

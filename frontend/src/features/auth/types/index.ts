@@ -41,6 +41,9 @@ export interface AuthClinic {
   email: string;
   website: string;
   logoUrl: string | null;
+  /** BUG-367: インボイス帳票の税率別内訳計算用 */
+  standardTaxRate: number;
+  reducedTaxRate: number;
 }
 
 /** @see {@link import("@/types/generated/models").Account} */

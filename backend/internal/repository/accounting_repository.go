@@ -16,8 +16,28 @@ type AccountingRepository interface {
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	UpsertPayment(ctx context.Context, payment *model.Payment) error
-	Delete(ctx context.Context, clinicID, id uint64) error
-	CountItemsByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error)
+	// BUG-370: 月末未納者一覧
+	FindUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
+	FindUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
+}
+
+// UnpaidOwnerAggregate は飼主単位の未納集約結果
+// BUG-370
+type UnpaidOwnerAggregate struct {
+	OwnerID         uint64 `json:"owner_id"`
+	OwnerName       string `json:"owner_name"`
+	Count           int64  `json:"count"`
+	TotalAmount     int64  `json:"total_amount"`
+	OldestScheduled string `json:"oldest_scheduled"`
+	LatestScheduled string `json:"latest_scheduled"`
+}
+
+// UnpaidSummary は未納者一覧のサマリー情報（売掛金総額）
+// BUG-370
+type UnpaidSummary struct {
+	TotalAmount  int64 `json:"total_amount"`
+	BillingCount int64 `json:"billing_count"`
+	OwnerCount   int64 `json:"owner_count"`
 }
 
 type accountingRepository struct {
@@ -186,26 +206,60 @@ func (r *accountingRepository) UpsertPayment(ctx context.Context, payment *model
 	return nil
 }
 
-func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Billing{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", id))
+// FindUnpaidByBilling は未納 (status=waiting かつ scheduled_date < baseDate) の billings を
+// 会計単位で返す。BUG-370 AC-5
+func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error) {
+	billings := make([]model.Billing, 0)
+	var total int64
+
+	q := r.db.WithContext(ctx).Model(&model.Billing{}).
+		Scopes(clinicScope(clinicID)).
+		Where("status = ?", model.BillingStatusWaiting).
+		Where("scheduled_date < ?", baseDate)
+
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", id))
+	if err := q.Preload("Owner").Preload("Pet").Preload("Items").
+		Offset((page - 1) * limit).Limit(limit).
+		Order("scheduled_date ASC, created_at ASC").
+		Find(&billings).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-	return nil
+	return billings, total, nil
 }
 
-func (r *accountingRepository) CountItemsByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).
-		Model(&model.BillingItem{}).
-		Joins("JOIN billings ON billing_items.billing_id = billings.id").
-		Where("billings.clinic_id = ? AND billing_items.billing_id = ?", clinicID, billingID).
-		Count(&count).Error
-	if err != nil {
-		return 0, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("billing_id=%d", billingID))
+// FindUnpaidByOwner は未納を飼主単位で集約する。BUG-370 AC-4
+// GROUP BY owner_id で 1 クエリで取得（N+1 回避）。
+func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error) {
+	aggregates := make([]UnpaidOwnerAggregate, 0)
+	var totalOwners int64
+	var summary UnpaidSummary
+
+	base := r.db.WithContext(ctx).
+		Table("billings").
+		Joins("JOIN owners ON owners.id = billings.owner_id AND owners.deleted_at IS NULL").
+		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
+		Where("billings.status = ?", model.BillingStatusWaiting).
+		Where("billings.scheduled_date < ?", baseDate)
+
+	// サマリー取得（売掛金総額・件数・飼主数）
+	if err := base.Session(&gorm.Session{}).
+		Select("COALESCE(SUM(billings.total_amount), 0) AS total_amount, COUNT(billings.id) AS billing_count, COUNT(DISTINCT billings.owner_id) AS owner_count").
+		Scan(&summary).Error; err != nil {
+		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}
-	return count, nil
+	totalOwners = summary.OwnerCount
+
+	// 飼主単位集約
+	if err := base.Session(&gorm.Session{}).
+		Select("billings.owner_id AS owner_id, owners.name AS owner_name, COUNT(billings.id) AS count, COALESCE(SUM(billings.total_amount), 0) AS total_amount, MIN(billings.scheduled_date)::text AS oldest_scheduled, MAX(billings.scheduled_date)::text AS latest_scheduled").
+		Group("billings.owner_id, owners.name").
+		Order("oldest_scheduled ASC").
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Scan(&aggregates).Error; err != nil {
+		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
+	}
+	return aggregates, totalOwners, summary, nil
 }

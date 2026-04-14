@@ -216,6 +216,7 @@ interface OwnerInfoSectionProps {
   ownerData: OwnerData;
   fieldErrors: Record<string, string>;
   isEdit: boolean;
+  canEditDiscount: boolean;
   onChange: (field: string, value: string | boolean | number) => void;
   onClearError: (field: string) => void;
   onMembershipChange: (type: MembershipType) => void;
@@ -226,6 +227,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
   ownerData,
   fieldErrors,
   isEdit,
+  canEditDiscount,
   onChange,
   onClearError,
   onMembershipChange,
@@ -357,11 +359,11 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       {/* Row 3 */}
       <div className="space-y-1.5">
         <Label htmlFor="ownerNameKana" className={`text-sm ${C.text60}`}>
-          飼主名(カナ) <span className={C.textRequired}>*</span>
+          飼主名よみ <span className={C.textRequired}>*</span>
         </Label>
         <Input
           id="ownerNameKana"
-          placeholder="ハヤシ フミアキ"
+          placeholder="はやし ふみあき"
           value={ownerData.ownerNameKana}
           aria-invalid={!!fieldErrors.ownerNameKana}
           aria-describedby={fieldErrors.ownerNameKana ? "ownerNameKana-error" : undefined}
@@ -430,13 +432,25 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           max={100}
           step={1}
           value={ownerData.discountRate || ""}
+          disabled={!canEditDiscount}
           aria-invalid={!!fieldErrors.discountRate}
-          aria-describedby={fieldErrors.discountRate ? "discountRate-error" : undefined}
+          aria-describedby={
+            fieldErrors.discountRate
+              ? "discountRate-error"
+              : !canEditDiscount
+                ? "discountRate-permission"
+                : undefined
+          }
           onChange={(v) => { onChange("discountRate", Number(v)); onClearError("discountRate"); }}
           suffix="%"
           className={`${STYLE.formInput} ${fieldErrors.discountRate ? STYLE.formInputError : ""}`}
         />
         <FormFieldError id="discountRate-error" message={fieldErrors.discountRate} />
+        {!canEditDiscount ? (
+          <p id="discountRate-permission" className={`text-xs ${C.text50}`}>
+            値引率の変更には権限が必要です
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -461,6 +475,8 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("owners");
+  // BUG-372: 割引権限（値引率フィールド制御用）
+  const { canEdit: canEditDiscount } = usePermission("discount");
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const [deletePetTarget, setDeletePetTarget] = useState<{
     id: string;
@@ -608,6 +624,7 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
           ownerData={ownerData}
           fieldErrors={fieldErrors}
           isEdit={isEdit}
+          canEditDiscount={canEditDiscount}
           onChange={handleInputChange}
           onClearError={clearFieldError}
           onMembershipChange={handleMembershipChange}

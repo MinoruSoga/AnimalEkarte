@@ -4,8 +4,59 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// BUG-370: 月末未納者一覧レスポンス
+
+type unpaidOwnerResponse struct {
+	OwnerID         uint64 `json:"owner_id"`
+	OwnerName       string `json:"owner_name"`
+	Count           int64  `json:"count"`
+	TotalAmount     int64  `json:"total_amount"`
+	OldestScheduled string `json:"oldest_scheduled"`
+	LatestScheduled string `json:"latest_scheduled"`
+}
+
+type unpaidSummaryResponse struct {
+	TotalAmount  int64 `json:"total_amount"`
+	BillingCount int64 `json:"billing_count"`
+	OwnerCount   int64 `json:"owner_count"`
+}
+
+type unpaidByOwnerResponse struct {
+	Data    []unpaidOwnerResponse `json:"data"`
+	Total   int64                 `json:"total"`
+	Page    int                   `json:"page"`
+	Limit   int                   `json:"limit"`
+	Summary unpaidSummaryResponse `json:"summary"`
+}
+
+func toUnpaidByOwnerResponse(items []repository.UnpaidOwnerAggregate, total int64, page, limit int, s repository.UnpaidSummary) unpaidByOwnerResponse {
+	data := make([]unpaidOwnerResponse, 0, len(items))
+	for _, it := range items {
+		data = append(data, unpaidOwnerResponse{
+			OwnerID:         it.OwnerID,
+			OwnerName:       it.OwnerName,
+			Count:           it.Count,
+			TotalAmount:     it.TotalAmount,
+			OldestScheduled: it.OldestScheduled,
+			LatestScheduled: it.LatestScheduled,
+		})
+	}
+	return unpaidByOwnerResponse{
+		Data:  data,
+		Total: total,
+		Page:  page,
+		Limit: limit,
+		Summary: unpaidSummaryResponse{
+			TotalAmount:  s.TotalAmount,
+			BillingCount: s.BillingCount,
+			OwnerCount:   s.OwnerCount,
+		},
+	}
+}
 
 type refundResponse struct {
 	ID             uint64    `json:"id"`

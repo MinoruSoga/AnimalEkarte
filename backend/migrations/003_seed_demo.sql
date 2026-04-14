@@ -265,6 +265,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (1, 'master-staff',           true, true,  true,  true),
     (1, 'master-insurance',       true, true,  true,  true),
     (1, 'master-merchandise',     true, true,  true,  true),
+    (1, 'discount',               true, true,  true,  true),
     -- 一般（group_id=2）: 基本業務（マスタは閲覧のみ）
     (2, 'reception',              true, false, false, false),
     (2, 'owners',                 true, true,  true,  false),
@@ -289,6 +290,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (2, 'master-staff',           true, false, false, false),
     (2, 'master-insurance',       true, false, false, false),
     (2, 'master-merchandise',     true, false, false, false),
+    (2, 'discount',               false, false, false, false),
     -- 城東医院 執行（group_id=3）: 全リソース全権限
     (3, 'reception',              true, true,  true,  true),
     (3, 'owners',                 true, true,  true,  true),
@@ -313,6 +315,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (3, 'master-staff',           true, true,  true,  true),
     (3, 'master-insurance',       true, true,  true,  true),
     (3, 'master-merchandise',     true, true,  true,  true),
+    (3, 'discount',               true, true,  true,  true),
     -- 城東医院 一般（group_id=4）
     (4, 'reception',              true, false, false, false),
     (4, 'owners',                 true, true,  true,  false),
@@ -337,6 +340,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (4, 'master-staff',           true, false, false, false),
     (4, 'master-insurance',       true, false, false, false),
     (4, 'master-merchandise',     true, false, false, false),
+    (4, 'discount',               false, false, false, false),
     -- 敷島医院 執行（group_id=5）: 全リソース全権限
     (5, 'reception',              true, true,  true,  true),
     (5, 'owners',                 true, true,  true,  true),
@@ -361,6 +365,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (5, 'master-staff',           true, true,  true,  true),
     (5, 'master-insurance',       true, true,  true,  true),
     (5, 'master-merchandise',     true, true,  true,  true),
+    (5, 'discount',               true, true,  true,  true),
     -- 敷島医院 一般（group_id=6）
     (6, 'reception',              true, false, false, false),
     (6, 'owners',                 true, true,  true,  false),
@@ -384,7 +389,8 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (6, 'master-permission',      false, false, false, false),
     (6, 'master-staff',           true, false, false, false),
     (6, 'master-insurance',       true, false, false, false),
-    (6, 'master-merchandise',     true, false, false, false)
+    (6, 'master-merchandise',     true, false, false, false),
+    (6, 'discount',               false, false, false, false)
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------

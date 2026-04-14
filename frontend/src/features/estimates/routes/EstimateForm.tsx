@@ -120,6 +120,7 @@ interface AmountSectionProps {
   insuranceAmount: number;
   discountAmount: number;
   totalAmount: number;
+  canEditDiscount: boolean;
   onChange: (key: string, value: unknown) => void;
 }
 
@@ -129,6 +130,7 @@ const AmountSection = memo(function AmountSection({
   insuranceAmount,
   discountAmount,
   totalAmount,
+  canEditDiscount,
   onChange,
 }: AmountSectionProps) {
   return (
@@ -180,10 +182,14 @@ const AmountSection = memo(function AmountSection({
           id="discountAmount"
           min={0}
           value={discountAmount}
+          disabled={!canEditDiscount}
           onChange={v => onChange('discountAmount', Number(v))}
           suffix="円"
           className="h-9 text-sm"
         />
+        {!canEditDiscount ? (
+          <p className={`text-xs ${C.text50}`}>割引額の変更には権限が必要です</p>
+        ) : null}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="totalAmount" className={`text-sm font-medium ${C.text}`}>
@@ -257,6 +263,8 @@ function EstimateFormContent({ id }: { id?: string }) {
 
   const isEdit = !!id;
   const { canEdit, canCreate } = usePermission("estimates");
+  // BUG-372: 割引権限（割引額制御）
+  const { canEdit: canEditDiscount } = usePermission("discount");
   const canSubmit = isEdit ? canEdit : canCreate;
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
@@ -332,6 +340,7 @@ function EstimateFormContent({ id }: { id?: string }) {
           insuranceAmount={form.insuranceAmount}
           discountAmount={form.discountAmount}
           totalAmount={form.totalAmount}
+          canEditDiscount={canEditDiscount}
           onChange={handleChangeWithDirty}
         />
 

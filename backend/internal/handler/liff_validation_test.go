@@ -121,7 +121,8 @@ func TestValidateLiffReservationInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateLiffReservationInput(tt.build())
+			req := tt.build()
+			err := validateLiffReservationInput(&req)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input error, got %v", err)
