@@ -73,7 +73,7 @@ func (h *Handler) UpdateReservationStaff(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "staffId")
 	if !ok {
 		return
 	}
@@ -108,7 +108,7 @@ func (h *Handler) DeleteReservationStaff(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "staffId")
 	if !ok {
 		return
 	}
@@ -125,7 +125,7 @@ func (h *Handler) PatchReservationStaffStatus(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "staffId")
 	if !ok {
 		return
 	}
@@ -153,7 +153,7 @@ func (h *Handler) PatchReservationStaffSortOrder(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "staffId")
 	if !ok {
 		return
 	}

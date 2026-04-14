@@ -28,7 +28,7 @@ func (h *Handler) LinkOwnerToLineCustomer(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "customerId")
 	if !ok {
 		return
 	}

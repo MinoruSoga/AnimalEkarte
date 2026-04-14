@@ -60,7 +60,7 @@ func (h *Handler) UpdateReservationTypeLiff(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "typeId")
 	if !ok {
 		return
 	}
@@ -95,7 +95,7 @@ func (h *Handler) DeleteReservationTypeLiff(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "typeId")
 	if !ok {
 		return
 	}
@@ -112,7 +112,7 @@ func (h *Handler) PatchReservationTypeLiffStatus(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "typeId")
 	if !ok {
 		return
 	}
@@ -135,7 +135,7 @@ func (h *Handler) PatchReservationTypeLiffSortOrder(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "typeId")
 	if !ok {
 		return
 	}

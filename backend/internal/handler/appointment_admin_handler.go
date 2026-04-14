@@ -109,7 +109,7 @@ func (h *Handler) DeleteReservationAdmin(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, ok := parseIDParam(c, "id")
+	id, ok := parseIDParam(c, "reservationId")
 	if !ok {
 		return
 	}
