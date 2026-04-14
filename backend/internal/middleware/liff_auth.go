@@ -90,9 +90,15 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 			return
 		}
 
-		// DB からクリニックの LiffID を取得して LINE チャンネル ID を特定する
+		// DB からクリニックの LiffID を取得して LINE チャンネル ID を特定する。
+		// BUG-LINE-011: 存在しない clinic / 設定未登録は 404 を返す（GET /settings と整合）。
 		setting, err := settingLookup.FindByClinicID(c.Request.Context(), clinicID)
 		if err != nil {
+			if apperrors.IsNotFound(err) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "clinic setting not found"})
+				c.Abort()
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load clinic setting"})
 			c.Abort()
 			return

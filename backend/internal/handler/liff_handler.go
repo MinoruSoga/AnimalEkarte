@@ -177,6 +177,13 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 		return
 	}
 
+	// BUG-LINE-012: 入力サイズ制限（DoS・DB 肥大化対策）。
+	// 値の内容検証（スキーマ準拠・HTML エスケープ）は将来の機能追加時に強化する。
+	if err := validateLiffReservationInput(req); err != nil {
+		RespondError(c, err)
+		return
+	}
+
 	date, err := time.ParseInLocation("2006-01-02", req.Date, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date: must be YYYY-MM-DD"))

@@ -410,6 +410,11 @@ func (s *liffService) buildStaffSlotInputs(ctx context.Context, clinicID uint64,
 // parseBusinessHoursForDate は指定日の営業時間・休憩時間を解析する。
 // BusinessHoursByWeekday に該当曜日の設定があればそれを優先する。
 func (s *liffService) parseBusinessHoursForDate(setting *model.LineReservationSetting, date time.Time) (BusinessHours, []BreakPeriod) {
+	return parseBusinessHoursForDate(setting, date)
+}
+
+// parseBusinessHoursForDate はパッケージ内共通のヘルパー（validator からも呼ばれる）。
+func parseBusinessHoursForDate(setting *model.LineReservationSetting, date time.Time) (BusinessHours, []BreakPeriod) {
 	var bh BusinessHours
 	if err := json.Unmarshal(setting.BusinessHours, &bh); err != nil {
 		bh = BusinessHours{Start: "0900", End: "1900"}

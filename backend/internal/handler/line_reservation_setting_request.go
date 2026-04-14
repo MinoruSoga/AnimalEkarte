@@ -1,5 +1,7 @@
 package handler
 
+import "encoding/json"
+
 type upsertLineReservationSettingRequest struct {
 	Status                  string         `json:"status"`
 	HeaderText              string         `json:"header_text"`
@@ -31,5 +33,9 @@ type upsertLineReservationSettingRequest struct {
 	LineAccessToken         string         `json:"line_access_token"`
 }
 
-// jsonRawOrEmpty は JSON フィールドを []byte として保持するためのエイリアス
-type jsonRawOrEmpty = []byte
+// jsonRawOrEmpty は JSON フィールドを生の JSON として保持するためのエイリアス。
+// 標準の []byte ではなく json.RawMessage を使うのは、encoding/json が []byte フィールドを
+// base64 エンコード文字列として扱うため（BUG-LINE-007）。json.RawMessage は MarshalJSON /
+// UnmarshalJSON が実装されており任意の JSON オブジェクト・配列をそのまま保持できる。
+// 実体は []byte なので service 層の []byte 引数にはそのまま渡せる。
+type jsonRawOrEmpty = json.RawMessage
