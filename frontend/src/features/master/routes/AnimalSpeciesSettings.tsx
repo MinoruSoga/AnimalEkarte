@@ -1,7 +1,8 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import PawPrint from "lucide-react/dist/esm/icons/paw-print";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -29,11 +30,16 @@ const COLUMNS = [
 interface FormData { name: string; isActive: boolean; }
 
 const SidePanel = memo(function SidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly,
-}: { item: AnimalSpecies | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: AnimalSpecies) => void; readOnly?: boolean; }) {
+  item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
+}: { item: AnimalSpecies | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: AnimalSpecies) => void; readOnly?: boolean; onDirtyChange?: (dirty: boolean) => void; }) {
   const [f, setF] = useState<FormData>(() => ({ name: item?.name ?? "", isActive: item?.isActive ?? true }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+
+  // BUG-380: isDirty を親（useMasterCRUD の dirtyGuard）へ伝搬
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, name: v }));
@@ -83,7 +89,18 @@ export function AnimalSpeciesSettings() {
   const deleteMutation = useDeleteAnimalSpecies();
   const reorderMutation = useReorderAnimalSpecies();
 
-  const crud = useMasterCRUD<AnimalSpecies>({ data, deleteMutation, entityLabel: "動物種類" });
+  // BUG-380: 未保存変更の破棄確認 + beforeunload ガード
+  const dirty = useSidePeekDirty();
+
+  const crud = useMasterCRUD<AnimalSpecies>({ data, deleteMutation, entityLabel: "動物種類", dirtyGuard: dirty });
+
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      if (d) dirty.markDirty();
+      else dirty.markClean();
+    },
+    [dirty],
+  );
 
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: crud.filteredItems,
@@ -104,7 +121,7 @@ export function AnimalSpeciesSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       deleteDescription={`「${crud.pendingDelete?.name}」を削除します。ペットで使用中の場合は削除できません。この操作は取り消せません。`}
       renderRow={() => null}
-      renderSidePanel={({ readOnly, ...props }) => <SidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} />}
+      renderSidePanel={({ readOnly, ...props }) => <SidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} onDirtyChange={handleDirtyChange} />}
     >
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>

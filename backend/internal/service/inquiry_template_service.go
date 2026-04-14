@@ -55,6 +55,9 @@ func (s *inquiryTemplateService) GetByID(ctx context.Context, clinicID, id uint6
 }
 
 func (s *inquiryTemplateService) Create(ctx context.Context, template *model.InquiryTemplate) error {
+	if err := validateMasterName(template.Title); err != nil {
+		return err
+	}
 	if err := s.repo.Create(ctx, template); err != nil {
 		return apperrors.Wrap(err, "failed to create inquiry template")
 	}
@@ -65,6 +68,9 @@ func (s *inquiryTemplateService) Create(ctx context.Context, template *model.Inq
 }
 
 func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateInquiryTemplateInput) (*model.InquiryTemplate, error) {
+	if err := validateOptionalMasterName(input.Title); err != nil {
+		return nil, err
+	}
 	fields := buildInquiryTemplateUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")

@@ -153,8 +153,8 @@ func (s *medicineService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 }
 
 func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *CreateMedicineInput) (*model.Medicine, error) {
-	if input.Name == "" {
-		return nil, apperrors.WrapInvalidInput("name is required")
+	if err := validateMasterName(input.Name); err != nil {
+		return nil, err
 	}
 
 	taxType := model.TaxTypeExcluded
@@ -218,6 +218,9 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 }
 
 func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMedicineInput) (*model.Medicine, error) {
+	if err := validateOptionalMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	fields := buildMedicineUpdateFields(input)
 	if len(fields) == 0 {
 		result, err := s.repo.FindByID(ctx, clinicID, id)

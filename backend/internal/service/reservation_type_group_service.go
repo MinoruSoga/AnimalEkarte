@@ -57,6 +57,9 @@ func (s *reservationTypeGroupService) GetByID(ctx context.Context, clinicID, id 
 }
 
 func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeGroupInput) (*model.ReservationTypeGroup, error) {
+	if err := validateMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	color := input.Color
 	if color == "" {
 		color = "#3B82F6"
@@ -76,6 +79,9 @@ func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint6
 }
 
 func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeGroupInput) (*model.ReservationTypeGroup, error) {
+	if err := validateOptionalMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	fields := map[string]any{}
 	if input.Name != nil {
 		fields["name"] = *input.Name

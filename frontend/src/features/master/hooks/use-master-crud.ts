@@ -41,6 +41,12 @@ interface UseMasterCRUDOptions<T extends MasterEntity> {
    * Return true if item matches all filters. Defaults to isActive status filter.
    */
   activeFilterApply?: (item: T, filters: ActiveFilter[]) => boolean;
+
+  /**
+   * BUG-380: サイドパネル編集中の未保存変更を管理するガード。
+   * 指定された場合、別行クリック・パネル閉じ・新規作成時に確認ダイアログを出す。
+   */
+  dirtyGuard?: { confirmDiscard: () => boolean };
 }
 
 export interface UseMasterCRUDReturn<T extends MasterEntity> {
@@ -151,6 +157,7 @@ export function useMasterCRUD<T extends MasterEntity>({
   entityLabel,
   searchFilter = defaultSearchFilter,
   activeFilterApply = defaultActiveFilterApply,
+  dirtyGuard,
 }: UseMasterCRUDOptions<T>): UseMasterCRUDReturn<T> {
   // ── State ──
   const [editTarget, setEditTarget] = useState<T | "new" | null>(null);
@@ -191,11 +198,29 @@ export function useMasterCRUD<T extends MasterEntity>({
   const isEditing = editTarget !== null;
 
   // ── Handlers ──
-  const handleClose = useCallback(() => setEditTarget(null), []);
+  // BUG-380: dirtyGuard 指定時は未保存変更の破棄確認を挟む。
+  const confirmDiscard = useCallback(() => {
+    if (!dirtyGuard) return true;
+    return dirtyGuard.confirmDiscard();
+  }, [dirtyGuard]);
 
-  const handleNew = useCallback(() => setEditTarget("new"), []);
+  const handleClose = useCallback(() => {
+    if (!confirmDiscard()) return;
+    setEditTarget(null);
+  }, [confirmDiscard]);
 
-  const handleEdit = useCallback((item: T) => setEditTarget(item), []);
+  const handleNew = useCallback(() => {
+    if (!confirmDiscard()) return;
+    setEditTarget("new");
+  }, [confirmDiscard]);
+
+  const handleEdit = useCallback(
+    (item: T) => {
+      if (!confirmDiscard()) return;
+      setEditTarget(item);
+    },
+    [confirmDiscard],
+  );
 
   const handleDeleteRequest = useCallback((item: T) => setPendingDelete(item), []);
 

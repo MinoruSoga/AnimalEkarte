@@ -255,7 +255,9 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (1, 'inventory',              true, true,  true,  true),
     (1, 'estimates',              true, true,  true,  true),
     (1, 'shifts',                 true, true,  true,  true),
-    (1, 'hospital-settings',      true, true,  true,  true),
+    -- hospital-settings (医院マスタ) の新規作成・削除は is_system_admin のみ。
+    -- 執行は view+edit のみ（BUG-377/378 対応）。
+    (1, 'hospital-settings',      true, false, true,  false),
     (1, 'master-animal-species',  true, true,  true,  true),
     (1, 'master-medical',         true, true,  true,  true),
     (1, 'master-reservation-type',    true, true,  true,  true),
@@ -305,7 +307,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (3, 'inventory',              true, true,  true,  true),
     (3, 'estimates',              true, true,  true,  true),
     (3, 'shifts',                 true, true,  true,  true),
-    (3, 'hospital-settings',      true, true,  true,  true),
+    (3, 'hospital-settings',      true, false, true,  false),
     (3, 'master-animal-species',  true, true,  true,  true),
     (3, 'master-medical',         true, true,  true,  true),
     (3, 'master-reservation-type',    true, true,  true,  true),
@@ -355,7 +357,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (5, 'inventory',              true, true,  true,  true),
     (5, 'estimates',              true, true,  true,  true),
     (5, 'shifts',                 true, true,  true,  true),
-    (5, 'hospital-settings',      true, true,  true,  true),
+    (5, 'hospital-settings',      true, false, true,  false),
     (5, 'master-animal-species',  true, true,  true,  true),
     (5, 'master-medical',         true, true,  true,  true),
     (5, 'master-reservation-type',    true, true,  true,  true),

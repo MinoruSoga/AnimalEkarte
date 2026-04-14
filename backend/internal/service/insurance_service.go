@@ -44,6 +44,9 @@ func (s *insuranceService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 	return result, nil
 }
 func (s *insuranceService) Create(ctx context.Context, insurance *model.Insurance) error {
+	if err := validateMasterName(insurance.Name); err != nil {
+		return err
+	}
 	if err := s.repo.Create(ctx, insurance); err != nil {
 		return apperrors.Wrap(err, "failed to create insurance")
 	}
@@ -51,6 +54,9 @@ func (s *insuranceService) Create(ctx context.Context, insurance *model.Insuranc
 	return nil
 }
 func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, input UpdateInsuranceInput) (*model.Insurance, error) {
+	if err := validateOptionalMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	fields := buildInsuranceUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")

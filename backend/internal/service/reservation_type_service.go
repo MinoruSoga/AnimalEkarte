@@ -160,6 +160,9 @@ func (s *reservationTypeService) GetByID(ctx context.Context, clinicID, id uint6
 }
 
 func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeInput) (*model.ReservationType, error) {
+	if err := validateMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	reservationDayOption := model.ReservationDayOption(input.ReservationDayOption)
 	if reservationDayOption == "" {
 		reservationDayOption = model.DayOptionNone
@@ -191,6 +194,9 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 }
 
 func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeInput) (*model.ReservationType, error) {
+	if err := validateOptionalMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	fields := buildReservationTypeUpdateFields(input)
 	if len(fields) == 0 {
 		result, err := s.repo.FindByID(ctx, clinicID, id)
