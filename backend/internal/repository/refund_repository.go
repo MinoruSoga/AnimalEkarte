@@ -36,6 +36,7 @@ func (r *refundRepository) Create(ctx context.Context, refund *model.BillingRefu
 func (r *refundRepository) FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error) {
 	refunds := make([]model.BillingRefund, 0)
 	if err := r.db.WithContext(ctx).
+		Preload("RefundedByStaff").
 		Scopes(clinicScope(clinicID)).Where("billing_id = ?", billingID).
 		Order("created_at DESC").
 		Find(&refunds).Error; err != nil {

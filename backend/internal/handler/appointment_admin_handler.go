@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -65,6 +64,10 @@ func (h *Handler) CreateReservationAdmin(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
 	var req createReservationAdminRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
@@ -91,6 +94,7 @@ func (h *Handler) CreateReservationAdmin(c *gin.Context) {
 		LineCustomerID:    req.LineCustomerID,
 		IsStaffDelegated:  req.IsStaffDelegated,
 		CustomerFields:    req.CustomerFields,
+		CreatedBy:         &staffID,
 	})
 	if err != nil {
 		RespondError(c, err)
@@ -105,9 +109,8 @@ func (h *Handler) DeleteReservationAdmin(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "reservationId")
+	if !ok {
 		return
 	}
 	if err := h.svc.ReservationAdmin.Delete(c.Request.Context(), clinicID, id); err != nil {

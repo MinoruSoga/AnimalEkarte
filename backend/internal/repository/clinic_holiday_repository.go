@@ -42,13 +42,29 @@ func (r *clinicHolidayRepository) FindByYearMonth(ctx context.Context, clinicID 
 }
 
 func (r *clinicHolidayRepository) Upsert(ctx context.Context, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
-	result := r.db.WithContext(ctx).
-		Where(model.ClinicHoliday{ClinicID: holiday.ClinicID, Date: holiday.Date}).
-		Assign(model.ClinicHoliday{Reason: holiday.Reason}).
-		FirstOrCreate(holiday)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "clinic_holiday", holiday.Date.Format("2006-01-02"))
+	// map を使用してゼロ値（Reason=""）も確実に更新する
+	var existing model.ClinicHoliday
+	err := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND date = ?", holiday.ClinicID, holiday.Date).
+		First(&existing).Error
+
+	if err != nil {
+		// レコードなし → 新規作成
+		if err := r.db.WithContext(ctx).Create(holiday).Error; err != nil {
+			return nil, apperrors.FromGORM(err, "clinic_holiday", holiday.Date.Format("2006-01-02"))
+		}
+		return holiday, nil
 	}
+
+	// 既存レコード → reason を更新
+	if err := r.db.WithContext(ctx).
+		Model(&model.ClinicHoliday{}).
+		Where("id = ?", existing.ID).
+		Update("reason", holiday.Reason).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "clinic_holiday", holiday.Date.Format("2006-01-02"))
+	}
+	existing.Reason = holiday.Reason
+	*holiday = existing
 	return holiday, nil
 }
 

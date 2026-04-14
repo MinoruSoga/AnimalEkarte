@@ -918,6 +918,12 @@ components:
         reason:
           type: string
           description: 返金理由
+        refunded_by:
+          type: integer
+          format: int64
+          nullable: true
+          description: 返金処理を行ったスタッフID（JWT認証から自動セット）
+          readOnly: true
         refunded_at:
           type: string
           format: date-time
@@ -8095,7 +8101,7 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   # ─── Merchandise Items ─────────────────────────────────────
-  /masters/merchandise:
+  /masters/merchandise-items:
     get:
       operationId: listMerchandiseItems
       summary: 物販マスタ一覧
@@ -8134,7 +8140,7 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/merchandise/1
+                example: /masters/merchandise-items/1
           content:
             application/json:
               schema:
@@ -8149,7 +8155,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/merchandise/reorder:
+  /masters/merchandise-items/reorder:
     patch:
       operationId: reorderMerchandiseItems
       summary: 物販マスタ一括並び替え
@@ -8184,7 +8190,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/merchandise/{id}:
+  /masters/merchandise-items/{id}:
     patch:
       operationId: updateMerchandiseItem
       summary: 物販マスタ更新
@@ -8526,130 +8532,10 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   # ─── Users ───────────────────────────────────────────────────
-  /users:
-    get:
-      operationId: listUsers
-      summary: ユーザー一覧
-      description: クリニックに所属するユーザーアカウント一覧
-      tags: [Users]
-      parameters:
-        - name: clinic_id
-          in: query
-          description: クリニックIDで絞り込み（省略時はJWTのclinic_idを使用）
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: ユーザー一覧
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/UserResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-    post:
-      operationId: createUser
-      summary: ユーザー作成
-      tags: [Users]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateUserRequest'
-      responses:
-        '201':
-          description: 作成成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-  /users/{id}:
-    get:
-      operationId: getUser
-      summary: ユーザー取得
-      tags: [Users]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: 取得成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserDetailResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-    patch:
-      operationId: updateUser
-      summary: ユーザー更新
-      tags: [Users]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateUserRequest'
-      responses:
-        '204':
-          description: 更新成功
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-    delete:
-      operationId: deleteUser
-      summary: ユーザー削除
-      tags: [Users]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '204':
-          description: 削除成功
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+  # NOTE: /users CRUD は未実装。スタッフ管理は /masters/staffs で提供。
+  # ユーザーパスワード変更のみ /users/me/password (PUT) で実装済み。
   # ─── Permission Groups ───────────────────────────────────────────────────
-  /permission-groups:
+  /masters/permission-groups:
     get:
       operationId: listPermissionGroups
       summary: 権限グループ一覧取得
@@ -8701,7 +8587,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-  /permission-groups/{id}:
+  /masters/permission-groups/{id}:
     get:
       operationId: getPermissionGroup
       summary: 権限グループ取得
@@ -8782,7 +8668,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-  /permission-groups/{id}/rules:
+  /masters/permission-groups/{id}/rules:
     put:
       operationId: setPermissionGroupRules
       summary: 権限グループのルール一括更新（全置換）
@@ -8835,15 +8721,14 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-  /users/{id}/permission-groups:
+  /masters/staffs/{id}/permission-groups:
     put:
-      operationId: setUserPermissionGroups
-      summary: ユーザーへの権限グループ割当（全置換）
+      operationId: setStaffPermissionGroups
+      summary: スタッフへの権限グループ割当（全置換）
       description: |
-        ユーザーに割り当てる権限グループを一括置換する。
+        スタッフに割り当てる権限グループを一括置換する。
         master-permission の edit 権限を持つユーザーのみ実行可能。
-        system_admin 以外は同一クリニック内のユーザーのみ変更可。
-      tags: [Users]
+      tags: [PermissionGroups]
       parameters:
         - name: id
           in: path
@@ -9027,7 +8912,7 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   # ─── Masters: chief-complaints ───────────────────────────────
-  /masters/chief-complaints:
+  /masters/chief-complaint-types:
     get:
       operationId: listChiefComplaints
       summary: 主訴カテゴリ一覧
@@ -9068,7 +8953,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-  /masters/chief-complaints/{id}:
+  /masters/chief-complaint-types/{id}:
     get:
       operationId: getChiefComplaint
       summary: 主訴カテゴリ取得

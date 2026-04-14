@@ -7,6 +7,13 @@ import (
 )
 
 // RegisterLineReservationRoutes はLINE予約管理APIのルートを登録する
+//
+// BUG-LINE-005: 旧実装では `/clinics/:id/.../:id` のように `:id` が重複しており、
+// Gin の c.Param("id") が最初にマッチした clinic_id を返すため、個別リソース操作が
+// 他レコードへ誤って適用される CRITICAL SECURITY バグがあった。
+// ネストした子リソースのパスパラメータは全て固有名（typeId/staffId/reservationId/customerId）に変更する。
+// 親の `/clinics/:id` は clinic_handler.go 側の CRUD ルート（/clinics/:id）と整合させるため `:id` のまま保持し、
+// 実際の clinic_id 判定は JWT の `extractClinicID(c)` を使うため URL 側の `:id` は識別子として参照しない。
 func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics/:id")
 
@@ -18,24 +25,24 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	types := clinics.Group("/reservation-types")
 	types.GET("", h.ListReservationTypeLiffs)
 	types.POST("", h.CreateReservationTypeLiff)
-	types.PUT("/:id", h.UpdateReservationTypeLiff)
-	types.DELETE("/:id", h.DeleteReservationTypeLiff)
-	types.PATCH("/:id/status", h.PatchReservationTypeLiffStatus)
-	types.PATCH("/:id/sort-order", h.PatchReservationTypeLiffSortOrder)
-	types.POST("/:id/image", h.UploadReservationTypeLiffImage)
+	types.PUT("/:typeId", h.UpdateReservationTypeLiff)
+	types.DELETE("/:typeId", h.DeleteReservationTypeLiff)
+	types.PATCH("/:typeId/status", h.PatchReservationTypeLiffStatus)
+	types.PATCH("/:typeId/sort-order", h.PatchReservationTypeLiffSortOrder)
+	types.POST("/:typeId/image", h.UploadReservationTypeLiffImage)
 
 	// TASK-RES-012: スタッフ
 	staffs := clinics.Group("/reservation-staffs")
 	staffs.GET("", h.ListReservationStaffs)
 	staffs.POST("", h.CreateReservationStaff)
-	staffs.PUT("/:id", h.UpdateReservationStaff)
-	staffs.DELETE("/:id", h.DeleteReservationStaff)
-	staffs.PATCH("/:id/status", h.PatchReservationStaffStatus)
-	staffs.PATCH("/:id/sort-order", h.PatchReservationStaffSortOrder)
-	staffs.POST("/:id/image", h.UploadReservationStaffImage)
+	staffs.PUT("/:staffId", h.UpdateReservationStaff)
+	staffs.DELETE("/:staffId", h.DeleteReservationStaff)
+	staffs.PATCH("/:staffId/status", h.PatchReservationStaffStatus)
+	staffs.PATCH("/:staffId/sort-order", h.PatchReservationStaffSortOrder)
+	staffs.POST("/:staffId/image", h.UploadReservationStaffImage)
 
 	// TASK-RES-013: スタッフ個人スケジュール
-	schedules := clinics.Group("/reservation-staffs/:id/schedules")
+	schedules := clinics.Group("/reservation-staffs/:staffId/schedules")
 	schedules.GET("", h.ListReservationSchedules)
 	schedules.PUT("/:date", h.UpsertReservationSchedule)
 	schedules.DELETE("/:date", h.DeleteReservationSchedule)
@@ -44,12 +51,12 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	reservations := clinics.Group("/reservations")
 	reservations.GET("", h.ListReservationsAdmin)
 	reservations.POST("", h.CreateReservationAdmin)
-	reservations.DELETE("/:id", h.DeleteReservationAdmin)
+	reservations.DELETE("/:reservationId", h.DeleteReservationAdmin)
 
 	// TASK-RES-015: 顧客管理
 	customers := clinics.Group("/line-customers")
 	customers.GET("", h.ListLineCustomers)
-	customers.PATCH("/:id/link-owner", h.LinkOwnerToLineCustomer)
+	customers.PATCH("/:customerId/link-owner", h.LinkOwnerToLineCustomer)
 }
 
 // RegisterLiffRoutes はLIFF公開APIのルートを登録する（LINE IDトークン認証）。
@@ -66,7 +73,7 @@ func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
 	authed.Use(liffAuth)
 
 	authed.GET("/profile", h.GetLiffProfile)
-	authed.GET("/types", h.GetLiffTypes)
+	authed.GET("/courses", h.GetLiffTypes)
 	authed.GET("/staffs", h.GetLiffStaffs)
 	authed.GET("/available-dates", h.GetLiffAvailableDates)
 	authed.GET("/available-times", h.GetLiffAvailableTimes)

@@ -144,12 +144,27 @@ func formatValidationError(fe validator.FieldError) string {
 }
 
 // camelToSnake は CamelCase を snake_case に変換する。
-// "OwnerName" → "owner_name", "IsDangerous" → "is_dangerous"
+// 連続した大文字（頭字語）は 1 単語として扱う。
+// "OwnerName" → "owner_name"
+// "IsDangerous" → "is_dangerous"
+// "TypeID" → "type_id"     ← BUG-LINE-010: 以前は "type_i_d" になっていた
+// "HTTPServer" → "http_server"
 func camelToSnake(s string) string {
 	var b strings.Builder
-	for i, r := range s {
+	runes := []rune(s)
+	for i, r := range runes {
 		if i > 0 && unicode.IsUpper(r) {
-			b.WriteByte('_')
+			prev := runes[i-1]
+			// 直前が小文字/数字 → 単語境界として `_` を挿入
+			// 直前が大文字で次が小文字 → 頭字語の末尾扱いで `_` を挿入 ("HTTPServer" → "http_server")
+			// それ以外（連続大文字の途中）は `_` を挿入しない
+			insertUnderscore := !unicode.IsUpper(prev)
+			if !insertUnderscore && i+1 < len(runes) && unicode.IsLower(runes[i+1]) {
+				insertUnderscore = true
+			}
+			if insertUnderscore {
+				b.WriteByte('_')
+			}
 		}
 		b.WriteRune(unicode.ToLower(r))
 	}

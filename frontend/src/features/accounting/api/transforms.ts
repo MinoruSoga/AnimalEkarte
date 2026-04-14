@@ -38,15 +38,18 @@ function buildPaymentInfo(data: BackendAccounting): PaymentInfo | undefined {
     receivedAmount: payment.received_amount ?? 0,
     changeAmount: payment.change_amount ?? 0,
     method: (payment.method || "cash") as PaymentInfo["method"],
+    paidByName: (payment as unknown as Record<string, unknown>).paid_by_name as string | undefined,
   };
 }
 
-export function transformToRefund(r: BillingRefund): Refund {
+export function transformToRefund(r: BillingRefund & { refunded_by_name?: string }): Refund {
   return {
     id: String(r.id ?? 0),
     billingId: String(r.billing_id ?? 0),
     amount: r.amount,
     reason: r.reason,
+    refundedBy: r.refunded_by ?? null,
+    refundedByName: r.refunded_by_name ?? "",
     refundedAt: r.refunded_at,
     createdAt: r.created_at,
   };

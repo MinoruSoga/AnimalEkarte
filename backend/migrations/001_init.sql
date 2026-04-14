@@ -682,6 +682,7 @@ CREATE TABLE appointments (
     status             reservation_status            DEFAULT 'pending',
     notes              text                 NOT NULL DEFAULT '',
     source             reservation_source   NOT NULL DEFAULT 'manual',
+    created_by         bigint                        REFERENCES staffs(id),
     is_staff_delegated boolean              NOT NULL DEFAULT false,
     customer_fields    jsonb                NOT NULL DEFAULT '{}',
     created_at         timestamptz          NOT NULL DEFAULT now(),
@@ -752,6 +753,7 @@ CREATE TABLE medical_records (
     appointment_id             bigint                         REFERENCES appointments(id) ON DELETE SET NULL,
     status                     medical_record_status          DEFAULT 'draft',
     version                    INTEGER               NOT NULL DEFAULT 1,
+    entered_by                 bigint                         REFERENCES staffs(id),
     created_at                 timestamptz           NOT NULL DEFAULT now(),
     updated_at                 timestamptz           NOT NULL DEFAULT now(),
     deleted_at                 timestamptz
@@ -1218,6 +1220,7 @@ CREATE TABLE payments (
     received_amount  bigint                  DEFAULT 0,
     change_amount    bigint                  DEFAULT 0,
     method           payment_method          DEFAULT 'cash',
+    paid_by          bigint         REFERENCES staffs(id),
     created_at       timestamptz    NOT NULL DEFAULT now(),
     updated_at       timestamptz    NOT NULL DEFAULT now(),
     deleted_at       timestamptz
@@ -1232,6 +1235,7 @@ CREATE TABLE billing_refunds (
     billing_id   bigint      NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
     amount       bigint      NOT NULL CHECK (amount > 0),
     reason       text        NOT NULL DEFAULT '',
+    refunded_by  bigint      REFERENCES staffs(id),
     refunded_at  timestamptz NOT NULL DEFAULT now(),
     created_at   timestamptz NOT NULL DEFAULT now()
 );
@@ -1377,6 +1381,7 @@ CREATE INDEX idx_appointments_owner_id ON appointments(owner_id);
 CREATE INDEX idx_appointments_pet_id ON appointments(pet_id);
 CREATE INDEX idx_appointments_reservation_type_id ON appointments(reservation_type_id);
 CREATE INDEX idx_appointments_doctor_id ON appointments(doctor_id);
+CREATE INDEX idx_appointments_created_by ON appointments(created_by);
 
 -- medical_records 子テーブル FK インデックス
 CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
@@ -1410,6 +1415,8 @@ CREATE INDEX idx_billings_owner_id ON billings(owner_id);
 
 CREATE INDEX idx_billing_refunds_billing ON billing_refunds(billing_id);
 CREATE INDEX idx_billing_refunds_clinic_billing ON billing_refunds(clinic_id, billing_id);
+CREATE INDEX idx_payments_staff ON payments(paid_by);
+CREATE INDEX idx_billing_refunds_staff ON billing_refunds(refunded_by);
 
 -- 担当医 FK インデックス（staffs）
 CREATE INDEX idx_vital_records_staff_id ON vital_records(staff_id);
@@ -1513,6 +1520,7 @@ CREATE INDEX idx_pets_animal_species_id ON pets(animal_species_id);
 CREATE INDEX idx_pets_insurance_id ON pets(insurance_id) WHERE insurance_id IS NOT NULL;
 CREATE INDEX idx_diagnosis_names_type_id ON diagnosis_names(diagnosis_type_id);
 CREATE INDEX idx_medical_records_doctor_id ON medical_records(doctor_id) WHERE doctor_id IS NOT NULL;
+CREATE INDEX idx_medical_records_entered_by ON medical_records(entered_by) WHERE entered_by IS NOT NULL;
 CREATE INDEX idx_treatments_consultation_id ON treatments(consultation_id) WHERE consultation_id IS NOT NULL;
 CREATE INDEX idx_treatments_procedure_id ON treatments(procedure_id) WHERE procedure_id IS NOT NULL;
 CREATE INDEX idx_treatments_medicine_id ON treatments(medicine_id) WHERE medicine_id IS NOT NULL;

@@ -63,7 +63,7 @@ export const DailyStaffNotesSection = memo(function DailyStaffNotesSection({
         if (!form.time || !form.content.trim()) return;
 
         onAddStaffNote({
-            time: form.time,
+            time: form.time.length === 5 ? `${form.time}:00` : form.time,
             content: form.content.trim(),
         });
         setIsOpen(false);

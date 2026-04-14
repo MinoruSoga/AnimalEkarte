@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
+
+	holiday "github.com/holiday-jp/holiday_jp-go"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -71,6 +74,13 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			Code:    "MAINTENANCE",
 			Message: "只今、メンテナンス中です。暫くお待ちください。",
 		}
+	}
+
+	// BUG-LINE-008: 業務時間・予約窓・休業日のサーバーサイド検証。
+	// GET /available-times は正しく除外しているが、POST /reservations は素通りしていた。
+	// 直接 API を叩かれても無効な予約を受け付けないようにする。
+	if err := validateBusinessRules(settings, input.Date, input.StartTime, input.EndTime); err != nil {
+		return nil, err
 	}
 
 	var result *model.Appointment
@@ -194,6 +204,101 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		return nil, apperrors.Wrap(err, "failed to create line reservation")
 	}
 	return result, nil
+}
+
+// validateBusinessRules は予約可能日・営業時間・休憩時間などの業務ルールを検証する（BUG-LINE-008）。
+// - 過去日・予約窓（min/max days）範囲外
+// - 休業曜日（closed_weekdays）
+// - 休業日（closed_dates）
+// - 祝日（national_holiday_closed=true 時のみ）
+// - 営業時間外（business_hours / business_hours_by_weekday）
+// - 休憩時間と重複（break_hours）
+// エラーは apperrors.WrapInvalidInput で 400 を返す。
+func validateBusinessRules(settings *model.LineReservationSetting, date time.Time, startTime, endTime string) error {
+	loc := jstLocation()
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, loc)
+
+	// 1. 予約窓チェック
+	minDate := today.AddDate(0, 0, settings.BookingWindowMinDays)
+	maxDate := today.AddDate(0, 0, settings.BookingWindowMaxDays)
+	if dateStart.Before(minDate) {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("予約可能日は %s 以降です", minDate.Format("2006-01-02")))
+	}
+	if dateStart.After(maxDate) {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("予約可能日は %s 以前です", maxDate.Format("2006-01-02")))
+	}
+
+	// 2. 休業曜日
+	if len(settings.ClosedWeekdays) > 0 {
+		var closedWeekdays []int
+		if err := json.Unmarshal(settings.ClosedWeekdays, &closedWeekdays); err == nil {
+			wd := int(dateStart.Weekday())
+			for _, cwd := range closedWeekdays {
+				if cwd == wd {
+					return apperrors.WrapInvalidInput("指定日は休業曜日のため予約できません")
+				}
+			}
+		}
+	}
+
+	// 3. 休業日
+	if len(settings.ClosedDates) > 0 {
+		var closedDates []string
+		if err := json.Unmarshal(settings.ClosedDates, &closedDates); err == nil {
+			dateStr := dateStart.Format("2006-01-02")
+			for _, cd := range closedDates {
+				if cd == dateStr {
+					return apperrors.WrapInvalidInput("指定日は休業日のため予約できません")
+				}
+			}
+		}
+	}
+
+	// 4. 祝日
+	if settings.NationalHolidayClosed && holiday.IsHoliday(dateStart) {
+		return apperrors.WrapInvalidInput("指定日は祝日休業のため予約できません")
+	}
+
+	// 5. 営業時間
+	bh, breaks := parseBusinessHoursForDate(settings, dateStart)
+	bsStart, err := minutesSinceMidnight(bh.Start)
+	if err != nil {
+		return apperrors.Wrap(err, "invalid business_hours.start")
+	}
+	bsEnd, err := minutesSinceMidnight(bh.End)
+	if err != nil {
+		return apperrors.Wrap(err, "invalid business_hours.end")
+	}
+	reqStart, err := minutesSinceMidnight(startTime)
+	if err != nil {
+		return apperrors.WrapInvalidInput(err.Error())
+	}
+	reqEnd, err := minutesSinceMidnight(endTime)
+	if err != nil {
+		return apperrors.WrapInvalidInput(err.Error())
+	}
+	if reqStart < bsStart || reqEnd > bsEnd {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("営業時間外の予約はできません (営業時間 %s-%s)", bh.Start, bh.End))
+	}
+
+	// 6. 休憩時間との重複（半開区間 [start, end) で重複判定）
+	for _, b := range breaks {
+		brStart, err := minutesSinceMidnight(b.Start)
+		if err != nil {
+			continue
+		}
+		brEnd, err := minutesSinceMidnight(b.End)
+		if err != nil {
+			continue
+		}
+		if reqStart < brEnd && reqEnd > brStart {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("休憩時間(%s-%s)と重複しています", b.Start, b.End))
+		}
+	}
+
+	return nil
 }
 
 // toDateTime は日付と "HHMM" 文字列を time.Time に変換する。

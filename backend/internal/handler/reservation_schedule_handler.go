@@ -16,7 +16,7 @@ func (h *Handler) ListReservationSchedules(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staffID, ok := parseIDParam(c, "id")
+	staffID, ok := parseIDParam(c, "staffId")
 	if !ok {
 		return
 	}
@@ -42,7 +42,7 @@ func (h *Handler) UpsertReservationSchedule(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staffID, ok := parseIDParam(c, "id")
+	staffID, ok := parseIDParam(c, "staffId")
 	if !ok {
 		return
 	}
@@ -83,7 +83,7 @@ func (h *Handler) DeleteReservationSchedule(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staffID, ok := parseIDParam(c, "id")
+	staffID, ok := parseIDParam(c, "staffId")
 	if !ok {
 		return
 	}

@@ -52,16 +52,18 @@ type Appointment struct {
 
 	// LINE予約用フィールド
 	Source           ReservationSource `gorm:"type:reservation_source;not null;default:'manual'" json:"source"`
+	CreatedBy        *uint64           `gorm:""                                                  json:"created_by,omitempty"`
 	LineCustomerID   *uint64           `                                                         json:"line_customer_id,omitempty"`
 	IsStaffDelegated bool              `gorm:"not null;default:false"                            json:"is_staff_delegated"`
 	CustomerFields   []byte            `gorm:"type:jsonb;not null;default:'{}'"                  json:"customer_fields"`
 
 	// Relations
-	Owner           *Owner           `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`
-	Pet             *Pet             `gorm:"foreignKey:PetID"            json:"pet,omitempty"`
+	Owner           *Owner           `gorm:"foreignKey:OwnerID"              json:"owner,omitempty"`
+	Pet             *Pet             `gorm:"foreignKey:PetID"                json:"pet,omitempty"`
 	ReservationType *ReservationType `gorm:"foreignKey:ReservationTypeID"    json:"reservation_type,omitempty"`
-	Doctor          *Staff           `gorm:"foreignKey:DoctorID"         json:"doctor,omitempty"`
-	LineCustomer    *LineCustomer    `gorm:"foreignKey:LineCustomerID"   json:"line_customer,omitempty"`
+	Doctor          *Staff           `gorm:"foreignKey:DoctorID"             json:"doctor,omitempty"`
+	CreatedByStaff  *Staff           `gorm:"foreignKey:CreatedBy"            json:"created_by_staff,omitempty" tygo:"-"`
+	LineCustomer    *LineCustomer    `gorm:"foreignKey:LineCustomerID"       json:"line_customer,omitempty"`
 }
 
 func (Appointment) TableName() string { return "appointments" }

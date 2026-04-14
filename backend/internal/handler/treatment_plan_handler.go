@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -16,9 +15,8 @@ func (h *Handler) ListTreatmentPlansByMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, id); !ok {
@@ -41,9 +39,8 @@ func (h *Handler) CreateTreatmentPlanForMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, id); !ok {
@@ -78,9 +75,8 @@ func (h *Handler) ListTreatmentPlansByHospitalization(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, err := h.svc.Hospitalization.GetByID(c.Request.Context(), clinicID, id); err != nil {
@@ -104,9 +100,8 @@ func (h *Handler) CreateTreatmentPlanForHospitalization(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, err := h.svc.Hospitalization.GetByID(c.Request.Context(), clinicID, id); err != nil {
@@ -159,17 +154,15 @@ func (h *Handler) UpdateTreatmentPlanInMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	mrID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	mrID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, mrID); !ok {
 		return
 	}
-	planID, err := strconv.ParseUint(c.Param("planId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid planId"))
+	planID, ok := parseIDParam(c, "planId")
+	if !ok {
 		return
 	}
 	var req updateTreatmentPlanRequest
@@ -192,17 +185,15 @@ func (h *Handler) DeleteTreatmentPlanInMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	mrID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	mrID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, mrID); !ok {
 		return
 	}
-	planID, err := strconv.ParseUint(c.Param("planId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid planId"))
+	planID, ok := parseIDParam(c, "planId")
+	if !ok {
 		return
 	}
 	if err := h.svc.TreatmentPlan.Delete(c.Request.Context(), clinicID, planID); err != nil {
@@ -219,18 +210,16 @@ func (h *Handler) UpdateTreatmentPlanInHospitalization(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, err := h.svc.Hospitalization.GetByID(c.Request.Context(), clinicID, hospID); err != nil {
 		RespondError(c, err)
 		return
 	}
-	planID, err := strconv.ParseUint(c.Param("planId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid planId"))
+	planID, ok := parseIDParam(c, "planId")
+	if !ok {
 		return
 	}
 	var req updateTreatmentPlanRequest
@@ -253,18 +242,16 @@ func (h *Handler) DeleteTreatmentPlanInHospitalization(c *gin.Context) {
 	if !ok {
 		return
 	}
-	hospID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	hospID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, err := h.svc.Hospitalization.GetByID(c.Request.Context(), clinicID, hospID); err != nil {
 		RespondError(c, err)
 		return
 	}
-	planID, err := strconv.ParseUint(c.Param("planId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid planId"))
+	planID, ok := parseIDParam(c, "planId")
+	if !ok {
 		return
 	}
 	if err := h.svc.TreatmentPlan.Delete(c.Request.Context(), clinicID, planID); err != nil {

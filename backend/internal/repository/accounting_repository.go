@@ -15,6 +15,7 @@ type AccountingRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	UpsertPayment(ctx context.Context, payment *model.Payment) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountItemsByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error)
 }
@@ -50,7 +51,7 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-	if err := q.Preload("Owner").Preload("Pet").Preload("Payments").Preload("Items").
+	if err := q.Preload("Owner").Preload("Pet").Preload("Payments").Preload("Payments.PaidByStaff").Preload("Items").
 		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
@@ -90,7 +91,9 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 	err := r.db.WithContext(ctx).
 		Preload("Items").
 		Preload("Payments").
+		Preload("Payments.PaidByStaff").
 		Preload("Refunds").
+		Preload("Refunds.RefundedByStaff").
 		Preload("Owner").
 		Preload("Pet").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&billing).Error
@@ -133,12 +136,54 @@ func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billi
 	}
 	var billing model.Billing
 	if err := r.db.WithContext(ctx).
-		Preload("Items").Preload("Payments").Preload("Refunds").Preload("Owner").Preload("Pet").
+		Preload("Items").Preload("Payments").Preload("Payments.PaidByStaff").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner").Preload("Pet").
 		Scopes(clinicScope(clinicID)).
 		First(&billing, "id = ?", billingID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
 	}
 	return &billing, nil
+}
+
+func (r *accountingRepository) UpsertPayment(ctx context.Context, payment *model.Payment) error {
+	// map[string]any を使用してゼロ値（Subtotal=0 等）も確実に更新する。
+	// struct の Assign では GORM がゼロ値フィールドをスキップする問題がある。
+	fields := map[string]any{
+		"subtotal":         payment.Subtotal,
+		"tax_total":        payment.TaxTotal,
+		"total_amount":     payment.TotalAmount,
+		"insurance_name":   payment.InsuranceName,
+		"insurance_ratio":  payment.InsuranceRatio,
+		"insurance_amount": payment.InsuranceAmount,
+		"discount_amount":  payment.DiscountAmount,
+		"billing_amount":   payment.BillingAmount,
+		"received_amount":  payment.ReceivedAmount,
+		"change_amount":    payment.ChangeAmount,
+		"method":           payment.Method,
+		"paid_by":          payment.PaidBy,
+	}
+
+	var existing model.Payment
+	err := r.db.WithContext(ctx).
+		Where("billing_id = ?", payment.BillingID).
+		First(&existing).Error
+
+	if err != nil {
+		// レコードなし → 新規作成
+		if err := r.db.WithContext(ctx).Create(payment).Error; err != nil {
+			return apperrors.FromGORM(err, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
+		}
+		return nil
+	}
+
+	// 既存レコード → map で更新（ゼロ値も反映）
+	if err := r.db.WithContext(ctx).
+		Model(&model.Payment{}).
+		Where("billing_id = ?", payment.BillingID).
+		Updates(fields).Error; err != nil {
+		return apperrors.FromGORM(err, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
+	}
+	payment.ID = existing.ID
+	return nil
 }
 
 func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uint64) error {

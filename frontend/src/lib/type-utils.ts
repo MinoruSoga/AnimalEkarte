@@ -38,21 +38,3 @@ export function typedSetter<T extends string>(
     }
   };
 }
-
-/**
- * Variant of typedSetter that only fires if the value is truthy.
- * Useful for ToggleGroup where deselecting sends an empty string.
- *
- * @example
- * <ToggleGroup onValueChange={typedSetterNonEmpty(setViewMode, VIEW_MODE_VALUES)}>
- */
-export function typedSetterNonEmpty<T extends string>(
-  setter: (value: T) => void,
-  validValues: readonly T[]
-): (value: string) => void {
-  return (value: string) => {
-    if (value && isOneOf(value, validValues)) {
-      setter(value);
-    }
-  };
-}

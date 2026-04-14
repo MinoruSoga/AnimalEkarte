@@ -11,7 +11,7 @@ import (
 
 // RefundService は返金ビジネスロジックのインターフェース
 type RefundService interface {
-	Create(ctx context.Context, clinicID, billingID uint64, amount int64, reason string) (*model.BillingRefund, error)
+	Create(ctx context.Context, clinicID, billingID uint64, staffID *uint64, amount int64, reason string) (*model.BillingRefund, error)
 	ListByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error)
 }
 
@@ -25,7 +25,7 @@ func NewRefundService(repo repository.RefundRepository, accountRepo repository.A
 	return &refundService{repo: repo, accountRepo: accountRepo}
 }
 
-func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, amount int64, reason string) (*model.BillingRefund, error) {
+func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, staffID *uint64, amount int64, reason string) (*model.BillingRefund, error) {
 	if amount <= 0 {
 		return nil, apperrors.WrapInvalidInput("amount must be positive")
 	}
@@ -51,10 +51,11 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 	}
 
 	refund := &model.BillingRefund{
-		ClinicID:  clinicID,
-		BillingID: billingID,
-		Amount:    amount,
-		Reason:    reason,
+		ClinicID:   clinicID,
+		BillingID:  billingID,
+		Amount:     amount,
+		Reason:     reason,
+		RefundedBy: staffID,
 	}
 	if err := s.repo.Create(ctx, refund); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create refund")

@@ -121,8 +121,13 @@ export interface Payment {
   received_amount: number /* int64 */;
   change_amount: number /* int64 */;
   method: PaymentMethod;
+  paid_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
+  /**
+   * Relations
+   */
+  paid_by_staff?: Staff;
 }
 
 //////////
@@ -231,8 +236,13 @@ export interface BillingRefund {
   billing_id: number /* uint64 */;
   amount: number /* int64 */; // 返金額（正の整数、円）
   reason: string;
+  refunded_by?: number /* uint64 */; // 返金処理スタッフID（nullable）
   refunded_at: string;
   created_at: string;
+  /**
+   * Relations
+   */
+  refunded_by_staff?: Staff;
 }
 
 //////////
@@ -966,6 +976,7 @@ export interface MedicalRecord {
   appointment_id?: number /* uint64 */;
   status: MedicalRecordStatus;
   version: number /* int */;
+  entered_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
   visit_count: number /* int64 */;
@@ -975,6 +986,7 @@ export interface MedicalRecord {
   owner?: Owner;
   pet?: Pet;
   doctor?: Staff;
+  entered_by_staff?: Staff;
   clinical_plan?: ClinicalPlan;
   inquiry?: Inquiry;
   treatments?: Treatment[];
@@ -1343,6 +1355,7 @@ export interface Appointment {
    * LINE予約用フィールド
    */
   source: ReservationSource;
+  created_by?: number /* uint64 */;
   line_customer_id?: number /* uint64 */;
   is_staff_delegated: boolean;
   customer_fields: string /* []byte */;
@@ -1353,6 +1366,7 @@ export interface Appointment {
   pet?: Pet;
   reservation_type?: ReservationType;
   doctor?: Staff;
+  created_by_staff?: Staff;
   line_customer?: LineCustomer;
 }
 

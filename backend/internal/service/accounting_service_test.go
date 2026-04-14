@@ -42,6 +42,10 @@ func (m *mockAccountingRepository) Delete(ctx context.Context, clinicID, id uint
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockAccountingRepository) UpsertPayment(_ context.Context, _ *model.Payment) error {
+	return nil
+}
+
 func (m *mockAccountingRepository) CountItemsByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error) {
 	if m.countItemsByBillingIDFn == nil {
 		return 0, nil
@@ -380,6 +384,9 @@ func TestAccountingService_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockAccountingRepository{
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+					return tt.repoRet, tt.repoErr
+				},
+				findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Billing, error) {
 					return tt.repoRet, tt.repoErr
 				},
 			}

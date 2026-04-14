@@ -129,7 +129,7 @@ func newLiffRouter(h *Handler, withCustomer bool) *gin.Engine {
 	liff.Use(authMW)
 	liff.GET("/settings", h.GetLiffSettings)
 	liff.GET("/profile", h.GetLiffProfile)
-	liff.GET("/types", h.GetLiffTypes)
+	liff.GET("/courses", h.GetLiffTypes)
 	liff.GET("/staffs", h.GetLiffStaffs)
 	liff.GET("/available-dates", h.GetLiffAvailableDates)
 	liff.GET("/available-times", h.GetLiffAvailableTimes)
@@ -248,7 +248,7 @@ func TestGetLiffTypes(t *testing.T) {
 				}, nil
 			},
 		})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/types", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/courses", nil)
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp []map[string]any
@@ -262,7 +262,7 @@ func TestGetLiffTypes(t *testing.T) {
 				return nil, errors.New("internal error")
 			},
 		})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/types", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/courses", nil)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
@@ -282,26 +282,26 @@ func TestGetLiffStaffs(t *testing.T) {
 				return []model.Staff{{ID: 10, Name: "林先生"}}, nil
 			},
 		})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/staffs?typeId=1", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/staffs?courseId=1", nil)
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "林先生")
 	})
 
-	t.Run("typeId が未指定 → 400", func(t *testing.T) {
+	t.Run("courseId が未指定 → 400", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{})
 		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/staffs", nil)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("typeId がゼロ → 400", func(t *testing.T) {
+	t.Run("courseId がゼロ → 400", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/staffs?typeId=0", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/staffs?courseId=0", nil)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("typeId が文字列 → 400", func(t *testing.T) {
+	t.Run("courseId が文字列 → 400", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/staffs?typeId=abc", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/staffs?courseId=abc", nil)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
@@ -311,7 +311,7 @@ func TestGetLiffStaffs(t *testing.T) {
 				return nil, errors.New("internal error")
 			},
 		})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/staffs?typeId=1", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/staffs?courseId=1", nil)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
@@ -334,7 +334,7 @@ func TestGetLiffAvailableDates(t *testing.T) {
 				}, service.BookingWindow{}, nil
 			},
 		})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-dates?typeId=1", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-dates?courseId=1", nil)
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "2026-05-01")
 	})
@@ -347,11 +347,11 @@ func TestGetLiffAvailableDates(t *testing.T) {
 				return nil, service.BookingWindow{}, nil
 			},
 		})
-		doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-dates?typeId=1&staffId=5", nil)
+		doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-dates?courseId=1&staffId=5", nil)
 		assert.Equal(t, uint64(5), capturedStaffID)
 	})
 
-	t.Run("typeId が未指定 → 400", func(t *testing.T) {
+	t.Run("courseId が未指定 → 400", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{})
 		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-dates", nil)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -363,7 +363,7 @@ func TestGetLiffAvailableDates(t *testing.T) {
 				return nil, service.BookingWindow{}, errors.New("internal error")
 			},
 		})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-dates?typeId=1", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-dates?courseId=1", nil)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
@@ -387,12 +387,12 @@ func TestGetLiffAvailableTimes(t *testing.T) {
 				}, nil
 			},
 		})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-times?typeId=1&date=2026-05-01", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-times?courseId=1&date=2026-05-01", nil)
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "1000")
 	})
 
-	t.Run("typeId が未指定 → 400", func(t *testing.T) {
+	t.Run("courseId が未指定 → 400", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{})
 		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-times?date=2026-05-01", nil)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -400,13 +400,13 @@ func TestGetLiffAvailableTimes(t *testing.T) {
 
 	t.Run("date が不正フォーマット → 400", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-times?typeId=1&date=20260501", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-times?courseId=1&date=20260501", nil)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("date が未指定 → 400", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-times?typeId=1", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-times?courseId=1", nil)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
@@ -416,7 +416,7 @@ func TestGetLiffAvailableTimes(t *testing.T) {
 				return nil, errors.New("internal error")
 			},
 		})
-		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-times?typeId=1&date=2026-05-01", nil)
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/available-times?courseId=1&date=2026-05-01", nil)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
@@ -429,7 +429,7 @@ func TestCreateLiffReservation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	validBody := map[string]any{
-		"type_id":    1,
+		"course_id":  1,
 		"staff_id":   10,
 		"date":       "2026-05-01",
 		"start_time": "1000",
@@ -470,7 +470,7 @@ func TestCreateLiffReservation(t *testing.T) {
 
 	t.Run("date が不正フォーマット → 400", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{})
-		body := map[string]any{"type_id": 1, "date": "20260501", "start_time": "1000", "end_time": "1015"}
+		body := map[string]any{"course_id": 1, "date": "20260501", "start_time": "1000", "end_time": "1015"}
 		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodPost, "/api/liff/3/reservations", body)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})

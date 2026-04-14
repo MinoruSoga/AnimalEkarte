@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,9 +17,8 @@ func (h *Handler) ListVitals(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
@@ -47,9 +45,8 @@ func (h *Handler) CreateVital(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	mr, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID)
@@ -94,18 +91,16 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 
-	vitalID, err := strconv.ParseUint(c.Param("vitalId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid vital id"))
+	vitalID, ok := parseIDParam(c, "vitalId")
+	if !ok {
 		return
 	}
 
@@ -141,18 +136,16 @@ func (h *Handler) DeleteVital(c *gin.Context) {
 	if !ok {
 		return
 	}
-	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+	medicalRecordID, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 
-	vitalID, err := strconv.ParseUint(c.Param("vitalId"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid vital id"))
+	vitalID, ok := parseIDParam(c, "vitalId")
+	if !ok {
 		return
 	}
 

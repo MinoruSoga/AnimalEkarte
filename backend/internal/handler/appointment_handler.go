@@ -77,9 +77,8 @@ func (h *Handler) GetReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	reservation, err := h.svc.Reservation.GetByID(c.Request.Context(), clinicID, id)
@@ -93,6 +92,10 @@ func (h *Handler) GetReservation(c *gin.Context) {
 // CreateReservation godoc
 func (h *Handler) CreateReservation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	staffID, ok := extractStaffID(c)
 	if !ok {
 		return
 	}
@@ -117,6 +120,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		IsDesignated:      input.IsDesignated,
 		Notes:             input.Notes,
 		Source:            source,
+		CreatedBy:         &staffID,
 	}
 	if input.VisitType != "" {
 		vt, err := validateEnum(input.VisitType,
@@ -169,9 +173,8 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	var input updateReservationRequest
@@ -248,9 +251,8 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.Reservation.Delete(c.Request.Context(), clinicID, id); err != nil {

@@ -734,6 +734,7 @@ const RefundSection = memo(function RefundSection({
             <thead>
               <tr className={`border-b ${C.bgPage30} text-xs`}>
                 <th className="px-3 py-2 text-left font-medium">日時</th>
+                <th className="px-3 py-2 text-left font-medium">処理者</th>
                 <th className="px-3 py-2 text-right font-medium">金額</th>
                 <th className="px-3 py-2 text-left font-medium">理由</th>
               </tr>
@@ -743,6 +744,9 @@ const RefundSection = memo(function RefundSection({
                 <tr key={r.id} className="border-b last:border-0">
                   <td className={`px-3 py-2 font-mono text-xs ${C.text50}`}>
                     {new Date(r.refundedAt).toLocaleDateString("ja-JP")}
+                  </td>
+                  <td className={`px-3 py-2 text-xs ${C.text50}`}>
+                    {r.refundedByName || "-"}
                   </td>
                   <td className={`px-3 py-2 text-right font-medium ${C.textDiscount}`}>
                     ¥{r.amount.toLocaleString()}

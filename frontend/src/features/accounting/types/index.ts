@@ -74,6 +74,7 @@ export interface PaymentInfo {
   receivedAmount: number; // 預り金
   changeAmount: number; // お釣り
   method: PaymentMethod;
+  paidByName?: string; // 支払処理スタッフ名
 }
 
 /** @see {@link import("@/types/generated/models").BillingRefund} */
@@ -82,6 +83,8 @@ export interface Refund {
   billingId: string;
   amount: number;
   reason: string;
+  refundedBy: number | null;
+  refundedByName: string;
   refundedAt: string;
   createdAt: string;
 }

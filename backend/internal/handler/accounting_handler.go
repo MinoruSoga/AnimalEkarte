@@ -133,6 +133,11 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		return
 	}
 
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
+
 	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
@@ -146,6 +151,7 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 	updateInput := service.UpdateAccountingInput{
 		ID:                id,
 		ClinicID:          clinicID,
+		StaffID:           &staffID,
 		MedicalRecordID:   input.MedicalRecordID,
 		HospitalizationID: input.HospitalizationID,
 		OwnerID:           input.OwnerID,
@@ -157,10 +163,21 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		ScheduledDate:     input.ScheduledDate,
 		CompletedAt:       input.CompletedAt,
 		Memo:              input.Memo,
+		InsuranceRatio:    input.InsuranceRatio,
+		InsuranceName:     input.InsuranceName,
+		InsuranceAmount:   input.InsuranceAmount,
+		DiscountAmount:    input.DiscountAmount,
+		BillingAmount:     input.BillingAmount,
+		ReceivedAmount:    input.ReceivedAmount,
+		ChangeAmount:      input.ChangeAmount,
 	}
 	if input.Status != nil {
 		s := model.BillingStatus(*input.Status)
 		updateInput.Status = &s
+	}
+	if input.PaymentMethod != nil {
+		m := model.PaymentMethod(*input.PaymentMethod)
+		updateInput.PaymentMethod = &m
 	}
 
 	ctx := c.Request.Context()

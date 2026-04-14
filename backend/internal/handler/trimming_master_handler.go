@@ -3,7 +3,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -20,9 +19,8 @@ func (h *Handler) GetTrimmingCourse(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	course, err := h.svc.TrimmingCourse.GetByID(c.Request.Context(), clinicID, id)
@@ -83,9 +81,8 @@ func (h *Handler) CreateTrimmingCourse(c *gin.Context) {
 
 // UpdateTrimmingCourse godoc
 func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	clinicID, ok := extractClinicID(c)
@@ -125,9 +122,8 @@ func (h *Handler) DeleteTrimmingCourse(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.TrimmingCourse.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -163,9 +159,8 @@ func (h *Handler) GetTrimmingOption(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	option, err := h.svc.TrimmingOption.GetByID(c.Request.Context(), clinicID, id)
@@ -223,9 +218,8 @@ func (h *Handler) CreateTrimmingOption(c *gin.Context) {
 
 // UpdateTrimmingOption godoc
 func (h *Handler) UpdateTrimmingOption(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	clinicID, ok := extractClinicID(c)
@@ -262,9 +256,8 @@ func (h *Handler) DeleteTrimmingOption(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+	id, ok := parseIDParam(c, "id")
+	if !ok {
 		return
 	}
 	if err := h.svc.TrimmingOption.Delete(c.Request.Context(), clinicID, id); err != nil {
