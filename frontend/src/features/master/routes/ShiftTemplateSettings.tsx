@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo } from "react";
+import { useState, useMemo, useCallback, memo, useEffect } from "react";
 import { useNavigate } from "react-router";
 
 // DnD
@@ -8,6 +8,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 
 // Shared hooks
 import { useSortableList } from "@/hooks/use-sortable-list";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 
 // External
 import Calendar from "lucide-react/dist/esm/icons/calendar";
@@ -191,6 +192,7 @@ interface SidePanelProps {
   onSave: () => void;
   onDeleteRequest: () => void;
   isSaving: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const SidePanel = memo(function SidePanel({
@@ -201,15 +203,24 @@ const SidePanel = memo(function SidePanel({
   onSave,
   onDeleteRequest,
   isSaving,
+  onDirtyChange,
 }: SidePanelProps) {
+  // BUG-380: 親管理 formData の変更検出 — マウント後に formData が変わった瞬間 dirty
+  // 初期 mount 時の formData ref を保持し、参照同一性で diff 判定。
+  const [isDirty, setIsDirty] = useState(false);
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const handleChange = useCallback((data: TemplateFormData) => {
+    onChange(data);
+    setIsDirty(true);
+  }, [onChange]);
   const isTimeHidden =
     formData.shift_type === ShiftTypeOff || formData.shift_type === ShiftTypePaidLeave;
 
   const handleField = useCallback(
     <K extends keyof TemplateFormData>(key: K, value: TemplateFormData[K]) => {
-      onChange({ ...formData, [key]: value });
+      handleChange({ ...formData, [key]: value });
     },
-    [formData, onChange],
+    [formData, handleChange],
   );
 
   const handleBreakChange = useCallback(
@@ -217,23 +228,23 @@ const SidePanel = memo(function SidePanel({
       const newBreaks = formData.breaks.map((b, i) =>
         i === index ? { ...b, [field]: value } : b,
       );
-      onChange({ ...formData, breaks: newBreaks });
+      handleChange({ ...formData, breaks: newBreaks });
     },
-    [formData, onChange],
+    [formData, handleChange],
   );
 
   const handleAddBreak = useCallback(() => {
-    onChange({
+    handleChange({
       ...formData,
       breaks: [...formData.breaks, { break_start: "12:00", break_end: "13:00" }],
     });
-  }, [formData, onChange]);
+  }, [formData, handleChange]);
 
   const handleRemoveBreak = useCallback(
     (index: number) => {
-      onChange({ ...formData, breaks: formData.breaks.filter((_, i) => i !== index) });
+      handleChange({ ...formData, breaks: formData.breaks.filter((_, i) => i !== index) });
     },
-    [formData, onChange],
+    [formData, handleChange],
   );
 
   return (
@@ -430,6 +441,10 @@ export function ShiftTemplateSettings() {
   const [formData, setFormData] = useState<TemplateFormData>(DEFAULT_FORM);
   const [pendingDelete, setPendingDelete] = useState<ShiftTemplate | null>(null);
 
+  // BUG-380: 未保存破棄ガード
+  const dirty = useSidePeekDirty();
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+
   // D&D reorder
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: templates,
@@ -438,21 +453,24 @@ export function ShiftTemplateSettings() {
   });
 
   const handleCreate = useCallback(() => {
+    if (!dirty.confirmDiscard()) return;
     setSelectedItem(null);
     setFormData(DEFAULT_FORM);
     setIsEditing(true);
-  }, []);
+  }, [dirty]);
 
   const handleEdit = useCallback((item: ShiftTemplate) => {
+    if (!dirty.confirmDiscard()) return;
     setSelectedItem(item);
     setFormData(templateToFormData(item));
     setIsEditing(true);
-  }, []);
+  }, [dirty]);
 
   const handleClose = useCallback(() => {
+    if (!dirty.confirmDiscard()) return;
     setIsEditing(false);
     setSelectedItem(null);
-  }, []);
+  }, [dirty]);
 
   const handleSave = useCallback(() => {
     const breaks = formData.breaks.filter((b) => b.break_start && b.break_end);
@@ -484,6 +502,7 @@ export function ShiftTemplateSettings() {
         {
           onSuccess: () => {
             toast.success("テンプレートを更新しました");
+            dirty.markClean();
             handleClose();
           },
         },
@@ -502,12 +521,13 @@ export function ShiftTemplateSettings() {
         {
           onSuccess: () => {
             toast.success("テンプレートを作成しました");
+            dirty.markClean();
             handleClose();
           },
         },
       );
     }
-  }, [formData, selectedItem, createMutation, updateMutation, handleClose]);
+  }, [formData, selectedItem, createMutation, updateMutation, handleClose, dirty]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
@@ -515,10 +535,13 @@ export function ShiftTemplateSettings() {
       onSuccess: () => {
         toast.success("テンプレートを削除しました");
         setPendingDelete(null);
-        if (selectedItem?.id === pendingDelete.id) handleClose();
+        if (selectedItem?.id === pendingDelete.id) {
+          dirty.markClean();
+          handleClose();
+        }
       },
     });
-  }, [pendingDelete, deleteMutation, selectedItem, handleClose]);
+  }, [pendingDelete, deleteMutation, selectedItem, handleClose, dirty]);
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -591,6 +614,7 @@ export function ShiftTemplateSettings() {
             if (selectedItem) setPendingDelete(selectedItem);
           }}
           isSaving={isSaving}
+          onDirtyChange={handleDirtyChange}
         />
       ) : null}
 
