@@ -459,6 +459,14 @@ export function ShiftTemplateSettings() {
     const isTimeHidden =
       formData.shift_type === ShiftTypeOff || formData.shift_type === ShiftTypePaidLeave;
 
+    // BUG-383: 全日/午前/午後 などの勤務種別では開始/終了時刻を必須にする
+    if (!isTimeHidden) {
+      if (!formData.start_time || !formData.end_time) {
+        toast.error("勤務種別では開始時刻と終了時刻を入力してください");
+        return;
+      }
+    }
+
     if (selectedItem !== null) {
       updateMutation.mutate(
         {
@@ -533,8 +541,9 @@ export function ShiftTemplateSettings() {
           onBack={() => navigate("/settings")}
           maxWidth="max-w-full"
         >
-          {/* Toolbar */}
-          <div className="flex items-center justify-end mb-4">
+          {/* Toolbar — BUG-383: 件数表示を他マスタと揃える */}
+          <div className="flex items-center justify-between mb-4">
+            <span className={`text-sm ${C.text50}`}>{orderedItems.length} 件</span>
             <button
               type="button"
               onClick={handleCreate}
@@ -585,12 +594,12 @@ export function ShiftTemplateSettings() {
         />
       ) : null}
 
-      {/* Delete confirm */}
+      {/* Delete confirm — BUG-383: 対象名と断定形に統一 */}
       <ConfirmDialog
         open={pendingDelete !== null}
         onClose={() => setPendingDelete(null)}
-        title="このテンプレートを削除しますか？"
-        description="この操作は取り消せません。"
+        title="テンプレートを削除しますか？"
+        description={`「${pendingDelete?.name ?? ""}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除"
         variant="destructive"
         onConfirm={handleDeleteConfirm}

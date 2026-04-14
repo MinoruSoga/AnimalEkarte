@@ -18,6 +18,9 @@ type InventoryRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	DecreaseStock(ctx context.Context, id uint64, quantity float64) error
 	CountUsageByInventoryID(ctx context.Context, inventoryID uint64) (int64, error)
+	// BUG-381: 薬剤マスタ削除時に BUG-320 で自動作成された連携在庫をカスケード削除するため、
+	// (clinic_id, name, category=medicine) で在庫を削除する。マッチなしは no-op。
+	DeleteByNameAndMedicineCategory(ctx context.Context, clinicID uint64, name string) error
 }
 
 type inventoryRepository struct {
@@ -104,6 +107,20 @@ func (r *inventoryRepository) DecreaseStock(ctx context.Context, id uint64, quan
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("inventory_item", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+// DeleteByNameAndMedicineCategory は BUG-320 で自動作成された在庫レコードを
+// (clinic_id, name, category=medicine) で特定して削除する（BUG-381）。
+// マッチなしは no-op（エラーなし）で返す。複数マッチは全件削除。
+func (r *inventoryRepository) DeleteByNameAndMedicineCategory(ctx context.Context, clinicID uint64, name string) error {
+	result := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("name = ? AND category = ?", name, model.InventoryCategoryMedicine).
+		Delete(&model.InventoryItem{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("name=%s", name))
 	}
 	return nil
 }

@@ -284,8 +284,20 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 		}
 	}
 
+	// BUG-381: Create 時に BUG-320 で自動生成した連携在庫もカスケード削除する。
+	// 薬剤削除は先に実行し、失敗時は在庫側を touch しない（整合性優先）。
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete medicine")
+	}
+	if err := s.inventoryRepo.DeleteByNameAndMedicineCategory(ctx, clinicID, m.Name); err != nil {
+		// best-effort: 薬剤削除は成功しているため、在庫クリーンアップ失敗は警告に留める。
+		// 孤児在庫は在庫一覧 UI から手動削除可能。
+		slog.ErrorContext(ctx, "failed to delete linked inventory (BUG-381)",
+			slog.Uint64("clinic_id", clinicID),
+			slog.Uint64("medicine_id", id),
+			slog.String("medicine_name", m.Name),
+			slog.String("error", err.Error()),
+		)
 	}
 	slog.InfoContext(ctx, "medicine deleted",
 		slog.Uint64("clinic_id", clinicID),

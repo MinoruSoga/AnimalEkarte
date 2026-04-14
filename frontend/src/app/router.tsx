@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, Outlet } from "react-router";
+import { createBrowserRouter, Outlet, Navigate } from "react-router";
 
 import { C } from "@/lib/design-tokens";
 import { Layout } from "@/components/shared/Layout/Layout";
@@ -672,6 +672,12 @@ export const router = createBrowserRouter([
               return { Component: MasterSettingsIndex };
             },
           },
+          // BUG-382: 旧ルートからの互換 redirect。
+          // カルテ編集画面の diagnosis 編集リンク等、既存 UI からの遷移先を救済する。
+          { path: "job-title", element: <Navigate to="/settings/occupations" replace /> },
+          { path: "service-type", element: <Navigate to="/settings/reservation-type" replace /> },
+          { path: "diagnosis-type", element: <Navigate to="/settings/diagnosis?tab=diagnosis_type" replace /> },
+          { path: "diagnosis-name", element: <Navigate to="/settings/diagnosis?tab=diagnosis_name" replace /> },
           {
             path: "staff",
             element: <RequirePermission resource={ResourceMasterStaff}><Outlet /></RequirePermission>,
