@@ -143,10 +143,11 @@ const StaffSidePanel = memo(function StaffSidePanel({
 
   // BUG-380
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const markDirty = useCallback(() => setIsDirty(true), []);
   const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
     setFormData(updater);
-    setIsDirty(true);
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   // ── Occupation select items (memoized) ────────────
   const occupationSelectItems = useMemo(
@@ -205,9 +206,9 @@ const StaffSidePanel = memo(function StaffSidePanel({
         const current = prev ?? serverExcludedIds ?? [];
         return checked ? [...current, reservationTypeId] : current.filter((id) => id !== reservationTypeId);
       });
-      setIsDirty(true);
+      markDirty();
     },
-    [serverExcludedIds],
+    [serverExcludedIds, markDirty],
   );
 
   const handleClinicToggle = useCallback(
@@ -216,9 +217,9 @@ const StaffSidePanel = memo(function StaffSidePanel({
         const current = prev ?? serverClinicIds ?? [];
         return checked ? [...current, clinicId] : current.filter((id) => id !== clinicId);
       });
-      setIsDirty(true);
+      markDirty();
     },
-    [serverClinicIds],
+    [serverClinicIds, markDirty],
   );
 
   const handleGroupToggle = useCallback(
@@ -227,9 +228,9 @@ const StaffSidePanel = memo(function StaffSidePanel({
         const current = prev ?? serverGroupIds ?? [];
         return checked ? [...current, groupId] : current.filter((id) => id !== groupId);
       });
-      setIsDirty(true);
+      markDirty();
     },
-    [serverGroupIds],
+    [serverGroupIds, markDirty],
   );
 
   const handleSave = useCallback(() => {
