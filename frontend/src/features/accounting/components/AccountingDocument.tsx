@@ -97,8 +97,9 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
 
       <div className="flex justify-between items-start">
         <div className="space-y-1">
+          {/* BUG-374 TC-367-03: 飼主名が空のとき「様」のみ表示されないようフォールバック */}
           <div className="text-xl border-b border-black mb-2 pb-1 inline-block min-w-[250px]">
-            {accounting.ownerName} 様
+            {accounting.ownerName ? `${accounting.ownerName} 様` : "（飼主名未取得）"}
           </div>
           <p>ペット名: {accounting.petName} ({accounting.petSpecies})</p>
         </div>
