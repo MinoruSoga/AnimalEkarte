@@ -886,8 +886,9 @@ SELECT setval(pg_get_serial_sequence('inventory_items', 'id'), (SELECT MAX(id) F
 -- 25. merchandise_items（物販・フード・その他: 7件）
 -- -----------------------------------------------------------------------------
 INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_rate, sort_order) VALUES
-    (1, 3, 'ロイヤルカナン 消化器サポート 1kg', 'food', 2800, 0.10, 1),
-    (2, 3, 'ヒルズ k/d 2kg', 'food', 3500, 0.10, 2),
+    -- BUG-374 TC-367-04/05 検証用: 軽減税率 8% 品目（ペットフード）を含める
+    (1, 3, 'ロイヤルカナン 消化器サポート 1kg', 'food', 2800, 0.08, 1),
+    (2, 3, 'ヒルズ k/d 2kg', 'food', 3500, 0.08, 2),
     (3, 3, 'ペット用歯ブラシセット', 'goods', 1200, 0.10, 3),
     (4, 3, 'エリザベスカラー（S）', 'goods', 800, 0.10, 4),
     (5, 3, 'ノミ・ダニ予防首輪', 'goods', 1500, 0.10, 5),
@@ -1184,7 +1185,10 @@ SELECT setval(pg_get_serial_sequence('inventory_items', 'id'), (SELECT MAX(id) F
 -- -----------------------------------------------------------------------------
 INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo) VALUES
     (1, 3, 1,    NULL, 1,  1,  4300, 430, 4730, true, 'completed', '2026-02-15', '2026-02-15 10:30:00+09', 'アニコム保険適用'),
-    (2, 3, 3,    NULL, 1,  1,  3300, 330, 3630, true, 'completed', '2026-02-28', '2026-02-28 11:00:00+09', 'アニコム保険適用（Iris 耳炎治療）'),
+    -- BUG-374 TC-367-04 検証用: billing_id=2 に軽減税率 8% 品目を追加したため金額再計算
+    -- 再診料 800 + 耳道洗浄 2500 (10%対象 = 3300) + ロイヤルカナン 2800 (8%対象) = 6100
+    -- tax = 330 (10%) + 224 (8%) = 554 / total = 6654
+    (2, 3, 3,    NULL, 1,  1,  6100, 554, 6654, true, 'completed', '2026-02-28', '2026-02-28 11:00:00+09', 'アニコム保険適用（Iris 耳炎治療）+ フード販売'),
     (3, 3, 6,    NULL, 2,  3,  800,  80,  880,  true, 'waiting',   '2026-03-12', NULL,                     'アニコム保険適用。会計待ち。')
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
@@ -1196,6 +1200,8 @@ INSERT INTO billing_items (id, billing_id, category, name, unit_price, quantity,
     (2, 1, 'medicine', 'アモキシシリン 50mg x 7日分', 500,  7, 0.10, true, 'medical_record', 2),
     (3, 2, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
     (4, 2, 'procedure','耳道洗浄',                  2500, 1, 0.10, true, 'medical_record', 2),
+    -- BUG-374 TC-367-04 検証用: 軽減税率 8% 品目を会計 billing_id=2 に追加
+    (6, 2, 'food',     'ロイヤルカナン 消化器サポート 1kg', 2800, 1, 0.08, false, 'manual', 3),
     (5, 3, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1)
 ON CONFLICT (id) DO NOTHING;
 
@@ -1203,7 +1209,10 @@ SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FRO
 
 INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insurance_name, insurance_ratio, insurance_amount, discount_amount, billing_amount, received_amount, change_amount, method, paid_by) VALUES
     (1, 1, 4300, 430, 4730, 'アニコム損保', 0.70, 3311, 0, 1419, 1500, 81, 'cash', 1),
-    (2, 2, 3300, 330, 3630, 'アニコム損保', 0.70, 2541, 0, 1089, 1100, 11, 'credit_card', 1)
+    -- BUG-374 TC-367-04: billing_id=2 は軽減税率 8% 品目を含むため payment も再計算
+    -- insurance 対象は 10% 品目のみ (3300 税抜 × 1.10 = 3630) × 70% = 2541 (変更なし)
+    -- billing_amount = total(6654) - insurance(2541) = 4113、受領 4200、釣り 87
+    (2, 2, 6100, 554, 6654, 'アニコム損保', 0.70, 2541, 0, 4113, 4200, 87, 'credit_card', 1)
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
