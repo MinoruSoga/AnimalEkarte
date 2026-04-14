@@ -302,4 +302,3 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64) err
 
 	return nil
 }
-

@@ -263,4 +263,3 @@ func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID u
 	}
 	return aggregates, totalOwners, summary, nil
 }
-

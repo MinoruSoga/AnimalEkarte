@@ -25,7 +25,7 @@ const (
 //   - customer_fields のトップレベルキー数
 //   - customer_fields の各 string 値の長さ（ネスト配列内の string も対象）
 //   - request_text の長さ
-func validateLiffReservationInput(req liffCreateReservationRequest) error {
+func validateLiffReservationInput(req *liffCreateReservationRequest) error {
 	// request_text 長さ
 	if l := len([]rune(req.RequestText)); l > maxRequestTextLength {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("request_text は %d 文字以内で入力してください", maxRequestTextLength))
