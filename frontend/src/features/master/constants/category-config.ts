@@ -64,7 +64,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   examination: {
     label: "検査マスタ",
     description: "血液検査、レントゲン、超音波検査などを管理します",
-    settingsPath: "/settings/examination",
+    settingsPath: "/settings/treatment-items?tab=examination",
     IconComponent: TestTube,
     resource: ResourceMasterMedical,
     labels: { code: "コード", name: "名称", category: "分類" },
@@ -74,7 +74,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   vaccine: {
     label: "予防接種マスタ",
     description: "予防接種種別、接種料金、接種間隔を管理します",
-    settingsPath: "/settings/vaccine",
+    settingsPath: "/settings/treatment-items?tab=vaccine",
     IconComponent: Syringe,
     resource: ResourceMasterMedical,
     labels: { code: "コード", name: "名称", category: "分類" },
@@ -94,7 +94,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   consultation: {
     label: "診察マスタ",
     description: "初診料、再診料、時間外診察料などを管理します",
-    settingsPath: "/settings/consultation",
+    settingsPath: "/settings/treatment-items?tab=consultation",
     IconComponent: Stethoscope,
     resource: ResourceMasterMedical,
     labels: { code: "コード", name: "名称", category: "分類" },
@@ -114,7 +114,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   procedure: {
     label: "処置マスタ",
     description: "爪切り、耳掃除、肛門腺絞りなどを管理します",
-    settingsPath: "/settings/procedure",
+    settingsPath: "/settings/treatment-items?tab=procedure",
     IconComponent: Activity,
     resource: ResourceMasterMedical,
     labels: { code: "コード", name: "名称", category: "分類" },
@@ -144,7 +144,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   trimming_course: {
     label: "トリミングコースマスタ",
     description: "シャンプーコース、カットコースなどを管理します",
-    settingsPath: "/settings/trimming-course",
+    settingsPath: "/settings/trimming?tab=course",
     IconComponent: Scissors,
     resource: ResourceMasterTrimming,
     labels: { code: "コード", name: "コース名", category: "対象サイズ" },
@@ -154,7 +154,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   trimming_option: {
     label: "トリミングオプションマスタ",
     description: "薬用シャンプー、炭酸泉、泥パックなどを管理します",
-    settingsPath: "/settings/trimming-option",
+    settingsPath: "/settings/trimming?tab=option",
     IconComponent: Sparkles,
     resource: ResourceMasterTrimming,
     labels: { code: "コード", name: "オプション名", category: "種別" },
@@ -184,7 +184,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   diagnosis_type: {
     label: "診断カテゴリマスタ",
     description: "消化器疾患、呼吸器疾患などの診断カテゴリを管理します",
-    settingsPath: "/settings/diagnosis-type",
+    settingsPath: "/settings/diagnosis?tab=diagnosis_type",
     IconComponent: FolderTree,
     resource: ResourceMasterMedical,
     labels: { code: "コード", name: "カテゴリ名", category: "分類" },
@@ -194,7 +194,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   diagnosis_name: {
     label: "診断名マスタ",
     description: "カテゴリに紐づく病名（食道炎、膀胱炎等）を管理します",
-    settingsPath: "/settings/diagnosis-name",
+    settingsPath: "/settings/diagnosis?tab=diagnosis_name",
     IconComponent: FileText,
     resource: ResourceMasterMedical,
     labels: { code: "コード", name: "診断名", category: "分類" },
@@ -234,7 +234,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   inquiry_template: {
     label: "問診テンプレートマスタ",
     description: "問診の質問項目テンプレートを管理します",
-    settingsPath: "/settings/inquiry-template",
+    settingsPath: "/settings/inquiry-templates",
     IconComponent: FileText,
     resource: ResourceMasterMedical,
     labels: { code: "コード", name: "テンプレート名", category: "分類" },

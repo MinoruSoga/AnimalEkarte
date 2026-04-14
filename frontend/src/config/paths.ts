@@ -269,13 +269,15 @@ export const paths = {
       path: "/settings/examination",
       getHref: () => "/settings/examination",
     },
+    // BUG-384: 旧パス（trimming-course / trimming-option）は dead route。
+    // /settings/trimming?tab=course|option に統合済み。
     trimmingCourse: {
-      path: "/settings/trimming-course",
-      getHref: () => "/settings/trimming-course",
+      path: "/settings/trimming",
+      getHref: () => "/settings/trimming?tab=course",
     },
     trimmingOption: {
-      path: "/settings/trimming-option",
-      getHref: () => "/settings/trimming-option",
+      path: "/settings/trimming",
+      getHref: () => "/settings/trimming?tab=option",
     },
     consultation: {
       path: "/settings/consultation",
