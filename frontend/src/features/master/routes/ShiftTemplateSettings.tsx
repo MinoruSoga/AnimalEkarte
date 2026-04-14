@@ -184,12 +184,12 @@ const SortableRow = memo(function SortableRow({ item, onEdit }: SortableRowProps
 // SidePanel
 // ─────────────────────────────────────────────────
 
+// 14 マスタ画面と同じパターン: SidePanel が formData を所有、isDirty を内部管理、
+// onSave(data) で親に送出、onDirtyChange? で親に dirty 状態を伝搬する。
 interface SidePanelProps {
   item: ShiftTemplate | null;
-  formData: TemplateFormData;
-  onChange: (data: TemplateFormData) => void;
   onClose: () => void;
-  onSave: () => void;
+  onSave: (data: TemplateFormData) => void;
   onDeleteRequest: () => void;
   isSaving: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -197,55 +197,70 @@ interface SidePanelProps {
 
 const SidePanel = memo(function SidePanel({
   item,
-  formData,
-  onChange,
   onClose,
   onSave,
   onDeleteRequest,
   isSaving,
   onDirtyChange,
 }: SidePanelProps) {
-  // BUG-380: 親管理 formData の変更検出 — マウント後に formData が変わった瞬間 dirty
-  // 初期 mount 時の formData ref を保持し、参照同一性で diff 判定。
+  // rerender-lazy-state-init: item から初期化（マウント時 1 回）
+  const [formData, setFormData] = useState<TemplateFormData>(() =>
+    item ? templateToFormData(item) : DEFAULT_FORM,
+  );
   const [isDirty, setIsDirty] = useState(false);
+
+  // BUG-380
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
-  const handleChange = useCallback((data: TemplateFormData) => {
-    onChange(data);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
     setIsDirty(true);
-  }, [onChange]);
+  }, []);
+
   const isTimeHidden =
     formData.shift_type === ShiftTypeOff || formData.shift_type === ShiftTypePaidLeave;
 
   const handleField = useCallback(
     <K extends keyof TemplateFormData>(key: K, value: TemplateFormData[K]) => {
-      handleChange({ ...formData, [key]: value });
+      setFormDataDirty((prev) => ({ ...prev, [key]: value }));
     },
-    [formData, handleChange],
+    [setFormDataDirty],
   );
 
   const handleBreakChange = useCallback(
     (index: number, field: "break_start" | "break_end", value: string) => {
-      const newBreaks = formData.breaks.map((b, i) =>
-        i === index ? { ...b, [field]: value } : b,
-      );
-      handleChange({ ...formData, breaks: newBreaks });
+      setFormDataDirty((prev) => ({
+        ...prev,
+        breaks: prev.breaks.map((b, i) => (i === index ? { ...b, [field]: value } : b)),
+      }));
     },
-    [formData, handleChange],
+    [setFormDataDirty],
   );
 
   const handleAddBreak = useCallback(() => {
-    handleChange({
-      ...formData,
-      breaks: [...formData.breaks, { break_start: "12:00", break_end: "13:00" }],
-    });
-  }, [formData, handleChange]);
+    setFormDataDirty((prev) => ({
+      ...prev,
+      breaks: [...prev.breaks, { break_start: "12:00", break_end: "13:00" }],
+    }));
+  }, [setFormDataDirty]);
 
   const handleRemoveBreak = useCallback(
     (index: number) => {
-      handleChange({ ...formData, breaks: formData.breaks.filter((_, i) => i !== index) });
+      setFormDataDirty((prev) => ({ ...prev, breaks: prev.breaks.filter((_, i) => i !== index) }));
     },
-    [formData, handleChange],
+    [setFormDataDirty],
   );
+
+  const handleAction = useCallback(() => {
+    // BUG-383: 全日/午前/午後 などの勤務種別では開始/終了時刻を必須にする
+    if (!isTimeHidden) {
+      if (!formData.start_time || !formData.end_time) {
+        toast.error("勤務種別では開始時刻と終了時刻を入力してください");
+        return;
+      }
+    }
+    onSave(formData);
+    setIsDirty(false);
+  }, [formData, isTimeHidden, onSave]);
 
   return (
     <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
@@ -413,7 +428,7 @@ const SidePanel = memo(function SidePanel({
         </button>
         <button
           type="button"
-          onClick={onSave}
+          onClick={handleAction}
           disabled={isSaving || !formData.name.trim()}
           className={STYLE.sidePeekSaveBtn}
         >
@@ -438,10 +453,9 @@ export function ShiftTemplateSettings() {
 
   const [selectedItem, setSelectedItem] = useState<ShiftTemplate | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<TemplateFormData>(DEFAULT_FORM);
   const [pendingDelete, setPendingDelete] = useState<ShiftTemplate | null>(null);
 
-  // BUG-380: 未保存破棄ガード
+  // BUG-380: 未保存破棄ガード（14 マスタ画面と同パターン）
   const dirty = useSidePeekDirty();
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
@@ -455,14 +469,12 @@ export function ShiftTemplateSettings() {
   const handleCreate = useCallback(() => {
     if (!dirty.confirmDiscard()) return;
     setSelectedItem(null);
-    setFormData(DEFAULT_FORM);
     setIsEditing(true);
   }, [dirty]);
 
   const handleEdit = useCallback((item: ShiftTemplate) => {
     if (!dirty.confirmDiscard()) return;
     setSelectedItem(item);
-    setFormData(templateToFormData(item));
     setIsEditing(true);
   }, [dirty]);
 
@@ -472,18 +484,11 @@ export function ShiftTemplateSettings() {
     setSelectedItem(null);
   }, [dirty]);
 
-  const handleSave = useCallback(() => {
+  // SidePanel から data を受け取り保存。バリデーションは SidePanel 側で実施済み。
+  const handleSave = useCallback((formData: TemplateFormData) => {
     const breaks = formData.breaks.filter((b) => b.break_start && b.break_end);
     const isTimeHidden =
       formData.shift_type === ShiftTypeOff || formData.shift_type === ShiftTypePaidLeave;
-
-    // BUG-383: 全日/午前/午後 などの勤務種別では開始/終了時刻を必須にする
-    if (!isTimeHidden) {
-      if (!formData.start_time || !formData.end_time) {
-        toast.error("勤務種別では開始時刻と終了時刻を入力してください");
-        return;
-      }
-    }
 
     if (selectedItem !== null) {
       updateMutation.mutate(
@@ -527,7 +532,7 @@ export function ShiftTemplateSettings() {
         },
       );
     }
-  }, [formData, selectedItem, createMutation, updateMutation, handleClose, dirty]);
+  }, [selectedItem, createMutation, updateMutation, handleClose, dirty]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
@@ -606,8 +611,6 @@ export function ShiftTemplateSettings() {
         <SidePanel
           key={selectedItem ? selectedItem.id : "new"}
           item={selectedItem}
-          formData={formData}
-          onChange={setFormData}
           onClose={handleClose}
           onSave={handleSave}
           onDeleteRequest={() => {
