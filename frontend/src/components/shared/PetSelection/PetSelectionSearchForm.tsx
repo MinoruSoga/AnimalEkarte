@@ -27,10 +27,10 @@ interface PetSelectionSearchFormProps {
 const FIELD_DEFS = [
   { id: "ownerId", label: "飼主No", placeholder: "例: 30042" },
   { id: "ownerName", label: "飼主名", placeholder: "例: 林 文明" },
-  { id: "ownerNameKana", label: "飼主名(カナ)", placeholder: "例: ハヤシ フミアキ" },
+  { id: "ownerNameKana", label: "飼主名よみ", placeholder: "例: はやし ふみあき" },
   { id: "phone", label: "電話番号", placeholder: "例: 090-1234-5678" },
   { id: "petName", label: "ペット名", placeholder: "例: Iris" },
-  { id: "petNameKana", label: "ペット名(カナ)", placeholder: "例: イリス" },
+  { id: "petNameKana", label: "ペット名よみ", placeholder: "例: いりす" },
   { id: "species", label: "種別", placeholder: "例: 犬" },
   { id: "address", label: "住所", placeholder: "例: 東京都" },
 ] as const;

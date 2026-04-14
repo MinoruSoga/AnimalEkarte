@@ -359,11 +359,11 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       {/* Row 3 */}
       <div className="space-y-1.5">
         <Label htmlFor="ownerNameKana" className={`text-sm ${C.text60}`}>
-          飼主名(カナ) <span className={C.textRequired}>*</span>
+          飼主名よみ <span className={C.textRequired}>*</span>
         </Label>
         <Input
           id="ownerNameKana"
-          placeholder="ハヤシ フミアキ"
+          placeholder="はやし ふみあき"
           value={ownerData.ownerNameKana}
           aria-invalid={!!fieldErrors.ownerNameKana}
           aria-describedby={fieldErrors.ownerNameKana ? "ownerNameKana-error" : undefined}

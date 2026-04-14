@@ -44,9 +44,16 @@ export function UnpaidCustomerList() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const groupBy: GroupBy = (searchParams.get("group_by") as GroupBy) === "billing" ? "billing" : "owner";
-  const [baseDate, setBaseDate] = useState<string>(todayISO());
+  // BUG-376: 基準日も URL クエリと同期（ブックマーク・リロード復元対応）
+  const baseDate = searchParams.get("reference_date") || todayISO();
   const [page, setPage] = useState(1);
   const limit = 20;
+
+  const handleBaseDateChange = useCallback((next: string) => {
+    searchParams.set("reference_date", next);
+    setSearchParams(searchParams, { replace: true });
+    setPage(1);
+  }, [searchParams, setSearchParams]);
 
   const ownerQuery = useGetUnpaidByOwner({ baseDate, groupBy, page, limit });
   const billingQuery = useGetUnpaidByBilling({ baseDate, groupBy, page, limit });
@@ -83,7 +90,7 @@ export function UnpaidCustomerList() {
               id="baseDate"
               type="date"
               value={baseDate}
-              onChange={(e) => { setBaseDate(e.target.value); setPage(1); }}
+              onChange={(e) => handleBaseDateChange(e.target.value)}
               className="h-9 text-sm"
             />
           </div>

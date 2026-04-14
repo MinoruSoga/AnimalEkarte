@@ -325,11 +325,11 @@ export const PetEditModal = memo(function PetEditModal({
 
             <div className="space-y-1">
               <Label htmlFor="petNameKana" className={LABEL_CLS}>
-                ペット名(カナ)
+                ペット名よみ
               </Label>
               <Input
                 id="petNameKana"
-                placeholder="例: イリス"
+                placeholder="例: いりす"
                 value={formData.petNameKana || ""}
                 onChange={(e) =>
                   setFormData(prev => ({ ...prev, petNameKana: e.target.value }))

@@ -123,7 +123,7 @@ export function useOwnerForm(
     async (prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       const errors: Record<string, string> = {};
       if (!ownerData.ownerName.trim()) errors.ownerName = "飼主名を入力してください";
-      if (!ownerData.ownerNameKana.trim()) errors.ownerNameKana = "飼主名（カナ）を入力してください";
+      if (!ownerData.ownerNameKana.trim()) errors.ownerNameKana = "飼主名よみを入力してください";
       if (!ownerData.phone.trim()) {
         errors.phone = "電話番号を入力してください";
       } else if (!/^[\d\-+() ]+$/.test(ownerData.phone.trim())) {
