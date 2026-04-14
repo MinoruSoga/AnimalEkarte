@@ -41,7 +41,7 @@ interface CageFormData { name: string; cageType: CageType; cageSize: CageSize; p
 const CageSidePanel = memo(function CageSidePanel({
   item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
 }: { item: Cage | null; onClose: () => void; onSave: (d: CageFormData) => void; onDeleteRequest?: (i: Cage) => void; readOnly?: boolean; onDirtyChange?: (dirty: boolean) => void; }) {
-  const [f, setF] = useState<CageFormData>(() => ({
+  const [formData, setFormData] = useState<CageFormData>(() => ({
     name: item?.name ?? "", cageType: item?.cageType ?? "general", cageSize: item?.cageSize ?? "medium",
     price: item?.price ?? 0, description: item?.description ?? "", isActive: item?.isActive ?? true,
   }));
@@ -50,47 +50,45 @@ const CageSidePanel = memo(function CageSidePanel({
 
   // BUG-380
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
 
   const handleTitleChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, name: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
     if (v.trim()) setNameError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleCageTypeChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, cageType: v as CageType }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, cageType: v as CageType }));
+  }, [setFormDataDirty]);
 
   const handleCageSizeChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, cageSize: v as CageSize }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, cageSize: v as CageSize }));
+  }, [setFormDataDirty]);
 
   const handlePriceChange = useCallback((v: number) => {
-    setF((p) => ({ ...p, price: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, price: v }));
+  }, [setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, description: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, description: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setF((p) => ({ ...p, isActive: !p.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleAction = useCallback(() => {
-    if (!f.name.trim()) {
+    if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(f);
+    onSave(formData);
     setIsDirty(false);
-  }, [f, onSave]);
+  }, [formData, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -98,7 +96,7 @@ const CageSidePanel = memo(function CageSidePanel({
   }, [onClose]);
 
   return (
-    <MasterSidePanel isNew={item === null} title={f.name}
+    <MasterSidePanel isNew={item === null} title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose} action={readOnly ? undefined : handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}
@@ -106,22 +104,22 @@ const CageSidePanel = memo(function CageSidePanel({
       titleError={nameError}
       titleMaxLength={100}
       readOnly={readOnly}>
-      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
+      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="エリア">
-        <Select value={f.cageType} onValueChange={handleCageTypeChange}>
+        <Select value={formData.cageType} onValueChange={handleCageTypeChange}>
           <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
           <SelectContent>{CAGE_TYPE_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
       <PropertyRow label="サイズ">
-        <Select value={f.cageSize} onValueChange={handleCageSizeChange}>
+        <Select value={formData.cageSize} onValueChange={handleCageSizeChange}>
           <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
           <SelectContent>{CAGE_SIZE_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
-      <MoneyInput value={f.price} onChange={handlePriceChange} />
+      <MoneyInput value={formData.price} onChange={handlePriceChange} />
       <PropertyRow label="備考">
-        <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
+        <PropertyInput value={formData.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
       </PropertyRow>
     </MasterSidePanel>
   );

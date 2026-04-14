@@ -20,7 +20,7 @@ export const GroupSidePanel = memo(function GroupSidePanel({
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const [f, setF] = useState<GroupFormData>(() => ({
+  const [formData, setFormData] = useState<GroupFormData>(() => ({
     name: item?.name ?? "",
     color: item?.color ?? PALETTE.pickerDefaultBlue,
     isActive: item?.isActive ?? true,
@@ -30,52 +30,52 @@ export const GroupSidePanel = memo(function GroupSidePanel({
 
   // BUG-380
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
 
   const handleTitleChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, name: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
     if (v.trim()) setNameError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleColorPickerChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setF((p) => ({ ...p, color: e.target.value }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, color: e.target.value }));
+  }, [setFormDataDirty]);
 
   const handleColorInputChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, color: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, color: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setF((p) => ({ ...p, isActive: !p.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleAction = useCallback(() => {
-    if (!f.name.trim()) { setNameError("名称を入力してください"); return; }
+    if (!formData.name.trim()) { setNameError("名称を入力してください"); return; }
     setNameError("");
-    onSave(f);
+    onSave(formData);
     setIsDirty(false);
-  }, [f, onSave]);
+  }, [formData, onSave]);
 
   const handleClose = useCallback(() => { setIsDirty(false); onClose(); }, [onClose]);
 
   return (
-    <MasterSidePanel isNew={item === null} title={f.name}
+    <MasterSidePanel isNew={item === null} title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={readOnly ? undefined : handleAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Layers className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty} titleError={nameError} titleMaxLength={100} readOnly={readOnly}>
-      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
+      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カラー">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
-            <input type="color" value={f.color} onChange={handleColorPickerChange}
+            <input type="color" value={formData.color} onChange={handleColorPickerChange}
               className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0" />
-            <PropertyInput value={f.color} onChange={handleColorInputChange} placeholder="#3B82F6" />
+            <PropertyInput value={formData.color} onChange={handleColorInputChange} placeholder="#3B82F6" />
           </div>
           <p className={`text-xs ${C.text40}`}>
             予約管理カレンダーでこのグループに属する区分の予約枠を色別表示します。

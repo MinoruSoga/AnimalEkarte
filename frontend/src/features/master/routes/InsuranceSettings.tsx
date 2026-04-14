@@ -28,7 +28,7 @@ interface InsuranceFormData { name: string; description: string; coverageRate: s
 const InsuranceSidePanel = memo(function InsuranceSidePanel({
   item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
 }: { item: Insurance | null; onClose: () => void; onSave: (d: InsuranceFormData) => void; onDeleteRequest?: (i: Insurance) => void; readOnly?: boolean; onDirtyChange?: (dirty: boolean) => void; }) {
-  const [f, setF] = useState<InsuranceFormData>(() => ({
+  const [formData, setFormData] = useState<InsuranceFormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "",
     coverageRate: item?.coverageRate != null ? String(item.coverageRate) : "0",
     contactPhone: item?.contactPhone ?? "", isActive: item?.isActive ?? true,
@@ -38,42 +38,41 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
 
   // BUG-380
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
 
   const handleTitleChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, name: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
     if (v.trim()) setNameError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleCoverageRateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setF((p) => ({ ...p, coverageRate: e.target.value }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, coverageRate: e.target.value }));
+  }, [setFormDataDirty]);
 
   const handleContactPhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setF((p) => ({ ...p, contactPhone: e.target.value }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, contactPhone: e.target.value }));
+  }, [setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, description: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, description: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setF((p) => ({ ...p, isActive: !p.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleAction = useCallback(() => {
-    if (!f.name.trim()) {
+    if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(f);
+    onSave(formData);
     setIsDirty(false);
-  }, [f, onSave]);
+  }, [formData, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -81,7 +80,7 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
   }, [onClose]);
 
   return (
-    <MasterSidePanel isNew={item === null} title={f.name}
+    <MasterSidePanel isNew={item === null} title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose} action={handleAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
@@ -90,17 +89,17 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
       titleError={nameError}
       titleMaxLength={100}
       readOnly={readOnly}>
-      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
+      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="補償率(%)">
         <input type="number" min={0} max={100} className={MASTER_INPUT_CLASS}
-          value={f.coverageRate} onChange={handleCoverageRateChange} placeholder="0" />
+          value={formData.coverageRate} onChange={handleCoverageRateChange} placeholder="0" />
       </PropertyRow>
       <PropertyRow label="連絡先">
         <input type="tel" className={MASTER_INPUT_CLASS}
-          value={f.contactPhone} onChange={handleContactPhoneChange} placeholder="電話番号" />
+          value={formData.contactPhone} onChange={handleContactPhoneChange} placeholder="電話番号" />
       </PropertyRow>
       <PropertyRow label="備考">
-        <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
+        <PropertyInput value={formData.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
       </PropertyRow>
     </MasterSidePanel>
   );

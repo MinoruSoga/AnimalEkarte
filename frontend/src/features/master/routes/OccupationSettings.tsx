@@ -41,7 +41,7 @@ const OccupationSidePanel = memo(function OccupationSidePanel({
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const [f, setF] = useState<OccupationFormData>(() => ({
+  const [formData, setFormData] = useState<OccupationFormData>(() => ({
     name: item?.name ?? "",
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
@@ -51,32 +51,33 @@ const OccupationSidePanel = memo(function OccupationSidePanel({
 
   // BUG-380
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
 
   const handleTitleChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, name: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
     if (v.trim()) setNameError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, description: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, description: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setF((p) => ({ ...p, isActive: !p.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleAction = useCallback(() => {
-    if (!f.name.trim()) {
+    if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(f);
+    onSave(formData);
     setIsDirty(false);
-  }, [f, onSave]);
+  }, [formData, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -86,7 +87,7 @@ const OccupationSidePanel = memo(function OccupationSidePanel({
   return (
     <MasterSidePanel
       isNew={item === null}
-      title={f.name}
+      title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleAction}
@@ -97,9 +98,9 @@ const OccupationSidePanel = memo(function OccupationSidePanel({
       titleMaxLength={100}
       readOnly={readOnly}
     >
-      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
+      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="説明">
-        <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="説明を入力" />
+        <PropertyInput value={formData.description} onChange={handleDescriptionChange} placeholder="説明を入力" />
       </PropertyRow>
     </MasterSidePanel>
   );

@@ -125,7 +125,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
   const isNew = item === null;
   const staffId = item?.id ?? null;
 
-  const [f, setF] = useState<StaffFormData>(() => ({
+  const [formData, setFormData] = useState<StaffFormData>(() => ({
     name: item?.name ?? "",
     jobTitleId: item?.occupationId ?? null,
     licenseNumber: item?.licenseNumber ?? "",
@@ -143,6 +143,10 @@ const StaffSidePanel = memo(function StaffSidePanel({
 
   // BUG-380
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
 
   // ── Occupation select items (memoized) ────────────
   const occupationSelectItems = useMemo(
@@ -229,50 +233,44 @@ const StaffSidePanel = memo(function StaffSidePanel({
   );
 
   const handleSave = useCallback(() => {
-    if (!f.name.trim()) {
+    if (!formData.name.trim()) {
       setNameError("氏名を入力してください");
       return;
     }
     setNameError("");
-    onSave(f);
+    onSave(formData);
     if (!isNew && staffId) {
       onSaveGroups(staffId, groupIds);
       onSaveClinics(staffId, clinicIds);
       onSaveExcludedReservationTypes(staffId, excludedIds);
     }
     setIsDirty(false);
-  }, [f, isNew, staffId, groupIds, clinicIds, excludedIds, onSave, onSaveGroups, onSaveClinics, onSaveExcludedReservationTypes]);
+  }, [formData, isNew, staffId, groupIds, clinicIds, excludedIds, onSave, onSaveGroups, onSaveClinics, onSaveExcludedReservationTypes]);
 
   const handleTitleChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, name: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
     if (v.trim()) setNameError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setF((p) => ({ ...p, isActive: !p.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleOccupationChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, jobTitleId: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, jobTitleId: v }));
+  }, [setFormDataDirty]);
 
   const handleLicenseNumberChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setF((p) => ({ ...p, licenseNumber: e.target.value }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, licenseNumber: e.target.value }));
+  }, [setFormDataDirty]);
 
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setF((p) => ({ ...p, email: e.target.value }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, email: e.target.value }));
+  }, [setFormDataDirty]);
 
   const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setF((p) => ({ ...p, password: e.target.value }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, password: e.target.value }));
+  }, [setFormDataDirty]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -282,7 +280,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
   return (
     <MasterSidePanel
       isNew={isNew}
-      title={f.name}
+      title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={handleSave}
@@ -294,13 +292,13 @@ const StaffSidePanel = memo(function StaffSidePanel({
       readOnly={readOnly}
     >
       <StatusToggleButton
-        isActive={f.isActive}
+        isActive={formData.isActive}
         onToggle={handleToggleActive}
       />
 
       <PropertyRow label="職種">
         <Select
-          value={f.jobTitleId ?? undefined}
+          value={formData.jobTitleId ?? undefined}
           onValueChange={handleOccupationChange}
         >
           <SelectTrigger className={STYLE.selectCompact}>
@@ -314,7 +312,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
         <input
           type="text"
           className={MASTER_INPUT_CLASS}
-          value={f.licenseNumber}
+          value={formData.licenseNumber}
           onChange={handleLicenseNumberChange}
           placeholder="空"
         />
@@ -326,7 +324,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
             <input
               type="email"
               className={MASTER_INPUT_CLASS}
-              value={f.email}
+              value={formData.email}
               onChange={handleEmailChange}
               placeholder="例: staff@clinic.com"
             />
@@ -335,7 +333,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
             <input
               type="password"
               className={MASTER_INPUT_CLASS}
-              value={f.password}
+              value={formData.password}
               onChange={handlePasswordChange}
               placeholder="8文字以上"
             />
@@ -350,7 +348,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
             <input
               type="password"
               className={MASTER_INPUT_CLASS}
-              value={f.password}
+              value={formData.password}
               onChange={handlePasswordChange}
               placeholder="変更する場合のみ入力"
             />
@@ -369,23 +367,23 @@ const StaffSidePanel = memo(function StaffSidePanel({
           <input
             type="text"
             className={MASTER_INPUT_CLASS}
-            value={f.reservationDisplayName}
-            onChange={(e) => { setF((p) => ({ ...p, reservationDisplayName: e.target.value })); setIsDirty(true); }}
-            placeholder={f.name || "空欄なら氏名を使用"}
+            value={formData.reservationDisplayName}
+            onChange={(e) => setFormDataDirty((prev) => ({ ...prev, reservationDisplayName: e.target.value }))}
+            placeholder={formData.name || "空欄なら氏名を使用"}
           />
         </PropertyRow>
 
         <PropertyRow label="予約ページに表示">
           <Switch
-            checked={f.reservationVisible}
-            onCheckedChange={(v) => { setF((p) => ({ ...p, reservationVisible: v })); setIsDirty(true); }}
+            checked={formData.reservationVisible}
+            onCheckedChange={(v) => setFormDataDirty((prev) => ({ ...prev, reservationVisible: v }))}
           />
         </PropertyRow>
 
         <PropertyRow label="スタッフ種別">
           <Select
-            value={f.staffType}
-            onValueChange={(v) => { setF((p) => ({ ...p, staffType: v })); setIsDirty(true); }}
+            value={formData.staffType}
+            onValueChange={(v) => setFormDataDirty((prev) => ({ ...prev, staffType: v }))}
           >
             <SelectTrigger className={STYLE.selectCompact}>
               <SelectValue />
@@ -398,8 +396,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
           <input
             type="text"
             className={MASTER_INPUT_CLASS}
-            value={f.reservationComment}
-            onChange={(e) => { setF((p) => ({ ...p, reservationComment: e.target.value })); setIsDirty(true); }}
+            value={formData.reservationComment}
+            onChange={(e) => setFormDataDirty((prev) => ({ ...prev, reservationComment: e.target.value }))}
             placeholder="LINE予約画面に表示する説明"
           />
         </PropertyRow>
@@ -408,8 +406,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
           <input
             type="text"
             className={MASTER_INPUT_CLASS}
-            value={f.reservationImageUrl}
-            onChange={(e) => { setF((p) => ({ ...p, reservationImageUrl: e.target.value })); setIsDirty(true); }}
+            value={formData.reservationImageUrl}
+            onChange={(e) => setFormDataDirty((prev) => ({ ...prev, reservationImageUrl: e.target.value }))}
             placeholder="https://..."
           />
         </PropertyRow>

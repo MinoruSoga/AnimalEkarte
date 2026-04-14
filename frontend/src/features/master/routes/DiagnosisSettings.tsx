@@ -120,26 +120,27 @@ const DiagnosisTypeSidePanel = memo(function DiagnosisTypeSidePanel({
 
   // BUG-380
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
 
   // rerender-dependencies: useRef でオブジェクト deps を回避
   const formDataRef = useRef(formData);
   useEffect(() => { formDataRef.current = formData; }, [formData]);
 
   const handleTitleChange = useCallback((v: string) => {
-    setFormData((prev) => ({ ...prev, name: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
     if (v.trim()) setNameError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((v: string) => {
-    setFormData((prev) => ({ ...prev, description: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, description: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleAction = useCallback(() => {
     const current = formDataRef.current;
@@ -225,32 +226,32 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
 
   // BUG-380
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
 
   // rerender-dependencies: useRef でオブジェクト deps を回避
   const formDataRef = useRef(formData);
   useEffect(() => { formDataRef.current = formData; }, [formData]);
 
   const handleTitleChange = useCallback((v: string) => {
-    setFormData((prev) => ({ ...prev, name: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
     if (v.trim()) setNameError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleCategoryChange = useCallback((v: string) => {
-    setFormData((prev) => ({ ...prev, diagnosisTypeId: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, diagnosisTypeId: v }));
     if (v) setCategoryError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((v: string) => {
-    setFormData((prev) => ({ ...prev, description: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, description: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleAction = useCallback(() => {
     const current = formDataRef.current;

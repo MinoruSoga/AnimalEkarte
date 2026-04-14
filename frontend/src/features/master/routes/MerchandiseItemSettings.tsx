@@ -69,7 +69,7 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const [f, setF] = useState<MerchandiseFormData>(() => ({
+  const [formData, setFormData] = useState<MerchandiseFormData>(() => ({
     name: item?.name ?? "",
     category: item?.category ?? "goods",
     unitPrice: item?.unitPrice ?? 0,
@@ -82,47 +82,45 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
 
   // BUG-380
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
 
   const handleTitleChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, name: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
     if (v.trim()) setNameError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleCategoryChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, category: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, category: v }));
+  }, [setFormDataDirty]);
 
   const handleUnitPriceChange = useCallback((v: number) => {
-    setF((p) => ({ ...p, unitPrice: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, unitPrice: v }));
+  }, [setFormDataDirty]);
 
   const handleTaxTypeChange = useCallback((v: TaxType) => {
-    setF((p) => ({ ...p, taxType: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, taxType: v }));
+  }, [setFormDataDirty]);
 
   const handleTaxRateChange = useCallback((v: number) => {
-    setF((p) => ({ ...p, taxRate: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, taxRate: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setF((p) => ({ ...p, isActive: !p.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleAction = useCallback(() => {
-    if (!f.name.trim()) {
+    if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(f);
+    onSave(formData);
     setIsDirty(false);
-  }, [f, onSave]);
+  }, [formData, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -132,7 +130,7 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
   return (
     <MasterSidePanel
       isNew={item === null}
-      title={f.name}
+      title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={readOnly ? undefined : handleAction}
@@ -144,25 +142,25 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
       titleMaxLength={100}
       readOnly={readOnly}
     >
-      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
+      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カテゴリ">
-        <Select value={f.category} onValueChange={handleCategoryChange}>
+        <Select value={formData.category} onValueChange={handleCategoryChange}>
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
           </SelectTrigger>
           <SelectContent>{CATEGORY_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
-      <MoneyInput value={f.unitPrice} onChange={handleUnitPriceChange} />
+      <MoneyInput value={formData.unitPrice} onChange={handleUnitPriceChange} />
       <PropertyRow label="課税区分">
         <TaxTypeSelector
-          value={f.taxType}
+          value={formData.taxType}
           onChange={handleTaxTypeChange}
         />
       </PropertyRow>
       <PropertyRow label="税率">
         <TaxRateSelector
-          value={f.taxRate}
+          value={formData.taxRate}
           onChange={handleTaxRateChange}
         />
       </PropertyRow>
