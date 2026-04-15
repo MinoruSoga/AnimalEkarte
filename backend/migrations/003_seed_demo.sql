@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Animal Ekarte - デモデータ v1.0
 -- PostgreSQL 18
--- 冪等性保証: ON CONFLICT DO NOTHING / DO UPDATE
+-- 再投入耐性: 主な固定IDデータは ON CONFLICT DO UPDATE、追加専用の関連データは DO NOTHING
 -- 内容: クリニック設定・スタッフ・飼主・ペット・診療記録・会計等（デモ/テスト用）
 -- 依存: 001_init.sql → 002_seed_master.sql
 -- 実行順: 001_init.sql → 002_seed_master.sql → 003_seed_demo.sql
@@ -42,7 +42,7 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('occupations', 'id'), (SELECT MAX(id) FROM occupations));
 
 -- -----------------------------------------------------------------------------
--- 5. staffs（スタッフ: 32件）
+-- 5. staffs（スタッフ: 35件）
 -- 八王子院: ID 1-15（人間11名 + リソース4件）
 -- 城東医院: ID 16-25（人間7名 + リソース3件）
 -- 敷島医院: ID 26-32（人間5名 + リソース2件）
@@ -72,17 +72,17 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
 
 -- -----------------------------------------------------------------------------
--- 6. accounts（認証用アカウント: 13件）
+-- 6. accounts（認証用アカウント: 16件）
 -- password_hash: bcrypt("password", cost=10)
 -- account→staff mapping:
---   1(admin@noavet.jp)→staff 4(三井 隆之 / 院長代理), 2(hayashi)→staff 1(林 文明)
+--   1(admin@noavet.jp)→staff 4(ノア / 院長代理), 2(hayashi)→staff 1(林 文明)
 --   3(yamazaki)→staff 2(山﨑 晶子), 4(mitsui)→staff 3(三井 隆之)
 --   5(admin@example.com)→staff 8(安田), 6(vet)→staff 9(倉田)
 --   7(nurse)→staff 10(梶原), 8(reception)→staff 11(髙木)
 --   9(system)→NULL, 10(kimura)→staff 16(木村 健太)
 --   11(sasaki)→staff 17(佐々木), 12(fujiwara)→staff 26(藤原)
 --   13(matsumoto)→staff 27(松本)
---   14(trimmer@example.com)→新staff(さくら/八王子院デモ)
+--   14(trimmer@example.com)→staff 33(さくら/八王子院デモ / トリマー)
 --   15(joto-vet@example.com)→新staff(城東獣医デモ)
 --   16(shiki-vet@example.com)→新staff(敷島獣医デモ)
 -- -----------------------------------------------------------------------------
@@ -151,7 +151,7 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
 
 -- account_id → staff_id マッピング
-UPDATE staffs SET account_id = 1  WHERE id = 4;  -- admin@noavet.jp → 三井 隆之 (院長代理)
+UPDATE staffs SET account_id = 1  WHERE id = 4;  -- admin@noavet.jp → ノア (院長代理)
 UPDATE staffs SET account_id = 2  WHERE id = 1;  -- hayashi@noah-vet.co.jp → 林 文明
 UPDATE staffs SET account_id = 3  WHERE id = 2;  -- yamazaki@noah-vet.co.jp → 山﨑 晶子
 UPDATE staffs SET account_id = 4  WHERE id = 3;  -- mitsui@noah-vet.co.jp → 三井 隆之
@@ -164,13 +164,13 @@ UPDATE staffs SET account_id = 11 WHERE id = 17; -- sasaki@noah-vet.co.jp → �
 UPDATE staffs SET account_id = 12 WHERE id = 26; -- fujiwara@noah-vet.co.jp → 藤原 誠一
 UPDATE staffs SET account_id = 13 WHERE id = 27; -- matsumoto@noah-vet.co.jp → 松本 さやか
 -- デモアカウント（inline account_id: staffs INSERT で設定済みだが念のため）
-UPDATE staffs SET account_id = 14 WHERE id = 33; -- trimmer@example.com → さくら（デモ）
+UPDATE staffs SET account_id = 14 WHERE id = 33; -- trimmer@example.com → さくら（デモ / トリマー）
 UPDATE staffs SET account_id = 15 WHERE id = 34; -- joto-vet@example.com → 城東 獣医（デモ）
 UPDATE staffs SET account_id = 16 WHERE id = 35; -- shiki-vet@example.com → 敷島 獣医（デモ）
 
 -- -----------------------------------------------------------------------------
 -- 7. staff_clinic_assignments（スタッフ・クリニック割当: 37件）
--- Hachioji Clinic: staff 1-15, Mitsui Takanori (4) is also assigned to Joto and Shiki Clinics
+-- Hachioji Clinic: staff 1-15, Noa (4) is also assigned to Joto and Shiki Clinics
 -- Joto Clinic: staff 16-25
 -- Shikishima Clinic: staff 26-32
 -- -----------------------------------------------------------------------------
@@ -192,8 +192,8 @@ INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
     (14, 1, true),   -- ドッグラン(アジリティ解放) (resource)
     (15, 1, true),   -- クイックシャンプー (resource)
     -- システム管理者 admin@noavet.jp は全院アクセス (staff_id=4 = ノア)
-    (4, 2, false),  -- Mitsui Takanori - Joto Clinic (admin purpose)
-    (4, 3, false),  -- Mitsui Takanori - Shikishima Clinic (admin purpose)
+    (4, 2, false),  -- ノア - Joto Clinic (admin purpose)
+    (4, 3, false),  -- ノア - Shikishima Clinic (admin purpose)
     -- Joto Clinic (clinic_id=2)
     (16, 2, true),   -- 木村 健太 (kimura@noah-vet.co.jp)
     (17, 2, true),   -- 佐々木 美香 (sasaki@noah-vet.co.jp)
@@ -206,17 +206,17 @@ INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main) VALUES
     (24, 2, true),   -- トリミング (resource)
     (25, 2, true),   -- クイックシャンプー (resource)
     -- 敷島医院 (clinic_id=3)
-    (26, 1, true),   -- 藤原 誠一 (fujiwara@noah-vet.co.jp)
-    (27, 1, true),   -- 松本 さやか (matsumoto@noah-vet.co.jp)
-    (28, 1, true),   -- 石田 和也
-    (29, 1, true),   -- 岡本 菜々子
-    (30, 1, true),   -- 西村 健二
-    (31, 1, true),   -- 健診・ワクチン・狂犬病 (resource)
-    (32, 1, true),   -- トリミング (resource)
+    (26, 3, true),   -- 藤原 誠一 (fujiwara@noah-vet.co.jp)
+    (27, 3, true),   -- 松本 さやか (matsumoto@noah-vet.co.jp)
+    (28, 3, true),   -- 石田 和也
+    (29, 3, true),   -- 岡本 菜々子
+    (30, 3, true),   -- 西村 健二
+    (31, 3, true),   -- 健診・ワクチン・狂犬病 (resource)
+    (32, 3, true),   -- トリミング (resource)
     -- デモアカウント用割当
     (33, 1, true),   -- さくら（デモ）→ 八王子院
     (34, 2, true),   -- 城東 獣医（デモ）→ 城東医院
-    (35, 1, true)    -- 敷島 獣医（デモ）→ 敷島医院
+    (35, 3, true)    -- 敷島 獣医（デモ）→ 敷島医院
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
@@ -396,14 +396,14 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 7d. staff_permission_groups（スタッフ→権限グループ割当: 全15名）
+-- 7d. staff_permission_groups（スタッフ→権限グループ割当: 35件）
 -- 執行(1): 管理系スタッフ + デモ管理者アカウント
 -- 一般(2): 一般業務スタッフ
 -- -----------------------------------------------------------------------------
 INSERT INTO staff_permission_groups (staff_id, group_id) VALUES
     -- 八王子院 執行グループ (group_id=1)
     (1,  1),  -- 林 文明     (hayashi@noah-vet.co.jp / システム管理者)
-    (3,  1),  -- 三井 隆之   (mitsui@noah-vet.co.jp / admin@noavet.jp マッピング)
+    (3,  1),  -- 三井 隆之   (mitsui@noah-vet.co.jp)
     (4,  1),  -- ノア        (admin@noavet.jp / 執行権限保持)
     -- 八王子院 執行グループ (group_id=1) 追加: デモ admin アカウント
     (8,  1),  -- 安田 希恵   (admin@example.com デモ) → 執行権限（削除操作を含む機能テスト用）
@@ -453,7 +453,7 @@ ON CONFLICT DO NOTHING;
 -- 敷島医院 (clinic_id=3): 6グループ (ID 15-20)
 -- -----------------------------------------------------------------------------
 
--- 八王子院 (clinic_id=3)
+-- 八王子院 (clinic_id=1)
 INSERT INTO reservation_type_groups (id, clinic_id, name, color, sort_order, is_active) VALUES
     (1, 1, '診療系',           '#3B82F6', 1, true),
     (2, 1, '予防・ワクチン',   '#10B981', 2, true),
@@ -465,7 +465,7 @@ INSERT INTO reservation_type_groups (id, clinic_id, name, color, sort_order, is_
 ON CONFLICT (id) DO UPDATE
     SET name=EXCLUDED.name, color=EXCLUDED.color, sort_order=EXCLUDED.sort_order, is_active=EXCLUDED.is_active;
 
--- 城東医院 (clinic_id=4)
+-- 城東医院 (clinic_id=2)
 INSERT INTO reservation_type_groups (id, clinic_id, name, color, sort_order, is_active) VALUES
     (8, 2, '診療系',           '#3B82F6', 1, true),
     (9, 2, '予防・ワクチン',   '#10B981', 2, true),
@@ -477,7 +477,7 @@ INSERT INTO reservation_type_groups (id, clinic_id, name, color, sort_order, is_
 ON CONFLICT (id) DO UPDATE
     SET name=EXCLUDED.name, color=EXCLUDED.color, sort_order=EXCLUDED.sort_order, is_active=EXCLUDED.is_active;
 
--- 敷島医院 (clinic_id=5)
+-- 敷島医院 (clinic_id=3)
 INSERT INTO reservation_type_groups (id, clinic_id, name, color, sort_order, is_active) VALUES
     (15, 3, '診療系',           '#3B82F6', 1, true),
     (16, 3, '予防・ワクチン',   '#10B981', 2, true),
@@ -850,7 +850,7 @@ INSERT INTO inquiry_templates (id, clinic_id, category, title, content, is_activ
     (10, 1, 'notes',              '生活環境確認',               '室内飼い/外飼い、同居動物の有無、散歩の頻度・時間を確認してください。', true, 10)
 ON CONFLICT DO NOTHING;
 
--- 城東医院 (clinic_id=4)
+-- 城東医院 (clinic_id=2)
 INSERT INTO inquiry_templates (id, clinic_id, category, title, content, is_active, sort_order) VALUES
     (11, 2, 'chief_complaint',    '食欲不振',                   'いつ頃から食欲が低下しましたか？完全絶食か減少かを確認してください。', true, 1),
     (12, 2, 'chief_complaint',    '嘔吐',                       '嘔吐の回数・内容物・タイミングを確認してください。', true, 2),
@@ -859,7 +859,7 @@ INSERT INTO inquiry_templates (id, clinic_id, category, title, content, is_activ
     (15, 2, 'history',            '予防接種歴',                 '最終ワクチン接種日・狂犬病予防・フィラリア予防の状況を確認してください。', true, 5),
     (16, 2, 'current_medications', '投薬状況',                  '現在服用中の薬剤名・用量・処方元を確認してください。', true, 6),
     (17, 2, 'notes',              '生活環境',                   '室内飼い/外飼い・同居動物・散歩頻度を確認してください。', true, 7),
--- 敷島医院 (clinic_id=5)
+-- 敷島医院 (clinic_id=3)
     (18, 3, 'chief_complaint',    '食欲低下',                   'いつから食べなくなったか、食事内容の変化はあるか確認してください。', true, 1),
     (19, 3, 'chief_complaint',    '嘔吐・吐出',                 '嘔吐の頻度・内容物・食事との関連を確認してください。', true, 2),
     (20, 3, 'chief_complaint',    '消化器症状（下痢）',         '便の状態・頻度・血便の有無を確認してください。', true, 3),
@@ -914,28 +914,28 @@ SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id)
 -- 1. owners（飼主: 22件）
 -- -----------------------------------------------------------------------------
 INSERT INTO owners (id, clinic_id, name, name_kana, birth_date, company, postal_code, address1, address2, phone, company_phone, email, remarks, is_dangerous, discount_rate, membership_type) VALUES
-    (1, 1, '林 文明', 'ハヤシ フミアキ', '1980-05-15', 'サンプル株式会社', '150-0001', '東京都渋谷区神宮前1-2-3', '', '090-1111-2222', '03-1234-5678', 'hayashi@example.com', '定期検診を希望', false, 10, 'member'),
-    (2, 1, '田中 花子', 'タナカ ハナコ', '1985-03-20', '', '160-0022', '東京都新宿区新宿1-1-1', '', '080-3333-4444', '', 'tanaka@example.com', '', false, 0, 'non_member'),
-    (3, 1, '鈴木 一郎', 'スズキ イチロウ', '1978-11-03', '', '170-0001', '東京都豊島区西巣鴨1-3-5', '', '070-5555-6666', '', 'suzuki@example.com', '', false, 0, 'member'),
-    (4, 1, '田中 美咲', 'タナカ ミサキ', '1990-07-22', '', '153-0044', '東京都目黒区大橋2-4-6', '', '090-9999-8888', '', 'misaki.tanaka@example.com', '', false, 0, 'non_member'),
-    (5, 1, '佐藤 花子', 'サトウ ハナコ', '1975-02-14', '', '140-0001', '東京都品川区北品川3-5-7', '', '080-2222-3333', '', 'hanako.sato@example.com', '', false, 5, 'member'),
-    (6, 1, '伊藤 次郎', 'イトウ ジロウ', '1983-09-30', '', '166-0013', '東京都杉並区堀ノ内1-7-9', '', '090-1234-5678', '', 'jiro.ito@example.com', '', false, 0, 'non_member'),
-    (7, 1, '小林 さくら', 'コバヤシ サクラ', '1992-04-05', '', '176-0012', '東京都練馬区豊玉北4-2-8', '', '080-9876-5432', '', 'sakura.kobayashi@example.com', '', false, 0, 'member'),
-    (8, 1, '中村 勇気', 'ナカムラ ユウキ', '1987-12-18', '', '174-0041', '東京都板橋区舟渡2-6-10', '', '090-1122-3344', '', 'yuuki.nakamura@example.com', '', false, 0, 'non_member'),
-    (9, 1, '加藤 恵', 'カトウ メグミ', '1995-06-25', '', '134-0083', '東京都江戸川区中葛西5-3-2', '', '080-5566-7788', '', 'megumi.kato@example.com', '', false, 10, 'member'),
-    (10, 1, '山田 太郎', 'ヤマダ タロウ', '1970-01-10', '', '144-0051', '東京都大田区西蒲田6-8-4', '', '090-2233-4455', '', 'taro.yamada@example.com', '', false, 0, 'non_member'),
-    (11, 1, '高橋 由美', 'タカハシ ユミ', '1988-08-15', '', '110-0005', '東京都台東区上野5-1-3', '', '080-6677-8899', '', 'yumi.takahashi@example.com', '', false, 0, 'member'),
-    (12, 1, '松本 隆', 'マツモト タカシ', '1965-03-28', '', '125-0061', '東京都葛飾区亀有3-9-7', '', '090-3344-5566', '', 'takashi.matsumoto@example.com', '', false, 0, 'non_member'),
-    (13, 1, '吉田 誠', 'ヨシダ マコト', '1982-11-05', '', '123-0845', '東京都足立区西新井7-4-6', '', '080-7788-9900', '', 'makoto.yoshida@example.com', '', false, 0, 'non_member'),
-    (14, 1, '井上 京子', 'イノウエ キョウコ', '1973-05-19', '', '189-0023', '東京都東村山市美住町1-5-2', '', '090-4455-6677', '', 'kyoko.inoue@example.com', '', false, 5, 'member'),
-    (15, 1, '木村 拓也', 'キムラ タクヤ', '1991-07-14', '', '179-0081', '東京都練馬区北町3-6-9', '', '080-8899-0011', '', 'takuya.kimura@example.com', '', false, 0, 'non_member'),
-    (16, 1, '佐々木 亮', 'ササキ リョウ', '1986-02-23', '', '207-0013', '東京都東大和市清水2-4-8', '', '090-5566-7788', '', 'ryo.sasaki@example.com', '', false, 0, 'non_member'),
-    (17, 1, '山本 健太', 'ヤマモト ケンタ', '1998-09-12', '', '206-0802', '東京都稲城市東長沼2-8-3', '', '090-1234-9876', '', 'kenta.yamamoto@example.com', '', false, 0, 'non_member'),
-    (18, 1, '青木 麻衣', 'アオキ マイ', '1993-03-10', '', '150-0002', '東京都渋谷区渋谷2-1-1', '', '090-1111-1111', '', 'mai.aoki@example.com', '', false, 0, 'non_member'),
-    (19, 1, '橋本 俊介', 'ハシモト シュンスケ', '1980-07-25', '', '130-0001', '東京都墨田区吾妻橋1-3-5', '', '080-2222-2222', '', 'shunsuke.h@example.com', '', false, 0, 'member'),
-    (20, 1, '福田 裕子', 'フクダ ユウコ', '1977-11-14', '', '145-0062', '東京都大田区北千束2-5-8', '', '090-3333-3333', '', 'yuko.fukuda@example.com', '', false, 5, 'member'),
-    (21, 1, '石川 大輔', 'イシカワ ダイスケ', '1989-04-02', '', '167-0041', '東京都杉並区善福寺3-2-6', '', '080-4444-4444', '', 'daisuke.ishikawa@example.com', '', false, 0, 'non_member'),
-    (22, 1, '村田 奈々', 'ムラタ ナナ', '1996-09-19', '', '182-0021', '東京都調布市調布ヶ丘1-4-7', '', '090-5555-5555', '', 'nana.murata@example.com', '', false, 0, 'non_member')
+    (1, 1, '林 文明', 'はやし ふみあき', '1980-05-15', 'サンプル株式会社', '150-0001', '東京都渋谷区神宮前1-2-3', '', '090-1111-2222', '03-1234-5678', 'hayashi@example.com', '定期検診を希望', false, 10, 'member'),
+    (2, 1, '田中 花子', 'たなか はなこ', '1985-03-20', '', '160-0022', '東京都新宿区新宿1-1-1', '', '080-3333-4444', '', 'tanaka@example.com', '', false, 0, 'non_member'),
+    (3, 1, '鈴木 一郎', 'すずき いちろう', '1978-11-03', '', '170-0001', '東京都豊島区西巣鴨1-3-5', '', '070-5555-6666', '', 'suzuki@example.com', '', false, 0, 'member'),
+    (4, 1, '田中 美咲', 'たなか みさき', '1990-07-22', '', '153-0044', '東京都目黒区大橋2-4-6', '', '090-9999-8888', '', 'misaki.tanaka@example.com', '', false, 0, 'non_member'),
+    (5, 1, '佐藤 花子', 'さとう はなこ', '1975-02-14', '', '140-0001', '東京都品川区北品川3-5-7', '', '080-2222-3333', '', 'hanako.sato@example.com', '', false, 5, 'member'),
+    (6, 1, '伊藤 次郎', 'いとう じろう', '1983-09-30', '', '166-0013', '東京都杉並区堀ノ内1-7-9', '', '090-1234-5678', '', 'jiro.ito@example.com', '', false, 0, 'non_member'),
+    (7, 1, '小林 さくら', 'こばやし さくら', '1992-04-05', '', '176-0012', '東京都練馬区豊玉北4-2-8', '', '080-9876-5432', '', 'sakura.kobayashi@example.com', '', false, 0, 'member'),
+    (8, 1, '中村 勇気', 'なかむら ゆうき', '1987-12-18', '', '174-0041', '東京都板橋区舟渡2-6-10', '', '090-1122-3344', '', 'yuuki.nakamura@example.com', '', false, 0, 'non_member'),
+    (9, 1, '加藤 恵', 'かとう めぐみ', '1995-06-25', '', '134-0083', '東京都江戸川区中葛西5-3-2', '', '080-5566-7788', '', 'megumi.kato@example.com', '', false, 10, 'member'),
+    (10, 1, '山田 太郎', 'やまだ たろう', '1970-01-10', '', '144-0051', '東京都大田区西蒲田6-8-4', '', '090-2233-4455', '', 'taro.yamada@example.com', '', false, 0, 'non_member'),
+    (11, 1, '高橋 由美', 'たかはし ゆみ', '1988-08-15', '', '110-0005', '東京都台東区上野5-1-3', '', '080-6677-8899', '', 'yumi.takahashi@example.com', '', false, 0, 'member'),
+    (12, 1, '松本 隆', 'まつもと たかし', '1965-03-28', '', '125-0061', '東京都葛飾区亀有3-9-7', '', '090-3344-5566', '', 'takashi.matsumoto@example.com', '', false, 0, 'non_member'),
+    (13, 1, '吉田 誠', 'よしだ まこと', '1982-11-05', '', '123-0845', '東京都足立区西新井7-4-6', '', '080-7788-9900', '', 'makoto.yoshida@example.com', '', false, 0, 'non_member'),
+    (14, 1, '井上 京子', 'いのうえ きょうこ', '1973-05-19', '', '189-0023', '東京都東村山市美住町1-5-2', '', '090-4455-6677', '', 'kyoko.inoue@example.com', '', false, 5, 'member'),
+    (15, 1, '木村 拓也', 'きむら たくや', '1991-07-14', '', '179-0081', '東京都練馬区北町3-6-9', '', '080-8899-0011', '', 'takuya.kimura@example.com', '', false, 0, 'non_member'),
+    (16, 1, '佐々木 亮', 'ささき りょう', '1986-02-23', '', '207-0013', '東京都東大和市清水2-4-8', '', '090-5566-7788', '', 'ryo.sasaki@example.com', '', false, 0, 'non_member'),
+    (17, 1, '山本 健太', 'やまもと けんた', '1998-09-12', '', '206-0802', '東京都稲城市東長沼2-8-3', '', '090-1234-9876', '', 'kenta.yamamoto@example.com', '', false, 0, 'non_member'),
+    (18, 1, '青木 麻衣', 'あおき まい', '1993-03-10', '', '150-0002', '東京都渋谷区渋谷2-1-1', '', '090-1111-1111', '', 'mai.aoki@example.com', '', false, 0, 'non_member'),
+    (19, 1, '橋本 俊介', 'はしもと しゅんすけ', '1980-07-25', '', '130-0001', '東京都墨田区吾妻橋1-3-5', '', '080-2222-2222', '', 'shunsuke.h@example.com', '', false, 0, 'member'),
+    (20, 1, '福田 裕子', 'ふくだ ゆうこ', '1977-11-14', '', '145-0062', '東京都大田区北千束2-5-8', '', '090-3333-3333', '', 'yuko.fukuda@example.com', '', false, 5, 'member'),
+    (21, 1, '石川 大輔', 'いしかわ だいすけ', '1989-04-02', '', '167-0041', '東京都杉並区善福寺3-2-6', '', '080-4444-4444', '', 'daisuke.ishikawa@example.com', '', false, 0, 'non_member'),
+    (22, 1, '村田 奈々', 'むらた なな', '1996-09-19', '', '182-0021', '東京都調布市調布ヶ丘1-4-7', '', '090-5555-5555', '', 'nana.murata@example.com', '', false, 0, 'non_member')
 ON CONFLICT (id) DO UPDATE SET
     name      = EXCLUDED.name,
     name_kana = EXCLUDED.name_kana,
@@ -947,34 +947,34 @@ SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owner
 -- 2. pets（ペット: 28件）
 -- -----------------------------------------------------------------------------
 INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, name_kana, animal_species_id, gender, status, birth_date, breed, color, weight, insurance_id, last_visit) VALUES
-    (1, 1, 1,  '1-1', 'Iris(イリス)', 'イリス', 1, 'male',   'alive', '2015-04-14', 'ゴールデンレトリーバー',     '茶色',           26.5,  1, '2015-08-28'),
-    (2, 1, 1,  '1-2', 'Max(マックス)', 'マックス', 1, 'male', 'alive', '2018-06-20', 'ラブラドール',               'ゴールデン',     15.2,  NULL, '2024-11-15'),
-    (3, 1, 2,  '2-1', 'ミケ',         'ミケ',     2, 'female','alive', '2020-03-10', '三毛猫',                     '三毛',            4.20, 2, '2024-11-18'),
-    (4, 1, 3,  '3-1', 'タロウ',       'タロウ',   1, 'male',  'alive', '2019-05-15', '柴犬',                       'レッド',          8.3,  NULL, NULL),
-    (5, 1, 3,  '3-2', 'ジロウ',       'ジロウ',   1, 'male',  'alive', '2021-08-10', '柴犬',                       'ブラック',        7.1,  NULL, NULL),
-    (6, 1, 4,  '4-1', 'チョコ',       'チョコ',   1, 'female','alive', '2017-11-20', 'トイプードル',               'チョコ',          3.80, 1, NULL),
-    (7, 1, 5,  '5-1', 'レオ',         'レオ',     2, 'male',  'alive', '2016-07-04', 'スコティッシュフォールド',   'グレー',          5.5,  NULL, NULL),
-    (8, 1, 6,  '6-1', 'ハチ',         'ハチ',     1, 'male',  'alive', '2018-03-25', '秋田犬',                     'ホワイト',       22.0,  NULL, NULL),
-    (9, 1, 7,  '7-1', 'モモ',         'モモ',     2, 'female','alive', '2022-01-15', 'マンチカン',                 'キャリコ',        3.2,  2, NULL),
-    (10, 1, 8,  '8-1', 'ロッキー',     'ロッキー', 1, 'male',  'alive', '2014-09-08', 'ボーダーコリー',             'ブラックホワイト',18.5,  NULL, NULL),
-    (11, 1, 9,  '9-1', 'ルナ',         'ルナ',     2, 'female','alive', '2021-02-28', 'ペルシャ',                   'シルバー',        4.80, 1, NULL),
-    (12, 1, 10, '10-1', 'ケン',        'ケン',     1, 'male',  'alive', '2013-06-18', 'ジャーマンシェパード',       'ブラックタン',   32.0,  NULL, NULL),
-    (13, 1, 11, '11-1', 'ソラ',        'ソラ',     2, 'male',  'alive', '2023-04-01', 'アメリカンショートヘア',     'タビー',          3.0,  NULL, NULL),
-    (14, 1, 12, '12-1', 'ゴン',        'ゴン',     1, 'male',  'alive', '2016-12-05', '紀州犬',                     'ホワイト',       19.5,  NULL, NULL),
-    (15, 1, 13, '13-1', 'シロ',        'シロ',     1, 'male',  'alive', '2020-08-10', 'ミックス犬',                 'ホワイト',        6.2,  NULL, NULL),
-    (16, 1, 14, '14-1', 'トラ',        'トラ',     2, 'male',  'alive', '2019-10-22', 'トラ猫',                     'トラ',            5.1,  NULL, NULL),
-    (17, 1, 15, '15-1', 'ベロ',        'ベロ',     1, 'male',  'alive', '2018-05-03', 'ビーグル',                   'トライカラー',   13.2,  NULL, NULL),
-    (18, 1, 16, '16-1', 'チビ',        'チビ',     2, 'female','alive', '2022-06-20', 'ミックス猫',                 'サビ',            3.50, NULL, NULL),
-    (19, 1, 17, '17-1', 'ポチ',        'ポチ',     1, 'male',  'alive', '2017-02-14', 'ダックスフンド',             'チョコ',          7.8,  NULL, NULL),
-    (20, 1, 18, '18-1', 'モカ',        'モカ',     2, 'female','alive', '2022-05-10', 'ミックス猫',                 'ホワイト',        4.1,  NULL, NULL),
-    (21, 1, 18, '18-2', 'クルミ',      'クルミ',   1, 'male',  'alive', '2020-08-20', 'ミックス犬',                 'ベージュ',        8.3,  NULL, NULL),
-    (22, 1, 19, '19-1', 'ハル',        'ハル',     1, 'male',  'alive', '2019-03-15', 'ミックス犬',                 'ブラック',       12.5,  NULL, NULL),
-    (23, 1, 19, '19-2', 'ユキ',        'ユキ',     2, 'female','alive', '2021-12-01', 'ミックス猫',                 'ホワイト',        3.80, NULL, NULL),
-    (24, 1, 20, '20-1', 'ピーチ',      'ピーチ',   2, 'female','alive', '2023-01-07', 'ミックス猫',                 'オレンジ',        3.2,  NULL, NULL),
-    (25, 1, 21, '21-1', 'コタ',        'コタ',     1, 'male',  'alive', '2018-09-23', 'ミックス犬',                 'ブラウン',       22.0,  NULL, NULL),
-    (26, 1, 21, '21-2', 'アン',        'アン',     2, 'female','alive', '2020-04-11', 'ミックス猫',                 'キャリコ',        4.5,  NULL, NULL),
-    (27, 1, 22, '22-1', 'ゴマ',        'ゴマ',     2, 'male',  'alive', '2022-11-30', 'ミックス猫',                 'グレー',          5.0,  NULL, NULL),
-    (28, 1, 22, '22-2', 'マル',        'マル',     1, 'female','alive', '2021-06-18', 'ミックス犬',                 'ゴールデン',      9.7,  NULL, NULL)
+    (1, 1, 1,  '1-1', 'Iris(イリス)', 'いりす', 1, 'male',   'alive', '2015-04-14', 'ゴールデンレトリーバー',     '茶色',           26.5,  1, '2015-08-28'),
+    (2, 1, 1,  '1-2', 'Max(マックス)', 'まっくす', 1, 'male', 'alive', '2018-06-20', 'ラブラドール',               'ゴールデン',     15.2,  NULL, '2024-11-15'),
+    (3, 1, 2,  '2-1', 'ミケ',         'みけ',     2, 'female','alive', '2020-03-10', '三毛猫',                     '三毛',            4.20, 2, '2024-11-18'),
+    (4, 1, 3,  '3-1', 'タロウ',       'たろう',   1, 'male',  'alive', '2019-05-15', '柴犬',                       'レッド',          8.3,  NULL, NULL),
+    (5, 1, 3,  '3-2', 'ジロウ',       'じろう',   1, 'male',  'alive', '2021-08-10', '柴犬',                       'ブラック',        7.1,  NULL, NULL),
+    (6, 1, 4,  '4-1', 'チョコ',       'ちょこ',   1, 'female','alive', '2017-11-20', 'トイプードル',               'チョコ',          3.80, 1, NULL),
+    (7, 1, 5,  '5-1', 'レオ',         'れお',     2, 'male',  'alive', '2016-07-04', 'スコティッシュフォールド',   'グレー',          5.5,  NULL, NULL),
+    (8, 1, 6,  '6-1', 'ハチ',         'はち',     1, 'male',  'alive', '2018-03-25', '秋田犬',                     'ホワイト',       22.0,  NULL, NULL),
+    (9, 1, 7,  '7-1', 'モモ',         'もも',     2, 'female','alive', '2022-01-15', 'マンチカン',                 'キャリコ',        3.2,  2, NULL),
+    (10, 1, 8,  '8-1', 'ロッキー',     'ろっきー', 1, 'male',  'alive', '2014-09-08', 'ボーダーコリー',             'ブラックホワイト',18.5,  NULL, NULL),
+    (11, 1, 9,  '9-1', 'ルナ',         'るな',     2, 'female','alive', '2021-02-28', 'ペルシャ',                   'シルバー',        4.80, 1, NULL),
+    (12, 1, 10, '10-1', 'ケン',        'けん',     1, 'male',  'alive', '2013-06-18', 'ジャーマンシェパード',       'ブラックタン',   32.0,  NULL, NULL),
+    (13, 1, 11, '11-1', 'ソラ',        'そら',     2, 'male',  'alive', '2023-04-01', 'アメリカンショートヘア',     'タビー',          3.0,  NULL, NULL),
+    (14, 1, 12, '12-1', 'ゴン',        'ごん',     1, 'male',  'alive', '2016-12-05', '紀州犬',                     'ホワイト',       19.5,  NULL, NULL),
+    (15, 1, 13, '13-1', 'シロ',        'しろ',     1, 'male',  'alive', '2020-08-10', 'ミックス犬',                 'ホワイト',        6.2,  NULL, NULL),
+    (16, 1, 14, '14-1', 'トラ',        'とら',     2, 'male',  'alive', '2019-10-22', 'トラ猫',                     'トラ',            5.1,  NULL, NULL),
+    (17, 1, 15, '15-1', 'ベロ',        'べろ',     1, 'male',  'alive', '2018-05-03', 'ビーグル',                   'トライカラー',   13.2,  NULL, NULL),
+    (18, 1, 16, '16-1', 'チビ',        'ちび',     2, 'female','alive', '2022-06-20', 'ミックス猫',                 'サビ',            3.50, NULL, NULL),
+    (19, 1, 17, '17-1', 'ポチ',        'ぽち',     1, 'male',  'alive', '2017-02-14', 'ダックスフンド',             'チョコ',          7.8,  NULL, NULL),
+    (20, 1, 18, '18-1', 'モカ',        'もか',     2, 'female','alive', '2022-05-10', 'ミックス猫',                 'ホワイト',        4.1,  NULL, NULL),
+    (21, 1, 18, '18-2', 'クルミ',      'くるみ',   1, 'male',  'alive', '2020-08-20', 'ミックス犬',                 'ベージュ',        8.3,  NULL, NULL),
+    (22, 1, 19, '19-1', 'ハル',        'はる',     1, 'male',  'alive', '2019-03-15', 'ミックス犬',                 'ブラック',       12.5,  NULL, NULL),
+    (23, 1, 19, '19-2', 'ユキ',        'ゆき',     2, 'female','alive', '2021-12-01', 'ミックス猫',                 'ホワイト',        3.80, NULL, NULL),
+    (24, 1, 20, '20-1', 'ピーチ',      'ぴーち',   2, 'female','alive', '2023-01-07', 'ミックス猫',                 'オレンジ',        3.2,  NULL, NULL),
+    (25, 1, 21, '21-1', 'コタ',        'こた',     1, 'male',  'alive', '2018-09-23', 'ミックス犬',                 'ブラウン',       22.0,  NULL, NULL),
+    (26, 1, 21, '21-2', 'アン',        'あん',     2, 'female','alive', '2020-04-11', 'ミックス猫',                 'キャリコ',        4.5,  NULL, NULL),
+    (27, 1, 22, '22-1', 'ゴマ',        'ごま',     2, 'male',  'alive', '2022-11-30', 'ミックス猫',                 'グレー',          5.0,  NULL, NULL),
+    (28, 1, 22, '22-2', 'マル',        'まる',     1, 'female','alive', '2021-06-18', 'ミックス犬',                 'ゴールデン',      9.7,  NULL, NULL)
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
@@ -1231,7 +1231,7 @@ ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) FROM billing_refunds));
 
 -- =============================================================================
--- 城東医院 (clinic_id=4) マスタデータ
+-- 城東医院 (clinic_id=2) マスタデータ
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -1487,21 +1487,21 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
 
 -- =============================================================================
--- 城東医院 (clinic_id=4) デモデータ（飼主・ペット）
+-- 城東医院 (clinic_id=2) デモデータ（飼主・ペット）
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
 -- 城東医院 owners（飼主: 8件、ID 23〜30）
 -- -----------------------------------------------------------------------------
 INSERT INTO owners (id, clinic_id, name, name_kana, birth_date, company, postal_code, address1, address2, phone, company_phone, email, remarks, is_dangerous, discount_rate, membership_type) VALUES
-    (23, 2, '大野 健司',   'オオノ ケンジ',   '1979-06-10', '',           '136-0071', '東京都江東区亀戸3-5-8',         '', '090-6601-2233', '', 'kenji.ono@example.com',      '定期通院',   false, 10, 'member'),
-    (24, 2, '松田 香織',   'マツダ カオリ',   '1988-02-14', '',           '135-0044', '東京都江東区越中島2-1-4',       '', '080-7702-3344', '', 'kaori.matsuda@example.com',  '',           false, 0,  'non_member'),
-    (25, 2, '渡辺 直樹',   'ワタナベ ナオキ', '1972-10-28', '渡辺商事',   '132-0025', '東京都江戸川区松江3-7-2',       '', '090-8803-4455', '', 'naoki.watanabe@example.com', '',           false, 5,  'member'),
-    (26, 2, '中島 奈緒',   'ナカジマ ナオ',   '1994-04-17', '',           '133-0065', '東京都江戸川区南篠崎町1-6-3',   '', '080-9904-5566', '', 'nao.nakajima@example.com',   '',           false, 0,  'non_member'),
-    (27, 2, '斎藤 浩二',   'サイトウ コウジ', '1967-12-05', '',           '131-0031', '東京都墨田区墨田1-4-9',         '', '090-1105-6677', '', 'koji.saito@example.com',     '',           false, 0,  'non_member'),
-    (28, 2, '坂本 真由美', 'サカモト マユミ', '1991-08-22', '',           '130-0022', '東京都墨田区横川4-2-7',         '', '080-2206-7788', '', 'mayumi.sakamoto@example.com','猫アレルギーに注意', false, 0,  'member'),
-    (29, 2, '岡田 俊雄',   'オカダ トシオ',   '1983-03-30', 'オカダ工業', '132-0034', '東京都江戸川区小松川1-8-5',     '', '090-3307-8899', '', 'toshio.okada@example.com',   '',           false, 0,  'non_member'),
-    (30, 2, '藤田 彩',     'フジタ アヤ',     '1997-11-11', '',           '136-0076', '東京都江東区南砂3-9-1',         '', '080-4408-9900', '', 'aya.fujita@example.com',     '',           false, 0,  'non_member')
+    (23, 2, '大野 健司',   'おおの けんじ',   '1979-06-10', '',           '136-0071', '東京都江東区亀戸3-5-8',         '', '090-6601-2233', '', 'kenji.ono@example.com',      '定期通院',   false, 10, 'member'),
+    (24, 2, '松田 香織',   'まつだ かおり',   '1988-02-14', '',           '135-0044', '東京都江東区越中島2-1-4',       '', '080-7702-3344', '', 'kaori.matsuda@example.com',  '',           false, 0,  'non_member'),
+    (25, 2, '渡辺 直樹',   'わたなべ なおき', '1972-10-28', '渡辺商事',   '132-0025', '東京都江戸川区松江3-7-2',       '', '090-8803-4455', '', 'naoki.watanabe@example.com', '',           false, 5,  'member'),
+    (26, 2, '中島 奈緒',   'なかじま なお',   '1994-04-17', '',           '133-0065', '東京都江戸川区南篠崎町1-6-3',   '', '080-9904-5566', '', 'nao.nakajima@example.com',   '',           false, 0,  'non_member'),
+    (27, 2, '斎藤 浩二',   'さいとう こうじ', '1967-12-05', '',           '131-0031', '東京都墨田区墨田1-4-9',         '', '090-1105-6677', '', 'koji.saito@example.com',     '',           false, 0,  'non_member'),
+    (28, 2, '坂本 真由美', 'さかもと まゆみ', '1991-08-22', '',           '130-0022', '東京都墨田区横川4-2-7',         '', '080-2206-7788', '', 'mayumi.sakamoto@example.com','猫アレルギーに注意', false, 0,  'member'),
+    (29, 2, '岡田 俊雄',   'おかだ としお',   '1983-03-30', 'オカダ工業', '132-0034', '東京都江戸川区小松川1-8-5',     '', '090-3307-8899', '', 'toshio.okada@example.com',   '',           false, 0,  'non_member'),
+    (30, 2, '藤田 彩',     'ふじた あや',     '1997-11-11', '',           '136-0076', '東京都江東区南砂3-9-1',         '', '080-4408-9900', '', 'aya.fujita@example.com',     '',           false, 0,  'non_member')
 ON CONFLICT (id) DO UPDATE SET
     name      = EXCLUDED.name,
     name_kana = EXCLUDED.name_kana,
@@ -1513,16 +1513,16 @@ SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owner
 -- 城東医院 pets（ペット: 10件、ID 29〜38）
 -- -----------------------------------------------------------------------------
 INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, name_kana, animal_species_id, gender, status, birth_date, breed, color, weight, insurance_id, last_visit) VALUES
-    (29, 2, 23, '23-1', 'クロ',   'クロ',   1, 'male',   'alive', '2019-03-20', 'ラブラドール',             'ブラック',   28.0,  6,    '2025-11-10'),
-    (30, 2, 23, '23-2', 'シナモン', 'シナモン', 2, 'female','alive', '2021-07-15', 'アビシニアン',           'レッド',      4.1,  NULL, NULL),
-    (31, 2, 24, '24-1', 'ポポ',   'ポポ',   2, 'female', 'alive', '2020-05-10', 'ロシアンブルー',           'グレー',      3.8,  7,    '2025-10-20'),
-    (32, 2, 25, '25-1', 'ダン',   'ダン',   1, 'male',   'alive', '2017-09-05', 'ウェルシュコーギー',       'セーブルホワイト', 13.2, NULL, NULL),
-    (33, 2, 26, '26-1', 'キナ',   'キナ',   2, 'male',   'alive', '2022-02-28', 'ミックス猫',               'オレンジ',    4.5,  NULL, NULL),
-    (34, 2, 27, '27-1', 'バロン', 'バロン', 1, 'male',   'alive', '2015-11-18', 'シェパード',               'ブラックタン',30.5, NULL, '2025-12-01'),
-    (35, 2, 28, '28-1', 'ユズ',   'ユズ',   2, 'female', 'alive', '2023-03-03', 'ミックス猫',               'キャリコ',    3.0,  NULL, NULL),
-    (36, 2, 28, '28-2', 'レン',   'レン',   1, 'male',   'alive', '2021-06-14', 'ビーグル',                 'トライカラー',12.8, NULL, NULL),
-    (37, 2, 29, '29-1', 'ナナ',   'ナナ',   2, 'female', 'alive', '2018-08-07', 'メインクーン',             'ブラウンタビー', 6.2, 6,   '2026-01-15'),
-    (38, 2, 30, '30-1', 'コウ',   'コウ',   1, 'male',   'alive', '2020-12-25', 'トイプードル',             'アプリコット', 3.5, NULL, NULL)
+    (29, 2, 23, '23-1', 'クロ',   'くろ',   1, 'male',   'alive', '2019-03-20', 'ラブラドール',             'ブラック',   28.0,  6,    '2025-11-10'),
+    (30, 2, 23, '23-2', 'シナモン', 'しなもん', 2, 'female','alive', '2021-07-15', 'アビシニアン',           'レッド',      4.1,  NULL, NULL),
+    (31, 2, 24, '24-1', 'ポポ',   'ぽぽ',   2, 'female', 'alive', '2020-05-10', 'ロシアンブルー',           'グレー',      3.8,  7,    '2025-10-20'),
+    (32, 2, 25, '25-1', 'ダン',   'だん',   1, 'male',   'alive', '2017-09-05', 'ウェルシュコーギー',       'セーブルホワイト', 13.2, NULL, NULL),
+    (33, 2, 26, '26-1', 'キナ',   'きな',   2, 'male',   'alive', '2022-02-28', 'ミックス猫',               'オレンジ',    4.5,  NULL, NULL),
+    (34, 2, 27, '27-1', 'バロン', 'ばろん', 1, 'male',   'alive', '2015-11-18', 'シェパード',               'ブラックタン',30.5, NULL, '2025-12-01'),
+    (35, 2, 28, '28-1', 'ユズ',   'ゆず',   2, 'female', 'alive', '2023-03-03', 'ミックス猫',               'キャリコ',    3.0,  NULL, NULL),
+    (36, 2, 28, '28-2', 'レン',   'れん',   1, 'male',   'alive', '2021-06-14', 'ビーグル',                 'トライカラー',12.8, NULL, NULL),
+    (37, 2, 29, '29-1', 'ナナ',   'なな',   2, 'female', 'alive', '2018-08-07', 'メインクーン',             'ブラウンタビー', 6.2, 6,   '2026-01-15'),
+    (38, 2, 30, '30-1', 'コウ',   'こう',   1, 'male',   'alive', '2020-12-25', 'トイプードル',             'アプリコット', 3.5, NULL, NULL)
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
@@ -1785,14 +1785,14 @@ SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id)
 -- 敷島医院 owners（飼主: 8件、ID 31〜38）
 -- -----------------------------------------------------------------------------
 INSERT INTO owners (id, clinic_id, name, name_kana, birth_date, company, postal_code, address1, address2, phone, company_phone, email, remarks, is_dangerous, discount_rate, membership_type) VALUES
-    (31, 3, '村上 俊平',   'ムラカミ シュンペイ', '1976-04-12', '',           '400-0031', '山梨県甲府市丸の内2-3-4',     '', '090-5501-1122', '', 'shunpei.murakami@example.com', '',           false, 10, 'member'),
-    (32, 3, '長谷川 恵子', 'ハセガワ ケイコ',     '1989-09-07', '',           '400-0032', '山梨県甲府市中央3-5-6',       '', '080-6602-2233', '', 'keiko.hasegawa@example.com',   '',           false, 0,  'non_member'),
-    (33, 3, '野口 正樹',   'ノグチ マサキ',       '1971-01-25', '野口設計',   '400-0035', '山梨県甲府市丸の内3-7-8',     '', '090-7703-3344', '', 'masaki.noguchi@example.com',   '',           false, 5,  'member'),
-    (34, 3, '石田 沙織',   'イシダ サオリ',       '1993-07-18', '',           '400-0801', '山梨県甲府市横根町5-2-1',     '', '080-8804-4455', '', 'saori.ishida@example.com',     '猫2匹飼い', false, 0,  'non_member'),
-    (35, 3, '前田 修',     'マエダ オサム',       '1968-11-02', '',           '400-0031', '山梨県甲府市丸の内1-9-3',     '', '090-9905-5566', '', 'osamu.maeda@example.com',      '',           false, 0,  'non_member'),
-    (36, 3, '菊池 里奈',   'キクチ リナ',         '1995-06-14', '',           '400-0032', '山梨県甲府市中央5-4-7',       '', '080-1106-6677', '', 'rina.kikuchi@example.com',     '',           false, 0,  'member'),
-    (37, 3, '清水 和彦',   'シミズ カズヒコ',     '1980-03-28', '清水工務店', '400-0034', '山梨県甲府市北口1-6-2',       '', '090-2207-7788', '', 'kazuhiko.shimizu@example.com', '',           false, 0,  'non_member'),
-    (38, 3, '岩崎 美穂',   'イワサキ ミホ',       '1998-12-05', '',           '400-0803', '山梨県甲府市横根町2-8-9',     '', '080-3308-8899', '', 'miho.iwasaki@example.com',     '',           false, 0,  'non_member')
+    (31, 3, '村上 俊平',   'むらかみ しゅんぺい', '1976-04-12', '',           '400-0031', '山梨県甲府市丸の内2-3-4',     '', '090-5501-1122', '', 'shunpei.murakami@example.com', '',           false, 10, 'member'),
+    (32, 3, '長谷川 恵子', 'はせがわ けいこ',     '1989-09-07', '',           '400-0032', '山梨県甲府市中央3-5-6',       '', '080-6602-2233', '', 'keiko.hasegawa@example.com',   '',           false, 0,  'non_member'),
+    (33, 3, '野口 正樹',   'のぐち まさき',       '1971-01-25', '野口設計',   '400-0035', '山梨県甲府市丸の内3-7-8',     '', '090-7703-3344', '', 'masaki.noguchi@example.com',   '',           false, 5,  'member'),
+    (34, 3, '石田 沙織',   'いしだ さおり',       '1993-07-18', '',           '400-0801', '山梨県甲府市横根町5-2-1',     '', '080-8804-4455', '', 'saori.ishida@example.com',     '猫2匹飼い', false, 0,  'non_member'),
+    (35, 3, '前田 修',     'まえだ おさむ',       '1968-11-02', '',           '400-0031', '山梨県甲府市丸の内1-9-3',     '', '090-9905-5566', '', 'osamu.maeda@example.com',      '',           false, 0,  'non_member'),
+    (36, 3, '菊池 里奈',   'きくち りな',         '1995-06-14', '',           '400-0032', '山梨県甲府市中央5-4-7',       '', '080-1106-6677', '', 'rina.kikuchi@example.com',     '',           false, 0,  'member'),
+    (37, 3, '清水 和彦',   'しみず かずひこ',     '1980-03-28', '清水工務店', '400-0034', '山梨県甲府市北口1-6-2',       '', '090-2207-7788', '', 'kazuhiko.shimizu@example.com', '',           false, 0,  'non_member'),
+    (38, 3, '岩崎 美穂',   'いわさき みほ',       '1998-12-05', '',           '400-0803', '山梨県甲府市横根町2-8-9',     '', '080-3308-8899', '', 'miho.iwasaki@example.com',     '',           false, 0,  'non_member')
 ON CONFLICT (id) DO UPDATE SET
     name      = EXCLUDED.name,
     name_kana = EXCLUDED.name_kana,
@@ -1804,16 +1804,16 @@ SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owner
 -- 敷島医院 pets（ペット: 10件、ID 39〜48）
 -- -----------------------------------------------------------------------------
 INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, name_kana, animal_species_id, gender, status, birth_date, breed, color, weight, insurance_id, last_visit) VALUES
-    (39, 3, 31, '31-1', 'フク',   'フク',   1, 'male',   'alive', '2018-05-05', 'シベリアンハスキー',       'グレーホワイト', 24.0, 9,    '2025-10-05'),
-    (40, 3, 32, '32-1', 'アズキ', 'アズキ', 2, 'female', 'alive', '2021-11-20', 'ノルウェージャンフォレストキャット', 'ブラウンタビー', 4.8, NULL, '2025-12-18'),
-    (41, 3, 33, '33-1', 'カイ',   'カイ',   1, 'male',   'alive', '2016-07-10', 'ゴールデンレトリーバー',   'ゴールデン',     31.2, NULL, '2026-01-08'),
-    (42, 3, 34, '34-1', 'キキ',   'キキ',   2, 'female', 'alive', '2022-04-25', 'ミックス猫',               'トラ',           3.5,  NULL, NULL),
-    (43, 3, 34, '34-2', 'ニコ',   'ニコ',   2, 'female', 'alive', '2020-09-12', 'ミックス猫',               'サビ',           4.2,  NULL, NULL),
-    (44, 3, 35, '35-1', 'ジャック', 'ジャック', 1, 'male', 'alive', '2014-02-28', 'ジャックラッセルテリア', 'ホワイトタン',   6.8,  NULL, '2025-09-20'),
-    (45, 3, 36, '36-1', 'ミル',   'ミル',   2, 'female', 'alive', '2023-01-15', 'ミックス猫',               'ホワイト',       3.2,  NULL, NULL),
-    (46, 3, 37, '37-1', 'ガイア', 'ガイア', 1, 'male',   'alive', '2017-08-30', 'アラスカンマラミュート',   'グレー',         36.5, NULL, '2025-11-25'),
-    (47, 3, 38, '38-1', 'ハナ',   'ハナ',   2, 'female', 'alive', '2021-03-08', 'アメリカンショートヘア',   'シルバータビー', 4.0,  9,    '2026-02-10'),
-    (48, 3, 38, '38-2', 'ソウ',   'ソウ',   1, 'male',   'alive', '2019-10-01', 'ミックス犬',               'ベージュ',       9.2,  NULL, NULL)
+    (39, 3, 31, '31-1', 'フク',   'ふく',   1, 'male',   'alive', '2018-05-05', 'シベリアンハスキー',       'グレーホワイト', 24.0, 9,    '2025-10-05'),
+    (40, 3, 32, '32-1', 'アズキ', 'あずき', 2, 'female', 'alive', '2021-11-20', 'ノルウェージャンフォレストキャット', 'ブラウンタビー', 4.8, NULL, '2025-12-18'),
+    (41, 3, 33, '33-1', 'カイ',   'かい',   1, 'male',   'alive', '2016-07-10', 'ゴールデンレトリーバー',   'ゴールデン',     31.2, NULL, '2026-01-08'),
+    (42, 3, 34, '34-1', 'キキ',   'きき',   2, 'female', 'alive', '2022-04-25', 'ミックス猫',               'トラ',           3.5,  NULL, NULL),
+    (43, 3, 34, '34-2', 'ニコ',   'にこ',   2, 'female', 'alive', '2020-09-12', 'ミックス猫',               'サビ',           4.2,  NULL, NULL),
+    (44, 3, 35, '35-1', 'ジャック', 'じゃっく', 1, 'male', 'alive', '2014-02-28', 'ジャックラッセルテリア', 'ホワイトタン',   6.8,  NULL, '2025-09-20'),
+    (45, 3, 36, '36-1', 'ミル',   'みる',   2, 'female', 'alive', '2023-01-15', 'ミックス猫',               'ホワイト',       3.2,  NULL, NULL),
+    (46, 3, 37, '37-1', 'ガイア', 'がいあ', 1, 'male',   'alive', '2017-08-30', 'アラスカンマラミュート',   'グレー',         36.5, NULL, '2025-11-25'),
+    (47, 3, 38, '38-1', 'ハナ',   'はな',   2, 'female', 'alive', '2021-03-08', 'アメリカンショートヘア',   'シルバータビー', 4.0,  9,    '2026-02-10'),
+    (48, 3, 38, '38-2', 'ソウ',   'そう',   1, 'male',   'alive', '2019-10-01', 'ミックス犬',               'ベージュ',       9.2,  NULL, NULL)
 ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
@@ -1973,7 +1973,7 @@ VALUES
     (2, 'U_test_joto_001', 'テスト 次郎', '城東テスト', '{"phone":"070-1111-2222","owner_name":"城東テスト","pet_name":"チョコ","pet_type":"トイプードル"}', NULL)
 ON CONFLICT DO NOTHING;
 
--- F. 城東医院 (clinic_id=4) テスト予約 3件
+-- F. 城東医院 (clinic_id=2) テスト予約 3件
 -- ※ owners/pets が先に挿入されている必要がある
 INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_type_id, doctor_id, is_designated, status, notes) VALUES
     (11, 2, '2026-03-12 10:00:00+09', '2026-03-12 10:15:00+09', 23, 29, 'revisit', 26, 16, true,  'confirmed', 'クロの定期診察'),
@@ -1989,7 +1989,7 @@ SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM
 --    各クリニック共通の標準テンプレート 5種
 -- -----------------------------------------------------------------------------
 INSERT INTO shift_templates (id, clinic_id, name, shift_type, start_time, end_time, notes, sort_order, is_active) VALUES
-    -- 八王子院 (clinic_id=3)
+    -- 八王子院 (clinic_id=1)
     (1, 1, '通常勤務',   'full',       '09:00', '18:00', '', 1, true),
     (2, 1, '午前勤務',   'morning',    '09:00', '13:00', '', 2, true),
     (3, 1, '午後勤務',   'afternoon',  '13:00', '18:00', '', 3, true),
@@ -2350,7 +2350,7 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
 
 -- =============================================================================
--- K. トランザクションデータ — 城東医院 (clinic_id=4)
+-- K. トランザクションデータ — 城東医院 (clinic_id=2)
 -- doctors: staff 16(木村), 17(佐々木), 18(高橋)
 -- owners: 23-30 / pets: 29-38
 -- =============================================================================
@@ -2554,26 +2554,3 @@ INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, proce
 ON CONFLICT (id) DO UPDATE SET updated_at = now();
 
 SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
-
--- =============================================================================
--- BUG-375 BE-113: owners.name_kana / pets.name_kana のカタカナをひらがなに一括変換
--- =============================================================================
--- シーダー投入時にカタカナをひらがなに変換
--- translate() は文字単位置換のため冪等（再実行しても結果不変）
-
-UPDATE owners
-SET name_kana = translate(
-    name_kana,
-    'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ',
-    'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ'
-)
-WHERE name_kana IS NOT NULL AND name_kana <> '';
-
-UPDATE pets
-SET name_kana = translate(
-    name_kana,
-    'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ',
-    'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ'
-)
-WHERE name_kana IS NOT NULL AND name_kana <> '';
-

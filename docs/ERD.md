@@ -1,16 +1,18 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v31.2（shift_templates・shift_template_breaks 追加）
+バージョン: v31.3（SQL マイグレーション 100% 同期）
 更新日: 2026-04-13
 状態: Production Ready
 
 ---
 
-## 変更概要（v31.1 → v31.2）
+## 変更概要（v31.2 → v31.3）
 
 | 変更内容 | 詳細 |
 |---------|------|
-| テーブル総数 65 → 67 | `shift_templates`, `shift_template_breaks` を追加 |
+| テーブル総数修正 | 重複を削除し 67 テーブルに修正 |
+| SQL同期 | 各テーブルの順序および定義を `001_init.sql` と完全に一致させた |
+| ENUM定義追加 | データベース上の全 ENUM 型定義を網羅 |
 
 ---
 
@@ -1318,6 +1320,59 @@ erDiagram
     clinics ||--o{ checkup_types : "clinic_id"
     owners ||--o{ line_customers : "owner_id"
 ```
+
+---
+
+## ENUM型定義
+
+| ENUM名 | 値 |
+| ------- | ---- |
+| `pet_status` | alive, deceased |
+| `pet_gender` | male, female, unknown |
+| `acquisition_type` | purchased, transferred, rescued, other |
+| `danger_level` | low, medium, high |
+| `membership_type` | non_member, member, deceased, transferred |
+| `inventory_category` | medicine, consumable, food, other |
+| `inventory_status` | sufficient, low, out_of_stock |
+| `dosage_form` | tablet, liquid, injection, topical, powder |
+| `medicine_unit` | per_tablet, per_ml, per_dose, per_gram |
+| `cage_type` | icu, dog, cat, general |
+| `cage_size` | small, medium, large |
+| `body_size` | small, medium, large |
+| `billing_unit` | per_day, per_night |
+| `target_size` | small, medium, large, cat |
+| `anesthesia_type` | none, local, sedation, general |
+| `vaccine_species` | dog, cat, both |
+| `medical_record_status` | draft, finalized |
+| `treatment_item_type` | consultation, procedure, medicine, other |
+| `treatment_status` | pending, completed, not_applicable |
+| `exam_status` | pending, in_progress, result_entered, completed, confirmed |
+| `exam_result_status` | normal, high, low |
+| `next_schedule_type` | 3weeks, 4weeks, 1year, other |
+| `appetite_level` | normal, increased, decreased, none |
+| `water_intake_level` | normal, increased, decreased, none |
+| `medical_image_type` | xray, echo, photo, endoscope, ct, mri, microscope, other |
+| `estimate_status` | draft, sent, approved, rejected |
+| `confirmation_status` | pending, confirmed, returned |
+| `item_category` | examination, test, procedure, surgery, medicine, food, goods, other |
+| `item_source` | medical_record, manual, hospitalization |
+| `visit_type` | first, revisit |
+| `reservation_status` | confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed |
+| `staff_type` | doctor, nurse, trimmer, resource |
+| `reservation_source` | manual, line |
+| `billing_status` | waiting, completed, cancelled, pending |
+| `hospitalization_type` | hospitalization, hotel |
+| `hospitalization_status` | admitted, discharged, reserved |
+| `care_plan_type` | food, medicine, treatment, instruction, item |
+| `care_plan_status` | active, completed, discontinued |
+| `care_log_type` | food, excretion, medicine, treatment, other |
+| `care_log_status` | completed, partial, skipped |
+| `plan_timing` | morning, noon, night |
+| `body_weight_unit` | Kg, g |
+| `trimming_status` | completed, reserved, in_progress |
+| `payment_method` | cash, credit_card, electronic_money |
+| `shift_type` | full, morning, afternoon, off, paid_leave |
+| `tax_type` | included, excluded, exempt |
 
 ---
 
