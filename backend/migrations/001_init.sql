@@ -54,7 +54,7 @@ CREATE TYPE reservation_status AS ENUM (
     'confirmed', 'pending', 'cancelled', 'checked_in',
     'in_consultation', 'accounting', 'completed'
 );
-CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'resource');
+CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'trimmer', 'resource');
 CREATE TYPE reservation_source AS ENUM ('manual', 'line');
 CREATE TYPE billing_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending');
 CREATE TYPE hospitalization_type AS ENUM ('hospitalization', 'hotel');

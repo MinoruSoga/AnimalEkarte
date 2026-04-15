@@ -169,7 +169,7 @@ export const LoginForm = memo(function LoginForm() {
       </div>
 
       {/* Form */}
-      <form action={formAction} noValidate className="space-y-4">
+      <form id="login-form" action={formAction} noValidate className="space-y-4">
         {/* Email */}
         <div className="space-y-1.5">
           <label htmlFor="login-email" className={`text-sm block ${C.text65}`}>

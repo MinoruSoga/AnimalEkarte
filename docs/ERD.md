@@ -1316,8 +1316,6 @@ erDiagram
     clinics ||--o{ diagnosis_types : "clinic_id"
     clinics ||--o{ diagnosis_names : "clinic_id"
     clinics ||--o{ checkup_types : "clinic_id"
-    clinics ||--o{ chief_complaint_types : "clinic_id"
-    clinics ||--o{ inquiry_templates : "clinic_id"
     owners ||--o{ line_customers : "owner_id"
 ```
 
