@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -127,6 +128,56 @@ type liffReservationResponse struct {
 	Status     string    `json:"status"`
 	Notes      string    `json:"notes,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
+}
+
+type liffProfileOwnerPetResponse struct {
+	ID            uint64 `json:"id"`
+	Name          string `json:"name"`
+	AnimalSpecies *struct {
+		Name string `json:"name"`
+	} `json:"animal_species,omitempty"`
+}
+
+type liffProfileOwnerResponse struct {
+	OwnerName string                        `json:"owner_name"`
+	Phone     string                        `json:"phone"`
+	Pets      []liffProfileOwnerPetResponse `json:"pets,omitempty"`
+}
+
+type liffProfileResponse struct {
+	LineUserID       string                    `json:"line_user_id"`
+	DisplayName      string                    `json:"display_name"`
+	AdditionalFields json.RawMessage           `json:"additional_fields"`
+	Owner            *liffProfileOwnerResponse `json:"owner,omitempty"`
+}
+
+func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
+	resp := liffProfileResponse{
+		LineUserID:       c.LineUserID,
+		DisplayName:      c.DisplayName,
+		AdditionalFields: json.RawMessage(c.AdditionalFields),
+	}
+	if c.Owner != nil {
+		pets := make([]liffProfileOwnerPetResponse, 0, len(c.Owner.Pets))
+		for i := range c.Owner.Pets {
+			pet := liffProfileOwnerPetResponse{
+				ID:   c.Owner.Pets[i].ID,
+				Name: c.Owner.Pets[i].Name,
+			}
+			if c.Owner.Pets[i].AnimalSpecies != nil {
+				pet.AnimalSpecies = &struct {
+					Name string `json:"name"`
+				}{Name: c.Owner.Pets[i].AnimalSpecies.Name}
+			}
+			pets = append(pets, pet)
+		}
+		resp.Owner = &liffProfileOwnerResponse{
+			OwnerName: c.Owner.Name,
+			Phone:     c.Owner.Phone,
+			Pets:      pets,
+		}
+	}
+	return resp
 }
 
 func toLiffReservationResponse(r *model.Appointment) liffReservationResponse {
