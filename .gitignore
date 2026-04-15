@@ -12,6 +12,25 @@ dist/
 build/
 tmp/
 
+# Temporary migration/seed files
+backend/migrations/*_seed_staging.sql
+
+# Frontend test and debug artifacts
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/debug_*.png
+
+# Design-spec extraction artifacts
+.design-specs/test-results/
+
+# Local data dumps
+prodData/
+cookies.txt
+
+# Generated app bundles outside the main frontend
+liff-app/dist/
+
 # IDE
 .idea/
 .vscode/
