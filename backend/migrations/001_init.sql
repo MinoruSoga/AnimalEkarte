@@ -54,7 +54,7 @@ CREATE TYPE reservation_status AS ENUM (
     'confirmed', 'pending', 'cancelled', 'checked_in',
     'in_consultation', 'accounting', 'completed'
 );
-CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'resource');
+CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'trimmer', 'resource');
 CREATE TYPE reservation_source AS ENUM ('manual', 'line');
 CREATE TYPE billing_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending');
 CREATE TYPE hospitalization_type AS ENUM ('hospitalization', 'hotel');
@@ -200,7 +200,7 @@ CREATE TABLE owners (
     id               BIGSERIAL       PRIMARY KEY,
     clinic_id        bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name             text            NOT NULL,
-    name_kana        text            NOT NULL DEFAULT '',
+    name_kana        text            NOT NULL DEFAULT '' CHECK (name_kana !~ '[ァ-ヶ]'),
     birth_date       date,
     company          text            NOT NULL DEFAULT '',
     postal_code      text            NOT NULL DEFAULT '',
@@ -573,7 +573,7 @@ CREATE TABLE pets (
     owner_id          bigint          NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
     pet_number        text            NOT NULL DEFAULT '',
     name              text            NOT NULL,
-    name_kana         text            NOT NULL DEFAULT '',
+    name_kana         text            NOT NULL DEFAULT '' CHECK (name_kana !~ '[ァ-ヶ]'),
     animal_species_id bigint          NOT NULL REFERENCES animal_species(id) ON DELETE RESTRICT,
     gender            pet_gender      NOT NULL DEFAULT 'unknown',
     status            pet_status      NOT NULL DEFAULT 'alive',

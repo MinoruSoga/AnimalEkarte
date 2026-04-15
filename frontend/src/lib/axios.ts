@@ -1,6 +1,6 @@
 import Axios, { type InternalAxiosRequestConfig, type AxiosError } from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 /**
  * BUG-067: NULL バイト（\u0000）を再帰的に除去する。

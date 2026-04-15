@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo } from "react";
+import { useState, useMemo, useCallback, memo, useEffect } from "react";
 import { useNavigate } from "react-router";
 
 // DnD
@@ -8,6 +8,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 
 // Shared hooks
 import { useSortableList } from "@/hooks/use-sortable-list";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 
 // External
 import Calendar from "lucide-react/dist/esm/icons/calendar";
@@ -183,58 +184,83 @@ const SortableRow = memo(function SortableRow({ item, onEdit }: SortableRowProps
 // SidePanel
 // ─────────────────────────────────────────────────
 
+// 14 マスタ画面と同じパターン: SidePanel が formData を所有、isDirty を内部管理、
+// onSave(data) で親に送出、onDirtyChange? で親に dirty 状態を伝搬する。
 interface SidePanelProps {
   item: ShiftTemplate | null;
-  formData: TemplateFormData;
-  onChange: (data: TemplateFormData) => void;
   onClose: () => void;
-  onSave: () => void;
+  onSave: (data: TemplateFormData) => void;
   onDeleteRequest: () => void;
   isSaving: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const SidePanel = memo(function SidePanel({
   item,
-  formData,
-  onChange,
   onClose,
   onSave,
   onDeleteRequest,
   isSaving,
+  onDirtyChange,
 }: SidePanelProps) {
+  // rerender-lazy-state-init: item から初期化（マウント時 1 回）
+  const [formData, setFormData] = useState<TemplateFormData>(() =>
+    item ? templateToFormData(item) : DEFAULT_FORM,
+  );
+  const [isDirty, setIsDirty] = useState(false);
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
+
   const isTimeHidden =
     formData.shift_type === ShiftTypeOff || formData.shift_type === ShiftTypePaidLeave;
 
   const handleField = useCallback(
     <K extends keyof TemplateFormData>(key: K, value: TemplateFormData[K]) => {
-      onChange({ ...formData, [key]: value });
+      setFormDataDirty((prev) => ({ ...prev, [key]: value }));
     },
-    [formData, onChange],
+    [setFormDataDirty],
   );
 
   const handleBreakChange = useCallback(
     (index: number, field: "break_start" | "break_end", value: string) => {
-      const newBreaks = formData.breaks.map((b, i) =>
-        i === index ? { ...b, [field]: value } : b,
-      );
-      onChange({ ...formData, breaks: newBreaks });
+      setFormDataDirty((prev) => ({
+        ...prev,
+        breaks: prev.breaks.map((b, i) => (i === index ? { ...b, [field]: value } : b)),
+      }));
     },
-    [formData, onChange],
+    [setFormDataDirty],
   );
 
   const handleAddBreak = useCallback(() => {
-    onChange({
-      ...formData,
-      breaks: [...formData.breaks, { break_start: "12:00", break_end: "13:00" }],
-    });
-  }, [formData, onChange]);
+    setFormDataDirty((prev) => ({
+      ...prev,
+      breaks: [...prev.breaks, { break_start: "12:00", break_end: "13:00" }],
+    }));
+  }, [setFormDataDirty]);
 
   const handleRemoveBreak = useCallback(
     (index: number) => {
-      onChange({ ...formData, breaks: formData.breaks.filter((_, i) => i !== index) });
+      setFormDataDirty((prev) => ({ ...prev, breaks: prev.breaks.filter((_, i) => i !== index) }));
     },
-    [formData, onChange],
+    [setFormDataDirty],
   );
+
+  const handleAction = useCallback(() => {
+    // BUG-383: 全日/午前/午後 などの勤務種別では開始/終了時刻を必須にする
+    if (!isTimeHidden) {
+      if (!formData.start_time || !formData.end_time) {
+        toast.error("勤務種別では開始時刻と終了時刻を入力してください");
+        return;
+      }
+    }
+    onSave(formData);
+    setIsDirty(false);
+  }, [formData, isTimeHidden, onSave]);
 
   return (
     <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
@@ -402,7 +428,7 @@ const SidePanel = memo(function SidePanel({
         </button>
         <button
           type="button"
-          onClick={onSave}
+          onClick={handleAction}
           disabled={isSaving || !formData.name.trim()}
           className={STYLE.sidePeekSaveBtn}
         >
@@ -427,8 +453,11 @@ export function ShiftTemplateSettings() {
 
   const [selectedItem, setSelectedItem] = useState<ShiftTemplate | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<TemplateFormData>(DEFAULT_FORM);
   const [pendingDelete, setPendingDelete] = useState<ShiftTemplate | null>(null);
+
+  // BUG-380: 未保存破棄ガード（14 マスタ画面と同パターン）
+  const dirty = useSidePeekDirty();
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   // D&D reorder
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
@@ -438,23 +467,25 @@ export function ShiftTemplateSettings() {
   });
 
   const handleCreate = useCallback(() => {
+    if (!dirty.confirmDiscard()) return;
     setSelectedItem(null);
-    setFormData(DEFAULT_FORM);
     setIsEditing(true);
-  }, []);
+  }, [dirty]);
 
   const handleEdit = useCallback((item: ShiftTemplate) => {
+    if (!dirty.confirmDiscard()) return;
     setSelectedItem(item);
-    setFormData(templateToFormData(item));
     setIsEditing(true);
-  }, []);
+  }, [dirty]);
 
   const handleClose = useCallback(() => {
+    if (!dirty.confirmDiscard()) return;
     setIsEditing(false);
     setSelectedItem(null);
-  }, []);
+  }, [dirty]);
 
-  const handleSave = useCallback(() => {
+  // SidePanel から data を受け取り保存。バリデーションは SidePanel 側で実施済み。
+  const handleSave = useCallback((formData: TemplateFormData) => {
     const breaks = formData.breaks.filter((b) => b.break_start && b.break_end);
     const isTimeHidden =
       formData.shift_type === ShiftTypeOff || formData.shift_type === ShiftTypePaidLeave;
@@ -476,6 +507,7 @@ export function ShiftTemplateSettings() {
         {
           onSuccess: () => {
             toast.success("テンプレートを更新しました");
+            dirty.markClean();
             handleClose();
           },
         },
@@ -494,12 +526,13 @@ export function ShiftTemplateSettings() {
         {
           onSuccess: () => {
             toast.success("テンプレートを作成しました");
+            dirty.markClean();
             handleClose();
           },
         },
       );
     }
-  }, [formData, selectedItem, createMutation, updateMutation, handleClose]);
+  }, [selectedItem, createMutation, updateMutation, handleClose, dirty]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
@@ -507,10 +540,13 @@ export function ShiftTemplateSettings() {
       onSuccess: () => {
         toast.success("テンプレートを削除しました");
         setPendingDelete(null);
-        if (selectedItem?.id === pendingDelete.id) handleClose();
+        if (selectedItem?.id === pendingDelete.id) {
+          dirty.markClean();
+          handleClose();
+        }
       },
     });
-  }, [pendingDelete, deleteMutation, selectedItem, handleClose]);
+  }, [pendingDelete, deleteMutation, selectedItem, handleClose, dirty]);
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -533,8 +569,9 @@ export function ShiftTemplateSettings() {
           onBack={() => navigate("/settings")}
           maxWidth="max-w-full"
         >
-          {/* Toolbar */}
-          <div className="flex items-center justify-end mb-4">
+          {/* Toolbar — BUG-383: 件数表示を他マスタと揃える */}
+          <div className="flex items-center justify-between mb-4">
+            <span className={`text-sm ${C.text50}`}>{orderedItems.length} 件</span>
             <button
               type="button"
               onClick={handleCreate}
@@ -574,23 +611,22 @@ export function ShiftTemplateSettings() {
         <SidePanel
           key={selectedItem ? selectedItem.id : "new"}
           item={selectedItem}
-          formData={formData}
-          onChange={setFormData}
           onClose={handleClose}
           onSave={handleSave}
           onDeleteRequest={() => {
             if (selectedItem) setPendingDelete(selectedItem);
           }}
           isSaving={isSaving}
+          onDirtyChange={handleDirtyChange}
         />
       ) : null}
 
-      {/* Delete confirm */}
+      {/* Delete confirm — BUG-383: 対象名と断定形に統一 */}
       <ConfirmDialog
         open={pendingDelete !== null}
         onClose={() => setPendingDelete(null)}
-        title="このテンプレートを削除しますか？"
-        description="この操作は取り消せません。"
+        title="テンプレートを削除しますか？"
+        description={`「${pendingDelete?.name ?? ""}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除"
         variant="destructive"
         onConfirm={handleDeleteConfirm}

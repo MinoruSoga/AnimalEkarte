@@ -4,10 +4,15 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// MasterNameMaxLength はマスタ系エンティティの name カラムに許容する
+// 最大文字数 (UTF-8 rune count)。BUG-379 対応。
+const MasterNameMaxLength = 255
 
 // RFC 5322簡易的なメール形式パターン
 var emailPattern = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
@@ -72,10 +77,13 @@ func validatePetDangerLevel(level string) error {
 }
 
 // validateRequiredName は必須名前フィールドのバリデーションを行う。
-// スペースのみ・NULL バイト・制御文字が含まれていないかを検証する。
+// スペースのみ・NULL バイト・制御文字・255文字超が含まれていないかを検証する。
 func validateRequiredName(name string) error {
 	if strings.TrimSpace(name) == "" {
 		return apperrors.WrapInvalidInput("名前を入力してください")
+	}
+	if utf8.RuneCountInString(name) > MasterNameMaxLength {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("名前は%d文字以内で入力してください", MasterNameMaxLength))
 	}
 	for _, r := range name {
 		if r == '\u0000' {
@@ -86,6 +94,22 @@ func validateRequiredName(name string) error {
 		}
 	}
 	return nil
+}
+
+// validateMasterName はマスタ系エンティティの名称に対するバリデーションを行う。
+// 空文字・255文字超・制御文字が含まれていないかを検証する。
+// BUG-379 対応: 全マスタ Create/Update で呼び出すこと。
+func validateMasterName(name string) error {
+	return validateRequiredName(name)
+}
+
+// validateOptionalMasterName は nil 許容のマスタ名称バリデーション。
+// PATCH 系で nil の場合は更新しない意味なのでスキップ、非 nil の場合のみ検証する。
+func validateOptionalMasterName(name *string) error {
+	if name == nil {
+		return nil
+	}
+	return validateMasterName(*name)
 }
 
 // validateOwnerName はオーナー名のバリデーションを行う（validateRequiredName のエイリアス）

@@ -44,6 +44,9 @@ func (s *consultationService) GetByID(ctx context.Context, clinicID, id uint64) 
 	return result, nil
 }
 func (s *consultationService) Create(ctx context.Context, consultation *model.Consultation) error {
+	if err := validateMasterName(consultation.Name); err != nil {
+		return err
+	}
 	if err := s.repo.Create(ctx, consultation); err != nil {
 		return apperrors.Wrap(err, "failed to create consultation")
 	}
@@ -53,6 +56,9 @@ func (s *consultationService) Create(ctx context.Context, consultation *model.Co
 func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
+	}
+	if err := validateOptionalMasterName(input.Name); err != nil {
+		return nil, err
 	}
 	fields := buildConsultationUpdateFields(input)
 	if len(fields) == 0 {

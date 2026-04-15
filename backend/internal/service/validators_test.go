@@ -1,12 +1,52 @@
 package service
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
+
+// BUG-379: マスタ名称バリデータ
+func TestValidateMasterName(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{name: "accepts short name", input: "犬", wantErr: false},
+		{name: "accepts exactly 255 chars", input: strings.Repeat("あ", MasterNameMaxLength), wantErr: false},
+		{name: "rejects empty", input: "", wantErr: true},
+		{name: "rejects whitespace only", input: "   ", wantErr: true},
+		{name: "rejects 256 chars", input: strings.Repeat("あ", MasterNameMaxLength+1), wantErr: true},
+		{name: "rejects null byte", input: "bad\u0000name", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateMasterName(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.True(t, apperrors.IsInvalidInput(err))
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateOptionalMasterName(t *testing.T) {
+	// nil はスキップされる
+	assert.NoError(t, validateOptionalMasterName(nil))
+	// 非 nil は通常検証
+	ok := "犬"
+	assert.NoError(t, validateOptionalMasterName(&ok))
+	ng := strings.Repeat("X", MasterNameMaxLength+1)
+	err := validateOptionalMasterName(&ng)
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
 
 func TestValidateEmailFormat(t *testing.T) {
 	tests := []struct {

@@ -1,7 +1,8 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
+import { useState, useMemo, useCallback, memo, useDeferredValue, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 
@@ -136,6 +137,7 @@ interface TreatmentItemSidePanelProps {
   onSave: (data: TreatmentFormData) => void;
   onDeleteRequest?: () => void;
   readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
@@ -144,6 +146,7 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   onSave,
   onDeleteRequest,
   readOnly,
+  onDirtyChange,
 }: TreatmentItemSidePanelProps) {
   // rerender-lazy-state-init: 初回マウント時のみ item から初期化
   const [formData, setFormData] = useState<TreatmentFormData>(() => ({
@@ -155,6 +158,15 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
     taxRate: item?.taxRate ?? 0.1,
   }));
   const [nameError, setNameError] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
+
   const handleAction = () => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
@@ -162,13 +174,14 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
     }
     setNameError("");
     onSave(formData);
+    setIsDirty(false);
   };
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
+      onTitleChange={(v) => { setFormDataDirty((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
       action={readOnly ? undefined : handleAction}
       onDelete={!readOnly && item !== null && onDeleteRequest ? onDeleteRequest : undefined}
@@ -179,28 +192,28 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
     >
       <StatusToggleButton
         isActive={formData.isActive}
-        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+        onToggle={() => setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))}
       />
       <MoneyInput
         value={formData.price}
-        onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
+        onChange={(v) => setFormDataDirty((prev) => ({ ...prev, price: v }))}
       />
       <PropertyRow label="課税区分">
         <TaxTypeSelector
           value={formData.taxType}
-          onChange={(v) => setFormData((prev) => ({ ...prev, taxType: v }))}
+          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, taxType: v }))}
         />
       </PropertyRow>
       <PropertyRow label="税率">
         <TaxRateSelector
           value={formData.taxRate}
-          onChange={(v) => setFormData((prev) => ({ ...prev, taxRate: v }))}
+          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, taxRate: v }))}
         />
       </PropertyRow>
       <PropertyRow label="備考">
         <PropertyInput
           value={formData.description}
-          onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
+          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, description: v }))}
           placeholder="補足情報など"
         />
       </PropertyRow>
@@ -463,11 +476,16 @@ export function TreatmentPlanMaster() {
   const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
   const [pendingDelete, setPendingDelete] = useState<TreatmentItem | null>(null);
 
+  // BUG-380: タブ間共有の未保存ガード
+  const dirty = useSidePeekDirty();
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+
   const handleTabChange = useCallback((tab: string) => {
+    if (!dirty.confirmDiscard()) return;
     setSearchParams({ tab });
     setEditTarget(null);
     setPendingDelete(null);
-  }, [setSearchParams]);
+  }, [setSearchParams, dirty]);
 
   // ── Consultations ──────────────────────────────────
   const { data: consultationData } = useGetAllConsultations();
@@ -705,7 +723,16 @@ export function TreatmentPlanMaster() {
   const selectedItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
   const currentConfig = tabConfigs[activeTab];
 
-  const handleClose = useCallback(() => setEditTarget(null), []);
+  const handleClose = useCallback(() => {
+    if (!dirty.confirmDiscard()) return;
+    setEditTarget(null);
+  }, [dirty]);
+
+  // BUG-380: 子コンポーネント (TreatmentTabContent) が行クリック時に呼ぶ setEditTarget をガード
+  const setEditTargetGuarded = useCallback((target: TreatmentItem | "new" | null) => {
+    if (!dirty.confirmDiscard()) return;
+    setEditTarget(target);
+  }, [dirty]);
 
   const handleSave = useCallback((data: TreatmentFormData) => {
     if (!currentConfig) return;
@@ -738,7 +765,10 @@ export function TreatmentPlanMaster() {
             maxWidth="max-w-full"
             headerAction={
               canCreate ? (
-                <PrimaryButton onClick={() => setEditTarget("new")}>
+                <PrimaryButton onClick={() => {
+                  if (!dirty.confirmDiscard()) return;
+                  setEditTarget("new");
+                }}>
                   <Plus className={`mr-1.5 ${ICON.action}`} />
                   新規登録
                 </PrimaryButton>
@@ -772,7 +802,7 @@ export function TreatmentPlanMaster() {
                     <TreatmentTabContent
                       {...config}
                       editTarget={editTarget}
-                      onEditTargetChange={setEditTarget}
+                      onEditTargetChange={setEditTargetGuarded}
                       onSave={handleSave}
                       onDeleteRequest={handleDeleteRequest}
                       pendingDelete={pendingDelete}
@@ -794,6 +824,7 @@ export function TreatmentPlanMaster() {
             onSave={handleSave}
             onDeleteRequest={canDelete ? handleDeleteRequest : undefined}
             readOnly={!canEdit}
+            onDirtyChange={handleDirtyChange}
           />
         ) : null}
       </div>

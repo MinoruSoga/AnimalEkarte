@@ -207,12 +207,33 @@ func TestGetLiffProfile(t *testing.T) {
 			getProfileFn: func(_ context.Context, clinicID, customerID uint64) (*model.LineCustomer, error) {
 				assert.Equal(t, uint64(3), clinicID)
 				assert.Equal(t, uint64(1), customerID)
-				return &model.LineCustomer{ID: 1, DisplayName: "田中太郎"}, nil
+				return &model.LineCustomer{
+					ID:               1,
+					LineUserID:       "line-user-1",
+					DisplayName:      "田中太郎",
+					AdditionalFields: []byte(`{"phone":"090-1234-5678","owner_name":"田中太郎","pets":[{"name":"ポチ","type":"柴犬","is_new":true}]}`),
+					Owner: &model.Owner{
+						Name:  "田中太郎",
+						Phone: "090-1234-5678",
+						Pets: []model.Pet{
+							{
+								ID:   10,
+								Name: "ポチ",
+								AnimalSpecies: &model.AnimalSpecies{
+									Name: "犬",
+								},
+							},
+						},
+					},
+				}, nil
 			},
 		})
 		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodGet, "/api/liff/3/profile", nil)
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "田中太郎")
+		assert.Contains(t, w.Body.String(), `"additional_fields":{"phone":"090-1234-5678"`)
+		assert.Contains(t, w.Body.String(), `"owner_name":"田中太郎"`)
+		assert.Contains(t, w.Body.String(), `"animal_species":{"name":"犬"}`)
 	})
 
 	t.Run("customerID が context にない → 401", func(t *testing.T) {

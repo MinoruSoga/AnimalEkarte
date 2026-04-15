@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { Activity, MessageCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,7 +35,7 @@ export interface CategoryFormData {
 export interface GroupOption { id: string; name: string; color: string; }
 
 export const CategorySidePanel = memo(function CategorySidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly, groups, defaultGroupId,
+  item, onClose, onSave, onDeleteRequest, readOnly, groups, defaultGroupId, onDirtyChange,
 }: {
   item: ReservationType | null;
   onClose: () => void;
@@ -44,8 +44,9 @@ export const CategorySidePanel = memo(function CategorySidePanel({
   readOnly?: boolean;
   groups: GroupOption[];
   defaultGroupId?: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const [f, setF] = useState<CategoryFormData>(() => ({
+  const [formData, setFormData] = useState<CategoryFormData>(() => ({
     name: item?.name ?? "",
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
@@ -63,44 +64,48 @@ export const CategorySidePanel = memo(function CategorySidePanel({
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  const handleTitleChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, name: v }));
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
     setIsDirty(true);
-    if (v.trim()) setNameError("");
   }, []);
+
+  const handleTitleChange = useCallback((v: string) => {
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
+    if (v.trim()) setNameError("");
+  }, [setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, description: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, description: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setF((p) => ({ ...p, isActive: !p.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleAction = useCallback(() => {
-    if (!f.name.trim()) { setNameError("名称を入力してください"); return; }
+    if (!formData.name.trim()) { setNameError("名称を入力してください"); return; }
     setNameError("");
-    onSave(f);
+    onSave(formData);
     setIsDirty(false);
-  }, [f, onSave]);
+  }, [formData, onSave]);
 
   const handleClose = useCallback(() => { setIsDirty(false); onClose(); }, [onClose]);
 
   return (
-    <MasterSidePanel isNew={item === null} title={f.name}
+    <MasterSidePanel isNew={item === null} title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
       action={readOnly ? undefined : handleAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Activity className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty} titleError={nameError} titleMaxLength={100} readOnly={readOnly}>
-      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
+      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="グループ">
         <Select
-          value={f.groupId ?? "none"}
-          onValueChange={(v) => { setF((p) => ({ ...p, groupId: v === "none" ? undefined : v })); setIsDirty(true); }}
+          value={formData.groupId ?? "none"}
+          onValueChange={(v) => setFormDataDirty((prev) => ({ ...prev, groupId: v === "none" ? undefined : v }))}
         >
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="グループを選択" />
@@ -119,7 +124,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
         </Select>
       </PropertyRow>
       <PropertyRow label="備考">
-        <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
+        <PropertyInput value={formData.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
       </PropertyRow>
 
       <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
@@ -128,48 +133,48 @@ export const CategorySidePanel = memo(function CategorySidePanel({
           <p className={`text-xs font-medium ${C.text50}`}>LINE予約設定</p>
         </div>
         <PropertyRow label="LINE表示名">
-          <PropertyInput value={f.reservationDisplayName}
-            onChange={(v) => { setF((p) => ({ ...p, reservationDisplayName: v })); setIsDirty(true); }}
-            placeholder={f.name || "空欄なら名称を使用"} />
+          <PropertyInput value={formData.reservationDisplayName}
+            onChange={(v) => setFormDataDirty((prev) => ({ ...prev, reservationDisplayName: v }))}
+            placeholder={formData.name || "空欄なら名称を使用"} />
         </PropertyRow>
         <PropertyRow label="予約ページに表示">
-          <Switch checked={f.reservationVisible}
-            onCheckedChange={(v) => { setF((p) => ({ ...p, reservationVisible: v })); setIsDirty(true); }} />
+          <Switch checked={formData.reservationVisible}
+            onCheckedChange={(v) => setFormDataDirty((prev) => ({ ...prev, reservationVisible: v }))} />
         </PropertyRow>
         <PropertyRow label="内部サービス">
-          <Switch checked={f.isInternal}
-            onCheckedChange={(v) => { setF((p) => ({ ...p, isInternal: v })); setIsDirty(true); }} />
+          <Switch checked={formData.isInternal}
+            onCheckedChange={(v) => setFormDataDirty((prev) => ({ ...prev, isInternal: v }))} />
         </PropertyRow>
         <PropertyRow label="所要時間（分）">
           <input type="number" min={5} max={480}
             className={`w-20 rounded-[3px] border ${C.borderMedium} px-2 py-1 text-base ${C.text}`}
-            value={f.durationMinutes}
-            onChange={(e) => { setF((p) => ({ ...p, durationMinutes: Number(e.target.value) || 15 })); setIsDirty(true); }} />
+            value={formData.durationMinutes}
+            onChange={(e) => setFormDataDirty((prev) => ({ ...prev, durationMinutes: Number(e.target.value) || 15 }))} />
         </PropertyRow>
         <PropertyRow label="略称">
-          <PropertyInput value={f.shortName}
-            onChange={(v) => { setF((p) => ({ ...p, shortName: v })); setIsDirty(true); }}
+          <PropertyInput value={formData.shortName}
+            onChange={(v) => setFormDataDirty((prev) => ({ ...prev, shortName: v }))}
             placeholder="LINE表示用の略称" />
         </PropertyRow>
         <PropertyRow label="略称を使用">
-          <Switch checked={f.showShortName}
-            onCheckedChange={(v) => { setF((p) => ({ ...p, showShortName: v })); setIsDirty(true); }} />
+          <Switch checked={formData.showShortName}
+            onCheckedChange={(v) => setFormDataDirty((prev) => ({ ...prev, showShortName: v }))} />
         </PropertyRow>
         <PropertyRow label="画像URL">
-          <PropertyInput value={f.reservationImageUrl}
-            onChange={(v) => { setF((p) => ({ ...p, reservationImageUrl: v })); setIsDirty(true); }}
+          <PropertyInput value={formData.reservationImageUrl}
+            onChange={(v) => setFormDataDirty((prev) => ({ ...prev, reservationImageUrl: v }))}
             placeholder="https://..." />
         </PropertyRow>
         <PropertyRow label="予約可能曜日">
-          <Select value={f.reservationDayOption}
-            onValueChange={(v) => { setF((p) => ({ ...p, reservationDayOption: v })); setIsDirty(true); }}>
+          <Select value={formData.reservationDayOption}
+            onValueChange={(v) => setFormDataDirty((prev) => ({ ...prev, reservationDayOption: v }))}>
             <SelectTrigger className={STYLE.selectCompact}><SelectValue /></SelectTrigger>
             <SelectContent>{RESERVATION_DAY_OPTION_ITEMS}</SelectContent>
           </Select>
         </PropertyRow>
         <PropertyRow label="LINE説明文">
-          <PropertyInput value={f.reservationComment}
-            onChange={(v) => { setF((p) => ({ ...p, reservationComment: v })); setIsDirty(true); }}
+          <PropertyInput value={formData.reservationComment}
+            onChange={(v) => setFormDataDirty((prev) => ({ ...prev, reservationComment: v }))}
             placeholder="LINE予約画面に表示する説明" />
         </PropertyRow>
       </div>

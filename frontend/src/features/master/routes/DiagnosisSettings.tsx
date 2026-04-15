@@ -10,6 +10,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 
 // Shared hooks
 import { useSortableList } from "@/hooks/use-sortable-list";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 
 // External
 import Plus from "lucide-react/dist/esm/icons/plus";
@@ -98,6 +99,7 @@ interface DiagnosisTypeSidePanelProps {
   onSave: (data: DiagnosisTypeFormData) => void;
   onDeleteRequest?: (item: DiagnosisType) => void;
   readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const DiagnosisTypeSidePanel = memo(function DiagnosisTypeSidePanel({
@@ -106,6 +108,7 @@ const DiagnosisTypeSidePanel = memo(function DiagnosisTypeSidePanel({
   onSave,
   onDeleteRequest,
   readOnly,
+  onDirtyChange,
 }: DiagnosisTypeSidePanelProps) {
   const [formData, setFormData] = useState<DiagnosisTypeFormData>(() => ({
     name: item?.name ?? "",
@@ -115,25 +118,29 @@ const DiagnosisTypeSidePanel = memo(function DiagnosisTypeSidePanel({
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
+
   // rerender-dependencies: useRef でオブジェクト deps を回避
   const formDataRef = useRef(formData);
   useEffect(() => { formDataRef.current = formData; }, [formData]);
 
   const handleTitleChange = useCallback((v: string) => {
-    setFormData((prev) => ({ ...prev, name: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
     if (v.trim()) setNameError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((v: string) => {
-    setFormData((prev) => ({ ...prev, description: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, description: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleAction = useCallback(() => {
     const current = formDataRef.current;
@@ -191,6 +198,7 @@ interface DiagnosisNameSidePanelProps {
   onSave: (data: DiagnosisNameFormData) => void;
   onDeleteRequest?: (item: DiagnosisName) => void;
   readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
@@ -200,6 +208,7 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   onSave,
   onDeleteRequest,
   readOnly,
+  onDirtyChange,
 }: DiagnosisNameSidePanelProps) {
   const [formData, setFormData] = useState<DiagnosisNameFormData>(() => ({
     name: item?.name ?? "",
@@ -215,31 +224,34 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   const [nameError, setNameError] = useState("");
   const [categoryError, setCategoryError] = useState("");
 
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
+
   // rerender-dependencies: useRef でオブジェクト deps を回避
   const formDataRef = useRef(formData);
   useEffect(() => { formDataRef.current = formData; }, [formData]);
 
   const handleTitleChange = useCallback((v: string) => {
-    setFormData((prev) => ({ ...prev, name: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
     if (v.trim()) setNameError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleCategoryChange = useCallback((v: string) => {
-    setFormData((prev) => ({ ...prev, diagnosisTypeId: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, diagnosisTypeId: v }));
     if (v) setCategoryError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((v: string) => {
-    setFormData((prev) => ({ ...prev, description: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, description: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleAction = useCallback(() => {
     const current = formDataRef.current;
@@ -509,16 +521,22 @@ export function DiagnosisSettings() {
   const updateNameMutation = useUpdateDiagnosisName();
   const deleteNameMutation = useDeleteDiagnosisName();
 
+  // BUG-380: タブ間共有の未保存ガード
+  const dirty = useSidePeekDirty();
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+
   const catCrud = useMasterCRUD<DiagnosisType>({
     data: rawCategories,
     deleteMutation: deleteCategoryMutation,
     entityLabel: "診断カテゴリ",
+    dirtyGuard: dirty,
   });
 
   const nameCrud = useMasterCRUD<DiagnosisName>({
     data: rawNames,
     deleteMutation: deleteNameMutation,
     entityLabel: "診断病名",
+    dirtyGuard: dirty,
   });
 
   // rerender-dependencies: destructure methods to avoid object reference instability in useCallback deps
@@ -532,10 +550,12 @@ export function DiagnosisSettings() {
   const nameEditTarget = nameCrud.editTarget;
 
   const handleTabChange = useCallback((tab: string) => {
+    // BUG-380: タブ切替前に未保存破棄を確認
+    if (!dirty.confirmDiscard()) return;
     setSearchParams({ tab });
     catSetEditTarget(null);
     nameSetEditTarget(null);
-  }, [setSearchParams, catSetEditTarget, nameSetEditTarget]);
+  }, [setSearchParams, catSetEditTarget, nameSetEditTarget, dirty]);
 
   const handleCategorySave = useCallback(
     (data: DiagnosisTypeFormData) => {
@@ -670,6 +690,7 @@ export function DiagnosisSettings() {
             onSave={handleCategorySave}
             onDeleteRequest={canDelete ? catCrud.setPendingDelete : undefined}
             readOnly={!canEdit}
+            onDirtyChange={handleDirtyChange}
           />
         ) : null}
         {activeTab === "diagnosis_name" && nameCrud.isEditing ? (
@@ -681,6 +702,7 @@ export function DiagnosisSettings() {
             onSave={handleNameSave}
             onDeleteRequest={canDelete ? nameCrud.setPendingDelete : undefined}
             readOnly={!canEdit}
+            onDirtyChange={handleDirtyChange}
           />
         ) : null}
       </div>

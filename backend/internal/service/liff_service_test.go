@@ -511,6 +511,81 @@ func TestLiffService_CreateReservation(t *testing.T) {
 		assert.False(t, updateCalled)
 	})
 
+	t.Run("自動オーナー紐付け後に予約へ owner_id / pet_id を反映する", func(t *testing.T) {
+		svc := newLiffSvcWithDeps(
+			&mockLiffSettingRepository{
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return liffDefaultSetting(), nil
+				},
+			},
+			&mockLiffTypeRepository{},
+			&mockLiffStaffRepository{},
+			&mockLiffScheduleRepository{},
+			&mockLiffAdminRepository{},
+			&mockLiffReservationRepository{
+				updateFieldsFn: func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error) {
+					assert.Equal(t, uint64(3), clinicID)
+					assert.Equal(t, uint64(77), id)
+					assert.Equal(t, uint64(200), fields["owner_id"])
+					assert.Equal(t, uint64(300), fields["pet_id"])
+					return &model.Appointment{ID: id, ClinicID: clinicID, OwnerID: ptrUint64(200), PetID: ptrUint64(300)}, nil
+				},
+			},
+			&mockLiffCustomerRepository{
+				findByIDFn: func() func(context.Context, uint64, uint64) (*model.LineCustomer, error) {
+					calls := 0
+					return func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+						calls++
+						if calls == 1 {
+							return &model.LineCustomer{ID: 1}, nil
+						}
+						return &model.LineCustomer{
+							ID:      1,
+							OwnerID: ptrUint64(200),
+							Owner: &model.Owner{
+								ID: 200,
+								Pets: []model.Pet{
+									{ID: 300, Name: "ポチ"},
+									{ID: 301, Name: "タマ"},
+								},
+							},
+						}, nil
+					}
+				}(),
+				updateOwnerLinkFn: func(_ context.Context, clinicID, id uint64, ownerID *uint64) error {
+					assert.Equal(t, uint64(3), clinicID)
+					assert.Equal(t, uint64(1), id)
+					require.NotNil(t, ownerID)
+					assert.Equal(t, uint64(200), *ownerID)
+					return nil
+				},
+			},
+			&mockLiffOwnerRepository{
+				findByNameAndPhoneFn: func(_ context.Context, clinicID uint64, name, phone string) (*model.Owner, error) {
+					assert.Equal(t, uint64(3), clinicID)
+					assert.Equal(t, "田中太郎", name)
+					assert.Equal(t, "090-1234-5678", phone)
+					return &model.Owner{ID: 200}, nil
+				},
+			},
+			&mockLiffValidators{
+				validateAndCreateFn: func(_ context.Context, input *CreateReservationInput) (*model.Appointment, error) {
+					return &model.Appointment{ID: 77, ClinicID: input.ClinicID}, nil
+				},
+			},
+			&mockLiffNotifier{},
+		)
+
+		input := baseInput()
+		input.CustomerFields = json.RawMessage(`{"owner_name":"田中太郎","phone":"090-1234-5678","pets":[{"name":"ポチ"}]}`)
+		got, err := svc.CreateReservation(ctx, 3, 1, input)
+		require.NoError(t, err)
+		require.NotNil(t, got.OwnerID)
+		require.NotNil(t, got.PetID)
+		assert.Equal(t, uint64(200), *got.OwnerID)
+		assert.Equal(t, uint64(300), *got.PetID)
+	})
+
 	t.Run("NotifyCreated が fire-and-forget で呼ばれる", func(t *testing.T) {
 		notifyCh := make(chan struct{}, 1)
 		svc := newLiffSvc(

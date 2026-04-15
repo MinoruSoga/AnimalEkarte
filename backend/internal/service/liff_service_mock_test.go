@@ -206,6 +206,7 @@ func (m *mockLiffAdminRepository) FindByIDForNotify(ctx context.Context, clinicI
 type mockLiffCustomerRepository struct {
 	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error)
 	updateAdditionalFieldsFn func(ctx context.Context, clinicID, id uint64, fields []byte) error
+	updateOwnerLinkFn        func(ctx context.Context, clinicID, id uint64, ownerID *uint64) error
 }
 
 func (m *mockLiffCustomerRepository) FindAll(_ context.Context, _ uint64) ([]model.LineCustomer, error) {
@@ -219,7 +220,10 @@ func (m *mockLiffCustomerRepository) FindByID(ctx context.Context, clinicID, id 
 	return nil, apperrors.ErrNotFound
 }
 
-func (m *mockLiffCustomerRepository) UpdateOwnerLink(_ context.Context, _, _ uint64, _ *uint64) error {
+func (m *mockLiffCustomerRepository) UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error {
+	if m.updateOwnerLinkFn != nil {
+		return m.updateOwnerLinkFn(ctx, clinicID, id, ownerID)
+	}
 	return nil
 }
 
@@ -232,6 +236,116 @@ func (m *mockLiffCustomerRepository) UpdateAdditionalFields(ctx context.Context,
 		return m.updateAdditionalFieldsFn(ctx, clinicID, id, fields)
 	}
 	return nil
+}
+
+// --- mockLiffOwnerRepository ---
+
+type mockLiffOwnerRepository struct {
+	findByNameAndPhoneFn func(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error)
+}
+
+func (m *mockLiffOwnerRepository) FindAll(_ context.Context, _ uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+	return nil, 0, nil
+}
+
+func (m *mockLiffOwnerRepository) FindByID(_ context.Context, _, _ uint64) (*model.Owner, error) {
+	return nil, apperrors.ErrNotFound
+}
+
+func (m *mockLiffOwnerRepository) FindByEmail(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+	return nil, apperrors.ErrNotFound
+}
+
+func (m *mockLiffOwnerRepository) FindByPhone(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+	return nil, apperrors.ErrNotFound
+}
+
+func (m *mockLiffOwnerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error) {
+	if m.findByNameAndPhoneFn != nil {
+		return m.findByNameAndPhoneFn(ctx, clinicID, name, phone)
+	}
+	return nil, nil
+}
+
+func (m *mockLiffOwnerRepository) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {
+	return nil
+}
+
+func (m *mockLiffOwnerRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+	return nil
+}
+
+func (m *mockLiffOwnerRepository) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLiffOwnerRepository) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+// --- mockLiffReservationRepository ---
+
+type mockLiffReservationRepository struct {
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error)
+}
+
+func (m *mockLiffReservationRepository) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Appointment, int64, error) {
+	return nil, 0, nil
+}
+
+func (m *mockLiffReservationRepository) FindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+	return nil, apperrors.ErrNotFound
+}
+
+func (m *mockLiffReservationRepository) Create(_ context.Context, _ *model.Appointment) error {
+	return nil
+}
+
+func (m *mockLiffReservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error) {
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, clinicID, id, fields)
+	}
+	return &model.Appointment{ID: id, ClinicID: clinicID}, nil
+}
+
+func (m *mockLiffReservationRepository) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLiffReservationRepository) ExistsByReservationTypeID(_ context.Context, _ uint64) (bool, error) {
+	return false, nil
+}
+
+func (m *mockLiffReservationRepository) ExistsByStaffID(_ context.Context, _ uint64) (bool, error) {
+	return false, nil
+}
+
+func (m *mockLiffReservationRepository) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockLiffReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+	return nil, apperrors.ErrNotFound
+}
+
+func (m *mockLiffReservationRepository) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+	return false, nil
+}
+
+func (m *mockLiffReservationRepository) CountOnDutyDoctors(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockLiffReservationRepository) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockLiffReservationRepository) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockLiffReservationRepository) CountByDateAndSource(_ context.Context, _ uint64, _ time.Time, _ model.ReservationSource) (int64, error) {
+	return 0, nil
 }
 
 // --- mockLiffValidators ---
@@ -281,15 +395,43 @@ func newLiffSvc(
 	validators *mockLiffValidators,
 	notifier *mockLiffNotifier,
 ) *liffService {
+	return newLiffSvcWithDeps(
+		setting,
+		course,
+		staff,
+		schedule,
+		admin,
+		&mockLiffReservationRepository{},
+		customer,
+		&mockLiffOwnerRepository{},
+		validators,
+		notifier,
+	)
+}
+
+func newLiffSvcWithDeps(
+	setting *mockLiffSettingRepository,
+	course *mockLiffTypeRepository,
+	staff *mockLiffStaffRepository,
+	schedule *mockLiffScheduleRepository,
+	admin *mockLiffAdminRepository,
+	reservation *mockLiffReservationRepository,
+	customer *mockLiffCustomerRepository,
+	owner *mockLiffOwnerRepository,
+	validators *mockLiffValidators,
+	notifier *mockLiffNotifier,
+) *liffService {
 	return &liffService{
-		settingRepo:  setting,
-		typeLiffRepo: course,
-		staffRepo:    staff,
-		scheduleRepo: schedule,
-		adminRepo:    admin,
-		customerRepo: customer,
-		validators:   validators,
-		notifier:     notifier,
+		settingRepo:     setting,
+		typeLiffRepo:    course,
+		staffRepo:       staff,
+		scheduleRepo:    schedule,
+		adminRepo:       admin,
+		reservationRepo: reservation,
+		customerRepo:    customer,
+		ownerRepo:       owner,
+		validators:      validators,
+		notifier:        notifier,
 	}
 }
 

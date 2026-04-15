@@ -149,10 +149,15 @@ func resolveClinicInfo(assignments []model.StaffClinicAssignment) (mainClinicID 
 // issueAuthCookies は JWT アクセストークン（15分）とリフレッシュトークン（7日）を生成して Cookie にセットする。
 // クロスオリジン対応のため SameSite=None + Secure=true を使用する。
 func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID string, isSystemAdmin bool, clinicIDs []uint64) error {
-	// SameSite=None 使用時は Secure=true が必須（ブラウザ仕様）
-	// localhost での Secure Cookie はブラウザが許可しているため開発環境でも Secure=true を設定可
-	const sameSite = http.SameSiteNoneMode
-	const secure = true
+	// BUG-TEST-002: 開発環境（HTTP）での Cookie 受理を許可するため、モードに応じて Secure/SameSite を切り替える
+	isProduction := h.cfg.GinMode == "release"
+	sameSite := http.SameSiteLaxMode
+	secure := false
+
+	if isProduction {
+		sameSite = http.SameSiteNoneMode
+		secure = true
+	}
 
 	expiresAt := time.Now().Add(15 * time.Minute)
 	claims := &middleware.JWTClaims{

@@ -133,9 +133,12 @@ type paymentResponse struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
+// accountingOwnerSummary は accountingResponse.owner に埋め込む軽量サマリ。
+// BUG-374 TC-367-03: フロントの BackendAccounting は generated/models.Owner.name を期待するため、
+// JSON タグは "name" に統一する（"owner_name" だと帳票で「様」のみ表示される）。
 type accountingOwnerSummary struct {
 	ID        uint64 `json:"id"`
-	OwnerName string `json:"owner_name"`
+	OwnerName string `json:"name"`
 }
 
 type accountingPetSummary struct {

@@ -1,8 +1,9 @@
 // React/Framework
-import { useState, useMemo, useCallback, useDeferredValue, useTransition, memo, Fragment } from "react";
+import { useState, useMemo, useCallback, useDeferredValue, useTransition, useEffect, memo, Fragment } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 
 // DnD
 import { DndContext, DragOverlay, closestCenter, type DragEndEvent } from "@dnd-kit/core";
@@ -112,6 +113,27 @@ const INITIAL_FORM: MedicineFormData = {
   taxRate: 0.1,
 };
 
+// 編集対象 medicine から初期 formData を構築（マウント時 1 回）
+function medicineToFormData(m: Medicine | null, defaultParentId?: string): MedicineFormData {
+  if (!m) {
+    return {
+      ...INITIAL_FORM,
+      parentId: defaultParentId && defaultParentId !== "uncategorized" ? defaultParentId : "",
+    };
+  }
+  return {
+    name: m.name,
+    parentId: m.parentId ?? "",
+    dosageForm: m.dosageForm ?? "",
+    medicineUnit: m.medicineUnit ?? "",
+    price: m.price,
+    description: m.description,
+    isActive: m.isActive,
+    taxType: m.taxType ?? "excluded",
+    taxRate: m.taxRate ?? 0.1,
+  };
+}
+
 // ─────────────────────────────────────────────────
 // SortableMedicineRow
 // ─────────────────────────────────────────────────
@@ -211,44 +233,218 @@ function MedicineRowOverlay({
 // MedicineSidePanel
 // ─────────────────────────────────────────────────
 
-interface MedicineSidePanelProps {
-  isEditing: boolean;
+// MedicineSidePanelBody は formData を内部で所有し、14 マスタ画面と同じ
+// child-marks 戦略 (useEffect → onDirtyChange) を採用する。
+// 編集対象切替時は親の <key> で再マウント → useState lazy init で formData がリセットされる。
+interface MedicineSidePanelBodyProps {
   selectedMedicine: Medicine | null;
   isCategory: boolean;
-  formData: MedicineFormData;
+  defaultParentId?: string;
   categoryMedicines: Medicine[];
-  panelDuration: number;
-  updateForm: (updates: Partial<MedicineFormData>) => void;
-  handleCloseEdit: () => void;
-  handleSave: () => void;
-  handleDeleteRequest: () => void;
+  onCloseEdit: () => void;
+  onSave: (data: MedicineFormData) => void;
+  onDeleteRequest: () => void;
   readOnly?: boolean;
   canDelete?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-const MedicineSidePanel = memo(function MedicineSidePanel({
-  isEditing,
+const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
   selectedMedicine,
   isCategory,
-  formData,
+  defaultParentId,
   categoryMedicines,
-  panelDuration,
-  updateForm,
-  handleCloseEdit,
-  handleSave,
-  handleDeleteRequest,
+  onCloseEdit,
+  onSave,
+  onDeleteRequest,
   readOnly,
   canDelete,
-}: MedicineSidePanelProps) {
+  onDirtyChange,
+}: MedicineSidePanelBodyProps) {
+  const [formData, setFormData] = useState<MedicineFormData>(() =>
+    medicineToFormData(selectedMedicine, defaultParentId),
+  );
   const [nameError, setNameError] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
+
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
+
   const handleAction = () => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    handleSave();
+    onSave(formData);
+    setIsDirty(false);
   };
+
+  return (
+    <MasterSidePanel
+      isNew={!selectedMedicine}
+      title={formData.name}
+      onTitleChange={(v) => {
+        setFormDataDirty((prev) => ({ ...prev, name: v }));
+        if (v.trim()) setNameError("");
+      }}
+      onClose={onCloseEdit}
+      action={handleAction}
+      onDelete={selectedMedicine && canDelete ? onDeleteRequest : undefined}
+      icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
+      titlePlaceholder="薬品名"
+      titleError={nameError}
+      titleMaxLength={100}
+      readOnly={readOnly}
+    >
+      {/* Properties */}
+      <PropertyRow label="親カテゴリ">
+        {isCategory ? (
+          <span className={`text-base ${C.text}`}>なし（ルート）</span>
+        ) : (
+          <Select
+            value={formData.parentId || "__none__"}
+            onValueChange={(v) => setFormDataDirty((prev) => ({ ...prev, parentId: v === "__none__" ? "" : v }))}
+          >
+            <SelectTrigger className={SELECT_TRIGGER_FULL}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">なし（未分類）</SelectItem>
+              {categoryMedicines.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </PropertyRow>
+
+      <PropertyRow label="単価(税込)">
+        {isCategory ? (
+          <span className={`text-base ${C.text35} select-none`}>子項目に金額を設定</span>
+        ) : (
+          <div className="flex items-center gap-1">
+            <span className={`text-base ${C.text40}`}>¥</span>
+            <input
+              type="number"
+              min={0}
+              value={formData.price}
+              onChange={(e) => setFormDataDirty((prev) => ({ ...prev, price: Number(e.target.value) }))}
+              placeholder="0"
+              className={`${STYLE.propertyInput} w-28`}
+            />
+          </div>
+        )}
+      </PropertyRow>
+
+      <PropertyRow label="課税区分">
+        <TaxTypeSelector
+          value={formData.taxType}
+          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, taxType: v }))}
+          disabled={isCategory}
+        />
+      </PropertyRow>
+
+      <PropertyRow label="税率">
+        <TaxRateSelector
+          value={formData.taxRate}
+          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, taxRate: v }))}
+          disabled={isCategory}
+        />
+      </PropertyRow>
+
+      <PropertyRow label="ステータス">
+        <button
+          type="button"
+          onClick={() => setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))}
+          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+        >
+          <NotionStatusPill isActive={formData.isActive} />
+        </button>
+      </PropertyRow>
+
+      <PropertyRow label="備考">
+        <PropertyInput
+          value={formData.description}
+          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, description: v }))}
+          placeholder="空"
+        />
+      </PropertyRow>
+
+      <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
+      <div className="py-1">
+        <div className="flex items-center gap-1.5 py-2 mb-1">
+          <Pill className={`${ICON.xs} ${C.text40}`} />
+          <span
+            className={`text-base font-medium ${C.text50} uppercase tracking-wide select-none`}
+          >
+            薬剤詳細
+          </span>
+        </div>
+
+        <PropertyRow label="剤形">
+          <Select
+            value={formData.dosageForm}
+            onValueChange={(v) => setFormDataDirty((prev) => ({ ...prev, dosageForm: v }))}
+          >
+            <SelectTrigger className={SELECT_TRIGGER_FULL}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>{DOSAGE_FORM_SELECT_ITEMS}</SelectContent>
+          </Select>
+        </PropertyRow>
+
+        <PropertyRow label="単位">
+          <Select
+            value={formData.medicineUnit}
+            onValueChange={(v) => setFormDataDirty((prev) => ({ ...prev, medicineUnit: v }))}
+          >
+            <SelectTrigger className={SELECT_TRIGGER_FULL}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>{MEDICINE_UNIT_SELECT_ITEMS}</SelectContent>
+          </Select>
+        </PropertyRow>
+      </div>
+    </MasterSidePanel>
+  );
+});
+
+// 外側ラッパは AnimatePresence + motion.div の責務のみ。Body の formData は
+// key={selectedMedicine?.id ?? "new"} で再マウント → 新規 lazy init される。
+interface MedicineSidePanelProps {
+  isEditing: boolean;
+  selectedMedicine: Medicine | null;
+  isCategory: boolean;
+  defaultParentId?: string;
+  categoryMedicines: Medicine[];
+  panelDuration: number;
+  onCloseEdit: () => void;
+  onSave: (data: MedicineFormData) => void;
+  onDeleteRequest: () => void;
+  readOnly?: boolean;
+  canDelete?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+}
+
+const MedicineSidePanel = memo(function MedicineSidePanel({
+  isEditing,
+  selectedMedicine,
+  isCategory,
+  defaultParentId,
+  categoryMedicines,
+  panelDuration,
+  onCloseEdit,
+  onSave,
+  onDeleteRequest,
+  readOnly,
+  canDelete,
+  onDirtyChange,
+}: MedicineSidePanelProps) {
   return (
     <AnimatePresence>
       {isEditing ? (
@@ -260,139 +456,19 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
           transition={{ duration: panelDuration, ease: [0.25, 0.1, 0.25, 1] }}
           className="shrink-0 min-h-0 overflow-hidden"
         >
-          <MasterSidePanel
-            isNew={!selectedMedicine}
-            title={formData.name}
-            onTitleChange={(v) => { updateForm({ name: v }); if (v.trim()) setNameError(""); }}
-            onClose={handleCloseEdit}
-            action={handleAction}
-            onDelete={selectedMedicine && canDelete ? handleDeleteRequest : undefined}
-            icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
-            titlePlaceholder="薬品名"
-            titleError={nameError}
-            titleMaxLength={100}
+          <MedicineSidePanelBody
+            key={selectedMedicine?.id ?? "new"}
+            selectedMedicine={selectedMedicine}
+            isCategory={isCategory}
+            defaultParentId={defaultParentId}
+            categoryMedicines={categoryMedicines}
+            onCloseEdit={onCloseEdit}
+            onSave={onSave}
+            onDeleteRequest={onDeleteRequest}
             readOnly={readOnly}
-          >
-            {/* Properties */}
-            {/* Parent category select */}
-            <PropertyRow label="親カテゴリ">
-              {isCategory ? (
-                // カテゴリはルート固定 — 変更不可
-                <span className={`text-base ${C.text}`}>なし（ルート）</span>
-              ) : (
-                <Select
-                  value={formData.parentId || "__none__"}
-                  onValueChange={(v) => updateForm({ parentId: v === "__none__" ? "" : v })}
-                >
-                  <SelectTrigger className={SELECT_TRIGGER_FULL}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">なし（未分類）</SelectItem>
-                    {categoryMedicines.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </PropertyRow>
-
-            {/* Price — カテゴリは子項目に設定するため disabled */}
-            <PropertyRow label="単価(税込)">
-              {isCategory ? (
-                <span className={`text-base ${C.text35} select-none`}>子項目に金額を設定</span>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <span className={`text-base ${C.text40}`}>¥</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={formData.price}
-                    onChange={(e) => updateForm({ price: Number(e.target.value) })}
-                    placeholder="0"
-                    className={`${STYLE.propertyInput} w-28`}
-                  />
-                </div>
-              )}
-            </PropertyRow>
-
-            {/* Tax type */}
-            <PropertyRow label="課税区分">
-              <TaxTypeSelector
-                value={formData.taxType}
-                onChange={(v) => updateForm({ taxType: v })}
-                disabled={isCategory}
-              />
-            </PropertyRow>
-
-            {/* Tax rate */}
-            <PropertyRow label="税率">
-              <TaxRateSelector
-                value={formData.taxRate}
-                onChange={(v) => updateForm({ taxRate: v })}
-                disabled={isCategory}
-              />
-            </PropertyRow>
-
-            {/* Status */}
-            <PropertyRow label="ステータス">
-              <button
-                type="button"
-                onClick={() => updateForm({ isActive: !formData.isActive })}
-                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-              >
-                <NotionStatusPill isActive={formData.isActive} />
-              </button>
-            </PropertyRow>
-
-            {/* Description */}
-            <PropertyRow label="備考">
-              <PropertyInput
-                value={formData.description}
-                onChange={(v) => updateForm({ description: v })}
-                placeholder="空"
-              />
-            </PropertyRow>
-
-            {/* ── 薬剤詳細 section ── */}
-            <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
-            <div className="py-1">
-              <div className="flex items-center gap-1.5 py-2 mb-1">
-                <Pill className={`${ICON.xs} ${C.text40}`} />
-                <span
-                  className={`text-base font-medium ${C.text50} uppercase tracking-wide select-none`}
-                >
-                  薬剤詳細
-                </span>
-              </div>
-
-              {/* Dosage form — full-width */}
-              <PropertyRow label="剤形">
-                <Select
-                  value={formData.dosageForm}
-                  onValueChange={(v) => updateForm({ dosageForm: v })}
-                >
-                  <SelectTrigger className={SELECT_TRIGGER_FULL}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>{DOSAGE_FORM_SELECT_ITEMS}</SelectContent>
-                </Select>
-              </PropertyRow>
-
-              {/* Unit — full-width */}
-              <PropertyRow label="単位">
-                <Select
-                  value={formData.medicineUnit}
-                  onValueChange={(v) => updateForm({ medicineUnit: v })}
-                >
-                  <SelectTrigger className={SELECT_TRIGGER_FULL}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>{MEDICINE_UNIT_SELECT_ITEMS}</SelectContent>
-                </Select>
-              </PropertyRow>
-            </div>
-          </MasterSidePanel>
+            canDelete={canDelete}
+            onDirtyChange={onDirtyChange}
+          />
         </motion.div>
       ) : null}
     </AnimatePresence>
@@ -420,7 +496,8 @@ export function MedicineSettings() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   // null=closed, "new"=create mode, Medicine=edit mode
   const [editTarget, setEditTarget] = useState<Medicine | "new" | null>(null);
-  const [formData, setFormData] = useState<MedicineFormData>(INITIAL_FORM);
+  // BUG-380 統一: formData は SidePanel が所有。新規作成時の親カテゴリ起点だけ親で保持。
+  const [defaultParentId, setDefaultParentId] = useState<string | undefined>(undefined);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   // 値は parentId 文字列、undefined = 親なし
   const [overrideCategories, setOverrideCategories] = useState<Map<string, string | undefined>>(new Map());
@@ -601,41 +678,32 @@ export function MedicineSettings() {
     [orderedMedicinesById, updateMutation, handleFlatSortDragEnd],
   );
 
+  // BUG-380: 未保存破棄ガード（14 マスタ画面と統一パターン）
+  const dirty = useSidePeekDirty();
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+
   const handleCloseEdit = useCallback(() => {
+    if (!dirty.confirmDiscard()) return;
     setEditTarget(null);
-    setFormData(INITIAL_FORM);
-  }, []);
+    setDefaultParentId(undefined);
+  }, [dirty]);
 
   const handleEdit = useCallback((medicine: Medicine) => {
+    if (!dirty.confirmDiscard()) return;
+    setDefaultParentId(undefined);
     setEditTarget(medicine);
-    setFormData({
-      name: medicine.name,
-      parentId: medicine.parentId ?? "",
-      dosageForm: medicine.dosageForm ?? "",
-      medicineUnit: medicine.medicineUnit ?? "",
-      price: medicine.price,
-      description: medicine.description,
-      isActive: medicine.isActive,
-      taxType: medicine.taxType ?? "excluded",
-      taxRate: medicine.taxRate ?? 0.1,
-    });
-  }, []);
+  }, [dirty]);
 
   const handleCreate = useCallback((parentId?: string) => {
+    if (!dirty.confirmDiscard()) return;
+    setDefaultParentId(parentId);
     setEditTarget("new");
-    setFormData({
-      ...INITIAL_FORM,
-      parentId: parentId !== "uncategorized" ? (parentId ?? "") : "",
-    });
-  }, []);
-
-  const updateForm = useCallback((updates: Partial<MedicineFormData>) => {
-    setFormData((prev) => ({ ...prev, ...updates }));
-  }, []);
+  }, [dirty]);
 
   const [, startSaveTransition] = useTransition();
 
-  const handleSave = useCallback(() => {
+  // SidePanel から受け取った formData で保存。バリデーション (name 空) は SidePanel 側で実施済み。
+  const handleSave = useCallback((formData: MedicineFormData) => {
     // カテゴリ編集時は price を 0 に固定（disabled UI をバイパス対策）
     const effectivePrice = isCategoryMedicine(selectedMedicine) ? 0 : formData.price;
 
@@ -663,6 +731,7 @@ export function MedicineSettings() {
           {
             onSuccess: () => {
               toast.success("更新しました");
+              dirty.markClean();
               handleCloseEdit();
             },
             onError: (error) => handleApiError(error, "更新"),
@@ -683,13 +752,14 @@ export function MedicineSettings() {
         createMutation.mutate(req, {
           onSuccess: () => {
             toast.success("登録しました");
+            dirty.markClean();
             handleCloseEdit();
           },
           onError: (error) => handleApiError(error, "登録"),
         });
       }
     });
-  }, [formData, selectedMedicine, updateMutation, createMutation, handleCloseEdit]);
+  }, [selectedMedicine, updateMutation, createMutation, handleCloseEdit, dirty]);
 
   const handleDeleteRequest = useCallback(() => {
     if (!selectedMedicine) return;
@@ -933,15 +1003,15 @@ export function MedicineSettings() {
           isEditing={isEditing}
           selectedMedicine={selectedMedicine}
           isCategory={isCategory}
-          formData={formData}
+          defaultParentId={defaultParentId}
           categoryMedicines={categoryMedicines}
           panelDuration={panelDuration}
-          updateForm={updateForm}
-          handleCloseEdit={handleCloseEdit}
-          handleSave={handleSave}
-          handleDeleteRequest={handleDeleteRequest}
+          onCloseEdit={handleCloseEdit}
+          onSave={handleSave}
+          onDeleteRequest={handleDeleteRequest}
           readOnly={!canEdit}
           canDelete={canDelete}
+          onDirtyChange={handleDirtyChange}
         />
       </div>
 

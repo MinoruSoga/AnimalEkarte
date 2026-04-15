@@ -1,5 +1,6 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { Bed } from "lucide-react";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell } from "@/components/ui/table";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
@@ -30,9 +31,9 @@ const BILLING_UNIT_SELECT_ITEMS = BILLING_UNIT_OPTIONS.map((o) => <SelectItem ke
 interface HospitalizationFormData { name: string; price: number; description: string; isActive: boolean; bodySize: BodySize | ""; billingUnit: BillingUnit | ""; taxType: TaxType; taxRate: number; }
 
 const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly,
-}: { item: HospitalizationPlan | null; onClose: () => void; onSave: (d: HospitalizationFormData) => void; onDeleteRequest?: (i: HospitalizationPlan) => void; readOnly?: boolean; }) {
-  const [f, setF] = useState<HospitalizationFormData>(() => ({
+  item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
+}: { item: HospitalizationPlan | null; onClose: () => void; onSave: (d: HospitalizationFormData) => void; onDeleteRequest?: (i: HospitalizationPlan) => void; readOnly?: boolean; onDirtyChange?: (dirty: boolean) => void; }) {
+  const [formData, setFormData] = useState<HospitalizationFormData>(() => ({
     name: item?.name ?? "", price: item?.price ?? 0, description: item?.description ?? "",
     isActive: item?.isActive ?? true, bodySize: item?.bodySize ?? "", billingUnit: item?.billingUnit ?? "",
     taxType: item?.taxType ?? "excluded", taxRate: item?.taxRate ?? 0.1,
@@ -40,56 +41,55 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  const handleTitleChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, name: v }));
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
     setIsDirty(true);
-    if (v.trim()) setNameError("");
   }, []);
+
+  const handleTitleChange = useCallback((v: string) => {
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
+    if (v.trim()) setNameError("");
+  }, [setFormDataDirty]);
 
   const handleBodySizeChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, bodySize: v as BodySize }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, bodySize: v as BodySize }));
+  }, [setFormDataDirty]);
 
   const handleBillingUnitChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, billingUnit: v as BillingUnit }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, billingUnit: v as BillingUnit }));
+  }, [setFormDataDirty]);
 
   const handlePriceChange = useCallback((v: number) => {
-    setF((p) => ({ ...p, price: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, price: v }));
+  }, [setFormDataDirty]);
 
   const handleTaxTypeChange = useCallback((v: TaxType) => {
-    setF((p) => ({ ...p, taxType: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, taxType: v }));
+  }, [setFormDataDirty]);
 
   const handleTaxRateChange = useCallback((v: number) => {
-    setF((p) => ({ ...p, taxRate: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, taxRate: v }));
+  }, [setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, description: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, description: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setF((p) => ({ ...p, isActive: !p.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleAction = useCallback(() => {
-    if (!f.name.trim()) {
+    if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(f);
+    onSave(formData);
     setIsDirty(false);
-  }, [f, onSave]);
+  }, [formData, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -97,7 +97,7 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
   }, [onClose]);
 
   return (
-    <MasterSidePanel isNew={item === null} title={f.name}
+    <MasterSidePanel isNew={item === null} title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose} action={handleAction} onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Bed className={LAYOUT.pageIcon.innerIcon} />}
@@ -105,34 +105,34 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
       titleError={nameError}
       titleMaxLength={100}
       readOnly={readOnly}>
-      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
+      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="対象体格">
-        <Select value={f.bodySize} onValueChange={handleBodySizeChange}>
+        <Select value={formData.bodySize} onValueChange={handleBodySizeChange}>
           <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
           <SelectContent>{BODY_SIZE_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
       <PropertyRow label="料金単位">
-        <Select value={f.billingUnit} onValueChange={handleBillingUnitChange}>
+        <Select value={formData.billingUnit} onValueChange={handleBillingUnitChange}>
           <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
           <SelectContent>{BILLING_UNIT_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
-      <MoneyInput value={f.price} onChange={handlePriceChange} />
+      <MoneyInput value={formData.price} onChange={handlePriceChange} />
       <PropertyRow label="課税区分">
         <TaxTypeSelector
-          value={f.taxType}
+          value={formData.taxType}
           onChange={handleTaxTypeChange}
         />
       </PropertyRow>
       <PropertyRow label="税率">
         <TaxRateSelector
-          value={f.taxRate}
+          value={formData.taxRate}
           onChange={handleTaxRateChange}
         />
       </PropertyRow>
       <PropertyRow label="備考">
-        <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
+        <PropertyInput value={formData.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
       </PropertyRow>
     </MasterSidePanel>
   );
@@ -143,7 +143,9 @@ export function HospitalizationSettings() {
   const createMutation = useCreateHospitalizationPlan();
   const updateMutation = useUpdateHospitalizationPlan();
   const deleteMutation = useDeleteHospitalizationPlan();
-  const crud = useMasterCRUD<HospitalizationPlan>({ data, deleteMutation, entityLabel: "入院プラン" });
+  const dirty = useSidePeekDirty();
+  const crud = useMasterCRUD<HospitalizationPlan>({ data, deleteMutation, entityLabel: "入院プラン", dirtyGuard: dirty });
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
   const { handleSave } = useMasterSave<HospitalizationPlan, HospitalizationFormData, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest>({
     crud, createMutation, updateMutation,
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
@@ -174,7 +176,7 @@ export function HospitalizationSettings() {
           <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}
-      renderSidePanel={(props) => <HospitalizationSidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={(props) => <HospitalizationSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
     />
   );
 }

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Activity, ChevronDown, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -292,32 +293,40 @@ export function ReservationTypeSettings() {
   const updateCategoryMutation = useUpdateReservationType();
   const deleteCategoryMutation = useDeleteReservationType();
 
+  // BUG-380: 未保存破棄ガード
+  const dirty = useSidePeekDirty();
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+
   // ── ハンドラ ─────────────────────────────────────────────────
   const handleGroupEdit = useCallback((group: ReservationTypeGroup) => {
+    if (!dirty.confirmDiscard()) return;
     setGroupEditTarget(group);
     setCategoryEditTarget(null);
-  }, []);
+  }, [dirty]);
 
   const handleGroupAdd = useCallback(() => {
+    if (!dirty.confirmDiscard()) return;
     setGroupEditTarget("new");
     setCategoryEditTarget(null);
-  }, []);
+  }, [dirty]);
 
   const handleGroupDeleteRequest = useCallback((item: ReservationTypeGroup) => {
     setGroupPendingDelete(item);
   }, []);
 
   const handleCategoryEdit = useCallback((cat: ReservationType) => {
+    if (!dirty.confirmDiscard()) return;
     setCategoryEditTarget(cat);
     setGroupEditTarget(null);
     setCategoryDefaultGroupId(undefined);
-  }, []);
+  }, [dirty]);
 
   const handleCategoryAddInGroup = useCallback((groupId: string | undefined) => {
+    if (!dirty.confirmDiscard()) return;
     setCategoryEditTarget("new");
     setCategoryDefaultGroupId(groupId);
     setGroupEditTarget(null);
-  }, []);
+  }, [dirty]);
 
   const handleCategoryDeleteRequest = useCallback((item: ReservationType) => {
     setCategoryPendingDelete(item);
@@ -463,22 +472,30 @@ export function ReservationTypeSettings() {
           <GroupSidePanel
             key={groupPanelItem ? String(groupPanelItem.id) : "new-group"}
             item={groupPanelItem}
-            onClose={() => setGroupEditTarget(null)}
+            onClose={() => {
+              if (!dirty.confirmDiscard()) return;
+              setGroupEditTarget(null);
+            }}
             onSave={handleGroupSave}
             onDeleteRequest={canDelete ? handleGroupDeleteRequest : undefined}
             readOnly={!canEdit}
+            onDirtyChange={handleDirtyChange}
           />
         ) : null}
         {categoryEditTarget !== null ? (
           <CategorySidePanel
             key={categoryPanelItem ? String(categoryPanelItem.id) : "new-category"}
             item={categoryPanelItem}
-            onClose={() => setCategoryEditTarget(null)}
+            onClose={() => {
+              if (!dirty.confirmDiscard()) return;
+              setCategoryEditTarget(null);
+            }}
             onSave={handleCategorySave}
             onDeleteRequest={canDelete ? handleCategoryDeleteRequest : undefined}
             readOnly={!canEdit}
             groups={activeGroups}
             defaultGroupId={categoryDefaultGroupId}
+            onDirtyChange={handleDirtyChange}
           />
         ) : null}
       </div>

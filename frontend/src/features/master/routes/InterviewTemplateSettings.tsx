@@ -1,5 +1,6 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { FileText } from "lucide-react";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -36,44 +37,47 @@ const COLUMNS = [
 interface FormData { category: string; title: string; content: string; isActive: boolean; }
 
 const SidePanel = memo(function SidePanel({
-  item, onClose, onSave, onDeleteRequest, readOnly,
-}: { item: InquiryTemplate | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: InquiryTemplate) => void; readOnly?: boolean; }) {
-  const [f, setF] = useState<FormData>(() => ({
+  item, onClose, onSave, onDeleteRequest, readOnly, onDirtyChange,
+}: { item: InquiryTemplate | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest?: (i: InquiryTemplate) => void; readOnly?: boolean; onDirtyChange?: (dirty: boolean) => void; }) {
+  const [formData, setFormData] = useState<FormData>(() => ({
     category: item?.category ?? "", title: item?.title ?? "", content: item?.content ?? "", isActive: item?.isActive ?? true,
   }));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  const handleTitleChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, title: v }));
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
     setIsDirty(true);
-    if (v.trim()) setNameError("");
   }, []);
+
+  const handleTitleChange = useCallback((v: string) => {
+    setFormDataDirty((prev) => ({ ...prev, title: v }));
+    if (v.trim()) setNameError("");
+  }, [setFormDataDirty]);
 
   const handleCategoryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setF((p) => ({ ...p, category: e.target.value }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, category: e.target.value }));
+  }, [setFormDataDirty]);
 
   const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setF((p) => ({ ...p, content: e.target.value }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, content: e.target.value }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setF((p) => ({ ...p, isActive: !p.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleSave = useCallback(() => {
-    if (!f.title.trim()) {
+    if (!formData.title.trim()) {
       setNameError("タイトルを入力してください");
       return;
     }
     setNameError("");
-    onSave(f);
+    onSave(formData);
     setIsDirty(false);
-  }, [f, onSave]);
+  }, [formData, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -81,7 +85,7 @@ const SidePanel = memo(function SidePanel({
   }, [onClose]);
 
   return (
-    <MasterSidePanel isNew={item === null} title={f.title}
+    <MasterSidePanel isNew={item === null} title={formData.title}
       onTitleChange={handleTitleChange} onClose={handleClose} action={handleSave}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       isDirty={isDirty}
@@ -89,13 +93,13 @@ const SidePanel = memo(function SidePanel({
       titleError={nameError}
       titleMaxLength={100}
       readOnly={readOnly}>
-      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
+      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カテゴリ">
-        <input type="text" className={MASTER_INPUT_CLASS} value={f.category}
+        <input type="text" className={MASTER_INPUT_CLASS} value={formData.category}
           onChange={handleCategoryChange} placeholder="カテゴリを入力" />
       </PropertyRow>
       <PropertyRow label="テンプレート内容">
-        <textarea className={`${MASTER_INPUT_CLASS} min-h-[150px] resize-none`} value={f.content}
+        <textarea className={`${MASTER_INPUT_CLASS} min-h-[150px] resize-none`} value={formData.content}
           onChange={handleContentChange} placeholder="テンプレート内容を入力" />
       </PropertyRow>
     </MasterSidePanel>
@@ -107,10 +111,13 @@ export function InterviewTemplateSettings() {
   const createMutation = useCreateInquiryTemplate();
   const updateMutation = useUpdateInquiryTemplate();
   const deleteMutation = useDeleteInquiryTemplate();
+  const dirty = useSidePeekDirty();
   const crud = useMasterCRUD<InquiryTemplate>({
     data, deleteMutation, entityLabel: "問診テンプレート",
     searchFilter: (item, lower) => item.title.toLowerCase().includes(lower) || item.category.toLowerCase().includes(lower),
+    dirtyGuard: dirty,
   });
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
   const { handleSave } = useMasterSave<InquiryTemplate, FormData, CreateInquiryTemplateRequest, UpdateInquiryTemplateRequest>({
     crud, createMutation, updateMutation,
     validate: (d) => {
@@ -135,7 +142,7 @@ export function InterviewTemplateSettings() {
           <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}
-      renderSidePanel={(props) => <SidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={(props) => <SidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
     />
   );
 }

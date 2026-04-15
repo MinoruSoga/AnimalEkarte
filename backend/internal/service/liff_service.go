@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -26,15 +27,16 @@ type LiffService interface {
 }
 
 type liffService struct {
-	settingRepo  repository.LineReservationSettingRepository
-	typeLiffRepo repository.ReservationTypeLiffRepository
-	staffRepo    repository.ReservationStaffRepository
-	scheduleRepo repository.ReservationScheduleRepository
-	adminRepo    repository.ReservationAdminRepository
-	customerRepo repository.LineCustomerRepository
-	ownerRepo    repository.OwnerRepository
-	validators   ReservationValidators
-	notifier     ReservationNotifier
+	settingRepo     repository.LineReservationSettingRepository
+	typeLiffRepo    repository.ReservationTypeLiffRepository
+	staffRepo       repository.ReservationStaffRepository
+	scheduleRepo    repository.ReservationScheduleRepository
+	adminRepo       repository.ReservationAdminRepository
+	reservationRepo repository.ReservationRepository
+	customerRepo    repository.LineCustomerRepository
+	ownerRepo       repository.OwnerRepository
+	validators      ReservationValidators
+	notifier        ReservationNotifier
 }
 
 // NewLiffService はLIFFサービスを初期化して返す。
@@ -51,15 +53,16 @@ func NewLiffService(
 	notifier ReservationNotifier,
 ) LiffService {
 	return &liffService{
-		settingRepo:  settingRepo,
-		typeLiffRepo: typeLiffRepo,
-		staffRepo:    staffRepo,
-		scheduleRepo: scheduleRepo,
-		adminRepo:    adminRepo,
-		customerRepo: customerRepo,
-		ownerRepo:    ownerRepo,
-		validators:   NewReservationValidators(tx, reservationRepo),
-		notifier:     notifier,
+		settingRepo:     settingRepo,
+		typeLiffRepo:    typeLiffRepo,
+		staffRepo:       staffRepo,
+		scheduleRepo:    scheduleRepo,
+		adminRepo:       adminRepo,
+		reservationRepo: reservationRepo,
+		customerRepo:    customerRepo,
+		ownerRepo:       ownerRepo,
+		validators:      NewReservationValidators(tx, reservationRepo),
+		notifier:        notifier,
 	}
 }
 
@@ -274,6 +277,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 
 	// 自動オーナー紐付け: customer_fields の氏名+電話番号で owners を検索し、1件一致で自動リンク
 	s.tryAutoLinkOwner(ctx, clinicID, customerID, input.CustomerFields)
+	s.tryAttachReservationOwnerPet(ctx, clinicID, customerID, appt, input.CustomerFields)
 
 	// Phase 6: 予約確定通知（LINE + メール）fire-and-forget
 	if s.notifier != nil {
@@ -321,6 +325,38 @@ func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerI
 	}
 
 	return nil
+}
+
+// tryAttachReservationOwnerPet は line_customer の owner 紐付け状態に応じて、
+// 予約へ owner_id / pet_id を best-effort で反映する。
+func (s *liffService) tryAttachReservationOwnerPet(
+	ctx context.Context,
+	clinicID, customerID uint64,
+	appt *model.Appointment,
+	customerFields []byte,
+) {
+	if s.reservationRepo == nil || appt == nil {
+		return
+	}
+
+	customer, err := s.customerRepo.FindByID(ctx, clinicID, customerID)
+	if err != nil || customer == nil || customer.OwnerID == nil {
+		return
+	}
+
+	fields := map[string]any{
+		"owner_id": *customer.OwnerID,
+	}
+	if petID := resolveReservationPetID(customer, customerFields); petID != nil {
+		fields["pet_id"] = *petID
+	}
+
+	updated, err := s.reservationRepo.UpdateFields(ctx, clinicID, appt.ID, fields)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to attach owner/pet to line reservation (best-effort)", "error", err)
+		return
+	}
+	*appt = *updated
 }
 
 // ---- 内部ヘルパー ----
@@ -501,6 +537,37 @@ func isExcluded(excluded []model.StaffReservationExclusion, typeID uint64) bool 
 		}
 	}
 	return false
+}
+
+func resolveReservationPetID(customer *model.LineCustomer, customerFields []byte) *uint64 {
+	if customer == nil || customer.Owner == nil || len(customer.Owner.Pets) == 0 {
+		return nil
+	}
+	if len(customer.Owner.Pets) == 1 {
+		id := customer.Owner.Pets[0].ID
+		return &id
+	}
+
+	var fields struct {
+		Pets []struct {
+			Name string `json:"name"`
+		} `json:"pets"`
+	}
+	if len(customerFields) == 0 || json.Unmarshal(customerFields, &fields) != nil || len(fields.Pets) == 0 {
+		return nil
+	}
+
+	wantName := strings.TrimSpace(fields.Pets[0].Name)
+	if wantName == "" {
+		return nil
+	}
+	for i := range customer.Owner.Pets {
+		if strings.TrimSpace(customer.Owner.Pets[i].Name) == wantName {
+			id := customer.Owner.Pets[i].ID
+			return &id
+		}
+	}
+	return nil
 }
 
 // tryAutoLinkOwner は予約顧客の氏名+電話番号で owners テーブルを検索し、

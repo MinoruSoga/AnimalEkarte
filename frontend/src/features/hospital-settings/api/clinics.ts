@@ -52,7 +52,12 @@ const CLINICS_QUERY_KEY = ["clinics"] as const;
 // ─────────────────────────────────────────────────
 
 export async function listClinics(): Promise<TransformedClinic[]> {
-  const { data } = await axios.get<BackendClinic[]>("/v1/clinics");
+  // BUG-378: 医院マスタ管理画面では staff_clinic_assignments に紐づかない
+  // クリニックも含めて全件を返す必要があるため scope=all を指定する。
+  // バックエンド側で hospital-settings.can_view 権限が必要。
+  const { data } = await axios.get<BackendClinic[]>("/v1/clinics", {
+    params: { scope: "all" },
+  });
   return data.map(transformClinic);
 }
 

@@ -70,6 +70,9 @@ func (s *animalSpeciesService) GetByID(ctx context.Context, id uint64) (*model.A
 }
 
 func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
+	if err := validateMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	species := &model.AnimalSpecies{
 		Name:      input.Name,
 		IsActive:  input.IsActive,
@@ -85,6 +88,9 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 }
 
 func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
+	if err := validateOptionalMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	fields := buildAnimalSpeciesUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")

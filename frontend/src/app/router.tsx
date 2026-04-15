@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, Outlet } from "react-router";
+import { createBrowserRouter, Outlet, Navigate } from "react-router";
 
 import { C } from "@/lib/design-tokens";
 import { Layout } from "@/components/shared/Layout/Layout";
@@ -672,6 +672,19 @@ export const router = createBrowserRouter([
               return { Component: MasterSettingsIndex };
             },
           },
+          // BUG-382 / BUG-384: 旧ルートからの互換 redirect。
+          // カルテ編集画面・トリミング編集画面等、既存 UI からの遷移先を救済する。
+          { path: "job-title", element: <Navigate to="/settings/occupations" replace /> },
+          { path: "service-type", element: <Navigate to="/settings/reservation-type" replace /> },
+          { path: "diagnosis-type", element: <Navigate to="/settings/diagnosis?tab=diagnosis_type" replace /> },
+          { path: "diagnosis-name", element: <Navigate to="/settings/diagnosis?tab=diagnosis_name" replace /> },
+          { path: "trimming-course", element: <Navigate to="/settings/trimming?tab=course" replace /> },
+          { path: "trimming-option", element: <Navigate to="/settings/trimming?tab=option" replace /> },
+          { path: "examination", element: <Navigate to="/settings/treatment-items?tab=examination" replace /> },
+          { path: "vaccine", element: <Navigate to="/settings/treatment-items?tab=vaccine" replace /> },
+          { path: "consultation", element: <Navigate to="/settings/treatment-items?tab=consultation" replace /> },
+          { path: "procedure", element: <Navigate to="/settings/treatment-items?tab=procedure" replace /> },
+          { path: "inquiry-template", element: <Navigate to="/settings/inquiry-templates" replace /> },
           {
             path: "staff",
             element: <RequirePermission resource={ResourceMasterStaff}><Outlet /></RequirePermission>,

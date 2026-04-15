@@ -44,7 +44,7 @@ func (h *Handler) GetLiffProfile(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, profile)
+	c.JSON(http.StatusOK, toLiffProfileResponse(profile))
 }
 
 // GetLiffTypes はLIFF向け公開コース一覧を返す。

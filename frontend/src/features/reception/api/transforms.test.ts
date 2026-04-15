@@ -80,6 +80,39 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.petName).toBe("ポチ");
   });
 
+  it("LINE予約で relation が無い場合 customer_fields.owner_name を ownerName にフォールバックする", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      owner: undefined,
+      customer_fields: JSON.stringify({
+        owner_name: "山田太郎",
+      }),
+    });
+    expect(result.ownerName).toBe("山田太郎");
+  });
+
+  it("LINE予約で relation が無い場合 customer_fields.pets[0].name を petName にフォールバックする", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      pet: undefined,
+      customer_fields: JSON.stringify({
+        pets: [{ name: "ハナ", type: "柴犬" }],
+      }),
+    });
+    expect(result.petName).toBe("ハナ");
+  });
+
+  it("LINE予約で relation が無い場合 customer_fields.pets[0].type を petType にフォールバックする", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      pet: undefined,
+      customer_fields: JSON.stringify({
+        pets: [{ name: "ハナ", type: "柴犬" }],
+      }),
+    });
+    expect(result.petType).toBe("柴犬");
+  });
+
   it("reservation_type.name を reservationType にマップする", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,

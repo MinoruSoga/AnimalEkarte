@@ -1,16 +1,18 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v31.2（shift_templates・shift_template_breaks 追加）
+バージョン: v31.4（SQL マイグレーション 100% 同期）
 更新日: 2026-04-13
 状態: Production Ready
 
 ---
 
-## 変更概要（v31.1 → v31.2）
+## 変更概要（v31.3 → v31.4）
 
 | 変更内容 | 詳細 |
 |---------|------|
-| テーブル総数 65 → 67 | `shift_templates`, `shift_template_breaks` を追加 |
+| SQL同期 | 各テーブルの順序および定義を `001_init.sql` と完全に一致させた（varchar長など） |
+| 関係図整理 | 重複していたマルチテナント（clinic_id）セクションを各機能セクションへ統合し、重複定義を排除 |
+| 区分修正 | `merchandise_items` や `shift_templates` などのマスタ区分を正確に反映 |
 
 ---
 
@@ -23,7 +25,7 @@
 | 1 | `companies` | 法人情報 | 法人（ノア動物病院）情報 |
 | 2 | `clinics` | 医院情報 | 各医院（八王子・城東・敷島） |
 | 3 | `animal_species` | マスタ | ペット種類マスタ（犬・猫・鳥等） |
-| 4 | `occupations` | マスタ | 職種マスタ（clinic単位） |
+| 4 | `occupations` | マスタ | 職種マスタ |
 | 5 | `accounts` | 認証 | ログインアカウント |
 | 6 | `staffs` | マスタ | スタッフ |
 | 7 | `owners` | コア | 飼い主 |
@@ -47,7 +49,7 @@
 | 25 | `chief_complaint_types` | マスタ | 主訴区分マスタ |
 | 26 | `inquiry_templates` | マスタ | 問診定型文マスタ |
 | 27 | `pets` | コア | ペット |
-| 28 | `staff_clinic_assignments` | 認証 | スタッフ-クリニック中間テーブル |
+| 28 | `staff_clinic_assignments` | 認証 | スタッフ-クリニック所属 |
 | 29 | `permission_groups` | 権限 | 権限グループマスタ |
 | 30 | `permission_group_rules` | 権限 | 権限グループルール |
 | 31 | `staff_permission_groups` | 権限 | スタッフ-権限グループ中間テーブル |
@@ -615,7 +617,7 @@ erDiagram
         treatment_status status
         text content
         text memo
-        varchar admin_route
+        varchar_50 admin_route
         boolean is_insurance
         numeric discount_rate
         bigint discount_amount
@@ -1067,9 +1069,9 @@ erDiagram
         bigint id PK
         bigint clinic_id
         bigint actor_id
-        varchar actor_type
-        varchar action
-        varchar resource
+        varchar_30 actor_type
+        varchar_50 action
+        varchar_50 resource
         bigint resource_id
         jsonb old_value
         jsonb new_value
@@ -1122,8 +1124,8 @@ erDiagram
         text real_name
         jsonb additional_fields
         bigint owner_id FK
-        created_at timestamptz
-        updated_at timestamptz
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     staff_reservation_exclusions {
@@ -1150,12 +1152,32 @@ erDiagram
     staffs ||--o{ staff_clinic_assignments : "staff_id"
 
     %% コア
+    clinics ||--o{ owners : "clinic_id"
+    clinics ||--o{ pets : "clinic_id"
     owners ||--o{ pets : "owner_id"
     insurances ||--o{ pets : "insurance_id"
     animal_species ||--o{ pets : "animal_species_id"
 
     %% マスタ
     clinics ||--o{ occupations : "clinic_id"
+    clinics ||--o{ inventory_items : "clinic_id"
+    clinics ||--o{ cages : "clinic_id"
+    clinics ||--o{ exam_types : "clinic_id"
+    clinics ||--o{ vaccines : "clinic_id"
+    clinics ||--o{ medicines : "clinic_id"
+    clinics ||--o{ insurances : "clinic_id"
+    clinics ||--o{ consultations : "clinic_id"
+    clinics ||--o{ procedures : "clinic_id"
+    clinics ||--o{ hospitalization_plans : "clinic_id"
+    clinics ||--o{ merchandise_items : "clinic_id"
+    clinics ||--o{ trimming_courses : "clinic_id"
+    clinics ||--o{ trimming_options : "clinic_id"
+    clinics ||--o{ diagnosis_types : "clinic_id"
+    clinics ||--o{ diagnosis_names : "clinic_id"
+    clinics ||--o{ checkup_types : "clinic_id"
+    clinics ||--o{ chief_complaint_types : "clinic_id"
+    clinics ||--o{ inquiry_templates : "clinic_id"
+    clinics ||--o{ clinic_holidays : "clinic_id"
     occupations ||--o{ staffs : "occupation_id"
 
     %% 権限
@@ -1167,10 +1189,13 @@ erDiagram
     diagnosis_types ||--o{ diagnosis_names : "diagnosis_type_id"
     inventory_items ||--o{ medicines : "inventory_id"
     inventory_items ||--o{ vaccines : "inventory_id"
-    clinics ||--o{ chief_complaint_types : "clinic_id"
-    clinics ||--o{ inquiry_templates : "clinic_id"
 
     %% 診療
+    clinics ||--o{ medical_records : "clinic_id"
+    clinics ||--o{ exams : "clinic_id"
+    clinics ||--o{ vaccinations : "clinic_id"
+    clinics ||--o{ checkups : "clinic_id"
+    clinics ||--o{ estimates : "clinic_id"
     owners ||--o{ medical_records : "owner_id"
     pets ||--o{ medical_records : "pet_id"
     staffs ||--o{ medical_records : "doctor_id"
@@ -1225,6 +1250,9 @@ erDiagram
     staffs ||--o{ billing_confirmations : "returned_by"
 
     %% 予約
+    clinics ||--o{ appointments : "clinic_id"
+    clinics ||--o{ reservation_type_groups : "clinic_id"
+    clinics ||--o{ reservation_types : "clinic_id"
     appointments ||--o{ medical_records : "appointment_id"
     pets ||--o{ appointments : "pet_id"
     reservation_types ||--o{ appointments : "reservation_type_id"
@@ -1236,6 +1264,8 @@ erDiagram
     reservation_types ||--o{ staff_reservation_exclusions : "reservation_type_id"
 
     %% 入院
+    clinics ||--o{ hospitalizations : "clinic_id"
+    clinics ||--o{ daily_records : "clinic_id"
     owners ||--o{ hospitalizations : "owner_id"
     pets ||--o{ hospitalizations : "pet_id"
     cages ||--o{ hospitalizations : "cage_id"
@@ -1258,6 +1288,9 @@ erDiagram
     hospitalization_plans ||--o{ care_plan_items : "hospitalization_plan_id"
 
     %% トリミング
+    clinics ||--o{ trimming_records : "clinic_id"
+    clinics ||--o{ trimming_courses : "clinic_id"
+    clinics ||--o{ trimming_options : "clinic_id"
     pets ||--o{ trimming_records : "pet_id"
     staffs ||--o{ trimming_records : "staff_id"
     trimming_courses ||--o{ trimming_records : "course_id"
@@ -1265,6 +1298,8 @@ erDiagram
     trimming_options ||--o{ trimming_record_options : "option_id"
 
     %% 会計
+    clinics ||--o{ billings : "clinic_id"
+    clinics ||--o{ billing_refunds : "clinic_id"
     medical_records ||--o| billings : "medical_record_id"
     hospitalizations ||--o{ billings : "hospitalization_id"
     owners ||--o{ billings : "owner_id"
@@ -1274,52 +1309,72 @@ erDiagram
     merchandise_items ||--o{ estimate_items : "merchandise_item_id"
     billings ||--o| payments : "billing_id"
     billings ||--o{ billing_refunds : "billing_id"
-    clinics ||--o{ billing_refunds : "clinic_id"
-    clinics ||--o{ billings : "clinic_id"
 
     %% シフト
+    clinics ||--o{ shift_entries : "clinic_id"
+    clinics ||--o{ shift_templates : "clinic_id"
     staffs ||--o{ shift_entries : "staff_id"
     shift_entries ||--o{ shift_entry_breaks : "shift_entry_id"
-    clinics ||--o{ shift_templates : "clinic_id"
     shift_templates ||--o{ shift_template_breaks : "shift_template_id"
 
-    %% clinic_id マルチテナント（v10.0 + v22.0追加分）
-    clinics ||--o{ vaccinations : "clinic_id"
-    clinics ||--o{ checkups : "clinic_id"
-    clinics ||--o{ exams : "clinic_id"
-    clinics ||--o{ daily_records : "clinic_id"
-    clinics ||--o{ medical_records : "clinic_id"
-    clinics ||--o{ owners : "clinic_id"
-    clinics ||--o{ pets : "clinic_id"
-    clinics ||--o{ appointments : "clinic_id"
-    clinics ||--o{ hospitalizations : "clinic_id"
-    clinics ||--o{ trimming_records : "clinic_id"
-    clinics ||--o{ shift_entries : "clinic_id"
-    clinics ||--o{ estimates : "clinic_id"
-    clinics ||--o{ inventory_items : "clinic_id"
-    clinics ||--o{ cages : "clinic_id"
-    clinics ||--o{ reservation_type_groups : "clinic_id"
-    clinics ||--o{ reservation_types : "clinic_id"
+    %% LINE予約
     clinics ||--o{ line_reservation_settings : "clinic_id"
     clinics ||--o{ line_customers : "clinic_id"
-    clinics ||--o{ clinic_holidays : "clinic_id"
-    clinics ||--o{ consultations : "clinic_id"
-    clinics ||--o{ procedures : "clinic_id"
-    clinics ||--o{ medicines : "clinic_id"
-    clinics ||--o{ hospitalization_plans : "clinic_id"
-    clinics ||--o{ merchandise_items : "clinic_id"
-    clinics ||--o{ trimming_courses : "clinic_id"
-    clinics ||--o{ trimming_options : "clinic_id"
-    clinics ||--o{ exam_types : "clinic_id"
-    clinics ||--o{ vaccines : "clinic_id"
-    clinics ||--o{ insurances : "clinic_id"
-    clinics ||--o{ diagnosis_types : "clinic_id"
-    clinics ||--o{ diagnosis_names : "clinic_id"
-    clinics ||--o{ checkup_types : "clinic_id"
-    clinics ||--o{ chief_complaint_types : "clinic_id"
-    clinics ||--o{ inquiry_templates : "clinic_id"
     owners ||--o{ line_customers : "owner_id"
 ```
+
+---
+
+## ENUM型定義
+
+| ENUM名 | 値 |
+| ------- | ---- |
+| `pet_status` | alive, deceased |
+| `pet_gender` | male, female, unknown |
+| `acquisition_type` | purchased, transferred, rescued, other |
+| `danger_level` | low, medium, high |
+| `membership_type` | non_member, member, deceased, transferred |
+| `inventory_category` | medicine, consumable, food, other |
+| `inventory_status` | sufficient, low, out_of_stock |
+| `dosage_form` | tablet, liquid, injection, topical, powder |
+| `medicine_unit` | per_tablet, per_ml, per_dose, per_gram |
+| `cage_type` | icu, dog, cat, general |
+| `cage_size` | small, medium, large |
+| `body_size` | small, medium, large |
+| `billing_unit` | per_day, per_night |
+| `target_size` | small, medium, large, cat |
+| `anesthesia_type` | none, local, sedation, general |
+| `vaccine_species` | dog, cat, both |
+| `medical_record_status` | draft, finalized |
+| `treatment_item_type` | consultation, procedure, medicine, other |
+| `treatment_status` | pending, completed, not_applicable |
+| `exam_status` | pending, in_progress, result_entered, completed, confirmed |
+| `exam_result_status` | normal, high, low |
+| `next_schedule_type` | 3weeks, 4weeks, 1year, other |
+| `appetite_level` | normal, increased, decreased, none |
+| `water_intake_level` | normal, increased, decreased, none |
+| `medical_image_type` | xray, echo, photo, endoscope, ct, mri, microscope, other |
+| `estimate_status` | draft, sent, approved, rejected |
+| `confirmation_status` | pending, confirmed, returned |
+| `item_category` | examination, test, procedure, surgery, medicine, food, goods, other |
+| `item_source` | medical_record, manual, hospitalization |
+| `visit_type` | first, revisit |
+| `reservation_status` | confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed |
+| `staff_type` | doctor, nurse, trimmer, resource |
+| `reservation_source` | manual, line |
+| `billing_status` | waiting, completed, cancelled, pending |
+| `hospitalization_type` | hospitalization, hotel |
+| `hospitalization_status` | admitted, discharged, reserved |
+| `care_plan_type` | food, medicine, treatment, instruction, item |
+| `care_plan_status` | active, completed, discontinued |
+| `care_log_type` | food, excretion, medicine, treatment, other |
+| `care_log_status` | completed, partial, skipped |
+| `plan_timing` | morning, noon, night |
+| `body_weight_unit` | Kg, g |
+| `trimming_status` | completed, reserved, in_progress |
+| `payment_method` | cash, credit_card, electronic_money |
+| `shift_type` | full, morning, afternoon, off, paid_leave |
+| `tax_type` | included, excluded, exempt |
 
 ---
 

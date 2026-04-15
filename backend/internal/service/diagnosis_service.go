@@ -102,6 +102,9 @@ func (s *diagnosisTypeService) GetByID(ctx context.Context, clinicID, id uint64)
 }
 
 func (s *diagnosisTypeService) Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisTypeInput) (*model.DiagnosisType, error) {
+	if err := validateMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	diagType := &model.DiagnosisType{
 		ClinicID:    clinicID,
 		Name:        input.Name,
@@ -119,6 +122,9 @@ func (s *diagnosisTypeService) Create(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisTypeInput) (*model.DiagnosisType, error) {
+	if err := validateOptionalMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	fields := buildDiagnosisTypeUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -231,6 +237,9 @@ func (s *diagnosisNameService) GetByID(ctx context.Context, clinicID, id uint64)
 }
 
 func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisNameInput) (*model.DiagnosisName, error) {
+	if err := validateMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	// #020: FK validation — diagnosis_type_id の存在確認
 	if _, err := s.typeRepo.FindByID(ctx, clinicID, input.DiagnosisTypeID); err != nil {
 		return nil, apperrors.WrapInvalidInput("診断カテゴリが見つかりません")
@@ -253,6 +262,9 @@ func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisNameInput) (*model.DiagnosisName, error) {
+	if err := validateOptionalMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	// #020: FK validation — diagnosis_type_id が変更される場合のみ確認
 	if input.DiagnosisTypeID != nil {
 		if _, err := s.typeRepo.FindByID(ctx, clinicID, *input.DiagnosisTypeID); err != nil {

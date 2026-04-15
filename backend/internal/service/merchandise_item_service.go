@@ -112,8 +112,8 @@ func (s *merchandiseItemService) GetByID(ctx context.Context, clinicID, id uint6
 }
 
 func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, input *CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
-	if input.Name == "" {
-		return nil, apperrors.WrapInvalidInput("name is required")
+	if err := validateMasterName(input.Name); err != nil {
+		return nil, err
 	}
 	if input.UnitPrice < 0 {
 		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
@@ -151,6 +151,9 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 }
 
 func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+	if err := validateOptionalMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
 		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
 	}

@@ -52,6 +52,10 @@ func (m *mockInventoryRepository) CountUsageByInventoryID(ctx context.Context, i
 	return 0, nil
 }
 
+func (m *mockInventoryRepository) DeleteByNameAndMedicineCategory(_ context.Context, _ uint64, _ string) error {
+	return nil
+}
+
 func TestInventoryService_List(t *testing.T) {
 	category := string(model.InventoryCategoryMedicine)
 	status := string(model.InventoryStatusLow)

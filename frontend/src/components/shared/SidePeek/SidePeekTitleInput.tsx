@@ -12,7 +12,10 @@ interface SidePeekTitleInputProps {
   onSave?: () => void;
   /** BUG-083: inline error message displayed below the title field */
   error?: string;
-  /** Maximum number of characters allowed in the title field */
+  /**
+   * Maximum number of characters allowed in the title field.
+   * BUG-379: デフォルト 255 文字。マスタ名称の DB 上限と整合させる。
+   */
   maxLength?: number;
 }
 
@@ -24,7 +27,7 @@ export const SidePeekTitleInput = memo(function SidePeekTitleInput({
   autoFocus = true,
   onSave,
   error,
-  maxLength,
+  maxLength = 255,
 }: SidePeekTitleInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {

@@ -1,7 +1,8 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
+import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Lock } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -68,6 +69,7 @@ interface PermissionGroupSidePanelProps {
   onSave: (d: PermissionGroupFormData) => void;
   onDeleteRequest?: (i: PermissionGroup) => void;
   readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
@@ -76,10 +78,11 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
   onSave,
   onDeleteRequest,
   readOnly,
+  onDirtyChange,
 }: PermissionGroupSidePanelProps) {
   const isNew = item === null;
 
-  const [f, setF] = useState<PermissionGroupFormData>(() => ({
+  const [formData, setFormData] = useState<PermissionGroupFormData>(() => ({
     name: item?.name ?? "",
     description: item?.description ?? "",
     color: item?.color ?? PALETTE.pickerDefaultGray,
@@ -95,46 +98,49 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
+  // BUG-380
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
+    setIsDirty(true);
+  }, []);
+
   // ── Handlers ─────────────────────────────────────
   const handleSave = useCallback(() => {
-    if (!f.name.trim()) {
+    if (!formData.name.trim()) {
       setNameError("グループ名を入力してください");
       return;
     }
     setNameError("");
-    onSave(f);
+    onSave(formData);
     setIsDirty(false);
-  }, [f, onSave]);
+  }, [formData, onSave]);
 
   const handleNameChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, name: v }));
-    setIsDirty(true);
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
     if (v.trim()) setNameError("");
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setF((p) => ({ ...p, description: e.target.value }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, description: e.target.value }));
+  }, [setFormDataDirty]);
 
   const handleColorChange = useCallback((v: string) => {
-    setF((p) => ({ ...p, color: v }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, color: v }));
+  }, [setFormDataDirty]);
 
   const handleToggleActive = useCallback(() => {
-    setF((p) => ({ ...p, isActive: !p.isActive }));
-    setIsDirty(true);
-  }, []);
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
 
   const handleRuleChange = useCallback((resource: string, field: keyof Omit<PermissionRule, "resource">, value: boolean) => {
-    setF((p) => {
-      const existingRule = p.rules.find((r) => r.resource === resource);
+    setFormDataDirty((prev) => {
+      const existingRule = prev.rules.find((r) => r.resource === resource);
       if (existingRule) {
         // 既存ルール更新
         return {
-          ...p,
-          rules: p.rules.map((r) =>
+          ...prev,
+          rules: prev.rules.map((r) =>
             r.resource === resource ? { ...r, [field]: value } : r
           ),
         };
@@ -148,13 +154,12 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
           canDelete: field === "canDelete" ? value : false,
         };
         return {
-          ...p,
-          rules: [...p.rules, newRule],
+          ...prev,
+          rules: [...prev.rules, newRule],
         };
       }
     });
-    setIsDirty(true);
-  }, []);
+  }, [setFormDataDirty]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -164,7 +169,7 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
   return (
     <MasterSidePanel
       isNew={isNew}
-      title={f.name}
+      title={formData.name}
       onTitleChange={handleNameChange}
       onClose={handleClose}
       action={readOnly ? undefined : handleSave}
@@ -176,14 +181,14 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
       readOnly={readOnly}
     >
       <StatusToggleButton
-        isActive={f.isActive}
+        isActive={formData.isActive}
         onToggle={handleToggleActive}
       />
 
       <PropertyRow label="説明">
         <textarea
           className={`${MASTER_INPUT_CLASS} resize-none`}
-          value={f.description}
+          value={formData.description}
           onChange={handleDescriptionChange}
           placeholder="グループの説明"
           rows={3}
@@ -195,16 +200,16 @@ const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
           <input
             type="color"
             className="w-12 h-12 rounded border"
-            value={f.color}
+            value={formData.color}
             onChange={(e) => handleColorChange(e.target.value)}
           />
-          <span className={`text-sm ${C.text50}`}>{f.color}</span>
+          <span className={`text-sm ${C.text50}`}>{formData.color}</span>
         </div>
       </PropertyRow>
 
       <PermissionRuleTable
         group={item}
-        rules={f.rules}
+        rules={formData.rules}
         onRuleChange={handleRuleChange}
         disabled={readOnly}
       />
@@ -225,6 +230,7 @@ export function PermissionGroupSettings() {
   const setRulesMutation = useSetPermissionGroupRules();
   const reorderMutation = useReorderPermissionGroups();
 
+  const dirty = useSidePeekDirty();
   const crud = useMasterCRUD<PermissionGroup>({
     data,
     deleteMutation,
@@ -242,7 +248,9 @@ export function PermissionGroupSettings() {
       }
       return true;
     },
+    dirtyGuard: dirty,
   });
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: crud.filteredItems,
@@ -315,6 +323,7 @@ export function PermissionGroupSettings() {
           onSave={onSave}
           onDeleteRequest={onDeleteRequest}
           readOnly={readOnly}
+          onDirtyChange={handleDirtyChange}
         />
       )}
     >

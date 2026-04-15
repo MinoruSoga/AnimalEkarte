@@ -44,6 +44,9 @@ func (s *trimmingCourseService) GetByID(ctx context.Context, clinicID, id uint64
 	return result, nil
 }
 func (s *trimmingCourseService) Create(ctx context.Context, course *model.TrimmingCourse) error {
+	if err := validateMasterName(course.Name); err != nil {
+		return err
+	}
 	if err := s.repo.Create(ctx, course); err != nil {
 		return apperrors.Wrap(err, "failed to create trimming course")
 	}
@@ -51,6 +54,9 @@ func (s *trimmingCourseService) Create(ctx context.Context, course *model.Trimmi
 	return nil
 }
 func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
+	if err := validateOptionalMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	fields := buildTrimmingCourseUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -159,6 +165,9 @@ func (s *trimmingOptionService) GetByID(ctx context.Context, clinicID, id uint64
 	return result, nil
 }
 func (s *trimmingOptionService) Create(ctx context.Context, option *model.TrimmingOption) error {
+	if err := validateMasterName(option.Name); err != nil {
+		return err
+	}
 	if err := s.repo.Create(ctx, option); err != nil {
 		return apperrors.Wrap(err, "failed to create trimming option")
 	}
@@ -166,6 +175,9 @@ func (s *trimmingOptionService) Create(ctx context.Context, option *model.Trimmi
 	return nil
 }
 func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingOptionInput) (*model.TrimmingOption, error) {
+	if err := validateOptionalMasterName(input.Name); err != nil {
+		return nil, err
+	}
 	fields := buildTrimmingOptionUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
