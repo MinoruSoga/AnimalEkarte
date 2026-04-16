@@ -1,0 +1,219 @@
+import { useActionState, useCallback, useMemo, useState } from "react";
+import { Trash2, Plus, Clock } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { handleApiError } from "@/lib/handle-api-error";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
+import {
+  useGetUnavailableTimes,
+  useCreateUnavailableTime,
+  useDeleteUnavailableTime,
+} from "@/features/master/api/reservation-type-unavailable-times";
+import {
+  UnavailableTypeWeekly,
+  UnavailableTypeSpecific,
+} from "@/types/generated/models";
+import type { CreateUnavailableTimeRequest } from "@/features/master/api/reservation-type-unavailable-times";
+
+// ─────────────────────────────────────────────────
+// 静的定数（rendering-hoist-jsx）
+// ─────────────────────────────────────────────────
+
+const DAY_OF_WEEK_ITEMS = (
+  <>
+    <SelectItem value="0">日曜日</SelectItem>
+    <SelectItem value="1">月曜日</SelectItem>
+    <SelectItem value="2">火曜日</SelectItem>
+    <SelectItem value="3">水曜日</SelectItem>
+    <SelectItem value="4">木曜日</SelectItem>
+    <SelectItem value="5">金曜日</SelectItem>
+    <SelectItem value="6">土曜日</SelectItem>
+  </>
+);
+
+const DAY_OF_WEEK_LABELS: Record<number, string> = {
+  0: "日", 1: "月", 2: "火", 3: "水", 4: "木", 5: "金", 6: "土",
+};
+
+/** 30分刻みの時刻選択肢 "HH:MM" */
+const TIME_OPTIONS: string[] = [];
+for (let h = 0; h < 24; h++) {
+  for (const m of [0, 30]) {
+    TIME_OPTIONS.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+  }
+}
+
+const TIME_SELECT_ITEMS = TIME_OPTIONS.map((t) => (
+  <SelectItem key={t} value={t}>{t}</SelectItem>
+));
+
+// ─────────────────────────────────────────────────
+// Default form state
+// ─────────────────────────────────────────────────
+
+interface FormState {
+  unavailableType: string;
+  dayOfWeek: string;
+  specificDate: string;
+  startTime: string;
+  endTime: string;
+}
+
+const DEFAULT_FORM: FormState = {
+  unavailableType: UnavailableTypeWeekly,
+  dayOfWeek: "1",
+  specificDate: "",
+  startTime: "09:00",
+  endTime: "18:00",
+};
+
+// ─────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────
+
+interface Props {
+  clinicId: string;
+  reservationTypeId: string;
+}
+
+export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTypeId }: Props) {
+  const { data: items = [], isLoading } = useGetUnavailableTimes(clinicId, reservationTypeId);
+  const createMutation = useCreateUnavailableTime(clinicId, reservationTypeId);
+  const deleteMutation = useDeleteUnavailableTime(clinicId, reservationTypeId);
+
+  const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+
+  const handleFieldChange = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const [, formAction] = useActionState(async () => {
+    try {
+      const req: CreateUnavailableTimeRequest = {
+        unavailable_type: form.unavailableType,
+        start_time: form.startTime,
+        end_time: form.endTime,
+        ...(form.unavailableType === UnavailableTypeWeekly
+          ? { day_of_week: Number(form.dayOfWeek) }
+          : { specific_date: form.specificDate }),
+      };
+      await createMutation.mutateAsync(req);
+      setForm(DEFAULT_FORM);
+    } catch (error) {
+      handleApiError(error, "予約不可時間の追加");
+    }
+  }, null);
+
+  const handleDelete = useCallback((id: number) => {
+    deleteMutation.mutate(id, {
+      onError: (error) => handleApiError(error, "削除"),
+    });
+  }, [deleteMutation]);
+
+  const itemList = useMemo(() => items.map((item) => {
+    const label = item.unavailable_type === UnavailableTypeWeekly
+      ? `毎週${DAY_OF_WEEK_LABELS[item.day_of_week ?? 0]}曜日`
+      : item.specific_date ?? "";
+
+    return (
+      <div
+        key={item.id}
+        className={`flex items-center justify-between gap-2 py-1.5 px-2 rounded-[3px] ${C.hoverBgLight} transition-colors group`}
+      >
+        <Clock className={`${ICON.smXs} ${C.text40} shrink-0`} />
+        <span className={`flex-1 text-sm ${C.text}`}>{label}</span>
+        <span className={`text-sm ${C.text50} tabular-nums`}>{item.start_time}〜{item.end_time}</span>
+        <button
+          type="button"
+          onClick={() => handleDelete(item.id)}
+          className={`opacity-0 group-hover:opacity-100 ${ICON.smXs} ${C.text40} ${C.hoverTextDanger} transition-colors`}
+          aria-label="削除"
+        >
+          <Trash2 className={ICON.smXs} />
+        </button>
+      </div>
+    );
+  }), [items, handleDelete]);
+
+  return (
+    <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
+      <div className="flex items-center gap-1.5 mb-3">
+        <Clock className={ICON.smXs} style={{ color: C.text50 }} />
+        <p className={`text-xs font-medium ${C.text50}`}>予約不可時間</p>
+      </div>
+
+      {/* 既存リスト */}
+      {isLoading ? (
+        <p className={`text-sm ${C.text40} py-2`}>読み込み中...</p>
+      ) : items.length > 0 ? (
+        <div className="mb-3 space-y-0.5">{itemList}</div>
+      ) : null}
+
+      {/* 追加フォーム */}
+      <form action={formAction} className="space-y-2">
+        {/* 種別 */}
+        <div className="flex items-center gap-2">
+          <Select
+            value={form.unavailableType}
+            onValueChange={(v) => handleFieldChange("unavailableType", v)}
+          >
+            <SelectTrigger className={STYLE.selectCompact}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={UnavailableTypeWeekly}>毎週</SelectItem>
+              <SelectItem value={UnavailableTypeSpecific}>特定日</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* 曜日 or 日付 */}
+          {form.unavailableType === UnavailableTypeWeekly ? (
+            <Select
+              value={form.dayOfWeek}
+              onValueChange={(v) => handleFieldChange("dayOfWeek", v)}
+            >
+              <SelectTrigger className={STYLE.selectCompact}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>{DAY_OF_WEEK_ITEMS}</SelectContent>
+            </Select>
+          ) : (
+            <input
+              type="date"
+              value={form.specificDate}
+              onChange={(e) => handleFieldChange("specificDate", e.target.value)}
+              className={`rounded-[3px] border ${C.borderMedium} px-2 py-1 text-sm ${C.text} bg-white`}
+            />
+          )}
+        </div>
+
+        {/* 時間帯 */}
+        <div className="flex items-center gap-2">
+          <Select
+            value={form.startTime}
+            onValueChange={(v) => handleFieldChange("startTime", v)}
+          >
+            <SelectTrigger className={STYLE.selectCompact}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>{TIME_SELECT_ITEMS}</SelectContent>
+          </Select>
+          <span className={`text-sm ${C.text50}`}>〜</span>
+          <Select
+            value={form.endTime}
+            onValueChange={(v) => handleFieldChange("endTime", v)}
+          >
+            <SelectTrigger className={STYLE.selectCompact}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>{TIME_SELECT_ITEMS}</SelectContent>
+          </Select>
+          <SubmitButton loadingText="追加中..." className="h-8 text-sm px-3">
+            <Plus className={ICON.smXs} />
+            追加
+          </SubmitButton>
+        </div>
+      </form>
+    </div>
+  );
+}

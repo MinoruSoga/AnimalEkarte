@@ -4,6 +4,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
+import { ReservationTypeUnavailableTimesSection } from "@/features/master/components/ReservationTypeUnavailableTimesSection";
+import { ReservationTypeOccupationsSection } from "@/features/master/components/ReservationTypeOccupationsSection";
 import type { ReservationType } from "@/features/master/api/reservation-types";
 
 // ── 静的 SelectItem JSX (rendering-hoist-jsx) ──────────────────
@@ -178,6 +180,19 @@ export const CategorySidePanel = memo(function CategorySidePanel({
             placeholder="LINE予約画面に表示する説明" />
         </PropertyRow>
       </div>
+
+      {item !== null ? (
+        <>
+          <ReservationTypeUnavailableTimesSection
+            clinicId={item.clinicId}
+            reservationTypeId={item.id}
+          />
+          <ReservationTypeOccupationsSection
+            clinicId={item.clinicId}
+            reservationTypeId={item.id}
+          />
+        </>
+      ) : null}
     </MasterSidePanel>
   );
 });

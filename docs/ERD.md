@@ -1,21 +1,22 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v31.6（SQL マイグレーション 100% 同期）
-更新日: 2026-04-15
+バージョン: v31.7（SQL マイグレーション 100% 同期）
+更新日: 2026-04-16
 状態: Production Ready
 
 ---
 
-## 変更概要（v31.5 → v31.6）
+## 変更概要（v31.6 → v31.7）
 
 | 変更内容 | 詳細 |
 |---------|------|
-| 定期監査 | 2026-04-15 時点の `001_init.sql` との完全同期を再確認 |
-| 記載整理 | 重複記載の有無を全件スキャンし、クリーンな状態であることを確認 |
+| 定期監査 | 2026-04-16 時点の `001_init.sql` との同期を再確認 |
+| トリミング | 旧 `trimming_records` / `trimming_record_options` を `appointment_trimming_details` / `appointment_trimming_options` に更新 |
+| 予約区分 | `reservation_type_unavailable_times`、`reservation_type_occupations`、`reservation_types.category` を追加 |
 
 ---
 
-## テーブル一覧（67テーブル）
+## テーブル一覧（69テーブル）
 
 > テーブル順序は `001_init.sql` の CREATE TABLE 順に準拠。
 
@@ -52,42 +53,44 @@
 | 29 | `permission_groups` | 権限 | 権限グループマスタ |
 | 30 | `permission_group_rules` | 権限 | 権限グループルール |
 | 31 | `staff_permission_groups` | 権限 | スタッフ-権限グループ中間テーブル |
-| 32 | `appointments` | 予約 | 予約 |
-| 33 | `hospitalizations` | 入院 | 入院・ホテル |
-| 34 | `trimming_records` | トリミング | トリミング記録 |
-| 35 | `medical_records` | 診療 | カルテ |
-| 36 | `vaccinations` | 診療 | ワクチン接種記録 |
-| 37 | `checkups` | 診療 | 健診記録 |
-| 38 | `exams` | 診療 | 検査記録 |
-| 39 | `inquiries` | 診療 | 問診情報 |
-| 40 | `clinical_plans` | 診療 | 診察所見・診断・治療方針 |
-| 41 | `treatments` | 診療 | 処置・診察・薬剤明細 |
-| 42 | `treatment_plans` | 診療 | 治療プラン |
-| 43 | `medical_record_images` | 診療 | 診療画像 |
-| 44 | `billing_confirmations` | 診療 | 会計医師確認 |
-| 45 | `estimates` | 診療 | 見積書 |
-| 46 | `exam_results` | 診療 | 検査記録の検査結果項目 |
-| 47 | `daily_records` | 入院 | 入院日次記録 |
-| 48 | `vital_records` | 診療・入院 | バイタル記録 |
-| 49 | `care_plan_items` | 入院 | ケアプラン項目 |
-| 50 | `estimate_items` | 診療 | 見積書明細 |
-| 51 | `care_logs` | 入院 | ケアログ |
-| 52 | `staff_notes` | 入院 | スタッフノート |
-| 53 | `trimming_record_options` | トリミング | トリミング記録のオプション選択 |
-| 54 | `billings` | 会計 | 会計 |
-| 55 | `billing_items` | 会計 | 会計明細 |
-| 56 | `payments` | 会計 | 支払い情報 |
-| 57 | `billing_refunds` | 会計 | 返金レコード |
-| 58 | `shift_entries` | シフト | スタッフシフト |
-| 59 | `clinic_holidays` | シフト | 医院個別休診日 |
-| 60 | `merchandise_items` | マスタ | 物販・フード・その他マスタ |
-| 61 | `audit_logs` | 監査 | 操作監査ログ |
-| 62 | `line_reservation_settings` | LINE予約 | LINE予約基本設定 |
-| 63 | `line_customers` | LINE予約 | LINE予約ユーザー管理 |
+| 32 | `line_customers` | LINE予約 | LINE予約ユーザー管理 |
+| 33 | `appointments` | 予約 | 予約 |
+| 34 | `hospitalizations` | 入院 | 入院・ホテル |
+| 35 | `appointment_trimming_details` | トリミング | 予約に紐づくトリミング詳細 |
+| 36 | `appointment_trimming_options` | トリミング | 予約に紐づくトリミングオプション選択 |
+| 37 | `medical_records` | 診療 | カルテ |
+| 38 | `vaccinations` | 診療 | ワクチン接種記録 |
+| 39 | `checkups` | 診療 | 健診記録 |
+| 40 | `exams` | 診療 | 検査記録 |
+| 41 | `inquiries` | 診療 | 問診情報 |
+| 42 | `clinical_plans` | 診療 | 診察所見・診断・治療方針 |
+| 43 | `treatments` | 診療 | 処置・診察・薬剤明細 |
+| 44 | `treatment_plans` | 診療 | 治療プラン |
+| 45 | `medical_record_images` | 診療 | 診療画像 |
+| 46 | `billing_confirmations` | 診療 | 会計医師確認 |
+| 47 | `estimates` | 診療 | 見積書 |
+| 48 | `exam_results` | 診療 | 検査記録の検査結果項目 |
+| 49 | `daily_records` | 入院 | 入院日次記録 |
+| 50 | `vital_records` | 診療・入院 | バイタル記録 |
+| 51 | `care_plan_items` | 入院 | ケアプラン項目 |
+| 52 | `merchandise_items` | マスタ | 物販・フード・その他マスタ |
+| 53 | `estimate_items` | 診療 | 見積書明細 |
+| 54 | `care_logs` | 入院 | ケアログ |
+| 55 | `staff_notes` | 入院 | スタッフノート |
+| 56 | `billings` | 会計 | 会計 |
+| 57 | `billing_items` | 会計 | 会計明細 |
+| 58 | `payments` | 会計 | 支払い情報 |
+| 59 | `billing_refunds` | 会計 | 返金レコード |
+| 60 | `shift_entries` | シフト | スタッフシフト |
+| 61 | `clinic_holidays` | シフト | 医院個別休診日 |
+| 62 | `audit_logs` | 監査 | 操作監査ログ |
+| 63 | `line_reservation_settings` | LINE予約 | LINE予約基本設定 |
 | 64 | `staff_reservation_exclusions` | 予約マスタ | スタッフ × 非対応予約区分 |
 | 65 | `shift_entry_breaks` | シフト | シフト中の休憩時間管理 |
 | 66 | `shift_templates` | マスタ | シフトテンプレートマスタ |
 | 67 | `shift_template_breaks` | マスタ | シフトテンプレートの休憩時間管理 |
+| 68 | `reservation_type_unavailable_times` | 予約マスタ | 予約区分ごとの予約不可時間 |
+| 69 | `reservation_type_occupations` | 予約マスタ | 予約区分と職種の対応 |
 
 ---
 
@@ -412,6 +415,7 @@ erDiagram
         text reservation_image_url
         text reservation_day_option
         boolean is_internal
+        reservation_type_category category
         timestamptz created_at
         timestamptz updated_at
     }
@@ -924,14 +928,11 @@ erDiagram
     }
 
     %% ===== トリミング =====
-    trimming_records {
+    appointment_trimming_details {
         bigint id PK
         bigint clinic_id FK
-        date date
-        bigint pet_id FK
-        bigint staff_id FK
+        bigint appointment_id FK
         bigint course_id FK
-        trimming_status status
         text style_request
         numeric body_weight
         body_weight_unit bw_unit
@@ -943,16 +944,14 @@ erDiagram
         text completed_image
         timestamptz created_at
         timestamptz updated_at
-        timestamptz deleted_at
     }
 
-    trimming_record_options {
+    appointment_trimming_options {
         bigint id PK
-        bigint trimming_record_id FK
+        bigint appointment_id FK
         bigint option_id FK
         integer sort_order
         timestamptz created_at
-        timestamptz updated_at
     }
 
     %% ===== 会計 =====
@@ -1137,6 +1136,27 @@ erDiagram
         bigint reservation_type_id FK
     }
 
+    reservation_type_unavailable_times {
+        bigint id PK
+        bigint clinic_id FK
+        bigint reservation_type_id FK
+        text unavailable_type
+        smallint day_of_week
+        date specific_date
+        varchar_5 start_time
+        varchar_5 end_time
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    reservation_type_occupations {
+        bigint id PK
+        bigint clinic_id FK
+        bigint reservation_type_id FK
+        bigint occupation_id FK
+        timestamptz created_at
+    }
+
     clinic_holidays {
         bigint id PK
         bigint clinic_id FK
@@ -1266,6 +1286,11 @@ erDiagram
     line_customers ||--o{ appointments : "line_customer_id"
     staffs ||--o{ staff_reservation_exclusions : "staff_id"
     reservation_types ||--o{ staff_reservation_exclusions : "reservation_type_id"
+    clinics ||--o{ reservation_type_unavailable_times : "clinic_id"
+    reservation_types ||--o{ reservation_type_unavailable_times : "reservation_type_id"
+    clinics ||--o{ reservation_type_occupations : "clinic_id"
+    reservation_types ||--o{ reservation_type_occupations : "reservation_type_id"
+    occupations ||--o{ reservation_type_occupations : "occupation_id"
 
     %% 入院
     clinics ||--o{ hospitalizations : "clinic_id"
@@ -1293,14 +1318,13 @@ erDiagram
     hospitalization_plans ||--o{ care_plan_items : "hospitalization_plan_id"
 
     %% トリミング
-    clinics ||--o{ trimming_records : "clinic_id"
+    clinics ||--o{ appointment_trimming_details : "clinic_id"
     clinics ||--o{ trimming_courses : "clinic_id"
     clinics ||--o{ trimming_options : "clinic_id"
-    pets ||--o{ trimming_records : "pet_id"
-    staffs ||--o{ trimming_records : "staff_id"
-    trimming_courses ||--o{ trimming_records : "course_id"
-    trimming_records ||--o{ trimming_record_options : "trimming_record_id"
-    trimming_options ||--o{ trimming_record_options : "option_id"
+    appointments ||--o| appointment_trimming_details : "appointment_id"
+    trimming_courses ||--o{ appointment_trimming_details : "course_id"
+    appointments ||--o{ appointment_trimming_options : "appointment_id"
+    trimming_options ||--o{ appointment_trimming_options : "option_id"
 
     %% 会計
     clinics ||--o{ billings : "clinic_id"
@@ -1380,7 +1404,7 @@ erDiagram
 | `care_log_status` | completed, partial, skipped |
 | `plan_timing` | morning, noon, night |
 | `body_weight_unit` | Kg, g |
-| `trimming_status` | completed, reserved, in_progress |
+| `reservation_type_category` | general, trimming |
 | `payment_method` | cash, credit_card, electronic_money |
 | `shift_type` | full, morning, afternoon, off, paid_leave |
 | `tax_type` | included, excluded, exempt |
