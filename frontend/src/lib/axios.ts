@@ -25,7 +25,13 @@ function sanitizeNullBytes(value: unknown): unknown {
 function requestInterceptor(config: InternalAxiosRequestConfig) {
   config.headers ??= new Axios.AxiosHeaders() as typeof config.headers;
   config.headers.Accept = "application/json";
-  config.headers["X-Request-ID"] = crypto.randomUUID();
+  // crypto.randomUUID() は HTTPS または localhost (secure context) でのみ利用可能。
+  // Docker内ホスト名 (frontend:3000) など非セキュアコンテキストでは使用不可のため
+  // Math.random ベースのフォールバックを用意する。
+  config.headers["X-Request-ID"] =
+    typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   // Authorization ヘッダは不要 — httpOnly Cookie が自動送信される（withCredentials: true）
 
   // クリニック切替: localStorage の選択クリニック ID をヘッダーで送信
