@@ -18,6 +18,7 @@ export const useCreateTrimming = () => {
   return useMutation({
     mutationFn: createTrimming,
     onSuccess: () => {
+      // ["trimmings"] 配下のすべてのキー（一覧・ペット別一覧）を無効化
       queryClient.invalidateQueries({ queryKey: ["trimmings"] });
     },
     onError: (error) => {

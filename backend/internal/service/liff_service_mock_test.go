@@ -69,9 +69,10 @@ func (m *mockLiffTypeRepository) SwapSortOrder(_ context.Context, _, _ uint64, _
 // --- mockLiffStaffRepository ---
 
 type mockLiffStaffRepository struct {
-	findAllByClinicIDFn            func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
-	findByIDFn                     func(ctx context.Context, id uint64) (*model.Staff, error)
-	findExcludedReservationTypesFn func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
+	findAllByClinicIDFn                      func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
+	findByIDFn                               func(ctx context.Context, id uint64) (*model.Staff, error)
+	findExcludedReservationTypesFn           func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
+	findExcludedReservationTypesByStaffIDsFn func(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
 }
 
 func (m *mockLiffStaffRepository) FindAllByClinicID(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
@@ -113,7 +114,10 @@ func (m *mockLiffStaffRepository) FindExcludedReservationTypes(ctx context.Conte
 	return nil, nil
 }
 
-func (m *mockLiffStaffRepository) FindExcludedReservationTypesByStaffIDs(_ context.Context, _ []uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockLiffStaffRepository) FindExcludedReservationTypesByStaffIDs(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
+	if m.findExcludedReservationTypesByStaffIDsFn != nil {
+		return m.findExcludedReservationTypesByStaffIDsFn(ctx, staffIDs)
+	}
 	return nil, nil
 }
 
@@ -346,6 +350,10 @@ func (m *mockLiffReservationRepository) CountByCustomerAndDateRange(_ context.Co
 
 func (m *mockLiffReservationRepository) CountByDateAndSource(_ context.Context, _ uint64, _ time.Time, _ model.ReservationSource) (int64, error) {
 	return 0, nil
+}
+
+func (m *mockLiffReservationRepository) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Appointment, int64, error) {
+	return nil, 0, nil
 }
 
 // --- mockLiffValidators ---

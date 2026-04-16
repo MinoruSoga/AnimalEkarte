@@ -1,43 +1,131 @@
-import type { TrimmingRecord as BackendTrimmingRecord } from "@/types/generated/models";
+/**
+ * トリミング API 型定義（BE-119: appointments ベース）
+ *
+ * NOTE: BackendTrimming はハンドラの trimmingResponse DTO であり、
+ * models.ts の Go モデルとは別物。make codegen では更新されない。
+ */
 
-export type BackendTrimming = BackendTrimmingRecord;
+// -------------------------------------------------------
+// Backend Response DTO (trimming_response.go に対応)
+// -------------------------------------------------------
+
+/** トリミング予約詳細の option summary */
+export interface TrimmingOptionSummary {
+  id: number;
+  name: string;
+}
+
+/** トリミングコース summary */
+export interface TrimmingCourseSummary {
+  id: number;
+  name: string;
+  price: number;
+}
+
+/** ペット情報 summary（関連レコード） */
+export interface PetSummary {
+  id: number;
+  name: string;
+  pet_number?: string;
+  weight?: number | null;
+  animal_species?: { id: number; name: string } | null;
+  owner?: { id: number; name: string } | null;
+}
+
+/** スタッフ情報 summary（関連レコード） */
+export interface StaffSummary {
+  id: number;
+  name: string;
+}
 
 /**
- * サーバー側で自動生成されるフィールド（リクエストに含めない）
+ * トリミング予約 API レスポンス DTO
+ * handler/trimming_response.go の trimmingResponse に対応
  */
-type ServerFields =
-  | "id"
-  | "clinic_id"
-  | "weight"
-  | "created_at"
-  | "updated_at"
-  | "pet"
-  | "staff"
-  | "course"
-  | "options";
+export interface BackendTrimming {
+  id: number;
+  clinic_id: number;
+  reservation_type_id: number;
+  start_time: string;
+  end_time: string;
+  pet_id?: number | null;
+  staff_id?: number | null;
+  status: string;
+  source: string;
+  // トリミング詳細（appointment_trimming_details から flat 化）
+  course_id?: number | null;
+  style_request: string;
+  bw?: number | null;
+  bw_unit: string;
+  bt?: number | null;
+  used_shampoo: string;
+  used_ribbon: string;
+  remarks: string;
+  style_image: string;
+  completed_image: string;
+  created_at: string;
+  updated_at: string;
+  // リレーション
+  pet?: PetSummary | null;
+  staff?: StaffSummary | null;
+  course?: TrimmingCourseSummary | null;
+  options: TrimmingOptionSummary[];
+}
+
+// -------------------------------------------------------
+// Request Types
+// -------------------------------------------------------
 
 /**
- * リクエストで送信可能なトリミングフィールド
- * Goモデル変更 → make codegen → models.ts 更新で自動追従
+ * トリミング作成リクエスト（POST /v1/trimmings）
+ * handler/trimming_request.go の createTrimmingRequest に対応
  */
-type TrimmingWritable = Omit<BackendTrimmingRecord, ServerFields>;
-
-/**
- * トリミング作成リクエスト
- * pet_id / staff_id / course_id のみ必須、残りはoptional
- */
-export type CreateTrimmingRequest =
-  Required<Pick<TrimmingWritable, "pet_id" | "staff_id" | "course_id">> &
-  Partial<Omit<TrimmingWritable, "pet_id" | "staff_id" | "course_id">> & {
-    option_ids?: number[];
-  };
-
-/**
- * トリミング更新リクエスト（PATCH: 全フィールドoptional）
- */
-export type UpdateTrimmingRequest = Partial<TrimmingWritable> & {
+export interface CreateTrimmingRequest {
+  reservation_type_id: number;
+  start_time: string;
+  end_time: string;
+  pet_id?: number | null;
+  staff_id?: number | null;
+  status?: string;
+  course_id?: number | null;
+  style_request?: string;
+  bw?: number | null;
+  bw_unit?: string;
+  bt?: number | null;
+  used_shampoo?: string;
+  used_ribbon?: string;
+  remarks?: string;
+  style_image?: string;
+  completed_image?: string;
   option_ids?: number[];
-};
+}
+
+/**
+ * トリミング更新リクエスト（PATCH /v1/trimmings/:id — 全フィールドoptional）
+ * handler/trimming_request.go の updateTrimmingRequest に対応
+ */
+export interface UpdateTrimmingRequest {
+  start_time?: string;
+  end_time?: string;
+  pet_id?: number | null;
+  staff_id?: number | null;
+  status?: string;
+  course_id?: number | null;
+  style_request?: string;
+  bw?: number | null;
+  bw_unit?: string;
+  bt?: number | null;
+  used_shampoo?: string;
+  used_ribbon?: string;
+  remarks?: string;
+  style_image?: string;
+  completed_image?: string;
+  option_ids?: number[];
+}
+
+// -------------------------------------------------------
+// List Response
+// -------------------------------------------------------
 
 /**
  * トリミング一覧APIレスポンス
@@ -49,21 +137,18 @@ export interface TrimmingListResponse {
   limit: number;
 }
 
+// -------------------------------------------------------
+// UI Form Data (フォーム専用・手書きOK)
+// -------------------------------------------------------
+
 /**
  * トリミングフォーム入力データ（UI専用）
  */
 export interface TrimmingFormData {
+  reservationTypeId: string;
+  startTime: string;
+  endTime: string;
   styleRequest: string;
-  memo: string;
-  eggs: string;
-  parts: {
-    nail: boolean;
-    analGland: boolean;
-    eye: boolean;
-    ear: boolean;
-    skin: boolean;
-    oral: boolean;
-  };
   styleImage: File | null;
   bw: string;
   bwUnit: "Kg" | "g";
@@ -72,8 +157,8 @@ export interface TrimmingFormData {
   usedRibbon: string;
   remarks: string;
   completedImage: File | null;
-  courseId: string | number;
-  optionIds: (string | number)[];
-  staffId: string | number;
+  courseId: string;
+  optionIds: string[];
+  staffId: string;
   staffName: string;
 }

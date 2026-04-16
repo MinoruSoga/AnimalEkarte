@@ -1372,6 +1372,7 @@ export interface Appointment {
   doctor?: Staff;
   created_by_staff?: Staff;
   line_customer?: LineCustomer;
+  trimming_detail?: AppointmentTrimmingDetail;
 }
 
 //////////
@@ -1385,6 +1386,18 @@ export const DayOptionNone: ReservationDayOption = "none";
 export const DayOptionSaturday: ReservationDayOption = "saturday";
 export const DayOptionWeekday: ReservationDayOption = "weekday";
 export const DayOptionAnyday: ReservationDayOption = "anyday";
+/**
+ * ReservationTypeCategory は予約区分のカテゴリ（'general' | 'trimming'）
+ */
+export type ReservationTypeCategory = string;
+export const ReservationTypeCategoryGeneral: ReservationTypeCategory = "general";
+export const ReservationTypeCategoryTrimming: ReservationTypeCategory = "trimming";
+/**
+ * UnavailableType は予約不可時間の種別
+ */
+export type UnavailableType = string;
+export const UnavailableTypeWeekly: UnavailableType = "weekly";
+export const UnavailableTypeSpecific: UnavailableType = "specific";
 /**
  * ReservationType はサービス種別（予約区分）マスタ
  */
@@ -1411,10 +1424,45 @@ export interface ReservationType {
   reservation_day_option: ReservationDayOption;
   is_internal: boolean;
   /**
+   * カテゴリ（'general' | 'trimming'）
+   */
+  category: ReservationTypeCategory;
+  /**
    * グループ（カレンダー凡例用）
    */
   group_id?: number /* uint64 */;
   group?: ReservationTypeGroup;
+  /**
+   * Relations（BE-115）
+   */
+  unavailable_times?: ReservationTypeUnavailableTime[];
+  occupations?: ReservationTypeOccupation[];
+}
+/**
+ * ReservationTypeUnavailableTime は予約区分の予約不可時間帯（BE-115）
+ */
+export interface ReservationTypeUnavailableTime {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  reservation_type_id: number /* uint64 */;
+  unavailable_type: UnavailableType;
+  day_of_week?: number /* int8 */; // 0=Sun..6=Sat（weekly のみ）
+  specific_date?: string; // specific のみ
+  start_time: string; // "HH:MM"
+  end_time: string; // "HH:MM"
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * ReservationTypeOccupation は予約区分と職種の紐付け（M:N）（BE-115）
+ */
+export interface ReservationTypeOccupation {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  reservation_type_id: number /* uint64 */;
+  occupation_id: number /* uint64 */;
+  occupation?: Occupation;
+  created_at: string;
 }
 
 //////////
@@ -1616,18 +1664,14 @@ export interface Treatment {
 //////////
 // source: trimming.go
 
-export type TrimmingStatus = string;
-export const TrimmingStatusCompleted: TrimmingStatus = "completed";
-export const TrimmingStatusReserved: TrimmingStatus = "reserved";
-export const TrimmingStatusInProgress: TrimmingStatus = "in_progress";
-export interface TrimmingRecord {
+/**
+ * AppointmentTrimmingDetail は appointments の1:1拡張テーブル（トリミング詳細）
+ */
+export interface AppointmentTrimmingDetail {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
-  date: string;
-  pet_id?: number /* uint64 */;
-  staff_id?: number /* uint64 */;
+  appointment_id: number /* uint64 */;
   course_id?: number /* uint64 */;
-  status: TrimmingStatus;
   style_request: string;
   body_weight?: number /* float64 */;
   bw_unit: BodyWeightUnit;
@@ -1642,18 +1686,18 @@ export interface TrimmingRecord {
   /**
    * Relations
    */
-  pet?: Pet;
-  staff?: Staff;
   course?: TrimmingCourse;
   options?: TrimmingOption[];
 }
-export interface TrimmingRecordOption {
+/**
+ * AppointmentTrimmingOption は appointments と trimming_options の中間テーブル
+ */
+export interface AppointmentTrimmingOption {
   id: number /* uint64 */;
-  trimming_record_id: number /* uint64 */;
+  appointment_id: number /* uint64 */;
   option_id: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
-  updated_at: string;
 }
 
 //////////

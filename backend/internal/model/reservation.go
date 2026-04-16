@@ -59,12 +59,13 @@ type Appointment struct {
 	CustomerFields   json.RawMessage   `gorm:"type:jsonb;not null;default:'{}'"                  json:"customer_fields"`
 
 	// Relations
-	Owner           *Owner           `gorm:"foreignKey:OwnerID"              json:"owner,omitempty"`
-	Pet             *Pet             `gorm:"foreignKey:PetID"                json:"pet,omitempty"`
-	ReservationType *ReservationType `gorm:"foreignKey:ReservationTypeID"    json:"reservation_type,omitempty"`
-	Doctor          *Staff           `gorm:"foreignKey:DoctorID"             json:"doctor,omitempty"`
-	CreatedByStaff  *Staff           `gorm:"foreignKey:CreatedBy"            json:"created_by_staff,omitempty" tygo:"-"`
-	LineCustomer    *LineCustomer    `gorm:"foreignKey:LineCustomerID"       json:"line_customer,omitempty"`
+	Owner           *Owner                     `gorm:"foreignKey:OwnerID"              json:"owner,omitempty"`
+	Pet             *Pet                       `gorm:"foreignKey:PetID"                json:"pet,omitempty"`
+	ReservationType *ReservationType           `gorm:"foreignKey:ReservationTypeID"    json:"reservation_type,omitempty"`
+	Doctor          *Staff                     `gorm:"foreignKey:DoctorID"             json:"doctor,omitempty"`
+	CreatedByStaff  *Staff                     `gorm:"foreignKey:CreatedBy"            json:"created_by_staff,omitempty" tygo:"-"`
+	LineCustomer    *LineCustomer              `gorm:"foreignKey:LineCustomerID"       json:"line_customer,omitempty"`
+	TrimmingDetail  *AppointmentTrimmingDetail `gorm:"foreignKey:AppointmentID"        json:"trimming_detail,omitempty"`
 }
 
 func (Appointment) TableName() string { return "appointments" }

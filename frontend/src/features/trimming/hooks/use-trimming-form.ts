@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition, useCallback, useMemo, useRef, useActionState } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, useActionState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -15,17 +15,10 @@ import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 
 const defaultFormData: TrimmingFormData = {
+  reservationTypeId: "",
+  startTime: "",
+  endTime: "",
   styleRequest: "",
-  memo: "",
-  eggs: "",
-  parts: {
-    nail: false,
-    analGland: false,
-    eye: false,
-    ear: false,
-    skin: false,
-    oral: false,
-  },
   styleImage: null,
   bw: "",
   bwUnit: "Kg",
@@ -54,9 +47,6 @@ export function useTrimmingForm(id?: string) {
   const createMutation = useCreateTrimming();
   const updateMutation = useUpdateTrimming();
   const deleteMutation = useDeleteTrimming();
-
-  // useTransition: save/delete の pending 管理 (rerender-transitions)
-  const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
 
   // BUG-027: inline field validation errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -145,9 +135,9 @@ export function useTrimmingForm(id?: string) {
         if (isEdit && id) {
           const req: UpdateTrimmingRequest = {
             style_request: formData.styleRequest || undefined,
-            body_weight: formData.bw ? Number(formData.bw) : undefined,
+            bw: formData.bw ? Number(formData.bw) : undefined,
             bw_unit: formData.bwUnit || undefined,
-            body_temperature: formData.bt ? Number(formData.bt) : undefined,
+            bt: formData.bt ? Number(formData.bt) : undefined,
             used_shampoo: formData.usedShampoo || undefined,
             used_ribbon: formData.usedRibbon || undefined,
             remarks: formData.remarks || undefined,
@@ -172,11 +162,24 @@ export function useTrimmingForm(id?: string) {
             return { success: false, fieldErrors: errors, timestamp: Date.now() };
           }
           setFieldErrors({});
+          // reservation_type_id: trimming 種別（フォームから選択）。
+          // 未選択時は seed データの id=9（トリミングコース）にフォールバックする。
+          // ⚠️ この値はシードに依存するため、選択必須バリデーション追加が望ましい。
+          const FALLBACK_TRIMMING_RESERVATION_TYPE_ID = 9;
+          const reservationTypeId = formData.reservationTypeId
+            ? Number(formData.reservationTypeId)
+            : FALLBACK_TRIMMING_RESERVATION_TYPE_ID;
+          // 日時: フォームから選択していない場合は当日 10:00〜11:30
+          const now = new Date();
+          const startDate = formData.startTime || `${now.toISOString().split("T")[0]}T10:00:00+09:00`;
+          const endDate = formData.endTime || `${now.toISOString().split("T")[0]}T11:30:00+09:00`;
           const req: CreateTrimmingRequest = {
+            reservation_type_id: reservationTypeId,
+            start_time: startDate,
+            end_time: endDate,
             pet_id: Number(pet.id),
-            staff_id: Number(formData.staffId),
-            course_id: Number(formData.courseId),
-            date: new Date().toISOString(),
+            staff_id: Number(formData.staffId) || undefined,
+            course_id: Number(formData.courseId) || undefined,
             style_request: formData.styleRequest || undefined,
             remarks: formData.remarks || undefined,
           };
@@ -253,21 +256,19 @@ export function useTrimmingForm(id?: string) {
 
   const handleDelete = useCallback((onSuccess?: () => void) => {
     if (!isEdit || !id) return;
-    startDeleteTransition(() => {
-      deleteMutation.mutate(id, {
-        onSuccess: () => {
-          toast.success("トリミング情報を削除しました");
-          onSuccess?.();
-        },
-        onError: (error) => {
-          handleApiError(error, "削除");
-        },
-      });
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success("トリミング情報を削除しました");
+        onSuccess?.();
+      },
+      onError: (error) => {
+        handleApiError(error, "削除");
+      },
     });
-  }, [isEdit, id, deleteMutation, startDeleteTransition]);
+  }, [isEdit, id, deleteMutation]);
 
   const isSaving = isPending;
-  const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;
+  const isDeleting = deleteMutation.isPending;
   const mode = isEdit ? ("edit" as const) : ("new" as const);
 
   const isLoading = isEdit ? isTrimmingLoading : isPetLoading;

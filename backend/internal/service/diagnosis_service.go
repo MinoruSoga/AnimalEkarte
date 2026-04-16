@@ -18,10 +18,7 @@ const (
 	colDiagnosisTypeDescription = "description"
 	colDiagnosisTypeSortOrder   = "sort_order"
 
-	colDiagnosisNameName            = "name"
-	colDiagnosisNameIsActive        = "is_active"
-	colDiagnosisNameDescription     = "description"
-	colDiagnosisNameSortOrder       = "sort_order"
+	// DiagnosisName 固有カラム（name/is_active/description/sort_order は DiagnosisType と同名のため共用）
 	colDiagnosisNameDiagnosisTypeID = "diagnosis_type_id"
 )
 
@@ -319,19 +316,19 @@ func (s *diagnosisNameService) Reorder(ctx context.Context, clinicID uint64, ids
 func buildDiagnosisNameUpdateFields(input *UpdateDiagnosisNameInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields[colDiagnosisNameName] = *input.Name
+		fields[colDiagnosisTypeName] = *input.Name
 	}
 	if input.DiagnosisTypeID != nil {
 		fields[colDiagnosisNameDiagnosisTypeID] = *input.DiagnosisTypeID
 	}
 	if input.IsActive != nil {
-		fields[colDiagnosisNameIsActive] = *input.IsActive
+		fields[colDiagnosisTypeIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields[colDiagnosisNameDescription] = *input.Description
+		fields[colDiagnosisTypeDescription] = *input.Description
 	}
 	if input.SortOrder != nil {
-		fields[colDiagnosisNameSortOrder] = *input.SortOrder
+		fields[colDiagnosisTypeSortOrder] = *input.SortOrder
 	}
 	return fields
 }

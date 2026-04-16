@@ -81,6 +81,10 @@ func (m *mockReservationRepository) CountByDateAndSource(_ context.Context, _ ui
 	return 0, nil
 }
 
+func (m *mockReservationRepository) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Appointment, int64, error) {
+	return nil, 0, nil
+}
+
 func ptrTime(t time.Time) *time.Time { return &t }
 
 func TestReservationService_List(t *testing.T) {

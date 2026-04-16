@@ -10,114 +10,81 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type TrimmingRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error)
-	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
-	Create(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
-	Update(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
-	Delete(ctx context.Context, clinicID, id uint64) error
-	SetOptions(ctx context.Context, recordID uint64, optionIDs []uint64) error
+// AppointmentTrimmingDetailRepository はトリミング詳細の CRUD を提供する。
+type AppointmentTrimmingDetailRepository interface {
+	FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.AppointmentTrimmingDetail, error)
+	Create(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
+	Update(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
+	SetOptions(ctx context.Context, appointmentID uint64, optionIDs []uint64) error
 }
 
-type trimmingRepository struct {
+type appointmentTrimmingDetailRepository struct {
 	db *gorm.DB
 }
 
-func NewTrimmingRepository(db *gorm.DB) TrimmingRepository {
-	return &trimmingRepository{db: db}
+func NewAppointmentTrimmingDetailRepository(db *gorm.DB) AppointmentTrimmingDetailRepository {
+	return &appointmentTrimmingDetailRepository{db: db}
 }
 
-func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error) {
-	trimmings := make([]model.TrimmingRecord, 0)
-	var total int64
-
-	q := r.db.WithContext(ctx).Model(&model.TrimmingRecord{}).Where("trimming_records.clinic_id = ?", clinicID)
-	if petID != nil {
-		q = q.Where("trimming_records.pet_id = ?", petID)
-	}
-	if ownerID != nil {
-		q = q.Select("trimming_records.*").
-			Joins("JOIN pets ON pets.id = trimming_records.pet_id AND pets.deleted_at IS NULL").Where("pets.owner_id = ?", *ownerID)
-	}
-	if startDate != nil {
-		q = q.Where("trimming_records.date >= ?", *startDate)
-	}
-	if endDate != nil {
-		q = q.Where("trimming_records.date <= ?", *endDate)
-	}
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "trimming", "")
-	}
-	if err := q.
-		Preload("Pet").
-		Preload("Pet.Owner").
-		Preload("Pet.AnimalSpecies").
-		Preload("Staff").
+func (r *appointmentTrimmingDetailRepository) FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.AppointmentTrimmingDetail, error) {
+	var detail model.AppointmentTrimmingDetail
+	err := dbOrTx(ctx, r.db).
+		Scopes(clinicScope(clinicID)).
 		Preload("Course").
 		Preload("Options").
-		Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").
-		Find(&trimmings).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "trimming", "")
-	}
-	return trimmings, total, nil
-}
-
-func (r *trimmingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error) {
-	var trimming model.TrimmingRecord
-	err := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Staff").
-		Preload("Course").
-		Preload("Options").
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&trimming).Error
+		Where("appointment_id = ?", appointmentID).
+		First(&detail).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "trimming_record", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(err, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", appointmentID))
 	}
-	return &trimming, nil
+	return &detail, nil
 }
 
-func (r *trimmingRepository) Create(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error {
-	trimming.ClinicID = clinicID
-	if err := r.db.WithContext(ctx).Create(trimming).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("trimming_record", trimming.Date.String())
-		}
-		return apperrors.FromGORM(err, "trimming", "")
+func (r *appointmentTrimmingDetailRepository) Create(ctx context.Context, detail *model.AppointmentTrimmingDetail) error {
+	if err := dbOrTx(ctx, r.db).Create(detail).Error; err != nil {
+		return apperrors.FromGORM(err, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", detail.AppointmentID))
 	}
 	return nil
 }
 
-func (r *trimmingRepository) Update(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error {
-	trimming.ClinicID = clinicID
-	result := r.db.WithContext(ctx).
-		Model(&model.TrimmingRecord{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", trimming.ID).
-		Updates(trimming)
+// Update は trimming 詳細の可変フィールドをすべて明示的に map で更新する。
+// Updates(struct) はゼロ値フィールド（空文字等）をスキップするため、map を使用する。
+func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail *model.AppointmentTrimmingDetail) error {
+	fields := map[string]any{
+		"course_id":        detail.CourseID,
+		"style_request":    detail.StyleRequest,
+		"body_weight":      detail.BodyWeight,
+		"bw_unit":          string(detail.BWUnit),
+		"body_temperature": detail.BodyTemperature,
+		"used_shampoo":     detail.UsedShampoo,
+		"used_ribbon":      detail.UsedRibbon,
+		"remarks":          detail.Remarks,
+		"style_image":      detail.StyleImage,
+		"completed_image":  detail.CompletedImage,
+	}
+	result := dbOrTx(ctx, r.db).
+		Scopes(clinicScope(detail.ClinicID)).
+		Model(&model.AppointmentTrimmingDetail{}).
+		Where("appointment_id = ?", detail.AppointmentID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "trimming", fmt.Sprintf("%d", trimming.ID))
+		return apperrors.FromGORM(result.Error, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", detail.AppointmentID))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("trimming_record", fmt.Sprintf("%d", trimming.ID))
+		return apperrors.WrapNotFound("appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", detail.AppointmentID))
 	}
 	return nil
 }
 
-func (r *trimmingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.TrimmingRecord{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "trimming", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("trimming_record", fmt.Sprintf("%d", id))
-	}
-	return nil
-}
-
-func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, optionIDs []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		record := &model.TrimmingRecord{ID: recordID}
-		if err := tx.Model(record).Association("Options").Unscoped().Clear(); err != nil {
-			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("record_id=%d", recordID))
+// SetOptions は appointment に紐づく trimming オプションを全置換する。
+// WithTx コンテキスト内から呼ばれた場合は外側のトランザクションに参加する（savepoint）。
+// 単独呼び出しの場合は Clear + Replace を単一トランザクションで実行する。
+func (r *appointmentTrimmingDetailRepository) SetOptions(ctx context.Context, appointmentID uint64, optionIDs []uint64) error {
+	// many2many: joinForeignKey:AppointmentID を使用するため AppointmentID のみで関連を操作できる
+	detail := &model.AppointmentTrimmingDetail{AppointmentID: appointmentID}
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(detail).Association("Options").Unscoped().Clear(); err != nil {
+			return apperrors.FromGORM(err, "appointment_trimming_option", fmt.Sprintf("appointment_id=%d", appointmentID))
 		}
 		if len(optionIDs) == 0 {
 			return nil
@@ -126,8 +93,8 @@ func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, op
 		for _, id := range optionIDs {
 			options = append(options, model.TrimmingOption{ID: id})
 		}
-		if err := tx.Model(record).Association("Options").Replace(options); err != nil {
-			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("record_id=%d", recordID))
+		if err := tx.Model(detail).Association("Options").Replace(options); err != nil {
+			return apperrors.FromGORM(err, "appointment_trimming_option", fmt.Sprintf("appointment_id=%d", appointmentID))
 		}
 		return nil
 	}); err != nil {

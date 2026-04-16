@@ -2,15 +2,25 @@ import { describe, it, expect } from "vitest";
 import { transformTrimming } from "./transforms";
 import type { BackendTrimming } from "@/types/trimming";
 
-/** BackendTrimming の最小スタブ */
+/** BackendTrimming の最小スタブ（BE-119: appointments ベース） */
 const minimalBackend: BackendTrimming = {
   id: 1,
   clinic_id: 1,
-  date: "2026-03-25T00:00:00Z",
-  status: "reserved",
+  reservation_type_id: 9,
+  start_time: "2026-03-25T10:00:00+09:00",
+  end_time: "2026-03-25T11:30:00+09:00",
+  status: "confirmed",
+  source: "staff",
   style_request: "",
+  bw_unit: "Kg",
+  used_shampoo: "",
+  used_ribbon: "",
+  remarks: "",
+  style_image: "",
+  completed_image: "",
   created_at: "2026-03-25T00:00:00Z",
   updated_at: "2026-03-25T00:00:00Z",
+  options: [],
 };
 
 describe("transformTrimming", () => {
@@ -24,13 +34,13 @@ describe("transformTrimming", () => {
     expect(result.id).toBe("0");
   });
 
-  it("date を T以前の日付部分のみに整形する", () => {
-    const result = transformTrimming({ ...minimalBackend, date: "2026-03-25T10:00:00Z" });
+  it("start_time を T以前の日付部分のみに整形する", () => {
+    const result = transformTrimming({ ...minimalBackend, start_time: "2026-03-25T10:00:00+09:00" });
     expect(result.date).toBe("2026-03-25");
   });
 
-  it("date が未設定のとき空文字を返す", () => {
-    const result = transformTrimming({ ...minimalBackend, date: undefined as unknown as string });
+  it("start_time が未設定のとき空文字を返す", () => {
+    const result = transformTrimming({ ...minimalBackend, start_time: undefined as unknown as string });
     expect(result.date).toBe("");
   });
 
@@ -39,18 +49,23 @@ describe("transformTrimming", () => {
     expect(result.status).toBe("完了");
   });
 
-  it("status: reserved → '予約'", () => {
-    const result = transformTrimming({ ...minimalBackend, status: "reserved" });
+  it("status: confirmed → '予約'", () => {
+    const result = transformTrimming({ ...minimalBackend, status: "confirmed" });
     expect(result.status).toBe("予約");
   });
 
-  it("status: in_progress → '進行中'", () => {
-    const result = transformTrimming({ ...minimalBackend, status: "in_progress" });
+  it("status: in_consultation → '進行中'", () => {
+    const result = transformTrimming({ ...minimalBackend, status: "in_consultation" });
     expect(result.status).toBe("進行中");
   });
 
+  it("status: canceled → 'キャンセル'", () => {
+    const result = transformTrimming({ ...minimalBackend, status: "canceled" });
+    expect(result.status).toBe("キャンセル");
+  });
+
   it("未知の status は '予約' にフォールバックする", () => {
-    const result = transformTrimming({ ...minimalBackend, status: "unknown" as "reserved" });
+    const result = transformTrimming({ ...minimalBackend, status: "unknown" as "confirmed" });
     expect(result.status).toBe("予約");
   });
 
@@ -61,8 +76,8 @@ describe("transformTrimming", () => {
         id: 10,
         name: "ポチ",
         pet_number: "P-001",
-        owner: { id: 20, name: "田中太郎" } as BackendTrimming["pet"]["owner"],
-      } as BackendTrimming["pet"],
+        owner: { id: 20, name: "田中太郎" },
+      },
     });
     expect(result.petId).toBe("10");
     expect(result.petName).toBe("ポチ");
@@ -76,21 +91,22 @@ describe("transformTrimming", () => {
     expect(result.petName).toBe("");
   });
 
-  it("staff 情報がある場合、staff / staffId を展開する", () => {
+  it("staff_id がある場合、staffId を展開する", () => {
     const result = transformTrimming({
       ...minimalBackend,
-      staff: { id: 5, name: "山田" } as BackendTrimming["staff"],
+      staff_id: 5,
+      staff: { id: 5, name: "山田" },
     });
     expect(result.staff).toBe("山田");
     expect(result.staffId).toBe("5");
   });
 
-  it("body_weight / body_temperature / usedShampoo / remarks を正しく変換する", () => {
+  it("bw / bt / usedShampoo / remarks を正しく変換する（新フィールド名）", () => {
     const result = transformTrimming({
       ...minimalBackend,
-      body_weight: 3.5,
+      bw: 3.5,
       bw_unit: "Kg",
-      body_temperature: 38.5,
+      bt: 38.5,
       used_shampoo: "シャンプーA",
       remarks: "特記なし",
     });
@@ -104,13 +120,13 @@ describe("transformTrimming", () => {
   it("optionIds は options 配列の id を string 変換したリスト", () => {
     const result = transformTrimming({
       ...minimalBackend,
-      options: [{ id: 1 }, { id: 2 }] as BackendTrimming["options"],
+      options: [{ id: 1, name: "爪切り" }, { id: 2, name: "耳掃除" }],
     });
     expect(result.optionIds).toEqual(["1", "2"]);
   });
 
   it("options が未設定のとき optionIds は空配列", () => {
-    const result = transformTrimming({ ...minimalBackend, options: undefined });
+    const result = transformTrimming({ ...minimalBackend, options: undefined as unknown as BackendTrimming["options"] });
     expect(result.optionIds).toEqual([]);
   });
 });
