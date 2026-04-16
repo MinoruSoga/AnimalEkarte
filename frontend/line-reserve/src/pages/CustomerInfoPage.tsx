@@ -42,10 +42,11 @@ export function CustomerInfoPage({
   const f = profile?.additional_fields;
 
   // ---- 基本情報 ----
-  const [name, setName] = useState(() => initialInfo.name || owner?.owner_name || f?.name || '');
-  const [phone, setPhone] = useState(() => initialInfo.phone || owner?.phone || f?.phone || '');
+  // BUG-387: 初期値優先順 — initialInfo（戻り操作）→ additional_fields（リピーター前回入力）→ owner（紐付け済みオーナー）
+  const [name, setName] = useState(() => initialInfo.name || f?.name || owner?.owner_name || '');
+  const [phone, setPhone] = useState(() => initialInfo.phone || f?.phone || owner?.phone || '');
   const [ownerName, setOwnerName] = useState(
-    () => initialInfo.ownerName || owner?.owner_name || f?.owner_name || '',
+    () => initialInfo.ownerName || f?.owner_name || owner?.owner_name || '',
   );
 
   // ---- ペット選択 ----

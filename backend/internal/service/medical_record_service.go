@@ -70,6 +70,7 @@ type medicalRecordService struct {
 	petRepo          repository.PetRepository
 	inquiryRepo      repository.InquiryRepository
 	clinicalPlanRepo repository.ClinicalPlanRepository
+	lineCustomerRepo repository.LineCustomerRepository
 }
 
 func NewMedicalRecordService(
@@ -78,6 +79,7 @@ func NewMedicalRecordService(
 	petRepo repository.PetRepository,
 	inquiryRepo repository.InquiryRepository,
 	clinicalPlanRepo repository.ClinicalPlanRepository,
+	lineCustomerRepo repository.LineCustomerRepository,
 ) MedicalRecordService {
 	return &medicalRecordService{
 		repo:             repo,
@@ -85,6 +87,7 @@ func NewMedicalRecordService(
 		petRepo:          petRepo,
 		inquiryRepo:      inquiryRepo,
 		clinicalPlanRepo: clinicalPlanRepo,
+		lineCustomerRepo: lineCustomerRepo,
 	}
 }
 
@@ -289,8 +292,23 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 
 // AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。
 // 同日同ペットのカルテが既に存在する場合はスキップする（重複防止）。
+// LINE予約で owner_id / pet_id が未設定の場合は line_customer から補完を試みる（BUG-386）。
 // 失敗してもメイン処理（予約更新）には影響しない。
 func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Appointment) {
+	// BUG-386: LINE予約で owner_id / pet_id が未設定の場合、line_customer から補完する
+	if (reservation.PetID == nil || reservation.OwnerID == nil) &&
+		reservation.LineCustomerID != nil &&
+		s.lineCustomerRepo != nil {
+		customer, err := s.lineCustomerRepo.FindByID(ctx, clinicID, *reservation.LineCustomerID)
+		if err == nil && customer != nil && customer.OwnerID != nil {
+			reservation.OwnerID = customer.OwnerID
+			// ペットが1頭のみ登録されている場合は自動で紐付ける
+			if reservation.PetID == nil && customer.Owner != nil && len(customer.Owner.Pets) == 1 {
+				reservation.PetID = &customer.Owner.Pets[0].ID
+			}
+		}
+	}
+
 	if reservation.PetID == nil || reservation.OwnerID == nil {
 		slog.WarnContext(ctx, "autoCreateFromReservation: skipped — reservation has no pet_id or owner_id",
 			slog.Uint64("reservation_id", reservation.ID))
