@@ -118,16 +118,6 @@ const LeftColumn = memo(function LeftColumn({
       </div>
 
       <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>メモ</Label>
-        <Textarea
-          value={formData.memo}
-          onChange={(e) => onFormChange({ memo: e.target.value })}
-          placeholder="メモを入力..."
-          className="min-h-[60px] text-sm"
-        />
-      </div>
-
-      <div>
         <div className="flex items-center gap-2 mb-2">
           <Label className={`text-sm ${C.text60}`}>オプション</Label>
           <MasterLink category="trimming_option" label="マスタ管理" />

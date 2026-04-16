@@ -27,8 +27,10 @@ export const useUpdateTrimming = () => {
       id: string;
       req: UpdateTrimmingRequest;
     }) => updateTrimming(id, req),
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["trimmings"] });
+      // 単一取得キャッシュ ["trimming", id] も無効化して詳細画面の古いデータを防ぐ
+      queryClient.invalidateQueries({ queryKey: ["trimming", id] });
     },
     onError: (error) => {
       handleApiError(error, "更新");

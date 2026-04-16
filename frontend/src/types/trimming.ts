@@ -149,8 +149,6 @@ export interface TrimmingFormData {
   startTime: string;
   endTime: string;
   styleRequest: string;
-  /** UI専用メモ欄（API未送信） */
-  memo: string;
   styleImage: File | null;
   bw: string;
   bwUnit: "Kg" | "g";

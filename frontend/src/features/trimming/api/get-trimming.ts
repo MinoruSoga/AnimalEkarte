@@ -25,7 +25,7 @@ export const getTrimmingsByPetId = async (
   petId: string
 ): Promise<TrimmingUI[]> => {
   const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings", {
-    params: { pet_id: petId },
+    params: { pet_id: petId, page: 1, limit: 100 },
   });
   return data.data.map(transformTrimming);
 };

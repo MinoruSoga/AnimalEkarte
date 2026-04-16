@@ -19,7 +19,6 @@ const defaultFormData: TrimmingFormData = {
   startTime: "",
   endTime: "",
   styleRequest: "",
-  memo: "",
   styleImage: null,
   bw: "",
   bwUnit: "Kg",
@@ -163,10 +162,13 @@ export function useTrimmingForm(id?: string) {
             return { success: false, fieldErrors: errors, timestamp: Date.now() };
           }
           setFieldErrors({});
-          // reservation_type_id: trimming 種別（フォームから選択）。未選択時は最初の trimming 種別を使用
+          // reservation_type_id: trimming 種別（フォームから選択）。
+          // 未選択時は seed データの id=9（トリミングコース）にフォールバックする。
+          // ⚠️ この値はシードに依存するため、選択必須バリデーション追加が望ましい。
+          const FALLBACK_TRIMMING_RESERVATION_TYPE_ID = 9;
           const reservationTypeId = formData.reservationTypeId
             ? Number(formData.reservationTypeId)
-            : 9; // デフォルト: 'トリミングコース'
+            : FALLBACK_TRIMMING_RESERVATION_TYPE_ID;
           // 日時: フォームから選択していない場合は当日 10:00〜11:30
           const now = new Date();
           const startDate = formData.startTime || `${now.toISOString().split("T")[0]}T10:00:00+09:00`;

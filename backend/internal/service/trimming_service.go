@@ -66,15 +66,18 @@ type TrimmingService interface {
 type trimmingService struct {
 	reservation    repository.ReservationRepository
 	trimmingDetail repository.AppointmentTrimmingDetailRepository
+	transactor     repository.Transactor
 }
 
 func NewTrimmingService(
 	reservation repository.ReservationRepository,
 	trimmingDetail repository.AppointmentTrimmingDetailRepository,
+	transactor repository.Transactor,
 ) TrimmingService {
 	return &trimmingService{
 		reservation:    reservation,
 		trimmingDetail: trimmingDetail,
+		transactor:     transactor,
 	}
 }
 
@@ -111,48 +114,58 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		bwUnit = input.BWUnit
 	}
 
-	appt := &model.Appointment{
-		ClinicID:          clinicID,
-		ReservationTypeID: input.ReservationTypeID,
-		StartTime:         input.StartTime,
-		EndTime:           input.EndTime,
-		PetID:             input.PetID,
-		DoctorID:          input.StaffID,
-		Status:            status,
-		Source:            model.ReservationSourceManual,
-	}
-	if err := s.reservation.Create(ctx, appt); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create trimming appointment")
-	}
-
-	detail := &model.AppointmentTrimmingDetail{
-		ClinicID:        clinicID,
-		AppointmentID:   appt.ID,
-		CourseID:        input.CourseID,
-		StyleRequest:    input.StyleRequest,
-		BodyWeight:      input.BodyWeight,
-		BWUnit:          bwUnit,
-		BodyTemperature: input.BodyTemperature,
-		UsedShampoo:     input.UsedShampoo,
-		UsedRibbon:      input.UsedRibbon,
-		Remarks:         input.Remarks,
-		StyleImage:      input.StyleImage,
-		CompletedImage:  input.CompletedImage,
-	}
-	if err := s.trimmingDetail.Create(ctx, detail); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create trimming detail")
-	}
-	if len(input.OptionIDs) > 0 {
-		if err := s.trimmingDetail.SetOptions(ctx, appt.ID, input.OptionIDs); err != nil {
-			return nil, apperrors.Wrap(err, "failed to set trimming options")
+	var apptID uint64
+	// appointment → trimming_detail → options の3書き込みを単一トランザクションで実行する。
+	// 中間でエラーが発生した場合はロールバックされ、孤立レコードは残らない。
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		appt := &model.Appointment{
+			ClinicID:          clinicID,
+			ReservationTypeID: input.ReservationTypeID,
+			StartTime:         input.StartTime,
+			EndTime:           input.EndTime,
+			PetID:             input.PetID,
+			DoctorID:          input.StaffID,
+			Status:            status,
+			Source:            model.ReservationSourceManual,
 		}
+		if err := s.reservation.Create(txCtx, appt); err != nil {
+			return apperrors.Wrap(err, "failed to create trimming appointment")
+		}
+
+		detail := &model.AppointmentTrimmingDetail{
+			ClinicID:        clinicID,
+			AppointmentID:   appt.ID,
+			CourseID:        input.CourseID,
+			StyleRequest:    input.StyleRequest,
+			BodyWeight:      input.BodyWeight,
+			BWUnit:          bwUnit,
+			BodyTemperature: input.BodyTemperature,
+			UsedShampoo:     input.UsedShampoo,
+			UsedRibbon:      input.UsedRibbon,
+			Remarks:         input.Remarks,
+			StyleImage:      input.StyleImage,
+			CompletedImage:  input.CompletedImage,
+		}
+		if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
+			return apperrors.Wrap(err, "failed to create trimming detail")
+		}
+		if len(input.OptionIDs) > 0 {
+			if err := s.trimmingDetail.SetOptions(txCtx, appt.ID, input.OptionIDs); err != nil {
+				return apperrors.Wrap(err, "failed to set trimming options")
+			}
+		}
+
+		apptID = appt.ID
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	slog.InfoContext(ctx, "trimming appointment created",
-		slog.Uint64("appointment_id", appt.ID),
+		slog.Uint64("appointment_id", apptID),
 		slog.Uint64("clinic_id", clinicID))
 
-	return s.GetByID(ctx, clinicID, appt.ID)
+	return s.GetByID(ctx, clinicID, apptID)
 }
 
 func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Appointment, error) {

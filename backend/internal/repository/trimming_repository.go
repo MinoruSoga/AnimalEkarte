@@ -28,7 +28,7 @@ func NewAppointmentTrimmingDetailRepository(db *gorm.DB) AppointmentTrimmingDeta
 
 func (r *appointmentTrimmingDetailRepository) FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.AppointmentTrimmingDetail, error) {
 	var detail model.AppointmentTrimmingDetail
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Preload("Course").
 		Preload("Options").
 		Where("clinic_id = ? AND appointment_id = ?", clinicID, appointmentID).
@@ -40,17 +40,31 @@ func (r *appointmentTrimmingDetailRepository) FindByAppointmentID(ctx context.Co
 }
 
 func (r *appointmentTrimmingDetailRepository) Create(ctx context.Context, detail *model.AppointmentTrimmingDetail) error {
-	if err := r.db.WithContext(ctx).Create(detail).Error; err != nil {
+	if err := dbOrTx(ctx, r.db).Create(detail).Error; err != nil {
 		return apperrors.FromGORM(err, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", detail.AppointmentID))
 	}
 	return nil
 }
 
+// Update は trimming 詳細の可変フィールドをすべて明示的に map で更新する。
+// Updates(struct) はゼロ値フィールド（空文字等）をスキップするため、map を使用する。
 func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail *model.AppointmentTrimmingDetail) error {
-	result := r.db.WithContext(ctx).
+	fields := map[string]any{
+		"course_id":        detail.CourseID,
+		"style_request":    detail.StyleRequest,
+		"body_weight":      detail.BodyWeight,
+		"bw_unit":          string(detail.BWUnit),
+		"body_temperature": detail.BodyTemperature,
+		"used_shampoo":     detail.UsedShampoo,
+		"used_ribbon":      detail.UsedRibbon,
+		"remarks":          detail.Remarks,
+		"style_image":      detail.StyleImage,
+		"completed_image":  detail.CompletedImage,
+	}
+	result := dbOrTx(ctx, r.db).
 		Model(&model.AppointmentTrimmingDetail{}).
 		Where("clinic_id = ? AND appointment_id = ?", detail.ClinicID, detail.AppointmentID).
-		Updates(detail)
+		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", detail.AppointmentID))
 	}
@@ -60,9 +74,13 @@ func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail
 	return nil
 }
 
+// SetOptions は appointment に紐づく trimming オプションを全置換する。
+// WithTx コンテキスト内から呼ばれた場合は外側のトランザクションに参加する（savepoint）。
+// 単独呼び出しの場合は Clear + Replace を単一トランザクションで実行する。
 func (r *appointmentTrimmingDetailRepository) SetOptions(ctx context.Context, appointmentID uint64, optionIDs []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		detail := &model.AppointmentTrimmingDetail{AppointmentID: appointmentID}
+	// many2many: joinForeignKey:AppointmentID を使用するため AppointmentID のみで関連を操作できる
+	detail := &model.AppointmentTrimmingDetail{AppointmentID: appointmentID}
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(detail).Association("Options").Unscoped().Clear(); err != nil {
 			return apperrors.FromGORM(err, "appointment_trimming_option", fmt.Sprintf("appointment_id=%d", appointmentID))
 		}

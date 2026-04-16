@@ -137,10 +137,18 @@ func (m *mockTrimmingDetailRepository) SetOptions(ctx context.Context, appointme
 
 var _ repository.AppointmentTrimmingDetailRepository = (*mockTrimmingDetailRepository)(nil)
 
+// --- mock: Transactor（テスト用：fn を同一コンテキストで直接実行） ---
+
+type mockTransactor struct{}
+
+func (m *mockTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return fn(ctx)
+}
+
 // --- helpers ---
 
 func newTrimmingTestService(reserv *mockTrimmingReservationRepository, detail *mockTrimmingDetailRepository) TrimmingService {
-	return NewTrimmingService(reserv, detail)
+	return NewTrimmingService(reserv, detail, &mockTransactor{})
 }
 
 // --- tests ---

@@ -11,7 +11,7 @@ export interface TrimmingFilters {
 }
 
 export const getTrimmings = async (filters?: TrimmingFilters): Promise<TrimmingUI[]> => {
-  const params: Record<string, string> = {};
+  const params: Record<string, string | number> = { page: 1, limit: 100 };
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
   const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings", { params });
