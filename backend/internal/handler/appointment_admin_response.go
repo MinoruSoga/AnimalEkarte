@@ -126,7 +126,7 @@ func toReservationDetailResponse(ra *model.Appointment) reservationDetailRespons
 		Source:            string(ra.Source),
 		Status:            string(ra.Status),
 		Notes:             ra.Notes,
-		CustomerFields:    json.RawMessage(ra.CustomerFields),
+		CustomerFields:    ra.CustomerFields,
 		LineCustomerID:    ra.LineCustomerID,
 		CustomerName:      customerName,
 		CourseShortName:   courseShortName,
