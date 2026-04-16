@@ -271,7 +271,11 @@ components:
           format: double
         membership_type:
           type: string
-          enum: [non_member, member, deceased, transferred]
+          enum:
+            - non_member
+            - member
+            - deceased
+            - transferred
         created_at:
           type: string
           format: date-time
@@ -293,6 +297,10 @@ components:
           description: ペット一覧（Preload時のみ含まれる）
           items:
             $ref: '#/components/schemas/Pet'
+        name:
+          type: string
+        name_kana:
+          type: string
     Pet:
       type: object
       required: [owner_id, name, animal_species_id]
@@ -321,10 +329,15 @@ components:
           type: string
         gender:
           type: string
-          enum: [male, female, unknown]
+          enum:
+            - male
+            - female
+            - unknown
         status:
           type: string
-          enum: [alive, deceased]
+          enum:
+            - alive
+            - deceased
         birth_date:
           type: string
           format: date
@@ -347,7 +360,10 @@ components:
           nullable: true
         danger_level:
           type: string
-          enum: [low, medium, high]
+          enum:
+            - low
+            - medium
+            - high
         food:
           type: string
         environment:
@@ -415,6 +431,8 @@ components:
               type: string
             phone:
               type: string
+        name_kana:
+          type: string
     PetListItem:
       type: object
       description: ペット一覧レスポンス（GET /v1/pets 専用・必要最小限フィールド）
@@ -626,7 +644,9 @@ components:
           nullable: true
         visit_type:
           type: string
-          enum: [first, revisit]
+          enum:
+            - first
+            - revisit
         reservation_type_id:
           type: integer
           format: int64
@@ -639,7 +659,14 @@ components:
           default: false
         status:
           type: string
-          enum: [confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed]
+          enum:
+            - confirmed
+            - pending
+            - cancelled
+            - checked_in
+            - in_consultation
+            - accounting
+            - completed
         notes:
           type: string
         created_at:
@@ -667,6 +694,18 @@ components:
           $ref: '#/components/schemas/StaffSummary'
           description: 担当医師情報（Preload時のみ含まれる）
           nullable: true
+        source:
+          type: string
+          enum:
+            - manual
+            - line
+        created_by:
+          type: integer
+          format: int64
+        is_staff_delegated:
+          type: boolean
+        customer_fields:
+          type: object
     MedicalRecord:
       type: object
       required: [date, record_no]
@@ -704,7 +743,9 @@ components:
           nullable: true
         status:
           type: string
-          enum: [draft, finalized]
+          enum:
+            - draft
+            - finalized
         created_at:
           type: string
           format: date-time
@@ -734,6 +775,15 @@ components:
           $ref: '#/components/schemas/Inquiry'
           description: 問診情報（Preload時のみ含まれる）
           nullable: true
+        appointment_id:
+          type: integer
+          format: int64
+        version:
+          type: integer
+          format: int32
+        entered_by:
+          type: integer
+          format: int64
     Hospitalization:
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
@@ -754,7 +804,9 @@ components:
           format: int64
         hospitalization_type:
           type: string
-          enum: [hospitalization, hotel]
+          enum:
+            - hospitalization
+            - hotel
         start_date:
           type: string
           format: date
@@ -763,7 +815,10 @@ components:
           format: date
         status:
           type: string
-          enum: [admitted, discharged, reserved]
+          enum:
+            - admitted
+            - discharged
+            - reserved
         cage_id:
           type: integer
           format: int64
@@ -845,7 +900,11 @@ components:
           type: boolean
         status:
           type: string
-          enum: [waiting, completed, cancelled, pending]
+          enum:
+            - waiting
+            - completed
+            - cancelled
+            - pending
         scheduled_date:
           type: string
           format: date
@@ -1020,7 +1079,11 @@ components:
           type: string
         category:
           type: string
-          enum: [medicine, consumable, food, other]
+          enum:
+            - medicine
+            - consumable
+            - food
+            - other
         quantity:
           type: integer
         unit:
@@ -1041,7 +1104,10 @@ components:
           nullable: true
         status:
           type: string
-          enum: [sufficient, low, out_of_stock]
+          enum:
+            - sufficient
+            - low
+            - out_of_stock
         created_at:
           type: string
           format: date-time
@@ -1050,6 +1116,9 @@ components:
           type: string
           format: date-time
           readOnly: true
+        deleted_at:
+          type: string
+          format: date-time
     Staff:
       type: object
       required: [name]
@@ -1088,9 +1157,28 @@ components:
           format: date-time
           nullable: true
           description: 削除日時（ソフトデリート）
+        account_id:
+          type: integer
+          format: int64
+        staff_type:
+          type: string
+          enum:
+            - doctor
+            - nurse
+            - trimmer
+            - resource
+        reservation_display_name:
+          type: string
+        reservation_visible:
+          type: boolean
+        reservation_comment:
+          type: string
+        reservation_image_url:
+          type: string
     StaffRegistrationRequest:
       type: object
-      description: スタッフ登録リクエスト。スタッフ情報とシステムアカウントをアトミックに作成する。clinic_id はJWTトークンから取得するためリクエストには含めない。
+      description: スタッフ登録リクエスト。スタッフ情報とシステムアカウントをアトミックに作成する。clinic_id 
+        はJWTトークンから取得するためリクエストには含めない。
       required: [name, email, password]
       properties:
         name:
@@ -1146,10 +1234,17 @@ components:
           type: string
         cage_type:
           type: string
-          enum: [icu, dog, cat, general]
+          enum:
+            - icu
+            - dog
+            - cat
+            - general
         cage_size:
           type: string
-          enum: [small, medium, large]
+          enum:
+            - small
+            - medium
+            - large
         sort_order:
           type: integer
         created_at:
@@ -1212,6 +1307,15 @@ components:
           type: string
           format: date-time
           readOnly: true
+        tax_type:
+          type: string
+          enum: &id001
+            - included
+            - excluded
+            - exempt
+        tax_rate:
+          type: number
+          format: double
     Vaccine:
       type: object
       required: [name]
@@ -1402,6 +1506,9 @@ components:
           type: string
           format: date-time
           readOnly: true
+        chief_complaint_type_id:
+          type: integer
+          format: int64
     Consultation:
       type: object
       required: [name]
@@ -1427,7 +1534,7 @@ components:
           nullable: true
         tax_type:
           type: string
-          enum: [included, excluded, exempt]
+          enum: *id001
           default: excluded
           description: 税種別（included=内税, excluded=外税, exempt=非課税）
         tax_rate:
@@ -1489,7 +1596,11 @@ components:
           nullable: true
         anesthesia:
           type: string
-          enum: [none, local, sedation, general]
+          enum:
+            - none
+            - local
+            - sedation
+            - general
         sort_order:
           type: integer
         created_at:
@@ -1500,6 +1611,12 @@ components:
           type: string
           format: date-time
           readOnly: true
+        tax_type:
+          type: string
+          enum: *id001
+        tax_rate:
+          type: number
+          format: double
     HospitalizationPlan:
       type: object
       required: [name]
@@ -1529,7 +1646,9 @@ components:
           nullable: true
         billing_unit:
           type: string
-          enum: [per_day, per_night]
+          enum:
+            - per_day
+            - per_night
           nullable: true
         sort_order:
           type: integer
@@ -1541,6 +1660,12 @@ components:
           type: string
           format: date-time
           readOnly: true
+        tax_type:
+          type: string
+          enum: *id001
+        tax_rate:
+          type: number
+          format: double
     TrimmingCourse:
       type: object
       required: [name]
@@ -1619,6 +1744,8 @@ components:
           type: string
           format: date-time
           readOnly: true
+        is_combinable:
+          type: boolean
     ExaminationType:
       type: object
       required: [name]
@@ -1718,6 +1845,9 @@ components:
           type: string
           format: date-time
           readOnly: true
+        diagnosis_type_id:
+          type: integer
+          format: int64
     MasterReorderRequest:
       type: object
       required: [ids]
@@ -1847,7 +1977,15 @@ components:
           type: string
         category:
           type: string
-          enum: [examination, test, procedure, surgery, medicine, food, goods, other]
+          enum: &id003
+            - examination
+            - test
+            - procedure
+            - surgery
+            - medicine
+            - food
+            - goods
+            - other
           default: goods
           description: カテゴリ（item_category ENUM）
         unit_price:
@@ -1857,7 +1995,7 @@ components:
           description: 単価（円）
         tax_type:
           type: string
-          enum: [included, excluded, exempt]
+          enum: *id001
           default: excluded
           description: 税種別
         tax_rate:
@@ -1958,7 +2096,7 @@ components:
           type: integer
           format: int64
           nullable: true
-          description: カルテ紐付けID（null = スタンドアロン検査）⚠️BUG-023: 現状バックエンドが必須扱い
+          description: "カルテ紐付けID（null = スタンドアロン検査）⚠️BUG-023: 現状バックエンドが必須扱い"
         pet_id:
           type: integer
           format: int64
@@ -2132,6 +2270,8 @@ components:
           type: string
           format: date-time
           readOnly: true
+        invoice_registration_number:
+          type: string
     Clinic:
       type: object
       properties:
@@ -2174,6 +2314,12 @@ components:
           type: string
           format: date-time
           readOnly: true
+        standard_tax_rate:
+          type: number
+          format: double
+        reduced_tax_rate:
+          type: number
+          format: double
     LoginRequest:
       type: object
       required: [email, password]
@@ -2362,7 +2508,12 @@ components:
           example: "2026-03-16"
         shift_type:
           type: string
-          enum: [full, morning, afternoon, off, paid_leave]
+          enum: &id004
+            - full
+            - morning
+            - afternoon
+            - off
+            - paid_leave
         start_time:
           type: string
           nullable: true
@@ -2382,6 +2533,8 @@ components:
         staff:
           $ref: '#/components/schemas/StaffSummary'
 
+        notes:
+          type: string
     CreateShiftRequest:
       type: object
       required: [staff_id, date, shift_type]
@@ -2446,7 +2599,11 @@ components:
           nullable: true
         status:
           type: string
-          enum: [draft, sent, approved, rejected]
+          enum:
+            - draft
+            - sent
+            - approved
+            - rejected
         subtotal:
           type: integer
           format: int64
@@ -2481,6 +2638,9 @@ components:
           type: string
           format: date-time
 
+        deleted_at:
+          type: string
+          format: date-time
     CreateEstimateRequest:
       type: object
       required: [title]
@@ -2791,7 +2951,11 @@ components:
           format: int64
         item_type:
           type: string
-          enum: [consultation, procedure, medicine, other]
+          enum:
+            - consultation
+            - procedure
+            - medicine
+            - other
         consultation_id:
           type: integer
           format: int64
@@ -2817,7 +2981,10 @@ components:
           type: boolean
         status:
           type: string
-          enum: [pending, completed, not_applicable]
+          enum:
+            - pending
+            - completed
+            - not_applicable
         content:
           type: string
         memo:
@@ -2842,6 +3009,15 @@ components:
           type: string
           format: date-time
 
+        is_selected:
+          type: boolean
+        is_insurance:
+          type: boolean
+        deleted_at:
+          type: string
+          format: date-time
+        (item_type:
+          type: string
     CreateTreatmentRequest:
       type: object
       required: [item_type]
@@ -2957,7 +3133,10 @@ components:
           format: int64
         status:
           type: string
-          enum: [pending, confirmed, returned]
+          enum:
+            - pending
+            - confirmed
+            - returned
         confirmed_by:
           type: integer
           format: int64
@@ -3009,7 +3188,15 @@ components:
           type: string
         image_type:
           type: string
-          enum: [xray, echo, photo, endoscope, ct, mri, microscope, other]
+          enum:
+            - xray
+            - echo
+            - photo
+            - endoscope
+            - ct
+            - mri
+            - microscope
+            - other
         description:
           type: string
         taken_at:
@@ -3113,6 +3300,13 @@ components:
           type: string
           format: date-time
 
+        is_insurance:
+          type: boolean
+        deleted_at:
+          type: string
+          format: date-time
+        (medical_record_id:
+          type: string
     CreateTreatmentPlanRequest:
       type: object
       required: [treatment_content]
@@ -3206,6 +3400,15 @@ components:
           type: string
           format: date-time
 
+        diagnosis_type_id:
+          type: integer
+          format: int64
+        diagnosis_2_type_id:
+          type: integer
+          format: int64
+        diagnosis_2_name_id:
+          type: integer
+          format: int64
     UpdateClinicalPlanRequest:
       type: object
       properties:
@@ -3430,6 +3633,9 @@ components:
                 type: string
                 format: date-time
 
+        clinic_id:
+          type: integer
+          format: int64
     AddVitalRecordRequest:
       type: object
       required: [time]
@@ -3507,7 +3713,12 @@ components:
           format: int64
         type:
           type: string
-          enum: [food, medicine, treatment, instruction, item]
+          enum:
+            - food
+            - medicine
+            - treatment
+            - instruction
+            - item
         name:
           type: string
         description:
@@ -3519,7 +3730,10 @@ components:
             enum: [morning, noon, night]
         status:
           type: string
-          enum: [active, completed, discontinued]
+          enum:
+            - active
+            - completed
+            - discontinued
         notes:
           type: string
         medicine_id:
@@ -3548,6 +3762,8 @@ components:
           type: string
           format: date-time
 
+        (type:
+          type: string
     CreateCarePlanItemRequest:
       type: object
       required: [type, name]
@@ -3685,6 +3901,1030 @@ components:
           type: string
           format: date-time
 
+    Accounts:
+      type: object
+      description: accounts schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+        password_hash:
+          type: string
+        is_active:
+          type: boolean
+        is_system_admin:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ExamTypes:
+      type: object
+      description: exam_types schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        price:
+          type: integer
+          format: int64
+        is_active:
+          type: boolean
+        description:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+          format: int32
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ExamTypeFields:
+      type: object
+      description: exam_type_fields schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        exam_type_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        inspection_value:
+          type: string
+        normal_value:
+          type: string
+        unit:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ReservationTypeGroups:
+      type: object
+      description: reservation_type_groups schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        color:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ReservationTypes:
+      type: object
+      description: reservation_types schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        is_active:
+          type: boolean
+        description:
+          type: string
+        color:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+        group_id:
+          type: integer
+          format: int64
+        reservation_display_name:
+          type: string
+        duration_minutes:
+          type: integer
+          format: int32
+        short_name:
+          type: string
+        show_short_name:
+          type: boolean
+        reservation_visible:
+          type: boolean
+        reservation_comment:
+          type: string
+        reservation_image_url:
+          type: string
+        reservation_day_option:
+          type: string
+        is_internal:
+          type: boolean
+        category:
+          type: string
+          enum:
+            - general
+            - trimming
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DiagnosisTypes:
+      type: object
+      description: diagnosis_types schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        is_active:
+          type: boolean
+        description:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ChiefComplaintTypes:
+      type: object
+      description: chief_complaint_types schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+          format: int32
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    StaffClinicAssignments:
+      type: object
+      description: staff_clinic_assignments schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        staff_id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        is_main:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PermissionGroups:
+      type: object
+      description: permission_groups schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+          format: int32
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    PermissionGroupRules:
+      type: object
+      description: permission_group_rules schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        group_id:
+          type: integer
+          format: int64
+        resource:
+          type: string
+        can_view:
+          type: boolean
+        can_create:
+          type: boolean
+        can_edit:
+          type: boolean
+        can_delete:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    StaffPermissionGroups:
+      type: object
+      description: staff_permission_groups schema
+      properties:
+        staff_id:
+          type: integer
+          format: int64
+        group_id:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+    AppointmentTrimmingDetails:
+      type: object
+      description: appointment_trimming_details schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        appointment_id:
+          type: integer
+          format: int64
+        course_id:
+          type: integer
+          format: int64
+        style_request:
+          type: string
+        body_weight:
+          type: number
+          format: double
+        bw_unit:
+          type: string
+          enum: &id002
+            - Kg
+            - g
+        body_temperature:
+          type: number
+          format: double
+        used_shampoo:
+          type: string
+        used_ribbon:
+          type: string
+        remarks:
+          type: string
+        style_image:
+          type: string
+        completed_image:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AppointmentTrimmingOptions:
+      type: object
+      description: appointment_trimming_options schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        appointment_id:
+          type: integer
+          format: int64
+        option_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+          format: int32
+        created_at:
+          type: string
+          format: date-time
+    Exams:
+      type: object
+      description: exams schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        medical_record_id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        pet_id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date
+        exam_type_id:
+          type: integer
+          format: int64
+        doctor_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - pending
+            - in_progress
+            - result_entered
+            - completed
+            - confirmed
+        result_summary:
+          type: string
+        machine:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ExamResults:
+      type: object
+      description: exam_results schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        exam_id:
+          type: integer
+          format: int64
+        exam_type_field_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        inspection_value:
+          type: string
+        normal_value:
+          type: string
+        result:
+          type: string
+        unit:
+          type: string
+        reference_value:
+          type: string
+        ref_min:
+          type: number
+          format: double
+        ref_max:
+          type: number
+          format: double
+        is_abnormal:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - normal
+            - high
+            - low
+        sort_order:
+          type: integer
+          format: int32
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    VitalRecords:
+      type: object
+      description: vital_records schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        pet_id:
+          type: integer
+          format: int64
+        medical_record_id:
+          type: integer
+          format: int64
+        daily_record_id:
+          type: integer
+          format: int64
+        recorded_at:
+          type: string
+          format: date-time
+        staff_id:
+          type: integer
+          format: int64
+        temperature:
+          type: number
+          format: double
+        heart_rate:
+          type: integer
+          format: int32
+        respiration_rate:
+          type: integer
+          format: int32
+        weight:
+          type: number
+          format: double
+        weight_unit:
+          type: string
+          enum: *id002
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        (medical_record_id:
+          type: string
+    EstimateItems:
+      type: object
+      description: estimate_items schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        estimate_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        category:
+          type: string
+          enum: *id003
+        unit_price:
+          type: integer
+          format: int64
+        quantity:
+          type: number
+          format: double
+        tax_type:
+          type: string
+          enum: *id001
+        tax_rate:
+          type: number
+          format: double
+        discount_rate:
+          type: number
+          format: double
+        discount_amount:
+          type: integer
+          format: int64
+        is_insurance_applicable:
+          type: boolean
+        consultation_id:
+          type: integer
+          format: int64
+        procedure_id:
+          type: integer
+          format: int64
+        medicine_id:
+          type: integer
+          format: int64
+        merchandise_item_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+          format: int32
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CareLogs:
+      type: object
+      description: care_logs schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        daily_record_id:
+          type: integer
+          format: int64
+        time:
+          type: string
+        type:
+          type: string
+          enum:
+            - food
+            - excretion
+            - medicine
+            - treatment
+            - other
+        status:
+          type: string
+          enum:
+            - completed
+            - partial
+            - skipped
+        value:
+          type: string
+        staff_id:
+          type: integer
+          format: int64
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    StaffNotes:
+      type: object
+      description: staff_notes schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        daily_record_id:
+          type: integer
+          format: int64
+        time:
+          type: string
+        content:
+          type: string
+        staff_id:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BillingItems:
+      type: object
+      description: billing_items schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        billing_id:
+          type: integer
+          format: int64
+        category:
+          type: string
+          enum: *id003
+        name:
+          type: string
+        unit_price:
+          type: integer
+          format: int64
+        quantity:
+          type: number
+          format: double
+        tax_type:
+          type: string
+          enum: *id001
+        tax_rate:
+          type: number
+          format: double
+        is_insurance_applicable:
+          type: boolean
+        source:
+          type: string
+          enum:
+            - medical_record
+            - manual
+            - hospitalization
+        merchandise_item_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+          format: int32
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    Payments:
+      type: object
+      description: payments schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        billing_id:
+          type: integer
+          format: int64
+        subtotal:
+          type: integer
+          format: int64
+        tax_total:
+          type: integer
+          format: int64
+        total_amount:
+          type: integer
+          format: int64
+        insurance_name:
+          type: string
+        insurance_ratio:
+          type: number
+          format: double
+        insurance_amount:
+          type: integer
+          format: int64
+        discount_amount:
+          type: integer
+          format: int64
+        billing_amount:
+          type: integer
+          format: int64
+        received_amount:
+          type: integer
+          format: int64
+        change_amount:
+          type: integer
+          format: int64
+        method:
+          type: string
+          enum:
+            - cash
+            - credit_card
+            - electronic_money
+        paid_by:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ClinicHoliday:
+      type: object
+      description: clinic_holidays schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AuditLogs:
+      type: object
+      description: audit_logs schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        actor_id:
+          type: integer
+          format: int64
+        actor_type:
+          type: string
+        action:
+          type: string
+        resource:
+          type: string
+        resource_id:
+          type: integer
+          format: int64
+        old_value:
+          type: object
+        new_value:
+          type: object
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    LineReservationSetting:
+      type: object
+      description: line_reservation_settings schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+        header_text:
+          type: string
+        reservation_notice:
+          type: string
+        cancel_notice:
+          type: string
+        privacy_policy:
+          type: string
+        closed_weekdays:
+          type: object
+        closed_dates:
+          type: object
+        national_holiday_closed:
+          type: boolean
+        business_hours:
+          type: object
+        business_hours_by_weekday:
+          type: object
+        break_hours:
+          type: object
+        daily_limit:
+          type: integer
+          format: int32
+        monthly_limit:
+          type: integer
+          format: int32
+        booking_window_max_days:
+          type: integer
+          format: int32
+        booking_window_min_days:
+          type: integer
+          format: int32
+        calendar_months:
+          type: integer
+          format: int32
+        phone_number:
+          type: string
+        notification_email:
+          type: string
+        request_example:
+          type: string
+        time_slot_mode:
+          type: string
+        time_slot_interval_minutes:
+          type: integer
+          format: int32
+        no_staff_mode:
+          type: string
+        show_no_staff_option:
+          type: boolean
+        additional_fields:
+          type: object
+        '{"key":"phone","label":"電話番号","required":true,"placeholder":"例)':
+          type: string
+        '{"key":"pet_info","label":"ペットの名前と種類","required":true,"placeholder":"例)':
+          type: string
+        line_channel_id:
+          type: string
+        line_channel_secret:
+          type: string
+        liff_id:
+          type: string
+        line_access_token:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    LineCustomer:
+      type: object
+      description: line_customers schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        line_user_id:
+          type: string
+        display_name:
+          type: string
+        real_name:
+          type: string
+        additional_fields:
+          type: object
+        owner_id:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    StaffReservationExclusion:
+      type: object
+      description: staff_reservation_exclusions schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        staff_id:
+          type: integer
+          format: int64
+        reservation_type_id:
+          type: integer
+          format: int64
+    ShiftEntryBreak:
+      type: object
+      description: shift_entry_breaks schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        shift_entry_id:
+          type: integer
+          format: int64
+        break_start:
+          type: string
+        break_end:
+          type: string
+    ShiftTemplate:
+      type: object
+      description: shift_templates schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        shift_type:
+          type: string
+          enum: *id004
+        start_time:
+          type: string
+        end_time:
+          type: string
+        notes:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ShiftTemplateBreak:
+      type: object
+      description: shift_template_breaks schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        shift_template_id:
+          type: integer
+          format: int64
+        break_start:
+          type: string
+        break_end:
+          type: string
+    ReservationTypeUnavailableTimes:
+      type: object
+      description: reservation_type_unavailable_times schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        reservation_type_id:
+          type: integer
+          format: int64
+        unavailable_type:
+          type: string
+        day_of_week:
+          type: integer
+          format: int32
+        (unavailable_type:
+          type: string
+        OR:
+          type: string
+        specific_date:
+          type: string
+          format: date
+        start_time:
+          type: string
+        end_time:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ReservationTypeOccupations:
+      type: object
+      description: reservation_type_occupations schema
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        reservation_type_id:
+          type: integer
+          format: int64
+        occupation_id:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
   responses:
     BadRequest:
       description: バリデーションエラー
@@ -3755,7 +4995,8 @@ paths:
     post:
       operationId: logout
       summary: ログアウト
-      description: httpOnly Cookie (`auth_token`) を無効化してログアウトする。Cookie は HttpOnly のため JS から直接削除できないためサーバー側で MaxAge=-1 でクリアする。
+      description: httpOnly Cookie (`auth_token`) を無効化してログアウトする。Cookie は 
+        HttpOnly のため JS から直接削除できないためサーバー側で MaxAge=-1 でクリアする。
       tags: [Auth]
       security: []
       responses:
@@ -5109,18 +6350,18 @@ paths:
       parameters:
         - name: page
           in: query
-          schema: { type: integer, default: 1 }
+          schema: {type: integer, default: 1}
         - name: limit
           in: query
-          schema: { type: integer, default: 20 }
+          schema: {type: integer, default: 20}
         - name: pet_id
           in: query
           description: ペットIDで絞り込み
-          schema: { type: integer, format: int64 }
+          schema: {type: integer, format: int64}
         - name: owner_id
           in: query
           description: 飼主IDで絞り込み
-          schema: { type: integer, format: int64 }
+          schema: {type: integer, format: int64}
         - name: status
           in: query
           description: ステータスで絞り込み
@@ -5177,7 +6418,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer, format: int64 }
+          schema: {type: integer, format: int64}
       responses:
         '200':
           description: 検査記録
@@ -5199,7 +6440,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer, format: int64 }
+          schema: {type: integer, format: int64}
       requestBody:
         required: true
         content:
@@ -5229,7 +6470,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer, format: int64 }
+          schema: {type: integer, format: int64}
       responses:
         '204':
           description: 削除成功
@@ -5247,18 +6488,18 @@ paths:
       parameters:
         - name: page
           in: query
-          schema: { type: integer, default: 1 }
+          schema: {type: integer, default: 1}
         - name: limit
           in: query
-          schema: { type: integer, default: 20 }
+          schema: {type: integer, default: 20}
         - name: pet_id
           in: query
           description: ペットIDで絞り込み
-          schema: { type: integer, format: int64 }
+          schema: {type: integer, format: int64}
         - name: owner_id
           in: query
           description: 飼主IDで絞り込み
-          schema: { type: integer, format: int64 }
+          schema: {type: integer, format: int64}
       responses:
         '200':
           description: 予防接種記録一覧
@@ -5309,7 +6550,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer, format: int64 }
+          schema: {type: integer, format: int64}
       responses:
         '200':
           description: 予防接種記録
@@ -5331,7 +6572,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer, format: int64 }
+          schema: {type: integer, format: int64}
       requestBody:
         required: true
         content:
@@ -5361,7 +6602,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer, format: int64 }
+          schema: {type: integer, format: int64}
       responses:
         '204':
           description: 削除成功
@@ -6366,7 +7607,8 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/insurances/550e8400-e29b-41d4-a716-446655440000
+                example: 
+                  /masters/insurances/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -6513,7 +7755,8 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/reservation-types/550e8400-e29b-41d4-a716-446655440000
+                example: 
+                  /masters/reservation-types/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -6660,7 +7903,8 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/consultations/550e8400-e29b-41d4-a716-446655440000
+                example: 
+                  /masters/consultations/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -6807,7 +8051,8 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/procedures/550e8400-e29b-41d4-a716-446655440000
+                example: 
+                  /masters/procedures/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -6954,7 +8199,8 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/hospitalization-plans/550e8400-e29b-41d4-a716-446655440000
+                example: 
+                  /masters/hospitalization-plans/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -7101,7 +8347,8 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/trimming-courses/550e8400-e29b-41d4-a716-446655440000
+                example: 
+                  /masters/trimming-courses/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -7248,7 +8495,8 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/trimming-options/550e8400-e29b-41d4-a716-446655440000
+                example: 
+                  /masters/trimming-options/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -7395,7 +8643,8 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/examination-types/550e8400-e29b-41d4-a716-446655440000
+                example: 
+                  /masters/examination-types/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -7542,7 +8791,8 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/diagnosis-types/550e8400-e29b-41d4-a716-446655440000
+                example: 
+                  /masters/diagnosis-types/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -7697,7 +8947,8 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/diagnosis-names/550e8400-e29b-41d4-a716-446655440000
+                example: 
+                  /masters/diagnosis-names/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -7844,7 +9095,8 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: /masters/checkup-types/550e8400-e29b-41d4-a716-446655440000
+                example: 
+                  /masters/checkup-types/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
@@ -8697,7 +9949,7 @@ paths:
                     properties:
                       resource:
                         type: string
-                        description: リソース識別子（例: medical-records, owners）
+                        description: "リソース識別子（例: medical-records, owners）"
                       can_view:
                         type: boolean
                         default: false
@@ -10442,3 +11694,501 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /line/reservation-settings:
+    get:
+      tags:
+        - LINE予約設定
+      summary: LINE予約設定一覧取得
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LineReservationSetting'
+    post:
+      tags:
+        - LINE予約設定
+      summary: LINE予約設定作成
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineReservationSetting'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineReservationSetting'
+  /line/reservation-settings/{id}:
+    get:
+      tags:
+        - LINE予約設定
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineReservationSetting'
+    put:
+      tags:
+        - LINE予約設定
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineReservationSetting'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineReservationSetting'
+    delete:
+      tags:
+        - LINE予約設定
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: No Content
+  /line/customers:
+    get:
+      tags:
+        - LINE顧客
+      summary: LINE顧客一覧取得
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LineCustomer'
+    post:
+      tags:
+        - LINE顧客
+      summary: LINE顧客作成
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineCustomer'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineCustomer'
+  /line/customers/{id}:
+    get:
+      tags:
+        - LINE顧客
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineCustomer'
+    put:
+      tags:
+        - LINE顧客
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineCustomer'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineCustomer'
+    delete:
+      tags:
+        - LINE顧客
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: No Content
+  /accounting/billing-refunds:
+    get:
+      tags:
+        - 会計返金
+      summary: 会計返金一覧取得
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BillingRefund'
+    post:
+      tags:
+        - 会計返金
+      summary: 会計返金作成
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingRefund'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingRefund'
+  /accounting/billing-refunds/{id}:
+    get:
+      tags:
+        - 会計返金
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingRefund'
+    put:
+      tags:
+        - 会計返金
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingRefund'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingRefund'
+    delete:
+      tags:
+        - 会計返金
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: No Content
+  /masters/shift-templates:
+    get:
+      tags:
+        - シフトテンプレート
+      summary: シフトテンプレート一覧取得
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShiftTemplate'
+    post:
+      tags:
+        - シフトテンプレート
+      summary: シフトテンプレート作成
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftTemplate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftTemplate'
+  /masters/shift-templates/{id}:
+    get:
+      tags:
+        - シフトテンプレート
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftTemplate'
+    put:
+      tags:
+        - シフトテンプレート
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftTemplate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftTemplate'
+    delete:
+      tags:
+        - シフトテンプレート
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: No Content
+  /masters/clinic-holidays:
+    get:
+      tags:
+        - 休診日
+      summary: 休診日一覧取得
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClinicHoliday'
+    post:
+      tags:
+        - 休診日
+      summary: 休診日作成
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicHoliday'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicHoliday'
+  /masters/clinic-holidays/{id}:
+    get:
+      tags:
+        - 休診日
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicHoliday'
+    put:
+      tags:
+        - 休診日
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicHoliday'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicHoliday'
+    delete:
+      tags:
+        - 休診日
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: No Content
+  /staffs/reservation-exclusions:
+    get:
+      tags:
+        - スタッフ予約除外設定
+      summary: スタッフ予約除外設定一覧取得
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffReservationExclusion'
+    post:
+      tags:
+        - スタッフ予約除外設定
+      summary: スタッフ予約除外設定作成
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffReservationExclusion'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationExclusion'
+  /staffs/reservation-exclusions/{id}:
+    get:
+      tags:
+        - スタッフ予約除外設定
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationExclusion'
+    put:
+      tags:
+        - スタッフ予約除外設定
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffReservationExclusion'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationExclusion'
+    delete:
+      tags:
+        - スタッフ予約除外設定
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: No Content
