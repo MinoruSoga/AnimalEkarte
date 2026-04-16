@@ -105,21 +105,7 @@ func (s *liffService) GetStaffs(ctx context.Context, clinicID, typeID uint64) ([
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get staffs")
 	}
-	result := make([]model.Staff, 0, len(all))
-	for i := range all {
-		if !all[i].ReservationVisible {
-			continue
-		}
-		excluded, err := s.staffRepo.FindExcludedReservationTypes(ctx, all[i].ID)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to get excluded service types")
-		}
-		if isExcluded(excluded, typeID) {
-			continue
-		}
-		result = append(result, all[i])
-	}
-	return result, nil
+	return s.filterVisibleStaffsByTypeID(ctx, typeID, all)
 }
 
 // GetAvailableDates は予約可能な日付一覧を返す。
@@ -154,7 +140,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		}
 	}
 
-	datesSettings, _ := ParseAvailableDatesSettings(
+	datesSettings, err := ParseAvailableDatesSettings(
 		setting.ClosedWeekdays,
 		setting.ClosedDates,
 		setting.NationalHolidayClosed,
@@ -163,6 +149,9 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		setting.CalendarMonths,
 		string(course.ReservationDayOption),
 	)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to parse available dates settings, using defaults", "error", err)
+	}
 
 	return CalcAvailableDates(ctx, &AvailableDatesInput{
 		Settings:       datesSettings,
@@ -185,7 +174,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 	}
 
 	// 定休日チェック（GetAvailableDates で除外済みのはずだが多重防御）
-	datesSettings, _ := ParseAvailableDatesSettings(
+	datesSettings, err := ParseAvailableDatesSettings(
 		setting.ClosedWeekdays,
 		setting.ClosedDates,
 		setting.NationalHolidayClosed,
@@ -194,6 +183,9 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		setting.CalendarMonths,
 		string(course.ReservationDayOption),
 	)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to parse available dates settings, using defaults", "error", err)
+	}
 	dateJST := date.In(jstLocation())
 	dateStr := dateJST.Format("2006-01-02")
 	wd := int(dateJST.Weekday())
@@ -286,7 +278,11 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 		if enriched, err := s.adminRepo.FindByIDForNotify(ctx, clinicID, appt.ID); err == nil && enriched != nil {
 			notifyAppt = enriched
 		}
-		customer, _ := s.customerRepo.FindByID(ctx, clinicID, customerID)
+		// best-effort: 通知失敗は予約成否に影響させない
+		customer, custErr := s.customerRepo.FindByID(ctx, clinicID, customerID)
+		if custErr != nil {
+			slog.WarnContext(ctx, "failed to get customer for notification (best-effort)", "error", custErr)
+		}
 		s.notifier.NotifyCreated(ctx, notifyAppt, customer)
 	}
 
@@ -320,7 +316,11 @@ func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerI
 
 	// Phase 6: キャンセル通知（LINE + メール）fire-and-forget
 	if s.notifier != nil && apptForNotify != nil {
-		customer, _ := s.customerRepo.FindByID(ctx, clinicID, customerID)
+		// best-effort: 通知失敗は予約キャンセル成否に影響させない
+		customer, custErr := s.customerRepo.FindByID(ctx, clinicID, customerID)
+		if custErr != nil {
+			slog.WarnContext(ctx, "failed to get customer for cancel notification (best-effort)", "error", custErr)
+		}
 		s.notifier.NotifyCancelled(ctx, apptForNotify, customer)
 	}
 
@@ -378,16 +378,39 @@ func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, typeID,
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get staffs")
 	}
-	result := make([]model.Staff, 0, len(all))
+	return s.filterVisibleStaffsByTypeID(ctx, typeID, all)
+}
+
+// filterVisibleStaffsByTypeID は reservation_visible=true かつ typeID を除外していないスタッフを返す。
+// FindExcludedReservationTypesByStaffIDs で一括取得して N+1 クエリを回避する。
+func (s *liffService) filterVisibleStaffsByTypeID(ctx context.Context, typeID uint64, all []model.Staff) ([]model.Staff, error) {
+	visibleIDs := make([]uint64, 0, len(all))
+	for i := range all {
+		if all[i].ReservationVisible {
+			visibleIDs = append(visibleIDs, all[i].ID)
+		}
+	}
+	if len(visibleIDs) == 0 {
+		return nil, nil
+	}
+
+	allExclusions, err := s.staffRepo.FindExcludedReservationTypesByStaffIDs(ctx, visibleIDs)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get excluded service types")
+	}
+
+	// staffID → 除外予約区分 のマップを構築（O(N) で済む）
+	excludeMap := make(map[uint64][]model.StaffReservationExclusion, len(allExclusions))
+	for _, ex := range allExclusions {
+		excludeMap[ex.StaffID] = append(excludeMap[ex.StaffID], ex)
+	}
+
+	result := make([]model.Staff, 0, len(visibleIDs))
 	for i := range all {
 		if !all[i].ReservationVisible {
 			continue
 		}
-		excluded, err := s.staffRepo.FindExcludedReservationTypes(ctx, all[i].ID)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to get excluded service types")
-		}
-		if !isExcluded(excluded, typeID) {
+		if !isExcluded(excludeMap[all[i].ID], typeID) {
 			result = append(result, all[i])
 		}
 	}

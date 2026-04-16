@@ -70,6 +70,7 @@ const (
 	colReservationTypeReservationComment  = "reservation_comment"
 	colReservationTypeReservationDayOpt   = "reservation_day_option"
 	colReservationTypeIsInternal          = "is_internal"
+	colReservationTypeReservationImageURL = "reservation_image_url"
 )
 
 // buildReservationTypeUpdateFields は UpdateReservationTypeInput から nil でないフィールドのみ map に変換する
@@ -109,7 +110,7 @@ func buildReservationTypeUpdateFields(input *UpdateReservationTypeInput) map[str
 		fields[colReservationTypeReservationComment] = *input.ReservationComment
 	}
 	if input.ReservationImageURL != nil {
-		fields["reservation_image_url"] = *input.ReservationImageURL
+		fields[colReservationTypeReservationImageURL] = *input.ReservationImageURL
 	}
 	if input.ReservationDayOption != nil {
 		fields[colReservationTypeReservationDayOpt] = *input.ReservationDayOption
