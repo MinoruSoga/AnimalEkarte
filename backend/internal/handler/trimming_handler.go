@@ -152,20 +152,20 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 	}
 
 	input := &service.UpdateTrimmingInput{
-		StartTime:      req.StartTime,
-		EndTime:        req.EndTime,
-		PetID:          req.PetID,
-		StaffID:        req.StaffID,
-		CourseID:       req.CourseID,
-		StyleRequest:   req.StyleRequest,
-		BodyWeight:     req.BW,
+		StartTime:       req.StartTime,
+		EndTime:         req.EndTime,
+		PetID:           req.PetID,
+		StaffID:         req.StaffID,
+		CourseID:        req.CourseID,
+		StyleRequest:    req.StyleRequest,
+		BodyWeight:      req.BW,
 		BodyTemperature: req.BT,
-		UsedShampoo:    req.UsedShampoo,
-		UsedRibbon:     req.UsedRibbon,
-		Remarks:        req.Remarks,
-		StyleImage:     req.StyleImage,
-		CompletedImage: req.CompletedImage,
-		OptionIDs:      req.OptionIDs,
+		UsedShampoo:     req.UsedShampoo,
+		UsedRibbon:      req.UsedRibbon,
+		Remarks:         req.Remarks,
+		StyleImage:      req.StyleImage,
+		CompletedImage:  req.CompletedImage,
+		OptionIDs:       req.OptionIDs,
 	}
 	if req.Status != nil {
 		status := model.ReservationStatus(*req.Status)

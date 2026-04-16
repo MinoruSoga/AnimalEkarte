@@ -75,7 +75,7 @@ func (m *mockTrimmingReservationRepository) LockAndFindByID(_ context.Context, _
 	return nil, nil
 }
 
-func (m *mockTrimmingReservationRepository) HasDoctorConflict(_ context.Context, _ uint64, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+func (m *mockTrimmingReservationRepository) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
 	return false, nil
 }
 
