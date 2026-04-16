@@ -168,7 +168,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		if input.StaffID == 0 {
 			doctorID = nil
 		}
-		customerFields := []byte("{}")
+		customerFields := json.RawMessage("{}")
 		if len(input.CustomerFields) > 0 {
 			customerFields = input.CustomerFields
 		}

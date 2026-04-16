@@ -1362,7 +1362,7 @@ export interface Appointment {
   created_by?: number /* uint64 */;
   line_customer_id?: number /* uint64 */;
   is_staff_delegated: boolean;
-  customer_fields: string /* []byte */;
+  customer_fields: any /* json.RawMessage */;
   /**
    * Relations
    */

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
 
 	"gorm.io/gorm"
@@ -55,7 +56,7 @@ type Appointment struct {
 	CreatedBy        *uint64           `gorm:""                                                  json:"created_by,omitempty"`
 	LineCustomerID   *uint64           `                                                         json:"line_customer_id,omitempty"`
 	IsStaffDelegated bool              `gorm:"not null;default:false"                            json:"is_staff_delegated"`
-	CustomerFields   []byte            `gorm:"type:jsonb;not null;default:'{}'"                  json:"customer_fields"`
+	CustomerFields   json.RawMessage   `gorm:"type:jsonb;not null;default:'{}'"                  json:"customer_fields"`
 
 	// Relations
 	Owner           *Owner           `gorm:"foreignKey:OwnerID"              json:"owner,omitempty"`

@@ -9,20 +9,20 @@ interface CustomerFieldsJSON {
   pets?: Array<{ name?: string; type?: string }>;
 }
 
-function parseCustomerFields(raw: string | undefined): CustomerFieldsJSON {
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw) as CustomerFieldsJSON;
-  } catch {
-    return {};
-  }
+/**
+ * customer_fields は json.RawMessage（Go）なので JSON オブジェクトとしてそのまま届く。
+ * 型は any だが、JSONB 由来のオブジェクトとして扱う。
+ */
+function extractCustomerFields(raw: unknown): CustomerFieldsJSON {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return raw as CustomerFieldsJSON;
 }
 
 export const transformReservation = (
   reservation: BackendReservation
 ): Appointment => {
   // LINE予約でオーナー未紐付けの場合、customer_fields をフォールバックとして使用
-  const cf = parseCustomerFields(reservation.customer_fields);
+  const cf = extractCustomerFields(reservation.customer_fields);
   const ownerName =
     reservation.owner?.name ??
     reservation.pet?.owner?.name ??

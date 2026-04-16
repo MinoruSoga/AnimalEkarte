@@ -9,13 +9,13 @@ interface CustomerFieldsJSON {
   pets?: Array<{ name?: string; type?: string }>;
 }
 
-function parseCustomerFields(raw: string | undefined): CustomerFieldsJSON {
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw) as CustomerFieldsJSON;
-  } catch {
-    return {};
-  }
+/**
+ * customer_fields は json.RawMessage（Go）なので JSON オブジェクトとしてそのまま届く。
+ * 型は any だが、JSONB 由来のオブジェクトとして扱う。
+ */
+function parseCustomerFields(raw: unknown): CustomerFieldsJSON {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return raw as CustomerFieldsJSON;
 }
 
 /** Backend status 値 → カンバンカラム ID のマッピング */

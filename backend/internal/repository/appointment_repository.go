@@ -80,6 +80,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
 	var reservation model.Appointment
 	err := dbOrTx(ctx, r.db).
+		Preload("Owner").
 		Preload("Pet").
 		Preload("Pet.Owner").
 		Preload("Pet.AnimalSpecies").
