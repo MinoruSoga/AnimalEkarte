@@ -95,6 +95,9 @@ func (m *mockTrimmingReservationRepository) CountByDateAndSource(_ context.Conte
 	return 0, nil
 }
 
+// コンパイル時インターフェース適合チェック
+var _ repository.ReservationRepository = (*mockTrimmingReservationRepository)(nil)
+
 // --- mock: AppointmentTrimmingDetailRepository ---
 
 type mockTrimmingDetailRepository struct {

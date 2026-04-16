@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition, useCallback, useMemo, useRef, useActionState } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, useActionState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -20,15 +20,6 @@ const defaultFormData: TrimmingFormData = {
   endTime: "",
   styleRequest: "",
   memo: "",
-  eggs: "",
-  parts: {
-    nail: false,
-    analGland: false,
-    eye: false,
-    ear: false,
-    skin: false,
-    oral: false,
-  },
   styleImage: null,
   bw: "",
   bwUnit: "Kg",
@@ -57,9 +48,6 @@ export function useTrimmingForm(id?: string) {
   const createMutation = useCreateTrimming();
   const updateMutation = useUpdateTrimming();
   const deleteMutation = useDeleteTrimming();
-
-  // useTransition: save/delete の pending 管理 (rerender-transitions)
-  const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
 
   // BUG-027: inline field validation errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -266,21 +254,19 @@ export function useTrimmingForm(id?: string) {
 
   const handleDelete = useCallback((onSuccess?: () => void) => {
     if (!isEdit || !id) return;
-    startDeleteTransition(() => {
-      deleteMutation.mutate(id, {
-        onSuccess: () => {
-          toast.success("トリミング情報を削除しました");
-          onSuccess?.();
-        },
-        onError: (error) => {
-          handleApiError(error, "削除");
-        },
-      });
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success("トリミング情報を削除しました");
+        onSuccess?.();
+      },
+      onError: (error) => {
+        handleApiError(error, "削除");
+      },
     });
-  }, [isEdit, id, deleteMutation, startDeleteTransition]);
+  }, [isEdit, id, deleteMutation]);
 
   const isSaving = isPending;
-  const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;
+  const isDeleting = deleteMutation.isPending;
   const mode = isEdit ? ("edit" as const) : ("new" as const);
 
   const isLoading = isEdit ? isTrimmingLoading : isPetLoading;

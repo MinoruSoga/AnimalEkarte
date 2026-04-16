@@ -19,32 +19,32 @@ type trimmingCourseSummaryResponse struct {
 
 // trimmingResponse は appointments ベースのフラット DTO（BE-119）
 type trimmingResponse struct {
-	ID                uint64                          `json:"id"`
-	ClinicID          uint64                          `json:"clinic_id"`
-	ReservationTypeID uint64                          `json:"reservation_type_id"`
-	StartTime         time.Time                       `json:"start_time"`
-	EndTime           time.Time                       `json:"end_time"`
-	PetID             *uint64                         `json:"pet_id,omitempty"`
-	StaffID           *uint64                         `json:"staff_id,omitempty"` // doctor_id をマップ
-	Status            string                          `json:"status"`
-	Source            string                          `json:"source"`
+	ID                uint64    `json:"id"`
+	ClinicID          uint64    `json:"clinic_id"`
+	ReservationTypeID uint64    `json:"reservation_type_id"`
+	StartTime         time.Time `json:"start_time"`
+	EndTime           time.Time `json:"end_time"`
+	PetID             *uint64   `json:"pet_id,omitempty"`
+	StaffID           *uint64   `json:"staff_id,omitempty"` // doctor_id をマップ
+	Status            string    `json:"status"`
+	Source            string    `json:"source"`
 	// トリミング詳細（appointment_trimming_details から flat 化）
-	CourseID       *uint64  `json:"course_id,omitempty"`
-	StyleRequest   string   `json:"style_request"`
-	BW             *float64 `json:"bw,omitempty"`
-	BWUnit         string   `json:"bw_unit"`
-	BT             *float64 `json:"bt,omitempty"`
-	UsedShampoo    string   `json:"used_shampoo"`
-	UsedRibbon     string   `json:"used_ribbon"`
-	Remarks        string   `json:"remarks"`
-	StyleImage     string   `json:"style_image"`
-	CompletedImage string   `json:"completed_image"`
+	CourseID       *uint64   `json:"course_id,omitempty"`
+	StyleRequest   string    `json:"style_request"`
+	BW             *float64  `json:"bw,omitempty"`
+	BWUnit         string    `json:"bw_unit"`
+	BT             *float64  `json:"bt,omitempty"`
+	UsedShampoo    string    `json:"used_shampoo"`
+	UsedRibbon     string    `json:"used_ribbon"`
+	Remarks        string    `json:"remarks"`
+	StyleImage     string    `json:"style_image"`
+	CompletedImage string    `json:"completed_image"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	// リレーション
-	Pet    *petSummaryResponse            `json:"pet,omitempty"`
-	Staff  *staffSummaryResponse          `json:"staff,omitempty"`
-	Course *trimmingCourseSummaryResponse `json:"course,omitempty"`
+	Pet     *petSummaryResponse             `json:"pet,omitempty"`
+	Staff   *staffSummaryResponse           `json:"staff,omitempty"`
+	Course  *trimmingCourseSummaryResponse  `json:"course,omitempty"`
 	Options []trimmingOptionSummaryResponse `json:"options"`
 }
 
@@ -64,7 +64,8 @@ func toTrimmingResponse(appt *model.Appointment) trimmingResponse {
 		Pet:               toPetSummary(appt.Pet),
 		Staff:             toStaffSummary(appt.Doctor),
 		Options:           make([]trimmingOptionSummaryResponse, 0),
-		BWUnit:            "Kg",
+		// TrimmingDetail が nil の異常データ向けデフォルト（モデルデフォルトと一致）
+		BWUnit: "Kg",
 	}
 
 	if appt.TrimmingDetail != nil {

@@ -91,14 +91,12 @@ func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get trimming appointment")
 	}
-	// TrimmingDetail は Appointment.TrimmingDetail にプリロードされているが、
-	// FindByID では含まれないため別途ロードする
-	if appt.TrimmingDetail == nil {
-		detail, err := s.trimmingDetail.FindByAppointmentID(ctx, clinicID, id)
-		if err == nil {
-			appt.TrimmingDetail = detail
-		}
-		// detail が存在しない場合は無視（trimming_detail 未作成の予約もありうる）
+	// FindByID は汎用メソッドのため TrimmingDetail をプリロードしない。
+	// 別途 AppointmentTrimmingDetailRepository から取得する。
+	// detail が存在しない場合は無視（trimming_detail 未作成の予約もありうる）
+	detail, detailErr := s.trimmingDetail.FindByAppointmentID(ctx, clinicID, id)
+	if detailErr == nil {
+		appt.TrimmingDetail = detail
 	}
 	return appt, nil
 }

@@ -149,16 +149,8 @@ export interface TrimmingFormData {
   startTime: string;
   endTime: string;
   styleRequest: string;
+  /** UI専用メモ欄（API未送信） */
   memo: string;
-  eggs: string;
-  parts: {
-    nail: boolean;
-    analGland: boolean;
-    eye: boolean;
-    ear: boolean;
-    skin: boolean;
-    oral: boolean;
-  };
   styleImage: File | null;
   bw: string;
   bwUnit: "Kg" | "g";
