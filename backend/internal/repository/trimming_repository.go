@@ -29,9 +29,10 @@ func NewAppointmentTrimmingDetailRepository(db *gorm.DB) AppointmentTrimmingDeta
 func (r *appointmentTrimmingDetailRepository) FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.AppointmentTrimmingDetail, error) {
 	var detail model.AppointmentTrimmingDetail
 	err := dbOrTx(ctx, r.db).
+		Scopes(clinicScope(clinicID)).
 		Preload("Course").
 		Preload("Options").
-		Where("clinic_id = ? AND appointment_id = ?", clinicID, appointmentID).
+		Where("appointment_id = ?", appointmentID).
 		First(&detail).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", appointmentID))
@@ -62,8 +63,9 @@ func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail
 		"completed_image":  detail.CompletedImage,
 	}
 	result := dbOrTx(ctx, r.db).
+		Scopes(clinicScope(detail.ClinicID)).
 		Model(&model.AppointmentTrimmingDetail{}).
-		Where("clinic_id = ? AND appointment_id = ?", detail.ClinicID, detail.AppointmentID).
+		Where("appointment_id = ?", detail.AppointmentID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", detail.AppointmentID))

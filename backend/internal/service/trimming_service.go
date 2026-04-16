@@ -96,10 +96,13 @@ func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 	}
 	// FindByID は汎用メソッドのため TrimmingDetail をプリロードしない。
 	// 別途 AppointmentTrimmingDetailRepository から取得する。
-	// detail が存在しない場合は無視（trimming_detail 未作成の予約もありうる）
+	// NotFound は正常系（trimming_detail 未作成の予約もありうる）として無視し、
+	// それ以外の DB エラー（接続断・タイムアウト等）は伝播させる。
 	detail, detailErr := s.trimmingDetail.FindByAppointmentID(ctx, clinicID, id)
 	if detailErr == nil {
 		appt.TrimmingDetail = detail
+	} else if !apperrors.IsNotFound(detailErr) {
+		return nil, apperrors.Wrap(detailErr, "failed to get trimming detail")
 	}
 	return appt, nil
 }
@@ -185,54 +188,63 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	if input.Status != nil {
 		apptFields["status"] = *input.Status
 	}
-	if len(apptFields) > 0 {
-		if _, err := s.reservation.UpdateFields(ctx, clinicID, id, apptFields); err != nil {
-			return nil, apperrors.Wrap(err, "failed to update trimming appointment")
-		}
-	}
 
-	// trimming detail の更新
-	detail, err := s.trimmingDetail.FindByAppointmentID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get trimming detail for update")
-	}
-	if input.CourseID != nil {
-		detail.CourseID = input.CourseID
-	}
-	if input.StyleRequest != nil {
-		detail.StyleRequest = *input.StyleRequest
-	}
-	if input.BodyWeight != nil {
-		detail.BodyWeight = *input.BodyWeight
-	}
-	if input.BWUnit != nil {
-		detail.BWUnit = *input.BWUnit
-	}
-	if input.BodyTemperature != nil {
-		detail.BodyTemperature = *input.BodyTemperature
-	}
-	if input.UsedShampoo != nil {
-		detail.UsedShampoo = *input.UsedShampoo
-	}
-	if input.UsedRibbon != nil {
-		detail.UsedRibbon = *input.UsedRibbon
-	}
-	if input.Remarks != nil {
-		detail.Remarks = *input.Remarks
-	}
-	if input.StyleImage != nil {
-		detail.StyleImage = *input.StyleImage
-	}
-	if input.CompletedImage != nil {
-		detail.CompletedImage = *input.CompletedImage
-	}
-	if err := s.trimmingDetail.Update(ctx, detail); err != nil {
-		return nil, apperrors.Wrap(err, "failed to update trimming detail")
-	}
-	if input.OptionIDs != nil {
-		if err := s.trimmingDetail.SetOptions(ctx, id, *input.OptionIDs); err != nil {
-			return nil, apperrors.Wrap(err, "failed to set trimming options")
+	// appointment → trimming_detail → options の更新を単一トランザクションで実行する。
+	// appointments が更新済みで trimming_detail が失敗すると不整合が生じるため、
+	// Create と対称なアトミック性を保証する。
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if len(apptFields) > 0 {
+			if _, err := s.reservation.UpdateFields(txCtx, clinicID, id, apptFields); err != nil {
+				return apperrors.Wrap(err, "failed to update trimming appointment")
+			}
 		}
+
+		// trimming detail の更新
+		detail, err := s.trimmingDetail.FindByAppointmentID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to get trimming detail for update")
+		}
+		if input.CourseID != nil {
+			detail.CourseID = input.CourseID
+		}
+		if input.StyleRequest != nil {
+			detail.StyleRequest = *input.StyleRequest
+		}
+		if input.BodyWeight != nil {
+			detail.BodyWeight = *input.BodyWeight
+		}
+		if input.BWUnit != nil {
+			detail.BWUnit = *input.BWUnit
+		}
+		if input.BodyTemperature != nil {
+			detail.BodyTemperature = *input.BodyTemperature
+		}
+		if input.UsedShampoo != nil {
+			detail.UsedShampoo = *input.UsedShampoo
+		}
+		if input.UsedRibbon != nil {
+			detail.UsedRibbon = *input.UsedRibbon
+		}
+		if input.Remarks != nil {
+			detail.Remarks = *input.Remarks
+		}
+		if input.StyleImage != nil {
+			detail.StyleImage = *input.StyleImage
+		}
+		if input.CompletedImage != nil {
+			detail.CompletedImage = *input.CompletedImage
+		}
+		if err := s.trimmingDetail.Update(txCtx, detail); err != nil {
+			return apperrors.Wrap(err, "failed to update trimming detail")
+		}
+		if input.OptionIDs != nil {
+			if err := s.trimmingDetail.SetOptions(txCtx, id, *input.OptionIDs); err != nil {
+				return apperrors.Wrap(err, "failed to set trimming options")
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	slog.InfoContext(ctx, "trimming appointment updated",

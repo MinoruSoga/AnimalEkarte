@@ -372,6 +372,125 @@ func TestTrimmingService_Create(t *testing.T) {
 	}
 }
 
+func TestTrimmingService_Update(t *testing.T) {
+	ptrStr := func(s string) *string { return &s }
+	optionIDs := []uint64{10, 20}
+	emptyIDs := []uint64{}
+
+	tests := []struct {
+		name            string
+		clinicID        uint64
+		id              uint64
+		input           UpdateTrimmingInput
+		updateFieldsErr error
+		detailFindErr   error
+		detailUpdateErr error
+		setOptionsErr   error
+		wantErr         bool
+	}{
+		{
+			name:     "updates appointment fields only",
+			clinicID: 1,
+			id:       10,
+			input: UpdateTrimmingInput{
+				StyleRequest: ptrStr("short cut"),
+			},
+		},
+		{
+			name:     "updates with options",
+			clinicID: 1,
+			id:       10,
+			input: UpdateTrimmingInput{
+				OptionIDs: &optionIDs,
+			},
+		},
+		{
+			name:     "clears all options with empty slice",
+			clinicID: 1,
+			id:       10,
+			input: UpdateTrimmingInput{
+				OptionIDs: &emptyIDs,
+			},
+		},
+		{
+			name:     "returns error when appointment update fails",
+			clinicID: 1,
+			id:       10,
+			input: UpdateTrimmingInput{
+				// Status を含めることで apptFields が非空になり UpdateFields が呼ばれる
+				Status: func() *model.ReservationStatus { s := model.ReservationStatusConfirmed; return &s }(),
+			},
+			updateFieldsErr: errors.New("db error"),
+			wantErr:         true,
+		},
+		{
+			name:          "returns error when trimming detail not found",
+			clinicID:      1,
+			id:            10,
+			input:         UpdateTrimmingInput{StyleRequest: ptrStr("x")},
+			detailFindErr: apperrors.WrapNotFound("appointment_trimming_detail", "appointment_id=10"),
+			wantErr:       true,
+		},
+		{
+			name:            "returns error when trimming detail update fails",
+			clinicID:        1,
+			id:              10,
+			input:           UpdateTrimmingInput{StyleRequest: ptrStr("x")},
+			detailUpdateErr: errors.New("update error"),
+			wantErr:         true,
+		},
+		{
+			name:          "returns error when SetOptions fails",
+			clinicID:      1,
+			id:            10,
+			input:         UpdateTrimmingInput{OptionIDs: &optionIDs},
+			setOptionsErr: errors.New("set options error"),
+			wantErr:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reserv := &mockTrimmingReservationRepository{
+				updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Appointment, error) {
+					if tt.updateFieldsErr != nil {
+						return nil, tt.updateFieldsErr
+					}
+					return &model.Appointment{ID: id}, nil
+				},
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Appointment, error) {
+					return &model.Appointment{ID: id, ClinicID: clinicID}, nil
+				},
+			}
+			detail := &mockTrimmingDetailRepository{
+				findByAppointmentIDFn: func(_ context.Context, _, apptID uint64) (*model.AppointmentTrimmingDetail, error) {
+					if tt.detailFindErr != nil {
+						return nil, tt.detailFindErr
+					}
+					return &model.AppointmentTrimmingDetail{AppointmentID: apptID}, nil
+				},
+				updateFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+					return tt.detailUpdateErr
+				},
+				setOptionsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+					return tt.setOptionsErr
+				},
+			}
+			svc := newTrimmingTestService(reserv, detail)
+
+			appt, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, appt)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, appt)
+			}
+		})
+	}
+}
+
 func TestTrimmingService_Delete(t *testing.T) {
 	tests := []struct {
 		name     string
