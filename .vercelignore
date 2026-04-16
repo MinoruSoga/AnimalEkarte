@@ -36,6 +36,14 @@ out/
 Thumbs.db
 
 # Testing
+frontend/tests/
+frontend/*.spec.ts
+frontend/*.spec.tsx
+frontend/*.test.ts
+frontend/*.test.tsx
+frontend/playwright.config.ts
+frontend/playwright-report/
+frontend/test-results/
 coverage/
 .nyc_output/
 

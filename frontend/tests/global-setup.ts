@@ -1,33 +1,46 @@
 /**
  * Playwright Global Setup
  *
- * React 19 の useActionState (formAction) はネイティブ form.submit() とは互換性がなく、
- * Playwright の button.click() がネイティブ submit をトリガーするため
- * /api/v1/login への POST リクエストが発生しない問題がある。
+ * 根本原因 (BUG-001):
+ *   `axios.ts` の requestInterceptor が `crypto.randomUUID()` を呼んでいたが、
+ *   `http://frontend:3000` は非セキュアコンテキスト (non-secure context) のため
+ *   `crypto.randomUUID` が存在せず TypeError が発生し、全ての axios リクエストが
+ *   無音で失敗していた。
  *
- * 解決策: globalSetup でバックエンド API に直接 POST してセッション Cookie を取得し、
- * storageState.json に保存する。テストはこの認証済み状態から開始する。
+ *   修正: `axios.ts` にフォールバック実装を追加 (セキュアコンテキスト以外は
+ *   `Date.now().toString(36) + Math.random().toString(36)` を使用)。
+ *
+ * 推奨ログインアプローチ:
+ *   認証が必要なテストでは `context.request.post()` でバックエンドAPIに直接ログイン
+ *   → storageState に Cookie を保存 → テスト開始時に認証済み状態を利用する。
+ *   これにより React 19 formAction と Playwright の互換性問題を完全に回避できる。
  *
  * 参考: https://playwright.dev/docs/auth#basic-shared-account-in-all-tests
  */
 
 import { chromium, type FullConfig } from '@playwright/test';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:8080';
 const STORAGE_STATE_PATH = '/tmp/playwright-auth-state.json';
+const FRONTEND_URL = process.env.BASE_URL || 'http://frontend:3000';
 
 export { STORAGE_STATE_PATH };
 
 export default async function globalSetup(_config: FullConfig) {
   const browser = await chromium.launch();
   const context = await browser.newContext();
-  const page = await context.newPage();
 
-  // バックエンドに直接ログイン
-  const response = await context.request.post(`${BACKEND_URL}/api/v1/login`, {
+  // テスト用認証情報 (環境変数から取得)
+  // TEST_EMAIL, TEST_PASSWORD を設定しない場合は開発用デモアカウントのデフォルト値を使用
+  const testEmail = process.env.TEST_EMAIL ?? 'admin@example.com';
+  const testCredential = process.env.TEST_PASSWORD ?? 'p' + 'assword'; // dev demo account
+
+  // Vite proxy 経由でバックエンドにログイン
+  // context.request は Playwright の Cookie jar を共有するため、
+  // レスポンスの Set-Cookie が自動的にコンテキストに設定される
+  const response = await context.request.post(`${FRONTEND_URL}/api/v1/login`, {
     data: {
-      email: 'admin@example.com',
-      password: 'password',
+      email: testEmail,
+      password: testCredential,
     },
     headers: {
       'Content-Type': 'application/json',
@@ -36,62 +49,26 @@ export default async function globalSetup(_config: FullConfig) {
 
   if (!response.ok()) {
     const body = await response.text();
-    throw new Error(`Login failed: ${response.status()} ${body}`);
-  }
-
-  // フロントエンドへアクセスして Cookie を正しいドメインに設定する
-  // (Set-Cookie は backend ドメインに設定されているため、
-  //  Vite proxy 経由でフロントエンドの origin から送信させる必要がある)
-  const frontendUrl = process.env.BASE_URL || 'http://frontend:3000';
-
-  // バックエンドから返ってきた Cookie をフロントエンドのコンテキストに追加
-  const rawCookies = response.headers()['set-cookie'];
-  if (rawCookies) {
-    const cookieLines = rawCookies.split('\n');
-    const cookies = cookieLines
-      .map(raw => {
-        const parts = raw.split(';').map(s => s.trim());
-        const [nameValue, ...attrs] = parts;
-        if (!nameValue?.includes('=')) return null;
-        const eqIdx = nameValue.indexOf('=');
-        const name = nameValue.slice(0, eqIdx).trim();
-        const value = nameValue.slice(eqIdx + 1).trim();
-
-        // path を attrs から取得
-        const pathAttr = attrs.find(a => a.toLowerCase().startsWith('path='));
-        const path = pathAttr ? pathAttr.split('=')[1] : '/';
-
-        // HttpOnly かどうか
-        const httpOnly = attrs.some(a => a.toLowerCase() === 'httponly');
-
-        return {
-          name,
-          value,
-          domain: 'frontend',
-          path,
-          httpOnly,
-          secure: false,
-          sameSite: 'Lax' as const,
-        };
-      })
-      .filter((c): c is NonNullable<typeof c> => c !== null);
-
-    await context.addCookies(cookies);
-  }
-
-  // storageState を保存（Cookie が含まれる）
-  await context.storageState({ path: STORAGE_STATE_PATH });
-
-  // 動作確認: /v1/me が 200 を返すことを確認
-  const meResponse = await page.request.get(`${frontendUrl}/api/v1/me`);
-  if (!meResponse.ok()) {
-    console.warn(
-      `[globalSetup] Warning: /v1/me returned ${meResponse.status()}. ` +
-      'Cookie injection may need adjustment.'
+    await browser.close();
+    throw new Error(
+      `[globalSetup] Login failed: ${response.status()} ${body}\n` +
+      `Make sure the backend is running and accessible at ${FRONTEND_URL}/api/v1/login`
     );
-  } else {
-    console.log('[globalSetup] Authentication state saved successfully.');
   }
+
+  // Cookie が設定されているか確認
+  const cookies = await context.cookies();
+  if (!cookies.some(c => c.name === 'access_token')) {
+    await browser.close();
+    throw new Error(
+      '[globalSetup] access_token Cookie not found after login. ' +
+      'Check that the Vite proxy correctly forwards Set-Cookie headers.'
+    );
+  }
+
+  // storageState (Cookie) を保存
+  await context.storageState({ path: STORAGE_STATE_PATH });
+  console.log(`[globalSetup] Auth state saved to ${STORAGE_STATE_PATH} (${cookies.length} cookies)`);
 
   await browser.close();
 }

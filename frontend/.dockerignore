@@ -5,3 +5,14 @@ dist/
 .DS_Store
 *.log
 README.md
+
+# Test sources and test artifacts are not needed in the deployed image
+tests/
+*.spec.ts
+*.spec.tsx
+*.test.ts
+*.test.tsx
+playwright.config.ts
+playwright-report/
+test-results/
+coverage/
