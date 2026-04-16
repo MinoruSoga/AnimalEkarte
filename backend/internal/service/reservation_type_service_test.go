@@ -65,68 +65,33 @@ func (m *mockReservationTypeRepository) Reorder(ctx context.Context, clinicID ui
 	return nil
 }
 
-// mockReservationForReservationType は ReservationType テストで使用する ReservationRepository のスタブ
+// mockReservationForReservationType は ReservationType テストで使用する ReservationQueryRepository のスタブ
 type mockReservationForReservationType struct {
-	existsByReservationTypeIDFn func(ctx context.Context, reservationTypeID uint64) (bool, error)
-	existsByStaffIDFn           func(ctx context.Context, staffID uint64) (bool, error)
+	existsByReservationTypeIDFn func(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error)
+	existsByStaffIDFn           func(ctx context.Context, clinicID, staffID uint64) (bool, error)
 }
 
-func (m *mockReservationForReservationType) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Appointment, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockReservationForReservationType) FindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
-	return nil, nil
-}
-func (m *mockReservationForReservationType) Create(_ context.Context, _ *model.Appointment) error {
-	return nil
-}
-func (m *mockReservationForReservationType) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Appointment, error) {
-	return nil, nil
-}
-func (m *mockReservationForReservationType) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *mockReservationForReservationType) ExistsByReservationTypeID(ctx context.Context, reservationTypeID uint64) (bool, error) {
+func (m *mockReservationForReservationType) ExistsByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error) {
 	if m.existsByReservationTypeIDFn != nil {
-		return m.existsByReservationTypeIDFn(ctx, reservationTypeID)
+		return m.existsByReservationTypeIDFn(ctx, clinicID, reservationTypeID)
 	}
 	return false, nil
 }
-func (m *mockReservationForReservationType) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+func (m *mockReservationForReservationType) ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error) {
 	if m.existsByStaffIDFn != nil {
-		return m.existsByStaffIDFn(ctx, staffID)
+		return m.existsByStaffIDFn(ctx, clinicID, staffID)
 	}
 	return false, nil
 }
-
 func (m *mockReservationForReservationType) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }
-
-func (m *mockReservationForReservationType) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
-	return nil, nil
-}
-
-func (m *mockReservationForReservationType) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
-	return false, nil
-}
-
-func (m *mockReservationForReservationType) CountOnDutyDoctors(_ context.Context, _ uint64, _ time.Time) (int64, error) {
-	return 1, nil
-}
-
-func (m *mockReservationForReservationType) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
-	return 0, nil
-}
-
 func (m *mockReservationForReservationType) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
 	return 0, nil
 }
-
 func (m *mockReservationForReservationType) CountByDateAndSource(_ context.Context, _ uint64, _ time.Time, _ model.ReservationSource) (int64, error) {
 	return 0, nil
 }
-
 func (m *mockReservationForReservationType) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Appointment, int64, error) {
 	return nil, 0, nil
 }

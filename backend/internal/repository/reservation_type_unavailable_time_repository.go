@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"gorm.io/gorm"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"gorm.io/gorm"
 )
 
 // ReservationTypeUnavailableTimeRepository は予約不可時間の永続化インターフェース

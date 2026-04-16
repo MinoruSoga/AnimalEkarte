@@ -52,10 +52,10 @@ type UpdateReservationTypeLiffInput struct {
 type reservationTypeLiffService struct {
 	repo         repository.ReservationTypeLiffRepository
 	resAdminRepo repository.ReservationAdminRepository
-	resRepo      repository.ReservationRepository
+	resRepo      repository.ReservationQueryRepository
 }
 
-func NewReservationTypeLiffService(repo repository.ReservationTypeLiffRepository, resAdminRepo repository.ReservationAdminRepository, resRepo repository.ReservationRepository) ReservationTypeLiffService {
+func NewReservationTypeLiffService(repo repository.ReservationTypeLiffRepository, resAdminRepo repository.ReservationAdminRepository, resRepo repository.ReservationQueryRepository) ReservationTypeLiffService {
 	return &reservationTypeLiffService{repo: repo, resAdminRepo: resAdminRepo, resRepo: resRepo}
 }
 
@@ -123,7 +123,7 @@ func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id ui
 }
 
 func (s *reservationTypeLiffService) Delete(ctx context.Context, clinicID, id uint64) error {
-	exists, err := s.resRepo.ExistsByReservationTypeID(ctx, id)
+	exists, err := s.resRepo.ExistsByReservationTypeID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}

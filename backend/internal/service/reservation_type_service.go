@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -157,14 +156,14 @@ type ReservationTypeService interface { //nolint:revive // ReservationType is a 
 
 type reservationTypeService struct {
 	repo                repository.ReservationTypeRepository
-	reservationRepo     repository.ReservationRepository
+	reservationRepo     repository.ReservationQueryRepository
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository
 	occupationRepo      repository.ReservationTypeOccupationRepository
 }
 
 func NewReservationTypeService(
 	repo repository.ReservationTypeRepository,
-	reservationRepo repository.ReservationRepository,
+	reservationRepo repository.ReservationQueryRepository,
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
 	occupationRepo repository.ReservationTypeOccupationRepository,
 ) ReservationTypeService {
@@ -250,7 +249,7 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 }
 
 func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
-	exists, err := s.reservationRepo.ExistsByReservationTypeID(ctx, id)
+	exists, err := s.reservationRepo.ExistsByReservationTypeID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}
@@ -416,26 +415,26 @@ func validateUnavailableTimeInput(input CreateUnavailableTimeInput) error {
 // checkUnavailableTimeOverlap は既存設定との時間帯重複を検証する
 // weekly と specific の混在は許可（LIFF で specific が weekly より優先される）
 func checkUnavailableTimeOverlap(existing []model.ReservationTypeUnavailableTime, input CreateUnavailableTimeInput) error {
-	for _, e := range existing {
-		if string(e.UnavailableType) != input.UnavailableType {
+	for i := range existing {
+		if string(existing[i].UnavailableType) != input.UnavailableType {
 			continue
 		}
-		switch e.UnavailableType {
+		switch existing[i].UnavailableType {
 		case model.UnavailableTypeWeekly:
-			if input.DayOfWeek == nil || e.DayOfWeek == nil || *e.DayOfWeek != *input.DayOfWeek {
+			if input.DayOfWeek == nil || existing[i].DayOfWeek == nil || *existing[i].DayOfWeek != *input.DayOfWeek {
 				continue
 			}
 		case model.UnavailableTypeSpecific:
-			if input.SpecificDate == nil || e.SpecificDate == nil {
+			if input.SpecificDate == nil || existing[i].SpecificDate == nil {
 				continue
 			}
 			// DATE 型は UTC 午前0時で格納されるため日付文字列で比較
-			if e.SpecificDate.UTC().Format("2006-01-02") != input.SpecificDate.UTC().Format("2006-01-02") {
+			if existing[i].SpecificDate.UTC().Format("2006-01-02") != input.SpecificDate.UTC().Format("2006-01-02") {
 				continue
 			}
 		}
 		// 時間帯が交差するか（start < other.end && end > other.start）
-		if overlaps(input.StartTime, input.EndTime, e.StartTime, e.EndTime) {
+		if overlaps(input.StartTime, input.EndTime, existing[i].StartTime, existing[i].EndTime) {
 			return apperrors.WrapConflict("指定した時間帯は既存の予約不可時間と重複しています")
 		}
 	}
@@ -444,5 +443,5 @@ func checkUnavailableTimeOverlap(existing []model.ReservationTypeUnavailableTime
 
 // overlaps は [s1,e1) と [s2,e2) が交差するかを返す（HH:MM 辞書順比較）
 func overlaps(s1, e1, s2, e2 string) bool {
-	return strings.Compare(s1, e2) < 0 && strings.Compare(e1, s2) > 0
+	return s1 < e2 && e1 > s2
 }

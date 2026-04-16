@@ -316,11 +316,11 @@ func (m *mockLiffReservationRepository) Delete(_ context.Context, _, _ uint64) e
 	return nil
 }
 
-func (m *mockLiffReservationRepository) ExistsByReservationTypeID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockLiffReservationRepository) ExistsByReservationTypeID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
 
-func (m *mockLiffReservationRepository) ExistsByStaffID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockLiffReservationRepository) ExistsByStaffID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
 

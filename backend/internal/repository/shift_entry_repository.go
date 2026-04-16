@@ -25,7 +25,7 @@ type ShiftEntryRepository interface {
 	Create(ctx context.Context, entry *model.ShiftEntry) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
-	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
+	ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error)
 	ReplaceBreaks(ctx context.Context, shiftEntryID uint64, breaks []model.ShiftEntryBreak) error
 	// FindOnDutyStaffs は指定日にシフトが登録されているスタッフ一覧を返す (BUG-344)
 	FindOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error)
@@ -39,7 +39,7 @@ func NewShiftEntryRepository(db *gorm.DB) ShiftEntryRepository {
 }
 
 func (r *shiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error) {
-	q := r.db.WithContext(ctx).
+	q := dbOrTx(ctx, r.db).
 		Preload("Staff").
 		Preload("Breaks").
 		Scopes(clinicScope(clinicID)).
@@ -48,11 +48,12 @@ func (r *shiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, fil
 	if filter.YearMonth != "" {
 		// YYYY-MM → start/end dates
 		t, err := time.Parse("2006-01", filter.YearMonth)
-		if err == nil {
-			start := t
-			end := t.AddDate(0, 1, 0)
-			q = q.Where("date >= ? AND date < ?", start.Format("2006-01-02"), end.Format("2006-01-02"))
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid year_month format: %s", filter.YearMonth))
 		}
+		start := t
+		end := t.AddDate(0, 1, 0)
+		q = q.Where("date >= ? AND date < ?", start.Format("2006-01-02"), end.Format("2006-01-02"))
 	}
 	if filter.StaffID != nil {
 		q = q.Where("staff_id = ?", *filter.StaffID)
@@ -67,7 +68,7 @@ func (r *shiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, fil
 
 func (r *shiftEntryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error) {
 	var entry model.ShiftEntry
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Preload("Staff").
 		Preload("Breaks").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -79,7 +80,7 @@ func (r *shiftEntryRepository) FindByID(ctx context.Context, clinicID, id uint64
 }
 
 func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEntry) error {
-	if err := r.db.WithContext(ctx).Create(entry).Error; err != nil {
+	if err := dbOrTx(ctx, r.db).Create(entry).Error; err != nil {
 		// PostgreSQL UNIQUE違反 (23505)
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("shift_entry",
@@ -91,7 +92,7 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 }
 
 func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.ShiftEntry{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
@@ -105,7 +106,7 @@ func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (r *shiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.ShiftEntry{})
 	if result.Error != nil {
@@ -138,9 +139,10 @@ func (r *shiftEntryRepository) ReplaceBreaks(ctx context.Context, shiftEntryID u
 	return nil
 }
 
-func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&model.ShiftEntry{}).
+	err := dbOrTx(ctx, r.db).Model(&model.ShiftEntry{}).
+		Scopes(clinicScope(clinicID)).
 		Where("staff_id = ?", staffID).
 		Count(&count).Error
 	if err != nil {
@@ -155,7 +157,7 @@ func (r *shiftEntryRepository) FindOnDutyStaffs(ctx context.Context, clinicID ui
 	dateStr := date.Format("2006-01-02")
 	// shift_entries テーブルは deleted_at カラムを持たない（論理削除なし）
 	// staffs テーブルは clinic_id を持たない（テナント非依存）。clinic フィルタは JOIN 条件の shift_entries.clinic_id で担保する。
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Joins("JOIN shift_entries ON shift_entries.staff_id = staffs.id"+
 			" AND shift_entries.clinic_id = ?"+
 			" AND DATE(shift_entries.date) = ?", clinicID, dateStr).

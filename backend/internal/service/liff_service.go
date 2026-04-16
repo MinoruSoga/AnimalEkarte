@@ -268,11 +268,12 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get unavailable times")
 	}
-	for _, u := range filterApplicableUnavailableTimes(unavailableTimes, date) {
+	applicable := filterApplicableUnavailableTimes(unavailableTimes, date)
+	for i := range applicable {
 		// モデルの "HH:MM" → timeslot_engine の "HHMM"（コロン除去）
 		input.DefaultBreaks = append(input.DefaultBreaks, BreakPeriod{
-			Start: strings.ReplaceAll(u.StartTime, ":", ""),
-			End:   strings.ReplaceAll(u.EndTime, ":", ""),
+			Start: strings.ReplaceAll(applicable[i].StartTime, ":", ""),
+			End:   strings.ReplaceAll(applicable[i].EndTime, ":", ""),
 		})
 	}
 
@@ -288,15 +289,15 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 func filterApplicableUnavailableTimes(times []model.ReservationTypeUnavailableTime, date time.Time) []model.ReservationTypeUnavailableTime {
 	dateStr := date.In(jstLocation()).Format("2006-01-02")
 	var specific, weekly []model.ReservationTypeUnavailableTime
-	for _, t := range times {
-		switch t.UnavailableType {
+	for i := range times {
+		switch times[i].UnavailableType {
 		case model.UnavailableTypeSpecific:
-			if t.SpecificDate != nil && t.SpecificDate.UTC().Format("2006-01-02") == dateStr {
-				specific = append(specific, t)
+			if times[i].SpecificDate != nil && times[i].SpecificDate.UTC().Format("2006-01-02") == dateStr {
+				specific = append(specific, times[i])
 			}
 		case model.UnavailableTypeWeekly:
-			if t.DayOfWeek != nil && int(*t.DayOfWeek) == int(date.In(jstLocation()).Weekday()) {
-				weekly = append(weekly, t)
+			if times[i].DayOfWeek != nil && int(*times[i].DayOfWeek) == int(date.In(jstLocation()).Weekday()) {
+				weekly = append(weekly, times[i])
 			}
 		}
 	}

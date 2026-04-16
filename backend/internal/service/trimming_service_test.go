@@ -59,11 +59,11 @@ func (m *mockTrimmingReservationRepository) Delete(ctx context.Context, clinicID
 	return nil
 }
 
-func (m *mockTrimmingReservationRepository) ExistsByReservationTypeID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockTrimmingReservationRepository) ExistsByReservationTypeID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
 
-func (m *mockTrimmingReservationRepository) ExistsByStaffID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockTrimmingReservationRepository) ExistsByStaffID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
 

@@ -55,71 +55,36 @@ func (m *mockStaffRepository) Reorder(_ context.Context, _ uint64, _ []uint64) e
 	return m.reorderErr
 }
 
-// mockReservationForStaff は Staff テストで使用する ReservationRepository のスタブ
+// mockReservationForStaff は Staff テストで使用する ReservationQueryRepository のスタブ
 type mockReservationForStaff struct {
-	existsByStaffIDFn func(ctx context.Context, staffID uint64) (bool, error)
+	existsByStaffIDFn func(ctx context.Context, clinicID, staffID uint64) (bool, error)
 }
 
-func (m *mockReservationForStaff) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Appointment, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockReservationForStaff) FindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
-	return nil, nil
-}
-func (m *mockReservationForStaff) Create(_ context.Context, _ *model.Appointment) error {
-	return nil
-}
-func (m *mockReservationForStaff) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Appointment, error) {
-	return nil, nil
-}
-func (m *mockReservationForStaff) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *mockReservationForStaff) ExistsByReservationTypeID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockReservationForStaff) ExistsByReservationTypeID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
-func (m *mockReservationForStaff) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+func (m *mockReservationForStaff) ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error) {
 	if m.existsByStaffIDFn != nil {
-		return m.existsByStaffIDFn(ctx, staffID)
+		return m.existsByStaffIDFn(ctx, clinicID, staffID)
 	}
 	return false, nil
 }
-
 func (m *mockReservationForStaff) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
 	return 0, nil
 }
-
-func (m *mockReservationForStaff) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
-	return nil, nil
-}
-
-func (m *mockReservationForStaff) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
-	return false, nil
-}
-
-func (m *mockReservationForStaff) CountOnDutyDoctors(_ context.Context, _ uint64, _ time.Time) (int64, error) {
-	return 1, nil
-}
-
-func (m *mockReservationForStaff) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
-	return 0, nil
-}
-
 func (m *mockReservationForStaff) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
 	return 0, nil
 }
-
 func (m *mockReservationForStaff) CountByDateAndSource(_ context.Context, _ uint64, _ time.Time, _ model.ReservationSource) (int64, error) {
 	return 0, nil
 }
-
 func (m *mockReservationForStaff) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Appointment, int64, error) {
 	return nil, 0, nil
 }
 
 // mockShiftEntryForStaff は Staff テストで使用する ShiftEntryRepository のスタブ
 type mockShiftEntryForStaff struct {
-	existsByStaffIDFn func(ctx context.Context, staffID uint64) (bool, error)
+	existsByStaffIDFn func(ctx context.Context, clinicID, staffID uint64) (bool, error)
 }
 
 func (m *mockShiftEntryForStaff) FindAll(_ context.Context, _ uint64, _ repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
@@ -140,9 +105,9 @@ func (m *mockShiftEntryForStaff) Delete(_ context.Context, _, _ uint64) error {
 func (m *mockShiftEntryForStaff) ReplaceBreaks(_ context.Context, _ uint64, _ []model.ShiftEntryBreak) error {
 	return nil
 }
-func (m *mockShiftEntryForStaff) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+func (m *mockShiftEntryForStaff) ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error) {
 	if m.existsByStaffIDFn != nil {
-		return m.existsByStaffIDFn(ctx, staffID)
+		return m.existsByStaffIDFn(ctx, clinicID, staffID)
 	}
 	return false, nil
 }
@@ -729,12 +694,12 @@ func TestStaffService_Delete(t *testing.T) {
 				},
 			}
 			reservationRepo := &mockReservationForStaff{
-				existsByStaffIDFn: func(_ context.Context, _ uint64) (bool, error) {
+				existsByStaffIDFn: func(_ context.Context, _, _ uint64) (bool, error) {
 					return tt.reservationExists, tt.checkReservationErr
 				},
 			}
 			shiftRepo := &mockShiftEntryForStaff{
-				existsByStaffIDFn: func(_ context.Context, _ uint64) (bool, error) {
+				existsByStaffIDFn: func(_ context.Context, _, _ uint64) (bool, error) {
 					return tt.shiftExists, tt.checkShiftErr
 				},
 			}

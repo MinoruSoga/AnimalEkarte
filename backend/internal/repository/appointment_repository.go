@@ -11,18 +11,19 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type ReservationRepository interface {
+// ReservationCRUDRepository はコア CRUD 操作（5 メソッド）。
+// appointment_service / trimming_service / liff_service で使用。
+type ReservationCRUDRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Appointment, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error)
 	Create(ctx context.Context, reservation *model.Appointment) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	ExistsByReservationTypeID(ctx context.Context, reservationTypeID uint64) (bool, error)
-	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
-	CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error)
+}
 
-	// トランザクション内で使用するメソッド（dbOrTx でコンテキストの tx を自動使用）
-
+// ReservationSlotRepository はトランザクション内の競合チェック操作（4 メソッド）。
+// dbOrTx でコンテキストの tx を自動使用。appointment_service で使用。
+type ReservationSlotRepository interface {
 	// LockAndFindByID は FOR UPDATE で予約を行ロック取得する（updateWithConflictCheck 用）。
 	LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error)
 	// HasDoctorConflict は指定医師の時間枠重複を SELECT FOR UPDATE でチェックする。
@@ -31,6 +32,14 @@ type ReservationRepository interface {
 	CountOnDutyDoctors(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
 	// CountConflicts は時間枠の競合予約数を SELECT FOR UPDATE で返す。
 	CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
+}
+
+// ReservationQueryRepository はクロスフィーチャーのクエリ・依存チェック（6 メソッド）。
+// reservation_type_service / staff_service / liff_service / reservation_validators で使用。
+type ReservationQueryRepository interface {
+	ExistsByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error)
+	ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error)
+	CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error)
 	// CountByCustomerAndDateRange は顧客・期間での予約件数を返す（日次・月次制限チェック用）。
 	CountByCustomerAndDateRange(ctx context.Context, clinicID, customerID uint64, start, end time.Time) (int64, error)
 	// CountByDateAndSource は日付・ソースの予約件数を返す（確認番号生成用）。
@@ -40,10 +49,19 @@ type ReservationRepository interface {
 	FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Appointment, int64, error)
 }
 
+// ReservationRepository は 3 つのサブインターフェースを合成したフルインターフェース。
+// DI 配線と、複数グループのメソッドが必要なサービスで使用する。
+type ReservationRepository interface {
+	ReservationCRUDRepository
+	ReservationSlotRepository
+	ReservationQueryRepository
+}
+
 type reservationRepository struct {
 	db *gorm.DB
 }
 
+// NewReservationRepository は ReservationRepository の実装を返す。
 func NewReservationRepository(db *gorm.DB) ReservationRepository {
 	return &reservationRepository{db: db}
 }
@@ -132,9 +150,10 @@ func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64)
 	return nil
 }
 
-func (r *reservationRepository) ExistsByReservationTypeID(ctx context.Context, reservationTypeID uint64) (bool, error) {
+func (r *reservationRepository) ExistsByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error) {
 	var count int64
 	err := dbOrTx(ctx, r.db).Model(&model.Appointment{}).
+		Scopes(clinicScope(clinicID)).
 		Where("reservation_type_id = ?", reservationTypeID).
 		Count(&count).Error
 	if err != nil {
@@ -143,9 +162,10 @@ func (r *reservationRepository) ExistsByReservationTypeID(ctx context.Context, r
 	return count > 0, nil
 }
 
-func (r *reservationRepository) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+func (r *reservationRepository) ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error) {
 	var count int64
 	err := dbOrTx(ctx, r.db).Model(&model.Appointment{}).
+		Scopes(clinicScope(clinicID)).
 		Where("doctor_id = ?", staffID).
 		Count(&count).Error
 	if err != nil {
@@ -258,13 +278,12 @@ func (r *reservationRepository) CountConflicts(ctx context.Context, clinicID uin
 func (r *reservationRepository) CountByCustomerAndDateRange(ctx context.Context, clinicID, customerID uint64, start, end time.Time) (int64, error) {
 	var count int64
 	err := dbOrTx(ctx, r.db).Model(&model.Appointment{}).
-		Where(`clinic_id = ? AND line_customer_id = ? AND deleted_at IS NULL
-		  AND status NOT IN ('cancelled')
-		  AND start_time >= ? AND start_time < ?`,
-			clinicID, customerID, start, end,
+		Scopes(clinicScope(clinicID)).
+		Where("line_customer_id = ? AND status NOT IN ('cancelled') AND start_time >= ? AND start_time < ?",
+			customerID, start, end,
 		).Count(&count).Error
 	if err != nil {
-		return 0, apperrors.Wrap(err, "count reservations by customer and date range")
+		return 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	return count, nil
 }
@@ -274,7 +293,7 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 	reservations := make([]model.Appointment, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Appointment{}).
+	q := dbOrTx(ctx, r.db).Model(&model.Appointment{}).
 		Scopes(clinicScope(clinicID)).
 		Joins("JOIN reservation_types ON reservation_types.id = appointments.reservation_type_id").
 		Where("reservation_types.category = ?", category)
@@ -287,10 +306,18 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 			Where("pets.owner_id = ?", *ownerID)
 	}
 	if startDate != nil {
-		q = q.Where("DATE(appointments.start_time AT TIME ZONE 'Asia/Tokyo') >= ?", *startDate)
+		start, err := parseJSTDate(*startDate)
+		if err != nil {
+			return nil, 0, err
+		}
+		q = q.Where("appointments.start_time >= ?", start)
 	}
 	if endDate != nil {
-		q = q.Where("DATE(appointments.start_time AT TIME ZONE 'Asia/Tokyo') <= ?", *endDate)
+		end, err := parseJSTDate(*endDate)
+		if err != nil {
+			return nil, 0, err
+		}
+		q = q.Where("appointments.start_time < ?", end.AddDate(0, 0, 1))
 	}
 
 	if err := q.Count(&total).Error; err != nil {
@@ -316,13 +343,28 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 // 確認番号生成で使用する。
 func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinicID uint64, date time.Time, source model.ReservationSource) (int64, error) {
 	var count int64
-	dateStr := date.Format("2006-01-02")
+	start, end := appointmentDayRange(date)
 	err := dbOrTx(ctx, r.db).Model(&model.Appointment{}).
 		Scopes(clinicScope(clinicID)).
-		Where("DATE(start_time) = ? AND source = ?", dateStr, source).
+		Where("start_time >= ? AND start_time < ? AND source = ?", start, end, source).
 		Count(&count).Error
 	if err != nil {
-		return 0, apperrors.Wrap(err, "count reservations by date and source")
+		return 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	return count, nil
+}
+
+func appointmentDayRange(date time.Time) (start, end time.Time) {
+	dateJST := date.In(jstTimeLocation())
+	start = time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, dateJST.Location())
+	end = start.AddDate(0, 0, 1)
+	return start, end
+}
+
+func parseJSTDate(value string) (time.Time, error) {
+	t, err := time.ParseInLocation("2006-01-02", value, jstTimeLocation())
+	if err != nil {
+		return time.Time{}, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format")
+	}
+	return t, nil
 }

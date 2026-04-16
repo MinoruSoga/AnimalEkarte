@@ -46,7 +46,7 @@ func (m *mockShiftEntryRepository) ReplaceBreaks(_ context.Context, _ uint64, _ 
 	return nil
 }
 
-func (m *mockShiftEntryRepository) ExistsByStaffID(_ context.Context, _ uint64) (bool, error) {
+func (m *mockShiftEntryRepository) ExistsByStaffID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
 

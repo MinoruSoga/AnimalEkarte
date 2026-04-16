@@ -98,7 +98,7 @@ type staffService struct {
 	repo                repository.StaffRepository
 	accountRepo         repository.AccountRepository
 	assignmentRepo      repository.StaffClinicAssignmentRepository
-	reservationRepo     repository.ReservationRepository
+	reservationRepo     repository.ReservationQueryRepository
 	shiftEntryRepo      repository.ShiftEntryRepository
 	permissionGroupRepo repository.PermissionGroupRepository
 	resStaffRepo        repository.ReservationStaffRepository
@@ -109,7 +109,7 @@ func NewStaffService(
 	repo repository.StaffRepository,
 	accountRepo repository.AccountRepository,
 	assignmentRepo repository.StaffClinicAssignmentRepository,
-	reservationRepo repository.ReservationRepository,
+	reservationRepo repository.ReservationQueryRepository,
 	shiftEntryRepo repository.ShiftEntryRepository,
 	permissionGroupRepo repository.PermissionGroupRepository,
 	resStaffRepo repository.ReservationStaffRepository,
@@ -343,14 +343,14 @@ func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
 }
 
 func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
-	reservationExists, err := s.reservationRepo.ExistsByStaffID(ctx, id)
+	reservationExists, err := s.reservationRepo.ExistsByStaffID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}
 	if reservationExists {
 		return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
 	}
-	shiftExists, err := s.shiftEntryRepo.ExistsByStaffID(ctx, id)
+	shiftExists, err := s.shiftEntryRepo.ExistsByStaffID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check shift dependency")
 	}
