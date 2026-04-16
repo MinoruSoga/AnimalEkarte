@@ -1,9 +1,28 @@
-# 機能テストレポート
+# 機能テストレポート（集約版）
 
 > **最終更新**: 2026-04-16 (詳細実装追従: ペット選択フロー、カルテ画像添付、LIFFアプリ項目追加)
 > テスト環境: ローカル (localhost:3003, localhost:8080) / ステージング (stg.noah-karte.com)
 > テストアカウント: admin@example.com (安田 希恵 / 一般) / vet@example.com (倉田 春香 / 一般)
 > **テスト完成度**: OK=3,512 / NG=0 / 未確認=多数 (新規・詳細項目)
+
+> **集約方針**: 2026-04-04 の TIER 1 修正レポート群（`TESTING_SUMMARY.md` / `TEST_IMPLEMENTATION_DETAILS.md` / `TEST_VERIFICATION_REPORT.md` / `TEST_VERIFICATION_SUMMARY.md` / `TIER1_COMPLETION_SUMMARY.md`）はこのファイルに統合し、個別ファイルは廃止しました。
+
+## 0. 集約済み検証サマリー
+
+### TIER 1 修正検証（2026-04-04）
+
+| 対象 | 結果 | 補足 |
+|---|---|---|
+| BUG-019 RBAC Permission Group Visibility | ✅ PASS | 権限表示・編集制御を確認 |
+| BUG-020 会計印刷 | ✅ PASS | 印刷プレビュー/レイアウトを確認 |
+| BUG-021 医師ID自動入力 | ✅ PASS | doctorId の抽出とフォーム反映を確認 |
+| BUG-018 Merchandise Item FK | ✅ PASS | FK 参照削除の依存チェックを確認 |
+
+### 検証メモ
+
+- コード実装レビュー + 単体テスト中心で検証。
+- Docker 環境制約のため、完全な E2E は一部保留。
+- 以後の実施レポートはこのファイルへ追記する。
 
 ## テスト凡例
 

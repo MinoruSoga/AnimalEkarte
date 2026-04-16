@@ -42,6 +42,7 @@
 
 ## 🧪 テスト・検証
 
+- **[FUNCTIONAL_TEST_REPORT.md](FUNCTIONAL_TEST_REPORT.md)**: 機能テスト・検証レポートの集約版。
 - **[testing/HANDLER_TEST_DOCUMENTATION_STATUS.md](testing/HANDLER_TEST_DOCUMENTATION_STATUS.md)**: API ハンドラーのテストカバレッジ・ステータス。
 - **[testing/SECTION_14_MANUAL_TEST_GUIDE.md](testing/SECTION_14_MANUAL_TEST_GUIDE.md)**: 手動ブラウザテストの実行ガイド。
 - **[archive/](archive/)**: 過去の機能テストレポートやトリアージ記録。
