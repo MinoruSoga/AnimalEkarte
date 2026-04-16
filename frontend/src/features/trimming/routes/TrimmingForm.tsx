@@ -329,6 +329,28 @@ const RightColumn = memo(function RightColumn({
   onFilterEndDateChange,
   onHistoryClick,
 }: RightColumnProps) {
+  // js-cache-function-results: sortedHistory の JSX リストを useMemo でキャッシュ。
+  // RightColumn は memo() 済みだが filter 等の別 props 変化でも再レンダーされるため。
+  const historyCards = useMemo(
+    () =>
+      sortedHistory.map((hist) => (
+        <div
+          key={hist.id}
+          className={`p-3 border ${C.borderMedium} rounded-lg bg-white ${C.hoverBgPage} transition-colors cursor-pointer`}
+          onClick={() => onHistoryClick({ styleRequest: hist.styleRequest, staffName: hist.staff })}
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <div className={`text-xs ${C.text60} mb-1`}>{hist.date}</div>
+              <div className={`text-sm ${C.text} font-medium truncate`}>{hist.styleRequest}</div>
+              <div className={`text-xs ${C.text60} mt-1`}>{hist.staff}</div>
+            </div>
+          </div>
+        </div>
+      )),
+    [sortedHistory, onHistoryClick]
+  );
+
   return (
     <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
       <div>
@@ -357,21 +379,7 @@ const RightColumn = memo(function RightColumn({
             施術履歴がありません
           </div>
         ) : (
-          sortedHistory.map((hist) => (
-            <div
-              key={hist.id}
-              className={`p-3 border ${C.borderMedium} rounded-lg bg-white ${C.hoverBgPage} transition-colors cursor-pointer`}
-              onClick={() => onHistoryClick({ styleRequest: hist.styleRequest, staffName: hist.staff })}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className={`text-xs ${C.text60} mb-1`}>{hist.date}</div>
-                  <div className={`text-sm ${C.text} font-medium truncate`}>{hist.styleRequest}</div>
-                  <div className={`text-xs ${C.text60} mt-1`}>{hist.staff}</div>
-                </div>
-              </div>
-            </div>
-          ))
+          historyCards
         )}
       </div>
     </div>
@@ -422,6 +430,8 @@ export function TrimmingForm() {
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   // --- Focus Management (Accessibility) ---
+  // rerender-dependencies: formState.fieldErrors (object) は deps に入れない。
+  // timestamp が変わるたびに fieldErrors も変わるため timestamp だけで十分。
   useEffect(() => {
     const errorFields = Object.keys(formState.fieldErrors || {});
     if (errorFields.length === 0) return;
@@ -434,17 +444,19 @@ export function TrimmingForm() {
       element.focus();
       element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-  }, [formState.fieldErrors, formState.timestamp]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fieldErrors は timestamp と同期。timestamp のみで十分
+  }, [formState.timestamp]);
+
+  // rerender-dependencies: location.state (object) から primitive を抽出して deps を安定化
+  const redirectPath = typeof location.state?.from === "string" ? location.state.from : "/trimming";
 
   // React 19 Action の成功を検知して遷移
   useEffect(() => {
     if (formState.success) {
       markClean();
-      const redirectPath: string =
-        typeof location.state?.from === "string" ? location.state.from : "/trimming";
       navigate(redirectPath);
     }
-  }, [formState.success, formState.timestamp, navigate, markClean, location.state]);
+  }, [formState.success, formState.timestamp, navigate, markClean, redirectPath]);
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
