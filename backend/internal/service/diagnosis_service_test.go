@@ -1009,11 +1009,11 @@ func TestBuildDiagnosisNameUpdateFields(t *testing.T) {
 			SortOrder:       &sortOrder,
 		}
 		fields := buildDiagnosisNameUpdateFields(input)
-		assert.Equal(t, name, fields[colDiagnosisNameName])
-		assert.Equal(t, isActive, fields[colDiagnosisNameIsActive])
+		assert.Equal(t, name, fields[colDiagnosisTypeName])
+		assert.Equal(t, isActive, fields[colDiagnosisTypeIsActive])
 		assert.Equal(t, catID, fields[colDiagnosisNameDiagnosisTypeID])
-		assert.Equal(t, sortOrder, fields[colDiagnosisNameSortOrder])
-		assert.NotContains(t, fields, colDiagnosisNameDescription)
+		assert.Equal(t, sortOrder, fields[colDiagnosisTypeSortOrder])
+		assert.NotContains(t, fields, colDiagnosisTypeDescription)
 	})
 
 	t.Run("returns empty map when all fields are nil", func(t *testing.T) {

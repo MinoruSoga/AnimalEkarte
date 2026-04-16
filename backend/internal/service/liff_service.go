@@ -129,7 +129,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		return s.buildStaffSlotInputs(ctx, clinicID, visibleStaffs, date)
 	}
 	slotSettingsFn := func(date time.Time) TimeSlotsInput {
-		bh, defaultBreaks := s.parseBusinessHoursForDate(setting, date)
+		bh, defaultBreaks := parseBusinessHoursForDate(setting, date)
 		return TimeSlotsInput{
 			BusinessHours:     bh,
 			DefaultBreaks:     defaultBreaks,
@@ -217,7 +217,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		return nil, apperrors.Wrap(err, "failed to build staff slot inputs")
 	}
 
-	bh, defaultBreaks := s.parseBusinessHoursForDate(setting, date)
+	bh, defaultBreaks := parseBusinessHoursForDate(setting, date)
 	input := &TimeSlotsInput{
 		BusinessHours:     bh,
 		DefaultBreaks:     defaultBreaks,
@@ -466,13 +466,7 @@ func (s *liffService) buildStaffSlotInputs(ctx context.Context, clinicID uint64,
 	return inputs, nil
 }
 
-// parseBusinessHoursForDate は指定日の営業時間・休憩時間を解析する。
-// BusinessHoursByWeekday に該当曜日の設定があればそれを優先する。
-func (s *liffService) parseBusinessHoursForDate(setting *model.LineReservationSetting, date time.Time) (BusinessHours, []BreakPeriod) {
-	return parseBusinessHoursForDate(setting, date)
-}
-
-// parseBusinessHoursForDate はパッケージ内共通のヘルパー（validator からも呼ばれる）。
+// parseBusinessHoursForDate はパッケージ内共通のヘルパー（liffService・validator から呼ばれる）。
 func parseBusinessHoursForDate(setting *model.LineReservationSetting, date time.Time) (BusinessHours, []BreakPeriod) {
 	var bh BusinessHours
 	if err := json.Unmarshal(setting.BusinessHours, &bh); err != nil {
