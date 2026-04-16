@@ -67,7 +67,7 @@ CREATE TYPE plan_timing AS ENUM ('morning', 'noon', 'night');
 CREATE TYPE body_weight_unit AS ENUM ('Kg', 'g');
 
 -- トリミング・シフト関連
-CREATE TYPE trimming_status AS ENUM ('completed', 'reserved', 'in_progress');
+CREATE TYPE reservation_type_category AS ENUM ('general', 'trimming');
 CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money');
 CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave');
 CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt'); -- 内税, 外税, 非課税
@@ -382,10 +382,11 @@ CREATE TABLE reservation_types (
     reservation_visible      boolean     NOT NULL DEFAULT true,
     reservation_comment      text        NOT NULL DEFAULT '',
     reservation_image_url    text        NOT NULL DEFAULT '',
-    reservation_day_option   text        NOT NULL DEFAULT 'none',
-    is_internal              boolean     NOT NULL DEFAULT false,
-    created_at               timestamptz NOT NULL DEFAULT now(),
-    updated_at               timestamptz NOT NULL DEFAULT now()
+    reservation_day_option   text                        NOT NULL DEFAULT 'none',
+    is_internal              boolean                     NOT NULL DEFAULT false,
+    category                 reservation_type_category   NOT NULL DEFAULT 'general',
+    created_at               timestamptz                 NOT NULL DEFAULT now(),
+    updated_at               timestamptz                 NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_reservation_types_group_id ON reservation_types(group_id);
@@ -715,29 +716,41 @@ CREATE TABLE hospitalizations (
 );
 
 -- ------------------------------------
--- 31. trimming_records（トリミング記録）
+-- 31. appointment_trimming_details（トリミング詳細: appointments の1:1拡張）
 -- ------------------------------------
-CREATE TABLE trimming_records (
-    id              BIGSERIAL        PRIMARY KEY,
-    clinic_id       bigint           NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    date            date             NOT NULL,
-    pet_id          bigint                    REFERENCES pets(id) ON DELETE RESTRICT,
-    style_request   text             NOT NULL DEFAULT '',
-    staff_id        bigint                    REFERENCES staffs(id) ON DELETE SET NULL,
-    status          trimming_status           DEFAULT 'reserved',
-    course_id       bigint                    REFERENCES trimming_courses(id) ON DELETE SET NULL,
-    body_weight     numeric(6,2),             -- 体重（body weight）
-    bw_unit         body_weight_unit          DEFAULT 'Kg',
-    body_temperature numeric(4,1),            -- 体温（body temperature, ℃）
-    used_shampoo    text             NOT NULL DEFAULT '',
-    used_ribbon     text             NOT NULL DEFAULT '',
-    remarks         text             NOT NULL DEFAULT '',
-    style_image     text             NOT NULL DEFAULT '',
-    completed_image text             NOT NULL DEFAULT '',
-    created_at      timestamptz      NOT NULL DEFAULT now(),
-    updated_at      timestamptz      NOT NULL DEFAULT now(),
-    deleted_at      timestamptz
+CREATE TABLE appointment_trimming_details (
+    id               BIGSERIAL        PRIMARY KEY,
+    clinic_id        bigint           NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    appointment_id   bigint           NOT NULL UNIQUE REFERENCES appointments(id) ON DELETE CASCADE,
+    course_id        bigint                    REFERENCES trimming_courses(id) ON DELETE SET NULL,
+    style_request    text             NOT NULL DEFAULT '',
+    body_weight      numeric(6,2),
+    bw_unit          body_weight_unit          DEFAULT 'Kg',
+    body_temperature numeric(4,1),
+    used_shampoo     text             NOT NULL DEFAULT '',
+    used_ribbon      text             NOT NULL DEFAULT '',
+    remarks          text             NOT NULL DEFAULT '',
+    style_image      text             NOT NULL DEFAULT '',
+    completed_image  text             NOT NULL DEFAULT '',
+    created_at       timestamptz      NOT NULL DEFAULT now(),
+    updated_at       timestamptz      NOT NULL DEFAULT now()
 );
+
+CREATE INDEX idx_appt_trimming_clinic_appointment ON appointment_trimming_details(clinic_id, appointment_id);
+
+-- ------------------------------------
+-- 31b. appointment_trimming_options（トリミングオプション M:N）
+-- ------------------------------------
+CREATE TABLE appointment_trimming_options (
+    id             BIGSERIAL   PRIMARY KEY,
+    appointment_id bigint      NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+    option_id      bigint      NOT NULL REFERENCES trimming_options(id) ON DELETE RESTRICT,
+    sort_order     integer              DEFAULT 0,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (appointment_id, option_id)
+);
+
+CREATE INDEX idx_appt_trimming_options_appointment ON appointment_trimming_options(appointment_id);
 
 -- ------------------------------------
 -- 32. medical_records（電子カルテ）
@@ -1141,18 +1154,6 @@ CREATE TABLE staff_notes (
     updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
--- ------------------------------------
--- 51. trimming_record_options（トリミングオプション適用）
--- ------------------------------------
-CREATE TABLE trimming_record_options (
-    id                 BIGSERIAL PRIMARY KEY,
-    trimming_record_id bigint    NOT NULL REFERENCES trimming_records(id) ON DELETE CASCADE,
-    option_id          bigint    NOT NULL REFERENCES trimming_options(id) ON DELETE RESTRICT,
-    sort_order         integer            DEFAULT 0,
-    created_at         timestamptz NOT NULL DEFAULT now(),
-    updated_at         timestamptz NOT NULL DEFAULT now()
-);
-
 -- ==========================================================================
 -- レイヤー7: billings
 -- ==========================================================================
@@ -1322,9 +1323,6 @@ CREATE UNIQUE INDEX idx_shift_entries_staff_date ON shift_entries(staff_id, date
 -- 飼主: clinic内でemail重複不可（論理削除を除く・空文字除く）
 CREATE UNIQUE INDEX uk_owners_clinic_email ON owners(clinic_id, email) WHERE deleted_at IS NULL AND email IS NOT NULL AND email != '';
 
--- トリミングオプション: 重複防止
-CREATE UNIQUE INDEX idx_trimming_record_options_unique ON trimming_record_options(trimming_record_id, option_id);
-
 -- billings: medical_record_idがある場合は1対1
 CREATE UNIQUE INDEX idx_billings_medical_record_id_unique ON billings(medical_record_id) WHERE medical_record_id IS NOT NULL;
 
@@ -1367,7 +1365,6 @@ CREATE INDEX idx_pets_clinic_id ON pets(clinic_id);
 -- 診療テーブル clinic_id
 CREATE INDEX idx_appointments_clinic_id ON appointments(clinic_id);
 CREATE INDEX idx_hospitalizations_clinic_id ON hospitalizations(clinic_id);
-CREATE INDEX idx_trimming_records_clinic_id ON trimming_records(clinic_id);
 CREATE INDEX idx_billings_clinic_id ON billings(clinic_id);
 CREATE INDEX idx_shift_entries_clinic_id ON shift_entries(clinic_id);
 
@@ -1420,7 +1417,6 @@ CREATE INDEX idx_billing_refunds_staff ON billing_refunds(refunded_by);
 
 -- 担当医 FK インデックス（staffs）
 CREATE INDEX idx_vital_records_staff_id ON vital_records(staff_id);
-CREATE INDEX idx_trimming_records_staff_id ON trimming_records(staff_id);
 
 -- medical_record_images インデックス
 CREATE INDEX idx_medical_record_images_image_type ON medical_record_images(image_type);
@@ -1505,11 +1501,6 @@ CREATE INDEX idx_hospitalizations_clinic_doctor
   ON hospitalizations(clinic_id, doctor_id)
   WHERE deleted_at IS NULL;
 
--- トリミング一覧
-CREATE INDEX idx_trimming_records_clinic_date
-  ON trimming_records(clinic_id, date DESC)
-  WHERE deleted_at IS NULL;
-
 -- BE-033: 追加インデックス（検索パフォーマンス改善）
 CREATE INDEX idx_owners_phone_trgm ON owners USING gin (phone gin_trgm_ops) WHERE deleted_at IS NULL;
 CREATE INDEX idx_inventory_items_category ON inventory_items(category) WHERE deleted_at IS NULL;
@@ -1587,7 +1578,7 @@ COMMENT ON TABLE inquiry_templates IS '問診定型文マスタ';
 COMMENT ON TABLE pets IS 'ペット情報';
 COMMENT ON TABLE appointments IS '予約';
 COMMENT ON TABLE hospitalizations IS '入院・ホテル管理';
-COMMENT ON TABLE trimming_records IS 'トリミング記録';
+COMMENT ON TABLE appointment_trimming_details IS 'トリミング予約詳細';
 COMMENT ON TABLE medical_records IS '電子カルテ（診療記録）';
 COMMENT ON TABLE vaccinations IS 'ワクチン接種記録';
 COMMENT ON TABLE checkups IS '定期健診記録';
@@ -1606,7 +1597,7 @@ COMMENT ON TABLE care_plan_items IS 'ケアプラン項目';
 COMMENT ON TABLE estimate_items IS '見積書明細';
 COMMENT ON TABLE care_logs IS 'ケアログ';
 COMMENT ON TABLE staff_notes IS 'スタッフノート';
-COMMENT ON TABLE trimming_record_options IS 'トリミングオプション適用';
+COMMENT ON TABLE appointment_trimming_options IS 'トリミング予約オプション適用';
 COMMENT ON TABLE billings IS '会計';
 COMMENT ON TABLE billing_items IS '会計明細';
 COMMENT ON TABLE payments IS '支払い情報';
@@ -1782,4 +1773,59 @@ CREATE INDEX idx_appointments_line_customer ON appointments(line_customer_id)
 CREATE UNIQUE INDEX uk_appointment_staff_time
     ON appointments (clinic_id, doctor_id, start_time)
     WHERE deleted_at IS NULL AND status != 'cancelled';
+
+-- =============================================
+-- 予約区分予約不可時間（BE-115）
+-- =============================================
+CREATE TABLE reservation_type_unavailable_times (
+    id                  BIGSERIAL   PRIMARY KEY,
+    clinic_id           bigint      NOT NULL REFERENCES clinics(id),
+    reservation_type_id bigint      NOT NULL REFERENCES reservation_types(id) ON DELETE CASCADE,
+    unavailable_type    text        NOT NULL CHECK (unavailable_type IN ('weekly', 'specific')),
+    -- weekly: 0=日曜, 1=月曜, ..., 6=土曜
+    day_of_week         smallint    CHECK (
+                            (unavailable_type = 'weekly' AND day_of_week BETWEEN 0 AND 6)
+                            OR (unavailable_type = 'specific' AND day_of_week IS NULL)
+                        ),
+    specific_date       date        CHECK (
+                            (unavailable_type = 'specific' AND specific_date IS NOT NULL)
+                            OR (unavailable_type = 'weekly' AND specific_date IS NULL)
+                        ),
+    -- "HH:MM" 形式で保存（VARCHAR(5)）
+    -- TIME型を使わない理由: GORMがTIME列をstringにscanすると"HH:MM:SS"形式になり、
+    -- timeslot_engine の minutesSinceMidnight（4文字HHMM専用）が必ずエラーになるため
+    start_time          varchar(5)  NOT NULL CHECK (start_time ~ '^\d{2}:\d{2}$'),
+    end_time            varchar(5)  NOT NULL CHECK (end_time ~ '^\d{2}:\d{2}$'),
+    created_at          timestamptz NOT NULL DEFAULT now(),
+    updated_at          timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT chk_unavailable_time_range CHECK (end_time > start_time)
+    -- 論理削除なし（物理削除）: reservation_types の ON DELETE CASCADE で連動削除される
+);
+
+CREATE INDEX idx_rtype_unavailable_clinic_type
+    ON reservation_type_unavailable_times(clinic_id, reservation_type_id);
+CREATE INDEX idx_rtype_unavailable_weekly
+    ON reservation_type_unavailable_times(reservation_type_id, day_of_week)
+    WHERE unavailable_type = 'weekly';
+CREATE INDEX idx_rtype_unavailable_specific
+    ON reservation_type_unavailable_times(reservation_type_id, specific_date)
+    WHERE unavailable_type = 'specific';
+
+-- =============================================
+-- 予約区分 × 職種 中間テーブル（M:N）（BE-115）
+-- =============================================
+CREATE TABLE reservation_type_occupations (
+    id                  BIGSERIAL   PRIMARY KEY,
+    clinic_id           bigint      NOT NULL REFERENCES clinics(id),
+    reservation_type_id bigint      NOT NULL REFERENCES reservation_types(id) ON DELETE CASCADE,
+    occupation_id       bigint      NOT NULL REFERENCES occupations(id) ON DELETE CASCADE,
+    created_at          timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (reservation_type_id, occupation_id)
+    -- 論理削除なし（物理削除）
+);
+
+CREATE INDEX idx_rtype_occupation_clinic
+    ON reservation_type_occupations(clinic_id, reservation_type_id);
+CREATE INDEX idx_rtype_occupation_occupation
+    ON reservation_type_occupations(occupation_id);
 

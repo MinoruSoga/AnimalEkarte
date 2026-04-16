@@ -81,14 +81,14 @@ func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint
 	return nil
 }
 
-// CountRecordsByCourseID は指定コースを使用しているトリミング記録数を返す（BUG-111）
+// CountRecordsByCourseID は指定コースを使用しているトリミング詳細数を返す（BUG-111）
 func (r *trimmingCourseRepository) CountRecordsByCourseID(ctx context.Context, courseID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
-		Model(&model.TrimmingRecord{}).
+		Model(&model.AppointmentTrimmingDetail{}).
 		Where("course_id = ?", courseID).
 		Count(&count).Error; err != nil {
-		return 0, apperrors.FromGORM(err, "trimming_record", "")
+		return 0, apperrors.FromGORM(err, "appointment_trimming_detail", "")
 	}
 	return count, nil
 }
@@ -171,14 +171,14 @@ func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64,
 	return reorderByClinicID(ctx, r.db, &model.TrimmingOption{}, "trimming_option", clinicID, ids)
 }
 
-// CountRecordsByOptionID は指定オプションを使用しているトリミング記録数を返す（BUG-201）
+// CountRecordsByOptionID は指定オプションを使用しているトリミングオプション数を返す（BUG-201）
 func (r *trimmingOptionRepository) CountRecordsByOptionID(ctx context.Context, optionID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
-		Model(&model.TrimmingRecordOption{}).
+		Model(&model.AppointmentTrimmingOption{}).
 		Where("option_id = ?", optionID).
 		Count(&count).Error; err != nil {
-		return 0, apperrors.FromGORM(err, "trimming_record_option", "")
+		return 0, apperrors.FromGORM(err, "appointment_trimming_option", "")
 	}
 	return count, nil
 }

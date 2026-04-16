@@ -326,7 +326,7 @@ export interface TrimmingUI {
   weight: string;
   styleRequest: string;
   staff: string;
-  status: "完了" | "予約" | "進行中";
+  status: "完了" | "予約" | "進行中" | "キャンセル";
   /** 施術前スタイル参考画像 URL */
   styleImage?: string;
   /** 施術後完成画像 URL */

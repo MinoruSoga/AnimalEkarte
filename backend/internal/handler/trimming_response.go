@@ -17,75 +17,87 @@ type trimmingCourseSummaryResponse struct {
 	Price int64  `json:"price"`
 }
 
+// trimmingResponse は appointments ベースのフラット DTO（BE-119）
 type trimmingResponse struct {
-	ID             uint64                          `json:"id"`
-	ClinicID       uint64                          `json:"clinic_id"`
-	Date           time.Time                       `json:"date"`
-	PetID          *uint64                         `json:"pet_id,omitempty"`
-	StaffID        *uint64                         `json:"staff_id,omitempty"`
-	CourseID       *uint64                         `json:"course_id,omitempty"`
-	Status         string                          `json:"status"`
-	StyleRequest   string                          `json:"style_request"`
-	BW             *float64                        `json:"bw,omitempty"`
-	BWUnit         string                          `json:"bw_unit"`
-	BT             *float64                        `json:"bt,omitempty"`
-	UsedShampoo    string                          `json:"used_shampoo"`
-	UsedRibbon     string                          `json:"used_ribbon"`
-	Remarks        string                          `json:"remarks"`
-	StyleImage     string                          `json:"style_image"`
-	CompletedImage string                          `json:"completed_image"`
-	CreatedAt      time.Time                       `json:"created_at"`
-	UpdatedAt      time.Time                       `json:"updated_at"`
-	Pet            *petSummaryResponse             `json:"pet,omitempty"`
-	Staff          *staffSummaryResponse           `json:"staff,omitempty"`
-	Course         *trimmingCourseSummaryResponse  `json:"course,omitempty"`
-	Options        []trimmingOptionSummaryResponse `json:"options"`
+	ID                uint64                          `json:"id"`
+	ClinicID          uint64                          `json:"clinic_id"`
+	ReservationTypeID uint64                          `json:"reservation_type_id"`
+	StartTime         time.Time                       `json:"start_time"`
+	EndTime           time.Time                       `json:"end_time"`
+	PetID             *uint64                         `json:"pet_id,omitempty"`
+	StaffID           *uint64                         `json:"staff_id,omitempty"` // doctor_id をマップ
+	Status            string                          `json:"status"`
+	Source            string                          `json:"source"`
+	// トリミング詳細（appointment_trimming_details から flat 化）
+	CourseID       *uint64  `json:"course_id,omitempty"`
+	StyleRequest   string   `json:"style_request"`
+	BW             *float64 `json:"bw,omitempty"`
+	BWUnit         string   `json:"bw_unit"`
+	BT             *float64 `json:"bt,omitempty"`
+	UsedShampoo    string   `json:"used_shampoo"`
+	UsedRibbon     string   `json:"used_ribbon"`
+	Remarks        string   `json:"remarks"`
+	StyleImage     string   `json:"style_image"`
+	CompletedImage string   `json:"completed_image"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	// リレーション
+	Pet    *petSummaryResponse            `json:"pet,omitempty"`
+	Staff  *staffSummaryResponse          `json:"staff,omitempty"`
+	Course *trimmingCourseSummaryResponse `json:"course,omitempty"`
+	Options []trimmingOptionSummaryResponse `json:"options"`
 }
 
-func toTrimmingResponse(t *model.TrimmingRecord) trimmingResponse {
-	options := make([]trimmingOptionSummaryResponse, 0, len(t.Options))
-	for i := range t.Options {
-		options = append(options, trimmingOptionSummaryResponse{
-			ID:   t.Options[i].ID,
-			Name: t.Options[i].Name,
-		})
+func toTrimmingResponse(appt *model.Appointment) trimmingResponse {
+	resp := trimmingResponse{
+		ID:                appt.ID,
+		ClinicID:          appt.ClinicID,
+		ReservationTypeID: appt.ReservationTypeID,
+		StartTime:         appt.StartTime,
+		EndTime:           appt.EndTime,
+		PetID:             appt.PetID,
+		StaffID:           appt.DoctorID,
+		Status:            string(appt.Status),
+		Source:            string(appt.Source),
+		CreatedAt:         appt.CreatedAt,
+		UpdatedAt:         appt.UpdatedAt,
+		Pet:               toPetSummary(appt.Pet),
+		Staff:             toStaffSummary(appt.Doctor),
+		Options:           make([]trimmingOptionSummaryResponse, 0),
+		BWUnit:            "Kg",
 	}
 
-	var course *trimmingCourseSummaryResponse
-	if t.Course != nil {
-		var price int64
-		if t.Course.Price != nil {
-			price = *t.Course.Price
+	if appt.TrimmingDetail != nil {
+		d := appt.TrimmingDetail
+		resp.CourseID = d.CourseID
+		resp.StyleRequest = d.StyleRequest
+		resp.BW = d.BodyWeight
+		resp.BWUnit = string(d.BWUnit)
+		resp.BT = d.BodyTemperature
+		resp.UsedShampoo = d.UsedShampoo
+		resp.UsedRibbon = d.UsedRibbon
+		resp.Remarks = d.Remarks
+		resp.StyleImage = d.StyleImage
+		resp.CompletedImage = d.CompletedImage
+
+		if d.Course != nil {
+			var price int64
+			if d.Course.Price != nil {
+				price = *d.Course.Price
+			}
+			resp.Course = &trimmingCourseSummaryResponse{
+				ID:    d.Course.ID,
+				Name:  d.Course.Name,
+				Price: price,
+			}
 		}
-		course = &trimmingCourseSummaryResponse{
-			ID:    t.Course.ID,
-			Name:  t.Course.Name,
-			Price: price,
+		for i := range d.Options {
+			resp.Options = append(resp.Options, trimmingOptionSummaryResponse{
+				ID:   d.Options[i].ID,
+				Name: d.Options[i].Name,
+			})
 		}
 	}
 
-	return trimmingResponse{
-		ID:             t.ID,
-		ClinicID:       t.ClinicID,
-		Date:           t.Date,
-		PetID:          t.PetID,
-		StaffID:        t.StaffID,
-		CourseID:       t.CourseID,
-		Status:         string(t.Status),
-		StyleRequest:   t.StyleRequest,
-		BW:             t.BodyWeight,
-		BWUnit:         string(t.BWUnit),
-		BT:             t.BodyTemperature,
-		UsedShampoo:    t.UsedShampoo,
-		UsedRibbon:     t.UsedRibbon,
-		Remarks:        t.Remarks,
-		StyleImage:     t.StyleImage,
-		CompletedImage: t.CompletedImage,
-		CreatedAt:      t.CreatedAt,
-		UpdatedAt:      t.UpdatedAt,
-		Pet:            toPetSummary(t.Pet),
-		Staff:          toStaffSummary(t.Staff),
-		Course:         course,
-		Options:        options,
-	}
+	return resp
 }

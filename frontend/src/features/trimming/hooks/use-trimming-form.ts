@@ -15,6 +15,9 @@ import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 
 const defaultFormData: TrimmingFormData = {
+  reservationTypeId: "",
+  startTime: "",
+  endTime: "",
   styleRequest: "",
   memo: "",
   eggs: "",
@@ -145,9 +148,9 @@ export function useTrimmingForm(id?: string) {
         if (isEdit && id) {
           const req: UpdateTrimmingRequest = {
             style_request: formData.styleRequest || undefined,
-            body_weight: formData.bw ? Number(formData.bw) : undefined,
+            bw: formData.bw ? Number(formData.bw) : undefined,
             bw_unit: formData.bwUnit || undefined,
-            body_temperature: formData.bt ? Number(formData.bt) : undefined,
+            bt: formData.bt ? Number(formData.bt) : undefined,
             used_shampoo: formData.usedShampoo || undefined,
             used_ribbon: formData.usedRibbon || undefined,
             remarks: formData.remarks || undefined,
@@ -172,11 +175,21 @@ export function useTrimmingForm(id?: string) {
             return { success: false, fieldErrors: errors, timestamp: Date.now() };
           }
           setFieldErrors({});
+          // reservation_type_id: trimming 種別（フォームから選択）。未選択時は最初の trimming 種別を使用
+          const reservationTypeId = formData.reservationTypeId
+            ? Number(formData.reservationTypeId)
+            : 9; // デフォルト: 'トリミングコース'
+          // 日時: フォームから選択していない場合は当日 10:00〜11:30
+          const now = new Date();
+          const startDate = formData.startTime || `${now.toISOString().split("T")[0]}T10:00:00+09:00`;
+          const endDate = formData.endTime || `${now.toISOString().split("T")[0]}T11:30:00+09:00`;
           const req: CreateTrimmingRequest = {
+            reservation_type_id: reservationTypeId,
+            start_time: startDate,
+            end_time: endDate,
             pet_id: Number(pet.id),
-            staff_id: Number(formData.staffId),
-            course_id: Number(formData.courseId),
-            date: new Date().toISOString(),
+            staff_id: Number(formData.staffId) || undefined,
+            course_id: Number(formData.courseId) || undefined,
             style_request: formData.styleRequest || undefined,
             remarks: formData.remarks || undefined,
           };

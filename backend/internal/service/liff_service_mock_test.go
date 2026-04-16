@@ -348,6 +348,10 @@ func (m *mockLiffReservationRepository) CountByDateAndSource(_ context.Context, 
 	return 0, nil
 }
 
+func (m *mockLiffReservationRepository) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Appointment, int64, error) {
+	return nil, 0, nil
+}
+
 // --- mockLiffValidators ---
 
 type mockLiffValidators struct {

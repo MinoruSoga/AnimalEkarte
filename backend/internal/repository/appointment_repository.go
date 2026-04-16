@@ -35,6 +35,9 @@ type ReservationRepository interface {
 	CountByCustomerAndDateRange(ctx context.Context, clinicID, customerID uint64, start, end time.Time) (int64, error)
 	// CountByDateAndSource は日付・ソースの予約件数を返す（確認番号生成用）。
 	CountByDateAndSource(ctx context.Context, clinicID uint64, date time.Time, source model.ReservationSource) (int64, error)
+	// FindAllByCategory はカテゴリ（'general'/'trimming'）でフィルタした予約一覧を返す。
+	// トリミング管理APIが appointments ベースで動作するために使用（BE-119）。
+	FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Appointment, int64, error)
 }
 
 type reservationRepository struct {
@@ -264,6 +267,49 @@ func (r *reservationRepository) CountByCustomerAndDateRange(ctx context.Context,
 		return 0, apperrors.Wrap(err, "count reservations by customer and date range")
 	}
 	return count, nil
+}
+
+// FindAllByCategory はカテゴリでフィルタした予約一覧を返す（BE-119 トリミング管理 API）。
+func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Appointment, int64, error) {
+	reservations := make([]model.Appointment, 0)
+	var total int64
+
+	q := r.db.WithContext(ctx).Model(&model.Appointment{}).
+		Scopes(clinicScope(clinicID)).
+		Joins("JOIN reservation_types ON reservation_types.id = appointments.reservation_type_id").
+		Where("reservation_types.category = ?", category)
+
+	if petID != nil {
+		q = q.Where("appointments.pet_id = ?", *petID)
+	}
+	if ownerID != nil {
+		q = q.Joins("JOIN pets ON pets.id = appointments.pet_id AND pets.deleted_at IS NULL").
+			Where("pets.owner_id = ?", *ownerID)
+	}
+	if startDate != nil {
+		q = q.Where("DATE(appointments.start_time AT TIME ZONE 'Asia/Tokyo') >= ?", *startDate)
+	}
+	if endDate != nil {
+		q = q.Where("DATE(appointments.start_time AT TIME ZONE 'Asia/Tokyo') <= ?", *endDate)
+	}
+
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "appointment", "")
+	}
+	if err := q.
+		Preload("Pet").
+		Preload("Pet.Owner").
+		Preload("Pet.AnimalSpecies").
+		Preload("ReservationType").
+		Preload("Doctor").
+		Preload("TrimmingDetail.Course").
+		Preload("TrimmingDetail.Options").
+		Offset((page - 1) * limit).Limit(limit).
+		Order("appointments.start_time DESC").
+		Find(&reservations).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "appointment", "")
+	}
+	return reservations, total, nil
 }
 
 // CountByDateAndSource は日付・ソースの予約件数を返す。

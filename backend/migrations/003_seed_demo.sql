@@ -1119,21 +1119,35 @@ ON CONFLICT (id) DO UPDATE SET
 SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
 
 -- -----------------------------------------------------------------------------
--- 8. trimming_records（トリミング: 8件）
+-- 8. trimming appointments（予約ベーストリミング: 8件）
+-- reservation_types の category を trimming に設定
 -- -----------------------------------------------------------------------------
-INSERT INTO trimming_records (id, clinic_id, date, pet_id, body_weight, bw_unit, style_request, staff_id, status, course_id) VALUES
-    (1, 1, '2025-10-10', 1,  26.5,  'Kg', 'サマーカット希望',        6,  'completed',   5),
-    (2, 1, '2025-10-15', 2,  15.2,  'Kg', 'ふんわりカット',          12, 'reserved',    4),
-    (3, 1, '2025-10-12', 3,  4.2,   'Kg', '毛玉カット',              6,  'in_progress', 1),
-    (4, 1, '2026-01-06', 6,  3800,  'g',  'シャンプーコース',        6,  'completed',   1),
-    (5, 1, '2026-01-06', 17, 12.0,  'Kg', '全体カット',              12, 'completed',   4),
-    (6, 1, '2026-01-06', 10, 8.0,   'Kg', '爪切り・ブラッシング',   12, 'reserved',    2),
-    (7, 1, '2026-01-06', 15, 5.0,   'Kg', 'シャンプー',              6,  'completed',   1),
-    (8, 1, '2026-01-06', 6,  3800,  'g',  'トリミング',              6,  'reserved',    3)
-ON CONFLICT (id) DO UPDATE SET
-    updated_at = now();
+UPDATE reservation_types SET category = 'trimming' WHERE clinic_id = 1 AND id IN (9, 10, 11, 12);
 
-SELECT setval(pg_get_serial_sequence('trimming_records', 'id'), (SELECT MAX(id) FROM trimming_records));
+INSERT INTO appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, reservation_type_id, doctor_id, is_designated, status, notes) VALUES
+    (101, 1, '2025-10-10 10:00:00+09', '2025-10-10 11:30:00+09', 1,  1,  'first', 9,  6,  false, 'completed',       'サマーカット希望'),
+    (102, 1, '2025-10-15 10:00:00+09', '2025-10-15 11:30:00+09', 1,  2,  'first', 9,  12, false, 'confirmed',       'ふんわりカット'),
+    (103, 1, '2025-10-12 10:00:00+09', '2025-10-12 11:30:00+09', 2,  3,  'first', 9,  6,  false, 'in_consultation', '毛玉カット'),
+    (104, 1, '2026-01-06 10:00:00+09', '2026-01-06 11:00:00+09', 4,  6,  'first', 11, 6,  false, 'completed',       'シャンプーコース'),
+    (105, 1, '2026-01-06 11:00:00+09', '2026-01-06 12:30:00+09', 15, 17, 'first', 9,  12, false, 'completed',       '全体カット'),
+    (106, 1, '2026-01-06 13:00:00+09', '2026-01-06 14:30:00+09', 8,  10, 'first', 10, 12, false, 'confirmed',       '爪切り・ブラッシング'),
+    (107, 1, '2026-01-06 14:00:00+09', '2026-01-06 15:00:00+09', 13, 15, 'first', 11, 6,  false, 'completed',       'シャンプー'),
+    (108, 1, '2026-01-06 15:00:00+09', '2026-01-06 16:30:00+09', 4,  6,  'first', 9,  6,  false, 'confirmed',       'トリミング')
+ON CONFLICT (id) DO UPDATE SET updated_at = now();
+
+INSERT INTO appointment_trimming_details (appointment_id, clinic_id, course_id, body_weight, bw_unit, style_request) VALUES
+    (101, 1, 5, 26.5, 'Kg', 'サマーカット希望'),
+    (102, 1, 4, 15.2, 'Kg', 'ふんわりカット'),
+    (103, 1, 1, 4.2,  'Kg', '毛玉カット'),
+    (104, 1, 1, 3800, 'g',  'シャンプーコース'),
+    (105, 1, 4, 12.0, 'Kg', '全体カット'),
+    (106, 1, 2, 8.0,  'Kg', '爪切り・ブラッシング'),
+    (107, 1, 1, 5.0,  'Kg', 'シャンプー'),
+    (108, 1, 3, 3800, 'g',  'トリミング')
+ON CONFLICT (appointment_id) DO UPDATE SET updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('appointments', 'id'), (SELECT MAX(id) FROM appointments));
+SELECT setval(pg_get_serial_sequence('appointment_trimming_details', 'id'), (SELECT MAX(id) FROM appointment_trimming_details));
 
 -- -----------------------------------------------------------------------------
 -- 9. hospitalizations（入院: 7件）

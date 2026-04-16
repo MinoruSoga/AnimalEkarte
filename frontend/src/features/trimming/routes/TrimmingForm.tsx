@@ -676,7 +676,7 @@ export function TrimmingForm() {
           items={courses}
           selectedValue={formData.courseId}
           matchBy="id"
-          onSelect={(item) => handleFormChange({ courseId: item.id })}
+          onSelect={(item) => handleFormChange({ courseId: String(item.id) })}
         />
 
         {/* Staff Modal */}
@@ -687,7 +687,7 @@ export function TrimmingForm() {
           items={activeStaffItems}
           selectedValue={formData.staffName}
           matchBy="name"
-          onSelect={(item) => handleFormChange({ staffName: item.name, staffId: item.id })}
+          onSelect={(item) => handleFormChange({ staffName: item.name, staffId: String(item.id) })}
         />
 
         {/* Delete Confirmation Dialog */}

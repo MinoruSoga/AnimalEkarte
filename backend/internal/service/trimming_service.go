@@ -11,13 +11,16 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// CreateTrimmingInput はトリミング記録作成の入力DTO。
+// CreateTrimmingInput はトリミング予約作成の入力DTO（appointments ベース, BE-119）
 type CreateTrimmingInput struct {
-	Date            time.Time
-	PetID           *uint64
-	StaffID         *uint64
+	ReservationTypeID uint64
+	StartTime         time.Time
+	EndTime           time.Time
+	PetID             *uint64
+	StaffID           *uint64 // appointments.doctor_id にマップ
+	Status            model.ReservationStatus
+	// トリミング詳細（appointment_trimming_details）
 	CourseID        *uint64
-	Status          model.TrimmingStatus
 	StyleRequest    string
 	BodyWeight      *float64
 	BWUnit          model.BodyWeightUnit
@@ -30,14 +33,15 @@ type CreateTrimmingInput struct {
 	OptionIDs       []uint64
 }
 
-// UpdateTrimmingInput はトリミング記録部分更新の入力DTO。nil = 未送信フィールド。
+// UpdateTrimmingInput はトリミング予約部分更新の入力DTO。nil = 未送信フィールド。
 // OptionIDs: nil = 変更なし、non-nil（空スライス含む）= 全置換
 type UpdateTrimmingInput struct {
-	Date            *time.Time
+	StartTime       *time.Time
+	EndTime         *time.Time
 	PetID           *uint64
 	StaffID         *uint64
+	Status          *model.ReservationStatus
 	CourseID        *uint64
-	Status          *model.TrimmingStatus
 	StyleRequest    *string
 	BodyWeight      **float64
 	BWUnit          *model.BodyWeightUnit
@@ -50,40 +54,57 @@ type UpdateTrimmingInput struct {
 	OptionIDs       *[]uint64
 }
 
+// TrimmingService はトリミング管理のビジネスロジックインターフェース（BE-119）
 type TrimmingService interface {
-	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error)
-	GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.TrimmingRecord, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.TrimmingRecord, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Appointment, int64, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Appointment, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Appointment, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type trimmingService struct {
-	repo repository.TrimmingRepository
+	reservation    repository.ReservationRepository
+	trimmingDetail repository.AppointmentTrimmingDetailRepository
 }
 
-func NewTrimmingService(repo repository.TrimmingRepository) TrimmingService {
-	return &trimmingService{repo: repo}
+func NewTrimmingService(
+	reservation repository.ReservationRepository,
+	trimmingDetail repository.AppointmentTrimmingDetailRepository,
+) TrimmingService {
+	return &trimmingService{
+		reservation:    reservation,
+		trimmingDetail: trimmingDetail,
+	}
 }
 
-func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error) {
-	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Appointment, int64, error) {
+	items, total, err := s.reservation.FindAllByCategory(ctx, clinicID, model.ReservationTypeCategoryTrimming, petID, ownerID, startDate, endDate, page, limit)
 	if err != nil {
-		return nil, 0, apperrors.Wrap(err, "failed to list trimming records")
+		return nil, 0, apperrors.Wrap(err, "failed to list trimming appointments")
 	}
 	return items, total, nil
 }
 
-func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error) {
-	result, err := s.repo.FindByID(ctx, clinicID, id)
+func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
+	appt, err := s.reservation.FindByID(ctx, clinicID, id)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get trimming record")
+		return nil, apperrors.Wrap(err, "failed to get trimming appointment")
 	}
-	return result, nil
+	// TrimmingDetail は Appointment.TrimmingDetail にプリロードされているが、
+	// FindByID では含まれないため別途ロードする
+	if appt.TrimmingDetail == nil {
+		detail, err := s.trimmingDetail.FindByAppointmentID(ctx, clinicID, id)
+		if err == nil {
+			appt.TrimmingDetail = detail
+		}
+		// detail が存在しない場合は無視（trimming_detail 未作成の予約もありうる）
+	}
+	return appt, nil
 }
 
-func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.TrimmingRecord, error) {
-	status := model.TrimmingStatusReserved
+func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Appointment, error) {
+	status := model.ReservationStatusPending
 	if input.Status != "" {
 		status = input.Status
 	}
@@ -91,13 +112,25 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if input.BWUnit != "" {
 		bwUnit = input.BWUnit
 	}
-	trimming := &model.TrimmingRecord{
+
+	appt := &model.Appointment{
+		ClinicID:          clinicID,
+		ReservationTypeID: input.ReservationTypeID,
+		StartTime:         input.StartTime,
+		EndTime:           input.EndTime,
+		PetID:             input.PetID,
+		DoctorID:          input.StaffID,
+		Status:            status,
+		Source:            model.ReservationSourceManual,
+	}
+	if err := s.reservation.Create(ctx, appt); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create trimming appointment")
+	}
+
+	detail := &model.AppointmentTrimmingDetail{
 		ClinicID:        clinicID,
-		Date:            input.Date,
-		PetID:           input.PetID,
-		StaffID:         input.StaffID,
+		AppointmentID:   appt.ID,
 		CourseID:        input.CourseID,
-		Status:          status,
 		StyleRequest:    input.StyleRequest,
 		BodyWeight:      input.BodyWeight,
 		BWUnit:          bwUnit,
@@ -108,95 +141,102 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		StyleImage:      input.StyleImage,
 		CompletedImage:  input.CompletedImage,
 	}
-	if err := s.repo.Create(ctx, clinicID, trimming); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create trimming record")
+	if err := s.trimmingDetail.Create(ctx, detail); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create trimming detail")
 	}
 	if len(input.OptionIDs) > 0 {
-		if err := s.repo.SetOptions(ctx, trimming.ID, input.OptionIDs); err != nil {
+		if err := s.trimmingDetail.SetOptions(ctx, appt.ID, input.OptionIDs); err != nil {
 			return nil, apperrors.Wrap(err, "failed to set trimming options")
 		}
 	}
-	slog.InfoContext(ctx, "trimming record created",
-		slog.Uint64("trimming_id", trimming.ID),
+
+	slog.InfoContext(ctx, "trimming appointment created",
+		slog.Uint64("appointment_id", appt.ID),
 		slog.Uint64("clinic_id", clinicID))
-	result, err := s.repo.FindByID(ctx, clinicID, trimming.ID)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get trimming record after create")
-	}
-	return result, nil
+
+	return s.GetByID(ctx, clinicID, appt.ID)
 }
 
-func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.TrimmingRecord, error) {
-	existing, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get trimming record")
+func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Appointment, error) {
+	apptFields := map[string]any{}
+	if input.StartTime != nil {
+		apptFields["start_time"] = *input.StartTime
 	}
-	if input.Date != nil {
-		existing.Date = *input.Date
+	if input.EndTime != nil {
+		apptFields["end_time"] = *input.EndTime
 	}
 	if input.PetID != nil {
-		existing.PetID = input.PetID
+		apptFields["pet_id"] = *input.PetID
 	}
 	if input.StaffID != nil {
-		existing.StaffID = input.StaffID
-	}
-	if input.CourseID != nil {
-		existing.CourseID = input.CourseID
+		apptFields["doctor_id"] = *input.StaffID
 	}
 	if input.Status != nil {
-		existing.Status = *input.Status
+		apptFields["status"] = *input.Status
+	}
+	if len(apptFields) > 0 {
+		if _, err := s.reservation.UpdateFields(ctx, clinicID, id, apptFields); err != nil {
+			return nil, apperrors.Wrap(err, "failed to update trimming appointment")
+		}
+	}
+
+	// trimming detail の更新
+	detail, err := s.trimmingDetail.FindByAppointmentID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming detail for update")
+	}
+	if input.CourseID != nil {
+		detail.CourseID = input.CourseID
 	}
 	if input.StyleRequest != nil {
-		existing.StyleRequest = *input.StyleRequest
+		detail.StyleRequest = *input.StyleRequest
 	}
 	if input.BodyWeight != nil {
-		existing.BodyWeight = *input.BodyWeight
+		detail.BodyWeight = *input.BodyWeight
 	}
 	if input.BWUnit != nil {
-		existing.BWUnit = *input.BWUnit
+		detail.BWUnit = *input.BWUnit
 	}
 	if input.BodyTemperature != nil {
-		existing.BodyTemperature = *input.BodyTemperature
+		detail.BodyTemperature = *input.BodyTemperature
 	}
 	if input.UsedShampoo != nil {
-		existing.UsedShampoo = *input.UsedShampoo
+		detail.UsedShampoo = *input.UsedShampoo
 	}
 	if input.UsedRibbon != nil {
-		existing.UsedRibbon = *input.UsedRibbon
+		detail.UsedRibbon = *input.UsedRibbon
 	}
 	if input.Remarks != nil {
-		existing.Remarks = *input.Remarks
+		detail.Remarks = *input.Remarks
 	}
 	if input.StyleImage != nil {
-		existing.StyleImage = *input.StyleImage
+		detail.StyleImage = *input.StyleImage
 	}
 	if input.CompletedImage != nil {
-		existing.CompletedImage = *input.CompletedImage
+		detail.CompletedImage = *input.CompletedImage
 	}
-	if err := s.repo.Update(ctx, clinicID, existing); err != nil {
-		return nil, apperrors.Wrap(err, "failed to update trimming record")
+	if err := s.trimmingDetail.Update(ctx, detail); err != nil {
+		return nil, apperrors.Wrap(err, "failed to update trimming detail")
 	}
 	if input.OptionIDs != nil {
-		if err := s.repo.SetOptions(ctx, id, *input.OptionIDs); err != nil {
+		if err := s.trimmingDetail.SetOptions(ctx, id, *input.OptionIDs); err != nil {
 			return nil, apperrors.Wrap(err, "failed to set trimming options")
 		}
 	}
-	slog.InfoContext(ctx, "trimming record updated",
-		slog.Uint64("trimming_id", id),
+
+	slog.InfoContext(ctx, "trimming appointment updated",
+		slog.Uint64("appointment_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get trimming record after update")
-	}
-	return result, nil
+
+	return s.GetByID(ctx, clinicID, id)
 }
 
 func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to delete trimming record")
+	if err := s.reservation.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete trimming appointment")
 	}
-	slog.InfoContext(ctx, "trimming record deleted",
-		slog.Uint64("trimming_id", id),
+	slog.InfoContext(ctx, "trimming appointment deleted",
+		slog.Uint64("appointment_id", id),
 		slog.Uint64("clinic_id", clinicID))
 	return nil
 }

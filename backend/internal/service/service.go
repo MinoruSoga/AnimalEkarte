@@ -86,7 +86,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr),
 		Hospitalization:        NewHospitalizationService(repos),
 		Accounting:             NewAccountingService(repos.Accounting),
-		Trimming:               NewTrimmingService(repos.Trimming),
+		Trimming:               NewTrimmingService(repos.Reservation, repos.AppointmentTrimmingDetail),
 		Inventory:              NewInventoryService(repos.Inventory),
 		Staff:                  NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, tx),
 		Cage:                   NewCageService(repos.Cage, repos.Hospitalization),
