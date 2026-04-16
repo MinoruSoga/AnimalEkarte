@@ -3,7 +3,10 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"strings"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -126,6 +129,15 @@ func buildReservationTypeUpdateFields(input *UpdateReservationTypeInput) map[str
 
 // ---- ReservationTypeService ----
 
+// CreateUnavailableTimeInput は予約不可時間の作成入力DTO
+type CreateUnavailableTimeInput struct {
+	UnavailableType string
+	DayOfWeek       *int8
+	SpecificDate    *time.Time
+	StartTime       string
+	EndTime         string
+}
+
 type ReservationTypeService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
 	List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
@@ -133,15 +145,35 @@ type ReservationTypeService interface { //nolint:revive // ReservationType is a 
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeInput) (*model.ReservationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+
+	ListUnavailableTimes(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
+	CreateUnavailableTime(ctx context.Context, clinicID, reservationTypeID uint64, input CreateUnavailableTimeInput) (*model.ReservationTypeUnavailableTime, error)
+	DeleteUnavailableTime(ctx context.Context, clinicID, id uint64) error
+
+	ListOccupations(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
+	LinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error)
+	UnlinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
 }
 
 type reservationTypeService struct {
-	repo            repository.ReservationTypeRepository
-	reservationRepo repository.ReservationRepository
+	repo                repository.ReservationTypeRepository
+	reservationRepo     repository.ReservationRepository
+	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository
+	occupationRepo      repository.ReservationTypeOccupationRepository
 }
 
-func NewReservationTypeService(repo repository.ReservationTypeRepository, reservationRepo repository.ReservationRepository) ReservationTypeService {
-	return &reservationTypeService{repo: repo, reservationRepo: reservationRepo}
+func NewReservationTypeService(
+	repo repository.ReservationTypeRepository,
+	reservationRepo repository.ReservationRepository,
+	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
+	occupationRepo repository.ReservationTypeOccupationRepository,
+) ReservationTypeService {
+	return &reservationTypeService{
+		repo:                repo,
+		reservationRepo:     reservationRepo,
+		unavailableTimeRepo: unavailableTimeRepo,
+		occupationRepo:      occupationRepo,
+	}
 }
 
 func (s *reservationTypeService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
@@ -240,4 +272,177 @@ func (s *reservationTypeService) Reorder(ctx context.Context, clinicID uint64, i
 		return apperrors.Wrap(err, "failed to reorder service types")
 	}
 	return nil
+}
+
+// ---- 予約不可時間 ----
+
+func (s *reservationTypeService) ListUnavailableTimes(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error) {
+	// 予約区分の存在確認
+	if _, err := s.repo.FindByID(ctx, clinicID, reservationTypeID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation type")
+	}
+	items, err := s.unavailableTimeRepo.FindAll(ctx, clinicID, reservationTypeID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list unavailable times")
+	}
+	return items, nil
+}
+
+func (s *reservationTypeService) CreateUnavailableTime(ctx context.Context, clinicID, reservationTypeID uint64, input CreateUnavailableTimeInput) (*model.ReservationTypeUnavailableTime, error) {
+	// 予約区分の存在確認
+	if _, err := s.repo.FindByID(ctx, clinicID, reservationTypeID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation type")
+	}
+	// 種別バリデーション
+	if err := validateUnavailableTimeInput(input); err != nil {
+		return nil, err
+	}
+	// 重複チェック
+	existing, err := s.unavailableTimeRepo.FindAll(ctx, clinicID, reservationTypeID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to check existing unavailable times")
+	}
+	if err := checkUnavailableTimeOverlap(existing, input); err != nil {
+		return nil, err
+	}
+
+	t := &model.ReservationTypeUnavailableTime{
+		ClinicID:          clinicID,
+		ReservationTypeID: reservationTypeID,
+		UnavailableType:   model.UnavailableType(input.UnavailableType),
+		DayOfWeek:         input.DayOfWeek,
+		SpecificDate:      input.SpecificDate,
+		StartTime:         input.StartTime,
+		EndTime:           input.EndTime,
+	}
+	if err := s.unavailableTimeRepo.Create(ctx, t); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create unavailable time")
+	}
+	slog.InfoContext(ctx, "unavailable time created",
+		slog.Uint64("reservation_type_id", reservationTypeID),
+		slog.Uint64("clinic_id", clinicID))
+	return t, nil
+}
+
+func (s *reservationTypeService) DeleteUnavailableTime(ctx context.Context, clinicID, id uint64) error {
+	if err := s.unavailableTimeRepo.Delete(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to delete unavailable time")
+	}
+	slog.InfoContext(ctx, "unavailable time deleted",
+		slog.Uint64("unavailable_time_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return nil
+}
+
+// ---- 職種紐付け ----
+
+func (s *reservationTypeService) ListOccupations(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, reservationTypeID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation type")
+	}
+	items, err := s.occupationRepo.FindAll(ctx, clinicID, reservationTypeID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list occupations")
+	}
+	return items, nil
+}
+
+func (s *reservationTypeService) LinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, reservationTypeID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation type")
+	}
+	o := &model.ReservationTypeOccupation{
+		ClinicID:          clinicID,
+		ReservationTypeID: reservationTypeID,
+		OccupationID:      occupationID,
+	}
+	if err := s.occupationRepo.Create(ctx, o); err != nil {
+		return nil, apperrors.Wrap(err, "failed to link occupation")
+	}
+	slog.InfoContext(ctx, "occupation linked",
+		slog.Uint64("reservation_type_id", reservationTypeID),
+		slog.Uint64("occupation_id", occupationID),
+		slog.Uint64("clinic_id", clinicID))
+	// Preload して返す
+	items, err := s.occupationRepo.FindAll(ctx, clinicID, reservationTypeID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get linked occupation")
+	}
+	for i := range items {
+		if items[i].OccupationID == occupationID {
+			return &items[i], nil
+		}
+	}
+	return o, nil
+}
+
+func (s *reservationTypeService) UnlinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error {
+	if err := s.occupationRepo.Delete(ctx, clinicID, reservationTypeID, occupationID); err != nil {
+		return apperrors.Wrap(err, "failed to unlink occupation")
+	}
+	slog.InfoContext(ctx, "occupation unlinked",
+		slog.Uint64("reservation_type_id", reservationTypeID),
+		slog.Uint64("occupation_id", occupationID),
+		slog.Uint64("clinic_id", clinicID))
+	return nil
+}
+
+// ---- バリデーションヘルパー ----
+
+// validateUnavailableTimeInput は CreateUnavailableTimeInput の整合性を検証する
+func validateUnavailableTimeInput(input CreateUnavailableTimeInput) error {
+	switch input.UnavailableType {
+	case string(model.UnavailableTypeWeekly):
+		if input.DayOfWeek == nil {
+			return apperrors.WrapInvalidInput("day_of_week is required for weekly type")
+		}
+		if *input.DayOfWeek < 0 || *input.DayOfWeek > 6 {
+			return apperrors.WrapInvalidInput("day_of_week must be between 0 (Sun) and 6 (Sat)")
+		}
+	case string(model.UnavailableTypeSpecific):
+		if input.SpecificDate == nil {
+			return apperrors.WrapInvalidInput("specific_date is required for specific type")
+		}
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid unavailable_type: %s", input.UnavailableType))
+	}
+	// StartTime < EndTime（VARCHAR(5) "HH:MM" は辞書順比較で正しく機能する）
+	if input.StartTime >= input.EndTime {
+		return apperrors.WrapInvalidInput("start_time must be before end_time")
+	}
+	return nil
+}
+
+// checkUnavailableTimeOverlap は既存設定との時間帯重複を検証する
+// weekly と specific の混在は許可（LIFF で specific が weekly より優先される）
+func checkUnavailableTimeOverlap(existing []model.ReservationTypeUnavailableTime, input CreateUnavailableTimeInput) error {
+	for _, e := range existing {
+		if string(e.UnavailableType) != input.UnavailableType {
+			continue
+		}
+		switch e.UnavailableType {
+		case model.UnavailableTypeWeekly:
+			if input.DayOfWeek == nil || e.DayOfWeek == nil || *e.DayOfWeek != *input.DayOfWeek {
+				continue
+			}
+		case model.UnavailableTypeSpecific:
+			if input.SpecificDate == nil || e.SpecificDate == nil {
+				continue
+			}
+			// DATE 型は UTC 午前0時で格納されるため日付文字列で比較
+			if e.SpecificDate.UTC().Format("2006-01-02") != input.SpecificDate.UTC().Format("2006-01-02") {
+				continue
+			}
+		}
+		// 時間帯が交差するか（start < other.end && end > other.start）
+		if overlaps(input.StartTime, input.EndTime, e.StartTime, e.EndTime) {
+			return apperrors.WrapConflict("指定した時間帯は既存の予約不可時間と重複しています")
+		}
+	}
+	return nil
+}
+
+// overlaps は [s1,e1) と [s2,e2) が交差するかを返す（HH:MM 辞書順比較）
+func overlaps(s1, e1, s2, e2 string) bool {
+	return strings.Compare(s1, e2) < 0 && strings.Compare(e1, s2) > 0
 }

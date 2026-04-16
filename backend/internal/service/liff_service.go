@@ -27,16 +27,18 @@ type LiffService interface {
 }
 
 type liffService struct {
-	settingRepo     repository.LineReservationSettingRepository
-	typeLiffRepo    repository.ReservationTypeLiffRepository
-	staffRepo       repository.ReservationStaffRepository
-	scheduleRepo    repository.ReservationScheduleRepository
-	adminRepo       repository.ReservationAdminRepository
-	reservationRepo repository.ReservationRepository
-	customerRepo    repository.LineCustomerRepository
-	ownerRepo       repository.OwnerRepository
-	validators      ReservationValidators
-	notifier        ReservationNotifier
+	settingRepo         repository.LineReservationSettingRepository
+	typeLiffRepo        repository.ReservationTypeLiffRepository
+	staffRepo           repository.ReservationStaffRepository
+	scheduleRepo        repository.ReservationScheduleRepository
+	adminRepo           repository.ReservationAdminRepository
+	reservationRepo     repository.ReservationRepository
+	customerRepo        repository.LineCustomerRepository
+	ownerRepo           repository.OwnerRepository
+	validators          ReservationValidators
+	notifier            ReservationNotifier
+	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository // BE-117
+	occupationRepo      repository.ReservationTypeOccupationRepository      // BE-117
 }
 
 // NewLiffService はLIFFサービスを初期化して返す。
@@ -51,18 +53,22 @@ func NewLiffService(
 	tx repository.Transactor,
 	reservationRepo repository.ReservationRepository,
 	notifier ReservationNotifier,
+	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
+	occupationRepo repository.ReservationTypeOccupationRepository,
 ) LiffService {
 	return &liffService{
-		settingRepo:     settingRepo,
-		typeLiffRepo:    typeLiffRepo,
-		staffRepo:       staffRepo,
-		scheduleRepo:    scheduleRepo,
-		adminRepo:       adminRepo,
-		reservationRepo: reservationRepo,
-		customerRepo:    customerRepo,
-		ownerRepo:       ownerRepo,
-		validators:      NewReservationValidators(tx, reservationRepo),
-		notifier:        notifier,
+		settingRepo:         settingRepo,
+		typeLiffRepo:        typeLiffRepo,
+		staffRepo:           staffRepo,
+		scheduleRepo:        scheduleRepo,
+		adminRepo:           adminRepo,
+		reservationRepo:     reservationRepo,
+		customerRepo:        customerRepo,
+		ownerRepo:           ownerRepo,
+		validators:          NewReservationValidators(tx, reservationRepo),
+		notifier:            notifier,
+		unavailableTimeRepo: unavailableTimeRepo,
+		occupationRepo:      occupationRepo,
 	}
 }
 
@@ -153,13 +159,43 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		slog.WarnContext(ctx, "failed to parse available dates settings, using defaults", "error", err)
 	}
 
-	return CalcAvailableDates(ctx, &AvailableDatesInput{
+	results, window, err := CalcAvailableDates(ctx, &AvailableDatesInput{
 		Settings:       datesSettings,
 		TypeID:         typeID,
 		StaffID:        staffID,
 		StaffInputsFn:  staffInputsFn,
 		SlotSettingsFn: slotSettingsFn,
 	})
+	if err != nil {
+		return nil, window, err
+	}
+
+	// BE-117: 職種ガード — 職種紐付けが1件以上ある場合のみチェック（0件は後方互換で素通り）
+	occupations, err := s.occupationRepo.FindAll(ctx, clinicID, typeID)
+	if err != nil {
+		return nil, window, apperrors.Wrap(err, "failed to get occupation guard")
+	}
+	if len(occupations) > 0 {
+		for i, r := range results {
+			if !r.Available {
+				continue
+			}
+			date, err := time.ParseInLocation("2006-01-02", r.Date, jstLocation())
+			if err != nil {
+				return nil, window, apperrors.Wrap(err, "failed to parse date")
+			}
+			count, err := s.occupationRepo.CountWorkingStaff(ctx, clinicID, typeID, date)
+			if err != nil {
+				return nil, window, apperrors.Wrap(err, "failed to count working staff")
+			}
+			if count == 0 {
+				results[i].Available = false
+				results[i].Reason = "staff_off"
+			}
+		}
+	}
+
+	return results, window, nil
 }
 
 // GetAvailableTimes は指定日の予約可能な時間枠一覧を返す。
@@ -227,11 +263,47 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		MinCourseDuration: course.DurationMinutes,
 		Staffs:            staffInputs,
 	}
+	// BE-117: 予約不可時間を DefaultBreaks に追加
+	unavailableTimes, err := s.unavailableTimeRepo.FindAll(ctx, clinicID, typeID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get unavailable times")
+	}
+	for _, u := range filterApplicableUnavailableTimes(unavailableTimes, date) {
+		// モデルの "HH:MM" → timeslot_engine の "HHMM"（コロン除去）
+		input.DefaultBreaks = append(input.DefaultBreaks, BreakPeriod{
+			Start: strings.ReplaceAll(u.StartTime, ":", ""),
+			End:   strings.ReplaceAll(u.EndTime, ":", ""),
+		})
+	}
+
 	result, err := GenerateTimeSlots(input)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to generate time slots")
 	}
 	return result, nil
+}
+
+// filterApplicableUnavailableTimes は date に適用される不可時間帯を返す。
+// 優先順位: specific > weekly（特定日設定が曜日設定を上書き）
+func filterApplicableUnavailableTimes(times []model.ReservationTypeUnavailableTime, date time.Time) []model.ReservationTypeUnavailableTime {
+	dateStr := date.In(jstLocation()).Format("2006-01-02")
+	var specific, weekly []model.ReservationTypeUnavailableTime
+	for _, t := range times {
+		switch t.UnavailableType {
+		case model.UnavailableTypeSpecific:
+			if t.SpecificDate != nil && t.SpecificDate.UTC().Format("2006-01-02") == dateStr {
+				specific = append(specific, t)
+			}
+		case model.UnavailableTypeWeekly:
+			if t.DayOfWeek != nil && int(*t.DayOfWeek) == int(date.In(jstLocation()).Weekday()) {
+				weekly = append(weekly, t)
+			}
+		}
+	}
+	if len(specific) > 0 {
+		return specific
+	}
+	return weekly
 }
 
 // CreateReservation は予約を確定する。staffID=0 の場合は no_staff_mode に従って自動割当する。

@@ -93,7 +93,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Medicine:               NewMedicineService(repos.Medicine, repos.Inventory),
 		Vaccine:                NewVaccineService(repos.Vaccine),
 		Insurance:              NewInsuranceService(repos.Insurance),
-		ReservationType:        NewReservationTypeService(repos.ReservationType, repos.Reservation),
+		ReservationType:        NewReservationTypeService(repos.ReservationType, repos.Reservation, repos.ReservationTypeUnavailableTime, repos.ReservationTypeOccupation),
 		ReservationTypeGroup:   NewReservationTypeGroupService(repos.ReservationTypeGroup),
 		Consultation:           NewConsultationService(repos.Consultation),
 		Procedure:              NewProcedureService(repos.Procedure),
@@ -146,6 +146,8 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			tx,
 			repos.Reservation,
 			notifier,
+			repos.ReservationTypeUnavailableTime,
+			repos.ReservationTypeOccupation,
 		),
 	}
 }

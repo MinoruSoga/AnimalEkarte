@@ -6,6 +6,70 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// ---- 予約不可時間レスポンス ----
+
+type unavailableTimeResponse struct {
+	ID                uint64  `json:"id"`
+	ClinicID          uint64  `json:"clinic_id"`
+	ReservationTypeID uint64  `json:"reservation_type_id"`
+	UnavailableType   string  `json:"unavailable_type"`
+	DayOfWeek         *int8   `json:"day_of_week,omitempty"`
+	SpecificDate      *string `json:"specific_date,omitempty"` // "YYYY-MM-DD"
+	StartTime         string  `json:"start_time"`
+	EndTime           string  `json:"end_time"`
+}
+
+func toUnavailableTimeResponse(t *model.ReservationTypeUnavailableTime) unavailableTimeResponse {
+	resp := unavailableTimeResponse{
+		ID:                t.ID,
+		ClinicID:          t.ClinicID,
+		ReservationTypeID: t.ReservationTypeID,
+		UnavailableType:   string(t.UnavailableType),
+		DayOfWeek:         t.DayOfWeek,
+		StartTime:         t.StartTime,
+		EndTime:           t.EndTime,
+	}
+	if t.SpecificDate != nil {
+		// DATE 型は UTC 午前0時で格納される
+		s := t.SpecificDate.UTC().Format("2006-01-02")
+		resp.SpecificDate = &s
+	}
+	return resp
+}
+
+// ---- 職種紐付けレスポンス ----
+
+type occupationSummary struct {
+	ID   uint64 `json:"id"`
+	Name string `json:"name"`
+}
+
+type reservationTypeOccupationResponse struct {
+	ID                uint64             `json:"id"`
+	ClinicID          uint64             `json:"clinic_id"`
+	ReservationTypeID uint64             `json:"reservation_type_id"`
+	OccupationID      uint64             `json:"occupation_id"`
+	Occupation        *occupationSummary `json:"occupation,omitempty"`
+	CreatedAt         time.Time          `json:"created_at"`
+}
+
+func toReservationTypeOccupationResponse(o *model.ReservationTypeOccupation) reservationTypeOccupationResponse {
+	resp := reservationTypeOccupationResponse{
+		ID:                o.ID,
+		ClinicID:          o.ClinicID,
+		ReservationTypeID: o.ReservationTypeID,
+		OccupationID:      o.OccupationID,
+		CreatedAt:         o.CreatedAt,
+	}
+	if o.Occupation != nil {
+		resp.Occupation = &occupationSummary{
+			ID:   o.Occupation.ID,
+			Name: o.Occupation.Name,
+		}
+	}
+	return resp
+}
+
 type reservationTypeResponse struct {
 	ID          uint64        `json:"id"`
 	ClinicID    uint64        `json:"clinic_id"`

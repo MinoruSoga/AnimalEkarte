@@ -430,17 +430,60 @@ func newLiffSvcWithDeps(
 	notifier *mockLiffNotifier,
 ) *liffService {
 	return &liffService{
-		settingRepo:     setting,
-		typeLiffRepo:    course,
-		staffRepo:       staff,
-		scheduleRepo:    schedule,
-		adminRepo:       admin,
-		reservationRepo: reservation,
-		customerRepo:    customer,
-		ownerRepo:       owner,
-		validators:      validators,
-		notifier:        notifier,
+		settingRepo:         setting,
+		typeLiffRepo:        course,
+		staffRepo:           staff,
+		scheduleRepo:        schedule,
+		adminRepo:           admin,
+		reservationRepo:     reservation,
+		customerRepo:        customer,
+		ownerRepo:           owner,
+		validators:          validators,
+		notifier:            notifier,
+		unavailableTimeRepo: &mockLiffUnavailableTimeRepository{},
+		occupationRepo:      &mockLiffOccupationRepository{},
 	}
+}
+
+// mockLiffUnavailableTimeRepository は ReservationTypeUnavailableTimeRepository のテスト用スタブ
+type mockLiffUnavailableTimeRepository struct {
+	findAllFn func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
+}
+
+func (m *mockLiffUnavailableTimeRepository) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error) {
+	if m.findAllFn != nil {
+		return m.findAllFn(ctx, clinicID, reservationTypeID)
+	}
+	return []model.ReservationTypeUnavailableTime{}, nil
+}
+func (m *mockLiffUnavailableTimeRepository) Create(_ context.Context, _ *model.ReservationTypeUnavailableTime) error {
+	return nil
+}
+func (m *mockLiffUnavailableTimeRepository) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+// mockLiffOccupationRepository は ReservationTypeOccupationRepository のテスト用スタブ
+type mockLiffOccupationRepository struct {
+	findAllFn           func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
+	countWorkingStaffFn func(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
+}
+
+func (m *mockLiffOccupationRepository) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error) {
+	if m.findAllFn != nil {
+		return m.findAllFn(ctx, clinicID, reservationTypeID)
+	}
+	return []model.ReservationTypeOccupation{}, nil
+}
+func (m *mockLiffOccupationRepository) Create(_ context.Context, _ *model.ReservationTypeOccupation) error {
+	return nil
+}
+func (m *mockLiffOccupationRepository) Delete(_ context.Context, _, _, _ uint64) error { return nil }
+func (m *mockLiffOccupationRepository) CountWorkingStaff(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
+	if m.countWorkingStaffFn != nil {
+		return m.countWorkingStaffFn(ctx, clinicID, reservationTypeID, date)
+	}
+	return 1, nil // デフォルト: 1人出勤（予約可能）
 }
 
 // liffDefaultSetting はテスト用デフォルト予約設定を返す。

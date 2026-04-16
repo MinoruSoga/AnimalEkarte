@@ -131,8 +131,67 @@ func (m *mockReservationForReservationType) FindAllByCategory(_ context.Context,
 	return nil, 0, nil
 }
 
+// mockUnavailableTimeRepository は ReservationTypeUnavailableTimeRepository のテスト用モック
+type mockUnavailableTimeRepository struct {
+	findAllFn func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
+	createFn  func(ctx context.Context, t *model.ReservationTypeUnavailableTime) error
+	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+}
+
+func (m *mockUnavailableTimeRepository) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error) {
+	if m.findAllFn != nil {
+		return m.findAllFn(ctx, clinicID, reservationTypeID)
+	}
+	return []model.ReservationTypeUnavailableTime{}, nil
+}
+func (m *mockUnavailableTimeRepository) Create(ctx context.Context, t *model.ReservationTypeUnavailableTime) error {
+	if m.createFn != nil {
+		return m.createFn(ctx, t)
+	}
+	return nil
+}
+func (m *mockUnavailableTimeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, id)
+	}
+	return nil
+}
+
+// mockOccupationRepository は ReservationTypeOccupationRepository のテスト用モック
+type mockOccupationRepoForRType struct {
+	findAllFn           func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
+	createFn            func(ctx context.Context, o *model.ReservationTypeOccupation) error
+	deleteFn            func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
+	countWorkingStaffFn func(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
+}
+
+func (m *mockOccupationRepoForRType) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error) {
+	if m.findAllFn != nil {
+		return m.findAllFn(ctx, clinicID, reservationTypeID)
+	}
+	return []model.ReservationTypeOccupation{}, nil
+}
+func (m *mockOccupationRepoForRType) Create(ctx context.Context, o *model.ReservationTypeOccupation) error {
+	if m.createFn != nil {
+		return m.createFn(ctx, o)
+	}
+	return nil
+}
+func (m *mockOccupationRepoForRType) Delete(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, reservationTypeID, occupationID)
+	}
+	return nil
+}
+func (m *mockOccupationRepoForRType) CountWorkingStaff(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
+	if m.countWorkingStaffFn != nil {
+		return m.countWorkingStaffFn(ctx, clinicID, reservationTypeID, date)
+	}
+	return 1, nil
+}
+
 func newTestReservationTypeService(repo *mockReservationTypeRepository) ReservationTypeService {
-	return NewReservationTypeService(repo, &mockReservationForReservationType{})
+	return NewReservationTypeService(repo, &mockReservationForReservationType{}, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{})
 }
 
 // ---- List ----

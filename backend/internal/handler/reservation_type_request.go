@@ -43,3 +43,17 @@ type updateReservationTypeRequest struct {
 type reorderReservationTypeRequest struct {
 	IDs []uint64 `json:"ids" binding:"required,min=1"`
 }
+
+// CreateUnavailableTimeRequest は予約不可時間の作成リクエスト
+type createUnavailableTimeRequest struct {
+	UnavailableType string  `json:"unavailable_type" binding:"required,oneof=weekly specific"`
+	DayOfWeek       *int8   `json:"day_of_week"`
+	SpecificDate    *string `json:"specific_date"` // "YYYY-MM-DD"
+	StartTime       string  `json:"start_time"     binding:"required"`
+	EndTime         string  `json:"end_time"       binding:"required"`
+}
+
+// LinkOccupationRequest は職種紐付けリクエスト
+type linkOccupationRequest struct {
+	OccupationID uint64 `json:"occupation_id" binding:"required"`
+}
