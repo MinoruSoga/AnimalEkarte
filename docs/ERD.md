@@ -1,18 +1,18 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v31.4（SQL マイグレーション 100% 同期）
+バージョン: v31.5（SQL マイグレーション 100% 同期）
 更新日: 2026-04-13
 状態: Production Ready
 
 ---
 
-## 変更概要（v31.3 → v31.4）
+## 変更概要（v31.4 → v31.5）
 
 | 変更内容 | 詳細 |
 |---------|------|
-| SQL同期 | 各テーブルの順序および定義を `001_init.sql` と完全に一致させた（varchar長など） |
-| 関係図整理 | 重複していたマルチテナント（clinic_id）セクションを各機能セクションへ統合し、重複定義を排除 |
-| 区分修正 | `merchandise_items` や `shift_templates` などのマスタ区分を正確に反映 |
+| カラム同期 | `appointments.created_by`, `payments.paid_by`, `billing_refunds.refunded_by`, `medical_records.entered_by` などを追記 |
+| 関係図強化 | `staffs` からの外部キー関係をより正確に反映（作成者・担当者など） |
+| 同期監査 | `001_init.sql` の全 67 テーブルおよび 46 ENUM 型との完全一致を確認 |
 
 ---
 
@@ -584,6 +584,7 @@ erDiagram
         bigint appointment_id FK
         medical_record_status status
         integer version
+        bigint entered_by FK
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
@@ -612,7 +613,7 @@ erDiagram
         bigint medicine_id FK
         bigint inventory_id FK
         bigint unit_price
-        numeric quantity
+        numeric_10_1 quantity
         boolean is_selected
         treatment_status status
         text content
@@ -682,13 +683,13 @@ erDiagram
     vaccinations {
         bigint id PK
         bigint medical_record_id FK
+        bigint clinic_id FK
         bigint pet_id FK
         bigint vaccine_id FK
         date date
-        bigint doctor_id FK
-        bigint clinic_id FK
         date next_date
         next_schedule_type next_schedule_type
+        bigint doctor_id FK
         text supplemental
         text lot1
         text lot2
@@ -707,9 +708,9 @@ erDiagram
         bigint pet_id FK
         bigint checkup_type_id FK
         date date
+        date next_date
         bigint doctor_id FK
         text result
-        date next_date
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
@@ -825,6 +826,7 @@ erDiagram
         reservation_status status
         text notes
         reservation_source source
+        bigint created_by FK
         boolean is_staff_delegated
         jsonb customer_fields
         bigint line_customer_id FK
@@ -981,9 +983,9 @@ erDiagram
         item_category category
         text name
         bigint unit_price
-        numeric quantity
+        numeric_10_1 quantity
         tax_type tax_type
-        numeric tax_rate
+        numeric_3_2 tax_rate
         boolean is_insurance_applicable
         item_source source
         bigint merchandise_item_id FK
@@ -1000,13 +1002,14 @@ erDiagram
         bigint tax_total
         bigint total_amount
         text insurance_name
-        numeric insurance_ratio
+        numeric_3_2 insurance_ratio
         bigint insurance_amount
         bigint discount_amount
         bigint billing_amount
         bigint received_amount
         bigint change_amount
         payment_method method
+        bigint paid_by FK
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
@@ -1018,6 +1021,7 @@ erDiagram
         bigint billing_id FK
         bigint amount
         text reason
+        bigint refunded_by FK
         timestamptz refunded_at
         timestamptz created_at
     }
@@ -1067,7 +1071,7 @@ erDiagram
 
     audit_logs {
         bigint id PK
-        bigint clinic_id
+        bigint clinic_id FK
         bigint actor_id
         varchar_30 actor_type
         varchar_50 action
@@ -1158,26 +1162,12 @@ erDiagram
     insurances ||--o{ pets : "insurance_id"
     animal_species ||--o{ pets : "animal_species_id"
 
-    %% マスタ
+    %% 共通マスタ
     clinics ||--o{ occupations : "clinic_id"
     clinics ||--o{ inventory_items : "clinic_id"
     clinics ||--o{ cages : "clinic_id"
-    clinics ||--o{ exam_types : "clinic_id"
-    clinics ||--o{ vaccines : "clinic_id"
-    clinics ||--o{ medicines : "clinic_id"
-    clinics ||--o{ insurances : "clinic_id"
-    clinics ||--o{ consultations : "clinic_id"
-    clinics ||--o{ procedures : "clinic_id"
-    clinics ||--o{ hospitalization_plans : "clinic_id"
-    clinics ||--o{ merchandise_items : "clinic_id"
-    clinics ||--o{ trimming_courses : "clinic_id"
-    clinics ||--o{ trimming_options : "clinic_id"
-    clinics ||--o{ diagnosis_types : "clinic_id"
-    clinics ||--o{ diagnosis_names : "clinic_id"
-    clinics ||--o{ checkup_types : "clinic_id"
-    clinics ||--o{ chief_complaint_types : "clinic_id"
-    clinics ||--o{ inquiry_templates : "clinic_id"
     clinics ||--o{ clinic_holidays : "clinic_id"
+    clinics ||--o{ merchandise_items : "clinic_id"
     occupations ||--o{ staffs : "occupation_id"
 
     %% 権限
@@ -1185,20 +1175,26 @@ erDiagram
     permission_groups ||--o{ permission_group_rules : "group_id"
     permission_groups ||--o{ staff_permission_groups : "group_id"
     staffs ||--o{ staff_permission_groups : "staff_id"
-    exam_types ||--o{ exam_type_fields : "exam_type_id"
-    diagnosis_types ||--o{ diagnosis_names : "diagnosis_type_id"
-    inventory_items ||--o{ medicines : "inventory_id"
-    inventory_items ||--o{ vaccines : "inventory_id"
 
     %% 診療
     clinics ||--o{ medical_records : "clinic_id"
-    clinics ||--o{ exams : "clinic_id"
-    clinics ||--o{ vaccinations : "clinic_id"
-    clinics ||--o{ checkups : "clinic_id"
+    clinics ||--o{ exam_types : "clinic_id"
+    clinics ||--o{ vaccines : "clinic_id"
+    clinics ||--o{ medicines : "clinic_id"
+    clinics ||--o{ insurances : "clinic_id"
+    clinics ||--o{ consultations : "clinic_id"
+    clinics ||--o{ procedures : "clinic_id"
+    clinics ||--o{ diagnosis_types : "clinic_id"
+    clinics ||--o{ diagnosis_names : "clinic_id"
+    clinics ||--o{ checkup_types : "clinic_id"
+    clinics ||--o{ chief_complaint_types : "clinic_id"
+    clinics ||--o{ inquiry_templates : "clinic_id"
     clinics ||--o{ estimates : "clinic_id"
+
     owners ||--o{ medical_records : "owner_id"
     pets ||--o{ medical_records : "pet_id"
     staffs ||--o{ medical_records : "doctor_id"
+    staffs ||--o{ medical_records : "entered_by"
     medical_records ||--o| clinical_plans : "medical_record_id"
     clinical_plans }o--|| diagnosis_types : "diagnosis_type_id"
     clinical_plans }o--|| diagnosis_names : "diagnosis_name_id"
@@ -1221,16 +1217,19 @@ erDiagram
     staffs ||--o{ exams : "doctor_id"
     exams ||--o{ exam_results : "exam_id"
     exam_type_fields ||--o{ exam_results : "exam_type_field_id"
+    exam_types ||--o{ exam_type_fields : "exam_type_id"
 
     medical_records ||--o{ vaccinations : "medical_record_id"
     pets ||--o{ vaccinations : "pet_id"
     vaccines ||--o{ vaccinations : "vaccine_id"
     staffs ||--o{ vaccinations : "doctor_id"
+    clinics ||--o{ vaccinations : "clinic_id"
 
     medical_records ||--o{ checkups : "medical_record_id"
     pets ||--o{ checkups : "pet_id"
     checkup_types ||--o{ checkups : "checkup_type_id"
     staffs ||--o{ checkups : "doctor_id"
+    clinics ||--o{ checkups : "clinic_id"
 
     medical_records ||--o| inquiries : "medical_record_id"
     chief_complaint_types ||--o{ inquiries : "chief_complaint_type_id"
@@ -1245,9 +1244,14 @@ erDiagram
     consultations ||--o{ estimate_items : "consultation_id"
     procedures ||--o{ estimate_items : "procedure_id"
     medicines ||--o{ estimate_items : "medicine_id"
+    merchandise_items ||--o{ estimate_items : "merchandise_item_id"
     medical_records ||--o| billing_confirmations : "medical_record_id"
     staffs ||--o{ billing_confirmations : "confirmed_by"
     staffs ||--o{ billing_confirmations : "returned_by"
+
+    inventory_items ||--o{ medicines : "inventory_id"
+    inventory_items ||--o{ vaccines : "inventory_id"
+    diagnosis_types ||--o{ diagnosis_names : "diagnosis_type_id"
 
     %% 予約
     clinics ||--o{ appointments : "clinic_id"
@@ -1258,6 +1262,7 @@ erDiagram
     reservation_types ||--o{ appointments : "reservation_type_id"
     reservation_type_groups ||--o{ reservation_types : "group_id"
     staffs ||--o{ appointments : "doctor_id"
+    staffs ||--o{ appointments : "created_by"
     owners ||--o{ appointments : "owner_id"
     line_customers ||--o{ appointments : "line_customer_id"
     staffs ||--o{ staff_reservation_exclusions : "staff_id"
@@ -1266,6 +1271,7 @@ erDiagram
     %% 入院
     clinics ||--o{ hospitalizations : "clinic_id"
     clinics ||--o{ daily_records : "clinic_id"
+    clinics ||--o{ hospitalization_plans : "clinic_id"
     owners ||--o{ hospitalizations : "owner_id"
     pets ||--o{ hospitalizations : "pet_id"
     cages ||--o{ hospitalizations : "cage_id"
@@ -1306,9 +1312,10 @@ erDiagram
     pets ||--o{ billings : "pet_id"
     billings ||--o{ billing_items : "billing_id"
     merchandise_items ||--o{ billing_items : "merchandise_item_id"
-    merchandise_items ||--o{ estimate_items : "merchandise_item_id"
     billings ||--o| payments : "billing_id"
     billings ||--o{ billing_refunds : "billing_id"
+    staffs ||--o{ payments : "paid_by"
+    staffs ||--o{ billing_refunds : "refunded_by"
 
     %% シフト
     clinics ||--o{ shift_entries : "clinic_id"
@@ -1316,6 +1323,9 @@ erDiagram
     staffs ||--o{ shift_entries : "staff_id"
     shift_entries ||--o{ shift_entry_breaks : "shift_entry_id"
     shift_templates ||--o{ shift_template_breaks : "shift_template_id"
+
+    %% 監査
+    clinics ||--o{ audit_logs : "clinic_id"
 
     %% LINE予約
     clinics ||--o{ line_reservation_settings : "clinic_id"
