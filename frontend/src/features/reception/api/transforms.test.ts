@@ -84,9 +84,8 @@ describe("transformReservationToReceptionAppointment", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
       owner: undefined,
-      customer_fields: JSON.stringify({
-        owner_name: "山田太郎",
-      }),
+      // customer_fields は json.RawMessage（Go）→ JSON オブジェクトとして届く
+      customer_fields: { owner_name: "山田太郎" },
     });
     expect(result.ownerName).toBe("山田太郎");
   });
@@ -95,9 +94,7 @@ describe("transformReservationToReceptionAppointment", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
       pet: undefined,
-      customer_fields: JSON.stringify({
-        pets: [{ name: "ハナ", type: "柴犬" }],
-      }),
+      customer_fields: { pets: [{ name: "ハナ", type: "柴犬" }] },
     });
     expect(result.petName).toBe("ハナ");
   });
@@ -106,9 +103,7 @@ describe("transformReservationToReceptionAppointment", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
       pet: undefined,
-      customer_fields: JSON.stringify({
-        pets: [{ name: "ハナ", type: "柴犬" }],
-      }),
+      customer_fields: { pets: [{ name: "ハナ", type: "柴犬" }] },
     });
     expect(result.petType).toBe("柴犬");
   });

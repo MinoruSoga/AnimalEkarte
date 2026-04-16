@@ -261,13 +261,15 @@ export const paths = {
       path: "/settings/merchandise-items",
       getHref: () => "/settings/merchandise-items",
     },
+    // BUG-385: /settings/vaccine|examination|consultation|procedure は dead route。
+    // router.tsx の実在ルートに合わせ、/settings/treatment-items?tab=xxx へ直接リンク。
     vaccine: {
-      path: "/settings/vaccine",
-      getHref: () => "/settings/vaccine",
+      path: "/settings/treatment-items",
+      getHref: () => "/settings/treatment-items?tab=vaccine",
     },
     examination: {
-      path: "/settings/examination",
-      getHref: () => "/settings/examination",
+      path: "/settings/treatment-items",
+      getHref: () => "/settings/treatment-items?tab=examination",
     },
     // BUG-384: 旧パス（trimming-course / trimming-option）は dead route。
     // /settings/trimming?tab=course|option に統合済み。
@@ -280,12 +282,12 @@ export const paths = {
       getHref: () => "/settings/trimming?tab=option",
     },
     consultation: {
-      path: "/settings/consultation",
-      getHref: () => "/settings/consultation",
+      path: "/settings/treatment-items",
+      getHref: () => "/settings/treatment-items?tab=consultation",
     },
     procedure: {
-      path: "/settings/procedure",
-      getHref: () => "/settings/procedure",
+      path: "/settings/treatment-items",
+      getHref: () => "/settings/treatment-items?tab=procedure",
     },
     diagnosisType: {
       path: "/settings/diagnosis-type",

@@ -115,6 +115,8 @@ export interface Appointment {
   end: Date;
   ownerName: string;
   petName: string;
+  /** LINE予約フォームで入力したペットの種類（犬種等）。カルテ紐付け前のフォールバック用 */
+  petType?: string;
   visitType: "first" | "revisit";
   type: string;
   reservationTypeId?: string;

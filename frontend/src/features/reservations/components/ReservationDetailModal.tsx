@@ -156,7 +156,12 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             </div>
             <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="ペット名">
-                <span className="font-medium">{appointment.petName}</span>
+                <span className="font-medium">
+                  {appointment.petName}
+                  {appointment.petType ? (
+                    <span className={`ml-1.5 text-xs ${C.text50}`}>({appointment.petType})</span>
+                  ) : null}
+                </span>
               </InfoRow>
               <InfoRow label="飼い主名">
                 {appointment.ownerName}

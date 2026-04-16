@@ -7,6 +7,7 @@ README.md
 CLAUDE.md
 CODING_RULES.md
 docs/
+issues/
 
 # IDE
 .vscode/
@@ -35,8 +36,16 @@ tmp/
 .env.local
 .env.*.local
 
+# Local build artifacts / helper files
+api
+FK_DEPENDENCY_CHECK_ROADMAP.md
+tygo.yaml
+
 # Node modules (if any)
 node_modules/
+
+# Runtime/local artifacts not needed for image build
+uploads/
 
 # Docker files
 Dockerfile*

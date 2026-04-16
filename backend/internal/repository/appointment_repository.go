@@ -70,7 +70,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
-	if err := q.Preload("Pet").Preload("Pet.Owner").Preload("Pet.AnimalSpecies").Preload("ReservationType").Preload("Doctor").
+	if err := q.Preload("Owner").Preload("Pet").Preload("Pet.Owner").Preload("Pet.AnimalSpecies").Preload("ReservationType").Preload("Doctor").
 		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
@@ -80,6 +80,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
 	var reservation model.Appointment
 	err := dbOrTx(ctx, r.db).
+		Preload("Owner").
 		Preload("Pet").
 		Preload("Pet.Owner").
 		Preload("Pet.AnimalSpecies").

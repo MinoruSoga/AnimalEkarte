@@ -8,6 +8,14 @@ dist/
 .vercel/
 
 # Test
+tests/
+*.spec.ts
+*.spec.tsx
+*.test.ts
+*.test.tsx
+playwright.config.ts
+playwright-report/
+test-results/
 coverage/
 .nyc_output/
 

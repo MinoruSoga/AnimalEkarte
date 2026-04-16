@@ -218,7 +218,7 @@ func TestMedicalRecordService_List(t *testing.T) {
 					return tt.repoRecords, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
 
 			records, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
 
@@ -282,7 +282,7 @@ func TestMedicalRecordService_GetByID(t *testing.T) {
 					return tt.repoRecord, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
 
 			record, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -305,7 +305,7 @@ func TestMedicalRecordService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("medical_record", "999")
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
 
 	record, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -362,7 +362,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
 
 			err := svc.Create(context.Background(), tt.record)
 
@@ -444,7 +444,7 @@ func TestMedicalRecordService_Update(t *testing.T) {
 					return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
 
 			record, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -477,7 +477,7 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 				return nil, apperrors.WrapNotFound("owner", "100")
 			},
 		}
-		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
@@ -501,7 +501,7 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 				return &model.Owner{ID: ownerID, ClinicID: 1}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil, nil)
 
 		record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
@@ -528,7 +528,7 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 				return nil, apperrors.WrapNotFound("pet", "200")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
@@ -552,7 +552,7 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 				return &model.Pet{ID: petID, ClinicID: 1}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
@@ -628,7 +628,7 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -645,4 +645,152 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+// noopInquiryRepo は CreateSubRecords テスト用の no-op InquiryRepository
+type noopInquiryRepo struct{}
+
+func (n *noopInquiryRepo) UpsertByMedicalRecordID(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+	return inquiry, nil
+}
+func (n *noopInquiryRepo) CountByChiefComplaintTypeID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+// noopClinicalPlanRepo は CreateSubRecords テスト用の no-op ClinicalPlanRepository
+type noopClinicalPlanRepo struct{}
+
+func (n *noopClinicalPlanRepo) FindByMedicalRecordID(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+	return nil, apperrors.WrapNotFound("clinical_plan", "0")
+}
+func (n *noopClinicalPlanRepo) Create(_ context.Context, _ *model.ClinicalPlan) error { return nil }
+func (n *noopClinicalPlanRepo) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+	return nil
+}
+func (n *noopClinicalPlanRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
+
+// mockLineCustomerRepository は AutoCreateFromReservation テスト用 LineCustomerRepository モック
+type mockLineCustomerRepository struct {
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error)
+}
+
+func (m *mockLineCustomerRepository) FindAll(_ context.Context, _ uint64) ([]model.LineCustomer, error) {
+	return nil, nil
+}
+func (m *mockLineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
+}
+func (m *mockLineCustomerRepository) UpdateOwnerLink(_ context.Context, _, _ uint64, _ *uint64) error {
+	return nil
+}
+func (m *mockLineCustomerRepository) FindOrCreateByLineUserID(_ context.Context, _ uint64, _, _ string) (*model.LineCustomer, error) {
+	return nil, nil
+}
+func (m *mockLineCustomerRepository) UpdateAdditionalFields(_ context.Context, _, _ uint64, _ []byte) error {
+	return nil
+}
+
+// TestAutoCreateFromReservation_BUG386 は LINE予約で owner_id/pet_id が nil のとき
+// line_customer から補完してカルテ自動作成できることを検証する（BUG-386 回帰テスト）。
+func TestAutoCreateFromReservation_BUG386(t *testing.T) {
+	now := time.Now()
+	ownerID := uint64(10)
+	petID := uint64(20)
+	lineCustomerID := uint64(5)
+
+	t.Run("skips when owner_id and pet_id are nil and no line_customer_id", func(t *testing.T) {
+		repo := &mockMedicalRecordRepository{
+			findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				return nil, 0, nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
+		appt := &model.Appointment{
+			ID:        1,
+			ClinicID:  1,
+			StartTime: now,
+		}
+		// エラーなく静かにスキップするだけ（パニックしない）
+		svc.AutoCreateFromReservation(context.Background(), 1, appt)
+	})
+
+	t.Run("resolves owner_id from line_customer and creates medical record (BUG-386)", func(t *testing.T) {
+		var createdRecord *model.MedicalRecord
+		repo := &mockMedicalRecordRepository{
+			findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				return nil, 0, nil
+			},
+			createFn: func(_ context.Context, record *model.MedicalRecord) error {
+				createdRecord = record
+				return nil
+			},
+		}
+		lineCustomerRepo := &mockLineCustomerRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+				return &model.LineCustomer{
+					ID:      lineCustomerID,
+					OwnerID: &ownerID,
+					Owner: &model.Owner{
+						ID:   ownerID,
+						Name: "田中太郎",
+						Pets: []model.Pet{
+							{ID: petID, Name: "ポチ"},
+						},
+					},
+				}, nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, &noopInquiryRepo{}, &noopClinicalPlanRepo{}, lineCustomerRepo)
+
+		appt := &model.Appointment{
+			ID:             1,
+			ClinicID:       1,
+			StartTime:      now,
+			LineCustomerID: &lineCustomerID,
+			// owner_id / pet_id は未設定（LINE予約で自動紐付けが未完了の状態）
+		}
+
+		svc.AutoCreateFromReservation(context.Background(), 1, appt)
+
+		assert.NotNil(t, createdRecord, "カルテが作成されるべき")
+		if createdRecord != nil {
+			assert.Equal(t, &ownerID, createdRecord.OwnerID)
+			assert.Equal(t, &petID, createdRecord.PetID)
+		}
+	})
+
+	t.Run("skips when line_customer has no owner_id", func(t *testing.T) {
+		created := false
+		repo := &mockMedicalRecordRepository{
+			findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				return nil, 0, nil
+			},
+			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
+				created = true
+				return nil
+			},
+		}
+		lineCustomerRepo := &mockLineCustomerRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+				return &model.LineCustomer{
+					ID:      lineCustomerID,
+					OwnerID: nil, // 未紐付け
+				}, nil
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, lineCustomerRepo)
+
+		appt := &model.Appointment{
+			ID:             1,
+			ClinicID:       1,
+			StartTime:      now,
+			LineCustomerID: &lineCustomerID,
+		}
+
+		svc.AutoCreateFromReservation(context.Background(), 1, appt)
+		assert.False(t, created, "オーナー未紐付けのためカルテ作成はスキップされるべき")
+	})
 }

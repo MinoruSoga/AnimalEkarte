@@ -44,14 +44,15 @@
 
 - **[testing/HANDLER_TEST_DOCUMENTATION_STATUS.md](testing/HANDLER_TEST_DOCUMENTATION_STATUS.md)**: API ハンドラーのテストカバレッジ・ステータス。
 - **[testing/SECTION_14_MANUAL_TEST_GUIDE.md](testing/SECTION_14_MANUAL_TEST_GUIDE.md)**: 手動ブラウザテストの実行ガイド。
-- **[archive/](archive/)**: 過去の機能テストレポートやトリアージ記録。
+- **[FUNCTIONAL_TEST_REPORT.md](FUNCTIONAL_TEST_REPORT.md)**: 機能テスト・検証レポートの集約版。
+- **[archive/](archive/)**: 過去の機能テストレポート、トリアージ記録、および古い設計資料。
 
 ---
 
 ## 📦 運用・インフラ
 
 - **[OPERATIONS.md](OPERATIONS.md)**: 開発環境のセットアップ・運用コマンド（Make）。
-- **[infra/docs_infra_architecture.md](infra/docs_infra_architecture.md)**: AWS ステージング環境のインフラ構成図と構築手順。
+- **[infra/architecture.md](infra/architecture.md)**: AWS ステージング環境のインフラ構成図と構築手順。
 
 ---
 
@@ -62,4 +63,4 @@
 
 ---
 
-**最終更新**: 2026-04-13
+**最終更新**: 2026-04-15

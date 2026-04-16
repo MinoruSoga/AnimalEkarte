@@ -104,6 +104,61 @@ describe("transformReservation", () => {
     expect(result.petName).toBe("ポチ");
   });
 
+  it("LINE予約: customer_fields.owner_name を ownerName にフォールバックする", () => {
+    const result = transformReservation({
+      ...minimalBackend,
+      owner: undefined,
+      pet: undefined,
+      customer_fields: { owner_name: "テスト飼い主", phone: "090-0000-0000", pets: [{ name: "ポチ", type: "トイプードル" }] },
+    });
+    expect(result.ownerName).toBe("テスト飼い主");
+  });
+
+  it("LINE予約: customer_fields.customer_name を ownerName の最終フォールバックに使う", () => {
+    const result = transformReservation({
+      ...minimalBackend,
+      owner: undefined,
+      pet: undefined,
+      customer_fields: { customer_name: "ヤマダ ハナコ", pets: [] },
+    });
+    expect(result.ownerName).toBe("ヤマダ ハナコ");
+  });
+
+  it("LINE予約: customer_fields.pets[0].name を petName にフォールバックする", () => {
+    const result = transformReservation({
+      ...minimalBackend,
+      pet: undefined,
+      customer_fields: { owner_name: "テスト", pets: [{ name: "モモ", type: "柴犬" }] },
+    });
+    expect(result.petName).toBe("モモ");
+  });
+
+  it("LINE予約: customer_fields.pets[0].type を petType にマップする", () => {
+    const result = transformReservation({
+      ...minimalBackend,
+      pet: undefined,
+      customer_fields: { owner_name: "テスト", pets: [{ name: "ポチ", type: "トイプードル" }] },
+    });
+    expect(result.petType).toBe("トイプードル");
+  });
+
+  it("pet.animal_species.name が存在するとき petType にマップする", () => {
+    const result = transformReservation({
+      ...minimalBackend,
+      pet: { id: 1, clinic_id: 1, name: "ミケ", animal_species: { id: 2, name: "猫" } } as BackendReservation["pet"],
+    });
+    expect(result.petType).toBe("猫");
+  });
+
+  it("customer_fields が空オブジェクトのとき petType は undefined", () => {
+    const result = transformReservation({
+      ...minimalBackend,
+      pet: undefined,
+      customer_fields: {},
+    });
+    expect(result.petType).toBeUndefined();
+  });
+
   it("reservation_type.name を type にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,

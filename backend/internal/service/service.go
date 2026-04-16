@@ -83,7 +83,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Owner:                  NewOwnerService(repos.Owner),
 		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
 		Reservation:            NewReservationService(repos.Reservation, tx),
-		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan),
+		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr),
 		Hospitalization:        NewHospitalizationService(repos),
 		Accounting:             NewAccountingService(repos.Accounting),
 		Trimming:               NewTrimmingService(repos.Trimming),

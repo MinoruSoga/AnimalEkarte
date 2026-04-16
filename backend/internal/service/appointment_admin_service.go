@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"time"
 
@@ -74,9 +75,9 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 	if visitType == "" {
 		visitType = model.VisitTypeRevisit
 	}
-	customerFields := input.CustomerFields
+	customerFields := json.RawMessage(input.CustomerFields)
 	if customerFields == nil {
-		customerFields = []byte("{}")
+		customerFields = json.RawMessage("{}")
 	}
 
 	var result *model.Appointment

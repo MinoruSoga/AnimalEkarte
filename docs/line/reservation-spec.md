@@ -1741,7 +1741,7 @@ AnimalEkarte/
 │       │   └── ReservationPageEditor.tsx
 │       └── hooks/
 │
-├── liff-app/                  # 新規: LINE LIFF予約アプリ
+├── frontend/line-reserve/     # LINE LIFF予約アプリ
 │   ├── src/
 │   │   ├── pages/             # 8画面 + トップページ + エラー
 │   │   ├── components/        # モバイル向けUI
@@ -1751,7 +1751,7 @@ AnimalEkarte/
 │   ├── vite.config.ts
 │   └── package.json
 │
-└── docker-compose.yml         # liff-appコンテナ追加
+└── docker-compose.yml         # LIFF アプリ連携設定
 ```
 
 ---
