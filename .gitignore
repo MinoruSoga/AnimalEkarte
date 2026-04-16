@@ -28,9 +28,6 @@ frontend/debug_*.png
 prodData/
 cookies.txt
 
-# Generated app bundles outside the main frontend
-liff-app/dist/
-
 # IDE
 .idea/
 .vscode/

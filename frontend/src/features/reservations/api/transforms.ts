@@ -30,6 +30,8 @@ export const transformReservation = (
     cf.customer_name ??
     "";
   const petName = reservation.pet?.name ?? cf.pets?.[0]?.name ?? "";
+  // ペットの種類（犬種等）: カルテ紐付け前は customer_fields から取得
+  const petType = reservation.pet?.animal_species?.name ?? cf.pets?.[0]?.type;
 
   return {
     id: String(reservation.id ?? 0),
@@ -37,6 +39,7 @@ export const transformReservation = (
     end: new Date(reservation.end_time),
     ownerName,
     petName,
+    petType,
     visitType: (reservation.visit_type as "first" | "revisit") ?? "first",
     type: reservation.reservation_type?.name ?? "",
     reservationTypeId: reservation.reservation_type_id ? String(reservation.reservation_type_id) : undefined,
