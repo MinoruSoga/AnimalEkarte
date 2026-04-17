@@ -21,10 +21,6 @@ export const paths = {
       path: "/forgot-password",
       getHref: () => "/forgot-password",
     },
-    resetPassword: {
-      path: "/reset-password",
-      getHref: () => "/reset-password",
-    },
   },
 
   owners: {

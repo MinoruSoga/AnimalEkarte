@@ -38,16 +38,6 @@ export const RECEPTION_COLUMNS: Omit<ReceptionColumn, "appointments">[] = [
   { id: "completed", title: "会計済" },
 ];
 
-/** カラム ID → 日本語タイトルマッピング（テスト専用 — production では未使用） */
-export const COLUMN_ID_TO_TITLE: Record<ReservationStatus, string> = {
-  pending: "受付予約",
-  confirmed: "受付予約",
-  checked_in: "受付済",
-  in_consultation: "診療中",
-  accounting: "会計待ち",
-  completed: "会計済",
-  cancelled: "会計済",
-};
 
 /** 日本語タイトル → カラム ID マッピング */
 export const COLUMN_TITLE_TO_STATUS: Record<string, ReservationStatus> = {

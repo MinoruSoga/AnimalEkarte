@@ -165,9 +165,6 @@ export const getPetStatusColor = (status: string) => {
   return status === "生存" ? BADGE.greenHover : BADGE.grayHover;
 };
 
-export const getMasterStatusColor = (status: string) => {
-  return status === "active" ? BADGE.green : BADGE.gray;
-};
 
 export const getInventoryStatusColor = (status: InventoryItem["status"]) => {
   switch (status) {

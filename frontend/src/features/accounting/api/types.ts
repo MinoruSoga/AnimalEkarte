@@ -2,14 +2,12 @@ import type {
   Billing,
   BillingItem,
   BillingStatus,
-  Payment,
   PaymentMethod,
   TaxType,
 } from "@/types/generated/models";
 
 // Backend 型エイリアス
 export type BackendAccounting = Billing;
-export type BackendPayment = Payment;
 
 // BillingItem のレスポンス型（BE handler が計算して返す追加フィールドを含む）
 export interface BackendAccountingItem extends BillingItem {
