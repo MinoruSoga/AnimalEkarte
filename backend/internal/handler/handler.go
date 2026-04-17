@@ -80,7 +80,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.registerExaminationRoutesWithAuth(protected)
 	h.registerVaccinationRoutesWithAuth(protected)
 	h.registerInventoryRoutesWithAuth(protected)
-	h.registerMasterRoutesWithAuth(protected)
+	h.RegisterMasterRoutes(protected)
 	h.RegisterClinicRoutes(protected)
 	h.registerEstimateRoutesWithAuth(protected)
 	h.RegisterShiftRoutes(protected)
@@ -192,11 +192,6 @@ func (h *Handler) registerInventoryRoutesWithAuth(rg *gin.RouterGroup) {
 	inventory.POST("", h.RequirePermission(string(model.ResourceInventory), "create"), h.CreateInventory)
 	inventory.PATCH("/:id", h.RequirePermission(string(model.ResourceInventory), "edit"), h.UpdateInventory)
 	inventory.DELETE("/:id", h.RequirePermission(string(model.ResourceInventory), "delete"), h.DeleteInventory)
-}
-
-// registerMasterRoutesWithAuth はマスタルートに権限チェックを追加する（BUG-122）
-func (h *Handler) registerMasterRoutesWithAuth(rg *gin.RouterGroup) {
-	h.RegisterMasterRoutes(rg)
 }
 
 // registerEstimateRoutesWithAuth は見積書ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
