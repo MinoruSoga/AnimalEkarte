@@ -44,7 +44,7 @@ func (s *hospitalizationPlanService) GetByID(ctx context.Context, clinicID, id u
 	return result, nil
 }
 func (s *hospitalizationPlanService) Create(ctx context.Context, plan *model.HospitalizationPlan) error {
-	if err := validateMasterName(plan.Name); err != nil {
+	if err := validateRequiredName(plan.Name); err != nil {
 		return err
 	}
 	if err := s.repo.Create(ctx, plan); err != nil {
@@ -56,7 +56,7 @@ func (s *hospitalizationPlanService) Create(ctx context.Context, plan *model.Hos
 	return nil
 }
 func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id uint64, input UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildHospitalizationPlanUpdateFields(input)

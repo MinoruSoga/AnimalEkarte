@@ -45,7 +45,7 @@ func (s *cageService) GetByID(ctx context.Context, clinicID, id uint64) (*model.
 	return result, nil
 }
 func (s *cageService) Create(ctx context.Context, cage *model.Cage) error {
-	if err := validateMasterName(cage.Name); err != nil {
+	if err := validateRequiredName(cage.Name); err != nil {
 		return err
 	}
 	if err := s.repo.Create(ctx, cage); err != nil {
@@ -57,7 +57,7 @@ func (s *cageService) Create(ctx context.Context, cage *model.Cage) error {
 	return nil
 }
 func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input UpdateCageInput) (*model.Cage, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildCageUpdateFields(input)

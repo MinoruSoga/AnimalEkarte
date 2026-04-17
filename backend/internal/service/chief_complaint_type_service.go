@@ -55,7 +55,7 @@ func (s *chiefComplaintTypeService) GetByID(ctx context.Context, clinicID, id ui
 }
 
 func (s *chiefComplaintTypeService) Create(ctx context.Context, category *model.ChiefComplaintType) error {
-	if err := validateMasterName(category.Name); err != nil {
+	if err := validateRequiredName(category.Name); err != nil {
 		return err
 	}
 	if err := s.repo.Create(ctx, category); err != nil {
@@ -68,7 +68,7 @@ func (s *chiefComplaintTypeService) Create(ctx context.Context, category *model.
 }
 
 func (s *chiefComplaintTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildChiefComplaintTypeUpdateFields(input)

@@ -42,7 +42,7 @@ func (s *examTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 	return result, nil
 }
 func (s *examTypeService) Create(ctx context.Context, exType *model.ExaminationType) error {
-	if err := validateMasterName(exType.Name); err != nil {
+	if err := validateRequiredName(exType.Name); err != nil {
 		return err
 	}
 	if err := s.repo.Create(ctx, exType); err != nil {
@@ -52,7 +52,7 @@ func (s *examTypeService) Create(ctx context.Context, exType *model.ExaminationT
 	return nil
 }
 func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input UpdateExamTypeInput) (*model.ExaminationType, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildExamTypeUpdateFields(input)

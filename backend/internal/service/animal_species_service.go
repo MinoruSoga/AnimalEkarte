@@ -70,7 +70,7 @@ func (s *animalSpeciesService) GetByID(ctx context.Context, id uint64) (*model.A
 }
 
 func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
-	if err := validateMasterName(input.Name); err != nil {
+	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
 	species := &model.AnimalSpecies{
@@ -88,7 +88,7 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 }
 
 func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildAnimalSpeciesUpdateFields(input)

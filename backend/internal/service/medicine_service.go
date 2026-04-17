@@ -153,7 +153,7 @@ func (s *medicineService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 }
 
 func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *CreateMedicineInput) (*model.Medicine, error) {
-	if err := validateMasterName(input.Name); err != nil {
+	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
 
@@ -218,7 +218,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 }
 
 func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMedicineInput) (*model.Medicine, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildMedicineUpdateFields(input)

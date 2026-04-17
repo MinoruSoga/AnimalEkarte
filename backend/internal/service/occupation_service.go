@@ -55,7 +55,7 @@ func (s *occupationService) GetByID(ctx context.Context, clinicID, id uint64) (*
 }
 
 func (s *occupationService) Create(ctx context.Context, occupation *model.Occupation) error {
-	if err := validateMasterName(occupation.Name); err != nil {
+	if err := validateRequiredName(occupation.Name); err != nil {
 		return err
 	}
 	if err := s.repo.Create(ctx, occupation); err != nil {
@@ -68,7 +68,7 @@ func (s *occupationService) Create(ctx context.Context, occupation *model.Occupa
 }
 
 func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateOccupationInput) (*model.Occupation, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildOccupationUpdateFields(input)

@@ -44,7 +44,7 @@ func (s *trimmingCourseService) GetByID(ctx context.Context, clinicID, id uint64
 	return result, nil
 }
 func (s *trimmingCourseService) Create(ctx context.Context, course *model.TrimmingCourse) error {
-	if err := validateMasterName(course.Name); err != nil {
+	if err := validateRequiredName(course.Name); err != nil {
 		return err
 	}
 	if err := s.repo.Create(ctx, course); err != nil {
@@ -54,7 +54,7 @@ func (s *trimmingCourseService) Create(ctx context.Context, course *model.Trimmi
 	return nil
 }
 func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildTrimmingCourseUpdateFields(input)
@@ -165,7 +165,7 @@ func (s *trimmingOptionService) GetByID(ctx context.Context, clinicID, id uint64
 	return result, nil
 }
 func (s *trimmingOptionService) Create(ctx context.Context, option *model.TrimmingOption) error {
-	if err := validateMasterName(option.Name); err != nil {
+	if err := validateRequiredName(option.Name); err != nil {
 		return err
 	}
 	if err := s.repo.Create(ctx, option); err != nil {
@@ -175,7 +175,7 @@ func (s *trimmingOptionService) Create(ctx context.Context, option *model.Trimmi
 	return nil
 }
 func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingOptionInput) (*model.TrimmingOption, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildTrimmingOptionUpdateFields(input)

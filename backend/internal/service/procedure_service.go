@@ -44,7 +44,7 @@ func (s *procedureService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 	return result, nil
 }
 func (s *procedureService) Create(ctx context.Context, procedure *model.Procedure) error {
-	if err := validateMasterName(procedure.Name); err != nil {
+	if err := validateRequiredName(procedure.Name); err != nil {
 		return err
 	}
 	if err := s.repo.Create(ctx, procedure); err != nil {
@@ -57,7 +57,7 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildProcedureUpdateFields(input)

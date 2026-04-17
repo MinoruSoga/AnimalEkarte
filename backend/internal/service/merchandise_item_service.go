@@ -112,7 +112,7 @@ func (s *merchandiseItemService) GetByID(ctx context.Context, clinicID, id uint6
 }
 
 func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, input *CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
-	if err := validateMasterName(input.Name); err != nil {
+	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
 	if input.UnitPrice < 0 {
@@ -151,7 +151,7 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 }
 
 func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {

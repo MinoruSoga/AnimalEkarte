@@ -96,20 +96,13 @@ func validateRequiredName(name string) error {
 	return nil
 }
 
-// validateMasterName はマスタ系エンティティの名称に対するバリデーションを行う。
-// 空文字・255文字超・制御文字が含まれていないかを検証する。
-// BUG-379 対応: 全マスタ Create/Update で呼び出すこと。
-func validateMasterName(name string) error {
-	return validateRequiredName(name)
-}
-
-// validateOptionalMasterName は nil 許容のマスタ名称バリデーション。
+// validateOptionalName は nil 許容の名称バリデーション。
 // PATCH 系で nil の場合は更新しない意味なのでスキップ、非 nil の場合のみ検証する。
-func validateOptionalMasterName(name *string) error {
+func validateOptionalName(name *string) error {
 	if name == nil {
 		return nil
 	}
-	return validateMasterName(*name)
+	return validateRequiredName(*name)
 }
 
 // validateDiscountRate は割引率が 0〜100 の範囲内かを検証する

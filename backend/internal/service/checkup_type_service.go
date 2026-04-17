@@ -44,7 +44,7 @@ func (s *checkupTypeService) GetByID(ctx context.Context, clinicID, id uint64) (
 	return result, nil
 }
 func (s *checkupTypeService) Create(ctx context.Context, checkupType *model.CheckupType) error {
-	if err := validateMasterName(checkupType.Name); err != nil {
+	if err := validateRequiredName(checkupType.Name); err != nil {
 		return err
 	}
 	if err := s.repo.Create(ctx, checkupType); err != nil {
@@ -54,7 +54,7 @@ func (s *checkupTypeService) Create(ctx context.Context, checkupType *model.Chec
 	return nil
 }
 func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, input UpdateCheckupTypeInput) (*model.CheckupType, error) {
-	if err := validateOptionalMasterName(input.Name); err != nil {
+	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildCheckupTypeUpdateFields(input)
