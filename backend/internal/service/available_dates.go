@@ -6,6 +6,8 @@ import (
 	"time"
 
 	holiday "github.com/holiday-jp/holiday_jp-go"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // AvailableDateResult は1日分の空き状況を表す。
@@ -194,12 +196,12 @@ func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]Avai
 
 // checkDayOption はコースの曜日オプションに対して予約可能かチェックする。
 func checkDayOption(option string, weekday int) bool {
-	switch option {
-	case "saturday":
+	switch model.ReservationDayOption(option) {
+	case model.DayOptionSaturday:
 		return weekday == 6 // 土曜のみ
-	case "weekday":
+	case model.DayOptionWeekday:
 		return weekday >= 1 && weekday <= 5 // 月〜金
-	case "anyday":
+	case model.DayOptionAnyday:
 		return true
 	default: // "none"
 		return true

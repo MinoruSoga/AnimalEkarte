@@ -59,6 +59,8 @@ func RespondError(c *gin.Context, err error) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrForbidden):
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+	case errors.Is(err, apperrors.ErrNotImplemented):
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
 	case isPgError(err):
 		// BUG-138: FromGORM を経由しなかった PostgreSQL エラーをここでキャッチ
 		pgMsg := classifyPgError(err)

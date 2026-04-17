@@ -11,12 +11,13 @@ import (
 
 // センチネルエラー
 var (
-	ErrNotFound      = errors.New("resource not found")
-	ErrAlreadyExists = errors.New("resource already exists")
-	ErrConflict      = errors.New("resource conflict") // FK依存・削除不可など 409 Conflict 専用
-	ErrInvalidInput  = errors.New("invalid input")
-	ErrUnauthorized  = errors.New("unauthorized")
-	ErrForbidden     = errors.New("forbidden")
+	ErrNotFound       = errors.New("resource not found")
+	ErrAlreadyExists  = errors.New("resource already exists")
+	ErrConflict       = errors.New("resource conflict") // FK依存・削除不可など 409 Conflict 専用
+	ErrInvalidInput   = errors.New("invalid input")
+	ErrUnauthorized   = errors.New("unauthorized")
+	ErrForbidden      = errors.New("forbidden")
+	ErrNotImplemented = errors.New("not implemented")
 )
 
 // AppError はアプリケーション固有のエラー
@@ -123,6 +124,15 @@ func WrapInternalServerError(message string) error {
 		Code:    "INTERNAL",
 		Message: message,
 		Err:     errors.New("internal server error"),
+	}
+}
+
+// WrapNotImplemented は未実装エラーを生成する（501 Not Implemented）
+func WrapNotImplemented(message string) error {
+	return &AppError{
+		Code:    "NOT_IMPLEMENTED",
+		Message: message,
+		Err:     ErrNotImplemented,
 	}
 }
 

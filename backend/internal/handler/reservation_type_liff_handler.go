@@ -153,5 +153,5 @@ func (h *Handler) PatchReservationTypeLiffSortOrder(c *gin.Context) {
 
 // UploadReservationTypeLiffImage godoc — v2 スコープ：未実装
 func (h *Handler) UploadReservationTypeLiffImage(c *gin.Context) {
-	RespondError(c, apperrors.WrapInternalServerError("この機能は未実装です"))
+	RespondError(c, apperrors.WrapNotImplemented("この機能は未実装です"))
 }

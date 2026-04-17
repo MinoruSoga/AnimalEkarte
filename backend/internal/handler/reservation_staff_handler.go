@@ -171,5 +171,5 @@ func (h *Handler) PatchReservationStaffSortOrder(c *gin.Context) {
 
 // UploadReservationStaffImage godoc — v2 スコープ：未実装
 func (h *Handler) UploadReservationStaffImage(c *gin.Context) {
-	RespondError(c, apperrors.WrapInternalServerError("この機能は未実装です"))
+	RespondError(c, apperrors.WrapNotImplemented("この機能は未実装です"))
 }
