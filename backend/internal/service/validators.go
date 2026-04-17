@@ -112,11 +112,6 @@ func validateOptionalMasterName(name *string) error {
 	return validateMasterName(*name)
 }
 
-// validateOwnerName はオーナー名のバリデーションを行う（validateRequiredName のエイリアス）
-func validateOwnerName(name string) error {
-	return validateRequiredName(name)
-}
-
 // validateDiscountRate は割引率が 0〜100 の範囲内かを検証する
 func validateDiscountRate(rate float64) error {
 	if rate < 0 || rate > 100 {
