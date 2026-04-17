@@ -38,10 +38,9 @@ import {
   useDeleteShiftTemplate,
   useReorderShiftTemplates,
 } from "@/features/shifts";
-import type { ShiftTemplate } from "@/features/shifts";
-import { SHIFT_TYPE_LABELS } from "@/features/shifts/types";
+import type { ShiftTemplate, ShiftType } from "@/features/shifts";
+import { SHIFT_TYPE_LABELS } from "@/features/shifts";
 import { ShiftTypeOff, ShiftTypePaidLeave } from "@/types/generated/models";
-import type { ShiftType } from "@/features/shifts/types";
 
 // ─────────────────────────────────────────────────
 // Constants

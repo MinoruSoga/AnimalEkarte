@@ -53,7 +53,7 @@ export function transformGenericMasterItem(data: GenericMasterBackendItem): Mast
   };
 }
 
-export const getMasterItemsByEndpoint = async (endpoint: string): Promise<MasterItem[]> => {
+const getMasterItemsByEndpoint = async (endpoint: string): Promise<MasterItem[]> => {
   const { data } = await axios.get<GenericMasterBackendItem[]>(endpoint);
   return data.map(transformGenericMasterItem);
 };
