@@ -84,7 +84,7 @@ type CarePlanItem struct {
 	Type                  CarePlanType   `gorm:"type:care_plan_type;not null"                   json:"type"`
 	Name                  string         `gorm:"not null;default:''"                            json:"name"`
 	Description           string         `gorm:"default:''"                                     json:"description"`
-	Timing                pq.StringArray `gorm:"type:plan_timing[]"                             json:"timing" swaggertype:"array,string"`
+	Timing                pq.StringArray `gorm:"type:plan_timing[]"                             json:"timing"`
 	Status                CarePlanStatus `gorm:"type:care_plan_status;default:'active'"         json:"status"`
 	Notes                 string         `gorm:"default:''"                                     json:"notes"`
 	MedicineID            *uint64        `                                                      json:"medicine_id,omitempty"`
