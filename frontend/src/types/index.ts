@@ -16,19 +16,6 @@ export type { Owner, CreateOwnerRequest, UpdateOwnerRequest } from './owner';
 export type { Pet } from "@/lib/transforms/pet";
 export type { Medicine } from "@/lib/transforms/medicine";
 
-// --- Clinic / App Shell ---
-export interface ClinicInfo {
-  name: string;
-  postalCode: string;
-  address: string;
-  phoneNumber: string;
-  faxNumber?: string;
-  registrationNumber?: string;
-  directorName?: string;
-  email?: string;
-  website?: string;
-  logoUrl?: string;
-}
 
 export interface MenuItem {
     icon?: ReactNode;
@@ -93,10 +80,6 @@ export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
   cancelled: "キャンセル",
 };
 
-export const RESERVATION_TYPE_VALUES = ["診療", "検診", "手術", "トリミング", "ワクチン", "入院"] as const;
-
-/** 予約種別 */
-export type ReservationType = (typeof RESERVATION_TYPE_VALUES)[number];
 
 /** ナビゲーション遷移元情報（react-router location.state で使用） */
 export interface NavigationState {

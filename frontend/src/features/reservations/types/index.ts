@@ -4,7 +4,6 @@ export type {
   ReservationStatus,
   CalendarView,
   VisitType,
-  ReservationType,
   NavigationState,
   Pet,
 } from "@/types";
@@ -12,7 +11,6 @@ export {
   CALENDAR_VIEW_VALUES,
   RESERVATION_STATUS_VALUES,
   RESERVATION_STATUS_LABELS,
-  RESERVATION_TYPE_VALUES,
 } from "@/types";
 
 /**
