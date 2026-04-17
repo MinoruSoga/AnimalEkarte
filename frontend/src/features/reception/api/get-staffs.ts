@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
-export interface BackendStaff {
+interface BackendStaff {
   id: number;
   name: string;
   is_active: boolean;

@@ -30,7 +30,3 @@ export interface ReceptionColumn {
   appointments: ReceptionAppointment[];
 }
 
-/** ステータス更新リクエスト */
-export interface UpdateAppointmentStatusRequest {
-  status: ReservationStatus;
-}

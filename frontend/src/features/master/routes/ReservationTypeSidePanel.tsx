@@ -9,7 +9,7 @@ import { ReservationTypeOccupationsSection } from "@/features/master/components/
 import type { ReservationType } from "@/features/master/api/reservation-types";
 
 // ── 静的 SelectItem JSX (rendering-hoist-jsx) ──────────────────
-export const RESERVATION_DAY_OPTION_ITEMS = (
+const RESERVATION_DAY_OPTION_ITEMS = (
   <>
     <SelectItem value="none">制限なし</SelectItem>
     <SelectItem value="weekday">平日のみ</SelectItem>
@@ -34,7 +34,7 @@ export interface CategoryFormData {
   isInternal: boolean;
 }
 
-export interface GroupOption { id: string; name: string; color: string; }
+interface GroupOption { id: string; name: string; color: string; }
 
 export const CategorySidePanel = memo(function CategorySidePanel({
   item, onClose, onSave, onDeleteRequest, readOnly, groups, defaultGroupId, onDirtyChange,
