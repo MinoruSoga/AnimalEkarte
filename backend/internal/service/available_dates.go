@@ -135,7 +135,7 @@ func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]Avai
 		}
 
 		// 祝日チェック
-		if input.Settings.NationalHolidayClosed && isJapaneseHoliday(d) {
+		if input.Settings.NationalHolidayClosed && holiday.IsHoliday(d) {
 			result.Available = false
 			result.Reason = "holiday"
 			results = append(results, result)
@@ -196,11 +196,6 @@ func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]Avai
 	}
 
 	return results, window, nil
-}
-
-// isJapaneseHoliday は指定日が日本の祝日かどうかを返す。
-func isJapaneseHoliday(t time.Time) bool {
-	return holiday.IsHoliday(t)
 }
 
 // checkDayOption はコースの曜日オプションに対して予約可能かチェックする。

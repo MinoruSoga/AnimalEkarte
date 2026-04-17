@@ -434,14 +434,10 @@ func checkUnavailableTimeOverlap(existing []model.ReservationTypeUnavailableTime
 			}
 		}
 		// 時間帯が交差するか（start < other.end && end > other.start）
-		if overlaps(input.StartTime, input.EndTime, existing[i].StartTime, existing[i].EndTime) {
+		if input.StartTime < existing[i].EndTime && input.EndTime > existing[i].StartTime {
 			return apperrors.WrapConflict("指定した時間帯は既存の予約不可時間と重複しています")
 		}
 	}
 	return nil
 }
 
-// overlaps は [s1,e1) と [s2,e2) が交差するかを返す（HH:MM 辞書順比較）
-func overlaps(s1, e1, s2, e2 string) bool {
-	return s1 < e2 && e1 > s2
-}

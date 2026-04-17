@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	holiday "github.com/holiday-jp/holiday_jp-go"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -239,7 +241,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 	if _, closed := closedDateSet[dateStr]; closed {
 		return []TimeSlot{}, nil
 	}
-	if datesSettings.NationalHolidayClosed && isJapaneseHoliday(dateJST) {
+	if datesSettings.NationalHolidayClosed && holiday.IsHoliday(dateJST) {
 		return []TimeSlot{}, nil
 	}
 

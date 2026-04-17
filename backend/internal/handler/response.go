@@ -177,46 +177,37 @@ func parseDateQuery(c *gin.Context, key string) (*string, error) {
 	return &s, nil
 }
 
+// extractContextUint64 はJWTコンテキストから string 型の値を取得し uint64 にパースする共通ヘルパー。
+// missingMsg: 存在しない場合の 401 メッセージ / invalidMsg: 型変換・パース失敗時の 400 メッセージ
+func extractContextUint64(c *gin.Context, key, missingMsg, invalidMsg string) (uint64, bool) {
+	val, exists := c.Get(key)
+	if !exists {
+		RespondError(c, apperrors.WrapUnauthorized(missingMsg))
+		return 0, false
+	}
+	s, ok := val.(string)
+	if !ok {
+		RespondError(c, apperrors.WrapInvalidInput(invalidMsg))
+		return 0, false
+	}
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(invalidMsg))
+		return 0, false
+	}
+	return id, true
+}
+
 // extractStaffID はJWT認証済みコンテキストから user_id（=staff_id）を取得してパースする。
 func extractStaffID(c *gin.Context) (uint64, bool) {
-	val, exists := c.Get("user_id")
-	if !exists {
-		RespondError(c, apperrors.WrapUnauthorized("missing user context"))
-		return 0, false
-	}
-	userIDStr, ok := val.(string)
-	if !ok {
-		RespondError(c, apperrors.WrapInvalidInput("invalid user context"))
-		return 0, false
-	}
-	staffID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid user context"))
-		return 0, false
-	}
-	return staffID, true
+	return extractContextUint64(c, "user_id", "missing user context", "invalid user context")
 }
 
 // extractClinicID はJWT認証済みコンテキストから clinic_id を取得してパースする。
 // 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
 // 呼び出し元はfalse時に即return すること。
 func extractClinicID(c *gin.Context) (uint64, bool) {
-	val, exists := c.Get("clinic_id")
-	if !exists {
-		RespondError(c, apperrors.WrapUnauthorized("missing clinic context"))
-		return 0, false
-	}
-	clinicIDStr, ok := val.(string)
-	if !ok {
-		RespondError(c, apperrors.WrapInvalidInput("invalid clinic context"))
-		return 0, false
-	}
-	clinicID, err := strconv.ParseUint(clinicIDStr, 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid clinic context"))
-		return 0, false
-	}
-	return clinicID, true
+	return extractContextUint64(c, "clinic_id", "missing clinic context", "invalid clinic context")
 }
 
 // extractIsSystemAdmin はJWT認証済みコンテキストから is_system_admin を取得する。
@@ -284,23 +275,6 @@ func parseIDParam(c *gin.Context, key string) (uint64, bool) {
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid "+key))
-		return 0, false
-	}
-	return id, true
-}
-
-// extractClinicIDFromParam は URL path parameter :clinicId を取得してパースする。
-// 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
-// 呼び出し元は false 時に即 return すること。
-func extractClinicIDFromParam(c *gin.Context) (uint64, bool) {
-	s := c.Param("clinicId")
-	if s == "" {
-		RespondError(c, apperrors.WrapInvalidInput("missing clinicId"))
-		return 0, false
-	}
-	id, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid clinicId"))
 		return 0, false
 	}
 	return id, true
