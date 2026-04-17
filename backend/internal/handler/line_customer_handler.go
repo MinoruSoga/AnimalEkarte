@@ -19,7 +19,7 @@ func (h *Handler) ListLineCustomers(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toLineCustomerResponseList(items))
+	c.JSON(http.StatusOK, mapSlice(items, toLineCustomerResponse))
 }
 
 // LinkOwnerToLineCustomer godoc

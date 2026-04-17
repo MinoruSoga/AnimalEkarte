@@ -55,11 +55,3 @@ func toMedicineResponse(m *model.Medicine) medicineResponse {
 		UpdatedAt:       m.UpdatedAt,
 	}
 }
-
-func toMedicineResponseList(medicines []model.Medicine) []medicineResponse {
-	list := make([]medicineResponse, 0, len(medicines))
-	for i := range medicines {
-		list = append(list, toMedicineResponse(&medicines[i]))
-	}
-	return list
-}

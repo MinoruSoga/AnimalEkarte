@@ -54,7 +54,7 @@ func (h *Handler) ListEstimates(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(toEstimateResponseList(estimates), total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(estimates, toEstimateResponse), total, page, limit))
 }
 
 // GetEstimate godoc

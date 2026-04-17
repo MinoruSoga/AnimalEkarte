@@ -42,7 +42,7 @@ func (h *Handler) ListTrimmingCourses(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toTrimmingCourseResponseList(courses))
+	c.JSON(http.StatusOK, mapSlice(courses, toTrimmingCourseResponse))
 }
 
 // CreateTrimmingCourse godoc
@@ -182,7 +182,7 @@ func (h *Handler) ListTrimmingOptions(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toTrimmingOptionResponseList(options))
+	c.JSON(http.StatusOK, mapSlice(options, toTrimmingOptionResponse))
 }
 
 // CreateTrimmingOption godoc

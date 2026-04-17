@@ -28,7 +28,7 @@ func (h *Handler) ListMerchandiseItems(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toMerchandiseItemResponseList(items))
+	c.JSON(http.StatusOK, mapSlice(items, toMerchandiseItemResponse))
 }
 
 // GetMerchandiseItem godoc

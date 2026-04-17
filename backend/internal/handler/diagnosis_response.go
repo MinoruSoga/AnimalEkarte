@@ -30,14 +30,6 @@ func toDiagnosisTypeResponse(c *model.DiagnosisType) diagnosisTypeResponse {
 	}
 }
 
-func toDiagnosisTypeResponseList(categories []model.DiagnosisType) []diagnosisTypeResponse {
-	list := make([]diagnosisTypeResponse, 0, len(categories))
-	for i := range categories {
-		list = append(list, toDiagnosisTypeResponse(&categories[i]))
-	}
-	return list
-}
-
 type diagnosisNameResponse struct {
 	ID              uint64    `json:"id"`
 	ClinicID        uint64    `json:"clinic_id"`
@@ -62,12 +54,4 @@ func toDiagnosisNameResponse(n *model.DiagnosisName) diagnosisNameResponse {
 		CreatedAt:       n.CreatedAt,
 		UpdatedAt:       n.UpdatedAt,
 	}
-}
-
-func toDiagnosisNameResponseList(names []model.DiagnosisName) []diagnosisNameResponse {
-	list := make([]diagnosisNameResponse, 0, len(names))
-	for i := range names {
-		list = append(list, toDiagnosisNameResponse(&names[i]))
-	}
-	return list
 }

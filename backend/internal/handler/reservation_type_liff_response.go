@@ -47,11 +47,3 @@ func toReservationTypeLiffResponse(st *model.ReservationType) reservationTypeLif
 		UpdatedAt:            st.UpdatedAt,
 	}
 }
-
-func toReservationTypeLiffResponseList(items []model.ReservationType) []reservationTypeLiffResponse {
-	list := make([]reservationTypeLiffResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toReservationTypeLiffResponse(&items[i]))
-	}
-	return list
-}

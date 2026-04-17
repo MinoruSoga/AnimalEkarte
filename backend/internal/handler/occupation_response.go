@@ -30,11 +30,3 @@ func toOccupationResponse(occ *model.Occupation) occupationResponse {
 		UpdatedAt:   occ.UpdatedAt,
 	}
 }
-
-func toOccupationResponseList(items []model.Occupation) []occupationResponse {
-	list := make([]occupationResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toOccupationResponse(&items[i]))
-	}
-	return list
-}

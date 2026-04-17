@@ -49,11 +49,3 @@ func toHospitalizationPlanResponse(p *model.HospitalizationPlan) hospitalization
 		UpdatedAt:   p.UpdatedAt,
 	}
 }
-
-func toHospitalizationPlanResponseList(plans []model.HospitalizationPlan) []hospitalizationPlanResponse {
-	result := make([]hospitalizationPlanResponse, 0, len(plans))
-	for i := range plans {
-		result = append(result, toHospitalizationPlanResponse(&plans[i]))
-	}
-	return result
-}

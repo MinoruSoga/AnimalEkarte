@@ -28,7 +28,7 @@ func (h *Handler) ListCheckups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toCheckupResponseList(checkups))
+	c.JSON(http.StatusOK, mapSlice(checkups, toCheckupResponse))
 }
 
 // CreateCheckup は指定カルテに健診記録を作成する
@@ -189,7 +189,7 @@ func (h *Handler) ListGlobalCheckups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": toCheckupGlobalResponseList(checkups)})
+	c.JSON(http.StatusOK, gin.H{"data": mapSlice(checkups, toCheckupGlobalResponse)})
 }
 
 // RegisterGlobalCheckupRoutes は /checkups トップレベルルートを登録する

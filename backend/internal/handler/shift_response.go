@@ -65,11 +65,3 @@ func toShiftResponse(s *model.ShiftEntry) shiftResponse {
 	}
 	return r
 }
-
-func toShiftResponseList(shifts []model.ShiftEntry) []shiftResponse {
-	list := make([]shiftResponse, 0, len(shifts))
-	for i := range shifts {
-		list = append(list, toShiftResponse(&shifts[i]))
-	}
-	return list
-}

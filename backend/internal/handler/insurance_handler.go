@@ -24,7 +24,7 @@ func (h *Handler) ListInsurances(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toInsuranceResponseList(insurances))
+	c.JSON(http.StatusOK, mapSlice(insurances, toInsuranceResponse))
 }
 
 // GetInsurance godoc

@@ -52,15 +52,6 @@ func toPermissionGroupResponse(pg *model.PermissionGroup) permissionGroupRespons
 		UpdatedAt:   pg.UpdatedAt,
 	}
 }
-
-func toPermissionGroupResponseList(items []model.PermissionGroup) []permissionGroupResponse {
-	list := make([]permissionGroupResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toPermissionGroupResponse(&items[i]))
-	}
-	return list
-}
-
 func toPermissionGroupRuleResponse(rule *model.PermissionGroupRule) permissionGroupRuleResponse {
 	return permissionGroupRuleResponse{
 		ID:        strconv.FormatUint(rule.ID, 10),

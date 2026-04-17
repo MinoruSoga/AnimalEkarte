@@ -40,14 +40,6 @@ func toTrimmingCourseResponse(c *model.TrimmingCourse) trimmingCourseResponse {
 	}
 }
 
-func toTrimmingCourseResponseList(courses []model.TrimmingCourse) []trimmingCourseResponse {
-	list := make([]trimmingCourseResponse, 0, len(courses))
-	for i := range courses {
-		list = append(list, toTrimmingCourseResponse(&courses[i]))
-	}
-	return list
-}
-
 type trimmingOptionResponse struct {
 	ID           uint64    `json:"id"`
 	ClinicID     uint64    `json:"clinic_id"`
@@ -76,12 +68,4 @@ func toTrimmingOptionResponse(o *model.TrimmingOption) trimmingOptionResponse {
 		CreatedAt:    o.CreatedAt,
 		UpdatedAt:    o.UpdatedAt,
 	}
-}
-
-func toTrimmingOptionResponseList(options []model.TrimmingOption) []trimmingOptionResponse {
-	list := make([]trimmingOptionResponse, 0, len(options))
-	for i := range options {
-		list = append(list, toTrimmingOptionResponse(&options[i]))
-	}
-	return list
 }

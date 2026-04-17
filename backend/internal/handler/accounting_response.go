@@ -88,14 +88,6 @@ func toRefundResponse(r *model.BillingRefund) refundResponse {
 	}
 }
 
-func toRefundResponseList(refunds []model.BillingRefund) []refundResponse {
-	result := make([]refundResponse, 0, len(refunds))
-	for i := range refunds {
-		result = append(result, toRefundResponse(&refunds[i]))
-	}
-	return result
-}
-
 type billingItemResponse struct {
 	ID                    uint64    `json:"id"`
 	BillingID             uint64    `json:"billing_id"`
@@ -272,12 +264,4 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 		CreatedAt:           b.CreatedAt,
 		UpdatedAt:           b.UpdatedAt,
 	}
-}
-
-func toAccountingResponseList(billings []model.Billing) []accountingResponse {
-	result := make([]accountingResponse, 0, len(billings))
-	for i := range billings {
-		result = append(result, toAccountingResponse(&billings[i]))
-	}
-	return result
 }

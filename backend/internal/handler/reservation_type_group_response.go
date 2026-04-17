@@ -29,11 +29,3 @@ func toReservationTypeGroupResponse(g *model.ReservationTypeGroup) reservationTy
 		UpdatedAt: g.UpdatedAt,
 	}
 }
-
-func toReservationTypeGroupResponseList(items []model.ReservationTypeGroup) []reservationTypeGroupResponse {
-	list := make([]reservationTypeGroupResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toReservationTypeGroupResponse(&items[i]))
-	}
-	return list
-}

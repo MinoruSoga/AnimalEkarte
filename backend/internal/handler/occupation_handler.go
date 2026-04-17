@@ -42,7 +42,7 @@ func (h *Handler) ListOccupations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toOccupationResponseList(occupations))
+	c.JSON(http.StatusOK, mapSlice(occupations, toOccupationResponse))
 }
 
 // CreateOccupation godoc

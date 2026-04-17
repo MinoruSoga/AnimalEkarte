@@ -17,7 +17,7 @@ func (h *Handler) ListAnimalSpecies(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toAnimalSpeciesResponseList(species))
+	c.JSON(http.StatusOK, mapSlice(species, toAnimalSpeciesResponse))
 }
 
 // GetAnimalSpecies godoc

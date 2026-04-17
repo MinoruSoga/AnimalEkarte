@@ -24,7 +24,7 @@ func (h *Handler) ListInquiryTemplates(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toInquiryTemplateResponseList(templates))
+	c.JSON(http.StatusOK, mapSlice(templates, toInquiryTemplateResponse))
 }
 
 // GetInquiryTemplate godoc

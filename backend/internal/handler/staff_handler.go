@@ -29,7 +29,7 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toStaffResponseList(staffs))
+	c.JSON(http.StatusOK, mapSlice(staffs, toStaffResponse))
 }
 
 // CreateStaff godoc

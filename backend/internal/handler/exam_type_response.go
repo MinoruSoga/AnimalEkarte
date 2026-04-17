@@ -59,11 +59,3 @@ func toExamTypeResponse(et *model.ExaminationType) examTypeResponse {
 		UpdatedAt:   et.UpdatedAt,
 	}
 }
-
-func toExamTypeResponseList(items []model.ExaminationType) []examTypeResponse {
-	list := make([]examTypeResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toExamTypeResponse(&items[i]))
-	}
-	return list
-}

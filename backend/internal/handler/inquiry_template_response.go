@@ -32,11 +32,3 @@ func toInquiryTemplateResponse(it *model.InquiryTemplate) inquiryTemplateRespons
 		UpdatedAt: it.UpdatedAt,
 	}
 }
-
-func toInquiryTemplateResponseList(items []model.InquiryTemplate) []inquiryTemplateResponse {
-	list := make([]inquiryTemplateResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toInquiryTemplateResponse(&items[i]))
-	}
-	return list
-}

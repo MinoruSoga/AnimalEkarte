@@ -30,11 +30,3 @@ func toChiefComplaintResponse(cc *model.ChiefComplaintType) chiefComplaintRespon
 		UpdatedAt:   cc.UpdatedAt,
 	}
 }
-
-func toChiefComplaintResponseList(items []model.ChiefComplaintType) []chiefComplaintResponse {
-	list := make([]chiefComplaintResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toChiefComplaintResponse(&items[i]))
-	}
-	return list
-}

@@ -132,11 +132,3 @@ func toReservationTypeResponse(st *model.ReservationType) reservationTypeRespons
 	}
 	return resp
 }
-
-func toReservationTypeResponseList(items []model.ReservationType) []reservationTypeResponse {
-	list := make([]reservationTypeResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toReservationTypeResponse(&items[i]))
-	}
-	return list
-}

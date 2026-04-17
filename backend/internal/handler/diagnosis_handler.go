@@ -49,7 +49,7 @@ func (h *Handler) ListDiagnosisTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toDiagnosisTypeResponseList(categories))
+	c.JSON(http.StatusOK, mapSlice(categories, toDiagnosisTypeResponse))
 }
 
 // CreateDiagnosisType godoc
@@ -188,14 +188,14 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 			RespondError(c, svcErr)
 			return
 		}
-		resp = toDiagnosisNameResponseList(names)
+		resp = mapSlice(names, toDiagnosisNameResponse)
 	} else {
 		names, _, svcErr := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
 		if svcErr != nil {
 			RespondError(c, svcErr)
 			return
 		}
-		resp = toDiagnosisNameResponseList(names)
+		resp = mapSlice(names, toDiagnosisNameResponse)
 	}
 
 	c.JSON(http.StatusOK, resp)

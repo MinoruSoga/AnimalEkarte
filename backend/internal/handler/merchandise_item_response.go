@@ -35,11 +35,3 @@ func toMerchandiseItemResponse(m *model.MerchandiseItem) merchandiseItemResponse
 		UpdatedAt: m.UpdatedAt,
 	}
 }
-
-func toMerchandiseItemResponseList(items []model.MerchandiseItem) []merchandiseItemResponse {
-	list := make([]merchandiseItemResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toMerchandiseItemResponse(&items[i]))
-	}
-	return list
-}

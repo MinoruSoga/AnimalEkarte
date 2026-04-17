@@ -27,7 +27,7 @@ func (h *Handler) ListRefunds(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toRefundResponseList(refunds))
+	c.JSON(http.StatusOK, mapSlice(refunds, toRefundResponse))
 }
 
 // CreateRefund godoc

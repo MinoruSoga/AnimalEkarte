@@ -42,7 +42,7 @@ func (h *Handler) ListChiefComplaints(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toChiefComplaintResponseList(categories))
+	c.JSON(http.StatusOK, mapSlice(categories, toChiefComplaintResponse))
 }
 
 // CreateChiefComplaint godoc

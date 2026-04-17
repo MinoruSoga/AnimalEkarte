@@ -25,11 +25,3 @@ func toAnimalSpeciesResponse(s *model.AnimalSpecies) animalSpeciesResponse {
 		UpdatedAt: s.UpdatedAt,
 	}
 }
-
-func toAnimalSpeciesResponseList(species []model.AnimalSpecies) []animalSpeciesResponse {
-	list := make([]animalSpeciesResponse, 0, len(species))
-	for i := range species {
-		list = append(list, toAnimalSpeciesResponse(&species[i]))
-	}
-	return list
-}

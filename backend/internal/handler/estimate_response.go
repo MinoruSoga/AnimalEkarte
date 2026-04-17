@@ -98,11 +98,3 @@ func toEstimateResponse(e *model.Estimate) estimateResponse {
 		UpdatedAt:       e.UpdatedAt,
 	}
 }
-
-func toEstimateResponseList(estimates []model.Estimate) []estimateResponse {
-	result := make([]estimateResponse, 0, len(estimates))
-	for i := range estimates {
-		result = append(result, toEstimateResponse(&estimates[i]))
-	}
-	return result
-}

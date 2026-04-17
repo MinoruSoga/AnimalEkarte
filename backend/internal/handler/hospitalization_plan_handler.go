@@ -42,7 +42,7 @@ func (h *Handler) ListHospitalizationPlans(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toHospitalizationPlanResponseList(plans))
+	c.JSON(http.StatusOK, mapSlice(plans, toHospitalizationPlanResponse))
 }
 
 // CreateHospitalizationPlan godoc

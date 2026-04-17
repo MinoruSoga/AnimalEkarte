@@ -42,7 +42,7 @@ func (h *Handler) ListExaminationTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toExamTypeResponseList(exTypes))
+	c.JSON(http.StatusOK, mapSlice(exTypes, toExamTypeResponse))
 }
 
 // CreateExaminationType godoc

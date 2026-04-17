@@ -36,7 +36,7 @@ func (h *Handler) ListShiftEntries(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toShiftResponseList(shifts))
+	c.JSON(http.StatusOK, mapSlice(shifts, toShiftResponse))
 }
 
 // CreateShiftEntry godoc

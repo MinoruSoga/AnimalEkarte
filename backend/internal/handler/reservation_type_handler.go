@@ -42,7 +42,7 @@ func (h *Handler) ListReservationTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toReservationTypeResponseList(reservationTypes))
+	c.JSON(http.StatusOK, mapSlice(reservationTypes, toReservationTypeResponse))
 }
 
 // CreateReservationType godoc

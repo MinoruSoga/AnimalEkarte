@@ -45,7 +45,7 @@ func (h *Handler) ListPermissionGroups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toPermissionGroupResponseList(groups))
+	c.JSON(http.StatusOK, mapSlice(groups, toPermissionGroupResponse))
 }
 
 // CreatePermissionGroup godoc
