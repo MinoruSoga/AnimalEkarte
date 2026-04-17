@@ -19,9 +19,7 @@ import (
 
 const (
 	liffCustomerIDKey = "liff_customer_id"
-	liffClinicIDKey   = "liff_clinic_id"
 	liffLineUserIDKey = "liff_line_user_id"
-	liffDisplayName   = "liff_display_name"
 )
 
 // lineVerifyResponse は LINE ID Token 検証 API のレスポンス。
@@ -57,9 +55,7 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 				customer, err := lookup.FindOrCreateByLineUserID(c.Request.Context(), clinicID, "mock-line-user-id", "テストユーザー")
 				if err == nil {
 					c.Set(liffCustomerIDKey, customer.ID)
-					c.Set(liffClinicIDKey, clinicID)
 					c.Set(liffLineUserIDKey, "mock-line-user-id")
-					c.Set(liffDisplayName, "テストユーザー")
 					c.Next()
 					return
 				}
@@ -131,9 +127,7 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 
 		// context にセット
 		c.Set(liffCustomerIDKey, customer.ID)
-		c.Set(liffClinicIDKey, clinicID)
 		c.Set(liffLineUserIDKey, lineUser.Sub)
-		c.Set(liffDisplayName, lineUser.Name)
 		c.Next()
 	}
 }
@@ -192,21 +186,4 @@ func ExtractLiffCustomerID(c *gin.Context) (uint64, bool) {
 	}
 	id, ok := v.(uint64)
 	return id, ok
-}
-
-// ExtractLiffClinicID はコンテキストから liff_clinic_id を取得する。
-func ExtractLiffClinicID(c *gin.Context) (uint64, bool) {
-	v, exists := c.Get(liffClinicIDKey)
-	if !exists {
-		return 0, false
-	}
-	id, ok := v.(uint64)
-	return id, ok
-}
-
-// ExtractLiffDisplayName はコンテキストから LINE 表示名を取得する。
-func ExtractLiffDisplayName(c *gin.Context) string {
-	v, _ := c.Get(liffDisplayName)
-	s, _ := v.(string)
-	return s
 }

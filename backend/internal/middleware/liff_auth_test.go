@@ -44,12 +44,8 @@ func newLiffAuthRouter(lookup LineCustomerLookup, settingLookup LineReservationS
 	})
 	r.GET("/api/liff/:clinicId/test", LiffAuth(lookup, settingLookup), func(c *gin.Context) {
 		customerID, _ := ExtractLiffCustomerID(c)
-		clinicID, _ := ExtractLiffClinicID(c)
-		displayName := ExtractLiffDisplayName(c)
 		c.JSON(http.StatusOK, gin.H{
-			"customer_id":  customerID,
-			"clinic_id":    clinicID,
-			"display_name": displayName,
+			"customer_id": customerID,
 		})
 	})
 	return r
@@ -395,45 +391,5 @@ func TestExtractLiffCustomerID(t *testing.T) {
 		id, ok := ExtractLiffCustomerID(c)
 		assert.False(t, ok)
 		assert.Equal(t, uint64(0), id)
-	})
-}
-
-func TestExtractLiffClinicID(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	t.Run("存在する場合は取得できる", func(t *testing.T) {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		c.Set(liffClinicIDKey, uint64(3))
-
-		id, ok := ExtractLiffClinicID(c)
-		assert.True(t, ok)
-		assert.Equal(t, uint64(3), id)
-	})
-
-	t.Run("存在しない場合は (0, false)", func(t *testing.T) {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-
-		id, ok := ExtractLiffClinicID(c)
-		assert.False(t, ok)
-		assert.Equal(t, uint64(0), id)
-	})
-}
-
-func TestExtractLiffDisplayName(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	t.Run("存在する場合は名前を返す", func(t *testing.T) {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		c.Set(liffDisplayName, "山田花子")
-
-		name := ExtractLiffDisplayName(c)
-		assert.Equal(t, "山田花子", name)
-	})
-
-	t.Run("存在しない場合は空文字", func(t *testing.T) {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-
-		name := ExtractLiffDisplayName(c)
-		assert.Equal(t, "", name)
 	})
 }
