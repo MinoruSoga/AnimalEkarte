@@ -32,10 +32,6 @@ type inquirySummaryResponse struct {
 	ChiefComplaint string `json:"chief_complaint"`
 }
 
-func toMedicalRecordResponse(r *model.MedicalRecord) medicalRecordResponse {
-	return toMedicalRecordResponseWithVisitCount(r, 0)
-}
-
 func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount int64) medicalRecordResponse {
 	resp := medicalRecordResponse{
 		ID:            r.ID,

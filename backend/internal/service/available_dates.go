@@ -51,11 +51,11 @@ func ParseAvailableDatesSettings(
 	reservationDayOption string,
 ) (AvailableDatesSettings, error) {
 	var closedWeekdays []int
-	if err := json.Unmarshal(closedWeekdays0(closedWeekdaysJSON), &closedWeekdays); err != nil {
+	if err := json.Unmarshal(orEmptyJSONArray(closedWeekdaysJSON), &closedWeekdays); err != nil {
 		closedWeekdays = nil
 	}
 	var closedDates []string
-	if err := json.Unmarshal(closedDates0(closedDatesJSON), &closedDates); err != nil {
+	if err := json.Unmarshal(orEmptyJSONArray(closedDatesJSON), &closedDates); err != nil {
 		closedDates = nil
 	}
 	return AvailableDatesSettings{
@@ -69,14 +69,8 @@ func ParseAvailableDatesSettings(
 	}, nil
 }
 
-func closedWeekdays0(b []byte) []byte {
-	if len(b) == 0 {
-		return []byte("[]")
-	}
-	return b
-}
-
-func closedDates0(b []byte) []byte {
+// orEmptyJSONArray は nil または空スライスを JSON の空配列 "[]" に変換する。
+func orEmptyJSONArray(b []byte) []byte {
 	if len(b) == 0 {
 		return []byte("[]")
 	}
