@@ -75,7 +75,7 @@ export const GroupSidePanel = memo(function GroupSidePanel({
           <div className="flex items-center gap-2">
             <input type="color" value={formData.color} onChange={handleColorPickerChange}
               className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0" />
-            <PropertyInput value={formData.color} onChange={handleColorInputChange} placeholder="#3B82F6" />
+            <PropertyInput value={formData.color} onChange={handleColorInputChange} placeholder={PALETTE.pickerDefaultBlue} />
           </div>
           <p className={`text-xs ${C.text40}`}>
             予約管理カレンダーでこのグループに属する区分の予約枠を色別表示します。
