@@ -20,15 +20,13 @@ const (
 	BillingStatusWaiting   BillingStatus = "waiting"
 	BillingStatusCompleted BillingStatus = "completed"
 	BillingStatusCancelled BillingStatus = "cancelled"
-	BillingStatusPending   BillingStatus = "pending"
 )
 
 type PaymentMethod string
 
 const (
-	PaymentMethodCash            PaymentMethod = "cash"
-	PaymentMethodCreditCard      PaymentMethod = "credit_card"
-	PaymentMethodElectronicMoney PaymentMethod = "electronic_money"
+	PaymentMethodCash        PaymentMethod = "cash"
+	PaymentMethodCreditCard  PaymentMethod = "credit_card"
 )
 
 type ItemCategory string
