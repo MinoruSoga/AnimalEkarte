@@ -145,7 +145,7 @@ export function useMedicalRecordForm(recordId?: string) {
 
   // Ownerデータを取得（飼主割引率用）
   const resolvedOwnerId = selectedPet?.ownerId ?? "";
-  const { owner } = useGetOwner(resolvedOwnerId);
+  const { data: owner } = useGetOwner(resolvedOwnerId);
   const ownerDiscountRate = owner?.discountRate ?? 0;
 
   const queryClient = useQueryClient();

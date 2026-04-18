@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/hooks/use-master-items";
-import { useGetReservationTypesGrouped, useGetOnDutyStaffs } from "@/features/reservations";
+import { useGetReservationTypesGrouped, useGetOnDutyStaffs } from "@/hooks/use-reservation-types";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { isOneOf } from "@/lib/type-utils";
 import type { Appointment } from "@/types";

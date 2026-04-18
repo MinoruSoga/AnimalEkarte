@@ -15,8 +15,7 @@ import { useGetPet } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 
-// Features
-import { useGetClinicHolidays } from "@/features/shifts";
+import { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
 
 // Relative
 import { PatientSelectionTable } from "./PatientSelectionTable";

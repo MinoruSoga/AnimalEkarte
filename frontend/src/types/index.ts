@@ -26,11 +26,25 @@ export interface MenuItem {
 }
 
 // --- Reception（当日の受付）/ Calendar ---
-// Note: ReceptionAppointment（受付カンバン用、visitType: "初診"|"再診"）は
-//       features/reception/api/types.ts で定義。
-//       ColumnData は reception feature 内でのみ使用するため、
-//       Appointment の型は ReceptionAppointment を参照する。
-import type { ReceptionAppointment } from "@/features/reception/api/types";
+
+/** 当日の受付カンバンカード用の変換後型 */
+export interface ReceptionAppointment {
+  id: string;
+  time: string; // "HH:mm" 形式
+  ownerName: string;
+  petType: string;
+  petName: string;
+  visitType: "初診" | "再診";
+  reservationType: string;
+  nextAppointment?: "次回予約無" | "次回予約済" | "精算未確認" | "精算確認済";
+  isDesignated: boolean;
+  doctor?: string;
+  petId: string;
+  ownerId: string;
+  status: ReservationStatus;
+  notes?: string;
+  source?: "manual" | "line";
+}
 
 export interface ColumnData {
   title: string;
