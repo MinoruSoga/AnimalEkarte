@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { updateHospitalization } from "../api/update-hospitalization";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
-import { useMasterItems } from "@/features/master";
+import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationFilterStatus, HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_STATUS } from "../constants";
 import type { Hospitalization } from "@/types";
 

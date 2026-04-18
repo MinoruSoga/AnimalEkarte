@@ -36,7 +36,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { useInventory } from "../hooks/use-inventory";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type { InventoryItem } from "@/types";

@@ -44,7 +44,7 @@ import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSele
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import type { TaxType } from "@/types/generated/models";
 import { ResourceMasterMedical } from "@/types/generated/models";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type { Medicine } from "@/types";

@@ -22,7 +22,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Separator } from "@/components/ui/separator";
 
 // Shared Hooks
-import { useAuth, usePermission } from "@/features/auth";
+import { useAuth } from "@/hooks/use-auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";

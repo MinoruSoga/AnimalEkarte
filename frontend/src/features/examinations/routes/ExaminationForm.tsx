@@ -26,9 +26,9 @@ import type { SortOrder } from "@/types";
 import { useExaminationForm } from "../hooks/use-examination-form";
 import { useGetExaminations } from "../api/get-examinations";
 import { ExaminationCard } from "../components/ExaminationCard";
-import { useMasterItems } from "@/features/master";
+import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import type { ExaminationRecord } from "@/types";
 import { ResourceExaminations } from "@/types/generated/models";
 

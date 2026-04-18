@@ -20,7 +20,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { usePagination } from "@/hooks/use-pagination";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { formatDate } from "@/utils/format/date";
 import { paths } from "@/config/paths";
 import { useGetCheckups } from "../api/get-checkups";

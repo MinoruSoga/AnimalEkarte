@@ -33,7 +33,7 @@ import { useStaffValidation } from "@/hooks/use-staff-validation";
 // Relative
 import { useFilterMedicalRecords } from "../hooks/use-medical-records";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type {

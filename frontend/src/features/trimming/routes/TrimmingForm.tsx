@@ -24,10 +24,10 @@ import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import type { SortOrder } from "@/types";
-import { useMasterItems } from "@/features/master";
+import { useMasterItems } from "@/hooks/use-master-items";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Relative (direct file import, no barrel — bundle-barrel-imports)
 import { useTrimmingForm } from "../hooks/use-trimming-form";

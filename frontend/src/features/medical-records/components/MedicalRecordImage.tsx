@@ -6,7 +6,7 @@ import { useGetMedicalRecordImages } from "../api/get-medical-record-images";
 import { useUploadImages, useDeleteImage } from "../api/medical-record-images";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { C } from "@/lib/design-tokens";
 
 interface MedicalRecordImageProps {

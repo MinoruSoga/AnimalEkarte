@@ -45,7 +45,7 @@ import type {
   UpdateDiagnosisNameRequest,
 } from "@/types/diagnosis";
 import { ResourceMasterMedical } from "@/types/generated/models";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // ─────────────────────────────────────────────────
 // Columns

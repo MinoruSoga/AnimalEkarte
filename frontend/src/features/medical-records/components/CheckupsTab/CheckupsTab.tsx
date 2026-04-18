@@ -13,14 +13,14 @@ import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
 // Relative
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { useGetCheckups } from "../../api/checkups";
 import { useCreateCheckup } from "../../api/checkups";
 import { useUpdateCheckup } from "../../api/checkups";
 import { useDeleteCheckup } from "../../api/checkups";
-import { useGetAllCheckupTypes } from "@/features/master";
+import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
 import type { Checkup, CreateCheckupInput, UpdateCheckupInput } from "../../api/checkups";
-import type { CheckupTypeItem } from "@/features/master";
+import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
 
 // ── 静的定数 ────────────────────────────────────────────────────────────
 

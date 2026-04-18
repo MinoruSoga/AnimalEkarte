@@ -2,7 +2,7 @@ import { useMemo, useCallback, memo } from "react";
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Check } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
-import { useGetStaffs } from "@/features/master";
+import { useGetStaffs } from "@/hooks/use-staffs";
 
 interface StaffSelectionModalProps {
   open: boolean;

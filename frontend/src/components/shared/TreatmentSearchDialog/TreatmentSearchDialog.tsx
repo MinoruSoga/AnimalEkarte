@@ -15,7 +15,7 @@ import {
   useGetAllProcedures,
   useGetAllVaccinesMaster,
   useGetAllCheckupTypes,
-} from "@/features/master";
+} from "@/hooks/use-treatment-master";
 
 // --- Types ---
 export type TreatmentMasterItem = {

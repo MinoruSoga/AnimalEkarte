@@ -16,7 +16,8 @@ import { DailyVitalsSection } from "../../components/DailyRecordsTab/DailyVitals
 import { DailyCareLogsSection } from "../../components/DailyRecordsTab/DailyCareLogsSection";
 import { DailyStaffNotesSection } from "../../components/DailyRecordsTab/DailyStaffNotesSection";
 import { useGetDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "../../api/daily-records";
-import { usePermission, useAuth } from "@/features/auth";
+import { useAuth } from "@/hooks/use-auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type { CreateVitalRecordRequest, CreateCareLogRequest, CreateStaffNoteRequest } from "../../api/daily-records-types";

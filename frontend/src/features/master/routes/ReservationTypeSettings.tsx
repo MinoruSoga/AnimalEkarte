@@ -19,7 +19,7 @@ import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { ResourceMasterReservationType } from "@/types/generated/models";
 import {
   useGetReservationTypes,

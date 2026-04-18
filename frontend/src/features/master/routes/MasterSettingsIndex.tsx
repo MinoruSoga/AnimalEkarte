@@ -11,8 +11,9 @@ import type { MasterSettingsCategory } from "../constants/category-config";
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
-import { usePermission, useAuth } from "@/features/auth";
-import type { ResourceAction } from "@/features/auth";
+import { useAuth } from "@/hooks/use-auth";
+import { usePermission } from "@/hooks/use-permission";
+import type { ResourceAction } from "@/hooks/use-permission";
 import type { Resource } from "@/types/generated/models";
 import { ResourceHospitalSettings, ResourceMasterMedical, ResourceMasterTrimming, ResourceShifts } from "@/types/generated/models";
 

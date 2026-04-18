@@ -6,7 +6,7 @@ import { Plus, Search } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 

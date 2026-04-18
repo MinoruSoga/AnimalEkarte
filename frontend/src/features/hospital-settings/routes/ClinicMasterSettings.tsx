@@ -32,7 +32,7 @@ import type {
   UpdateClinicRequest,
 } from "../api/clinics";
 import { ResourceHospitalSettings } from "@/types/generated/models";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // ─────────────────────────────────────────────────
 // Constants

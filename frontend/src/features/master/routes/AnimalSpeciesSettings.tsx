@@ -15,7 +15,7 @@ import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { useGetAnimalSpecies, useCreateAnimalSpecies, useUpdateAnimalSpecies, useDeleteAnimalSpecies, useReorderAnimalSpecies } from "../api/animal-species";
 import type { AnimalSpecies, UpdateAnimalSpeciesRequest } from "../api/animal-species";
 import { ResourceMasterAnimalSpecies } from "@/types/generated/models";

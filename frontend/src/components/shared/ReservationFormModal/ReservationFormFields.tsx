@@ -11,7 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMasterItems } from "@/features/master";
+import { useMasterItems } from "@/hooks/use-master-items";
 import { useGetReservationTypesGrouped, useGetOnDutyStaffs } from "@/features/reservations";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { isOneOf } from "@/lib/type-utils";

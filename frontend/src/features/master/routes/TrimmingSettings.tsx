@@ -5,7 +5,7 @@ import { paths } from "@/config/paths";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { ResourceMasterTrimming } from "@/types/generated/models";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // External
 import { Plus, Scissors } from "lucide-react";

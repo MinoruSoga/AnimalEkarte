@@ -1,8 +1,8 @@
 import { memo, type ReactNode } from "react";
 import { C } from "@/lib/design-tokens";
 import type { Resource } from "@/types/generated/models";
-import { useAuth } from "@/features/auth";
-import type { ResourceAction } from "@/features/auth";
+import { useAuth } from "@/hooks/use-auth";
+import type { ResourceAction } from "@/hooks/use-permission";
 
 interface RequirePermissionProps {
   resource: Resource;

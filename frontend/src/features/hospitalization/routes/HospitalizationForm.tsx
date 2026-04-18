@@ -12,13 +12,14 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { useAuth, usePermission } from "@/features/auth";
+import { useAuth } from "@/hooks/use-auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { useHospitalizationForm } from "../hooks/use-hospitalization-form";
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
-import { useMasterItems } from "@/features/master";
+import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo";
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";

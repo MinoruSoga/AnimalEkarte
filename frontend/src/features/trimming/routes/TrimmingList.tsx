@@ -43,7 +43,7 @@ import { paths } from "@/config/paths";
 // Relative (direct file import, no barrel)
 import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
 import type { TrimmingFilters } from "../api/get-trimmings";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { ResourceTrimming } from "@/types/generated/models";
 import { handleApiError } from "@/lib/handle-api-error";
 

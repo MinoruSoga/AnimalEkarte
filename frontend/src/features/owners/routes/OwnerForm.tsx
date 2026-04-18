@@ -27,7 +27,7 @@ import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { useOwnerForm } from "../hooks/use-owner-form";

@@ -23,7 +23,7 @@ import { HospitalizationListView } from "../components/HospitalizationListView";
 import { useHospitalizationList } from "../hooks/use-hospitalization-list";
 import { useGetHospitalizations } from "../api/get-hospitalizations";
 import { HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_STATUS } from "../constants";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type { HospitalizationFilterStatus } from "../constants";

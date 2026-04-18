@@ -4,7 +4,7 @@ import { ResourceShifts } from "@/types/generated/models";
 import { useGetShifts } from "../api/get-shifts";
 import { useGetStaffsForShift } from "../api/get-staffs";
 import { ShiftCalendar as ShiftCalendarGrid } from "../components/ShiftCalendar/ShiftCalendar";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useGetClinicHolidays } from "../api/clinic-holidays";
 import type { ClinicHoliday } from "../api/clinic-holidays";

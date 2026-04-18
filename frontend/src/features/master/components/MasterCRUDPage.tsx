@@ -1,7 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { MasterListPage } from "../components/MasterListPage";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
 import type { FilterProperty, SortProperty } from "@/components/shared/NotionFilter/types";
 import type { Resource } from "@/types/generated/models";

@@ -39,7 +39,7 @@ import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPil
 import { PropertyRow, PropertyInput, MasterSidePanel, MoneyInput, StatusToggleButton } from "@/components/shared/SidePeek";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // API hooks
 import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useDeleteConsultation, useReorderConsultations } from "../api/consultations";

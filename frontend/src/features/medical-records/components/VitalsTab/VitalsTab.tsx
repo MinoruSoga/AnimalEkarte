@@ -19,7 +19,7 @@ const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2
 
 // Relative
 import { VitalsGraph } from "./VitalsGraph";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { useGetVitals } from "../../api/vitals";
 import { useCreateVital } from "../../api/vitals";
 import { useUpdateVital } from "../../api/vitals";

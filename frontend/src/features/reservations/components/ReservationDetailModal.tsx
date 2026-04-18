@@ -13,7 +13,7 @@ import type { Appointment, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import { useReservationTypeColorMap } from "@/features/master";
+import { useReservationTypeColorMap } from "@/hooks/use-reservation-type-color-map";
 import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/utils/constants/status-colors";
 
 interface ReservationDetailModalProps {

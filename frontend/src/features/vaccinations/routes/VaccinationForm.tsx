@@ -29,7 +29,7 @@ import type { SortOrder } from "@/types";
 
 // Relative
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 import { ResourceVaccinations } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ

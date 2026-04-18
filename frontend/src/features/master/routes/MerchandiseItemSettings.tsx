@@ -25,7 +25,7 @@ import type {
 } from "../api/merchandise-items";
 import type { TaxType } from "@/types/generated/models";
 import { ResourceMasterMerchandise } from "@/types/generated/models";
-import { usePermission } from "@/features/auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // ─── Constants ───
 

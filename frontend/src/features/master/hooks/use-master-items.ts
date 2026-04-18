@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { MasterItem } from "@/types";
 import { handleApiError } from "@/lib/handle-api-error";
-import { useGetMasterItemsByCategory } from "../api/get-master-items";
+import { useGetMasterItemsByCategory } from "@/hooks/use-master-items";
 import { useCreateMasterItem } from "../api/create-master-item";
 import { useUpdateMasterItem } from "../api/update-master-item";
 import { useDeleteMasterItem } from "../api/delete-master-item";
