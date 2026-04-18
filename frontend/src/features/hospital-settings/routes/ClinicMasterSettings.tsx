@@ -23,14 +23,14 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { useGetClinics, useCreateClinic, useUpdateClinic, useDeleteClinic } from "@/features/hospital-settings/api/clinics";
+import { useGetClinics, useCreateClinic, useUpdateClinic, useDeleteClinic } from "../api/clinics";
 
 // Types
 import type {
   Clinic,
   CreateClinicRequest,
   UpdateClinicRequest,
-} from "@/features/hospital-settings/api/clinics";
+} from "../api/clinics";
 import { ResourceHospitalSettings } from "@/types/generated/models";
 import { usePermission } from "@/features/auth";
 

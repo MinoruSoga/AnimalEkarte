@@ -7,12 +7,12 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
-import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
-import { useMasterSave } from "@/features/master/hooks/use-master-save";
-import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import { useGetAllInsurances, useCreateInsurance, useUpdateInsurance, useDeleteInsurance } from "@/features/master/api/insurances";
-import type { Insurance, CreateInsuranceRequest, UpdateInsuranceRequest } from "@/features/master/api/insurances";
+import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "../constants/styles";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
+import { useGetAllInsurances, useCreateInsurance, useUpdateInsurance, useDeleteInsurance } from "../api/insurances";
+import type { Insurance, CreateInsuranceRequest, UpdateInsuranceRequest } from "../api/insurances";
 import { ResourceMasterInsurance } from "@/types/generated/models";
 
 const COLUMNS = [

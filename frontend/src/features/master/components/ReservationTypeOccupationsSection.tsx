@@ -3,12 +3,12 @@ import { X, Briefcase } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { handleApiError } from "@/lib/handle-api-error";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
-import { useGetAllOccupations } from "@/features/master/api/occupations";
+import { useGetAllOccupations } from "../api/occupations";
 import {
   useGetReservationTypeOccupations,
   useLinkOccupation,
   useUnlinkOccupation,
-} from "@/features/master/api/reservation-type-occupations";
+} from "../api/reservation-type-occupations";
 
 // ─────────────────────────────────────────────────
 // Component

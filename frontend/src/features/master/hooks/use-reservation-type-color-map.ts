@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from "react";
 import type React from "react";
-import { useGetReservationTypes } from "@/features/master/api/reservation-types";
-import { useGetReservationTypeGroups } from "@/features/master/api/reservation-type-groups";
+import { useGetReservationTypes } from "../api/reservation-types";
+import { useGetReservationTypeGroups } from "../api/reservation-type-groups";
 import { PALETTE } from "@/lib/design-tokens";
 
 /**

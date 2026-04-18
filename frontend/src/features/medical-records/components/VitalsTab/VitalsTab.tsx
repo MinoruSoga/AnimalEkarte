@@ -20,10 +20,10 @@ const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2
 // Relative
 import { VitalsGraph } from "./VitalsGraph";
 import { usePermission } from "@/features/auth";
-import { useGetVitals } from "@/features/medical-records/api/vitals";
-import { useCreateVital } from "@/features/medical-records/api/vitals";
-import { useUpdateVital } from "@/features/medical-records/api/vitals";
-import { useDeleteVital } from "@/features/medical-records/api/vitals";
+import { useGetVitals } from "../../api/vitals";
+import { useCreateVital } from "../../api/vitals";
+import { useUpdateVital } from "../../api/vitals";
+import { useDeleteVital } from "../../api/vitals";
 import type { Vital, CreateVitalInput, UpdateVitalInput, BodyWeightUnit } from "../../types";
 
 // ── 静的定数 ─────────────────────────────────────────────────────────

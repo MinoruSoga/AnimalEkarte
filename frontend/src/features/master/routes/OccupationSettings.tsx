@@ -7,12 +7,12 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
-import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
-import { useMasterSave } from "@/features/master/hooks/use-master-save";
-import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
-import { useGetAllOccupations, useCreateOccupation, useUpdateOccupation, useDeleteOccupation } from "@/features/master/api/occupations";
-import type { Occupation, CreateOccupationRequest, UpdateOccupationRequest } from "@/features/master/api/occupations";
+import { MASTER_STATUS_FILTER } from "../constants/styles";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
+import { useGetAllOccupations, useCreateOccupation, useUpdateOccupation, useDeleteOccupation } from "../api/occupations";
+import type { Occupation, CreateOccupationRequest, UpdateOccupationRequest } from "../api/occupations";
 import { ResourceMasterStaff } from "@/types/generated/models";
 
 // ─── Constants ───

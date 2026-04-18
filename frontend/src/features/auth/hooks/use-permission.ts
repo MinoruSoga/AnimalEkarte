@@ -1,5 +1,5 @@
 import type { Resource } from "@/types/generated/models";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "../hooks/use-auth";
 
 export interface UsePermissionResult {
   canView: boolean;

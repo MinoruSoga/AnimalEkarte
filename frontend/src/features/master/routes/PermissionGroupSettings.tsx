@@ -12,11 +12,11 @@ import { usePermission } from "@/features/auth";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow, StatusToggleButton, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
-import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "../constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
-import { useMasterSave } from "@/features/master/hooks/use-master-save";
-import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import {
   useGetPermissionGroups,
   useCreatePermissionGroup,
@@ -28,8 +28,8 @@ import {
   type CreatePermissionGroupRequest,
   type UpdatePermissionGroupRequest,
   type SetPermissionGroupRulesRequest,
-} from "@/features/master/api/permission-groups";
-import { PermissionRuleTable, type PermissionRule } from "@/features/master/components/PermissionRuleTable";
+} from "../api/permission-groups";
+import { PermissionRuleTable, type PermissionRule } from "../components/PermissionRuleTable";
 import { ResourceMasterPermission } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────

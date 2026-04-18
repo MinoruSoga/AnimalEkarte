@@ -2,7 +2,7 @@
 import { useState, useRef, useMemo, useCallback, memo, useDeferredValue, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
+import { useMasterCRUD } from "../hooks/use-master-crud";
 
 // DnD
 import { DndContext, closestCenter } from "@dnd-kit/core";
@@ -34,10 +34,10 @@ import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from 
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
-import { useGetDiagnosisTypes, useCreateDiagnosisType, useUpdateDiagnosisType, useDeleteDiagnosisType, useReorderDiagnosisTypes, useGetDiagnosisNames, useCreateDiagnosisName, useUpdateDiagnosisName, useDeleteDiagnosisName, useReorderDiagnosisNames } from "@/features/master/api/diagnosis";
+import { useGetDiagnosisTypes, useCreateDiagnosisType, useUpdateDiagnosisType, useDeleteDiagnosisType, useReorderDiagnosisTypes, useGetDiagnosisNames, useCreateDiagnosisName, useUpdateDiagnosisName, useDeleteDiagnosisName, useReorderDiagnosisNames } from "../api/diagnosis";
 
 // Types
-import type { DiagnosisType, DiagnosisName } from "@/features/master/api/diagnosis";
+import type { DiagnosisType, DiagnosisName } from "../api/diagnosis";
 import type {
   CreateDiagnosisTypeRequest,
   UpdateDiagnosisTypeRequest,

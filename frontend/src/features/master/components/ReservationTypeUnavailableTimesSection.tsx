@@ -8,12 +8,12 @@ import {
   useGetUnavailableTimes,
   useCreateUnavailableTime,
   useDeleteUnavailableTime,
-} from "@/features/master/api/reservation-type-unavailable-times";
+} from "../api/reservation-type-unavailable-times";
 import {
   UnavailableTypeWeekly,
   UnavailableTypeSpecific,
 } from "@/types/generated/models";
-import type { CreateUnavailableTimeRequest } from "@/features/master/api/reservation-type-unavailable-times";
+import type { CreateUnavailableTimeRequest } from "../api/reservation-type-unavailable-times";
 
 // ─────────────────────────────────────────────────
 // 静的定数（rendering-hoist-jsx）

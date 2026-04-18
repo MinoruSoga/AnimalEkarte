@@ -13,10 +13,10 @@ import type { Shift, ShiftType, ShiftBreakInput, CreateShiftInput, UpdateShiftIn
 import { SHIFT_TYPE_LABELS } from "../../types";
 import { ShiftTypeOff } from "@/types/generated/models";
 import { C, ICON } from "@/lib/design-tokens";
-import { createShift } from "@/features/shifts/api/create-shift";
-import { updateShift } from "@/features/shifts/api/update-shift";
-import { useDeleteShift } from "@/features/shifts/api/delete-shift";
-import { useGetShiftTemplates } from "@/features/shifts/api/get-shift-templates";
+import { createShift } from "../../api/create-shift";
+import { updateShift } from "../../api/update-shift";
+import { useDeleteShift } from "../../api/delete-shift";
+import { useGetShiftTemplates } from "../../api/get-shift-templates";
 import { handleApiError } from "@/lib/handle-api-error";
 
 /**

@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback, memo, useDeferredValue, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
+import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { ResourceMasterTrimming } from "@/types/generated/models";
 import { usePermission } from "@/features/auth";
@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import { MASTER_STATUS_FILTER } from "../constants/styles";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -27,7 +27,7 @@ import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPil
 import { PropertyRow, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
-import { useGetTrimmingCourses, useCreateTrimmingCourse, useUpdateTrimmingCourse, useDeleteTrimmingCourse, useGetTrimmingOptions, useCreateTrimmingOption, useUpdateTrimmingOption, useDeleteTrimmingOption, TARGET_SIZE_LABELS, TARGET_SIZE_OPTIONS } from "@/features/master/api/trimming";
+import { useGetTrimmingCourses, useCreateTrimmingCourse, useUpdateTrimmingCourse, useDeleteTrimmingCourse, useGetTrimmingOptions, useCreateTrimmingOption, useUpdateTrimmingOption, useDeleteTrimmingOption, TARGET_SIZE_LABELS, TARGET_SIZE_OPTIONS } from "../api/trimming";
 
 // Types
 import type {
@@ -38,7 +38,7 @@ import type {
   UpdateTrimmingCourseRequest,
   CreateTrimmingOptionRequest,
   UpdateTrimmingOptionRequest,
-} from "@/features/master/api/trimming";
+} from "../api/trimming";
 
 // ─────────────────────────────────────────────────
 // Columns

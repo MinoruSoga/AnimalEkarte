@@ -14,12 +14,12 @@ import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDat
 
 // Relative
 import { usePermission } from "@/features/auth";
-import { useGetCheckups } from "@/features/medical-records/api/checkups";
-import { useCreateCheckup } from "@/features/medical-records/api/checkups";
-import { useUpdateCheckup } from "@/features/medical-records/api/checkups";
-import { useDeleteCheckup } from "@/features/medical-records/api/checkups";
+import { useGetCheckups } from "../../api/checkups";
+import { useCreateCheckup } from "../../api/checkups";
+import { useUpdateCheckup } from "../../api/checkups";
+import { useDeleteCheckup } from "../../api/checkups";
 import { useGetAllCheckupTypes } from "@/features/master";
-import type { Checkup, CreateCheckupInput, UpdateCheckupInput } from "@/features/medical-records/api/checkups";
+import type { Checkup, CreateCheckupInput, UpdateCheckupInput } from "../../api/checkups";
 import type { CheckupTypeItem } from "@/features/master";
 
 // ── 静的定数 ────────────────────────────────────────────────────────────

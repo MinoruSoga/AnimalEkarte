@@ -4,9 +4,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
-import { ReservationTypeUnavailableTimesSection } from "@/features/master/components/ReservationTypeUnavailableTimesSection";
-import { ReservationTypeOccupationsSection } from "@/features/master/components/ReservationTypeOccupationsSection";
-import type { ReservationType } from "@/features/master/api/reservation-types";
+import { ReservationTypeUnavailableTimesSection } from "../components/ReservationTypeUnavailableTimesSection";
+import { ReservationTypeOccupationsSection } from "../components/ReservationTypeOccupationsSection";
+import type { ReservationType } from "../api/reservation-types";
 
 // ── 静的 SelectItem JSX (rendering-hoist-jsx) ──────────────────
 const RESERVATION_DAY_OPTION_ITEMS = (

@@ -16,7 +16,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
-import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import { MASTER_STATUS_FILTER } from "../constants/styles";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/features/auth";
@@ -27,16 +27,16 @@ import {
   useUpdateReservationType,
   useDeleteReservationType,
   useReorderReservationTypes,
-} from "@/features/master/api/reservation-types";
-import type { ReservationType } from "@/features/master/api/reservation-types";
+} from "../api/reservation-types";
+import type { ReservationType } from "../api/reservation-types";
 import {
   useGetReservationTypeGroups,
   useCreateReservationTypeGroup,
   useUpdateReservationTypeGroup,
   useDeleteReservationTypeGroup,
-} from "@/features/master/api/reservation-type-groups";
-import type { ReservationTypeGroup } from "@/features/master/api/reservation-type-groups";
-import type { CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest } from "@/features/master/api/reservation-type-groups";
+} from "../api/reservation-type-groups";
+import type { ReservationTypeGroup } from "../api/reservation-type-groups";
+import type { CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest } from "../api/reservation-type-groups";
 import type { CreateReservationTypeRequest, UpdateReservationTypeRequest } from "@/types/reservation-type";
 import { GroupSidePanel } from "./ReservationTypeGroupSidePanel";
 import type { GroupFormData } from "./ReservationTypeGroupSidePanel";

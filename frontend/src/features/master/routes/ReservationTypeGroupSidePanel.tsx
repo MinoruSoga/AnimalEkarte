@@ -2,7 +2,7 @@ import { memo, useState, useCallback, useEffect } from "react";
 import { Layers } from "lucide-react";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, PALETTE } from "@/lib/design-tokens";
-import type { ReservationTypeGroup } from "@/features/master/api/reservation-type-groups";
+import type { ReservationTypeGroup } from "../api/reservation-type-groups";
 
 export interface GroupFormData {
   name: string;

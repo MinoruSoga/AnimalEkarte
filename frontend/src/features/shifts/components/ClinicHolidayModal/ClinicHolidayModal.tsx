@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { C } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
-import { useSetClinicHoliday, useDeleteClinicHoliday } from "@/features/shifts/api/clinic-holidays";
-import type { ClinicHoliday } from "@/features/shifts/api/clinic-holidays";
+import { useSetClinicHoliday, useDeleteClinicHoliday } from "../../api/clinic-holidays";
+import type { ClinicHoliday } from "../../api/clinic-holidays";
 
 interface ClinicHolidayModalProps {
   open: boolean;

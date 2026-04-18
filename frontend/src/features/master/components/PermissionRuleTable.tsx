@@ -3,7 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { C } from "@/lib/design-tokens";
-import type { PermissionGroup } from "@/features/master/api/permission-groups";
+import type { PermissionGroup } from "../api/permission-groups";
 
 // ─────────────────────────────────────────────────
 // Constants

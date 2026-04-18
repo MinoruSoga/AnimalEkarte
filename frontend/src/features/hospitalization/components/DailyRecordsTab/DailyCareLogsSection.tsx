@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Types
-import type { ApiCareLog, CreateCareLogRequest } from "@/features/hospitalization/api/daily-records-types";
+import type { ApiCareLog, CreateCareLogRequest } from "../../api/daily-records-types";
 
 type CareLogType = "food" | "excretion" | "medicine" | "treatment" | "other";
 

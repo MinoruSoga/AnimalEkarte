@@ -10,11 +10,11 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow, StatusToggleButton, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, STYLE, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
-import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "../constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
-import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
-import { useMasterSave } from "@/features/master/hooks/use-master-save";
-import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
+import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
+import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import {
   useGetStaffs,
   useCreateStaff,
@@ -28,16 +28,16 @@ import {
   useGetAllStaffPermissionGroupMap,
   useGetStaffExcludedReservationTypes,
   useSetStaffExcludedReservationTypes,
-} from "@/features/master/api/staffs";
-import type { Staff, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
+} from "../api/staffs";
+import type { Staff, CreateStaffRequest, UpdateStaffRequest } from "../api/staffs";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
-import { useGetPermissionGroups } from "@/features/master/api/permission-groups";
-import type { PermissionGroup } from "@/features/master/api/permission-groups";
-import type { ClinicSummary } from "@/features/master/api/staffs";
-import { useGetAllOccupations } from "@/features/master/api/occupations";
-import { useGetReservationTypes } from "@/features/master/api/reservation-types";
-import type { ReservationType } from "@/features/master/api/reservation-types";
-import type { Occupation } from "@/features/master/api/occupations";
+import { useGetPermissionGroups } from "../api/permission-groups";
+import type { PermissionGroup } from "../api/permission-groups";
+import type { ClinicSummary } from "../api/staffs";
+import { useGetAllOccupations } from "../api/occupations";
+import { useGetReservationTypes } from "../api/reservation-types";
+import type { ReservationType } from "../api/reservation-types";
+import type { Occupation } from "../api/occupations";
 import { ResourceMasterStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────

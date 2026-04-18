@@ -11,15 +11,15 @@ import { Separator } from "@/components/ui/separator";
 import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
-import { DailyDateNav } from "@/features/hospitalization/components/DailyRecordsTab/DailyDateNav";
-import { DailyVitalsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyVitalsSection";
-import { DailyCareLogsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyCareLogsSection";
-import { DailyStaffNotesSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyStaffNotesSection";
-import { useDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "@/features/hospitalization/api/daily-records";
+import { DailyDateNav } from "../../components/DailyRecordsTab/DailyDateNav";
+import { DailyVitalsSection } from "../../components/DailyRecordsTab/DailyVitalsSection";
+import { DailyCareLogsSection } from "../../components/DailyRecordsTab/DailyCareLogsSection";
+import { DailyStaffNotesSection } from "../../components/DailyRecordsTab/DailyStaffNotesSection";
+import { useDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "../../api/daily-records";
 import { usePermission, useAuth } from "@/features/auth";
 
 // Types
-import type { CreateVitalRecordRequest, CreateCareLogRequest, CreateStaffNoteRequest } from "@/features/hospitalization/api/daily-records-types";
+import type { CreateVitalRecordRequest, CreateCareLogRequest, CreateStaffNoteRequest } from "../../api/daily-records-types";
 
 interface DailyRecordsTabProps {
     hospitalizationId: string;

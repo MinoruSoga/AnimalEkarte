@@ -13,7 +13,7 @@ import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 // Types
-import type { ApiVitalRecord, CreateVitalRecordRequest } from "@/features/hospitalization/api/daily-records-types";
+import type { ApiVitalRecord, CreateVitalRecordRequest } from "../../api/daily-records-types";
 
 interface DailyVitalsSectionProps {
     vitals: ApiVitalRecord[];

@@ -5,8 +5,8 @@ import { useNavigate } from "react-router";
 
 // External
 import { Building2, Calendar, ChevronRight, ClipboardList, FolderTree, Scissors, Settings, Stethoscope } from "lucide-react";
-import { CATEGORY_CONFIG } from "@/features/master/constants/category-config";
-import type { MasterSettingsCategory } from "@/features/master/constants/category-config";
+import { CATEGORY_CONFIG } from "../constants/category-config";
+import type { MasterSettingsCategory } from "../constants/category-config";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";

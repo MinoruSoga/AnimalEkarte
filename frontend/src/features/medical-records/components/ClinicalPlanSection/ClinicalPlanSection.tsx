@@ -9,9 +9,9 @@ import { LoadingFallback } from "@/components/shared/DataStates";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Relative
-import { useGetClinicalPlan, useUpdateClinicalPlan } from "@/features/medical-records/api/clinical-plan";
-import { useGetDiagnosisTypes, useGetDiagnosisNames } from "@/features/medical-records/api/get-diagnosis-options";
-import type { UpdateClinicalPlanInput } from "@/features/medical-records/api/clinical-plan";
+import { useGetClinicalPlan, useUpdateClinicalPlan } from "../../api/clinical-plan";
+import { useGetDiagnosisTypes, useGetDiagnosisNames } from "../../api/get-diagnosis-options";
+import type { UpdateClinicalPlanInput } from "../../api/clinical-plan";
 
 // ── Types ─────────────────────────────────────────────────────────────
 
