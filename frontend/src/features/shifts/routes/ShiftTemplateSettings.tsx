@@ -112,7 +112,7 @@ function PropertyRow({ label, children }: { label: string; children: React.React
     <div
       className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}
     >
-      <div className="w-[120px] shrink-0 text-sm text-[#37352F]/65 select-none truncate flex items-center">
+      <div className={`w-[120px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
         {label}
       </div>
       <div className="flex-1 flex items-center">{children}</div>
@@ -270,7 +270,7 @@ const SidePanel = memo(function SidePanel({
             <button
               type="button"
               onClick={onDeleteRequest}
-              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${STYLE.btnDangerGhost}`}
             >
               <Trash2 className="size-4" />
             </button>
@@ -571,7 +571,7 @@ export function ShiftTemplateSettings() {
             <button
               type="button"
               onClick={handleCreate}
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
+              className={`inline-flex items-center gap-1 text-sm font-medium ${C.accent} ${C.hoverTextAccent} cursor-pointer transition-colors`}
             >
               <Plus className="size-4" />
               新規登録
