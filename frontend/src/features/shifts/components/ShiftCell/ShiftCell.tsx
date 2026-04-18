@@ -1,7 +1,23 @@
 import { memo, useCallback } from "react";
 import { C } from "@/lib/design-tokens";
-import type { Shift } from "../../types";
-import { SHIFT_TYPE_LABELS, SHIFT_TYPE_COLORS } from "../../types";
+import {
+  ShiftTypeFull,
+  ShiftTypeMorning,
+  ShiftTypeAfternoon,
+  ShiftTypeOff,
+  ShiftTypePaidLeave,
+} from "@/types/generated/models";
+import type { Shift, ShiftType } from "../../types";
+import { SHIFT_TYPE_LABELS } from "../../types";
+
+// rendering-hoist-jsx: 静的カラーマップはモジュール定数に巻き上げ（ShiftCell 専用）
+const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
+  [ShiftTypeFull]:      `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentBadge}`,
+  [ShiftTypeMorning]:   `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
+  [ShiftTypeAfternoon]: `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
+  [ShiftTypeOff]:       `${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`,
+  [ShiftTypePaidLeave]: `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderPurpleLight}`,
+};
 
 interface ShiftCellProps {
   shift: Shift | undefined;
