@@ -48,7 +48,7 @@ export type InquiryTemplate = ReturnType<typeof transformInquiryTemplate>;
 // Query keys
 // ─────────────────────────────────────────────────
 
-const QUERY_KEY = ["masters", "inquiry-templates"] as const;
+const INQUIRY_TEMPLATES_QUERY_KEY = ["masters", "inquiry-templates"] as const;
 
 // ─────────────────────────────────────────────────
 // API functions
@@ -87,7 +87,7 @@ export async function deleteInquiryTemplate(id: string): Promise<void> {
 
 export function useGetInquiryTemplates() {
   return useQuery({
-    queryKey: QUERY_KEY,
+    queryKey: INQUIRY_TEMPLATES_QUERY_KEY,
     queryFn: listInquiryTemplates,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -99,7 +99,7 @@ export function useCreateInquiryTemplate() {
   return useMutation({
     mutationFn: createInquiryTemplate,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: INQUIRY_TEMPLATES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -111,7 +111,7 @@ export function useUpdateInquiryTemplate() {
     mutationFn: ({ id, req }: { id: string; req: UpdateInquiryTemplateRequest }) =>
       updateInquiryTemplate(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: INQUIRY_TEMPLATES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -122,7 +122,7 @@ export function useDeleteInquiryTemplate() {
   return useMutation({
     mutationFn: deleteInquiryTemplate,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: INQUIRY_TEMPLATES_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "削除"),
   });

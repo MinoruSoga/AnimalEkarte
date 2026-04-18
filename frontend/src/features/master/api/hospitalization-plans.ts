@@ -130,11 +130,11 @@ export const deleteHospitalizationPlan = async (id: string): Promise<void> => {
 // React Query Hooks
 // ─────────────────────────────────────────────────
 
-const QUERY_KEY = ["masters", "hospitalization-plans"] as const;
+const HOSPITALIZATION_PLANS_QUERY_KEY = ["masters", "hospitalization-plans"] as const;
 
 export const useGetAllHospitalizationPlans = () => {
   return useQuery({
-    queryKey: QUERY_KEY,
+    queryKey: HOSPITALIZATION_PLANS_QUERY_KEY,
     queryFn: getAllHospitalizationPlans,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -146,7 +146,7 @@ export const useCreateHospitalizationPlan = () => {
   return useMutation({
     mutationFn: createHospitalizationPlan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: HOSPITALIZATION_PLANS_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -163,7 +163,7 @@ export const useUpdateHospitalizationPlan = () => {
       req: UpdateHospitalizationPlanRequest;
     }) => updateHospitalizationPlan(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: HOSPITALIZATION_PLANS_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -174,7 +174,7 @@ export const useDeleteHospitalizationPlan = () => {
   return useMutation({
     mutationFn: deleteHospitalizationPlan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: HOSPITALIZATION_PLANS_QUERY_KEY });
     },
     onError: (error) => handleApiError(error, "削除"),
   });

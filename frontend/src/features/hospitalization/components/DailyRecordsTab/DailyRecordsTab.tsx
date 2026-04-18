@@ -15,7 +15,7 @@ import { DailyDateNav } from "../../components/DailyRecordsTab/DailyDateNav";
 import { DailyVitalsSection } from "../../components/DailyRecordsTab/DailyVitalsSection";
 import { DailyCareLogsSection } from "../../components/DailyRecordsTab/DailyCareLogsSection";
 import { DailyStaffNotesSection } from "../../components/DailyRecordsTab/DailyStaffNotesSection";
-import { useDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "../../api/daily-records";
+import { useGetDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "../../api/daily-records";
 import { usePermission, useAuth } from "@/features/auth";
 
 // Types
@@ -65,7 +65,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
         [admissionDate, effectiveMax]
     );
 
-    const { data: record, isLoading, isError } = useDailyRecord(hospitalizationId, selectedDate);
+    const { data: record, isLoading, isError } = useGetDailyRecord(hospitalizationId, selectedDate);
 
     const createDailyRecord = useCreateDailyRecord(hospitalizationId);
     const createVital = useCreateDailyVital(hospitalizationId, selectedDate);
