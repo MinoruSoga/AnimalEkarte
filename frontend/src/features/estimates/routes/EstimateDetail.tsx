@@ -11,7 +11,7 @@ import { EstimateStatusBadge } from '../components/EstimateStatusBadge/EstimateS
 import { EstimateLineItems } from '../components/EstimateLineItems/EstimateLineItems';
 import { useGetEstimate } from '../api/get-estimate';
 import { useDeleteEstimate } from '../api/delete-estimate';
-import { usePermission } from '@/features/auth';
+import { usePermission } from "@/hooks/use-permission";
 import { ResourceEstimates } from "@/types/generated/models";
 
 export function EstimateDetail() {

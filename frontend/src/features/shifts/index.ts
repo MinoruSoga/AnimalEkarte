@@ -1,6 +1,5 @@
 export { ShiftCalendarPage } from "./routes/ShiftCalendarPage";
 export { ShiftTemplateSettings } from "./routes/ShiftTemplateSettings";
-export { useGetClinicHolidays } from "./api/clinic-holidays";
 export { useGetShiftTemplates } from "./api/get-shift-templates";
 export { useCreateShiftTemplate } from "./api/create-shift-template";
 export { useUpdateShiftTemplate } from "./api/update-shift-template";
