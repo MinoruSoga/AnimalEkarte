@@ -13,7 +13,7 @@ build/
 tmp/
 
 # Temporary migration/seed files
-backend/migrations/*_seed_staging.sql
+# backend/migrations/*_seed_staging.sql
 
 # Frontend test and debug artifacts
 frontend/coverage/
