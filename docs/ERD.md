@@ -1,18 +1,18 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v31.7（SQL マイグレーション 100% 同期）
-更新日: 2026-04-16
+バージョン: v31.8（SQL マイグレーション 100% 同期）
+更新日: 2026-04-17
 状態: Production Ready
 
 ---
 
-## 変更概要（v31.6 → v31.7）
+## 変更概要（v31.7 → v31.8）
 
 | 変更内容 | 詳細 |
 |---------|------|
-| 定期監査 | 2026-04-16 時点の `001_init.sql` との同期を再確認 |
-| トリミング | 旧 `trimming_records` / `trimming_record_options` を `appointment_trimming_details` / `appointment_trimming_options` に更新 |
-| 予約区分 | `reservation_type_unavailable_times`、`reservation_type_occupations`、`reservation_types.category` を追加 |
+| 定期監査 | 2026-04-17 時点の `001_init.sql` との完全同期を確認 |
+| 整合性確認 | 69テーブルすべてのカラム、型、リレーション、ENUM定義の整合性を再検証 |
+| 重複整理 | ドキュメント内の記載に重複や矛盾がないことを確認 |
 
 ---
 
