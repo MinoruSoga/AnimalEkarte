@@ -30,16 +30,13 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 
-// Shifts feature API (cross-feature via index)
-import {
-  useGetShiftTemplates,
-  useCreateShiftTemplate,
-  useUpdateShiftTemplate,
-  useDeleteShiftTemplate,
-  useReorderShiftTemplates,
-} from "@/features/shifts";
-import type { ShiftTemplate, ShiftType } from "@/features/shifts";
-import { SHIFT_TYPE_LABELS } from "@/features/shifts";
+import { useGetShiftTemplates } from "../api/get-shift-templates";
+import { useCreateShiftTemplate } from "../api/create-shift-template";
+import { useUpdateShiftTemplate } from "../api/update-shift-template";
+import { useDeleteShiftTemplate } from "../api/delete-shift-template";
+import { useReorderShiftTemplates } from "../api/reorder-shift-templates";
+import type { ShiftTemplate, ShiftType } from "../types";
+import { SHIFT_TYPE_LABELS } from "../types";
 import { ShiftTypeOff, ShiftTypePaidLeave } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────

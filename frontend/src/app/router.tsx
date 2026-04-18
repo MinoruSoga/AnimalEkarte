@@ -867,7 +867,7 @@ export const router = createBrowserRouter([
             children: [{
               index: true,
               lazy: async () => {
-                const { ShiftTemplateSettings } = await import("@/features/master");
+                const { ShiftTemplateSettings } = await import("@/features/shifts");
                 return { Component: ShiftTemplateSettings };
               },
             }],
