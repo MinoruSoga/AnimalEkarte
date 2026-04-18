@@ -622,3 +622,54 @@ func (h *Handler) calculateEffectivePermissions(ctx context.Context, isSystemAdm
 	}
 	return permMap
 }
+
+// ---- パスワードリセット ----
+
+type forgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type resetPasswordRequest struct {
+	Token    string `json:"token"    binding:"required"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+// ForgotPassword はパスワードリセットメールを送信する。
+// アカウントが存在しない場合も 200 を返す（メール存在有無の漏洩防止）。
+func (h *Handler) ForgotPassword(c *gin.Context) {
+	var req forgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	ctx := c.Request.Context()
+	if err := h.svc.PasswordReset.ForgotPassword(ctx, req.Email); err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "If the email exists, a reset link has been sent."})
+}
+
+// ResetPassword は rawToken と新パスワードでパスワードを更新する。
+func (h *Handler) ResetPassword(c *gin.Context) {
+	var req resetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	if err := validatePassword(req.Password); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		return
+	}
+
+	ctx := c.Request.Context()
+	if err := h.svc.PasswordReset.ResetPassword(ctx, req.Token, req.Password); err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password has been reset successfully."})
+}

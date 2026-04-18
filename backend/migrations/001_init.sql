@@ -1830,4 +1830,18 @@ CREATE INDEX idx_rtype_occupation_clinic
     ON reservation_type_occupations(clinic_id, reservation_type_id);
 CREATE INDEX idx_rtype_occupation_occupation
     ON reservation_type_occupations(occupation_id);
+
+-- =============================================
+-- 70. password_reset_tokens（パスワードリセットトークン）
+-- =============================================
+CREATE TABLE password_reset_tokens (
+    id          BIGSERIAL   PRIMARY KEY,
+    account_id  bigint      NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    token_hash  text        NOT NULL UNIQUE,
+    expires_at  timestamptz NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_prt_account ON password_reset_tokens(account_id);
+COMMENT ON TABLE password_reset_tokens IS 'パスワードリセットトークン';
 COMMENT ON TABLE reservation_type_occupations IS '予約区分対応職種';

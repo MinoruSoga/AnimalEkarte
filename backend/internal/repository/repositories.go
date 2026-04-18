@@ -76,6 +76,7 @@ type Repositories struct {
 	LineCustomerMgr                LineCustomerRepository
 	ReservationTypeUnavailableTime ReservationTypeUnavailableTimeRepository
 	ReservationTypeOccupation      ReservationTypeOccupationRepository
+	PasswordResetToken             PasswordResetTokenRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -143,6 +144,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		LineCustomerMgr:                NewLineCustomerRepository(db),
 		ReservationTypeUnavailableTime: NewReservationTypeUnavailableTimeRepository(db),
 		ReservationTypeOccupation:      NewReservationTypeOccupationRepository(db),
+		PasswordResetToken:             NewPasswordResetTokenRepository(db),
 	}
 }
 

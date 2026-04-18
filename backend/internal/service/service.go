@@ -59,6 +59,8 @@ type Services struct {
 	MerchandiseItem       MerchandiseItemService
 	BillingItem           BillingItemService
 	Refund                RefundService
+	PasswordReset         PasswordResetService
+
 	// LINE予約
 	LineReservationSetting LineReservationSettingService
 	ReservationTypeLiff    ReservationTypeLiffService
@@ -74,6 +76,14 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	notifier := NewReservationNotificationService(notifCfg, repos.LineReservationSetting)
 	auditSvc := NewAuditService(repos.Audit)
 	tx := repository.NewTransactor(repos.DB())
+	pwResetCfg := PasswordResetConfig{
+		SMTPHost:    notifCfg.SMTPHost,
+		SMTPPort:    notifCfg.SMTPPort,
+		SMTPUser:    notifCfg.SMTPUser,
+		SMTPPass:    notifCfg.SMTPPass,
+		SMTPFrom:    notifCfg.SMTPFrom,
+		FrontendURL: notifCfg.FrontendURL,
+	}
 
 	return &Services{
 		Account:                NewAccountService(repos.Account),
@@ -129,6 +139,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		MerchandiseItem:        NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:            NewBillingItemService(repos.BillingItem),
 		Refund:                 NewRefundService(repos.Refund, repos.Accounting),
+		PasswordReset:          NewPasswordResetService(pwResetCfg, repos.Account, repos.PasswordResetToken),
 		LineReservationSetting: NewLineReservationSettingService(repos.LineReservationSetting),
 		ReservationTypeLiff:    NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),
 		ReservationStaff:       NewReservationStaffService(repos.ReservationStaff),

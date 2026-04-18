@@ -23,6 +23,9 @@ type Config struct {
 	SMTPUser string
 	SMTPPass string
 	SMTPFrom string
+
+	// FrontendURL はパスワードリセットメール等に含めるフロントエンドのベースURL。
+	FrontendURL string
 }
 
 func Load() *Config {
@@ -43,6 +46,8 @@ func Load() *Config {
 		SMTPUser: os.Getenv("SMTP_USER"),
 		SMTPPass: os.Getenv("SMTP_PASS"),
 		SMTPFrom: os.Getenv("SMTP_FROM"),
+
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
 	}
 }
 

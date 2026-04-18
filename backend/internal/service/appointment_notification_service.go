@@ -31,6 +31,8 @@ type ReservationNotificationConfig struct {
 	SMTPUser string
 	SMTPPass string
 	SMTPFrom string
+	// FrontendURL はパスワードリセットメール等に含めるフロントエンドのベースURL。
+	FrontendURL string
 }
 
 type reservationNotificationService struct {
