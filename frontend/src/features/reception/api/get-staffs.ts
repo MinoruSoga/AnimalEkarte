@@ -11,7 +11,7 @@ interface BackendStaff {
 /** マスタのスタッフ一覧を取得する */
 export function useGetStaffs() {
   return useQuery({
-    queryKey: ["reception", "staffs"],
+    queryKey: ["masters", "staffs"],
     queryFn: async () => {
       const { data } = await axios.get<BackendStaff[]>("/v1/masters/staffs");
       return data;
