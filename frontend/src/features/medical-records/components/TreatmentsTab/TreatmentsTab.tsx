@@ -22,7 +22,7 @@ import { useCreateTreatment } from "@/features/medical-records/api/treatments";
 import { useUpdateTreatment } from "@/features/medical-records/api/treatments";
 import { useDeleteTreatment } from "@/features/medical-records/api/treatments";
 import { useReorderTreatments } from "@/features/medical-records/api/treatments";
-import type { TreatmentItemType, UpdateTreatmentInput } from "@/features/medical-records/types";
+import type { TreatmentItemType, UpdateTreatmentInput } from "../../types";
 import { TreatmentRow } from "./TreatmentRow";
 
 // ── 静的定数 ───────────────────────────────────────────────────────────

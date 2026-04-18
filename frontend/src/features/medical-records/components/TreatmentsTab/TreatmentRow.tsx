@@ -13,7 +13,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { C, BADGE, ICON, STYLE } from "@/lib/design-tokens";
 
 // Relative
-import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "@/features/medical-records/types";
+import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
 
 // ── 静的JSX (モジュール定数に巻き上げ) ────────────────────────────────
 

@@ -2,7 +2,6 @@
  * Authentication & Authorization types.
  * Backend types: {@link Account}, {@link StaffClinicAssignment}, {@link Clinic} from models.ts
  */
-import type { ReactNode } from "react";
 import type { Resource } from "@/types/generated/models";
 
 export type { Resource };
@@ -73,8 +72,4 @@ export interface AuthContextValue {
   hasPermission: (resource: Resource, action: ResourceAction) => boolean;
   /** /me を再取得してユーザー（権限含む）を更新する */
   refreshPermissions: () => Promise<void>;
-}
-
-export interface ProtectedRouteProps {
-  children: ReactNode;
 }

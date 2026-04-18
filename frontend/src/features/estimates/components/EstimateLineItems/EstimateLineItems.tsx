@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/utils/format/number';
 import { calcLineItemAmount } from '@/utils/line-item-helpers';
-import type { EstimateLineItem } from '@/features/estimates/types';
+import type { EstimateLineItem } from '../../types';
 import { C } from '@/lib/design-tokens';
 
 const CATEGORY_LABELS: Record<string, string> = {

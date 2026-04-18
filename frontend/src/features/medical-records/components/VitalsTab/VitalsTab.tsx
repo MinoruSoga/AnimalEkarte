@@ -24,7 +24,7 @@ import { useGetVitals } from "@/features/medical-records/api/vitals";
 import { useCreateVital } from "@/features/medical-records/api/vitals";
 import { useUpdateVital } from "@/features/medical-records/api/vitals";
 import { useDeleteVital } from "@/features/medical-records/api/vitals";
-import type { Vital, CreateVitalInput, UpdateVitalInput, BodyWeightUnit } from "@/features/medical-records/types";
+import type { Vital, CreateVitalInput, UpdateVitalInput, BodyWeightUnit } from "../../types";
 
 // ── 静的定数 ─────────────────────────────────────────────────────────
 
