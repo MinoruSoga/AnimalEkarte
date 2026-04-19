@@ -24,7 +24,7 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() } }));
 vi.mock("@/lib/handle-api-error", () => ({ handleApiError: vi.fn() }));
-vi.mock("@/features/auth", () => ({
+vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => ({ canView: true, canCreate: true, canEdit: true, canDelete: true }),
 }));
 
@@ -38,7 +38,7 @@ vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: () => noData 
 vi.mock("../api/create-medical-record", () => ({ useCreateMedicalRecord: vi.fn(() => noMutation) }));
 vi.mock("../api/update-medical-record", () => ({ useUpdateMedicalRecord: () => noMutation }));
 vi.mock("../api/inquiries", () => ({ useUpdateInquiry: () => noMutation }));
-vi.mock("../api/treatment-plans", () => ({ useUpdateTreatmentPlan: () => noMutation }));
+vi.mock("../api/clinical-plan", () => ({ useUpdateClinicalPlan: () => noMutation }));
 
 // ──────────────────────────────────────────────────────────
 // テスト

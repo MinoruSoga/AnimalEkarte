@@ -11,7 +11,7 @@ import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
 import { useUpdateInquiry } from "../api/inquiries";
-import { useUpdateTreatmentPlan } from "../api/treatment-plans";
+import { useUpdateClinicalPlan } from "../api/clinical-plan";
 import type { UpdateMedicalRecordRequest } from "../api/types";
 import type { TreatmentItem } from "../components/TreatmentTable";
 import type { ActionState } from "@/types/form";
@@ -152,7 +152,7 @@ export function useMedicalRecordForm(recordId?: string) {
   const createMutation = useCreateMedicalRecord();
   const updateMutation = useUpdateMedicalRecord();
   const updateInquiryMutation = useUpdateInquiry(recordId ?? "");
-  const updateTreatmentPlanMutation = useUpdateTreatmentPlan(recordId ?? "");
+  const updateTreatmentPlanMutation = useUpdateClinicalPlan(recordId ?? "");
 
   // useTransition: save の pending 管理 (rerender-transitions)
   const [isSavingTransition, startSaveTransition] = useTransition();
