@@ -129,6 +129,11 @@ export const paths = {
       path: "/accounting/unpaid",
       getHref: () => "/accounting/unpaid",
     },
+    // BUG-368: レジ締め日次集計
+    dailySummary: {
+      path: "/accounting/daily-summary",
+      getHref: () => "/accounting/daily-summary",
+    },
     detail: {
       path: "/accounting/:id",
       getHref: (id: string | number) => `/accounting/${id}`,

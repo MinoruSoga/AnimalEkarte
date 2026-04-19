@@ -108,6 +108,8 @@ type AccountingService interface {
 	// BUG-370: 月末未納者一覧
 	ListUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
 	ListUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error)
+	// BUG-368: レジ締め日次集計
+	GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error)
 }
 
 type accountingService struct {
@@ -305,4 +307,13 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64) err
 		slog.Uint64("clinic_id", clinicID))
 
 	return nil
+}
+
+// GetDailySummary は指定日のレジ締め集計を返す。BUG-368
+func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error) {
+	result, err := s.repo.GetDailySummary(ctx, clinicID, date)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get daily summary")
+	}
+	return result, nil
 }

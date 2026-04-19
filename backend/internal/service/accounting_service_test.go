@@ -50,6 +50,10 @@ func (m *mockAccountingRepository) FindUnpaidByOwner(_ context.Context, _ uint64
 	return nil, 0, repository.UnpaidSummary{}, nil
 }
 
+func (m *mockAccountingRepository) GetDailySummary(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
+	return &repository.DailySummaryResult{PaymentTotals: []repository.PaymentMethodTotal{}, CategoryTotals: []repository.CategoryTotal{}}, nil
+}
+
 func ptrString(v string) *string { return &v }
 
 func TestAccountingService_List(t *testing.T) {

@@ -179,6 +179,8 @@ func (h *Handler) registerAccountingRoutesWithAuth(rg *gin.RouterGroup) {
 	accountings.GET("", h.ListAccountings)
 	// BUG-370: 月末未納者一覧
 	accountings.GET("/unpaid", h.ListUnpaidBillings)
+	// BUG-368: レジ締め日次集計
+	accountings.GET("/daily-summary", h.GetDailySummary)
 	accountings.GET("/:id", h.GetAccounting)
 	accountings.GET("/:id/refunds", h.ListRefunds)
 	accountings.POST("", h.RequirePermission(string(model.ResourceAccounting), "create"), h.CreateAccounting)

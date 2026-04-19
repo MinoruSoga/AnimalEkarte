@@ -251,6 +251,32 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 	}
 }
 
+// GetDailySummary はレジ締め日次集計を返す。BUG-368
+// GET /v1/accountings/daily-summary?date=YYYY-MM-DD
+func (h *Handler) GetDailySummary(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	dateStr := c.Query("date")
+	if dateStr == "" {
+		dateStr = time.Now().Format("2006-01-02")
+	}
+	date, err := time.ParseInLocation("2006-01-02", dateStr, time.FixedZone("Asia/Tokyo", 9*60*60))
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD"))
+		return
+	}
+
+	result, err := h.svc.Accounting.GetDailySummary(c.Request.Context(), clinicID, date)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 // CancelAccounting は会計を論理削除（status=cancelled）する。
 // BUG-371: 旧 DeleteAccounting (ハード削除) を本メソッドに置き換え。
 // POST /accountings/:id/cancel

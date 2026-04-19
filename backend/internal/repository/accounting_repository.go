@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -19,6 +20,28 @@ type AccountingRepository interface {
 	// BUG-370: 月末未納者一覧
 	FindUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
 	FindUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
+	// BUG-368: レジ締め日次集計
+	GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error)
+}
+
+// PaymentMethodTotal は支払方法別の売上合計。BUG-368
+type PaymentMethodTotal struct {
+	Method string `json:"method"`
+	Total  int64  `json:"total"`
+}
+
+// CategoryTotal は診療区分別の売上合計。BUG-368
+type CategoryTotal struct {
+	Category string `json:"category"`
+	Total    int64  `json:"total"`
+}
+
+// DailySummaryResult はレジ締め日次集計の結果。BUG-368
+type DailySummaryResult struct {
+	PaymentTotals  []PaymentMethodTotal `json:"payment_totals"`
+	CategoryTotals []CategoryTotal      `json:"category_totals"`
+	BillingCount   int64                `json:"billing_count"`
+	GrandTotal     int64                `json:"grand_total"`
 }
 
 // UnpaidOwnerAggregate は飼主単位の未納集約結果
@@ -262,4 +285,61 @@ func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID u
 		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}
 	return aggregates, totalOwners, summary, nil
+}
+
+// GetDailySummary は指定日（JST）の会計完了分を集計する。BUG-368
+func (r *accountingRepository) GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error) {
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	jstDate := date.In(jst).Format("2006-01-02")
+
+	// 合計件数・売上合計
+	var base struct {
+		BillingCount int64
+		GrandTotal   int64
+	}
+	if err := r.db.WithContext(ctx).
+		Table("billings").
+		Joins("JOIN payments ON payments.billing_id = billings.id").
+		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
+		Where("billings.status = ?", model.BillingStatusCompleted).
+		Where("DATE(billings.completed_at AT TIME ZONE 'Asia/Tokyo') = ?", jstDate).
+		Select("COUNT(DISTINCT billings.id) AS billing_count, COALESCE(SUM(payments.billing_amount), 0) AS grand_total").
+		Scan(&base).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "billing", "")
+	}
+
+	// 支払方法別合計
+	paymentTotals := make([]PaymentMethodTotal, 0)
+	if err := r.db.WithContext(ctx).
+		Table("billings").
+		Joins("JOIN payments ON payments.billing_id = billings.id").
+		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
+		Where("billings.status = ?", model.BillingStatusCompleted).
+		Where("DATE(billings.completed_at AT TIME ZONE 'Asia/Tokyo') = ?", jstDate).
+		Select("payments.method AS method, COALESCE(SUM(payments.billing_amount), 0) AS total").
+		Group("payments.method").
+		Scan(&paymentTotals).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "billing", "")
+	}
+
+	// 診療区分別合計
+	categoryTotals := make([]CategoryTotal, 0)
+	if err := r.db.WithContext(ctx).
+		Table("billings").
+		Joins("JOIN billing_items ON billing_items.billing_id = billings.id AND billing_items.deleted_at IS NULL").
+		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
+		Where("billings.status = ?", model.BillingStatusCompleted).
+		Where("DATE(billings.completed_at AT TIME ZONE 'Asia/Tokyo') = ?", jstDate).
+		Select("billing_items.category::text AS category, COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric)), 0) AS total").
+		Group("billing_items.category").
+		Scan(&categoryTotals).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "billing_item", "")
+	}
+
+	return &DailySummaryResult{
+		PaymentTotals:  paymentTotals,
+		CategoryTotals: categoryTotals,
+		BillingCount:   base.BillingCount,
+		GrandTotal:     base.GrandTotal,
+	}, nil
 }
