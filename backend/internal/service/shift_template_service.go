@@ -124,7 +124,7 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 			return nil, apperrors.Wrap(err, "failed to save shift template breaks")
 		}
 	}
-	slog.InfoContext(ctx, "shift template updated", slog.Uint64("id", id))
+	slog.InfoContext(ctx, "shift template updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("id", id))
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get shift template after update")

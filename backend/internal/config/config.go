@@ -70,6 +70,9 @@ func (c *Config) Validate() error {
 	if c.SMTPHost != "" && c.SMTPPort != "465" && c.SMTPPort != "587" {
 		return fmt.Errorf("SMTP_PORT must be 465 (TLS) or 587 (STARTTLS) in release mode, got %s", c.SMTPPort)
 	}
+	if os.Getenv("LIFF_MOCK") == "true" {
+		return fmt.Errorf("LIFF_MOCK must not be set in release mode")
+	}
 	return nil
 }
 

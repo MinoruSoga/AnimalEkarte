@@ -142,6 +142,9 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	if input.TotalAmount < 0 {
 		return nil, apperrors.WrapInvalidInput("金額は0以上で指定してください")
 	}
+	if input.Subtotal+input.TaxTotal != input.TotalAmount {
+		return nil, apperrors.WrapInvalidInput("小計と税額の合計が請求合計と一致しません")
+	}
 	billing := &model.Billing{
 		ClinicID:          input.ClinicID,
 		MedicalRecordID:   input.MedicalRecordID,
