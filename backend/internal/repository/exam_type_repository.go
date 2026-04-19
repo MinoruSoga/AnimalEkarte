@@ -20,8 +20,8 @@ type ExamTypeRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountUsageByExamTypeID(ctx context.Context, examTypeID uint64) (int64, error)
-	CountChildrenByParentID(ctx context.Context, parentID uint64) (int64, error)
+	CountUsageByExamTypeID(ctx context.Context, clinicID, examTypeID uint64) (int64, error)
+	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
 
 type examTypeRepository struct{ db *gorm.DB }
@@ -88,12 +88,13 @@ func (r *examTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 	return reorderByClinicID(ctx, r.db, &model.ExaminationType{}, "exam_type", clinicID, ids)
 }
 
-// CountUsageByExamTypeID は検査種別を参照している examination_records の件数を返す（BUG-107）
-func (r *examTypeRepository) CountUsageByExamTypeID(ctx context.Context, examTypeID uint64) (int64, error) {
+// CountUsageByExamTypeID は検査種別を参照している exams の件数を返す（BUG-107）
+// exams テーブルは直接 clinic_id を持つためテナント分離を直接適用する
+func (r *examTypeRepository) CountUsageByExamTypeID(ctx context.Context, clinicID, examTypeID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Examination{}).
-		Where("exam_type_id = ?", examTypeID).
+		Where("exam_type_id = ? AND clinic_id = ?", examTypeID, clinicID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "examination_record", "")
 	}
@@ -102,10 +103,11 @@ func (r *examTypeRepository) CountUsageByExamTypeID(ctx context.Context, examTyp
 
 // CountChildrenByParentID は指定した親 ID を持つ子検査種別の件数を返す。
 // 親を削除する前に孤立子が残らないことを確認するために使用する。
-func (r *examTypeRepository) CountChildrenByParentID(ctx context.Context, parentID uint64) (int64, error) {
+func (r *examTypeRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.ExaminationType{}).
+		Scopes(clinicScope(clinicID)).
 		Where("parent_id = ?", parentID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "examination_type", "")

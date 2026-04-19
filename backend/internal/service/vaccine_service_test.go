@@ -18,7 +18,7 @@ type mockVaccineRepository struct {
 	createFn                func(ctx context.Context, vaccine *model.Vaccine) error
 	updateFieldsFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
 	deleteFn                func(ctx context.Context, clinicID, id uint64) error
-	countUsageByVaccineIDFn func(ctx context.Context, vaccineID uint64) (int64, error)
+	countUsageByVaccineIDFn func(ctx context.Context, clinicID, vaccineID uint64) (int64, error)
 }
 
 func (m *mockVaccineRepository) FindAll(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
@@ -45,11 +45,11 @@ func (m *mockVaccineRepository) Reorder(ctx context.Context, clinicID uint64, id
 	return nil
 }
 
-func (m *mockVaccineRepository) CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error) {
+func (m *mockVaccineRepository) CountUsageByVaccineID(ctx context.Context, clinicID, vaccineID uint64) (int64, error) {
 	if m.countUsageByVaccineIDFn == nil {
 		return 0, nil
 	}
-	return m.countUsageByVaccineIDFn(ctx, vaccineID)
+	return m.countUsageByVaccineIDFn(ctx, clinicID, vaccineID)
 }
 
 func TestVaccineService_List(t *testing.T) {
@@ -362,7 +362,7 @@ func TestVaccineService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccineRepository{
-				countUsageByVaccineIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				countUsageByVaccineIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

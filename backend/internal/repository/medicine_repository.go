@@ -19,7 +19,7 @@ type MedicineRepository interface {
 	CountChildren(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	CountUsageByMedicineID(ctx context.Context, medicineID uint64) (int64, error)
 	Create(ctx context.Context, medicine *model.Medicine) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -99,28 +99,19 @@ func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicin
 	return nil
 }
 
-func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *medicineRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Medicine{}).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		var count int64
-		if err := r.db.WithContext(ctx).Model(&model.Medicine{}).
-			Scopes(clinicScope(clinicID)).
-			Where("id = ?", id).
-			Count(&count).Error; err != nil {
-			return apperrors.FromGORM(err, "medicine", fmt.Sprintf("%d", id))
-		}
-		if count == 0 {
-			return apperrors.WrapNotFound("medicine", fmt.Sprintf("%d", id))
-		}
+		return nil, apperrors.WrapNotFound("medicine", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

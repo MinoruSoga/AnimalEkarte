@@ -15,7 +15,7 @@ import (
 type mockMerchandiseItemRepository struct {
 	findAllFn                     func(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error)
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
-	countUsageByMerchandiseItemFn func(ctx context.Context, merchandiseItemID uint64) (int64, error)
+	countUsageByMerchandiseItemFn func(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error)
 	createFn                      func(ctx context.Context, item *model.MerchandiseItem) error
 	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error)
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
@@ -30,9 +30,9 @@ func (m *mockMerchandiseItemRepository) FindByID(ctx context.Context, clinicID, 
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockMerchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Context, merchandiseItemID uint64) (int64, error) {
+func (m *mockMerchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error) {
 	if m.countUsageByMerchandiseItemFn != nil {
-		return m.countUsageByMerchandiseItemFn(ctx, merchandiseItemID)
+		return m.countUsageByMerchandiseItemFn(ctx, clinicID, merchandiseItemID)
 	}
 	return 0, nil
 }
@@ -71,7 +71,7 @@ func TestMerchandiseItemService_Delete_Success(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
 			return item, nil
 		},
-		countUsageByMerchandiseItemFn: func(_ context.Context, _ uint64) (int64, error) {
+		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
 			return 0, nil
 		},
 		deleteFn: func(_ context.Context, _, _ uint64) error {
@@ -105,7 +105,7 @@ func TestMerchandiseItemService_Delete_ConflictWhenInUse(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
 			return item, nil
 		},
-		countUsageByMerchandiseItemFn: func(_ context.Context, _ uint64) (int64, error) {
+		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
 			return 2, nil // 2件の billing_items から参照
 		},
 	}
@@ -123,7 +123,7 @@ func TestMerchandiseItemService_Delete_CountUsageError(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
 			return item, nil
 		},
-		countUsageByMerchandiseItemFn: func(_ context.Context, _ uint64) (int64, error) {
+		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
 			return 0, errors.New("db connection error")
 		},
 	}
@@ -143,7 +143,7 @@ func TestMerchandiseItemService_Delete_RepositoryError(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
 			return item, nil
 		},
-		countUsageByMerchandiseItemFn: func(_ context.Context, _ uint64) (int64, error) {
+		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
 			return 0, nil
 		},
 		deleteFn: func(_ context.Context, _, _ uint64) error {

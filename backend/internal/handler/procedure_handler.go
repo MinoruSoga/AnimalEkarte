@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -80,6 +81,7 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/procedures/%d", procedure.ID))
 	c.JSON(http.StatusCreated, toProcedureResponse(procedure))
 }
 

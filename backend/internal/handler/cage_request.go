@@ -13,8 +13,8 @@ type createCageRequest struct {
 
 type updateCageRequest struct {
 	Name        *string `json:"name"`
-	CageType    *string `json:"cage_type"`
-	CageSize    *string `json:"cage_size"`
+	CageType    *string `json:"cage_type"    binding:"omitempty,oneof=icu dog cat general"`
+	CageSize    *string `json:"cage_size"    binding:"omitempty,oneof=small medium large"`
 	Price       *int64  `json:"price"`
 	IsActive    *bool   `json:"is_active"`
 	Description *string `json:"description"`

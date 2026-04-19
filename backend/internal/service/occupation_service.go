@@ -77,7 +77,7 @@ func (s *occupationService) Create(ctx context.Context, clinicID uint64, input *
 		return nil, apperrors.Wrap(err, "failed to create occupation")
 	}
 	slog.InfoContext(ctx, "occupation created",
-		slog.Uint64("clinic_id", occupation.ClinicID),
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("occupation_id", occupation.ID))
 	return occupation, nil
 }
@@ -101,7 +101,7 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 }
 
 func (s *occupationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountStaffsByOccupationID(ctx, id)
+	count, err := s.repo.CountStaffsByOccupationID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check occupation dependencies")
 	}

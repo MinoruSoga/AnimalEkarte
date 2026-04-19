@@ -129,7 +129,7 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	return procedure, nil
 }
 func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountUsageByProcedureID(ctx, id)
+	count, err := s.repo.CountUsageByProcedureID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check procedure dependencies")
 	}

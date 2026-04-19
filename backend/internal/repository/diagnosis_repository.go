@@ -20,7 +20,7 @@ type DiagnosisTypeRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountNamesByCategoryID(ctx context.Context, categoryID uint64) (int64, error)
+	CountNamesByCategoryID(ctx context.Context, clinicID, categoryID uint64) (int64, error)
 }
 
 type diagnosisTypeRepository struct{ db *gorm.DB }
@@ -32,6 +32,7 @@ func NewDiagnosisTypeRepository(db *gorm.DB) DiagnosisTypeRepository {
 func (r *diagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, error) {
 	categories := make([]model.DiagnosisType, 0)
 	if err := r.db.WithContext(ctx).Model(&model.DiagnosisType{}).Scopes(clinicScope(clinicID)).
+		Preload("Names").
 		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error; err != nil {
@@ -90,11 +91,12 @@ func (r *diagnosisTypeRepository) Delete(ctx context.Context, clinicID, id uint6
 }
 
 // CountNamesByCategoryID は指定カテゴリに属する diagnosis_names の件数を返す（BUG-113 補足）
-func (r *diagnosisTypeRepository) CountNamesByCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
+// diagnosis_names テーブルは直接 clinic_id を持つためテナント分離を直接適用する
+func (r *diagnosisTypeRepository) CountNamesByCategoryID(ctx context.Context, clinicID, categoryID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.DiagnosisName{}).
-		Where("diagnosis_type_id = ?", categoryID).
+		Where("diagnosis_type_id = ? AND clinic_id = ?", categoryID, clinicID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "diagnosis_name", "")
 	}
@@ -116,7 +118,7 @@ type DiagnosisNameRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountClinicalPlansByDiagnosisNameID(ctx context.Context, diagnosisNameID uint64) (int64, error)
+	CountClinicalPlansByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error)
 }
 
 type diagnosisNameRepository struct{ db *gorm.DB }
@@ -199,11 +201,13 @@ func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint6
 
 // CountClinicalPlansByDiagnosisNameID は診断名を参照している clinical_plans の件数を返す（BUG-113）
 // diagnosis_name_id および diagnosis_2_name_id 両方をカウントする
-func (r *diagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(ctx context.Context, diagnosisNameID uint64) (int64, error) {
+// clinical_plans は直接 clinic_id を持たないため medical_records を JOIN してテナント分離する
+func (r *diagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.ClinicalPlan{}).
-		Where("diagnosis_name_id = ? OR diagnosis_2_name_id = ?", diagnosisNameID, diagnosisNameID).
+		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Where("clinical_plans.diagnosis_name_id = ? OR clinical_plans.diagnosis_2_name_id = ?", diagnosisNameID, diagnosisNameID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "clinical_plan", "")
 	}

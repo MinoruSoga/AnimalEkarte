@@ -17,7 +17,7 @@ type mockMedicineRepository struct {
 	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
 	countChildrenFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	createFn        func(ctx context.Context, medicine *model.Medicine) error
-	updateFn        func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFieldsFn  func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error)
 	deleteFn        func(ctx context.Context, clinicID, id uint64) error
 	reorderFn       func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -45,8 +45,8 @@ func (m *mockMedicineRepository) Create(ctx context.Context, medicine *model.Med
 	return m.createFn(ctx, medicine)
 }
 
-func (m *mockMedicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockMedicineRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockMedicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -306,12 +306,15 @@ func TestMedicineService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicineRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-					return tt.updateErr
-				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
 					if tt.findErr != nil {
 						return nil, tt.findErr
+					}
+					return existingMedicine, nil
+				},
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Medicine, error) {
+					if tt.updateErr != nil {
+						return nil, tt.updateErr
 					}
 					return existingMedicine, nil
 				},

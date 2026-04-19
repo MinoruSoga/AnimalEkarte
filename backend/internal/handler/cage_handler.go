@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -75,6 +76,7 @@ func (h *Handler) CreateCage(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/cages/%d", cage.ID))
 	c.JSON(http.StatusCreated, toCageResponse(cage))
 }
 

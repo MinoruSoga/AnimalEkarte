@@ -79,7 +79,7 @@ func (s *chiefComplaintTypeService) Create(ctx context.Context, clinicID uint64,
 	}
 	slog.InfoContext(ctx, "chief complaint category created",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("category_id", category.ID))
+		slog.Uint64("chief_complaint_type_id", category.ID))
 	return category, nil
 }
 
@@ -97,7 +97,7 @@ func (s *chiefComplaintTypeService) Update(ctx context.Context, clinicID, id uin
 	}
 	slog.InfoContext(ctx, "chief complaint category updated",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("category_id", id))
+		slog.Uint64("chief_complaint_type_id", id))
 	return result, nil
 }
 
@@ -127,7 +127,7 @@ func (s *chiefComplaintTypeService) Delete(ctx context.Context, clinicID, id uin
 	}
 	slog.InfoContext(ctx, "chief complaint category deleted",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("category_id", id))
+		slog.Uint64("chief_complaint_type_id", id))
 	return nil
 }
 

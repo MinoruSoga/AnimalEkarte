@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -75,6 +76,7 @@ func (h *Handler) CreateDiagnosisType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/diagnosis-types/%d", category.ID))
 	c.JSON(http.StatusCreated, toDiagnosisTypeResponse(category))
 }
 
@@ -225,6 +227,7 @@ func (h *Handler) CreateDiagnosisName(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/diagnosis-names/%d", diagnosisName.ID))
 	c.JSON(http.StatusCreated, toDiagnosisNameResponse(diagnosisName))
 }
 

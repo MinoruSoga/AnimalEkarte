@@ -95,15 +95,12 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	if err := s.repo.Update(ctx, id, fields); err != nil {
+	result, err := s.repo.UpdateFields(ctx, id, fields)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update animal species")
 	}
 	slog.InfoContext(ctx, "animal species updated",
 		slog.Uint64("species_id", id))
-	result, err := s.repo.FindByID(ctx, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get animal species after update")
-	}
 	return result, nil
 }
 

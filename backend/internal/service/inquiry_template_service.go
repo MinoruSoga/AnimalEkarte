@@ -81,7 +81,7 @@ func (s *inquiryTemplateService) Create(ctx context.Context, clinicID uint64, in
 	}
 	slog.InfoContext(ctx, "inquiry template created",
 		slog.Uint64("clinic_id", template.ClinicID),
-		slog.Uint64("template_id", template.ID))
+		slog.Uint64("inquiry_template_id", template.ID))
 	return template, nil
 }
 
@@ -99,7 +99,7 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 	}
 	slog.InfoContext(ctx, "inquiry template updated",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("template_id", id))
+		slog.Uint64("inquiry_template_id", id))
 	return result, nil
 }
 
@@ -112,7 +112,7 @@ func (s *inquiryTemplateService) Delete(ctx context.Context, clinicID, id uint64
 	}
 	slog.InfoContext(ctx, "inquiry template deleted",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("template_id", id))
+		slog.Uint64("inquiry_template_id", id))
 	return nil
 }
 

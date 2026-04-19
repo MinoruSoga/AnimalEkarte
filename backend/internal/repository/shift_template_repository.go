@@ -57,7 +57,7 @@ func (r *shiftTemplateRepository) FindByID(ctx context.Context, clinicID, id uin
 func (r *shiftTemplateRepository) Create(ctx context.Context, tpl *model.ShiftTemplate) error {
 	if err := r.db.WithContext(ctx).Omit("Breaks").Create(tpl).Error; err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("shift_template", tpl.Name)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "shift_template", "")
 	}
@@ -71,7 +71,7 @@ func (r *shiftTemplateRepository) Update(ctx context.Context, clinicID, id uint6
 		Updates(fields)
 	if result.Error != nil {
 		if isUniqueConstraintErr(result.Error) {
-			return apperrors.WrapAlreadyExists("shift_template", fmt.Sprintf("%d", id))
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(result.Error, "shift_template", strconv.FormatUint(id, 10))
 	}

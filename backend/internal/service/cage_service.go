@@ -79,7 +79,7 @@ func (s *cageService) Create(ctx context.Context, clinicID uint64, input *Create
 		return nil, apperrors.Wrap(err, "failed to create cage")
 	}
 	slog.InfoContext(ctx, "cage created",
-		slog.Uint64("clinic_id", cage.ClinicID),
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("cage_id", cage.ID))
 	return cage, nil
 }
@@ -97,7 +97,7 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 			return nil, err
 		}
 	}
-	fields := buildCageUpdateFields(*input)
+	fields := buildCageUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -157,7 +157,7 @@ const (
 	colCageSortOrder   = "sort_order"
 )
 
-func buildCageUpdateFields(input UpdateCageInput) map[string]any {
+func buildCageUpdateFields(input *UpdateCageInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colCageName] = *input.Name

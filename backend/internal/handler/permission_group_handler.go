@@ -2,7 +2,7 @@
 package handler
 
 import (
-	"fmt"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 
@@ -10,9 +10,21 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// marshalAuditJSON は監査ログ用に値をJSONバイト列にシリアライズするヘルパー。
+// nil の場合は nil を返す。エラー時は nil を返す（監査ログはベストエフォート）。
+func marshalAuditJSON(v any) []byte {
+	if v == nil {
+		return nil
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	return b
+}
 
 // ---- PermissionGroup ----
 
@@ -82,7 +94,7 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 			Action:     model.AuditActionPermissionGroupCreate,
 			Resource:   "permission_group",
 			ResourceID: &pg.ID,
-			NewValue:   repository.MarshalAuditJSON(pg),
+			NewValue:   marshalAuditJSON(pg),
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
 		}); auditErr != nil {
@@ -133,7 +145,7 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 			Action:     model.AuditActionPermissionGroupUpdate,
 			Resource:   "permission_group",
 			ResourceID: &id,
-			NewValue:   repository.MarshalAuditJSON(updated),
+			NewValue:   marshalAuditJSON(updated),
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
 		}); auditErr != nil {
@@ -175,7 +187,7 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 		}
 		if oldPG != nil {
 			auditLog.ClinicID = &oldPG.ClinicID
-			auditLog.OldValue = repository.MarshalAuditJSON(oldPG)
+			auditLog.OldValue = marshalAuditJSON(oldPG)
 		}
 		if auditErr := h.svc.Audit.Log(c.Request.Context(), auditLog); auditErr != nil {
 			slog.ErrorContext(c.Request.Context(), "failed to log permission group deletion", slog.String("error", auditErr.Error()))
@@ -209,51 +221,15 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 		return
 	}
 
-	// BUG-140: 自分が所属するグループの master-permission edit を削除できないようにする
+	// BUG-140 / BUG-146: バリデーションは service 層に委譲
 	staffID, ok := extractStaffID(c)
 	if !ok {
 		return
 	}
-	myGroupIDs, groupErr := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), staffID)
-	if groupErr == nil {
-		isSelfGroup := false
-		for _, gid := range myGroupIDs {
-			if gid == id {
-				isSelfGroup = true
-				break
-			}
-		}
-		if isSelfGroup {
-			hasMasterPermEdit := false
-			for _, r := range req.Rules {
-				if r.Resource == string(model.ResourceMasterPermission) && r.CanEdit {
-					hasMasterPermEdit = true
-					break
-				}
-			}
-			if !hasMasterPermEdit {
-				RespondError(c, apperrors.WrapInvalidInput("自分が所属するグループの権限管理権限（master-permission edit）を削除することはできません"))
-				return
-			}
-		}
-	}
-
-	// BUG-146: 入力バリデーション — 空文字・存在しないリソース名・重複を拒否
-	seen := make(map[string]bool, len(req.Rules))
-	for _, r := range req.Rules {
-		if r.Resource == "" {
-			RespondError(c, apperrors.WrapInvalidInput("リソース名が空です"))
-			return
-		}
-		if !model.IsValidResource(r.Resource) {
-			RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("無効なリソース名: %s", r.Resource)))
-			return
-		}
-		if seen[r.Resource] {
-			RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("リソース名が重複しています: %s", r.Resource)))
-			return
-		}
-		seen[r.Resource] = true
+	// staffID が所属するグループ ID 一覧を取得（self-reference チェックに使用）
+	var staffGroupIDs []uint64
+	if myGroupIDs, groupErr := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), staffID); groupErr == nil {
+		staffGroupIDs = myGroupIDs
 	}
 
 	// Convert request rules to model
@@ -268,7 +244,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 		})
 	}
 
-	if err := h.svc.PermissionGroup.SetRules(c.Request.Context(), id, rules); err != nil {
+	if err := h.svc.PermissionGroup.SetRules(c.Request.Context(), id, rules, staffGroupIDs); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -281,7 +257,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 			Action:     model.AuditActionPermissionRulesUpdate,
 			Resource:   "permission_group_rules",
 			ResourceID: &id,
-			NewValue:   repository.MarshalAuditJSON(rules),
+			NewValue:   marshalAuditJSON(rules),
 			IPAddress:  c.ClientIP(),
 			UserAgent:  c.Request.Header.Get("User-Agent"),
 		}); auditErr != nil {

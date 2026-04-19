@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -62,6 +63,7 @@ func (h *Handler) CreateReservationTypeGroup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-type-groups/%d", g.ID))
 	c.JSON(http.StatusCreated, toReservationTypeGroupResponse(g))
 }
 

@@ -20,8 +20,8 @@ type CheckupTypeRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountUsageByCheckupTypeID(ctx context.Context, checkupTypeID uint64) (int64, error)
-	CountChildrenByParentID(ctx context.Context, parentID uint64) (int64, error)
+	CountUsageByCheckupTypeID(ctx context.Context, clinicID, checkupTypeID uint64) (int64, error)
+	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
 
 type checkupTypeRepository struct{ db *gorm.DB }
@@ -88,12 +88,13 @@ func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, id
 	return reorderByClinicID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, ids)
 }
 
-// CountUsageByCheckupTypeID は定期健診種別を参照している checkup_records の件数を返す（BUG-107）
-func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, checkupTypeID uint64) (int64, error) {
+// CountUsageByCheckupTypeID は定期健診種別を参照している checkups の件数を返す（BUG-107）
+// checkups テーブルは直接 clinic_id を持つためテナント分離を直接適用する
+func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, clinicID, checkupTypeID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Checkup{}).
-		Where("checkup_type_id = ?", checkupTypeID).
+		Where("checkup_type_id = ? AND clinic_id = ?", checkupTypeID, clinicID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "checkup_record", "")
 	}
@@ -101,10 +102,11 @@ func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, c
 }
 
 // CountChildrenByParentID は指定した親 ID を持つ子健診種別の件数を返す。
-func (r *checkupTypeRepository) CountChildrenByParentID(ctx context.Context, parentID uint64) (int64, error) {
+func (r *checkupTypeRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.CheckupType{}).
+		Scopes(clinicScope(clinicID)).
 		Where("parent_id = ?", parentID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "checkup_type", "")

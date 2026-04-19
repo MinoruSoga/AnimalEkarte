@@ -20,7 +20,7 @@ type ProcedureRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountUsageByProcedureID(ctx context.Context, procedureID uint64) (int64, error)
+	CountUsageByProcedureID(ctx context.Context, clinicID, procedureID uint64) (int64, error)
 }
 
 type procedureRepository struct{ db *gorm.DB }
@@ -80,17 +80,20 @@ func (r *procedureRepository) Delete(ctx context.Context, clinicID, id uint64) e
 }
 
 // CountUsageByProcedureID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-107）
-func (r *procedureRepository) CountUsageByProcedureID(ctx context.Context, procedureID uint64) (int64, error) {
+// treatments/care_plan_items は直接 clinic_id を持たないため JOIN でテナント分離する
+func (r *procedureRepository) CountUsageByProcedureID(ctx context.Context, clinicID, procedureID uint64) (int64, error) {
 	var treatmentCount, carePlanCount int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Treatment{}).
-		Where("procedure_id = ?", procedureID).
+		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Where("treatments.procedure_id = ?", procedureID).
 		Count(&treatmentCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "treatment", "")
 	}
 	if err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
-		Where("procedure_id = ?", procedureID).
+		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.clinic_id = ? AND hospitalizations.deleted_at IS NULL", clinicID).
+		Where("care_plan_items.procedure_id = ?", procedureID).
 		Count(&carePlanCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", "")
 	}

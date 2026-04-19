@@ -105,16 +105,13 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 		}
 		return g, nil
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, apperrors.Wrap(err, "failed to update reservation_type_group")
-	}
-	g, err := s.repo.FindByID(ctx, clinicID, id)
+	g, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get updated reservation type group")
+		return nil, apperrors.Wrap(err, "failed to update reservation_type_group")
 	}
 	slog.InfoContext(ctx, "reservation_type_group updated",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("reservation_type_group_id", g.ID))
+		slog.Uint64("reservation_type_group_id", id))
 	return g, nil
 }
 
@@ -147,8 +144,8 @@ func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id u
 		return apperrors.Wrap(err, "failed to delete reservation type group")
 	}
 	slog.InfoContext(ctx, "reservation_type_group deleted",
-		slog.Uint64("reservation_type_group_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("reservation_type_group_id", id))
 	return nil
 }
 

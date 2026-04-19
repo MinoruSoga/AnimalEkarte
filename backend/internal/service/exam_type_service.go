@@ -76,7 +76,7 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildExamTypeUpdateFields(*input)
+	fields := buildExamTypeUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -88,14 +88,14 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	return exType, nil
 }
 func (s *examTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
-	childCount, err := s.repo.CountChildrenByParentID(ctx, id)
+	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check exam type children")
 	}
 	if childCount > 0 {
 		return apperrors.WrapConflict("この検査種別にはサブ種別が登録されているため削除できません")
 	}
-	count, err := s.repo.CountUsageByExamTypeID(ctx, id)
+	count, err := s.repo.CountUsageByExamTypeID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check exam type dependencies")
 	}
@@ -142,7 +142,7 @@ const (
 	colExamTypeSortOrder   = "sort_order"
 )
 
-func buildExamTypeUpdateFields(input UpdateExamTypeInput) map[string]any {
+func buildExamTypeUpdateFields(input *UpdateExamTypeInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colExamTypeName] = *input.Name

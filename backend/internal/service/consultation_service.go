@@ -107,7 +107,7 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	return consultation, nil
 }
 func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountUsageByConsultationID(ctx, id)
+	count, err := s.repo.CountUsageByConsultationID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check consultation dependencies")
 	}
@@ -145,7 +145,7 @@ type UpdateConsultationInput struct {
 	ParentID      *uint64
 	ClearParentID bool
 	SortOrder     *int
-	TaxType       *model.TaxType
+	TaxType       *string
 	TaxRate       *float64
 }
 
@@ -178,7 +178,7 @@ func buildConsultationUpdateFields(input *UpdateConsultationInput) map[string]an
 		fields["sort_order"] = *input.SortOrder
 	}
 	if input.TaxType != nil {
-		fields["tax_type"] = *input.TaxType
+		fields["tax_type"] = model.TaxType(*input.TaxType)
 	}
 	if input.TaxRate != nil {
 		fields["tax_rate"] = *input.TaxRate

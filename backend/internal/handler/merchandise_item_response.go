@@ -7,17 +7,17 @@ import (
 )
 
 type merchandiseItemResponse struct {
-	ID        uint64    `json:"id"`
-	ClinicID  uint64    `json:"clinic_id"`
-	Name      string    `json:"name"`
-	Category  string    `json:"category"`
-	UnitPrice int64     `json:"unit_price"`
-	TaxType   string    `json:"tax_type"`
-	TaxRate   float64   `json:"tax_rate"`
-	IsActive  bool      `json:"is_active"`
-	SortOrder int       `json:"sort_order"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint64             `json:"id"`
+	ClinicID  uint64             `json:"clinic_id"`
+	Name      string             `json:"name"`
+	Category  model.ItemCategory `json:"category"`
+	UnitPrice int64              `json:"unit_price"`
+	TaxType   model.TaxType      `json:"tax_type"`
+	TaxRate   float64            `json:"tax_rate"`
+	IsActive  bool               `json:"is_active"`
+	SortOrder int                `json:"sort_order"`
+	CreatedAt time.Time          `json:"created_at"`
+	UpdatedAt time.Time          `json:"updated_at"`
 }
 
 func toMerchandiseItemResponse(m *model.MerchandiseItem) merchandiseItemResponse {
@@ -25,9 +25,9 @@ func toMerchandiseItemResponse(m *model.MerchandiseItem) merchandiseItemResponse
 		ID:        m.ID,
 		ClinicID:  m.ClinicID,
 		Name:      m.Name,
-		Category:  string(m.Category),
+		Category:  m.Category,
 		UnitPrice: m.UnitPrice,
-		TaxType:   string(m.TaxType),
+		TaxType:   m.TaxType,
 		TaxRate:   m.TaxRate,
 		IsActive:  m.IsActive,
 		SortOrder: m.SortOrder,

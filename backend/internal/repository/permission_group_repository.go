@@ -17,10 +17,10 @@ type PermissionGroupRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
 	Create(ctx context.Context, group *model.PermissionGroup) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
-	CountStaffsByGroupID(ctx context.Context, groupID uint64) (int64, error)
+	CountStaffsByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	// GetEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
 	// UNION (bool_or) して実効権限を返す。
@@ -72,21 +72,21 @@ func (r *permissionGroupRepository) Create(ctx context.Context, group *model.Per
 	return nil
 }
 
-func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *permissionGroupRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.PermissionGroup{}).
 		Scopes(clinicScope(clinicID)).Where("id = ? AND deleted_at IS NULL", id).
 		Updates(fields)
 	if result.Error != nil {
 		if isUniqueConstraintErr(result.Error) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
+			return nil, apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("permission_group", fmt.Sprintf("%d", id))
+		return nil, apperrors.WrapNotFound("permission_group", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -129,11 +129,13 @@ func (r *permissionGroupRepository) SetRules(ctx context.Context, groupID uint64
 }
 
 // CountStaffsByGroupID は指定グループを参照しているスタッフ数を返す（削除前の依存チェック用）
-func (r *permissionGroupRepository) CountStaffsByGroupID(ctx context.Context, groupID uint64) (int64, error) {
+// permission_groups テーブルが clinic_id を持つため JOIN でテナント分離を行う
+func (r *permissionGroupRepository) CountStaffsByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.StaffPermissionGroup{}).
-		Where("group_id = ?", groupID).
+		Joins("JOIN permission_groups ON permission_groups.id = staff_permission_groups.group_id AND permission_groups.clinic_id = ? AND permission_groups.deleted_at IS NULL", clinicID).
+		Where("staff_permission_groups.group_id = ?", groupID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "staff_permission_group", "")
 	}

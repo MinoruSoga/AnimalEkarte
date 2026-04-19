@@ -37,7 +37,7 @@ type PermissionGroupService interface {
 	Create(ctx context.Context, clinicID uint64, input CreatePermissionGroupInput) (*model.PermissionGroup, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePermissionGroupInput) (*model.PermissionGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
+	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule, staffGroupIDs []uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
 }
@@ -80,7 +80,7 @@ func (s *permissionGroupService) Create(ctx context.Context, clinicID uint64, in
 	}
 	slog.InfoContext(ctx, "permission group created",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("group_id", group.ID),
+		slog.Uint64("permission_group_id", group.ID),
 		slog.String("name", group.Name))
 	return group, nil
 }
@@ -90,21 +90,18 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update permission group")
 	}
 	slog.InfoContext(ctx, "permission group updated",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("group_id", id))
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get permission group after update")
-	}
+		slog.Uint64("permission_group_id", id))
 	return result, nil
 }
 
 func (s *permissionGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountStaffsByGroupID(ctx, id)
+	count, err := s.repo.CountStaffsByGroupID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check permission group dependencies")
 	}
@@ -116,17 +113,68 @@ func (s *permissionGroupService) Delete(ctx context.Context, clinicID, id uint64
 	}
 	slog.InfoContext(ctx, "permission group deleted",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("group_id", id))
+		slog.Uint64("permission_group_id", id))
 	return nil
 }
 
-func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
+func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule, staffGroupIDs []uint64) error {
+	// BUG-146: 入力バリデーション — 空文字・存在しないリソース名・重複を拒否
+	if err := validateNoDuplicateRules(rules); err != nil {
+		return err
+	}
+	// BUG-140: 自分が所属するグループの master-permission edit を削除できないようにする
+	if err := validateNotSelfReference(groupID, rules, staffGroupIDs); err != nil {
+		return err
+	}
 	if err := s.repo.SetRules(ctx, groupID, rules); err != nil {
 		return apperrors.Wrap(err, "failed to set permission group rules")
 	}
 	slog.InfoContext(ctx, "permission group rules set",
-		slog.Uint64("group_id", groupID),
+		slog.Uint64("permission_group_id", groupID),
 		slog.Int("rule_count", len(rules)))
+	return nil
+}
+
+// validateNoDuplicateRules は空文字・存在しないリソース名・重複を検証する（BUG-146）
+func validateNoDuplicateRules(rules []model.PermissionGroupRule) error {
+	seen := make(map[string]bool, len(rules))
+	for _, r := range rules {
+		if r.Resource == "" {
+			return apperrors.WrapInvalidInput("リソース名が空です")
+		}
+		if !model.IsValidResource(r.Resource) {
+			return apperrors.WrapInvalidInput("無効なリソース名: " + r.Resource)
+		}
+		if seen[r.Resource] {
+			return apperrors.WrapInvalidInput("リソース名が重複しています: " + r.Resource)
+		}
+		seen[r.Resource] = true
+	}
+	return nil
+}
+
+// validateNotSelfReference は自分が所属するグループの master-permission edit を削除しないことを検証する（BUG-140）
+func validateNotSelfReference(groupID uint64, rules []model.PermissionGroupRule, staffGroupIDs []uint64) error {
+	isSelfGroup := false
+	for _, gid := range staffGroupIDs {
+		if gid == groupID {
+			isSelfGroup = true
+			break
+		}
+	}
+	if !isSelfGroup {
+		return nil
+	}
+	hasMasterPermEdit := false
+	for _, r := range rules {
+		if r.Resource == string(model.ResourceMasterPermission) && r.CanEdit {
+			hasMasterPermEdit = true
+			break
+		}
+	}
+	if !hasMasterPermEdit {
+		return apperrors.WrapInvalidInput("自分が所属するグループの権限管理権限（master-permission edit）を削除することはできません")
+	}
 	return nil
 }
 
@@ -151,22 +199,30 @@ func (s *permissionGroupService) GetEffectivePermissions(ctx context.Context, st
 	return rules, nil
 }
 
+const (
+	colPermissionGroupName        = "name"
+	colPermissionGroupDescription = "description"
+	colPermissionGroupColor       = "color"
+	colPermissionGroupSortOrder   = "sort_order"
+	colPermissionGroupIsActive    = "is_active"
+)
+
 func buildPermissionGroupUpdateFields(input *UpdatePermissionGroupInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colPermissionGroupName] = *input.Name
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colPermissionGroupDescription] = *input.Description
 	}
 	if input.Color != nil {
-		fields["color"] = *input.Color
+		fields[colPermissionGroupColor] = *input.Color
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colPermissionGroupSortOrder] = *input.SortOrder
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colPermissionGroupIsActive] = *input.IsActive
 	}
 	return fields
 }

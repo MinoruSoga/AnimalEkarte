@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -73,6 +74,7 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/checkup-types/%d", checkupType.ID))
 	c.JSON(http.StatusCreated, toCheckupTypeResponse(checkupType))
 }
 
@@ -92,7 +94,7 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 		return
 	}
 
-	svcInput := service.UpdateCheckupTypeInput{
+	svcInput := &service.UpdateCheckupTypeInput{
 		Name:          input.Name,
 		Price:         input.Price,
 		IsActive:      input.IsActive,

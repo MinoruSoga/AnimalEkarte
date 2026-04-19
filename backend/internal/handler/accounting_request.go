@@ -63,7 +63,7 @@ type createBillingItemRequest struct {
 type updateBillingItemRequest struct {
 	UnitPrice             *int64   `json:"unit_price"`
 	Quantity              *float64 `json:"quantity"`
-	TaxType               *string  `json:"tax_type"`
+	TaxType               *string  `json:"tax_type"  binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate               *float64 `json:"tax_rate"`
 	IsInsuranceApplicable *bool    `json:"is_insurance_applicable"`
 }

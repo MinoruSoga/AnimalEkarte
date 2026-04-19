@@ -95,7 +95,7 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 	return course, nil
 }
 func (s *trimmingCourseService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountRecordsByCourseID(ctx, id)
+	count, err := s.repo.CountRecordsByCourseID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check trimming course dependencies")
 	}
@@ -251,7 +251,7 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 	return option, nil
 }
 func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountRecordsByOptionID(ctx, id)
+	count, err := s.repo.CountRecordsByOptionID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check trimming option dependencies")
 	}

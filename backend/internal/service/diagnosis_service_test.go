@@ -22,7 +22,7 @@ type mockDiagnosisTypeRepository struct {
 	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error)
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                func(ctx context.Context, clinicID uint64, ids []uint64) error
-	countNamesByCategoryIDFn func(ctx context.Context, categoryID uint64) (int64, error)
+	countNamesByCategoryIDFn func(ctx context.Context, clinicID, categoryID uint64) (int64, error)
 }
 
 func (m *mockDiagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, error) {
@@ -52,11 +52,11 @@ func (m *mockDiagnosisTypeRepository) Reorder(ctx context.Context, clinicID uint
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockDiagnosisTypeRepository) CountNamesByCategoryID(ctx context.Context, categoryID uint64) (int64, error) {
+func (m *mockDiagnosisTypeRepository) CountNamesByCategoryID(ctx context.Context, clinicID, categoryID uint64) (int64, error) {
 	if m.countNamesByCategoryIDFn == nil {
 		return 0, nil
 	}
-	return m.countNamesByCategoryIDFn(ctx, categoryID)
+	return m.countNamesByCategoryIDFn(ctx, clinicID, categoryID)
 }
 
 // ---- DiagnosisName モック ----
@@ -102,7 +102,7 @@ func (m *mockDiagnosisNameRepository) Reorder(ctx context.Context, clinicID uint
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockDiagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockDiagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -412,7 +412,7 @@ func TestDiagnosisTypeService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockDiagnosisTypeRepository{
-				countNamesByCategoryIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				countNamesByCategoryIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.nameCount, tt.countNamesErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

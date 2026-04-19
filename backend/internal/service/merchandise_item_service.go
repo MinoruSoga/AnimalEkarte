@@ -144,7 +144,7 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 
 	slog.InfoContext(ctx, "merchandise item created",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("item_id", item.ID),
+		slog.Uint64("merchandise_item_id", item.ID),
 		slog.String("name", item.Name),
 	)
 	return item, nil
@@ -193,7 +193,7 @@ func (s *merchandiseItemService) Delete(ctx context.Context, clinicID, id uint64
 		return apperrors.Wrap(err, "failed to get merchandise item")
 	}
 
-	count, err := s.repo.CountUsageByMerchandiseItemID(ctx, id)
+	count, err := s.repo.CountUsageByMerchandiseItemID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check merchandise item dependencies")
 	}

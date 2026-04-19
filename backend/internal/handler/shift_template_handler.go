@@ -109,11 +109,7 @@ func (h *Handler) ListShiftTemplates(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	result := make([]shiftTemplateResponse, 0, len(items))
-	for i := range items {
-		result = append(result, toShiftTemplateResponse(&items[i]))
-	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, mapSlice(items, toShiftTemplateResponse))
 }
 
 // CreateShiftTemplate POST /api/v1/shift-templates

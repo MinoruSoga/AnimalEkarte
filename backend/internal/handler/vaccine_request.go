@@ -16,7 +16,7 @@ type updateVaccineRequest struct {
 	Price         *int64  `json:"price"`
 	IsActive      *bool   `json:"is_active"`
 	Description   *string `json:"description"`
-	Species       *string `json:"species"`
+	Species       *string `json:"species"      binding:"omitempty,oneof=dog cat both"`
 	Interval      *string `json:"interval"`
 	ParentID      *uint64 `json:"parent_id"`
 	ClearParentID bool    `json:"clear_parent_id"`

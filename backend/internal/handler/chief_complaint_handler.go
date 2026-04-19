@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -69,6 +70,7 @@ func (h *Handler) CreateChiefComplaint(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/chief-complaint-types/%d", category.ID))
 	c.JSON(http.StatusCreated, toChiefComplaintResponse(category))
 }
 

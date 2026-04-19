@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -70,6 +71,7 @@ func (h *Handler) CreateInquiryTemplate(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/inquiry-templates/%d", tmpl.ID))
 	c.JSON(http.StatusCreated, toInquiryTemplateResponse(tmpl))
 }
 

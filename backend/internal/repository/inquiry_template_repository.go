@@ -53,7 +53,7 @@ func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.
 	err := r.db.WithContext(ctx).Create(template).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("inquiry_template", template.Title)
+			return apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
 		return apperrors.FromGORM(err, "inquiry_template", "")
 	}

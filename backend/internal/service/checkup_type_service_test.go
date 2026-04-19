@@ -18,7 +18,7 @@ type mockCheckupTypeRepository struct {
 	createFn                    func(ctx context.Context, checkupType *model.CheckupType) error
 	updateFieldsFn              func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
 	deleteFn                    func(ctx context.Context, clinicID, id uint64) error
-	countUsageByCheckupTypeIDFn func(ctx context.Context, checkupTypeID uint64) (int64, error)
+	countUsageByCheckupTypeIDFn func(ctx context.Context, clinicID, checkupTypeID uint64) (int64, error)
 }
 
 func (m *mockCheckupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
@@ -45,14 +45,14 @@ func (m *mockCheckupTypeRepository) Reorder(ctx context.Context, clinicID uint64
 	return nil
 }
 
-func (m *mockCheckupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, checkupTypeID uint64) (int64, error) {
+func (m *mockCheckupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, clinicID, checkupTypeID uint64) (int64, error) {
 	if m.countUsageByCheckupTypeIDFn == nil {
 		return 0, nil
 	}
-	return m.countUsageByCheckupTypeIDFn(ctx, checkupTypeID)
+	return m.countUsageByCheckupTypeIDFn(ctx, clinicID, checkupTypeID)
 }
 
-func (m *mockCheckupTypeRepository) CountChildrenByParentID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockCheckupTypeRepository) CountChildrenByParentID(_ context.Context, _ uint64, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -249,7 +249,7 @@ func TestCheckupTypeService_Update(t *testing.T) {
 		name     string
 		clinicID uint64
 		id       uint64
-		input    UpdateCheckupTypeInput
+		input    *UpdateCheckupTypeInput
 		repoData *model.CheckupType
 		repoErr  error
 		wantErr  bool
@@ -258,7 +258,7 @@ func TestCheckupTypeService_Update(t *testing.T) {
 			name:     "updates checkup type successfully",
 			clinicID: 1,
 			id:       1,
-			input:    UpdateCheckupTypeInput{Name: &name, IsActive: &isActive},
+			input:    &UpdateCheckupTypeInput{Name: &name, IsActive: &isActive},
 			repoData: &model.CheckupType{ID: 1, Name: name, IsActive: isActive},
 			repoErr:  nil,
 			wantErr:  false,
@@ -267,7 +267,7 @@ func TestCheckupTypeService_Update(t *testing.T) {
 			name:     "returns error when no fields provided",
 			clinicID: 1,
 			id:       1,
-			input:    UpdateCheckupTypeInput{},
+			input:    &UpdateCheckupTypeInput{},
 			repoErr:  nil,
 			wantErr:  true,
 		},
@@ -275,7 +275,7 @@ func TestCheckupTypeService_Update(t *testing.T) {
 			name:     "returns not found error when checkup type does not exist",
 			clinicID: 1,
 			id:       999,
-			input:    UpdateCheckupTypeInput{Name: &name},
+			input:    &UpdateCheckupTypeInput{Name: &name},
 			repoData: nil,
 			repoErr:  apperrors.WrapNotFound("checkup_type", "999"),
 			wantErr:  true,
@@ -284,7 +284,7 @@ func TestCheckupTypeService_Update(t *testing.T) {
 			name:     "returns error on repository failure",
 			clinicID: 1,
 			id:       1,
-			input:    UpdateCheckupTypeInput{Name: &name},
+			input:    &UpdateCheckupTypeInput{Name: &name},
 			repoData: nil,
 			repoErr:  errors.New("db error"),
 			wantErr:  true,
@@ -371,7 +371,7 @@ func TestCheckupTypeService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCheckupTypeRepository{
-				countUsageByCheckupTypeIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				countUsageByCheckupTypeIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

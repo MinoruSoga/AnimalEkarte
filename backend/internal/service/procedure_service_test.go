@@ -19,7 +19,7 @@ type mockProcedureRepository struct {
 	createFn                  func(ctx context.Context, procedure *model.Procedure) error
 	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
-	countUsageByProcedureIDFn func(ctx context.Context, procedureID uint64) (int64, error)
+	countUsageByProcedureIDFn func(ctx context.Context, clinicID, procedureID uint64) (int64, error)
 	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -50,11 +50,11 @@ func (m *mockProcedureRepository) Reorder(ctx context.Context, clinicID uint64, 
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockProcedureRepository) CountUsageByProcedureID(ctx context.Context, procedureID uint64) (int64, error) {
+func (m *mockProcedureRepository) CountUsageByProcedureID(ctx context.Context, clinicID, procedureID uint64) (int64, error) {
 	if m.countUsageByProcedureIDFn == nil {
 		return 0, nil
 	}
-	return m.countUsageByProcedureIDFn(ctx, procedureID)
+	return m.countUsageByProcedureIDFn(ctx, clinicID, procedureID)
 }
 
 // ---- Tests ----
@@ -351,7 +351,7 @@ func TestProcedureService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockProcedureRepository{
-				countUsageByProcedureIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				countUsageByProcedureIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

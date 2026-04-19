@@ -19,7 +19,7 @@ type mockConsultationRepository struct {
 	createFn                     func(ctx context.Context, consultation *model.Consultation) error
 	updateFieldsFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
 	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
-	countUsageByConsultationIDFn func(ctx context.Context, consultationID uint64) (int64, error)
+	countUsageByConsultationIDFn func(ctx context.Context, clinicID, consultationID uint64) (int64, error)
 	reorderErr                   error
 }
 
@@ -47,11 +47,11 @@ func (m *mockConsultationRepository) Reorder(_ context.Context, _ uint64, _ []ui
 	return m.reorderErr
 }
 
-func (m *mockConsultationRepository) CountUsageByConsultationID(ctx context.Context, consultationID uint64) (int64, error) {
+func (m *mockConsultationRepository) CountUsageByConsultationID(ctx context.Context, clinicID, consultationID uint64) (int64, error) {
 	if m.countUsageByConsultationIDFn == nil {
 		return 0, nil
 	}
-	return m.countUsageByConsultationIDFn(ctx, consultationID)
+	return m.countUsageByConsultationIDFn(ctx, clinicID, consultationID)
 }
 
 // ---- Tests ----
@@ -367,7 +367,7 @@ func TestConsultationService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockConsultationRepository{
-				countUsageByConsultationIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				countUsageByConsultationIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

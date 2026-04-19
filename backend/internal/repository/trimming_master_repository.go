@@ -20,7 +20,7 @@ type TrimmingCourseRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountRecordsByCourseID(ctx context.Context, courseID uint64) (int64, error)
+	CountRecordsByCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error)
 }
 
 type trimmingCourseRepository struct{ db *gorm.DB }
@@ -82,11 +82,12 @@ func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint
 }
 
 // CountRecordsByCourseID は指定コースを使用しているトリミング詳細数を返す（BUG-111）
-func (r *trimmingCourseRepository) CountRecordsByCourseID(ctx context.Context, courseID uint64) (int64, error) {
+// appointment_trimming_details テーブルは直接 clinic_id を持つためテナント分離を直接適用する
+func (r *trimmingCourseRepository) CountRecordsByCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.AppointmentTrimmingDetail{}).
-		Where("course_id = ?", courseID).
+		Where("course_id = ? AND clinic_id = ?", courseID, clinicID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "appointment_trimming_detail", "")
 	}
@@ -106,7 +107,7 @@ type TrimmingOptionRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountRecordsByOptionID(ctx context.Context, optionID uint64) (int64, error)
+	CountRecordsByOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error)
 }
 
 type trimmingOptionRepository struct{ db *gorm.DB }
@@ -172,11 +173,13 @@ func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64,
 }
 
 // CountRecordsByOptionID は指定オプションを使用しているトリミングオプション数を返す（BUG-201）
-func (r *trimmingOptionRepository) CountRecordsByOptionID(ctx context.Context, optionID uint64) (int64, error) {
+// appointment_trimming_options は直接 clinic_id を持たないため appointments を JOIN してテナント分離する
+func (r *trimmingOptionRepository) CountRecordsByOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.AppointmentTrimmingOption{}).
-		Where("option_id = ?", optionID).
+		Joins("JOIN appointments ON appointments.id = appointment_trimming_options.appointment_id AND appointments.clinic_id = ? AND appointments.deleted_at IS NULL", clinicID).
+		Where("appointment_trimming_options.option_id = ?", optionID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "appointment_trimming_option", "")
 	}

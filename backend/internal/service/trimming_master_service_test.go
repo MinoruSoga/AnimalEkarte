@@ -50,7 +50,7 @@ func (m *mockTrimmingCourseRepository) CountRecordsByTypeID(_ context.Context, _
 	return 0, nil
 }
 
-func (m *mockTrimmingCourseRepository) CountRecordsByCourseID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockTrimmingCourseRepository) CountRecordsByCourseID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -63,7 +63,7 @@ type mockTrimmingOptionRepository struct {
 	updateFieldsFn      func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
 	deleteFn            func(ctx context.Context, clinicID, id uint64) error
 	reorderErr          error
-	countRecordsByOptFn func(ctx context.Context, optionID uint64) (int64, error)
+	countRecordsByOptFn func(ctx context.Context, clinicID, optionID uint64) (int64, error)
 }
 
 func (m *mockTrimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
@@ -90,9 +90,9 @@ func (m *mockTrimmingOptionRepository) Reorder(_ context.Context, _ uint64, _ []
 	return m.reorderErr
 }
 
-func (m *mockTrimmingOptionRepository) CountRecordsByOptionID(ctx context.Context, optionID uint64) (int64, error) {
+func (m *mockTrimmingOptionRepository) CountRecordsByOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error) {
 	if m.countRecordsByOptFn != nil {
-		return m.countRecordsByOptFn(ctx, optionID)
+		return m.countRecordsByOptFn(ctx, clinicID, optionID)
 	}
 	return 0, nil
 }
@@ -753,7 +753,7 @@ func TestTrimmingOptionService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingOptionRepository{
-				countRecordsByOptFn: func(_ context.Context, _ uint64) (int64, error) {
+				countRecordsByOptFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.usageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

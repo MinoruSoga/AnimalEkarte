@@ -195,14 +195,14 @@ func (m *mockPermissionGroupForStaff) FindByID(_ context.Context, _, _ uint64) (
 func (m *mockPermissionGroupForStaff) Create(_ context.Context, _ *model.PermissionGroup) error {
 	return nil
 }
-func (m *mockPermissionGroupForStaff) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
-	return nil
+func (m *mockPermissionGroupForStaff) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.PermissionGroup, error) {
+	return &model.PermissionGroup{}, nil
 }
 func (m *mockPermissionGroupForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
 func (m *mockPermissionGroupForStaff) SetRules(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
 	return nil
 }
-func (m *mockPermissionGroupForStaff) CountStaffsByGroupID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockPermissionGroupForStaff) CountStaffsByGroupID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *mockPermissionGroupForStaff) Reorder(_ context.Context, _ uint64, _ []uint64) error {

@@ -28,7 +28,7 @@ type CheckupTypeService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.CheckupType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateCheckupTypeInput) (*model.CheckupType, error)
-	Update(ctx context.Context, clinicID, id uint64, input UpdateCheckupTypeInput) (*model.CheckupType, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateCheckupTypeInput) (*model.CheckupType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -78,7 +78,7 @@ func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input 
 		slog.Uint64("checkup_type_id", checkupType.ID))
 	return checkupType, nil
 }
-func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, input UpdateCheckupTypeInput) (*model.CheckupType, error) {
+func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateCheckupTypeInput) (*model.CheckupType, error) {
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
@@ -94,14 +94,14 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	return checkupType, nil
 }
 func (s *checkupTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
-	childCount, err := s.repo.CountChildrenByParentID(ctx, id)
+	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check checkup type children")
 	}
 	if childCount > 0 {
 		return apperrors.WrapConflict("この定期健診種別にはサブ種別が登録されているため削除できません")
 	}
-	count, err := s.repo.CountUsageByCheckupTypeID(ctx, id)
+	count, err := s.repo.CountUsageByCheckupTypeID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check checkup type dependencies")
 	}
@@ -154,7 +154,7 @@ type UpdateCheckupTypeInput struct {
 	SortOrder     *int
 }
 
-func buildCheckupTypeUpdateFields(input UpdateCheckupTypeInput) map[string]any {
+func buildCheckupTypeUpdateFields(input *UpdateCheckupTypeInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colCheckupTypeName] = *input.Name

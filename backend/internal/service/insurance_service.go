@@ -76,7 +76,7 @@ func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildInsuranceUpdateFields(*input)
+	fields := buildInsuranceUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -88,7 +88,7 @@ func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, inpu
 	return insurance, nil
 }
 func (s *insuranceService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountPetsByInsuranceID(ctx, id)
+	count, err := s.repo.CountPetsByInsuranceID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check insurance dependencies")
 	}
@@ -134,7 +134,7 @@ const (
 	colInsuranceSortOrder    = "sort_order"
 )
 
-func buildInsuranceUpdateFields(input UpdateInsuranceInput) map[string]any {
+func buildInsuranceUpdateFields(input *UpdateInsuranceInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colInsuranceName] = *input.Name

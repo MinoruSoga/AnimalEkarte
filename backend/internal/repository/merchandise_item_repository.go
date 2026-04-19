@@ -17,7 +17,7 @@ import (
 type MerchandiseItemRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
-	CountUsageByMerchandiseItemID(ctx context.Context, merchandiseItemID uint64) (int64, error)
+	CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error)
 	Create(ctx context.Context, item *model.MerchandiseItem) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -95,12 +95,13 @@ func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64
 }
 
 // CountUsageByMerchandiseItemID は物販品目を参照している billing_items と estimate_items の件数の合計を返す（BUG-109）
-// Migration 002 でFK カラムが追加された後、このメソッドで依存チェックを実行する
-func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Context, merchandiseItemID uint64) (int64, error) {
+// billing_items/estimate_items は直接 clinic_id を持たないため JOIN でテナント分離する
+func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error) {
 	var billingCount int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.BillingItem{}).
-		Where("merchandise_item_id = ? AND deleted_at IS NULL", merchandiseItemID).
+		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ?", clinicID).
+		Where("billing_items.merchandise_item_id = ? AND billing_items.deleted_at IS NULL", merchandiseItemID).
 		Count(&billingCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "billing_item", "")
 	}
@@ -109,7 +110,8 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 	// BUG-154: estimate_items に deleted_at カラムがないため条件を削除
 	if err := r.db.WithContext(ctx).
 		Model(&model.EstimateItem{}).
-		Where("merchandise_item_id = ?", merchandiseItemID).
+		Joins("JOIN estimates ON estimates.id = estimate_items.estimate_id AND estimates.clinic_id = ?", clinicID).
+		Where("estimate_items.merchandise_item_id = ?", merchandiseItemID).
 		Count(&estimateCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "estimate_item", "")
 	}

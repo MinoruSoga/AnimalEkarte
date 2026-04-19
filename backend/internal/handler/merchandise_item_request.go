@@ -14,9 +14,9 @@ type createMerchandiseItemRequest struct {
 // updateMerchandiseItemRequest は物販品更新のバインド struct（全フィールドポインタ型）
 type updateMerchandiseItemRequest struct {
 	Name      *string  `json:"name"`
-	Category  *string  `json:"category"`
+	Category  *string  `json:"category"   binding:"omitempty,oneof=food goods other"`
 	UnitPrice *int64   `json:"unit_price"`
-	TaxType   *string  `json:"tax_type"`
+	TaxType   *string  `json:"tax_type"   binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate   *float64 `json:"tax_rate"`
 	IsActive  *bool    `json:"is_active"`
 	SortOrder *int     `json:"sort_order"`

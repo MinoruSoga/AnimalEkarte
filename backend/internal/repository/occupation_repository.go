@@ -20,7 +20,7 @@ type OccupationRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountStaffsByOccupationID(ctx context.Context, occupationID uint64) (int64, error)
+	CountStaffsByOccupationID(ctx context.Context, clinicID, occupationID uint64) (int64, error)
 }
 
 type occupationRepository struct{ db *gorm.DB }
@@ -87,11 +87,13 @@ func (r *occupationRepository) Delete(ctx context.Context, clinicID, id uint64) 
 }
 
 // CountStaffsByOccupationID は指定役職を参照しているスタッフ数を返す（BUG-112）
-func (r *occupationRepository) CountStaffsByOccupationID(ctx context.Context, occupationID uint64) (int64, error) {
+// staffs テーブルに直接 clinic_id がないため staff_clinic_assignments を JOIN してテナント分離する
+func (r *occupationRepository) CountStaffsByOccupationID(ctx context.Context, clinicID, occupationID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Staff{}).
-		Where("occupation_id = ?", occupationID).
+		Joins("JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?", clinicID).
+		Where("staffs.occupation_id = ?", occupationID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "staff", "")
 	}

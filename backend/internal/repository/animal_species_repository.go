@@ -16,7 +16,7 @@ type AnimalSpeciesRepository interface {
 	FindAll(ctx context.Context) ([]model.AnimalSpecies, error)
 	FindByID(ctx context.Context, id uint64) (*model.AnimalSpecies, error)
 	Create(ctx context.Context, species *model.AnimalSpecies) error
-	Update(ctx context.Context, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, ids []uint64) error
 }
@@ -58,18 +58,18 @@ func (r *animalSpeciesRepository) Create(ctx context.Context, species *model.Ani
 	return nil
 }
 
-func (r *animalSpeciesRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *animalSpeciesRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.AnimalSpecies{}).
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "animal_species", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(result.Error, "animal_species", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("animal_species", fmt.Sprintf("%d", id))
+		return nil, apperrors.WrapNotFound("animal_species", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {

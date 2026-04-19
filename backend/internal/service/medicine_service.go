@@ -230,18 +230,14 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		return result, nil
 	}
 
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update medicine")
 	}
-
 	slog.InfoContext(ctx, "medicine updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", id),
 	)
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get medicine after update")
-	}
 	return result, nil
 }
 

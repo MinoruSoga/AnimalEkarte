@@ -18,7 +18,7 @@ type mockExamTypeRepository struct {
 	createFn                 func(ctx context.Context, exType *model.ExaminationType) error
 	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
-	countUsageByExamTypeIDFn func(ctx context.Context, examTypeID uint64) (int64, error)
+	countUsageByExamTypeIDFn func(ctx context.Context, clinicID, examTypeID uint64) (int64, error)
 }
 
 func (m *mockExamTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
@@ -49,14 +49,14 @@ func (m *mockExamTypeRepository) Reorder(ctx context.Context, clinicID uint64, i
 	return nil
 }
 
-func (m *mockExamTypeRepository) CountUsageByExamTypeID(ctx context.Context, examTypeID uint64) (int64, error) {
+func (m *mockExamTypeRepository) CountUsageByExamTypeID(ctx context.Context, clinicID, examTypeID uint64) (int64, error) {
 	if m.countUsageByExamTypeIDFn == nil {
 		return 0, nil
 	}
-	return m.countUsageByExamTypeIDFn(ctx, examTypeID)
+	return m.countUsageByExamTypeIDFn(ctx, clinicID, examTypeID)
 }
 
-func (m *mockExamTypeRepository) CountChildrenByParentID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockExamTypeRepository) CountChildrenByParentID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -375,7 +375,7 @@ func TestExamTypeService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
-				countUsageByExamTypeIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				countUsageByExamTypeIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

@@ -18,7 +18,7 @@ type mockReservationTypeGroupRepository struct {
 	findByIDFn        func(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error)
 	countCategoriesFn func(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	createFn          func(ctx context.Context, g *model.ReservationTypeGroup) error
-	updateFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFieldsFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error)
 	deleteFn          func(ctx context.Context, clinicID, id uint64) error
 	reorderErr        error
 }
@@ -39,8 +39,11 @@ func (m *mockReservationTypeGroupRepository) Create(ctx context.Context, g *mode
 	return m.createFn(ctx, g)
 }
 
-func (m *mockReservationTypeGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockReservationTypeGroupRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error) {
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, clinicID, id, fields)
+	}
+	return &model.ReservationTypeGroup{}, nil
 }
 
 func (m *mockReservationTypeGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -146,8 +149,11 @@ func TestReservationTypeGroupService_Update(t *testing.T) {
 					}
 					return existing, nil
 				},
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-					return tt.updateErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationTypeGroup, error) {
+					if tt.updateErr != nil {
+						return nil, tt.updateErr
+					}
+					return existing, nil
 				},
 			}
 			svc := NewReservationTypeGroupService(repo)

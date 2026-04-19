@@ -20,7 +20,7 @@ type InsuranceRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountPetsByInsuranceID(ctx context.Context, insuranceID uint64) (int64, error)
+	CountPetsByInsuranceID(ctx context.Context, clinicID, insuranceID uint64) (int64, error)
 }
 
 type insuranceRepository struct{ db *gorm.DB }
@@ -82,11 +82,12 @@ func (r *insuranceRepository) Delete(ctx context.Context, clinicID, id uint64) e
 }
 
 // CountPetsByInsuranceID は指定保険を参照しているペット数を返す（BUG-110）
-func (r *insuranceRepository) CountPetsByInsuranceID(ctx context.Context, insuranceID uint64) (int64, error) {
+// pets テーブルは直接 clinic_id を持つためテナント分離を直接適用する
+func (r *insuranceRepository) CountPetsByInsuranceID(ctx context.Context, clinicID, insuranceID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Pet{}).
-		Where("insurance_id = ?", insuranceID).
+		Where("insurance_id = ? AND clinic_id = ?", insuranceID, clinicID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}

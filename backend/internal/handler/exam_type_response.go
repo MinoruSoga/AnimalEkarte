@@ -23,6 +23,7 @@ type examTypeResponse struct {
 	Price       *int64                 `json:"price,omitempty"`
 	IsActive    bool                   `json:"is_active"`
 	Description string                 `json:"description"`
+	ParentID    *uint64                `json:"parent_id,omitempty"`
 	SortOrder   int                    `json:"sort_order"`
 	Items       []examTypeItemResponse `json:"items,omitempty"`
 	CreatedAt   time.Time              `json:"created_at"`
@@ -53,6 +54,7 @@ func toExamTypeResponse(et *model.ExaminationType) examTypeResponse {
 		Price:       et.Price,
 		IsActive:    et.IsActive,
 		Description: et.Description,
+		ParentID:    et.ParentID,
 		SortOrder:   et.SortOrder,
 		Items:       items,
 		CreatedAt:   et.CreatedAt,

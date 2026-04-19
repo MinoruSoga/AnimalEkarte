@@ -17,10 +17,10 @@ type mockPermissionGroupRepository struct {
 	findAllFn                        func(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
 	findByIDFn                       func(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
 	createFn                         func(ctx context.Context, group *model.PermissionGroup) error
-	updateFn                         func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFieldsFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error)
 	deleteFn                         func(ctx context.Context, clinicID, id uint64) error
 	setRulesFn                       func(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
-	countStaffsByGroupIDFn           func(ctx context.Context, groupID uint64) (int64, error)
+	countStaffsByGroupIDFn           func(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	reorderErr                       error
 	getEffectivePermissionsByStaffID func(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
 	getGroupIDsByStaffIDFn           func(ctx context.Context, staffID uint64) ([]uint64, error)
@@ -36,8 +36,8 @@ func (m *mockPermissionGroupRepository) FindByID(ctx context.Context, clinicID, 
 func (m *mockPermissionGroupRepository) Create(ctx context.Context, group *model.PermissionGroup) error {
 	return m.createFn(ctx, group)
 }
-func (m *mockPermissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockPermissionGroupRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 func (m *mockPermissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
@@ -45,8 +45,8 @@ func (m *mockPermissionGroupRepository) Delete(ctx context.Context, clinicID, id
 func (m *mockPermissionGroupRepository) SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
 	return m.setRulesFn(ctx, groupID, rules)
 }
-func (m *mockPermissionGroupRepository) CountStaffsByGroupID(ctx context.Context, groupID uint64) (int64, error) {
-	return m.countStaffsByGroupIDFn(ctx, groupID)
+func (m *mockPermissionGroupRepository) CountStaffsByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
+	return m.countStaffsByGroupIDFn(ctx, clinicID, groupID)
 }
 func (m *mockPermissionGroupRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
 	return m.reorderErr
@@ -137,11 +137,8 @@ func TestPermissionGroupService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockPermissionGroupRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-					return tt.updateErr
-				},
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.PermissionGroup, error) {
-					return existing, nil
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PermissionGroup, error) {
+					return existing, tt.updateErr
 				},
 			}
 			svc := NewPermissionGroupService(repo)
@@ -190,7 +187,7 @@ func TestPermissionGroupService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockPermissionGroupRepository{
-				countStaffsByGroupIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				countStaffsByGroupIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.staffCount, tt.countErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
@@ -284,7 +281,7 @@ func TestPermissionGroupService_SetRules(t *testing.T) {
 				},
 			}
 			svc := NewPermissionGroupService(repo)
-			err := svc.SetRules(context.Background(), 1, tt.rules)
+			err := svc.SetRules(context.Background(), 1, tt.rules, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

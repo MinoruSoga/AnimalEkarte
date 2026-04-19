@@ -114,7 +114,7 @@ func (s *diagnosisTypeService) Create(ctx context.Context, clinicID uint64, inpu
 	}
 	slog.InfoContext(ctx, "diagnosis type created",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("type_id", diagType.ID))
+		slog.Uint64("diagnosis_type_id", diagType.ID))
 	return diagType, nil
 }
 
@@ -132,12 +132,12 @@ func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, 
 	}
 	slog.InfoContext(ctx, "diagnosis type updated",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("type_id", id))
+		slog.Uint64("diagnosis_type_id", id))
 	return result, nil
 }
 
 func (s *diagnosisTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountNamesByCategoryID(ctx, id)
+	count, err := s.repo.CountNamesByCategoryID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check diagnosis type dependencies")
 	}
@@ -149,7 +149,7 @@ func (s *diagnosisTypeService) Delete(ctx context.Context, clinicID, id uint64) 
 	}
 	slog.InfoContext(ctx, "diagnosis type deleted",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("type_id", id))
+		slog.Uint64("diagnosis_type_id", id))
 	return nil
 }
 
@@ -254,7 +254,7 @@ func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, inpu
 	}
 	slog.InfoContext(ctx, "diagnosis name created",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("name_id", name.ID))
+		slog.Uint64("diagnosis_name_id", name.ID))
 	return name, nil
 }
 
@@ -278,12 +278,12 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 	}
 	slog.InfoContext(ctx, "diagnosis name updated",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("name_id", id))
+		slog.Uint64("diagnosis_name_id", id))
 	return result, nil
 }
 
 func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountClinicalPlansByDiagnosisNameID(ctx, id)
+	count, err := s.repo.CountClinicalPlansByDiagnosisNameID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check diagnosis name dependencies")
 	}
@@ -295,7 +295,7 @@ func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) 
 	}
 	slog.InfoContext(ctx, "diagnosis name deleted",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("name_id", id))
+		slog.Uint64("diagnosis_name_id", id))
 	return nil
 }
 

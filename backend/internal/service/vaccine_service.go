@@ -87,7 +87,7 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 			return nil, err
 		}
 	}
-	fields := buildVaccineUpdateFields(*input)
+	fields := buildVaccineUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -123,7 +123,7 @@ const (
 	colVaccineSortOrder   = "sort_order"
 )
 
-func buildVaccineUpdateFields(input UpdateVaccineInput) map[string]any {
+func buildVaccineUpdateFields(input *UpdateVaccineInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colVaccineName] = *input.Name
@@ -154,7 +154,7 @@ func buildVaccineUpdateFields(input UpdateVaccineInput) map[string]any {
 	return fields
 }
 func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountUsageByVaccineID(ctx, id)
+	count, err := s.repo.CountUsageByVaccineID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check vaccine dependencies")
 	}

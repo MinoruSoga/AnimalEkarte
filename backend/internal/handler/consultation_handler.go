@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -42,11 +41,7 @@ func (h *Handler) ListConsultations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]consultationResponse, len(consultations))
-	for i := range consultations {
-		resp[i] = toConsultationResponse(&consultations[i])
-	}
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mapSlice(consultations, toConsultationResponse))
 }
 
 // CreateConsultation godoc
@@ -104,12 +99,6 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 		return
 	}
 
-	var taxType *model.TaxType
-	if input.TaxType != nil {
-		tt := model.TaxType(*input.TaxType)
-		taxType = &tt
-	}
-
 	svcInput := service.UpdateConsultationInput{
 		Name:          input.Name,
 		Price:         input.Price,
@@ -120,7 +109,7 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 		ParentID:      input.ParentID,
 		ClearParentID: input.ClearParentID,
 		SortOrder:     input.SortOrder,
-		TaxType:       taxType,
+		TaxType:       input.TaxType,
 		TaxRate:       input.TaxRate,
 	}
 

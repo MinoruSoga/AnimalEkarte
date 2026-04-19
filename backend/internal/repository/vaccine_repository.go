@@ -20,7 +20,7 @@ type VaccineRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error)
+	CountUsageByVaccineID(ctx context.Context, clinicID, vaccineID uint64) (int64, error)
 }
 
 type vaccineRepository struct{ db *gorm.DB }
@@ -87,12 +87,13 @@ func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []
 	return reorderByClinicID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, ids)
 }
 
-// CountUsageByVaccineID はワクチンマスタを参照している vaccination_records の件数を返す（BUG-107）
-func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, vaccineID uint64) (int64, error) {
+// CountUsageByVaccineID はワクチンマスタを参照している vaccinations の件数を返す（BUG-107）
+// vaccinations テーブルは直接 clinic_id を持つためテナント分離を直接適用する
+func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, clinicID, vaccineID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
-		Where("vaccine_id = ?", vaccineID).
+		Where("vaccine_id = ? AND clinic_id = ?", vaccineID, clinicID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "vaccination_record", "")
 	}
