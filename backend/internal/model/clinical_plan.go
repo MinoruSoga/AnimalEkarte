@@ -2,6 +2,8 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // ClinicalPlan は診察所見・診断・治療方針（診察/治療タブ, v9.0追加）
@@ -13,10 +15,11 @@ type ClinicalPlan struct {
 	DiagnosisNameID      *uint64   `                                                      json:"diagnosis_name_id,omitempty"`
 	Diagnosis2CategoryID *uint64   `gorm:"column:diagnosis_2_type_id"                     json:"diagnosis_2_type_id,omitempty"`
 	Diagnosis2NameID     *uint64   `gorm:"column:diagnosis_2_name_id"                     json:"diagnosis_2_name_id,omitempty"`
-	DiagnosisDetails     string    `gorm:"default:''"                                     json:"diagnosis_details"`
-	TreatmentPolicy      string    `gorm:"default:''"                                     json:"treatment_policy"`
-	CreatedAt            time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt            time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DiagnosisDetails     string         `gorm:"default:''"                                     json:"diagnosis_details"`
+	TreatmentPolicy      string         `gorm:"default:''"                                     json:"treatment_policy"`
+	CreatedAt            time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt            time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt            gorm.DeletedAt `gorm:"index"                                          json:"-"`
 
 	// Relations
 	MedicalRecord      *MedicalRecord `gorm:"foreignKey:MedicalRecordID"     json:"medical_record,omitempty"`

@@ -188,28 +188,27 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		medicine.MedicineUnit = &mu
 	}
 
-	if err := s.repo.Create(ctx, medicine); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create medicine")
-	}
-
-	// BUG-320: 薬品作成時に在庫アイテムを自動作成
-	inventoryItem := &model.InventoryItem{
-		ClinicID:      clinicID,
-		Name:          medicine.Name,
-		Category:      model.InventoryCategoryMedicine,
-		Quantity:      0,
-		Unit:          "錠", // デフォルト
-		MinStockLevel: 0,
-		Status:        model.InventoryStatusSufficient,
-	}
-	if err := s.inventoryRepo.Create(ctx, clinicID, inventoryItem); err != nil {
-		slog.WarnContext(ctx, "failed to create inventory item (best-effort)",
-			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("medicine_id", medicine.ID),
-			slog.String("name", medicine.Name),
-			slog.String("error", err.Error()))
-		// best-effort: 在庫作成失敗は medicine 作成エラーにしない
-		// 孤児は在庫一覧 UI から手動修復可能
+	// BUG-429: 薬剤作成と在庫アイテム自動作成をトランザクションでアトミックに実行
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Create(txCtx, medicine); err != nil {
+			return apperrors.Wrap(err, "failed to create medicine")
+		}
+		// BUG-320: 薬品作成時に在庫アイテムを自動作成
+		inventoryItem := &model.InventoryItem{
+			ClinicID:      clinicID,
+			Name:          medicine.Name,
+			Category:      model.InventoryCategoryMedicine,
+			Quantity:      0,
+			Unit:          "錠", // デフォルト
+			MinStockLevel: 0,
+			Status:        model.InventoryStatusSufficient,
+		}
+		if err := s.inventoryRepo.Create(txCtx, clinicID, inventoryItem); err != nil {
+			return apperrors.Wrap(err, "failed to create inventory item for medicine")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	slog.InfoContext(ctx, "medicine created",
@@ -279,20 +278,18 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 		}
 	}
 
+	// BUG-429: 薬剤削除と連携在庫削除をトランザクションでアトミックに実行
 	// BUG-381: Create 時に BUG-320 で自動生成した連携在庫もカスケード削除する。
-	// 薬剤削除は先に実行し、失敗時は在庫側を touch しない（整合性優先）。
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to delete medicine")
-	}
-	if err := s.inventoryRepo.DeleteByNameAndMedicineCategory(ctx, clinicID, m.Name); err != nil {
-		// best-effort: 薬剤削除は成功しているため、在庫クリーンアップ失敗は警告に留める。
-		// 孤児在庫は在庫一覧 UI から手動削除可能。
-		slog.WarnContext(ctx, "failed to delete linked inventory (best-effort, BUG-381)",
-			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("medicine_id", id),
-			slog.String("medicine_name", m.Name),
-			slog.String("error", err.Error()),
-		)
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete medicine")
+		}
+		if err := s.inventoryRepo.DeleteByNameAndMedicineCategory(txCtx, clinicID, m.Name); err != nil {
+			return apperrors.Wrap(err, "failed to delete linked inventory for medicine")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "medicine deleted",
 		slog.Uint64("clinic_id", clinicID),

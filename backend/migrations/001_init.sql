@@ -623,6 +623,7 @@ CREATE TABLE staff_clinic_assignments (
     is_main        boolean     NOT NULL DEFAULT false,
     created_at     timestamptz NOT NULL DEFAULT now(),
     updated_at     timestamptz NOT NULL DEFAULT now(),
+    deleted_at     timestamptz,
     CONSTRAINT uk_staff_clinic UNIQUE (staff_id, clinic_id)
 );
 
@@ -910,7 +911,8 @@ CREATE TABLE clinical_plans (
     diagnosis_details     text        NOT NULL DEFAULT '',
     treatment_policy      text        NOT NULL DEFAULT '',
     created_at            timestamptz NOT NULL DEFAULT now(),
-    updated_at            timestamptz NOT NULL DEFAULT now()
+    updated_at            timestamptz NOT NULL DEFAULT now(),
+    deleted_at            timestamptz
 );
 
 -- ------------------------------------
@@ -1173,6 +1175,7 @@ CREATE TABLE estimate_items (
     sort_order              integer                DEFAULT 0,
     created_at              timestamptz   NOT NULL DEFAULT now(),
     updated_at              timestamptz   NOT NULL DEFAULT now(),
+    deleted_at              timestamptz,
     CONSTRAINT chk_estimate_item_quantity CHECK (quantity > 0)
 );
 

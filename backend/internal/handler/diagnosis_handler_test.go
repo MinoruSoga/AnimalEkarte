@@ -52,6 +52,7 @@ func (m *mockDiagnosisTypeService) Reorder(ctx context.Context, clinicID uint64,
 
 type mockDiagnosisNameService struct {
 	listFn             func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	listNamesFn        func(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
 	listByCategoryIDFn func(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
 	getByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	createFn           func(ctx context.Context, clinicID uint64, input *service.CreateDiagnosisNameInput) (*model.DiagnosisName, error)
@@ -62,6 +63,12 @@ type mockDiagnosisNameService struct {
 
 func (m *mockDiagnosisNameService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	return m.listFn(ctx, clinicID, page, limit)
+}
+func (m *mockDiagnosisNameService) ListNames(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
+	if m.listNamesFn != nil {
+		return m.listNamesFn(ctx, clinicID, typeID)
+	}
+	return nil, nil
 }
 func (m *mockDiagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	return m.listByCategoryIDFn(ctx, clinicID, categoryID, page, limit)

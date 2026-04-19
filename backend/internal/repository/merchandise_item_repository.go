@@ -95,11 +95,10 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 	}
 
 	var estimateCount int64
-	// BUG-154: estimate_items に deleted_at カラムがないため条件を削除
 	if err := r.db.WithContext(ctx).
 		Model(&model.EstimateItem{}).
-		Joins("JOIN estimates ON estimates.id = estimate_items.estimate_id AND estimates.clinic_id = ?", clinicID).
-		Where("estimate_items.merchandise_item_id = ?", merchandiseItemID).
+		Joins("JOIN estimates ON estimates.id = estimate_items.estimate_id AND estimates.clinic_id = ? AND estimates.deleted_at IS NULL", clinicID).
+		Where("estimate_items.merchandise_item_id = ? AND estimate_items.deleted_at IS NULL", merchandiseItemID).
 		Count(&estimateCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "estimate_item", "")
 	}

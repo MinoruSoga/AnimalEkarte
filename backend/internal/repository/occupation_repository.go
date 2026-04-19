@@ -92,8 +92,8 @@ func (r *occupationRepository) CountStaffsByOccupationID(ctx context.Context, cl
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Staff{}).
-		Joins("JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ?", clinicID).
-		Where("staffs.occupation_id = ?", occupationID).
+		Joins("JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL", clinicID).
+		Where("staffs.occupation_id = ? AND staffs.deleted_at IS NULL", occupationID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "staff", "")
 	}
