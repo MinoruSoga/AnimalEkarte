@@ -14,13 +14,13 @@ import (
 // ---- ReservationTypeGroup モック ----
 
 type mockReservationTypeGroupRepository struct {
-	findAllFn         func(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error)
-	findByIDFn        func(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error)
-	countCategoriesFn func(ctx context.Context, clinicID, groupID uint64) (int64, error)
-	createFn          func(ctx context.Context, g *model.ReservationTypeGroup) error
-	updateFieldsFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error)
-	deleteFn          func(ctx context.Context, clinicID, id uint64) error
-	reorderErr        error
+	findAllFn                      func(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error)
+	findByIDFn                     func(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error)
+	countReservationTypesByGroupFn func(ctx context.Context, clinicID, groupID uint64) (int64, error)
+	createFn                       func(ctx context.Context, g *model.ReservationTypeGroup) error
+	updateFieldsFn                 func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error)
+	deleteFn                       func(ctx context.Context, clinicID, id uint64) error
+	reorderErr                     error
 }
 
 func (m *mockReservationTypeGroupRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error) {
@@ -31,8 +31,11 @@ func (m *mockReservationTypeGroupRepository) FindByID(ctx context.Context, clini
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockReservationTypeGroupRepository) CountCategories(ctx context.Context, clinicID, groupID uint64) (int64, error) {
-	return m.countCategoriesFn(ctx, clinicID, groupID)
+func (m *mockReservationTypeGroupRepository) CountReservationTypesByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
+	if m.countReservationTypesByGroupFn != nil {
+		return m.countReservationTypesByGroupFn(ctx, clinicID, groupID)
+	}
+	return 0, nil
 }
 
 func (m *mockReservationTypeGroupRepository) Create(ctx context.Context, g *model.ReservationTypeGroup) error {
@@ -128,9 +131,9 @@ func TestReservationTypeGroupService_Update(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "returns existing when no fields provided",
+			name:    "returns error when no fields provided",
 			input:   UpdateReservationTypeGroupInput{},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name:      "propagates update error",
@@ -202,7 +205,7 @@ func TestReservationTypeGroupService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationTypeGroupRepository{
-				countCategoriesFn: func(_ context.Context, _, _ uint64) (int64, error) {
+				countReservationTypesByGroupFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.categoryCount, tt.countErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

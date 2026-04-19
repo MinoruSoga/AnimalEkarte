@@ -18,7 +18,7 @@ type mockInventoryRepository struct {
 	createFn         func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	updateFieldsFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
-	countUsageByIDFn func(ctx context.Context, inventoryID uint64) (int64, error)
+	countUsageByIDFn func(ctx context.Context, clinicID, inventoryID uint64) (int64, error)
 }
 
 func (m *mockInventoryRepository) FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
@@ -45,9 +45,9 @@ func (m *mockInventoryRepository) DecreaseStock(_ context.Context, _ uint64, _ f
 	return nil
 }
 
-func (m *mockInventoryRepository) CountUsageByInventoryID(ctx context.Context, inventoryID uint64) (int64, error) {
+func (m *mockInventoryRepository) CountUsageByInventoryID(ctx context.Context, clinicID, inventoryID uint64) (int64, error) {
 	if m.countUsageByIDFn != nil {
-		return m.countUsageByIDFn(ctx, inventoryID)
+		return m.countUsageByIDFn(ctx, clinicID, inventoryID)
 	}
 	return 0, nil
 }
@@ -421,7 +421,7 @@ func TestInventoryService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInventoryRepository{
-				countUsageByIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				countUsageByIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.usageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

@@ -19,7 +19,7 @@ type createMedicineRequest struct {
 // updateMedicineRequest は薬剤更新のバインド struct（全フィールドポインタ型）
 // DosageForm/MedicineUnit: nil = 未指定, "" = NULL クリア, "value" = 値セット
 // ParentID: nil = 未指定, clear_parent_id = true = NULL クリア, non-nil = 値セット
-// InventoryID: nil = 未指定, &nil = NULL クリア, &&val = 値セット
+// InventoryID: nil = 未指定, non-nil = 値セット
 type updateMedicineRequest struct {
 	Name            *string  `json:"name"`
 	ParentID        *uint64  `json:"parent_id"`
@@ -29,7 +29,7 @@ type updateMedicineRequest struct {
 	Description     *string  `json:"description"`
 	DosageForm      *string  `json:"dosage_form"`
 	MedicineUnit    *string  `json:"medicine_unit"`
-	InventoryID     **uint64 `json:"inventory_id"`
+	InventoryID     *uint64  `json:"inventory_id"`
 	DefaultQuantity *float64 `json:"default_quantity"`
 	SortOrder       *int     `json:"sort_order"`
 	TaxType         *string  `json:"tax_type"`
