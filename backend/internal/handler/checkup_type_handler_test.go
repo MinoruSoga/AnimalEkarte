@@ -1,172 +1,546 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// TestCheckupTypeHandlerCompiles verifies checkup_type_handler.go compiles
-func TestCheckupTypeHandlerCompiles(t *testing.T) {
-	assert.True(t, true, "checkup_type_handler.go compiled successfully")
+// ---- mock CheckupTypeService ----
+
+type mockCheckupTypeService struct {
+	listFn    func(ctx context.Context, clinicID uint64) ([]model.CheckupType, error)
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error)
+	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateCheckupTypeInput) (*model.CheckupType, error)
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateCheckupTypeInput) (*model.CheckupType, error)
+	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-// ---- Comprehensive Test Coverage Documentation ----
-//
-// Checkup Type Handler Test Cases
-// This handler manages checkup type master data for health examinations (Section 10: 定期健診 master)
-//
-// CRITICAL ENDPOINTS:
-//
-// 1. ListCheckupTypes (GET /checkup-types)
-//    Test Cases (6 scenarios):
-//    ✓ Returns 200 OK with empty list when no types exist
-//    ✓ Returns 200 OK with list of all clinic's checkup types (no pagination)
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Response includes all fields: id, name, price, description, interval
-//    ✓ Response includes: target_age, parent_id, sort_order, is_active
-//    ✓ Returns 500 on database error
-//
-// 2. GetCheckupType (GET /checkup-types/:id)
-//    Test Cases (9 scenarios):
-//    ✓ Returns 200 OK with single checkup type
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when type doesn't exist
-//    ✓ Returns 403 when type belongs to different clinic (tenant isolation)
-//    ✓ Response includes complete type data with all fields
-//    ✓ Direct response (no transformation applied)
-//    ✓ Returns 500 on database error
-//
-// 3. CreateCheckupType (POST /checkup-types)
-//    Test Cases (19 scenarios):
-//    ✓ Returns 201 Created when type created successfully
-//    ✓ Returns 400 when required field missing (name)
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Name field: required, text (e.g., "予防接種後の健診", "シニア検査")
-//    ✓ Price field: optional numeric for billing purposes
-//    ✓ Price: non-negative validation if provided
-//    ✓ Description field: optional text for health check protocol
-//    ✓ Interval field: optional text (e.g., "annual", "6_months", "3_months")
-//    ✓ TargetAge field: optional text for age categorization (e.g., "0-1_year", "senior")
-//    ✓ IsActive field: optional boolean, enables/disables in dropdown
-//    ✓ SortOrder field: optional numeric for display ordering
-//    ✓ ParentID field: optional FK to parent checkup_type (hierarchical structure)
-//    ✓ ParentID: supports parent-child categorization (e.g., "健診" parent with subcategories)
-//    ✓ Validates parent_id exists if provided (FK constraint)
-//    ✓ Created type includes generated id and timestamps
-//    ✓ Returns 409 if name conflicts (if UNIQUE constraint exists)
-//    ✓ Returns 500 on database error
-//
-// 4. UpdateCheckupType (PATCH /checkup-types/:id)
-//    Test Cases (19 scenarios):
-//    ✓ Returns 200 OK when type updated successfully
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 404 when type doesn't exist
-//    ✓ Returns 403 when type belongs to different clinic
-//    ✓ Partial updates: name can be updated independently
-//    ✓ Partial updates: price can be updated or cleared
-//    ✓ Partial updates: description can be updated or cleared
-//    ✓ Partial updates: interval can be updated or cleared
-//    ✓ Partial updates: target_age can be updated or cleared
-//    ✓ Partial updates: is_active can be toggled
-//    ✓ Partial updates: sort_order can be updated
-//    ✓ Partial updates: parent_id can be updated (change hierarchy)
-//    ✓ ClearParentID field: special flag to null out parent_id on PATCH
-//    ✓ ClearParentID: used when moving type out of hierarchy
-//    ✓ Unspecified fields remain unchanged (PATCH semantics, not PUT)
-//    ✓ Returns 409 if parent_id FK constraint violated
-//    ✓ Returns 500 on database error
-//
-// 5. ReorderCheckupTypes (POST /checkup-types/reorder)
-//    Test Cases (8 scenarios):
-//    ✓ Returns 200 OK (with message) when reorder succeeds (unusual 200 for reorder)
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Accepts array of IDs in desired order
-//    ✓ Updates sort_order for all provided IDs (0, 1, 2, ...)
-//    ✓ Partial reorder supported (only specified IDs reordered)
-//    ✓ Returns 404 if any specified ID doesn't exist or belongs to different clinic
-//    ✓ Returns 500 on database error
-//
-// 6. DeleteCheckupType (DELETE /checkup-types/:id)
-//    Test Cases (10 scenarios):
-//    ✓ Returns 204 No Content when type deleted successfully
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when type doesn't exist
-//    ✓ Returns 403 when type belongs to different clinic
-//    ✓ Deletion behavior: soft delete or hard delete (depends on implementation)
-//    ✓ Deleted type no longer appears in ListCheckupTypes
-//    ✓ Deleted type cannot be retrieved by GetCheckupType (404)
-//    ✓ Deletion should check for FK dependencies (checkups referencing this type)
-//    ✓ Returns 409 Conflict if type is still in use (checkups exist)
-//
-// SECURITY & MULTITENANCY:
-//    ✓ Clinic-based access control (clinic_id verification on all endpoints)
-//    ✓ No explicit RBAC permission check (master data usually admin-only)
-//    ✓ Partial updates prevent mass assignment (explicit field mapping)
-//    ✓ Soft delete prevents accidental data loss (if implemented)
-//
-// DATA USES:
-//    ✓ CheckupType referenced by checkups (FK constraint)
-//    ✓ Price used for billing calculations
-//    ✓ Interval guides scheduling recommendations
-//    ✓ TargetAge helps recommend appropriate checks for pet age
-//    ✓ IsActive used to hide disabled types from UI dropdowns
-//    ✓ ParentID supports hierarchical categorization
-//
-// DATA MODEL (checkup_types):
-//    - id (PK): BIGSERIAL
-//    - clinic_id: BIGINT (multitenancy)
-//    - name: VARCHAR(100) NOT NULL - type name (e.g., "予防接種後の健診")
-//    - price: NUMERIC(10,2) (NULLABLE) - cost for billing
-//    - is_active: BOOLEAN DEFAULT true - enable/disable flag
-//    - description: TEXT (NULLABLE) - health check protocol description
-//    - interval: VARCHAR(50) (NULLABLE) - recommended interval (e.g., "annual", "6_months")
-//    - target_age: VARCHAR(50) (NULLABLE) - age category (e.g., "0-1_year", "senior")
-//    - parent_id (FK, NULLABLE): BIGINT → checkup_types(id) - parent type for hierarchy
-//    - sort_order: INTEGER DEFAULT 0 - display ordering
-//    - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - deleted_at: TIMESTAMP NULL (soft delete, if implemented)
-//    - Indexes: (clinic_id, id), (clinic_id, parent_id), (clinic_id, is_active), (clinic_id, sort_order)
-//    - Unique constraint: (clinic_id, name) WHERE deleted_at IS NULL (if enforced)
-//
-// IMPLEMENTATION NOTES:
-//    - Master data pattern: clinic-scoped, managed by clinic admins
-//    - Hierarchical structure: ParentID allows parent-child relationship
-//    - ClearParentID special flag: used during PATCH to set parent_id to null
-//    - Price: numeric for billing integration (may be DECIMAL/NUMERIC type)
-//    - Interval: free-text field for protocol recommendations
-//    - TargetAge: free-text field for age categorization
-//    - IsActive: allows disabling without deletion (retirement mechanism)
-//    - SortOrder: numeric for custom display ordering
-//    - ReorderCheckupTypes: returns 200 OK with message (unusual for reorder ops)
-//    - Direct response: no transformation applied (returns model directly)
-//    - PATCH semantics: unspecified fields remain unchanged
-//    - Should validate Price > 0 if provided
-//    - Should check FK dependencies before delete (checkups reference this)
-//
-// TESTING STRATEGY:
-//    Use integration tests with:
-//    - Test database fixtures with sample checkup types
-//    - Real service/repository layers
-//    - Verify clinic_id scoping (no cross-clinic data access)
-//    - Test default values (is_active=true, sort_order=0)
-//    - Test price numeric range and non-negative validation
-//    - Test parent-child relationships (hierarchy validation)
-//    - Test ClearParentID flag sets parent_id to null
-//    - Test sort_order affects ListCheckupTypes ordering
-//    - Test ReorderCheckupTypes updates sort_order correctly
-//    - Test FK constraint: checkups referencing deleted type (should fail with 409)
-//    - Verify soft delete behavior (if implemented)
-//    - Test active filtering (is_active=false excluded from UI dropdowns)
-//    - Test PATCH semantics (unspecified fields unchanged)
-//    - Test name uniqueness per clinic (if UNIQUE constraint exists)
-//    - Test bulk operations work correctly (reorder with partial ID list)
-//    - Test hierarchical display (parent-child grouping in UI)
-//
+func (m *mockCheckupTypeService) List(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
+	return m.listFn(ctx, clinicID)
+}
+
+func (m *mockCheckupTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
+	return m.getByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockCheckupTypeService) Create(ctx context.Context, clinicID uint64, input *service.CreateCheckupTypeInput) (*model.CheckupType, error) {
+	return m.createFn(ctx, clinicID, input)
+}
+
+func (m *mockCheckupTypeService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateCheckupTypeInput) (*model.CheckupType, error) {
+	return m.updateFn(ctx, clinicID, id, input)
+}
+
+func (m *mockCheckupTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockCheckupTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return m.reorderFn(ctx, clinicID, ids)
+}
+
+// ---- test helper ----
+
+func newHandlerWithCheckupTypeSvc(svc service.CheckupTypeService) *Handler {
+	return &Handler{
+		svc: &service.Services{CheckupType: svc},
+	}
+}
+
+// ---- ListCheckupTypes ----
+
+func TestListCheckupTypes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		setupCtx   func(c *gin.Context)
+		svc        *mockCheckupTypeService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of checkup types",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupTypeService{
+				listFn: func(_ context.Context, clinicID uint64) ([]model.CheckupType, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return []model.CheckupType{{ID: 1, ClinicID: clinicID, Name: "シニア健診"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"シニア健診"`,
+		},
+		{
+			name:     "returns empty list when no types exist",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupTypeService{
+				listFn: func(_ context.Context, _ uint64) ([]model.CheckupType, error) {
+					return []model.CheckupType{}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `[]`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockCheckupTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 500 on service error",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupTypeService{
+				listFn: func(_ context.Context, _ uint64) ([]model.CheckupType, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithCheckupTypeSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			tt.setupCtx(c)
+
+			h.ListCheckupTypes(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetCheckupType ----
+
+func TestGetCheckupType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockCheckupTypeService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns checkup type for valid id",
+			paramID:  "7",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupTypeService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.CheckupType, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(7), id)
+					return &model.CheckupType{ID: 7, ClinicID: clinicID, Name: "予防接種後健診"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"予防接種後健診"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockCheckupTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCheckupTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when checkup type not found",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupTypeService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
+					return nil, apperrors.WrapNotFound("checkup_type", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithCheckupTypeSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.GetCheckupType(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateCheckupType ----
+
+func TestCreateCheckupType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{
+			"name":      "年次健診",
+			"is_active": true,
+		}
+	}
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockCheckupTypeService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "creates checkup type successfully",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupTypeService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateCheckupTypeInput) (*model.CheckupType, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "年次健診", input.Name)
+					return &model.CheckupType{ID: 5, ClinicID: clinicID, Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"name":"年次健診"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockCheckupTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when name is missing",
+			body:       map[string]any{"is_active": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCheckupTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCheckupTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "creates with optional fields",
+			body: map[string]any{
+				"name":        "半年健診",
+				"is_active":   true,
+				"description": "半年ごとの定期健診",
+				"interval":    "6_months",
+				"target_age":  "senior",
+				"sort_order":  2,
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupTypeService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateCheckupTypeInput) (*model.CheckupType, error) {
+					assert.Equal(t, "半年健診", input.Name)
+					assert.Equal(t, "6_months", input.Interval)
+					assert.Equal(t, "senior", input.TargetAge)
+					return &model.CheckupType{ID: 6, ClinicID: clinicID, Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupTypeService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateCheckupTypeInput) (*model.CheckupType, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithCheckupTypeSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateCheckupType(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- UpdateCheckupType ----
+
+func TestUpdateCheckupType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockCheckupTypeService
+		wantStatus int
+	}{
+		{
+			name:     "updates checkup type successfully",
+			paramID:  "1",
+			body:     map[string]any{"name": "更新健診"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupTypeService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateCheckupTypeInput) (*model.CheckupType, error) {
+					require.NotNil(t, input.Name)
+					assert.Equal(t, "更新健診", *input.Name)
+					return &model.CheckupType{ID: 1, Name: *input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "updates with clear_parent_id flag",
+			paramID:  "2",
+			body:     map[string]any{"clear_parent_id": true},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupTypeService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateCheckupTypeInput) (*model.CheckupType, error) {
+					assert.True(t, input.ClearParentID)
+					return &model.CheckupType{ID: 2}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockCheckupTypeService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCheckupTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when checkup type not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "テスト"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupTypeService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateCheckupTypeInput) (*model.CheckupType, error) {
+					return nil, apperrors.WrapNotFound("checkup_type", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithCheckupTypeSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateCheckupType(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- DeleteCheckupType ----
+
+func newDeleteCheckupTypeRouter(svc service.CheckupTypeService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithCheckupTypeSvc(svc)
+	r.DELETE("/checkup-types/:id", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.DeleteCheckupType)
+	return r
+}
+
+func TestDeleteCheckupType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockCheckupTypeService
+		wantStatus int
+	}{
+		{
+			name:    "deletes checkup type successfully",
+			paramID: "1",
+			svc: &mockCheckupTypeService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			svc:        &mockCheckupTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when checkup type not found",
+			paramID: "999",
+			svc: &mockCheckupTypeService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("checkup_type", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:    "returns 409 when checkup type is in use",
+			paramID: "3",
+			svc: &mockCheckupTypeService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapConflict("この定期健診種別は健診記録で使用中のため削除できません")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteCheckupTypeRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/checkup-types/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithCheckupTypeSvc(&mockCheckupTypeService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.DeleteCheckupType(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- ReorderCheckupTypes ----
+
+func newReorderCheckupTypesRouter(svc service.CheckupTypeService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithCheckupTypeSvc(svc)
+	r.POST("/checkup-types/reorder", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.ReorderCheckupTypes)
+	return r
+}
+
+func TestReorderCheckupTypes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("reorders checkup types successfully", func(t *testing.T) {
+		svc := &mockCheckupTypeService{
+			reorderFn: func(_ context.Context, clinicID uint64, ids []uint64) error {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, []uint64{2, 3, 1}, ids)
+				return nil
+			},
+		}
+		router := newReorderCheckupTypesRouter(svc)
+		bodyBytes, err := json.Marshal(map[string]any{"ids": []int{2, 3, 1}})
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/checkup-types/reorder", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithCheckupTypeSvc(&mockCheckupTypeService{})
+		bodyBytes, err := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+		c.Request.Header.Set("Content-Type", "application/json")
+		h.ReorderCheckupTypes(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("returns 400 for invalid JSON", func(t *testing.T) {
+		router := newReorderCheckupTypesRouter(&mockCheckupTypeService{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/checkup-types/reorder", bytes.NewBufferString("not-json"))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
