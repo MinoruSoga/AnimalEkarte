@@ -28,7 +28,7 @@ func (h *Handler) GetCheckupType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, checkupType)
+	c.JSON(http.StatusOK, toCheckupTypeResponse(checkupType))
 }
 
 // ListCheckupTypes godoc
@@ -42,7 +42,7 @@ func (h *Handler) ListCheckupTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, checkupTypes)
+	c.JSON(http.StatusOK, mapSlice(checkupTypes, toCheckupTypeResponse))
 }
 
 // CreateCheckupType godoc
@@ -74,7 +74,7 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, checkupType)
+	c.JSON(http.StatusCreated, toCheckupTypeResponse(checkupType))
 }
 
 // UpdateCheckupType godoc
@@ -110,7 +110,7 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, checkupType)
+	c.JSON(http.StatusOK, toCheckupTypeResponse(checkupType))
 }
 
 // ReorderCheckupTypes godoc

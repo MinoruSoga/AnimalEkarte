@@ -67,6 +67,13 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	return exType, nil
 }
 func (s *examTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
+	childCount, err := s.repo.CountChildrenByParentID(ctx, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check exam type children")
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("この検査種別にはサブ種別が登録されているため削除できません")
+	}
 	count, err := s.repo.CountUsageByExamTypeID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check exam type dependencies")
@@ -88,6 +95,9 @@ func (s *examTypeService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder exam types")
 	}
+	slog.InfoContext(ctx, "exam_types reordered",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Int("count", len(ids)))
 	return nil
 }
 

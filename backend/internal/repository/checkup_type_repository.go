@@ -21,6 +21,7 @@ type CheckupTypeRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByCheckupTypeID(ctx context.Context, checkupTypeID uint64) (int64, error)
+	CountChildrenByParentID(ctx context.Context, parentID uint64) (int64, error)
 }
 
 type checkupTypeRepository struct{ db *gorm.DB }
@@ -95,6 +96,18 @@ func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, c
 		Where("checkup_type_id = ?", checkupTypeID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "checkup_record", "")
+	}
+	return count, nil
+}
+
+// CountChildrenByParentID は指定した親 ID を持つ子健診種別の件数を返す。
+func (r *checkupTypeRepository) CountChildrenByParentID(ctx context.Context, parentID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.CheckupType{}).
+		Where("parent_id = ?", parentID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "checkup_type", "")
 	}
 	return count, nil
 }

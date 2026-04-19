@@ -345,6 +345,7 @@ func TestMedicineService_Delete(t *testing.T) {
 		wantErr          bool
 		wantNotFound     bool
 		wantInvalid      bool
+		wantConflict     bool
 	}{
 		{
 			name:      "deletes a leaf medicine item successfully",
@@ -367,7 +368,7 @@ func TestMedicineService_Delete(t *testing.T) {
 			medicine:      &model.Medicine{ID: 1, ClinicID: 1, ParentID: nil},
 			childrenCount: 3,
 			wantErr:       true,
-			wantInvalid:   true,
+			wantConflict:  true,
 		},
 		{
 			name:         "returns not found when medicine does not exist",
@@ -416,6 +417,9 @@ func TestMedicineService_Delete(t *testing.T) {
 				}
 				if tt.wantInvalid {
 					assert.True(t, apperrors.IsInvalidInput(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

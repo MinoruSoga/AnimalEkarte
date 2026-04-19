@@ -21,6 +21,7 @@ type ExamTypeRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByExamTypeID(ctx context.Context, examTypeID uint64) (int64, error)
+	CountChildrenByParentID(ctx context.Context, parentID uint64) (int64, error)
 }
 
 type examTypeRepository struct{ db *gorm.DB }
@@ -95,6 +96,19 @@ func (r *examTypeRepository) CountUsageByExamTypeID(ctx context.Context, examTyp
 		Where("exam_type_id = ?", examTypeID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "examination_record", "")
+	}
+	return count, nil
+}
+
+// CountChildrenByParentID は指定した親 ID を持つ子検査種別の件数を返す。
+// 親を削除する前に孤立子が残らないことを確認するために使用する。
+func (r *examTypeRepository) CountChildrenByParentID(ctx context.Context, parentID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.ExaminationType{}).
+		Where("parent_id = ?", parentID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "examination_type", "")
 	}
 	return count, nil
 }

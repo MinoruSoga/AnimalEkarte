@@ -52,6 +52,10 @@ func (m *mockCheckupTypeRepository) CountUsageByCheckupTypeID(ctx context.Contex
 	return m.countUsageByCheckupTypeIDFn(ctx, checkupTypeID)
 }
 
+func (m *mockCheckupTypeRepository) CountChildrenByParentID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func TestCheckupTypeService_List(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -31,7 +31,6 @@ func NewAnimalSpeciesRepository(db *gorm.DB) AnimalSpeciesRepository {
 func (r *animalSpeciesRepository) FindAll(ctx context.Context) ([]model.AnimalSpecies, error) {
 	items := make([]model.AnimalSpecies, 0)
 	if err := r.db.WithContext(ctx).
-		Where("is_active = ?", true).
 		Order("sort_order ASC, name ASC").
 		Find(&items).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "animal_species", "")

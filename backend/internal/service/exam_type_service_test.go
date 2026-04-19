@@ -56,6 +56,10 @@ func (m *mockExamTypeRepository) CountUsageByExamTypeID(ctx context.Context, exa
 	return m.countUsageByExamTypeIDFn(ctx, examTypeID)
 }
 
+func (m *mockExamTypeRepository) CountChildrenByParentID(_ context.Context, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func TestExamTypeService_List(t *testing.T) {
 	tests := []struct {
 		name     string

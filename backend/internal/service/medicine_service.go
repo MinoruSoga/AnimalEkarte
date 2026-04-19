@@ -269,7 +269,7 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 			return apperrors.Wrap(err, "failed to count medicine children")
 		}
 		if count > 0 {
-			return apperrors.WrapInvalidInput(
+			return apperrors.WrapConflict(
 				fmt.Sprintf("このカテゴリには%d件の薬剤が含まれています。先に薬剤を移動または削除してください", count),
 			)
 		}
