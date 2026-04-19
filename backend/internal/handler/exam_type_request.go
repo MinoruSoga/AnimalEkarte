@@ -18,4 +18,3 @@ type updateExaminationTypeRequest struct {
 	ClearParentID bool    `json:"clear_parent_id"`
 	SortOrder     *int    `json:"sort_order"`
 }
-

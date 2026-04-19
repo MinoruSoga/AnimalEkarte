@@ -28,4 +28,3 @@ type permissionGroupRuleInput struct {
 	CanEdit   bool   `json:"can_edit"`
 	CanDelete bool   `json:"can_delete"`
 }
-

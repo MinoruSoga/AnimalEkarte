@@ -13,7 +13,3 @@ type updateReservationTypeGroupRequest struct {
 	SortOrder *int    `json:"sort_order"`
 	IsActive  *bool   `json:"is_active"`
 }
-
-type reorderReservationTypeGroupRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

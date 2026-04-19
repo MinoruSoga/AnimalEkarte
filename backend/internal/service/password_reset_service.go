@@ -40,14 +40,14 @@ type PasswordResetConfig struct {
 }
 
 type passwordResetService struct {
-	cfg         PasswordResetConfig
+	cfg         *PasswordResetConfig
 	accountRepo repository.AccountRepository
 	tokenRepo   repository.PasswordResetTokenRepository
 }
 
 // NewPasswordResetService は PasswordResetService の実装を返す。
 func NewPasswordResetService(
-	cfg PasswordResetConfig,
+	cfg *PasswordResetConfig,
 	accountRepo repository.AccountRepository,
 	tokenRepo repository.PasswordResetTokenRepository,
 ) PasswordResetService {
@@ -94,8 +94,8 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, email string)
 	// メール送信は非同期（fire-and-forget）。リクエスト ctx はすでにキャンセル済みの
 	// 可能性があるため context.Background() + 独立タイムアウトを使用する。
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, rawToken)
-	go func() {
-		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	go func() { //nolint:gosec // fire-and-forget: request ctx may already be cancelled
+		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second) //nolint:gosec
 		defer cancel()
 		if sendErr := s.sendResetEmail(email, resetURL); sendErr != nil {
 			slog.ErrorContext(bgCtx, "failed to send password reset email",

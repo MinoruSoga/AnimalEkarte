@@ -26,8 +26,3 @@ type updateProcedureRequest struct {
 	TaxType       *string  `json:"tax_type"     binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate       *float64 `json:"tax_rate"`
 }
-
-// reorderProcedureRequest は処置並び替えのバインド struct
-type reorderProcedureRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

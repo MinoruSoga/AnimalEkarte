@@ -139,7 +139,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		MerchandiseItem:        NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:            NewBillingItemService(repos.BillingItem),
 		Refund:                 NewRefundService(repos.Refund, repos.Accounting),
-		PasswordReset:          NewPasswordResetService(pwResetCfg, repos.Account, repos.PasswordResetToken),
+		PasswordReset:          NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
 		LineReservationSetting: NewLineReservationSettingService(repos.LineReservationSetting),
 		ReservationTypeLiff:    NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),
 		ReservationStaff:       NewReservationStaffService(repos.ReservationStaff),

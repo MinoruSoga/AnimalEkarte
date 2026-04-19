@@ -52,7 +52,7 @@ func (m *mockCheckupTypeRepository) CountUsageByCheckupTypeID(ctx context.Contex
 	return m.countUsageByCheckupTypeIDFn(ctx, clinicID, checkupTypeID)
 }
 
-func (m *mockCheckupTypeRepository) CountChildrenByParentID(_ context.Context, _ uint64, _ uint64) (int64, error) {
+func (m *mockCheckupTypeRepository) CountChildrenByParentID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 

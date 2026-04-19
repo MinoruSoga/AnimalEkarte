@@ -17,4 +17,3 @@ type updateInsuranceRequest struct {
 	ContactPhone *string `json:"contact_phone"`
 	SortOrder    *int    `json:"sort_order"`
 }
-

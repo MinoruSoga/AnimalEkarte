@@ -46,7 +46,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 	if sumErr != nil {
 		return nil, apperrors.Wrap(sumErr, "sum refunds")
 	}
-	totalAmount := int64(billing.TotalAmount)
+	totalAmount := billing.TotalAmount
 	if len(billing.Payments) > 0 {
 		totalAmount = billing.Payments[0].TotalAmount
 	}

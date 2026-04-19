@@ -26,4 +26,3 @@ type updateConsultationRequest struct {
 	TaxType       *string  `json:"tax_type"`
 	TaxRate       *float64 `json:"tax_rate"`
 }
-
