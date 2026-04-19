@@ -7954,6 +7954,13 @@ paths:
       responses:
         '201':
           description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/reservation-types/1/unavailable-times/1
           content:
             application/json:
               schema:
@@ -10283,6 +10290,13 @@ paths:
       responses:
         '201':
           description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/animal-species/1
           content:
             application/json:
               schema:
@@ -12195,14 +12209,53 @@ paths:
       responses:
         '201':
           description: Created
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/shift-templates/1
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ShiftTemplate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/shift-templates/reorder:
+    patch:
+      tags:
+        - シフトテンプレート
+      summary: シフトテンプレート並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/shift-templates/{id}:
     get:
       tags:
         - シフトテンプレート
+      summary: シフトテンプレート取得
       parameters:
         - name: id
           in: path
@@ -12217,9 +12270,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ShiftTemplate'
-    put:
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
       tags:
         - シフトテンプレート
+      summary: シフトテンプレート更新
       parameters:
         - name: id
           in: path

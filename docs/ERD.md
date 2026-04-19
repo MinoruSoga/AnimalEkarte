@@ -228,6 +228,7 @@ erDiagram
         text description
         integer sort_order
         boolean is_active
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -308,6 +309,7 @@ erDiagram
         bigint price
         text description
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -336,6 +338,7 @@ erDiagram
         text description
         text interval
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -355,6 +358,7 @@ erDiagram
         medicine_unit medicine_unit
         numeric default_quantity
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -368,6 +372,7 @@ erDiagram
         text description
         text contact_phone
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -382,6 +387,7 @@ erDiagram
         bigint price
         text description
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -393,6 +399,7 @@ erDiagram
         text color
         integer sort_order
         boolean is_active
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -416,6 +423,7 @@ erDiagram
         text reservation_day_option
         boolean is_internal
         reservation_type_category category
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -450,6 +458,7 @@ erDiagram
         text description
         integer duration
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -495,6 +504,7 @@ erDiagram
         text description
         integer duration
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -509,6 +519,7 @@ erDiagram
         text description
         integer duration
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -520,6 +531,7 @@ erDiagram
         boolean is_active
         text description
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -532,6 +544,7 @@ erDiagram
         text description
         bigint diagnosis_type_id FK
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -559,6 +572,7 @@ erDiagram
         text description
         boolean is_active
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -571,6 +585,7 @@ erDiagram
         text content
         boolean is_active
         integer sort_order
+        timestamptz deleted_at
         timestamptz created_at
         timestamptz updated_at
     }
