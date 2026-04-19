@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 
 // External
 import { Pencil, Plus, Check, X, BarChart2, Table2 } from "lucide-react";
@@ -312,12 +312,16 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabP
   const [showGraph, setShowGraph] = useState(false);
 
   // recorded_at 昇順ソート済みリスト
-  const sortedVitals: Vital[] = vitals
-    ? [...vitals].sort(
-        (a, b) =>
-          new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
-      )
-    : [];
+  const sortedVitals = useMemo<Vital[]>(
+    () =>
+      vitals
+        ? [...vitals].sort(
+            (a, b) =>
+              new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+          )
+        : [],
+    [vitals]
+  );
 
   // ── handlers ──
 

@@ -65,7 +65,7 @@ export function Reception() {
     // スタッフAPIから医師フィルター選択肢を動的生成
     const doctors = useMemo(() => [
       { id: "all", name: "全て" },
-      ...staffs.flatMap((s) => s.is_active ? [{ id: s.name, name: s.name }] : []),
+      ...staffs.flatMap((s) => s.isActive ? [{ id: s.name, name: s.name }] : []),
       { id: "医師指名なし", name: "医師指名なし" },
     ], [staffs]);
 

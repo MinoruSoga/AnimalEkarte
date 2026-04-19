@@ -1401,11 +1401,14 @@ CREATE INDEX idx_vital_records_daily_record_id ON vital_records(daily_record_id)
 CREATE INDEX idx_vital_records_pet_id ON vital_records(pet_id);
 CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id);
 CREATE INDEX idx_exams_pet_id ON exams(pet_id);
+CREATE INDEX idx_exams_exam_type_id ON exams(exam_type_id);
 CREATE INDEX idx_vaccinations_clinic_id ON vaccinations(clinic_id);
 CREATE INDEX idx_vaccinations_medical_record_id ON vaccinations(medical_record_id);
 CREATE INDEX idx_vaccinations_pet_id ON vaccinations(pet_id);
+CREATE INDEX idx_vaccinations_vaccine_id ON vaccinations(vaccine_id);
 CREATE INDEX idx_checkups_medical_record_id ON checkups(medical_record_id);
 CREATE INDEX idx_checkups_pet_id ON checkups(pet_id);
+CREATE INDEX idx_checkups_checkup_type_id ON checkups(checkup_type_id);
 CREATE INDEX idx_clinical_plans_medical_record_id ON clinical_plans(medical_record_id);
 CREATE INDEX idx_inquiries_medical_record_id ON inquiries(medical_record_id);
 CREATE INDEX idx_medical_record_images_medical_record_id ON medical_record_images(medical_record_id);

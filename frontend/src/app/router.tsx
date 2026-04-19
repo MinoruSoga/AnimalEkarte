@@ -10,7 +10,7 @@ import { ResourceReception, ResourceOwners, ResourceReservations, ResourceMedica
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
 const Login = lazy(() =>
-  import("@/features/auth/routes/Login").then((m) => ({ default: m.Login })),
+  import("@/features/auth").then((m) => ({ default: m.Login })),
 );
 
 export const router = createBrowserRouter([

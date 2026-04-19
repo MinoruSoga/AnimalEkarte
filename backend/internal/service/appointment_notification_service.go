@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -306,7 +307,7 @@ func (s *reservationNotificationService) sendEmail(_ context.Context, to, subjec
 	}
 
 	if err := smtp.SendMail(addr, auth, from, []string{to}, msg); err != nil {
-		return fmt.Errorf("smtp send: %w", err)
+		return apperrors.Wrap(err, "smtp send")
 	}
 	return nil
 }
