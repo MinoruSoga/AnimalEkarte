@@ -162,7 +162,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
-				ShiftType: model.ShiftTypeMorning,
+				ShiftType: string(model.ShiftTypeMorning),
 				StartTime: &startTime,
 				EndTime:   &endTime,
 				Notes:     "Regular shift",
@@ -177,7 +177,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
-				ShiftType: model.ShiftTypeOff,
+				ShiftType: string(model.ShiftTypeOff),
 				Notes:     "Day off",
 			},
 			repoErr:          nil,
@@ -191,7 +191,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
-				ShiftType: model.ShiftTypePaidLeave,
+				ShiftType: string(model.ShiftTypePaidLeave),
 				StartTime: &sameTime,
 				EndTime:   &sameTime,
 			},
@@ -206,7 +206,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
-				ShiftType: model.ShiftTypeFull,
+				ShiftType: string(model.ShiftTypeFull),
 				StartTime: &sameTime,
 				EndTime:   &sameTime,
 			},
@@ -221,7 +221,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
-				ShiftType: model.ShiftTypeMorning,
+				ShiftType: string(model.ShiftTypeMorning),
 				StartTime: &startTime,
 				EndTime:   &earlierTime,
 			},
@@ -235,7 +235,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
-				ShiftType: model.ShiftTypeMorning,
+				ShiftType: string(model.ShiftTypeMorning),
 			},
 			repoErr:          errors.New("db error"),
 			wantErr:          true,
@@ -273,7 +273,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 }
 
 func TestShiftEntryService_Update(t *testing.T) {
-	newShiftType := model.ShiftTypeAfternoon
+	newShiftType := string(model.ShiftTypeAfternoon)
 	newStartTime := "15:00"
 	newNote := "Updated note"
 
@@ -298,7 +298,7 @@ func TestShiftEntryService_Update(t *testing.T) {
 			repoUpdateErr: nil,
 			repoReturnEntry: &model.ShiftEntry{
 				ID:        1,
-				ShiftType: newShiftType,
+				ShiftType: model.ShiftType(newShiftType),
 			},
 			wantErr: false,
 		},

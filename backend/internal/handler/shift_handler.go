@@ -72,7 +72,7 @@ func (h *Handler) CreateShiftEntry(c *gin.Context) {
 	shift, err := h.svc.ShiftEntry.Create(c.Request.Context(), clinicID, &service.CreateShiftEntryInput{
 		StaffID:   req.StaffID,
 		Date:      date,
-		ShiftType: model.ShiftType(req.ShiftType),
+		ShiftType: req.ShiftType,
 		StartTime: startTime,
 		EndTime:   endTime,
 		Notes:     req.Notes,
@@ -109,8 +109,7 @@ func (h *Handler) UpdateShiftEntry(c *gin.Context) {
 		Notes:     req.Notes,
 	}
 	if req.ShiftType != nil {
-		st := model.ShiftType(*req.ShiftType)
-		input.ShiftType = &st
+		input.ShiftType = req.ShiftType
 	}
 	if req.Breaks != nil {
 		breaks := make([]service.ShiftBreakInput, 0, len(*req.Breaks))

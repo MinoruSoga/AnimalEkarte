@@ -37,7 +37,7 @@ type ShiftBreakInput struct {
 type CreateShiftEntryInput struct {
 	StaffID   uint64
 	Date      time.Time
-	ShiftType model.ShiftType
+	ShiftType string
 	StartTime *string
 	EndTime   *string
 	Notes     string
@@ -46,7 +46,7 @@ type CreateShiftEntryInput struct {
 
 // UpdateShiftEntryInput はシフト更新の入力DTO（nil = 未変更）
 type UpdateShiftEntryInput struct {
-	ShiftType *model.ShiftType
+	ShiftType *string
 	StartTime *string
 	EndTime   *string
 	Notes     *string
@@ -136,14 +136,15 @@ func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) e
 }
 
 func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error) {
-	if err := validateShiftType(input.ShiftType); err != nil {
+	shiftType := model.ShiftType(input.ShiftType)
+	if err := validateShiftType(shiftType); err != nil {
 		return nil, err
 	}
 	startTime := normalizeTimeString(input.StartTime)
 	endTime := normalizeTimeString(input.EndTime)
 
 	// BUG-028: 時刻バリデーション（off/paid_leave は除外）
-	if err := validateShiftTimes(input.ShiftType, startTime, endTime); err != nil {
+	if err := validateShiftTimes(shiftType, startTime, endTime); err != nil {
 		return nil, err
 	}
 
@@ -151,7 +152,7 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 		ClinicID:  clinicID,
 		StaffID:   input.StaffID,
 		Date:      input.Date,
-		ShiftType: input.ShiftType,
+		ShiftType: shiftType,
 		StartTime: startTime,
 		EndTime:   endTime,
 		Notes:     input.Notes,
@@ -193,10 +194,11 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 	// 更新後の shiftType を決定（input に値があれば上書き、なければ既存値）
 	effectiveShiftType := existing.ShiftType
 	if input.ShiftType != nil {
-		if err := validateShiftType(*input.ShiftType); err != nil {
+		st := model.ShiftType(*input.ShiftType)
+		if err := validateShiftType(st); err != nil {
 			return nil, err
 		}
-		effectiveShiftType = *input.ShiftType
+		effectiveShiftType = st
 	}
 	// 更新後の start_time/end_time を決定
 	effectiveStart := existing.StartTime
