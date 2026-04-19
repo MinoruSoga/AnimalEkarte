@@ -176,5 +176,5 @@ func (h *Handler) ReorderHospitalizationPlans(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }

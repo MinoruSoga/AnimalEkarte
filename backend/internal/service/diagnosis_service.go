@@ -63,7 +63,7 @@ type UpdateDiagnosisNameInput struct {
 // ---- DiagnosisTypeService ----
 
 type DiagnosisTypeService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
+	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisTypeInput) (*model.DiagnosisType, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisTypeInput) (*model.DiagnosisType, error)
@@ -82,12 +82,12 @@ func NewDiagnosisTypeService(
 	return &diagnosisTypeService{repo: repo}
 }
 
-func (s *diagnosisTypeService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
-	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
+func (s *diagnosisTypeService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, error) {
+	items, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
-		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis categories")
+		return nil, apperrors.Wrap(err, "failed to list diagnosis categories")
 	}
-	return items, total, nil
+	return items, nil
 }
 
 func (s *diagnosisTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error) {
@@ -163,6 +163,9 @@ func (s *diagnosisTypeService) Reorder(ctx context.Context, clinicID uint64, ids
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder diagnosis categories")
 	}
+	slog.InfoContext(ctx, "diagnosis_types reordered",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Int("count", len(ids)))
 	return nil
 }
 
@@ -309,6 +312,9 @@ func (s *diagnosisNameService) Reorder(ctx context.Context, clinicID uint64, ids
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder diagnosis names")
 	}
+	slog.InfoContext(ctx, "diagnosis_names reordered",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Int("count", len(ids)))
 	return nil
 }
 

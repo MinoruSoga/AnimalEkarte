@@ -16,7 +16,7 @@ const testClinicID uint64 = 1
 // ---- DiagnosisType モック ----
 
 type mockDiagnosisTypeRepository struct {
-	findAllFn                func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
+	findAllFn                func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, error)
 	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
 	createFn                 func(ctx context.Context, category *model.DiagnosisType) error
 	updateFn                 func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -25,7 +25,7 @@ type mockDiagnosisTypeRepository struct {
 	countNamesByCategoryIDFn func(ctx context.Context, categoryID uint64) (int64, error)
 }
 
-func (m *mockDiagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
+func (m *mockDiagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, error) {
 	return m.findAllFn(ctx, clinicID, page, limit)
 }
 
@@ -114,13 +114,11 @@ func newNameService(repo *mockDiagnosisNameRepository, categoryRepo *mockDiagnos
 
 func TestDiagnosisTypeService_List(t *testing.T) {
 	tests := []struct {
-		name      string
-		repoData  []model.DiagnosisType
-		repoTotal int64
-		repoErr   error
-		wantLen   int
-		wantTotal int64
-		wantErr   bool
+		name     string
+		repoData []model.DiagnosisType
+		repoErr  error
+		wantLen  int
+		wantErr  bool
 	}{
 		{
 			name: "returns category list",
@@ -128,29 +126,23 @@ func TestDiagnosisTypeService_List(t *testing.T) {
 				{ID: 1, Name: "皮膚疾患"},
 				{ID: 2, Name: "消化器疾患"},
 			},
-			repoTotal: 2,
-			repoErr:   nil,
-			wantLen:   2,
-			wantTotal: 2,
-			wantErr:   false,
+			repoErr: nil,
+			wantLen: 2,
+			wantErr: false,
 		},
 		{
-			name:      "returns empty list when no categories exist",
-			repoData:  []model.DiagnosisType{},
-			repoTotal: 0,
-			repoErr:   nil,
-			wantLen:   0,
-			wantTotal: 0,
-			wantErr:   false,
+			name:     "returns empty list when no categories exist",
+			repoData: []model.DiagnosisType{},
+			repoErr:  nil,
+			wantLen:  0,
+			wantErr:  false,
 		},
 		{
-			name:      "propagates repository error",
-			repoData:  nil,
-			repoTotal: 0,
-			repoErr:   errors.New("db connection error"),
-			wantLen:   0,
-			wantTotal: 0,
-			wantErr:   true,
+			name:     "propagates repository error",
+			repoData: nil,
+			repoErr:  errors.New("db connection error"),
+			wantLen:  0,
+			wantErr:  true,
 		},
 	}
 
@@ -159,23 +151,21 @@ func TestDiagnosisTypeService_List(t *testing.T) {
 			capturedPage := 0
 			capturedLimit := 0
 			repo := &mockDiagnosisTypeRepository{
-				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.DiagnosisType, error) {
 					capturedPage = page
 					capturedLimit = limit
-					return tt.repoData, tt.repoTotal, tt.repoErr
+					return tt.repoData, tt.repoErr
 				},
 			}
 			svc := newCategoryService(repo)
 
-			categories, total, err := svc.List(context.Background(), testClinicID, 1, 20)
+			categories, err := svc.List(context.Background(), testClinicID, 1, 20)
 
 			if tt.wantErr {
 				assert.Error(t, err)
-				assert.Equal(t, int64(0), total)
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, categories, tt.wantLen)
-				assert.Equal(t, tt.wantTotal, total)
 				assert.Equal(t, 1, capturedPage)
 				assert.Equal(t, 20, capturedLimit)
 			}
@@ -500,8 +490,8 @@ func defaultCategoryRepo() *mockDiagnosisTypeRepository {
 			return &model.DiagnosisType{ID: 1}, nil
 		},
 		// FindAll は DiagnosisNameService では使用されないが、テスト追加時の panic防止
-		findAllFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisType, int64, error) {
-			return []model.DiagnosisType{}, 0, nil
+		findAllFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisType, error) {
+			return []model.DiagnosisType{}, nil
 		},
 	}
 }

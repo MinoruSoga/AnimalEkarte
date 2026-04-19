@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -66,7 +67,28 @@ func (s *lineReservationSettingService) Get(ctx context.Context, clinicID uint64
 	return setting, nil
 }
 
+// validateJSONFields は []byte フィールドが有効な JSON であることを確認する。
+func validateJSONFields(fields map[string][]byte) error {
+	for name, data := range fields {
+		if len(data) > 0 && !json.Valid(data) {
+			return apperrors.WrapInvalidInput(name + " は有効な JSON である必要があります")
+		}
+	}
+	return nil
+}
+
 func (s *lineReservationSettingService) Upsert(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, error) {
+	if err := validateJSONFields(map[string][]byte{
+		"closed_weekdays":           input.ClosedWeekdays,
+		"closed_dates":              input.ClosedDates,
+		"business_hours":            input.BusinessHours,
+		"business_hours_by_weekday": input.BusinessHoursByWeekday,
+		"break_hours":               input.BreakHours,
+		"additional_fields":         input.AdditionalFields,
+	}); err != nil {
+		return nil, err
+	}
+
 	// LineChannelSecret / LineAccessToken はレスポンスに含まれないため、
 	// フロントエンドは既存値を読み取れない。空文字が送られてきた場合は既存値を保持する。
 	channelSecret := input.LineChannelSecret

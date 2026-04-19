@@ -54,6 +54,14 @@ func (m *mockHospitalizationRepository) CountCarePlanItemsByHospitalizationID(ct
 	return m.countCarePlanItemsByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
 }
 
+func (m *mockHospitalizationRepository) CountDailyRecordsByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockHospitalizationRepository) CountTreatmentPlansByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func TestHospitalizationService_List(t *testing.T) {
 	petID := uint64(5)
 	ownerID := uint64(2)

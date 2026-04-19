@@ -18,6 +18,8 @@ type HospitalizationRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ExistsByCageID(ctx context.Context, cageID uint64) (bool, error)
 	CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
+	CountDailyRecordsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
+	CountTreatmentPlansByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
 }
 
 type hospitalizationRepository struct {
@@ -132,6 +134,32 @@ func (r *hospitalizationRepository) CountCarePlanItemsByHospitalizationID(ctx co
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))
+	}
+	return count, nil
+}
+
+func (r *hospitalizationRepository) CountDailyRecordsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.DailyRecord{}).
+		Joins("JOIN hospitalizations ON daily_records.hospitalization_id = hospitalizations.id AND hospitalizations.deleted_at IS NULL").
+		Where("hospitalizations.clinic_id = ? AND daily_records.hospitalization_id = ?", clinicID, hospitalizationID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))
+	}
+	return count, nil
+}
+
+func (r *hospitalizationRepository) CountTreatmentPlansByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.TreatmentPlan{}).
+		Joins("JOIN hospitalizations ON treatment_plans.hospitalization_id = hospitalizations.id AND hospitalizations.deleted_at IS NULL").
+		Where("hospitalizations.clinic_id = ? AND treatment_plans.hospitalization_id = ?", clinicID, hospitalizationID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "treatment_plan", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))
 	}
 	return count, nil
 }

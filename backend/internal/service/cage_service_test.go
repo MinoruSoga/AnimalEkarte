@@ -79,6 +79,14 @@ func (m *mockHospitalizationForCage) CountCarePlanItemsByHospitalizationID(_ con
 	return 0, nil
 }
 
+func (m *mockHospitalizationForCage) CountDailyRecordsByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockHospitalizationForCage) CountTreatmentPlansByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func newTestCageService(repo *mockCageRepository) CageService {
 	return NewCageService(repo, &mockHospitalizationForCage{})
 }

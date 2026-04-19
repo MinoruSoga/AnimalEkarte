@@ -98,6 +98,11 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 		return
 	}
 
+	if req.ReservationTypeID == 0 {
+		RespondError(c, apperrors.WrapInvalidInput("reservation_type_id は必須です"))
+		return
+	}
+
 	input := &service.CreateTrimmingInput{
 		ReservationTypeID: req.ReservationTypeID,
 		PetID:             req.PetID,

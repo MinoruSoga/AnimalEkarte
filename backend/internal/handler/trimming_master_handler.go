@@ -148,7 +148,7 @@ func (h *Handler) ReorderTrimmingCourses(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // ---- TrimmingOption ----
@@ -282,5 +282,5 @@ func (h *Handler) ReorderTrimmingOptions(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }

@@ -73,13 +73,18 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 
 func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *UpsertScheduleInput) (*ScheduleEntry, error) {
 	shiftType := model.ShiftType(input.ShiftType)
+	startTime := normalizeTimeString(input.WorkStart)
+	endTime := normalizeTimeString(input.WorkEnd)
+	if err := validateShiftTimes(shiftType, startTime, endTime); err != nil {
+		return nil, err
+	}
 	entry := &model.ShiftEntry{
 		ClinicID:  clinicID,
 		StaffID:   staffID,
 		Date:      date,
 		ShiftType: shiftType,
-		StartTime: input.WorkStart,
-		EndTime:   input.WorkEnd,
+		StartTime: startTime,
+		EndTime:   endTime,
 	}
 
 	breaks := make([]model.ShiftEntryBreak, 0, len(input.Breaks))

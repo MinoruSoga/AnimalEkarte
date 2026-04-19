@@ -146,7 +146,7 @@ func (h *Handler) ReorderConsultations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // DeleteConsultation godoc

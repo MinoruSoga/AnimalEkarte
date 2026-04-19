@@ -44,7 +44,7 @@ func (h *Handler) ListDiagnosisTypes(c *gin.Context) {
 		return
 	}
 
-	categories, _, err := h.svc.DiagnosisType.List(c.Request.Context(), clinicID, page, limit)
+	categories, err := h.svc.DiagnosisType.List(c.Request.Context(), clinicID, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -140,7 +140,7 @@ func (h *Handler) ReorderDiagnosisTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }
 
 // ---- DiagnosisName ----
@@ -291,5 +291,5 @@ func (h *Handler) ReorderDiagnosisNames(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+	c.Status(http.StatusNoContent)
 }

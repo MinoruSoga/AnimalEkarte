@@ -138,6 +138,24 @@ func buildHospitalizationUpdateFields(input *UpdateHospitalizationInput) map[str
 }
 
 func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	// FK依存チェック: 入院に紐付く日次記録が存在する場合は削除を拒否
+	dailyCount, err := s.repos.Hospitalization.CountDailyRecordsByHospitalizationID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check daily record dependencies")
+	}
+	if dailyCount > 0 {
+		return apperrors.WrapConflict("日次記録が紐付いているため削除できません。先に日次記録を削除してください")
+	}
+
+	// FK依存チェック: 入院に紐付く治療計画が存在する場合は削除を拒否
+	planCount, err := s.repos.Hospitalization.CountTreatmentPlansByHospitalizationID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check treatment plan dependencies")
+	}
+	if planCount > 0 {
+		return apperrors.WrapConflict("治療計画が紐付いているため削除できません。先に治療計画を削除してください")
+	}
+
 	// FK依存チェック: 入院に紐付くケアプラン項目が存在する場合は削除を拒否
 	itemCount, err := s.repos.Hospitalization.CountCarePlanItemsByHospitalizationID(ctx, clinicID, id)
 	if err != nil {
