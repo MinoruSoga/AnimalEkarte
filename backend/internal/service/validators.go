@@ -108,7 +108,7 @@ func validateOptionalName(name *string) error {
 // validateDiscountRate は割引率が 0〜100 の範囲内かを検証する
 func validateDiscountRate(rate float64) error {
 	if rate < 0 || rate > 100 {
-		return apperrors.WrapInvalidInput("discount_rate must be between 0 and 100")
+		return apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
 	}
 	return nil
 }

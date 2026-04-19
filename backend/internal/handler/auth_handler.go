@@ -388,11 +388,8 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		RespondError(c, apperrors.Wrap(asgErr, "failed to get clinic assignments"))
 		return
 	}
-	clinicIDs := make([]uint64, 0, len(assignments))
-	mainClinicID := claims.ClinicID
-	for _, a := range assignments {
-		clinicIDs = append(clinicIDs, a.ClinicID)
-	}
+	// resolveClinicInfo で最新割り当てから mainClinicID を再計算（旧 claims の値を引き継がない）
+	mainClinicID, clinicIDs := resolveClinicInfo(assignments)
 
 	// 新しい access_token（15分）
 	expiresAt := time.Now().Add(15 * time.Minute)

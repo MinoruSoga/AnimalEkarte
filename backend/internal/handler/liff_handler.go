@@ -200,10 +200,12 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 		RequestText:       req.RequestText,
 	}
 
-	// 指名予約時: 医師がこのクリニックに所属しているか確認
-	if err := h.checkDoctorClinicAssignment(c.Request.Context(), clinicID, req.StaffID); err != nil {
-		RespondError(c, err)
-		return
+	// 指名予約時のみ所属チェック（StaffID=0 は「指名なし」）
+	if req.StaffID != 0 {
+		if err := h.checkDoctorClinicAssignment(c.Request.Context(), clinicID, req.StaffID); err != nil {
+			RespondError(c, err)
+			return
+		}
 	}
 
 	appt, err := h.svc.Liff.CreateReservation(c.Request.Context(), clinicID, customerID, input)

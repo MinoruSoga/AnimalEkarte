@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -112,7 +113,8 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 		// LINE API でトークン検証（client_id にクリニックのチャンネル ID を使用）
 		lineUser, err := verifyLiffIDToken(c.Request.Context(), idToken, liffChannelID)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid ID token: " + err.Error()})
+			slog.WarnContext(c.Request.Context(), "invalid LINE ID token", slog.String("error", err.Error()))
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid ID token"})
 			c.Abort()
 			return
 		}
