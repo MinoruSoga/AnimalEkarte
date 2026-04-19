@@ -61,6 +61,14 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
+	if err := validateAnesthesiaType(input.Anesthesia); err != nil {
+		return nil, err
+	}
+	if input.TaxType != nil {
+		if err := validateTaxType(*input.TaxType); err != nil {
+			return nil, err
+		}
+	}
 	taxType := model.TaxTypeExcluded
 	if input.TaxType != nil && *input.TaxType != "" {
 		taxType = model.TaxType(*input.TaxType)
@@ -98,6 +106,16 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
+	}
+	if input.Anesthesia != nil {
+		if err := validateAnesthesiaType(*input.Anesthesia); err != nil {
+			return nil, err
+		}
+	}
+	if input.TaxType != nil {
+		if err := validateTaxType(*input.TaxType); err != nil {
+			return nil, err
+		}
 	}
 	fields := buildProcedureUpdateFields(input)
 	if len(fields) == 0 {
@@ -143,11 +161,11 @@ type UpdateProcedureInput struct {
 	IsActive      *bool
 	Description   *string
 	Duration      *int
-	Anesthesia    *model.AnesthesiaType
+	Anesthesia    *string
 	ParentID      *uint64
 	ClearParentID bool
 	SortOrder     *int
-	TaxType       *model.TaxType
+	TaxType       *string
 	TaxRate       *float64
 }
 
@@ -182,7 +200,7 @@ func buildProcedureUpdateFields(input *UpdateProcedureInput) map[string]any {
 		fields[colProcedureDuration] = *input.Duration
 	}
 	if input.Anesthesia != nil {
-		fields[colProcedureAnesthesia] = *input.Anesthesia
+		fields[colProcedureAnesthesia] = model.AnesthesiaType(*input.Anesthesia)
 	}
 	if input.ClearParentID {
 		fields[colProcedureParentID] = nil
@@ -193,7 +211,7 @@ func buildProcedureUpdateFields(input *UpdateProcedureInput) map[string]any {
 		fields[colProcedureSortOrder] = *input.SortOrder
 	}
 	if input.TaxType != nil {
-		fields[colProcedureTaxType] = *input.TaxType
+		fields[colProcedureTaxType] = model.TaxType(*input.TaxType)
 	}
 	if input.TaxRate != nil {
 		fields[colProcedureTaxRate] = *input.TaxRate

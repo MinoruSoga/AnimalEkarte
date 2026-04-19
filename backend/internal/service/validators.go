@@ -176,3 +176,69 @@ func validatePostalCodeFormat(postalCode string) error {
 	}
 	return nil
 }
+
+// validateVaccineSpecies はワクチン対象種別がドメイン上有効かを検証する
+func validateVaccineSpecies(species string) error {
+	if species == "" {
+		return nil
+	}
+	switch model.VaccineSpecies(species) {
+	case model.VaccineSpeciesDog, model.VaccineSpeciesCat, model.VaccineSpeciesBoth:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid vaccine species: %s", species))
+	}
+}
+
+// validateAnesthesiaType は麻酔種別がドメイン上有効かを検証する
+func validateAnesthesiaType(anesthesia string) error {
+	if anesthesia == "" {
+		return nil
+	}
+	switch model.AnesthesiaType(anesthesia) {
+	case model.AnesthesiaTypeNone, model.AnesthesiaTypeLocal,
+		model.AnesthesiaTypeSedation, model.AnesthesiaTypeGeneral:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid anesthesia_type: %s", anesthesia))
+	}
+}
+
+// validateTaxType は税種別がドメイン上有効かを検証する
+func validateTaxType(taxType string) error {
+	if taxType == "" {
+		return nil
+	}
+	switch model.TaxType(taxType) {
+	case model.TaxTypeIncluded, model.TaxTypeExcluded, model.TaxTypeExempt:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid tax_type: %s", taxType))
+	}
+}
+
+// validateCageType はケージ種別がドメイン上有効かを検証する
+func validateCageType(cageType string) error {
+	if cageType == "" {
+		return nil
+	}
+	switch model.CageType(cageType) {
+	case model.CageTypeICU, model.CageTypeDog, model.CageTypeCat, model.CageTypeGeneral:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid cage_type: %s", cageType))
+	}
+}
+
+// validateCageSize はケージサイズがドメイン上有効かを検証する
+func validateCageSize(cageSize string) error {
+	if cageSize == "" {
+		return nil
+	}
+	switch model.CageSize(cageSize) {
+	case model.CageSizeSmall, model.CageSizeMedium, model.CageSizeLarge:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid cage_size: %s", cageSize))
+	}
+}

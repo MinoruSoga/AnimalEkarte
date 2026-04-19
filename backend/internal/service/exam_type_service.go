@@ -26,7 +26,7 @@ type ExamTypeService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateExamTypeInput) (*model.ExaminationType, error)
-	Update(ctx context.Context, clinicID, id uint64, input UpdateExamTypeInput) (*model.ExaminationType, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateExamTypeInput) (*model.ExaminationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -72,11 +72,11 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 		slog.Uint64("clinic_id", clinicID))
 	return exType, nil
 }
-func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input UpdateExamTypeInput) (*model.ExaminationType, error) {
+func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateExamTypeInput) (*model.ExaminationType, error) {
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildExamTypeUpdateFields(input)
+	fields := buildExamTypeUpdateFields(*input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}

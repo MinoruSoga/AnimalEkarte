@@ -275,7 +275,7 @@ func TestInsuranceService_Update(t *testing.T) {
 			}
 			svc := NewInsuranceService(repo)
 
-			insurance, err := svc.Update(context.Background(), 1, 1, tt.input)
+			insurance, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)

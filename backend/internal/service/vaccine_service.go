@@ -18,7 +18,7 @@ type CreateVaccineInput struct {
 	Price       *int64
 	IsActive    bool
 	Description string
-	Species     *model.VaccineSpecies
+	Species     *string
 	Interval    string
 	ParentID    *uint64
 	SortOrder   int
@@ -28,7 +28,7 @@ type VaccineService interface {
 	List(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error)
-	Update(ctx context.Context, clinicID, id uint64, input UpdateVaccineInput) (*model.Vaccine, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateVaccineInput) (*model.Vaccine, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -54,13 +54,23 @@ func (s *vaccineService) GetByID(ctx context.Context, clinicID, id uint64) (*mod
 	return result, nil
 }
 func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error) {
+	if input.Species != nil {
+		if err := validateVaccineSpecies(*input.Species); err != nil {
+			return nil, err
+		}
+	}
+	var species *model.VaccineSpecies
+	if input.Species != nil {
+		s := model.VaccineSpecies(*input.Species)
+		species = &s
+	}
 	vaccine := &model.Vaccine{
 		ClinicID:    clinicID,
 		Name:        input.Name,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
 		Description: input.Description,
-		Species:     input.Species,
+		Species:     species,
 		Interval:    input.Interval,
 		ParentID:    input.ParentID,
 		SortOrder:   input.SortOrder,
@@ -71,8 +81,13 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 	slog.InfoContext(ctx, "vaccine created", slog.Uint64("clinic_id", clinicID), slog.Uint64("vaccine_id", vaccine.ID))
 	return vaccine, nil
 }
-func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input UpdateVaccineInput) (*model.Vaccine, error) {
-	fields := buildVaccineUpdateFields(input)
+func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input *UpdateVaccineInput) (*model.Vaccine, error) {
+	if input.Species != nil {
+		if err := validateVaccineSpecies(*input.Species); err != nil {
+			return nil, err
+		}
+	}
+	fields := buildVaccineUpdateFields(*input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -90,7 +105,7 @@ type UpdateVaccineInput struct {
 	Price         *int64
 	IsActive      *bool
 	Description   *string
-	Species       *model.VaccineSpecies
+	Species       *string
 	Interval      *string
 	ParentID      *uint64
 	ClearParentID bool
@@ -123,7 +138,7 @@ func buildVaccineUpdateFields(input UpdateVaccineInput) map[string]any {
 		fields[colVaccineDescription] = *input.Description
 	}
 	if input.Species != nil {
-		fields[colVaccineSpecies] = *input.Species
+		fields[colVaccineSpecies] = model.VaccineSpecies(*input.Species)
 	}
 	if input.Interval != nil {
 		fields[colVaccineInterval] = *input.Interval

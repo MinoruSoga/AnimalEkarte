@@ -238,8 +238,8 @@ func TestCageService_Create(t *testing.T) {
 			name: "creates cage successfully",
 			input: &CreateCageInput{
 				Name:     "新規ケージ",
-				CageType: model.CageTypeDog,
-				CageSize: model.CageSizeMedium,
+				CageType: string(model.CageTypeDog),
+				CageSize: string(model.CageSizeMedium),
 				Price:    &price,
 				IsActive: true,
 			},
@@ -250,8 +250,8 @@ func TestCageService_Create(t *testing.T) {
 			name: "returns error when cage already exists",
 			input: &CreateCageInput{
 				Name:     "既存ケージ",
-				CageType: model.CageTypeCat,
-				CageSize: model.CageSizeSmall,
+				CageType: string(model.CageTypeCat),
+				CageSize: string(model.CageSizeSmall),
 			},
 			repoErr: apperrors.WrapAlreadyExists("cage", "既存ケージ"),
 			wantErr: true,
@@ -260,8 +260,8 @@ func TestCageService_Create(t *testing.T) {
 			name: "returns error on repository failure",
 			input: &CreateCageInput{
 				Name:     "エラーケージ",
-				CageType: model.CageTypeGeneral,
-				CageSize: model.CageSizeLarge,
+				CageType: string(model.CageTypeGeneral),
+				CageSize: string(model.CageSizeLarge),
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -293,8 +293,8 @@ func TestCageService_Create(t *testing.T) {
 func TestCageService_Update(t *testing.T) {
 	price := int64(4500)
 	name := "更新後ケージ"
-	cageType := model.CageTypeDog
-	cageSize := model.CageSizeLarge
+	cageType := string(model.CageTypeDog)
+	cageSize := string(model.CageSizeLarge)
 	isActive := true
 	tests := []struct {
 		name     string
@@ -320,8 +320,8 @@ func TestCageService_Update(t *testing.T) {
 				ID:       1,
 				ClinicID: 1,
 				Name:     name,
-				CageType: cageType,
-				CageSize: cageSize,
+				CageType: model.CageType(cageType),
+				CageSize: model.CageSize(cageSize),
 				Price:    &price,
 				IsActive: isActive,
 			},
@@ -356,7 +356,7 @@ func TestCageService_Update(t *testing.T) {
 			}
 			svc := newTestCageService(repo)
 
-			cage, err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
+			cage, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)

@@ -103,7 +103,7 @@ func (h *Handler) UpdateInsurance(c *gin.Context) {
 		SortOrder:    req.SortOrder,
 	}
 
-	insurance, err := h.svc.Insurance.Update(c.Request.Context(), clinicID, id, svcInput)
+	insurance, err := h.svc.Insurance.Update(c.Request.Context(), clinicID, id, &svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return

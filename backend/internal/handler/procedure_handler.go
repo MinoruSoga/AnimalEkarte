@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -110,18 +109,12 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 		IsActive:      input.IsActive,
 		Description:   input.Description,
 		Duration:      input.Duration,
+		Anesthesia:    input.Anesthesia,
 		ParentID:      input.ParentID,
 		ClearParentID: input.ClearParentID,
 		SortOrder:     input.SortOrder,
+		TaxType:       input.TaxType,
 		TaxRate:       input.TaxRate,
-	}
-	if input.Anesthesia != nil {
-		a := model.AnesthesiaType(*input.Anesthesia)
-		svcInput.Anesthesia = &a
-	}
-	if input.TaxType != nil {
-		t := model.TaxType(*input.TaxType)
-		svcInput.TaxType = &t
 	}
 
 	procedure, err := h.svc.Procedure.Update(c.Request.Context(), clinicID, id, &svcInput)

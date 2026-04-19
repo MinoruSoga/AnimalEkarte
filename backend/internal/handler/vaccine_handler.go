@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -72,8 +71,7 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 		SortOrder:   input.SortOrder,
 	}
 	if input.Species != "" {
-		s := model.VaccineSpecies(input.Species)
-		svcInput.Species = &s
+		svcInput.Species = &input.Species
 	}
 
 	vaccine, err := h.svc.Vaccine.Create(c.Request.Context(), clinicID, svcInput)
@@ -105,17 +103,14 @@ func (h *Handler) UpdateVaccine(c *gin.Context) {
 		Price:         input.Price,
 		IsActive:      input.IsActive,
 		Description:   input.Description,
+		Species:       input.Species,
 		Interval:      input.Interval,
 		ParentID:      input.ParentID,
 		ClearParentID: input.ClearParentID,
 		SortOrder:     input.SortOrder,
 	}
-	if input.Species != nil {
-		s := model.VaccineSpecies(*input.Species)
-		svcInput.Species = &s
-	}
 
-	vaccine, err := h.svc.Vaccine.Update(c.Request.Context(), clinicID, id, svcInput)
+	vaccine, err := h.svc.Vaccine.Update(c.Request.Context(), clinicID, id, &svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -26,7 +26,7 @@ type InsuranceService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateInsuranceInput) (*model.Insurance, error)
-	Update(ctx context.Context, clinicID, id uint64, input UpdateInsuranceInput) (*model.Insurance, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateInsuranceInput) (*model.Insurance, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -72,11 +72,11 @@ func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *C
 	slog.InfoContext(ctx, "insurance created", slog.Uint64("clinic_id", clinicID), slog.Uint64("insurance_id", insurance.ID))
 	return insurance, nil
 }
-func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, input UpdateInsuranceInput) (*model.Insurance, error) {
+func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, input *UpdateInsuranceInput) (*model.Insurance, error) {
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildInsuranceUpdateFields(input)
+	fields := buildInsuranceUpdateFields(*input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}

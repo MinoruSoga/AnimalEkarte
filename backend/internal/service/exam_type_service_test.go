@@ -304,7 +304,7 @@ func TestExamTypeService_Update(t *testing.T) {
 			}
 			svc := NewExamTypeService(repo)
 
-			exType, err := svc.Update(context.Background(), 1, 1, tt.input)
+			exType, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)

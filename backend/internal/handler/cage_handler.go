@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -67,8 +66,8 @@ func (h *Handler) CreateCage(c *gin.Context) {
 
 	svcInput := &service.CreateCageInput{
 		Name:        input.Name,
-		CageType:    model.CageType(input.CageType),
-		CageSize:    model.CageSize(input.CageSize),
+		CageType:    input.CageType,
+		CageSize:    input.CageSize,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
 		Description: input.Description,
@@ -99,28 +98,17 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 		return
 	}
 
-	var cageType *model.CageType
-	if input.CageType != nil {
-		ct := model.CageType(*input.CageType)
-		cageType = &ct
-	}
-	var cageSize *model.CageSize
-	if input.CageSize != nil {
-		cs := model.CageSize(*input.CageSize)
-		cageSize = &cs
-	}
-
 	svcInput := service.UpdateCageInput{
 		Name:        input.Name,
-		CageType:    cageType,
-		CageSize:    cageSize,
+		CageType:    input.CageType,
+		CageSize:    input.CageSize,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
 		Description: input.Description,
 		SortOrder:   input.SortOrder,
 	}
 
-	cage, err := h.svc.Cage.Update(c.Request.Context(), clinicID, id, svcInput)
+	cage, err := h.svc.Cage.Update(c.Request.Context(), clinicID, id, &svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return

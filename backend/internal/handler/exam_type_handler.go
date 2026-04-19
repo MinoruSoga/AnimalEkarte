@@ -100,7 +100,7 @@ func (h *Handler) UpdateExaminationType(c *gin.Context) {
 		SortOrder:     req.SortOrder,
 	}
 
-	exType, err := h.svc.ExaminationType.Update(c.Request.Context(), clinicID, id, svcInput)
+	exType, err := h.svc.ExaminationType.Update(c.Request.Context(), clinicID, id, &svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return

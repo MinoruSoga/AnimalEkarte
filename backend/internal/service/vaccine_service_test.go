@@ -291,7 +291,7 @@ func TestVaccineService_Update(t *testing.T) {
 			}
 			svc := NewVaccineService(repo)
 
-			vaccine, err := svc.Update(context.Background(), 1, 1, tt.input)
+			vaccine, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)

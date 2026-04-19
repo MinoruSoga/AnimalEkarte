@@ -15,8 +15,8 @@ import (
 // CreateCageInput はケージ作成の入力DTO
 type CreateCageInput struct {
 	Name        string
-	CageType    model.CageType
-	CageSize    model.CageSize
+	CageType    string
+	CageSize    string
 	Price       *int64
 	IsActive    bool
 	Description string
@@ -27,7 +27,7 @@ type CageService interface {
 	List(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateCageInput) (*model.Cage, error)
-	Update(ctx context.Context, clinicID, id uint64, input UpdateCageInput) (*model.Cage, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateCageInput) (*model.Cage, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -59,11 +59,17 @@ func (s *cageService) Create(ctx context.Context, clinicID uint64, input *Create
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
+	if err := validateCageType(input.CageType); err != nil {
+		return nil, err
+	}
+	if err := validateCageSize(input.CageSize); err != nil {
+		return nil, err
+	}
 	cage := &model.Cage{
 		ClinicID:    clinicID,
 		Name:        input.Name,
-		CageType:    input.CageType,
-		CageSize:    input.CageSize,
+		CageType:    model.CageType(input.CageType),
+		CageSize:    model.CageSize(input.CageSize),
 		Price:       input.Price,
 		IsActive:    input.IsActive,
 		Description: input.Description,
@@ -77,11 +83,21 @@ func (s *cageService) Create(ctx context.Context, clinicID uint64, input *Create
 		slog.Uint64("clinic_id", cage.ClinicID))
 	return cage, nil
 }
-func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input UpdateCageInput) (*model.Cage, error) {
+func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *UpdateCageInput) (*model.Cage, error) {
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildCageUpdateFields(input)
+	if input.CageType != nil {
+		if err := validateCageType(*input.CageType); err != nil {
+			return nil, err
+		}
+	}
+	if input.CageSize != nil {
+		if err := validateCageSize(*input.CageSize); err != nil {
+			return nil, err
+		}
+	}
+	fields := buildCageUpdateFields(*input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -123,8 +139,8 @@ func (s *cageService) Reorder(ctx context.Context, clinicID uint64, ids []uint64
 // UpdateCageInput はケージ更新のサービス入力 DTO
 type UpdateCageInput struct {
 	Name        *string
-	CageType    *model.CageType
-	CageSize    *model.CageSize
+	CageType    *string
+	CageSize    *string
 	Price       *int64
 	IsActive    *bool
 	Description *string
@@ -147,10 +163,10 @@ func buildCageUpdateFields(input UpdateCageInput) map[string]any {
 		fields[colCageName] = *input.Name
 	}
 	if input.CageType != nil {
-		fields[colCageCageType] = *input.CageType
+		fields[colCageCageType] = model.CageType(*input.CageType)
 	}
 	if input.CageSize != nil {
-		fields[colCageCageSize] = *input.CageSize
+		fields[colCageCageSize] = model.CageSize(*input.CageSize)
 	}
 	if input.Price != nil {
 		fields[colCagePrice] = *input.Price

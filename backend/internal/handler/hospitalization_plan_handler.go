@@ -104,7 +104,7 @@ func (h *Handler) UpdateHospitalizationPlan(c *gin.Context) {
 		TaxRate:     input.TaxRate,
 	}
 
-	plan, err := h.svc.HospitalizationPlan.Update(c.Request.Context(), clinicID, id, svcInput)
+	plan, err := h.svc.HospitalizationPlan.Update(c.Request.Context(), clinicID, id, &svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return
