@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -51,6 +52,7 @@ func (h *Handler) CreateAnimalSpecies(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/animal-species/%d", species.ID))
 	c.JSON(http.StatusCreated, toAnimalSpeciesResponse(species))
 }
 

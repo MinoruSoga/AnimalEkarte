@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -41,22 +41,17 @@ type updateShiftTemplateRequest struct {
 	Breaks    *[]shiftTemplateBreakRequest `json:"breaks"`
 }
 
-// reorderShiftTemplateRequest はシフトテンプレート並び替えリクエスト
-type reorderShiftTemplateRequest struct {
-	IDs []uint64 `json:"ids" binding:"required"`
-}
-
 // shiftTemplateBreakResponse は休憩時間テンプレートのレスポンスDTO
 type shiftTemplateBreakResponse struct {
-	ID         string `json:"id"`
+	ID         uint64 `json:"id"`
 	BreakStart string `json:"break_start"`
 	BreakEnd   string `json:"break_end"`
 }
 
 // shiftTemplateResponse はシフトテンプレートのレスポンスDTO
 type shiftTemplateResponse struct {
-	ID        string                       `json:"id"`
-	ClinicID  string                       `json:"clinic_id"`
+	ID        uint64                       `json:"id"`
+	ClinicID  uint64                       `json:"clinic_id"`
 	Name      string                       `json:"name"`
 	ShiftType string                       `json:"shift_type"`
 	StartTime string                       `json:"start_time"`
@@ -71,7 +66,7 @@ func toShiftTemplateResponse(tpl *model.ShiftTemplate) shiftTemplateResponse {
 	breaks := make([]shiftTemplateBreakResponse, 0, len(tpl.Breaks))
 	for _, b := range tpl.Breaks {
 		breaks = append(breaks, shiftTemplateBreakResponse{
-			ID:         strconv.FormatUint(b.ID, 10),
+			ID:         b.ID,
 			BreakStart: b.BreakStart,
 			BreakEnd:   b.BreakEnd,
 		})
@@ -85,8 +80,8 @@ func toShiftTemplateResponse(tpl *model.ShiftTemplate) shiftTemplateResponse {
 		endTime = *tpl.EndTime
 	}
 	return shiftTemplateResponse{
-		ID:        strconv.FormatUint(tpl.ID, 10),
-		ClinicID:  strconv.FormatUint(tpl.ClinicID, 10),
+		ID:        tpl.ID,
+		ClinicID:  tpl.ClinicID,
 		Name:      tpl.Name,
 		ShiftType: string(tpl.ShiftType),
 		StartTime: startTime,
@@ -96,6 +91,24 @@ func toShiftTemplateResponse(tpl *model.ShiftTemplate) shiftTemplateResponse {
 		IsActive:  tpl.IsActive,
 		Breaks:    breaks,
 	}
+}
+
+// GetShiftTemplate GET /api/v1/shift-templates/:id
+func (h *Handler) GetShiftTemplate(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	tpl, err := h.svc.ShiftTemplate.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toShiftTemplateResponse(tpl))
 }
 
 // ListShiftTemplates GET /api/v1/shift-templates
@@ -152,6 +165,7 @@ func (h *Handler) CreateShiftTemplate(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/shift-templates/%d", tpl.ID))
 	c.JSON(http.StatusCreated, toShiftTemplateResponse(tpl))
 }
 
@@ -237,7 +251,8 @@ func (h *Handler) RegisterShiftTemplateRoutes(rg *gin.RouterGroup) {
 	g := rg.Group("/shift-templates")
 	g.GET("", h.ListShiftTemplates)
 	g.POST("", h.RequirePermission(string(model.ResourceShifts), "create"), h.CreateShiftTemplate)
-	g.PUT("/reorder", h.RequirePermission(string(model.ResourceShifts), "edit"), h.ReorderShiftTemplates)
+	g.PATCH("/reorder", h.RequirePermission(string(model.ResourceShifts), "edit"), h.ReorderShiftTemplates)
+	g.GET("/:id", h.GetShiftTemplate)
 	g.PATCH("/:id", h.RequirePermission(string(model.ResourceShifts), "edit"), h.UpdateShiftTemplate)
 	g.DELETE("/:id", h.RequirePermission(string(model.ResourceShifts), "delete"), h.DeleteShiftTemplate)
 }

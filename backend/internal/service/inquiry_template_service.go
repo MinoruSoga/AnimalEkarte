@@ -80,7 +80,7 @@ func (s *inquiryTemplateService) Create(ctx context.Context, clinicID uint64, in
 		return nil, apperrors.Wrap(err, "failed to create inquiry template")
 	}
 	slog.InfoContext(ctx, "inquiry template created",
-		slog.Uint64("clinic_id", template.ClinicID),
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("inquiry_template_id", template.ID))
 	return template, nil
 }

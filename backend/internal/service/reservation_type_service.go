@@ -272,14 +272,11 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 		}
 		return result, nil
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update service type")
 	}
 	slog.InfoContext(ctx, "service type updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", id))
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get service type after update")
-	}
 	return result, nil
 }
 

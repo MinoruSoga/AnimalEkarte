@@ -10,6 +10,19 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+const (
+	colConsultationName          = "name"
+	colConsultationPrice         = "price"
+	colConsultationIsActive      = "is_active"
+	colConsultationDescription   = "description"
+	colConsultationTimeCondition = "time_condition"
+	colConsultationDuration      = "duration"
+	colConsultationParentID      = "parent_id"
+	colConsultationSortOrder     = "sort_order"
+	colConsultationTaxType       = "tax_type"
+	colConsultationTaxRate       = "tax_rate"
+)
+
 // ---- ConsultationService ----
 
 // CreateConsultationInput は診察種別作成のサービス入力 DTO
@@ -85,7 +98,7 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 	if err := s.repo.Create(ctx, consultation); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create consultation")
 	}
-	slog.InfoContext(ctx, "consultation created", slog.Uint64("consultation_id", consultation.ID), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "consultation created", slog.Uint64("clinic_id", clinicID), slog.Uint64("consultation_id", consultation.ID))
 	return consultation, nil
 }
 func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
@@ -117,7 +130,7 @@ func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) e
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete consultation")
 	}
-	slog.InfoContext(ctx, "consultation deleted", slog.Uint64("consultation_id", id), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "consultation deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("consultation_id", id))
 	return nil
 }
 
@@ -152,36 +165,36 @@ type UpdateConsultationInput struct {
 func buildConsultationUpdateFields(input *UpdateConsultationInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colConsultationName] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = *input.Price
+		fields[colConsultationPrice] = *input.Price
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colConsultationIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colConsultationDescription] = *input.Description
 	}
 	if input.TimeCondition != nil {
-		fields["time_condition"] = *input.TimeCondition
+		fields[colConsultationTimeCondition] = *input.TimeCondition
 	}
 	if input.Duration != nil {
-		fields["duration"] = *input.Duration
+		fields[colConsultationDuration] = *input.Duration
 	}
 	if input.ClearParentID {
-		fields["parent_id"] = nil
+		fields[colConsultationParentID] = nil
 	} else if input.ParentID != nil {
-		fields["parent_id"] = *input.ParentID
+		fields[colConsultationParentID] = *input.ParentID
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colConsultationSortOrder] = *input.SortOrder
 	}
 	if input.TaxType != nil {
-		fields["tax_type"] = model.TaxType(*input.TaxType)
+		fields[colConsultationTaxType] = model.TaxType(*input.TaxType)
 	}
 	if input.TaxRate != nil {
-		fields["tax_rate"] = *input.TaxRate
+		fields[colConsultationTaxRate] = *input.TaxRate
 	}
 	return fields
 }

@@ -17,7 +17,7 @@ type mockShiftTemplateRepository struct {
 	findAllFn       func(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
 	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
 	createFn        func(ctx context.Context, tpl *model.ShiftTemplate) error
-	updateFn        func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFn        func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
 	deleteFn        func(ctx context.Context, clinicID, id uint64) error
 	replaceBreaksFn func(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
 	reorderFn       func(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -44,11 +44,11 @@ func (m *mockShiftTemplateRepository) Create(ctx context.Context, tpl *model.Shi
 	return nil
 }
 
-func (m *mockShiftTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (m *mockShiftTemplateRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, fields)
 	}
-	return nil
+	return &model.ShiftTemplate{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockShiftTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -253,14 +253,8 @@ func TestShiftTemplateService_Update(t *testing.T) {
 				Name: strPtr("新しい早番"),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
-				updateCalled := false
-				repo.updateFn = func(_ context.Context, clinicID, id uint64, fields map[string]any) error {
-					updateCalled = true
+				repo.updateFn = func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
 					assert.Equal(t, "新しい早番", fields["name"])
-					return nil
-				}
-				repo.findByIDFn = func(_ context.Context, _, id uint64) (*model.ShiftTemplate, error) {
-					_ = updateCalled // 参照のみ
 					return &model.ShiftTemplate{ID: id, Name: "新しい早番"}, nil
 				}
 			},

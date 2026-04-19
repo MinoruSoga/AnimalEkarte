@@ -18,7 +18,7 @@ type mockReservationTypeRepository struct {
 	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 	createFn   func(ctx context.Context, st *model.ReservationType) error
-	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 	reorderFn  func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -44,11 +44,11 @@ func (m *mockReservationTypeRepository) Create(ctx context.Context, st *model.Re
 	return nil
 }
 
-func (m *mockReservationTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (m *mockReservationTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, fields)
 	}
-	return nil
+	return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockReservationTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -255,9 +255,9 @@ func TestReservationTypeService_Update(t *testing.T) {
 		existing := &model.ReservationType{ID: id, ClinicID: clinicID, Name: "既存"}
 		updateCalled := false
 		repo := &mockReservationTypeRepository{
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationType, error) {
 				updateCalled = true
-				return nil
+				return existing, nil
 			},
 			findByIDFn: func(_ context.Context, cid, rid uint64) (*model.ReservationType, error) {
 				assert.Equal(t, clinicID, cid)
@@ -285,13 +285,10 @@ func TestReservationTypeService_Update(t *testing.T) {
 
 		var capturedFields map[string]any
 		repo := &mockReservationTypeRepository{
-			updateFn: func(_ context.Context, cid, rid uint64, fields map[string]any) error {
+			updateFn: func(_ context.Context, cid, rid uint64, fields map[string]any) (*model.ReservationType, error) {
 				assert.Equal(t, clinicID, cid)
 				assert.Equal(t, id, rid)
 				capturedFields = fields
-				return nil
-			},
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
 				return updated, nil
 			},
 		}
@@ -312,8 +309,8 @@ func TestReservationTypeService_Update(t *testing.T) {
 	t.Run("returns not found when record does not exist", func(t *testing.T) {
 		name := "test"
 		repo := &mockReservationTypeRepository{
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-				return apperrors.WrapNotFound("reservation_type", "5")
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationType, error) {
+				return nil, apperrors.WrapNotFound("reservation_type", "5")
 			},
 		}
 		svc := newTestReservationTypeService(repo)

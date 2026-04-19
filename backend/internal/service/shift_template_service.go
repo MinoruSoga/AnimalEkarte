@@ -9,6 +9,16 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+const (
+	colShiftTemplateName      = "name"
+	colShiftTemplateShiftType = "shift_type"
+	colShiftTemplateStartTime = "start_time"
+	colShiftTemplateEndTime   = "end_time"
+	colShiftTemplateNotes     = "notes"
+	colShiftTemplateSortOrder = "sort_order"
+	colShiftTemplateIsActive  = "is_active"
+)
+
 // ShiftBreakTemplateInput は休憩時間テンプレートの入力DTO
 type ShiftBreakTemplateInput struct {
 	BreakStart string
@@ -42,6 +52,7 @@ type UpdateShiftTemplateInput struct {
 // ShiftTemplateService はシフトテンプレートのビジネスロジックインターフェース
 type ShiftTemplateService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateShiftTemplateInput) (*model.ShiftTemplate, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateShiftTemplateInput) (*model.ShiftTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -55,6 +66,14 @@ type shiftTemplateService struct {
 // NewShiftTemplateService は ShiftTemplateService を初期化して返す
 func NewShiftTemplateService(repo repository.ShiftTemplateRepository) ShiftTemplateService {
 	return &shiftTemplateService{repo: repo}
+}
+
+func (s *shiftTemplateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error) {
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get shift template")
+	}
+	return result, nil
 }
 
 func (s *shiftTemplateService) List(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error) {
@@ -93,7 +112,7 @@ func (s *shiftTemplateService) Create(ctx context.Context, clinicID uint64, inpu
 			return nil, apperrors.Wrap(err, "failed to save shift template breaks")
 		}
 	}
-	slog.InfoContext(ctx, "shift template created", slog.Uint64("id", tpl.ID), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "shift template created", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_template_id", tpl.ID))
 	result, err := s.repo.FindByID(ctx, clinicID, tpl.ID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get shift template after create")
@@ -110,8 +129,11 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 		}
 		return existing, nil
 	}
+	var result *model.ShiftTemplate
 	if len(fields) > 0 {
-		if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		var err error
+		result, err = s.repo.UpdateFields(ctx, clinicID, id, fields)
+		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to update shift template")
 		}
 	}
@@ -123,12 +145,13 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 		if err := s.repo.ReplaceBreaks(ctx, id, breaks); err != nil {
 			return nil, apperrors.Wrap(err, "failed to save shift template breaks")
 		}
+		var err error
+		result, err = s.repo.FindByID(ctx, clinicID, id)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to get shift template after update")
+		}
 	}
-	slog.InfoContext(ctx, "shift template updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("id", id))
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get shift template after update")
-	}
+	slog.InfoContext(ctx, "shift template updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_template_id", id))
 	return result, nil
 }
 
@@ -136,7 +159,7 @@ func (s *shiftTemplateService) Delete(ctx context.Context, clinicID, id uint64) 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete shift template")
 	}
-	slog.InfoContext(ctx, "shift template deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("id", id))
+	slog.InfoContext(ctx, "shift template deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_template_id", id))
 	return nil
 }
 
@@ -147,31 +170,32 @@ func (s *shiftTemplateService) Reorder(ctx context.Context, clinicID uint64, ids
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder shift templates")
 	}
+	slog.InfoContext(ctx, "shift templates reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
 }
 
 func buildShiftTemplateUpdateFields(input *UpdateShiftTemplateInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colShiftTemplateName] = *input.Name
 	}
 	if input.ShiftType != nil {
-		fields["shift_type"] = *input.ShiftType
+		fields[colShiftTemplateShiftType] = *input.ShiftType
 	}
 	if input.StartTime != nil {
-		fields["start_time"] = normalizeTimeString(input.StartTime)
+		fields[colShiftTemplateStartTime] = normalizeTimeString(input.StartTime)
 	}
 	if input.EndTime != nil {
-		fields["end_time"] = normalizeTimeString(input.EndTime)
+		fields[colShiftTemplateEndTime] = normalizeTimeString(input.EndTime)
 	}
 	if input.Notes != nil {
-		fields["notes"] = *input.Notes
+		fields[colShiftTemplateNotes] = *input.Notes
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colShiftTemplateSortOrder] = *input.SortOrder
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colShiftTemplateIsActive] = *input.IsActive
 	}
 	return fields
 }

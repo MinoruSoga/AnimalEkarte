@@ -16,7 +16,7 @@ type ShiftTemplateRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
 	Create(ctx context.Context, tpl *model.ShiftTemplate) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ReplaceBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -34,7 +34,7 @@ func (r *shiftTemplateRepository) FindAll(ctx context.Context, clinicID uint64) 
 	err := r.db.WithContext(ctx).
 		Preload("Breaks").
 		Scopes(clinicScope(clinicID)).
-		Order("sort_order ASC, id ASC").
+		Order("sort_order ASC, name ASC").
 		Find(&items).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "shift_template", "")
@@ -64,21 +64,21 @@ func (r *shiftTemplateRepository) Create(ctx context.Context, tpl *model.ShiftTe
 	return nil
 }
 
-func (r *shiftTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *shiftTemplateRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ShiftTemplate{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		if isUniqueConstraintErr(result.Error) {
-			return apperrors.WrapConflict("同じ名称が既に登録されています")
+			return nil, apperrors.WrapConflict("同じ名称が既に登録されています")
 		}
-		return apperrors.FromGORM(result.Error, "shift_template", strconv.FormatUint(id, 10))
+		return nil, apperrors.FromGORM(result.Error, "shift_template", strconv.FormatUint(id, 10))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("shift_template", strconv.FormatUint(id, 10))
+		return nil, apperrors.WrapNotFound("shift_template", strconv.FormatUint(id, 10))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *shiftTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -116,21 +116,5 @@ func (r *shiftTemplateRepository) ReplaceBreaks(ctx context.Context, templateID 
 }
 
 func (r *shiftTemplateRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for i, id := range ids {
-			result := tx.Model(&model.ShiftTemplate{}).
-				Scopes(clinicScope(clinicID)).Where("id = ?", id).
-				Update("sort_order", i)
-			if result.Error != nil {
-				return apperrors.FromGORM(result.Error, "shift_template", strconv.FormatUint(id, 10))
-			}
-			if result.RowsAffected == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("shift_template id %d not found in this clinic", id))
-			}
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to reorder shift templates")
-	}
-	return nil
+	return reorderByClinicID(ctx, r.db, &model.ShiftTemplate{}, "shift_template", clinicID, ids)
 }

@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -78,6 +79,7 @@ func (h *Handler) CreateReservationType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-types/%d", st.ID))
 	c.JSON(http.StatusCreated, toReservationTypeResponse(st))
 }
 
@@ -191,6 +193,7 @@ func (h *Handler) CreateUnavailableTime(c *gin.Context) {
 		return
 	}
 	resp := toUnavailableTimeResponse(result)
+	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-types/%d/unavailable-times/%d", id, result.ID))
 	c.JSON(http.StatusCreated, resp)
 }
 

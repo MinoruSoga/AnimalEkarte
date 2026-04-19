@@ -17,7 +17,7 @@ type ReservationTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 	Create(ctx context.Context, reservationType *model.ReservationType) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -59,28 +59,19 @@ func (r *reservationTypeRepository) Create(ctx context.Context, reservationType 
 	return nil
 }
 
-func (r *reservationTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *reservationTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ReservationType{}).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "reservation_type", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(result.Error, "reservation_type", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		var count int64
-		if err := r.db.WithContext(ctx).Model(&model.ReservationType{}).
-			Scopes(clinicScope(clinicID)).
-			Where("id = ?", id).
-			Count(&count).Error; err != nil {
-			return apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", id))
-		}
-		if count == 0 {
-			return apperrors.WrapNotFound("reservation_type", fmt.Sprintf("%d", id))
-		}
+		return nil, apperrors.WrapNotFound("reservation_type", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *reservationTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {

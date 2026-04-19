@@ -82,8 +82,7 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 		return nil, apperrors.Wrap(err, "failed to create animal species")
 	}
 	slog.InfoContext(ctx, "animal species created",
-		slog.Uint64("species_id", species.ID),
-		slog.String("name", species.Name))
+		slog.Uint64("animal_species_id", species.ID))
 	return species, nil
 }
 
@@ -100,7 +99,7 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 		return nil, apperrors.Wrap(err, "failed to update animal species")
 	}
 	slog.InfoContext(ctx, "animal species updated",
-		slog.Uint64("species_id", id))
+		slog.Uint64("animal_species_id", id))
 	return result, nil
 }
 
@@ -115,7 +114,7 @@ func (s *animalSpeciesService) Delete(ctx context.Context, id uint64) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete animal species")
 	}
-	slog.InfoContext(ctx, "animal species deleted", slog.Uint64("species_id", id))
+	slog.InfoContext(ctx, "animal species deleted", slog.Uint64("animal_species_id", id))
 	return nil
 }
 
