@@ -17,7 +17,7 @@ type OccupationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
 	Create(ctx context.Context, occupation *model.Occupation) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountStaffsByOccupationID(ctx context.Context, occupationID uint64) (int64, error)
@@ -61,18 +61,18 @@ func (r *occupationRepository) Create(ctx context.Context, occupation *model.Occ
 	return nil
 }
 
-func (r *occupationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *occupationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Occupation{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "occupation", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(result.Error, "occupation", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("occupation", fmt.Sprintf("%d", id))
+		return nil, apperrors.WrapNotFound("occupation", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *occupationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

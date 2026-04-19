@@ -90,16 +90,13 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update occupation")
 	}
 	slog.InfoContext(ctx, "occupation updated",
 		slog.Uint64("occupation_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get occupation after update")
-	}
 	return result, nil
 }
 

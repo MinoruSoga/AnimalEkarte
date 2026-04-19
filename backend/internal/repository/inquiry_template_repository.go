@@ -17,7 +17,7 @@ type InquiryTemplateRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
 	Create(ctx context.Context, template *model.InquiryTemplate) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -59,18 +59,18 @@ func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.
 	return nil
 }
 
-func (r *inquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *inquiryTemplateRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.InquiryTemplate{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "inquiry_template", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(result.Error, "inquiry_template", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("inquiry_template", fmt.Sprintf("%d", id))
+		return nil, apperrors.WrapNotFound("inquiry_template", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *inquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -14,12 +14,12 @@ import (
 // ---- Occupation モック ----
 
 type mockOccupationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
-	createFn   func(ctx context.Context, occupation *model.Occupation) error
-	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
-	reorderErr error
+	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
+	createFn       func(ctx context.Context, occupation *model.Occupation) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error)
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
+	reorderErr     error
 }
 
 func (m *mockOccupationRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Occupation, error) {
@@ -34,8 +34,8 @@ func (m *mockOccupationRepository) Create(ctx context.Context, occupation *model
 	return m.createFn(ctx, occupation)
 }
 
-func (m *mockOccupationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockOccupationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockOccupationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -299,11 +299,8 @@ func TestOccupationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockOccupationRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-					return tt.repoErr
-				},
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Occupation, error) {
-					if tt.repoErr != nil && apperrors.IsNotFound(tt.repoErr) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Occupation, error) {
+					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
 					return tt.repoOccupation, nil

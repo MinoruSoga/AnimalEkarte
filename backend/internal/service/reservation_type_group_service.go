@@ -126,7 +126,7 @@ func buildReservationTypeGroupUpdateFields(input *UpdateReservationTypeGroupInpu
 }
 
 func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountCategories(ctx, id)
+	count, err := s.repo.CountCategories(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to count categories in group")
 	}
@@ -149,5 +149,6 @@ func (s *reservationTypeGroupService) Reorder(ctx context.Context, clinicID uint
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder reservation type groups")
 	}
+	slog.InfoContext(ctx, "reservation_type_groups reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
 }

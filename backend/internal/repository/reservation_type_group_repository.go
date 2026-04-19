@@ -13,7 +13,7 @@ import (
 type ReservationTypeGroupRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error)
-	CountCategories(ctx context.Context, groupID uint64) (int64, error)
+	CountCategories(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	Create(ctx context.Context, g *model.ReservationTypeGroup) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -45,9 +45,10 @@ func (r *reservationTypeGroupRepository) FindByID(ctx context.Context, clinicID,
 	return &g, nil
 }
 
-func (r *reservationTypeGroupRepository) CountCategories(ctx context.Context, groupID uint64) (int64, error) {
+func (r *reservationTypeGroupRepository) CountCategories(ctx context.Context, clinicID, groupID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.ReservationType{}).
+		Scopes(clinicScope(clinicID)).
 		Where("group_id = ?", groupID).Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "reservation_type", "")
 	}

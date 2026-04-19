@@ -92,16 +92,13 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update inquiry template")
 	}
 	slog.InfoContext(ctx, "inquiry template updated",
 		slog.Uint64("template_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get inquiry template after update")
-	}
 	return result, nil
 }
 
