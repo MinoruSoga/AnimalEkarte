@@ -1578,6 +1578,23 @@ CREATE UNIQUE INDEX idx_chief_complaint_types_clinic_name ON chief_complaint_typ
 CREATE UNIQUE INDEX idx_animal_species_name ON animal_species(name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_merchandise_items_clinic_name ON merchandise_items(clinic_id, name) WHERE is_active = true AND deleted_at IS NULL;
 
+-- マスタテーブル論理削除アクティブレコードインデックス
+CREATE INDEX idx_occupations_active ON occupations(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_exam_types_active ON exam_types(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_vaccines_active ON vaccines(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_medicines_active ON medicines(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_insurances_active ON insurances(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_cages_active ON cages(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_reservation_type_groups_active ON reservation_type_groups(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_reservation_types_active ON reservation_types(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_procedures_active ON procedures(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_trimming_courses_active ON trimming_courses(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_trimming_options_active ON trimming_options(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_diagnosis_types_active ON diagnosis_types(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_diagnosis_names_active ON diagnosis_names(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_chief_complaint_types_active ON chief_complaint_types(id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_inquiry_templates_active ON inquiry_templates(id) WHERE deleted_at IS NULL;
+
 -- =============================================================================
 -- 5. テーブルコメント
 -- =============================================================================
