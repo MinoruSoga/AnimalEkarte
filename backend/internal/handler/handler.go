@@ -58,11 +58,13 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 
 	// 認証関連（保護なし）— ログインにはレートリミット適用（BUG-130: ブルートフォース対策）
 	loginRateStore := middleware.NewRateLimitStore(ctx)
+	// パスワードリセット系も独立したストアでレートリミット（3回/分・バースト3）
+	passwordRateStore := middleware.NewRateLimitStore(ctx)
 	api.POST("/login", middleware.RateLimit(loginRateStore, 5.0/60, 5), h.Login) // 5回/分
 	api.POST("/logout", h.Logout)
-	api.POST("/auth/refresh", h.RefreshToken)        // BUG-136: refresh token エンドポイント
-	api.POST("/auth/forgot-password", h.ForgotPassword)
-	api.POST("/auth/reset-password", h.ResetPassword)
+	api.POST("/auth/refresh", h.RefreshToken) // BUG-136: refresh token エンドポイント
+	api.POST("/auth/forgot-password", middleware.RateLimit(passwordRateStore, 3.0/60, 3), h.ForgotPassword)
+	api.POST("/auth/reset-password", middleware.RateLimit(passwordRateStore, 3.0/60, 3), h.ResetPassword)
 
 	protected := api.Group("")
 	protected.Use(middleware.Auth(h.cfg.JWTSecret))

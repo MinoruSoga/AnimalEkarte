@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -90,11 +91,14 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, email string)
 		return apperrors.Wrap(err, "failed to create reset token")
 	}
 
-	// メール送信は非同期（fire-and-forget）
+	// メール送信は非同期（fire-and-forget）。リクエスト ctx はすでにキャンセル済みの
+	// 可能性があるため context.Background() + 独立タイムアウトを使用する。
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, rawToken)
 	go func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
 		if sendErr := s.sendResetEmail(email, resetURL); sendErr != nil {
-			slog.ErrorContext(ctx, "failed to send password reset email",
+			slog.ErrorContext(bgCtx, "failed to send password reset email",
 				slog.String("email", email),
 				slog.String("error", sendErr.Error()))
 		}
@@ -121,7 +125,7 @@ func (s *passwordResetService) ResetPassword(ctx context.Context, rawToken, newP
 		return apperrors.WrapInvalidInput("token has expired")
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), config.BcryptCost)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to hash password")
 	}

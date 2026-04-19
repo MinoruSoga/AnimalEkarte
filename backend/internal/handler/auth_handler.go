@@ -11,6 +11,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -504,7 +505,7 @@ func (h *Handler) ChangeMyPassword(c *gin.Context) {
 	}
 
 	// 新しいパスワードをハッシュ化して更新
-	hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), config.BcryptCost)
 	if err != nil {
 		RespondError(c, apperrors.Wrap(err, "failed to hash password"))
 		return

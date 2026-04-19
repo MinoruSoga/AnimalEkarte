@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -201,7 +202,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 		return nil, apperrors.WrapAlreadyExists("account", input.Email)
 	}
 
-	hashed, hashErr := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	hashed, hashErr := bcrypt.GenerateFromPassword([]byte(input.Password), config.BcryptCost)
 	if hashErr != nil {
 		return nil, apperrors.Wrap(hashErr, "failed to hash password")
 	}
@@ -249,7 +250,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 
 // UpdatePassword はスタッフに紐づくアカウントのパスワードを更新する。
 func (s *staffService) UpdatePassword(ctx context.Context, accountID uint64, newPassword string) error {
-	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), config.BcryptCost)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to hash password")
 	}

@@ -5,6 +5,10 @@ import (
 	"os"
 )
 
+// BcryptCost は bcrypt ハッシュ生成コストの標準値。
+// DefaultCost(10) は 2013 年基準で現代では不十分なため 12 を使用する。
+const BcryptCost = 12
+
 type Config struct {
 	Port      string
 	DBHost    string
@@ -62,6 +66,9 @@ func (c *Config) Validate() error {
 	}
 	if c.DBPass == "" || c.DBPass == "ekarte_password" {
 		return fmt.Errorf("DB_PASSWORD must be explicitly set in release mode")
+	}
+	if c.SMTPHost != "" && c.SMTPPort != "465" && c.SMTPPort != "587" {
+		return fmt.Errorf("SMTP_PORT must be 465 (TLS) or 587 (STARTTLS) in release mode, got %s", c.SMTPPort)
 	}
 	return nil
 }
