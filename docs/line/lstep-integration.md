@@ -187,17 +187,31 @@ Ekarte からLステップへの患者情報タグ連携・セグメントDM配�
 
 ## 10. DB設計
 
-### 10.1 既存テーブルへの追加カラム
+> **実装ステータス**: 未実装（2026-04-20時点）。`001_init.sql` に以下を追加し、`LineCustomer` モデルも更新する。
+
+### 10.1 `line_customers` テーブルへの追加カラム
+
+`001_init.sql` の `line_customers` テーブル定義に直接追記する（プロジェクト方針：リリース前はALTER TABLE不要）。
 
 ```sql
--- line_customers に追加
-ALTER TABLE line_customers
-    ADD COLUMN lstep_customer_id VARCHAR(100),     -- Lステップ補助キー
-    ADD COLUMN last_synced_at    TIMESTAMPTZ,      -- 最終同期日時
-    ADD COLUMN sync_error        TEXT;             -- 直近エラー内容（NULL=正常）
+-- 001_init.sql の line_customers テーブルに追加
+    lstep_customer_id  text,                            -- Lステップ補助キー
+    last_synced_at     timestamptz,                     -- 最終同期日時
+    sync_error         text,                            -- 直近エラー内容（NULL=正常）
 ```
 
-### 10.2 新規テーブル
+**対応するGoモデル変更** (`backend/internal/model/line_customer.go`):
+
+```go
+type LineCustomer struct {
+    // ... 既存フィールド ...
+    LstepCustomerID *string    `gorm:"column:lstep_customer_id"  json:"lstep_customer_id,omitempty"`
+    LastSyncedAt    *time.Time `gorm:"column:last_synced_at"     json:"last_synced_at,omitempty"`
+    SyncError       *string    `gorm:"column:sync_error"         json:"sync_error,omitempty"`
+}
+```
+
+### 10.2 新規テーブル（`001_init.sql` に追加）
 
 ```sql
 CREATE TYPE lstep_sync_event AS ENUM (
@@ -213,16 +227,16 @@ CREATE TYPE lstep_sync_status AS ENUM (
 );
 
 CREATE TABLE line_sync_logs (
-    id             BIGSERIAL PRIMARY KEY,
-    clinic_id      BIGINT      NOT NULL REFERENCES clinics(id),
-    line_user_id   VARCHAR(100) NOT NULL,
+    id             bigserial   PRIMARY KEY,
+    clinic_id      bigint      NOT NULL REFERENCES clinics(id),
+    line_user_id   text        NOT NULL,
     event_type     lstep_sync_event NOT NULL,
-    payload        JSONB       NOT NULL,
+    payload        jsonb       NOT NULL,
     status         lstep_sync_status NOT NULL DEFAULT 'pending',
-    retry_count    INT         NOT NULL DEFAULT 0,
-    error_message  TEXT,
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    retry_count    int         NOT NULL DEFAULT 0,
+    error_message  text,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at     timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_line_sync_logs_clinic_status
