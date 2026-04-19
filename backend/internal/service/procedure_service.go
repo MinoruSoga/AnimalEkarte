@@ -151,39 +151,52 @@ type UpdateProcedureInput struct {
 	TaxRate       *float64
 }
 
+const (
+	colProcedureName        = "name"
+	colProcedurePrice       = "price"
+	colProcedureIsActive    = "is_active"
+	colProcedureDescription = "description"
+	colProcedureDuration    = "duration"
+	colProcedureAnesthesia  = "anesthesia"
+	colProcedureParentID    = "parent_id"
+	colProcedureSortOrder   = "sort_order"
+	colProcedureTaxType     = "tax_type"
+	colProcedureTaxRate     = "tax_rate"
+)
+
 func buildProcedureUpdateFields(input *UpdateProcedureInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colProcedureName] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = *input.Price
+		fields[colProcedurePrice] = *input.Price
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colProcedureIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colProcedureDescription] = *input.Description
 	}
 	if input.Duration != nil {
-		fields["duration"] = *input.Duration
+		fields[colProcedureDuration] = *input.Duration
 	}
 	if input.Anesthesia != nil {
-		fields["anesthesia"] = *input.Anesthesia
+		fields[colProcedureAnesthesia] = *input.Anesthesia
 	}
 	if input.ClearParentID {
-		fields["parent_id"] = nil
+		fields[colProcedureParentID] = nil
 	} else if input.ParentID != nil {
-		fields["parent_id"] = *input.ParentID
+		fields[colProcedureParentID] = *input.ParentID
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colProcedureSortOrder] = *input.SortOrder
 	}
 	if input.TaxType != nil {
-		fields["tax_type"] = *input.TaxType
+		fields[colProcedureTaxType] = *input.TaxType
 	}
 	if input.TaxRate != nil {
-		fields["tax_rate"] = *input.TaxRate
+		fields[colProcedureTaxRate] = *input.TaxRate
 	}
 	return fields
 }

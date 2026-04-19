@@ -133,27 +133,36 @@ type UpdateExamTypeInput struct {
 	SortOrder     *int
 }
 
+const (
+	colExamTypeName        = "name"
+	colExamTypePrice       = "price"
+	colExamTypeIsActive    = "is_active"
+	colExamTypeDescription = "description"
+	colExamTypeParentID    = "parent_id"
+	colExamTypeSortOrder   = "sort_order"
+)
+
 func buildExamTypeUpdateFields(input UpdateExamTypeInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colExamTypeName] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = *input.Price
+		fields[colExamTypePrice] = *input.Price
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colExamTypeIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colExamTypeDescription] = *input.Description
 	}
 	if input.ClearParentID {
-		fields["parent_id"] = nil
+		fields[colExamTypeParentID] = nil
 	} else if input.ParentID != nil {
-		fields["parent_id"] = *input.ParentID
+		fields[colExamTypeParentID] = *input.ParentID
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colExamTypeSortOrder] = *input.SortOrder
 	}
 	return fields
 }

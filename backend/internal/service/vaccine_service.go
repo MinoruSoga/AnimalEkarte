@@ -97,33 +97,44 @@ type UpdateVaccineInput struct {
 	SortOrder     *int
 }
 
+const (
+	colVaccineName        = "name"
+	colVaccinePrice       = "price"
+	colVaccineIsActive    = "is_active"
+	colVaccineDescription = "description"
+	colVaccineSpecies     = "species"
+	colVaccineInterval    = "interval"
+	colVaccineParentID    = "parent_id"
+	colVaccineSortOrder   = "sort_order"
+)
+
 func buildVaccineUpdateFields(input UpdateVaccineInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colVaccineName] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = *input.Price
+		fields[colVaccinePrice] = *input.Price
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colVaccineIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colVaccineDescription] = *input.Description
 	}
 	if input.Species != nil {
-		fields["species"] = *input.Species
+		fields[colVaccineSpecies] = *input.Species
 	}
 	if input.Interval != nil {
-		fields["interval"] = *input.Interval
+		fields[colVaccineInterval] = *input.Interval
 	}
 	if input.ClearParentID {
-		fields["parent_id"] = nil
+		fields[colVaccineParentID] = nil
 	} else if input.ParentID != nil {
-		fields["parent_id"] = *input.ParentID
+		fields[colVaccineParentID] = *input.ParentID
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colVaccineSortOrder] = *input.SortOrder
 	}
 	return fields
 }

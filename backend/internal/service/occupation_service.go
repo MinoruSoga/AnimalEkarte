@@ -130,19 +130,26 @@ func (s *occupationService) Reorder(ctx context.Context, clinicID uint64, ids []
 	return nil
 }
 
+const (
+	colOccupationName        = "name"
+	colOccupationDescription = "description"
+	colOccupationSortOrder   = "sort_order"
+	colOccupationIsActive    = "is_active"
+)
+
 func buildOccupationUpdateFields(input *UpdateOccupationInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colOccupationName] = *input.Name
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colOccupationDescription] = *input.Description
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colOccupationSortOrder] = *input.SortOrder
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colOccupationIsActive] = *input.IsActive
 	}
 	return fields
 }

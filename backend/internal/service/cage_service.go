@@ -131,28 +131,38 @@ type UpdateCageInput struct {
 	SortOrder   *int
 }
 
+const (
+	colCageName        = "name"
+	colCageCageType    = "cage_type"
+	colCageCageSize    = "cage_size"
+	colCagePrice       = "price"
+	colCageIsActive    = "is_active"
+	colCageDescription = "description"
+	colCageSortOrder   = "sort_order"
+)
+
 func buildCageUpdateFields(input UpdateCageInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colCageName] = *input.Name
 	}
 	if input.CageType != nil {
-		fields["cage_type"] = *input.CageType
+		fields[colCageCageType] = *input.CageType
 	}
 	if input.CageSize != nil {
-		fields["cage_size"] = *input.CageSize
+		fields[colCageCageSize] = *input.CageSize
 	}
 	if input.Price != nil {
-		fields["price"] = *input.Price
+		fields[colCagePrice] = *input.Price
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colCageIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colCageDescription] = *input.Description
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colCageSortOrder] = *input.SortOrder
 	}
 	return fields
 }

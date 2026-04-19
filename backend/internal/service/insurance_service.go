@@ -125,25 +125,34 @@ type UpdateInsuranceInput struct {
 	SortOrder    *int
 }
 
+const (
+	colInsuranceName         = "name"
+	colInsuranceIsActive     = "is_active"
+	colInsuranceDescription  = "description"
+	colInsuranceCoverageRate = "coverage_rate"
+	colInsuranceContactPhone = "contact_phone"
+	colInsuranceSortOrder    = "sort_order"
+)
+
 func buildInsuranceUpdateFields(input UpdateInsuranceInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colInsuranceName] = *input.Name
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colInsuranceIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colInsuranceDescription] = *input.Description
 	}
 	if input.CoverageRate != nil {
-		fields["coverage_rate"] = *input.CoverageRate
+		fields[colInsuranceCoverageRate] = *input.CoverageRate
 	}
 	if input.ContactPhone != nil {
-		fields["contact_phone"] = *input.ContactPhone
+		fields[colInsuranceContactPhone] = *input.ContactPhone
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colInsuranceSortOrder] = *input.SortOrder
 	}
 	return fields
 }

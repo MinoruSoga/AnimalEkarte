@@ -115,22 +115,30 @@ func (s *inquiryTemplateService) Delete(ctx context.Context, clinicID, id uint64
 	return nil
 }
 
+const (
+	colInquiryTemplateCategory  = "category"
+	colInquiryTemplateTitle     = "title"
+	colInquiryTemplateContent   = "content"
+	colInquiryTemplateIsActive  = "is_active"
+	colInquiryTemplateSortOrder = "sort_order"
+)
+
 func buildInquiryTemplateUpdateFields(input *UpdateInquiryTemplateInput) map[string]any {
 	fields := map[string]any{}
 	if input.Category != nil {
-		fields["category"] = *input.Category
+		fields[colInquiryTemplateCategory] = *input.Category
 	}
 	if input.Title != nil {
-		fields["title"] = *input.Title
+		fields[colInquiryTemplateTitle] = *input.Title
 	}
 	if input.Content != nil {
-		fields["content"] = *input.Content
+		fields[colInquiryTemplateContent] = *input.Content
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colInquiryTemplateIsActive] = *input.IsActive
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colInquiryTemplateSortOrder] = *input.SortOrder
 	}
 	return fields
 }
