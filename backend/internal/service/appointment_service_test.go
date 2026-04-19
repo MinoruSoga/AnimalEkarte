@@ -20,6 +20,8 @@ type mockReservationRepository struct {
 	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error)
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
+	countOnDutyDoctorsFn               func(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
+	countConflictsFn                   func(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Appointment, int64, error) {
@@ -65,11 +67,17 @@ func (m *mockReservationRepository) HasDoctorConflict(_ context.Context, _, _ ui
 	return false, nil
 }
 
-func (m *mockReservationRepository) CountOnDutyDoctors(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+func (m *mockReservationRepository) CountOnDutyDoctors(ctx context.Context, clinicID uint64, date time.Time) (int64, error) {
+	if m.countOnDutyDoctorsFn != nil {
+		return m.countOnDutyDoctorsFn(ctx, clinicID, date)
+	}
 	return 1, nil
 }
 
-func (m *mockReservationRepository) CountConflicts(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+func (m *mockReservationRepository) CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error) {
+	if m.countConflictsFn != nil {
+		return m.countConflictsFn(ctx, clinicID, start, end, excludeID)
+	}
 	return 0, nil
 }
 

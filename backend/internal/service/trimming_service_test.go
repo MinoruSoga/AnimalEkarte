@@ -139,9 +139,14 @@ var _ repository.AppointmentTrimmingDetailRepository = (*mockTrimmingDetailRepos
 
 // --- mock: Transactor（テスト用：fn を同一コンテキストで直接実行） ---
 
-type mockTransactor struct{}
+type mockTransactor struct {
+	withTxErr error
+}
 
 func (m *mockTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if m.withTxErr != nil {
+		return m.withTxErr
+	}
 	return fn(ctx)
 }
 

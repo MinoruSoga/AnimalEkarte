@@ -1,0 +1,80 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+// mockInquiryRepository は chief_complaint_type_service_test.go で定義済み
+
+func TestInquiryService_Upsert(t *testing.T) {
+	complaint := "食欲不振"
+	notes := "2日前から"
+	typeID := uint64(3)
+
+	tests := []struct {
+		name      string
+		input     UpsertInquiryInput
+		upsertErr error
+		wantErr   bool
+	}{
+		{
+			name: "upserts inquiry successfully",
+			input: UpsertInquiryInput{
+				ClinicID:             1,
+				MedicalRecordID:      10,
+				ChiefComplaintTypeID: &typeID,
+				ChiefComplaint:       &complaint,
+				Notes:                &notes,
+			},
+			wantErr: false,
+		},
+		{
+			name: "upserts without optional fields",
+			input: UpsertInquiryInput{
+				ClinicID:        1,
+				MedicalRecordID: 10,
+			},
+			wantErr: false,
+		},
+		{
+			name: "propagates repository error",
+			input: UpsertInquiryInput{
+				ClinicID:        1,
+				MedicalRecordID: 10,
+				ChiefComplaint:  &complaint,
+			},
+			upsertErr: errors.New("db error"),
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			returned := &model.Inquiry{ID: 1, MedicalRecordID: tt.input.MedicalRecordID}
+			repo := &mockInquiryRepository{
+				upsertFn: func(_ context.Context, _ uint64, _ *model.Inquiry) (*model.Inquiry, error) {
+					if tt.upsertErr != nil {
+						return nil, tt.upsertErr
+					}
+					return returned, nil
+				},
+			}
+			svc := NewInquiryService(repo)
+			result, err := svc.Upsert(context.Background(), tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.input.MedicalRecordID, result.MedicalRecordID)
+			}
+		})
+	}
+}
