@@ -73,6 +73,7 @@ const (
 	colReservationTypeReservationDayOpt   = "reservation_day_option"
 	colReservationTypeIsInternal          = "is_internal"
 	colReservationTypeReservationImageURL = "reservation_image_url"
+	colReservationTypeGroupID             = "group_id"
 )
 
 // buildReservationTypeUpdateFields は UpdateReservationTypeInput から nil でないフィールドのみ map に変換する
@@ -121,7 +122,7 @@ func buildReservationTypeUpdateFields(input *UpdateReservationTypeInput) map[str
 		fields[colReservationTypeIsInternal] = *input.IsInternal
 	}
 	if input.GroupID != nil {
-		fields["group_id"] = *input.GroupID
+		fields[colReservationTypeGroupID] = *input.GroupID
 	}
 	return fields
 }

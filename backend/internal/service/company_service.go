@@ -9,6 +9,22 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// --- DB column constants ---
+
+const (
+	colCompanyName                      = "name"
+	colCompanyPostalCode                = "postal_code"
+	colCompanyAddress                   = "address"
+	colCompanyPhoneNumber               = "phone_number"
+	colCompanyFaxNumber                 = "fax_number"
+	colCompanyEmail                     = "email"
+	colCompanyWebsite                   = "website"
+	colCompanyDirectorName              = "director_name"
+	colCompanyRegistrationNumber        = "registration_number"
+	colCompanyInvoiceRegistrationNumber = "invoice_registration_number"
+	colCompanyLogoURL                   = "logo_url"
+)
+
 // UpdateCompanyInput は法人情報部分更新の入力DTO
 type UpdateCompanyInput struct {
 	Name                      *string
@@ -68,37 +84,37 @@ func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) 
 func buildCompanyUpdateFields(input *UpdateCompanyInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colCompanyName] = *input.Name
 	}
 	if input.PostalCode != nil {
-		fields["postal_code"] = *input.PostalCode
+		fields[colCompanyPostalCode] = *input.PostalCode
 	}
 	if input.Address != nil {
-		fields["address"] = *input.Address
+		fields[colCompanyAddress] = *input.Address
 	}
 	if input.PhoneNumber != nil {
-		fields["phone_number"] = *input.PhoneNumber
+		fields[colCompanyPhoneNumber] = *input.PhoneNumber
 	}
 	if input.FaxNumber != nil {
-		fields["fax_number"] = *input.FaxNumber
+		fields[colCompanyFaxNumber] = *input.FaxNumber
 	}
 	if input.Email != nil {
-		fields["email"] = *input.Email
+		fields[colCompanyEmail] = *input.Email
 	}
 	if input.Website != nil {
-		fields["website"] = *input.Website
+		fields[colCompanyWebsite] = *input.Website
 	}
 	if input.DirectorName != nil {
-		fields["director_name"] = *input.DirectorName
+		fields[colCompanyDirectorName] = *input.DirectorName
 	}
 	if input.RegistrationNumber != nil {
-		fields["registration_number"] = *input.RegistrationNumber
+		fields[colCompanyRegistrationNumber] = *input.RegistrationNumber
 	}
 	if input.InvoiceRegistrationNumber != nil {
-		fields["invoice_registration_number"] = *input.InvoiceRegistrationNumber
+		fields[colCompanyInvoiceRegistrationNumber] = *input.InvoiceRegistrationNumber
 	}
 	if input.LogoURL != nil {
-		fields["logo_url"] = *input.LogoURL
+		fields[colCompanyLogoURL] = *input.LogoURL
 	}
 	return fields
 }

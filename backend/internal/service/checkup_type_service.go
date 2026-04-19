@@ -128,6 +128,19 @@ func (s *checkupTypeService) Reorder(ctx context.Context, clinicID uint64, ids [
 	return nil
 }
 
+// --- DB column constants ---
+
+const (
+	colCheckupTypeName        = "name"
+	colCheckupTypePrice       = "price"
+	colCheckupTypeIsActive    = "is_active"
+	colCheckupTypeDescription = "description"
+	colCheckupTypeInterval    = "interval"
+	colCheckupTypeTargetAge   = "target_age"
+	colCheckupTypeParentID    = "parent_id"
+	colCheckupTypeSortOrder   = "sort_order"
+)
+
 // UpdateCheckupTypeInput はチェックアップ種別更新のサービス入力 DTO
 type UpdateCheckupTypeInput struct {
 	Name          *string
@@ -144,30 +157,30 @@ type UpdateCheckupTypeInput struct {
 func buildCheckupTypeUpdateFields(input UpdateCheckupTypeInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colCheckupTypeName] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = *input.Price
+		fields[colCheckupTypePrice] = *input.Price
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colCheckupTypeIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colCheckupTypeDescription] = *input.Description
 	}
 	if input.Interval != nil {
-		fields["interval"] = *input.Interval
+		fields[colCheckupTypeInterval] = *input.Interval
 	}
 	if input.TargetAge != nil {
-		fields["target_age"] = *input.TargetAge
+		fields[colCheckupTypeTargetAge] = *input.TargetAge
 	}
 	if input.ClearParentID {
-		fields["parent_id"] = nil
+		fields[colCheckupTypeParentID] = nil
 	} else if input.ParentID != nil {
-		fields["parent_id"] = *input.ParentID
+		fields[colCheckupTypeParentID] = *input.ParentID
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colCheckupTypeSortOrder] = *input.SortOrder
 	}
 	return fields
 }

@@ -97,6 +97,20 @@ func (s *hospitalizationPlanService) Reorder(ctx context.Context, clinicID uint6
 	return nil
 }
 
+// --- DB column constants ---
+
+const (
+	colHospitalizationPlanName        = "name"
+	colHospitalizationPlanPrice       = "price"
+	colHospitalizationPlanIsActive    = "is_active"
+	colHospitalizationPlanDescription = "description"
+	colHospitalizationPlanBodySize    = "body_size"
+	colHospitalizationPlanBillingUnit = "billing_unit"
+	colHospitalizationPlanSortOrder   = "sort_order"
+	colHospitalizationPlanTaxType     = "tax_type"
+	colHospitalizationPlanTaxRate     = "tax_rate"
+)
+
 // UpdateHospitalizationPlanInput は入院プラン更新のサービス入力 DTO
 type UpdateHospitalizationPlanInput struct {
 	Name        *string
@@ -113,31 +127,31 @@ type UpdateHospitalizationPlanInput struct {
 func buildHospitalizationPlanUpdateFields(input UpdateHospitalizationPlanInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colHospitalizationPlanName] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = *input.Price
+		fields[colHospitalizationPlanPrice] = *input.Price
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colHospitalizationPlanIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colHospitalizationPlanDescription] = *input.Description
 	}
 	if input.BodySize != nil {
-		fields["body_size"] = *input.BodySize
+		fields[colHospitalizationPlanBodySize] = *input.BodySize
 	}
 	if input.BillingUnit != nil {
-		fields["billing_unit"] = *input.BillingUnit
+		fields[colHospitalizationPlanBillingUnit] = *input.BillingUnit
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colHospitalizationPlanSortOrder] = *input.SortOrder
 	}
 	if input.TaxType != nil {
-		fields["tax_type"] = *input.TaxType
+		fields[colHospitalizationPlanTaxType] = *input.TaxType
 	}
 	if input.TaxRate != nil {
-		fields["tax_rate"] = *input.TaxRate
+		fields[colHospitalizationPlanTaxRate] = *input.TaxRate
 	}
 	return fields
 }

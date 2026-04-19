@@ -131,19 +131,28 @@ func (s *chiefComplaintTypeService) Delete(ctx context.Context, clinicID, id uin
 	return nil
 }
 
+// --- DB column constants ---
+
+const (
+	colChiefComplaintTypeName        = "name"
+	colChiefComplaintTypeDescription = "description"
+	colChiefComplaintTypeSortOrder   = "sort_order"
+	colChiefComplaintTypeIsActive    = "is_active"
+)
+
 func buildChiefComplaintTypeUpdateFields(input *UpdateChiefComplaintTypeInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colChiefComplaintTypeName] = *input.Name
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colChiefComplaintTypeDescription] = *input.Description
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colChiefComplaintTypeSortOrder] = *input.SortOrder
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colChiefComplaintTypeIsActive] = *input.IsActive
 	}
 	return fields
 }

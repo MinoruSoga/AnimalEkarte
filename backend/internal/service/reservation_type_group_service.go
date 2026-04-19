@@ -12,6 +12,15 @@ import (
 // defaultGroupColor はグループのデフォルトカラー（DB の default 値と一元管理）。
 const defaultGroupColor = "#3B82F6"
 
+// --- DB column constants ---
+
+const (
+	colReservationTypeGroupName      = "name"
+	colReservationTypeGroupColor     = "color"
+	colReservationTypeGroupSortOrder = "sort_order"
+	colReservationTypeGroupIsActive  = "is_active"
+)
+
 type CreateReservationTypeGroupInput struct {
 	Name      string
 	Color     string
@@ -111,16 +120,16 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 func buildReservationTypeGroupUpdateFields(input *UpdateReservationTypeGroupInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colReservationTypeGroupName] = *input.Name
 	}
 	if input.Color != nil {
-		fields["color"] = *input.Color
+		fields[colReservationTypeGroupColor] = *input.Color
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colReservationTypeGroupSortOrder] = *input.SortOrder
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colReservationTypeGroupIsActive] = *input.IsActive
 	}
 	return fields
 }

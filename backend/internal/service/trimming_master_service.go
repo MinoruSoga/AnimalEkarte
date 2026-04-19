@@ -120,6 +120,18 @@ func (s *trimmingCourseService) Reorder(ctx context.Context, clinicID uint64, id
 	return nil
 }
 
+// --- DB column constants (TrimmingCourse) ---
+
+const (
+	colTrimmingCourseName        = "name"
+	colTrimmingCoursePrice       = "price"
+	colTrimmingCourseIsActive    = "is_active"
+	colTrimmingCourseDescription = "description"
+	colTrimmingCourseTargetSize  = "target_size"
+	colTrimmingCourseDuration    = "duration"
+	colTrimmingCourseSortOrder   = "sort_order"
+)
+
 // UpdateTrimmingCourseInput はトリミングコース更新のサービス入力 DTO
 type UpdateTrimmingCourseInput struct {
 	Name        *string
@@ -134,25 +146,25 @@ type UpdateTrimmingCourseInput struct {
 func buildTrimmingCourseUpdateFields(input UpdateTrimmingCourseInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colTrimmingCourseName] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = *input.Price
+		fields[colTrimmingCoursePrice] = *input.Price
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colTrimmingCourseIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colTrimmingCourseDescription] = *input.Description
 	}
 	if input.TargetSize != nil {
-		fields["target_size"] = model.TargetSize(*input.TargetSize)
+		fields[colTrimmingCourseTargetSize] = model.TargetSize(*input.TargetSize)
 	}
 	if input.Duration != nil {
-		fields["duration"] = *input.Duration
+		fields[colTrimmingCourseDuration] = *input.Duration
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colTrimmingCourseSortOrder] = *input.SortOrder
 	}
 	return fields
 }
@@ -264,6 +276,18 @@ func (s *trimmingOptionService) Reorder(ctx context.Context, clinicID uint64, id
 	return nil
 }
 
+// --- DB column constants (TrimmingOption) ---
+
+const (
+	colTrimmingOptionName         = "name"
+	colTrimmingOptionPrice        = "price"
+	colTrimmingOptionIsActive     = "is_active"
+	colTrimmingOptionDescription  = "description"
+	colTrimmingOptionDuration     = "duration"
+	colTrimmingOptionIsCombinable = "is_combinable"
+	colTrimmingOptionSortOrder    = "sort_order"
+)
+
 // UpdateTrimmingOptionInput はトリミングオプション更新のサービス入力 DTO
 type UpdateTrimmingOptionInput struct {
 	Name         *string
@@ -278,25 +302,25 @@ type UpdateTrimmingOptionInput struct {
 func buildTrimmingOptionUpdateFields(input UpdateTrimmingOptionInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colTrimmingOptionName] = *input.Name
 	}
 	if input.Price != nil {
-		fields["price"] = *input.Price
+		fields[colTrimmingOptionPrice] = *input.Price
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colTrimmingOptionIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colTrimmingOptionDescription] = *input.Description
 	}
 	if input.Duration != nil {
-		fields["duration"] = *input.Duration
+		fields[colTrimmingOptionDuration] = *input.Duration
 	}
 	if input.IsCombinable != nil {
-		fields["is_combinable"] = *input.IsCombinable
+		fields[colTrimmingOptionIsCombinable] = *input.IsCombinable
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colTrimmingOptionSortOrder] = *input.SortOrder
 	}
 	return fields
 }
