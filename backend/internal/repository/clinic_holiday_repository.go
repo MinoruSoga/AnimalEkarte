@@ -28,6 +28,7 @@ func (r *clinicHolidayRepository) FindByYearMonth(ctx context.Context, clinicID 
 	var holidays []model.ClinicHoliday
 	q := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
+		Where("deleted_at IS NULL").
 		Order("date ASC")
 
 	if yearMonth != "" {

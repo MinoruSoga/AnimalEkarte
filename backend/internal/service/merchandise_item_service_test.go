@@ -17,7 +17,7 @@ type mockMerchandiseItemRepository struct {
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 	countUsageByMerchandiseItemFn func(ctx context.Context, merchandiseItemID uint64) (int64, error)
 	createFn                      func(ctx context.Context, item *model.MerchandiseItem) error
-	updateFn                      func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error)
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -41,8 +41,11 @@ func (m *mockMerchandiseItemRepository) Create(ctx context.Context, item *model.
 	return m.createFn(ctx, item)
 }
 
-func (m *mockMerchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockMerchandiseItemRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, clinicID, id, fields)
+	}
+	return nil, nil
 }
 
 func (m *mockMerchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {

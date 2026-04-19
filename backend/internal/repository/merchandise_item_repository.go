@@ -19,7 +19,7 @@ type MerchandiseItemRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 	CountUsageByMerchandiseItemID(ctx context.Context, merchandiseItemID uint64) (int64, error)
 	Create(ctx context.Context, item *model.MerchandiseItem) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -75,28 +75,19 @@ func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.Merc
 	return nil
 }
 
-func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *merchandiseItemRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.MerchandiseItem{}).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		var count int64
-		if err := r.db.WithContext(ctx).Model(&model.MerchandiseItem{}).
-			Scopes(clinicScope(clinicID)).
-			Where("id = ?", id).
-			Count(&count).Error; err != nil {
-			return apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
-		}
-		if count == 0 {
-			return apperrors.WrapNotFound("merchandise_item", fmt.Sprintf("%d", id))
-		}
+		return nil, apperrors.WrapNotFound("merchandise_item", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

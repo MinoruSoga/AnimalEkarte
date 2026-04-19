@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -43,6 +44,9 @@ func (s *clinicHolidayService) Set(ctx context.Context, clinicID uint64, date ti
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to set clinic holiday")
 	}
+	slog.InfoContext(ctx, "clinic holiday set",
+		slog.Uint64("clinic_id", clinicID),
+		slog.String("date", date.Format("2006-01-02")))
 	return result, nil
 }
 
@@ -53,5 +57,8 @@ func (s *clinicHolidayService) Remove(ctx context.Context, clinicID uint64, date
 		}
 		return apperrors.Wrap(err, "failed to remove clinic holiday")
 	}
+	slog.InfoContext(ctx, "clinic holiday removed",
+		slog.Uint64("clinic_id", clinicID),
+		slog.String("date", date.Format("2006-01-02")))
 	return nil
 }

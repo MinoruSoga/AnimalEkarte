@@ -166,18 +166,14 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 		return result, nil
 	}
 
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update merchandise item")
 	}
-
 	slog.InfoContext(ctx, "merchandise item updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("merchandise_item_id", id),
 	)
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get merchandise item after update")
-	}
 	return result, nil
 }
 

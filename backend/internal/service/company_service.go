@@ -73,11 +73,11 @@ func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) 
 	if err := s.repo.Update(ctx, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update company")
 	}
-	slog.InfoContext(ctx, "company updated")
 	result, err := s.repo.Get(ctx)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get company after update")
 	}
+	slog.InfoContext(ctx, "company updated", slog.Uint64("company_id", result.ID))
 	return result, nil
 }
 
