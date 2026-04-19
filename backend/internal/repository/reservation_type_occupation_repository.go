@@ -47,7 +47,7 @@ func (r *reservationTypeOccupationRepository) FindAll(
 ) ([]model.ReservationTypeOccupation, error) {
 	var results []model.ReservationTypeOccupation
 	err := r.db.WithContext(ctx).
-		Preload("Occupation").
+		Preload("Occupation", "clinic_id = ?", clinicID).
 		Scopes(clinicScope(clinicID)).
 		Where("reservation_type_id = ?", reservationTypeID).
 		Order("id ASC").
@@ -71,7 +71,8 @@ func (r *reservationTypeOccupationRepository) Delete(
 	ctx context.Context, clinicID, reservationTypeID, occupationID uint64,
 ) error {
 	result := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND reservation_type_id = ? AND occupation_id = ?", clinicID, reservationTypeID, occupationID).
+		Scopes(clinicScope(clinicID)).
+		Where("reservation_type_id = ? AND occupation_id = ?", reservationTypeID, occupationID).
 		Delete(&model.ReservationTypeOccupation{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation_type_occupation", fmt.Sprintf("type=%d occ=%d", reservationTypeID, occupationID))

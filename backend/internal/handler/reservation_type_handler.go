@@ -115,6 +115,7 @@ func (h *Handler) UpdateReservationType(c *gin.Context) {
 		ReservationDayOption:   req.ReservationDayOption,
 		IsInternal:             req.IsInternal,
 		GroupID:                req.GroupID,
+		ClearGroupID:           req.ClearGroupID,
 	})
 	if err != nil {
 		RespondError(c, err)

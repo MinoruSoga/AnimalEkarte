@@ -27,8 +27,9 @@ type updateReservationTypeRequest struct {
 	IsActive    *bool   `json:"is_active"`
 	Description *string `json:"description"`
 	SortOrder   *int    `json:"sort_order"`
-	GroupID     *uint64 `json:"group_id"`
-	Category    *string `json:"category"    binding:"omitempty,oneof=general trimming"`
+	GroupID      *uint64 `json:"group_id"`
+	ClearGroupID bool    `json:"clear_group_id"`
+	Category     *string `json:"category"    binding:"omitempty,oneof=general trimming"`
 
 	// LINE予約用フィールド
 	ReservationDisplayName *string `json:"reservation_display_name"`
@@ -38,7 +39,7 @@ type updateReservationTypeRequest struct {
 	ReservationVisible     *bool   `json:"reservation_visible"`
 	ReservationComment     *string `json:"reservation_comment"`
 	ReservationImageURL    *string `json:"reservation_image_url"`
-	ReservationDayOption   *string `json:"reservation_day_option"`
+	ReservationDayOption   *string `json:"reservation_day_option" binding:"omitempty,oneof=none saturday weekday anyday"`
 	IsInternal             *bool   `json:"is_internal"`
 }
 
