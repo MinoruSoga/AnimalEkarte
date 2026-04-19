@@ -401,7 +401,8 @@ Lステップ側のセグメント配信機能を使用する。Ekarte側はタ�
 
 ## 16. 確認事項と回答案
 
-クライアントからの質問（`lstep_karte_spec.docx` section 7）に対する開発側の回答案。
+クライアントからの質問（`lstep_karte_spec.docx` section 7）に対する開発側の回答案。  
+クライアントへの返答用ドキュメント: **[lstep-confirmation-response.md](./lstep-confirmation-response.md)**  
 確認が取れた項目は状態を「確認済」に更新すること。
 
 ---

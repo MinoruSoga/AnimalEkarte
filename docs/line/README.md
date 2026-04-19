@@ -10,6 +10,7 @@
 - **[reservation-spec.md](./reservation-spec.md)**: 詳細な機能要件、画面遷移フロー、UI 仕様、DB 統合スキーマ。
 - **[setup.md](./setup.md)**: LINE 公式アカウント、Messaging API、LIFF ID の取得および設定手順。
 - **[lstep-integration.md](./lstep-integration.md)**: Lステップ連携実装仕様（タグ同期・セグメントDM配信基盤）。
+- **[lstep-confirmation-response.md](./lstep-confirmation-response.md)**: クライアント確認事項（docx section 7）への回答書。
 
 ---
 
