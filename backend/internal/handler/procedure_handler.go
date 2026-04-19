@@ -13,6 +13,20 @@ import (
 
 // ---- Procedure ----
 
+// ListProcedures godoc
+func (h *Handler) ListProcedures(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	procedures, err := h.svc.Procedure.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(procedures, toProcedureResponse))
+}
+
 // GetProcedure godoc
 func (h *Handler) GetProcedure(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -31,20 +45,6 @@ func (h *Handler) GetProcedure(c *gin.Context) {
 	c.JSON(http.StatusOK, toProcedureResponse(procedure))
 }
 
-// ListProcedures godoc
-func (h *Handler) ListProcedures(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	procedures, err := h.svc.Procedure.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, mapSlice(procedures, toProcedureResponse))
-}
-
 // CreateProcedure godoc
 func (h *Handler) CreateProcedure(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -58,11 +58,7 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		return
 	}
 
-	var taxType *string
-	if input.TaxType != "" {
-		t := input.TaxType
-		taxType = &t
-	}
+	// TaxType 変換はサービス層で行う (BUG-379)
 	svcInput := &service.CreateProcedureInput{
 		Name:        input.Name,
 		Price:       input.Price,
@@ -72,7 +68,7 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		Anesthesia:  input.Anesthesia,
 		ParentID:    input.ParentID,
 		SortOrder:   input.SortOrder,
-		TaxType:     taxType,
+		TaxType:     input.TaxType,
 		TaxRate:     input.TaxRate,
 	}
 

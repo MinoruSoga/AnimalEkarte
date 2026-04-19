@@ -92,7 +92,7 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 	}
 	fields := buildAnimalSpeciesUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	result, err := s.repo.UpdateFields(ctx, id, fields)
 	if err != nil {
@@ -120,7 +120,7 @@ func (s *animalSpeciesService) Delete(ctx context.Context, id uint64) error {
 
 func (s *animalSpeciesService) Reorder(ctx context.Context, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder animal species")

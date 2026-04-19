@@ -22,7 +22,7 @@ type CreateProcedureInput struct {
 	Anesthesia  string
 	ParentID    *uint64
 	SortOrder   int
-	TaxType     *string  // nil = "excluded" (default)
+	TaxType     string   // "" = "excluded" (default), 変換はサービス層で行う (BUG-379)
 	TaxRate     *float64 // nil = 0.10 (default)
 }
 
@@ -61,17 +61,21 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
+	if err := validateNonNegativePrice(input.Price, "金額"); err != nil {
+		return nil, err
+	}
 	if err := validateAnesthesiaType(input.Anesthesia); err != nil {
 		return nil, err
 	}
-	if input.TaxType != nil {
-		if err := validateTaxType(*input.TaxType); err != nil {
+	if input.TaxType != "" {
+		if err := validateTaxType(input.TaxType); err != nil {
 			return nil, err
 		}
 	}
+	// TaxType 変換: "" の場合はデフォルト "excluded" を使用 (BUG-379)
 	taxType := model.TaxTypeExcluded
-	if input.TaxType != nil && *input.TaxType != "" {
-		taxType = model.TaxType(*input.TaxType)
+	if input.TaxType != "" {
+		taxType = model.TaxType(input.TaxType)
 	}
 	taxRate := 0.10
 	if input.TaxRate != nil {
@@ -102,9 +106,12 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 }
 func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, input *UpdateProcedureInput) (*model.Procedure, error) {
 	if input == nil {
-		return nil, apperrors.WrapInvalidInput("input must not be nil")
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if err := validateOptionalName(input.Name); err != nil {
+		return nil, err
+	}
+	if err := validateNonNegativePrice(input.Price, "金額"); err != nil {
 		return nil, err
 	}
 	if input.Anesthesia != nil {
@@ -119,7 +126,7 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	}
 	fields := buildProcedureUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	procedure, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -129,6 +136,14 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	return procedure, nil
 }
 func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) error {
+	// 子処置の存在チェック (BUG-390)
+	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to count procedure children")
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("この処置は子処置が存在するため削除できません")
+	}
 	count, err := s.repo.CountUsageByProcedureID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check procedure dependencies")
@@ -145,7 +160,7 @@ func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) erro
 
 func (s *procedureService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder procedures")

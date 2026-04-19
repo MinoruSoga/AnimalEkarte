@@ -21,6 +21,7 @@ type ProcedureRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByProcedureID(ctx context.Context, clinicID, procedureID uint64) (int64, error)
+	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
 
 type procedureRepository struct{ db *gorm.DB }
@@ -102,4 +103,17 @@ func (r *procedureRepository) CountUsageByProcedureID(ctx context.Context, clini
 
 func (r *procedureRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return reorderByClinicID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, ids)
+}
+
+// CountChildrenByParentID は指定した処置の子処置数を返す (BUG-390)
+func (r *procedureRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Procedure{}).
+		Scopes(clinicScope(clinicID)).
+		Where("parent_id = ?", parentID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "procedure", fmt.Sprintf("%d", parentID))
+	}
+	return count, nil
 }

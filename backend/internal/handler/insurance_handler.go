@@ -58,15 +58,12 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 		return
 	}
 
-	coverageRate := 0
-	if req.CoverageRate != nil {
-		coverageRate = *req.CoverageRate
-	}
+	// デフォルト値設定はサービス層で行う (BUG-379)
 	svcInput := &service.CreateInsuranceInput{
 		Name:         req.Name,
 		IsActive:     req.IsActive,
 		Description:  req.Description,
-		CoverageRate: coverageRate,
+		CoverageRate: req.CoverageRate,
 		ContactPhone: req.ContactPhone,
 		SortOrder:    req.SortOrder,
 	}

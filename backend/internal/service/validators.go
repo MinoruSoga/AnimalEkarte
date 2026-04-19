@@ -14,6 +14,13 @@ import (
 // 最大文字数 (UTF-8 rune count)。BUG-379 対応。
 const MasterNameMaxLength = 255
 
+// 日本語エラーメッセージ定数 (BUG-385)
+const (
+	ErrMsgAtLeastOneField = "少なくとも1つのフィールドを指定してください"
+	ErrMsgIDsNotEmpty     = "並び順のIDリストが空です"
+	ErrMsgInputNotNil     = "更新内容が指定されていません"
+)
+
 // RFC 5322簡易的なメール形式パターン
 var emailPattern = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
@@ -228,6 +235,33 @@ func validateCageType(cageType string) error {
 	default:
 		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid cage_type: %s", cageType))
 	}
+}
+
+// validateNonNegativePrice は価格フィールドが 0 以上かを検証する（nil の場合はスキップ）(BUG-380)
+func validateNonNegativePrice(price *int64, fieldName string) error {
+	if price == nil {
+		return nil
+	}
+	if *price < 0 {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("%sは0以上を入力してください", fieldName))
+	}
+	return nil
+}
+
+// validateCoverageRate は保険補償率が 0〜100 の範囲内かを検証する (BUG-398)
+func validateCoverageRate(rate int) error {
+	if rate < 0 || rate > 100 {
+		return apperrors.WrapInvalidInput("補償率は0〜100の範囲で入力してください")
+	}
+	return nil
+}
+
+// validateOptionalCoverageRate は nil 許容の保険補償率バリデーション (BUG-398)
+func validateOptionalCoverageRate(rate *int) error {
+	if rate == nil {
+		return nil
+	}
+	return validateCoverageRate(*rate)
 }
 
 // validateCageSize はケージサイズがドメイン上有効かを検証する

@@ -21,6 +21,7 @@ type VaccineRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByVaccineID(ctx context.Context, clinicID, vaccineID uint64) (int64, error)
+	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
 
 type vaccineRepository struct{ db *gorm.DB }
@@ -96,6 +97,19 @@ func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, clinicID,
 		Where("vaccine_id = ? AND clinic_id = ?", vaccineID, clinicID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "vaccination_record", "")
+	}
+	return count, nil
+}
+
+// CountChildrenByParentID は指定したワクチンの子ワクチン数を返す (BUG-390)
+func (r *vaccineRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Vaccine{}).
+		Scopes(clinicScope(clinicID)).
+		Where("parent_id = ?", parentID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", parentID))
 	}
 	return count, nil
 }

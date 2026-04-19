@@ -20,6 +20,7 @@ type mockProcedureRepository struct {
 	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
 	countUsageByProcedureIDFn func(ctx context.Context, clinicID, procedureID uint64) (int64, error)
+	countChildrenByParentIDFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -55,6 +56,13 @@ func (m *mockProcedureRepository) CountUsageByProcedureID(ctx context.Context, c
 		return 0, nil
 	}
 	return m.countUsageByProcedureIDFn(ctx, clinicID, procedureID)
+}
+
+func (m *mockProcedureRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn == nil {
+		return 0, nil
+	}
+	return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
 }
 
 // ---- Tests ----
@@ -295,62 +303,98 @@ func TestProcedureService_Update(t *testing.T) {
 
 func TestProcedureService_Delete(t *testing.T) {
 	tests := []struct {
-		name          string
-		id            uint64
-		usageCount    int64
-		countUsageErr error
-		repoErr       error
-		wantErr       bool
-		wantNotFound  bool
-		wantConflict  bool
+		name             string
+		id               uint64
+		childCount       int64
+		countChildrenErr error
+		usageCount       int64
+		countUsageErr    error
+		repoErr          error
+		wantErr          bool
+		wantNotFound     bool
+		wantConflict     bool
 	}{
 		{
-			name:          "deletes procedure successfully when no medical records use it",
-			id:            1,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       nil,
-			wantErr:       false,
+			name:             "deletes procedure successfully when no children and no medical records use it",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          false,
 		},
 		{
-			name:          "returns conflict error when procedure is used in medical records",
-			id:            1,
-			usageCount:    2,
-			countUsageErr: nil,
-			repoErr:       nil,
-			wantErr:       true,
-			wantConflict:  true,
+			name:             "returns conflict error when procedure has children (BUG-390)",
+			id:               1,
+			childCount:       3,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          true,
+			wantConflict:     true,
 		},
 		{
-			name:          "returns error when usage count check fails",
-			id:            1,
-			usageCount:    0,
-			countUsageErr: errors.New("db error"),
-			repoErr:       nil,
-			wantErr:       true,
+			name:             "returns error when children count check fails (BUG-390)",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: errors.New("db error"),
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          true,
 		},
 		{
-			name:          "returns not found error when procedure does not exist",
-			id:            999,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       apperrors.WrapNotFound("procedure", "999"),
-			wantErr:       true,
-			wantNotFound:  true,
+			name:             "returns conflict error when procedure is used in medical records",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       2,
+			countUsageErr:    nil,
+			repoErr:          nil,
+			wantErr:          true,
+			wantConflict:     true,
 		},
 		{
-			name:          "returns error on repository failure",
-			id:            1,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       errors.New("db error"),
-			wantErr:       true,
+			name:             "returns error when usage count check fails",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    errors.New("db error"),
+			repoErr:          nil,
+			wantErr:          true,
+		},
+		{
+			name:             "returns not found error when procedure does not exist",
+			id:               999,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          apperrors.WrapNotFound("procedure", "999"),
+			wantErr:          true,
+			wantNotFound:     true,
+		},
+		{
+			name:             "returns error on repository failure",
+			id:               1,
+			childCount:       0,
+			countChildrenErr: nil,
+			usageCount:       0,
+			countUsageErr:    nil,
+			repoErr:          errors.New("db error"),
+			wantErr:          true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockProcedureRepository{
+				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.childCount, tt.countChildrenErr
+				},
 				countUsageByProcedureIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},

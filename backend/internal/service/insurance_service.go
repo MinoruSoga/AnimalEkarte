@@ -17,7 +17,7 @@ type CreateInsuranceInput struct {
 	Name         string
 	IsActive     bool
 	Description  string
-	CoverageRate int
+	CoverageRate *int // nil = 0 (default), ハンドラから nil をそのまま受け取る (BUG-379)
 	ContactPhone string
 	SortOrder    int
 }
@@ -57,12 +57,20 @@ func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *C
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
+	// CoverageRate デフォルト値はサービス層で設定する (BUG-379)
+	coverageRate := 0
+	if input.CoverageRate != nil {
+		coverageRate = *input.CoverageRate
+	}
+	if err := validateCoverageRate(coverageRate); err != nil {
+		return nil, err
+	}
 	insurance := &model.Insurance{
 		ClinicID:     clinicID,
 		Name:         input.Name,
 		IsActive:     input.IsActive,
 		Description:  input.Description,
-		CoverageRate: input.CoverageRate,
+		CoverageRate: coverageRate,
 		ContactPhone: input.ContactPhone,
 		SortOrder:    input.SortOrder,
 	}
@@ -76,9 +84,12 @@ func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
+	if err := validateOptionalCoverageRate(input.CoverageRate); err != nil {
+		return nil, err
+	}
 	fields := buildInsuranceUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	insurance, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -104,7 +115,7 @@ func (s *insuranceService) Delete(ctx context.Context, clinicID, id uint64) erro
 
 func (s *insuranceService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder insurances")

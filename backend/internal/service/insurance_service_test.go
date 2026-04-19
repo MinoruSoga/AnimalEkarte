@@ -168,6 +168,9 @@ func TestInsuranceService_GetByID(t *testing.T) {
 }
 
 func TestInsuranceService_Create(t *testing.T) {
+	rate70 := 70
+	rateNeg := -1
+	rate101 := 101
 	tests := []struct {
 		name    string
 		input   *CreateInsuranceInput
@@ -179,11 +182,41 @@ func TestInsuranceService_Create(t *testing.T) {
 			input: &CreateInsuranceInput{
 				Name:         "新規保険",
 				IsActive:     true,
-				CoverageRate: 70,
+				CoverageRate: &rate70,
 				ContactPhone: "03-1234-5678",
 			},
 			repoErr: nil,
 			wantErr: false,
+		},
+		{
+			name: "creates insurance successfully when coverage_rate is nil (default 0)",
+			input: &CreateInsuranceInput{
+				Name:         "デフォルト保険",
+				IsActive:     true,
+				CoverageRate: nil,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "returns error when coverage_rate is negative (BUG-398)",
+			input: &CreateInsuranceInput{
+				Name:         "負数保険",
+				IsActive:     true,
+				CoverageRate: &rateNeg,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error when coverage_rate exceeds 100 (BUG-398)",
+			input: &CreateInsuranceInput{
+				Name:         "超過保険",
+				IsActive:     true,
+				CoverageRate: &rate101,
+			},
+			repoErr: nil,
+			wantErr: true,
 		},
 		{
 			name: "returns error when insurance already exists",
@@ -231,6 +264,8 @@ func TestInsuranceService_Update(t *testing.T) {
 	name := "更新後保険"
 	isActive := true
 	coverageRate := 80
+	rateNeg := -5
+	rate200 := 200
 	tests := []struct {
 		name    string
 		input   UpdateInsuranceInput
@@ -250,6 +285,22 @@ func TestInsuranceService_Update(t *testing.T) {
 		{
 			name:    "returns error when no fields provided",
 			input:   UpdateInsuranceInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error when coverage_rate is negative (BUG-398)",
+			input: UpdateInsuranceInput{
+				CoverageRate: &rateNeg,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error when coverage_rate exceeds 100 (BUG-398)",
+			input: UpdateInsuranceInput{
+				CoverageRate: &rate200,
+			},
 			repoErr: nil,
 			wantErr: true,
 		},

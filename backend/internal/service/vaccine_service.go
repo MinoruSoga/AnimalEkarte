@@ -54,6 +54,12 @@ func (s *vaccineService) GetByID(ctx context.Context, clinicID, id uint64) (*mod
 	return result, nil
 }
 func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	if err := validateNonNegativePrice(input.Price, "金額"); err != nil {
+		return nil, err
+	}
 	if input.Species != nil {
 		if err := validateVaccineSpecies(*input.Species); err != nil {
 			return nil, err
@@ -82,6 +88,12 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 	return vaccine, nil
 }
 func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input *UpdateVaccineInput) (*model.Vaccine, error) {
+	if err := validateOptionalName(input.Name); err != nil {
+		return nil, err
+	}
+	if err := validateNonNegativePrice(input.Price, "金額"); err != nil {
+		return nil, err
+	}
 	if input.Species != nil {
 		if err := validateVaccineSpecies(*input.Species); err != nil {
 			return nil, err
@@ -89,7 +101,7 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	}
 	fields := buildVaccineUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	vaccine, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -154,6 +166,14 @@ func buildVaccineUpdateFields(input *UpdateVaccineInput) map[string]any {
 	return fields
 }
 func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error {
+	// 子ワクチンの存在チェック (BUG-390)
+	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to count vaccine children")
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("このワクチンは子ワクチンが存在するため削除できません")
+	}
 	count, err := s.repo.CountUsageByVaccineID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check vaccine dependencies")
@@ -170,7 +190,7 @@ func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error 
 
 func (s *vaccineService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder vaccines")
