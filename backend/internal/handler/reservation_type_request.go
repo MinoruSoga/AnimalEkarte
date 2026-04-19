@@ -42,10 +42,6 @@ type updateReservationTypeRequest struct {
 	IsInternal             *bool   `json:"is_internal"`
 }
 
-type reorderReservationTypeRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}
-
 // CreateUnavailableTimeRequest は予約不可時間の作成リクエスト
 type createUnavailableTimeRequest struct {
 	UnavailableType string  `json:"unavailable_type" binding:"required,oneof=weekly specific"`

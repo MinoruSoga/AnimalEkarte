@@ -94,8 +94,8 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, email string)
 	// メール送信は非同期（fire-and-forget）。リクエスト ctx はすでにキャンセル済みの
 	// 可能性があるため context.Background() + 独立タイムアウトを使用する。
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, rawToken)
-	go func() { //nolint:gosec // fire-and-forget: request ctx may already be cancelled
-		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second) //nolint:gosec
+	go func() { //nolint:gosec,contextcheck // fire-and-forget: request ctx キャンセル後も送信継続が必要なため context.Background を使用
+		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second) //nolint:gosec // 上記と同理由
 		defer cancel()
 		if sendErr := s.sendResetEmail(email, resetURL); sendErr != nil {
 			slog.ErrorContext(bgCtx, "failed to send password reset email",

@@ -33,8 +33,3 @@ type updateStaffRequest struct {
 	ReservationComment     *string `json:"reservation_comment"`
 	ReservationImageURL    *string `json:"reservation_image_url"`
 }
-
-// reorderStaffRequest はスタッフ並び替えリクエスト。
-type reorderStaffRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

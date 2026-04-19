@@ -39,13 +39,3 @@ type updateTrimmingOptionRequest struct {
 	IsCombinable *bool   `json:"is_combinable"`
 	SortOrder    *int    `json:"sort_order"`
 }
-
-// reorderTrimmingCourseRequest はトリミングコース並び替えリクエスト。
-type reorderTrimmingCourseRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}
-
-// reorderTrimmingOptionRequest はトリミングオプション並び替えリクエスト。
-type reorderTrimmingOptionRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}
