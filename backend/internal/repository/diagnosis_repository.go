@@ -30,13 +30,15 @@ func NewDiagnosisTypeRepository(db *gorm.DB) DiagnosisTypeRepository {
 }
 
 func (r *diagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
+	buildBase := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.DiagnosisType{}).Scopes(clinicScope(clinicID))
+	}
 	var total int64
-	base := r.db.WithContext(ctx).Model(&model.DiagnosisType{}).Scopes(clinicScope(clinicID))
-	if err := base.Count(&total).Error; err != nil {
+	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "diagnosis_type", "")
 	}
 	categories := make([]model.DiagnosisType, 0)
-	if err := r.db.WithContext(ctx).Model(&model.DiagnosisType{}).Scopes(clinicScope(clinicID)).
+	if err := buildBase().
 		Preload("Names").
 		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
@@ -133,13 +135,15 @@ func NewDiagnosisNameRepository(db *gorm.DB) DiagnosisNameRepository {
 }
 
 func (r *diagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+	buildBase := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(clinicScope(clinicID))
+	}
 	var total int64
-	base := r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(clinicScope(clinicID))
-	if err := base.Count(&total).Error; err != nil {
+	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "diagnosis_name", "")
 	}
 	names := make([]model.DiagnosisName, 0)
-	if err := r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(clinicScope(clinicID)).
+	if err := buildBase().
 		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&names).Error; err != nil {
@@ -149,17 +153,17 @@ func (r *diagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, 
 }
 
 func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+	buildBase := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).
+			Scopes(clinicScope(clinicID)).
+			Where("diagnosis_type_id = ?", categoryID)
+	}
 	var total int64
-	base := r.db.WithContext(ctx).Model(&model.DiagnosisName{}).
-		Scopes(clinicScope(clinicID)).
-		Where("diagnosis_type_id = ?", categoryID)
-	if err := base.Count(&total).Error; err != nil {
+	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "diagnosis_name", "")
 	}
 	names := make([]model.DiagnosisName, 0)
-	if err := r.db.WithContext(ctx).Model(&model.DiagnosisName{}).
-		Scopes(clinicScope(clinicID)).
-		Where("diagnosis_type_id = ?", categoryID).
+	if err := buildBase().
 		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&names).Error; err != nil {

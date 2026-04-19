@@ -33,7 +33,8 @@ func (r *reservationTypeUnavailableTimeRepository) FindAll(
 ) ([]model.ReservationTypeUnavailableTime, error) {
 	var results []model.ReservationTypeUnavailableTime
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND reservation_type_id = ?", clinicID, reservationTypeID).
+		Scopes(clinicScope(clinicID)).
+		Where("reservation_type_id = ?", reservationTypeID).
 		Order("id ASC").
 		Find(&results).Error
 	if err != nil {
