@@ -136,7 +136,7 @@ func (s *shiftTemplateService) Delete(ctx context.Context, clinicID, id uint64) 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete shift template")
 	}
-	slog.InfoContext(ctx, "shift template deleted", slog.Uint64("id", id))
+	slog.InfoContext(ctx, "shift template deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("id", id))
 	return nil
 }
 

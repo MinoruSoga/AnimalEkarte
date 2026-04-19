@@ -93,7 +93,7 @@ func (s *inventoryService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update inventory item")
 	}
-	slog.InfoContext(ctx, "inventory item updated", slog.Uint64("inventory_id", id))
+	slog.InfoContext(ctx, "inventory item updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("inventory_id", id))
 	return item, nil
 }
 

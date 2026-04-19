@@ -226,7 +226,7 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 			return nil, apperrors.Wrap(err, "failed to save shift breaks")
 		}
 	}
-	slog.InfoContext(ctx, "shift entry updated", slog.Uint64("shift_entry_id", id))
+	slog.InfoContext(ctx, "shift entry updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_entry_id", id))
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get shift entry after update")
@@ -238,7 +238,7 @@ func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) err
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete shift entry")
 	}
-	slog.InfoContext(ctx, "shift entry deleted", slog.Uint64("shift_entry_id", id))
+	slog.InfoContext(ctx, "shift entry deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_entry_id", id))
 	return nil
 }
 

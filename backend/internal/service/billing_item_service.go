@@ -153,6 +153,7 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 	}
 
 	slog.InfoContext(ctx, "billing item updated",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("item_id", id),
 		slog.Uint64("billing_id", item.BillingID),
 	)
@@ -182,6 +183,7 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 	}
 
 	slog.InfoContext(ctx, "billing item deleted",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("item_id", id),
 		slog.Uint64("billing_id", billingID),
 	)

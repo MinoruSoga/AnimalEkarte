@@ -50,6 +50,7 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medical
 			return nil, apperrors.Wrap(err, "failed to create clinical plan")
 		}
 		slog.InfoContext(ctx, "clinical_plan created",
+			slog.Uint64("clinic_id", clinicID),
 			slog.Uint64("clinical_plan_id", plan.ID),
 			slog.Uint64("medical_record_id", medicalRecordID))
 		return plan, nil
@@ -71,6 +72,7 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 		return nil, apperrors.Wrap(err, "failed to update clinical plan")
 	}
 	slog.InfoContext(ctx, "clinical_plan updated",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("clinical_plan_id", plan.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	updated, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
@@ -89,6 +91,7 @@ func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecor
 		return apperrors.Wrap(err, "failed to delete clinical plan")
 	}
 	slog.InfoContext(ctx, "clinical_plan deleted",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("clinical_plan_id", plan.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	return nil

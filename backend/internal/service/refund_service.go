@@ -67,6 +67,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 	}
 
 	slog.InfoContext(ctx, "refund created",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("billing_id", billingID),
 		slog.Int64("amount", amount))
 	return refund, nil

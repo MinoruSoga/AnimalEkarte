@@ -278,6 +278,7 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 	}
 
 	slog.InfoContext(ctx, "treatments bulk sort_order updated",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medical_record_id", medicalRecordID),
 		slog.Int("count", len(updates)))
 

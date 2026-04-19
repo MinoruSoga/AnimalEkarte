@@ -100,7 +100,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 	if err := s.repo.Create(ctx, plan); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create treatment plan")
 	}
-	slog.InfoContext(ctx, "treatment plan created", slog.Uint64("treatment_plan_id", plan.ID))
+	slog.InfoContext(ctx, "treatment plan created", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", plan.ID))
 
 	result, err := s.repo.FindByID(ctx, clinicID, plan.ID)
 	if err != nil {
@@ -117,7 +117,7 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update treatment plan")
 	}
-	slog.InfoContext(ctx, "treatment plan updated", slog.Uint64("treatment_plan_id", id))
+	slog.InfoContext(ctx, "treatment plan updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", id))
 
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
@@ -130,7 +130,7 @@ func (s *treatmentPlanService) Delete(ctx context.Context, clinicID, id uint64) 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete treatment plan")
 	}
-	slog.InfoContext(ctx, "treatment plan deleted", slog.Uint64("treatment_plan_id", id))
+	slog.InfoContext(ctx, "treatment plan deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", id))
 	return nil
 }
 

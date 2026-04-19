@@ -54,6 +54,6 @@ func (s *inquiryService) Upsert(ctx context.Context, input UpsertInquiryInput) (
 			slog.String("error", err.Error()))
 		return nil, apperrors.Wrap(err, "failed to upsert inquiry")
 	}
-	slog.InfoContext(ctx, "inquiry upserted", slog.Uint64("medical_record_id", input.MedicalRecordID))
+	slog.InfoContext(ctx, "inquiry upserted", slog.Uint64("clinic_id", input.ClinicID), slog.Uint64("medical_record_id", input.MedicalRecordID))
 	return result, nil
 }

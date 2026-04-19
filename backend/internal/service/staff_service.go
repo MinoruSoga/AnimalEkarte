@@ -300,7 +300,7 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update staff")
 	}
-	slog.InfoContext(ctx, "staff updated", slog.Uint64("staff_id", id))
+	slog.InfoContext(ctx, "staff updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("staff_id", id))
 	updated, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get updated staff")

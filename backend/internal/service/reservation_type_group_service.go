@@ -87,6 +87,7 @@ func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to create reservation_type_group")
 	}
 	slog.InfoContext(ctx, "reservation_type_group created",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("reservation_type_group_id", g.ID),
 		slog.String("name", g.Name))
 	return g, nil

@@ -193,6 +193,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 			return nil, apperrors.Wrap(err, "failed to upsert payment")
 		}
 		slog.InfoContext(ctx, "payment upserted",
+			slog.Uint64("clinic_id", input.ClinicID),
 			slog.Uint64("billing_id", input.ID))
 	}
 

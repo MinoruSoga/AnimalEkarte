@@ -96,6 +96,7 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		return nil, apperrors.Wrap(err, "failed to create checkup")
 	}
 	slog.InfoContext(ctx, "checkup created",
+		slog.Uint64("clinic_id", input.ClinicID),
 		slog.Uint64("checkup_id", checkup.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	created, err := s.repo.FindByID(ctx, input.ClinicID, checkup.ID)

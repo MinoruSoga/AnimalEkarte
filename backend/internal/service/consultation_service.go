@@ -103,7 +103,7 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update consultation")
 	}
-	slog.InfoContext(ctx, "consultation updated", slog.Uint64("consultation_id", id))
+	slog.InfoContext(ctx, "consultation updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("consultation_id", id))
 	return consultation, nil
 }
 func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) error {
