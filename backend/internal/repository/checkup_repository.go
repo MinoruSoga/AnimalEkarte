@@ -19,7 +19,7 @@ type CheckupFilters struct {
 }
 
 type CheckupRepository interface {
-	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error)
+	ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
 	ListByClinic(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error)
 	Create(ctx context.Context, checkup *model.Checkup) error
@@ -61,13 +61,16 @@ func (r *checkupRepository) ListByClinic(ctx context.Context, clinicID uint64, f
 	return checkups, nil
 }
 
-func (r *checkupRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error) {
+func (r *checkupRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
 	checkups := make([]model.Checkup, 0)
 	err := r.db.WithContext(ctx).
-		Where("medical_record_id = ?", medicalRecordID).
+		Joins("JOIN medical_records ON medical_records.id = checkups.medical_record_id"+
+			" AND medical_records.clinic_id = ?"+
+			" AND medical_records.deleted_at IS NULL", clinicID).
+		Where("checkups.medical_record_id = ?", medicalRecordID).
 		Preload("CheckupType").
 		Preload("Doctor").
-		Order("date ASC").
+		Order("checkups.date ASC").
 		Find(&checkups).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup", "")

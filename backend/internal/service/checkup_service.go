@@ -43,7 +43,7 @@ type ListCheckupsByClinicInput struct {
 
 // CheckupService は健診記録のビジネスロジックを定義するインターフェース
 type CheckupService interface {
-	List(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error)
+	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
 	ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error)
 	Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error)
@@ -59,8 +59,8 @@ func NewCheckupService(repo repository.CheckupRepository) CheckupService {
 	return &checkupService{repo: repo}
 }
 
-func (s *checkupService) List(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error) {
-	result, err := s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
+func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
+	result, err := s.repo.ListByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list checkups")
 	}

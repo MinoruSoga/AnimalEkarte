@@ -112,6 +112,9 @@ func (s *occupationService) Reorder(ctx context.Context, clinicID uint64, ids []
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder occupations")
 	}
+	slog.InfoContext(ctx, "occupations reordered",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Int("count", len(ids)))
 	return nil
 }
 

@@ -11,11 +11,15 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// jstTimeLocation は JST タイムゾーンを返す
-func jstTimeLocation() *time.Location {
-	loc, _ := time.LoadLocation("Asia/Tokyo")
+// jstLoc は起動時に一度だけロードする JST タイムゾーン。
+// tzdata 欠落時は起動時に panic して早期発見できる（_ エラー握りつぶし禁止の規約に準拠）。
+var jstLoc = func() *time.Location {
+	loc, err := time.LoadLocation("Asia/Tokyo")
+	if err != nil {
+		panic(fmt.Sprintf("failed to load JST timezone: %v", err))
+	}
 	return loc
-}
+}()
 
 // ReservationTypeOccupationRepository は職種紐付けの永続化インターフェース
 type ReservationTypeOccupationRepository interface {
@@ -81,7 +85,7 @@ func (r *reservationTypeOccupationRepository) CountWorkingStaff(
 	ctx context.Context, clinicID, reservationTypeID uint64, date time.Time,
 ) (int64, error) {
 	// JST 日付文字列で shift_entries.date と比較する
-	dateStr := date.In(jstTimeLocation()).Format("2006-01-02")
+	dateStr := date.In(jstLoc).Format("2006-01-02")
 	var count int64
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT COUNT(DISTINCT se.staff_id)

@@ -129,6 +129,7 @@ func (s *animalSpeciesService) Reorder(ctx context.Context, ids []uint64) error 
 	if err := s.repo.Reorder(ctx, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder animal species")
 	}
+	slog.InfoContext(ctx, "animal_species reordered", slog.Int("count", len(ids)))
 	return nil
 }
 

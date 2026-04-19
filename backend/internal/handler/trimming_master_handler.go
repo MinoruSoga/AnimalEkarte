@@ -81,11 +81,11 @@ func (h *Handler) CreateTrimmingCourse(c *gin.Context) {
 
 // UpdateTrimmingCourse godoc
 func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
-	id, ok := parseIDParam(c, "id")
+	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	clinicID, ok := extractClinicID(c)
+	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -218,11 +218,11 @@ func (h *Handler) CreateTrimmingOption(c *gin.Context) {
 
 // UpdateTrimmingOption godoc
 func (h *Handler) UpdateTrimmingOption(c *gin.Context) {
-	id, ok := parseIDParam(c, "id")
+	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
-	clinicID, ok := extractClinicID(c)
+	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
 	}

@@ -355,14 +355,14 @@ func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinic
 }
 
 func appointmentDayRange(date time.Time) (start, end time.Time) {
-	dateJST := date.In(jstTimeLocation())
+	dateJST := date.In(jstLoc)
 	start = time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, dateJST.Location())
 	end = start.AddDate(0, 0, 1)
 	return start, end
 }
 
 func parseJSTDate(value string) (time.Time, error) {
-	t, err := time.ParseInLocation("2006-01-02", value, jstTimeLocation())
+	t, err := time.ParseInLocation("2006-01-02", value, jstLoc)
 	if err != nil {
 		return time.Time{}, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format")
 	}

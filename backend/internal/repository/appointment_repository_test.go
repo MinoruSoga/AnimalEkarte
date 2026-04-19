@@ -18,7 +18,7 @@ func TestParseJSTDate(t *testing.T) {
 		{
 			name:  "YYYY-MM-DDをJSTの当日0時として解釈する",
 			input: "2026-04-17",
-			want:  time.Date(2026, 4, 17, 0, 0, 0, 0, jstTimeLocation()),
+			want:  time.Date(2026, 4, 17, 0, 0, 0, 0, jstLoc),
 		},
 		{
 			name:    "RFC3339形式はエラーにする",
@@ -45,7 +45,7 @@ func TestParseJSTDate(t *testing.T) {
 }
 
 func TestAppointmentDayRange(t *testing.T) {
-	jst := jstTimeLocation()
+	jst := jstLoc
 	tests := []struct {
 		name      string
 		input     time.Time

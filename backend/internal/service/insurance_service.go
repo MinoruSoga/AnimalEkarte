@@ -90,6 +90,9 @@ func (s *insuranceService) Reorder(ctx context.Context, clinicID uint64, ids []u
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder insurances")
 	}
+	slog.InfoContext(ctx, "insurances reordered",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Int("count", len(ids)))
 	return nil
 }
 

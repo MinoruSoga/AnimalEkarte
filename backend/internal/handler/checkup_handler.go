@@ -13,7 +13,7 @@ import (
 
 // ListCheckups は指定カルテに紐づく健診記録の一覧を返す
 func (h *Handler) ListCheckups(c *gin.Context) {
-	_, ok := extractClinicID(c)
+	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
@@ -23,7 +23,7 @@ func (h *Handler) ListCheckups(c *gin.Context) {
 		return
 	}
 
-	checkups, err := h.svc.Checkup.List(c.Request.Context(), id)
+	checkups, err := h.svc.Checkup.List(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return

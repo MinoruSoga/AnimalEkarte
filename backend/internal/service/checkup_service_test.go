@@ -15,7 +15,7 @@ import (
 // ---- Checkup モック ----
 
 type mockCheckupRepository struct {
-	listByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error)
+	listByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
 	listByClinicFn          func(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error)
 	findByIDFn              func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
 	createFn                func(ctx context.Context, checkup *model.Checkup) error
@@ -23,8 +23,8 @@ type mockCheckupRepository struct {
 	deleteFn                func(ctx context.Context, clinicID, checkupID uint64) error
 }
 
-func (m *mockCheckupRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error) {
-	return m.listByMedicalRecordIDFn(ctx, medicalRecordID)
+func (m *mockCheckupRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
+	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
 func (m *mockCheckupRepository) ListByClinic(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error) {
@@ -92,13 +92,13 @@ func TestCheckupService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCheckupRepository{
-				listByMedicalRecordIDFn: func(_ context.Context, _ uint64) ([]model.Checkup, error) {
+				listByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]model.Checkup, error) {
 					return tt.repoCheckups, tt.repoErr
 				},
 			}
 			svc := NewCheckupService(repo)
 
-			checkups, err := svc.List(context.Background(), tt.medicalRecordID)
+			checkups, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
 			if tt.wantErr {
 				assert.Error(t, err)

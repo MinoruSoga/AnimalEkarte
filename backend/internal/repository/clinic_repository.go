@@ -42,7 +42,8 @@ func (r *clinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) 
 func (r *clinicRepository) FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
 	clinics := make([]model.Clinic, 0)
 	err := r.db.WithContext(ctx).
-		Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.clinic_id = clinics.id").
+		Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.clinic_id = clinics.id"+
+			" AND staff_clinic_assignments.deleted_at IS NULL").
 		Where("staff_clinic_assignments.staff_id = ?", staffID).
 		Order("clinics.name ASC").
 		Find(&clinics).Error

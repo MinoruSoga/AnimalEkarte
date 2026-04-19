@@ -233,7 +233,7 @@ func TestBillingConfirmationService_Return(t *testing.T) {
 			repoReview: &model.BillingConfirmation{
 				ID:              1,
 				MedicalRecordID: 1,
-				Status:          model.ConfirmationStatusPending,
+				Status:          model.ConfirmationStatusConfirmed,
 			},
 			repoFindErr:   nil,
 			repoUpdateErr: nil,
@@ -254,7 +254,7 @@ func TestBillingConfirmationService_Return(t *testing.T) {
 			repoReview: &model.BillingConfirmation{
 				ID:              1,
 				MedicalRecordID: 1,
-				Status:          model.ConfirmationStatusPending,
+				Status:          model.ConfirmationStatusConfirmed,
 			},
 			repoFindErr:   nil,
 			repoUpdateErr: errors.New("db error"),

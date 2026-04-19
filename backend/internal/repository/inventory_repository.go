@@ -133,9 +133,9 @@ func (r *inventoryRepository) CountUsageByInventoryID(ctx context.Context, inven
 		Raw(`SELECT (
 			SELECT COUNT(*) FROM treatments WHERE inventory_id = ? AND deleted_at IS NULL
 		) + (
-			SELECT COUNT(*) FROM vaccines WHERE inventory_id = ?
+			SELECT COUNT(*) FROM vaccines  WHERE inventory_id = ? AND deleted_at IS NULL
 		) + (
-			SELECT COUNT(*) FROM medicines WHERE inventory_id = ?
+			SELECT COUNT(*) FROM medicines WHERE inventory_id = ? AND deleted_at IS NULL
 		) AS total`, inventoryID, inventoryID, inventoryID).
 		Scan(&count).Error
 	if err != nil {

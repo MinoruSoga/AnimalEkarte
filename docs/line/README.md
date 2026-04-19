@@ -9,6 +9,7 @@
 - **[architecture.md](./architecture.md)**: システム全体図、認証フロー、時間枠計算エンジン、API エンドポイント一覧。
 - **[reservation-spec.md](./reservation-spec.md)**: 詳細な機能要件、画面遷移フロー、UI 仕様、DB 統合スキーマ。
 - **[setup.md](./setup.md)**: LINE 公式アカウント、Messaging API、LIFF ID の取得および設定手順。
+- **[lstep-integration.md](./lstep-integration.md)**: Lステップ連携実装仕様（タグ同期・セグメントDM配信基盤）。
 
 ---
 
