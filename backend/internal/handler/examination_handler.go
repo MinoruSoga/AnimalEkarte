@@ -83,7 +83,7 @@ func (h *Handler) GetExamination(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, exam)
+	c.JSON(http.StatusOK, toExaminationResponse(exam))
 }
 
 // CreateExamination godoc
@@ -99,22 +99,6 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 		return
 	}
 
-	var status model.ExaminationStatus
-	if input.Status != "" {
-		s, err := validateEnum(input.Status,
-			model.ExaminationStatusPending,
-			model.ExaminationStatusInProgress,
-			model.ExaminationStatusResultEntered,
-			model.ExaminationStatusCompleted,
-			model.ExaminationStatusConfirmed,
-		)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
-			return
-		}
-		status = s
-	}
-
 	svcInput := &service.CreateExaminationInput{
 		MedicalRecordID: input.MedicalRecordID,
 		PetID:           input.PetID,
@@ -123,14 +107,14 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 		Date:            input.Date,
 		ResultSummary:   input.ResultSummary,
 		Machine:         input.Machine,
-		Status:          status,
+		Status:          model.ExaminationStatus(input.Status),
 	}
 	exam, err := h.svc.Examination.Create(c.Request.Context(), clinicID, svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, exam)
+	c.JSON(http.StatusCreated, toExaminationResponse(exam))
 }
 
 // UpdateExamination godoc
@@ -151,17 +135,7 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 
 	var status *model.ExaminationStatus
 	if input.Status != nil {
-		s, err := validateEnum(*input.Status,
-			model.ExaminationStatusPending,
-			model.ExaminationStatusInProgress,
-			model.ExaminationStatusResultEntered,
-			model.ExaminationStatusCompleted,
-			model.ExaminationStatusConfirmed,
-		)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
-			return
-		}
+		s := model.ExaminationStatus(*input.Status)
 		status = &s
 	}
 	var examTypeID *uint64
@@ -186,7 +160,7 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, exam)
+	c.JSON(http.StatusOK, toExaminationResponse(exam))
 }
 
 // DeleteExamination godoc
