@@ -33,5 +33,12 @@ export default tseslint.config(
       "react-hooks/purity": "warn",
       "react-hooks/preserve-manual-memoization": "warn",
     },
+  },
+  {
+    // AuthProvider (component) と useAuth (hook re-export) が同居するため Fast Refresh 警告を抑制
+    files: ["src/features/auth/hooks/use-auth.tsx"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
   }
 );

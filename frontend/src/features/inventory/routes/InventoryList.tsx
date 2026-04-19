@@ -35,7 +35,7 @@ import { FilteringIndicator } from "@/components/shared/FilteringIndicator/Filte
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Relative
-import { useInventory } from "../hooks/use-inventory";
+import { useInventoryList } from "../hooks/use-inventory";
 import { usePermission } from "@/hooks/use-permission";
 
 // Types
@@ -108,7 +108,7 @@ export function InventoryList() {
     ? (statusFilterEntry.value as StatusFilter)
     : "all";
 
-  const { data: filteredItems, summary, isLoading, isError } = useInventory({
+  const { data: filteredItems, summary, isLoading, isError } = useInventoryList({
     searchTerm: deferredSearch,
     category,
     statusFilter,
