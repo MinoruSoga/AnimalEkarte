@@ -423,14 +423,6 @@ export const router = createBrowserRouter([
             },
           },
           {
-            // BUG-368: レジ締め日次集計
-            path: "daily-summary",
-            lazy: async () => {
-              const { CashRegisterSummary } = await import("@/features/accounting");
-              return { Component: CashRegisterSummary };
-            },
-          },
-          {
             // BUG-020: create 権限ガード
             path: "new",
             element: (

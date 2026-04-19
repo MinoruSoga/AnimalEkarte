@@ -1202,6 +1202,12 @@ export const ResourceMasterMerchandise: Resource = "master-merchandise";
  * BUG-372: 割引フィールド専用権限（飼主/治療/入院/見積/会計の全割引フィールドを保護）
  */
 export const ResourceDiscount: Resource = "discount";
+/**
+ * FEAT-368: 集計・締め
+ */
+export const ResourceCashRegisterClose: Resource = "cash-register-close"; // レジ締め実行・履歴
+export const ResourceAccountingReports: Resource = "accounting-reports"; // 月次売上集計（経理向け）
+export const ResourceClosingSettings: Resource = "closing-settings"; // 締め時間設定（管理者向け）
 
 //////////
 // source: permission_group.go

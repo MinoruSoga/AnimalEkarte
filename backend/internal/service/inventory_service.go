@@ -98,7 +98,7 @@ func (s *inventoryService) Update(ctx context.Context, clinicID, id uint64, inpu
 }
 
 func (s *inventoryService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountUsageByInventoryID(ctx, id)
+	count, err := s.repo.CountUsageByInventoryID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check inventory item dependencies")
 	}

@@ -13,13 +13,13 @@ import (
 
 // mockMedicineRepository は MedicineRepository のテスト用モック実装
 type mockMedicineRepository struct {
-	findAllFn       func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
-	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
-	countChildrenFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
-	createFn        func(ctx context.Context, medicine *model.Medicine) error
-	updateFieldsFn  func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error)
-	deleteFn        func(ctx context.Context, clinicID, id uint64) error
-	reorderFn       func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                 func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
+	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
+	countChildrenByParentIDFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
+	createFn                  func(ctx context.Context, medicine *model.Medicine) error
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error)
+	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockMedicineRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
@@ -30,14 +30,14 @@ func (m *mockMedicineRepository) FindByID(ctx context.Context, clinicID, id uint
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockMedicineRepository) CountChildren(ctx context.Context, clinicID, parentID uint64) (int64, error) {
-	if m.countChildrenFn != nil {
-		return m.countChildrenFn(ctx, clinicID, parentID)
+func (m *mockMedicineRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn != nil {
+		return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
 	}
 	return 0, nil
 }
 
-func (m *mockMedicineRepository) CountUsageByMedicineID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockMedicineRepository) CountUsageByMedicineID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -272,14 +272,14 @@ func TestMedicineService_Update(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:  "returns same medicine when no fields provided",
+			name:  "returns 400 when no fields provided",
 			id:    1,
 			input: &UpdateMedicineInput{
 				// 全フィールド nil
 			},
 			updateErr: nil,
 			findErr:   nil,
-			wantErr:   false,
+			wantErr:   true,
 		},
 		{
 			name: "returns not found error when medicine does not exist",
@@ -402,7 +402,7 @@ func TestMedicineService_Delete(t *testing.T) {
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
 					return tt.medicine, tt.findErr
 				},
-				countChildrenFn: func(_ context.Context, _, _ uint64) (int64, error) {
+				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.childrenCount, tt.countChildrenErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

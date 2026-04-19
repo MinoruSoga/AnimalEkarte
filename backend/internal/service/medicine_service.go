@@ -54,9 +54,9 @@ type UpdateMedicineInput struct {
 	Price           *int64
 	IsActive        *bool
 	Description     *string
-	DosageForm      *string  // nil = 未指定, "" = NULL クリア, "tablet" = 値セット
-	MedicineUnit    *string  // nil = 未指定, "" = NULL クリア, "per_ml" = 値セット
-	InventoryID     **uint64 // nil = 未指定, &nil = NULL クリア, &&val = 値セット
+	DosageForm      *string // nil = 未指定, "" = NULL クリア, "tablet" = 値セット
+	MedicineUnit    *string // nil = 未指定, "" = NULL クリア, "per_ml" = 値セット
+	InventoryID     *uint64 // nil = 未指定, non-nil = 値セット
 	DefaultQuantity *float64
 	SortOrder       *int
 	TaxType         *string
@@ -99,7 +99,7 @@ func buildMedicineUpdateFields(input *UpdateMedicineInput) map[string]any {
 		}
 	}
 	if input.InventoryID != nil {
-		fields[colMedicineInventoryID] = *input.InventoryID // *uint64 (nil = NULL)
+		fields[colMedicineInventoryID] = *input.InventoryID
 	}
 	if input.DefaultQuantity != nil {
 		fields[colMedicineDefaultQuantity] = *input.DefaultQuantity
@@ -202,11 +202,13 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		Status:        model.InventoryStatusSufficient,
 	}
 	if err := s.inventoryRepo.Create(ctx, clinicID, inventoryItem); err != nil {
-		slog.ErrorContext(ctx, "failed to create inventory item",
+		slog.WarnContext(ctx, "failed to create inventory item (best-effort)",
+			slog.Uint64("clinic_id", clinicID),
 			slog.Uint64("medicine_id", medicine.ID),
 			slog.String("name", medicine.Name),
 			slog.String("error", err.Error()))
-		// best-effort: 薬品は作成済みなので、エラーは警告レベル
+		// best-effort: 在庫作成失敗は medicine 作成エラーにしない
+		// 孤児は在庫一覧 UI から手動修復可能
 	}
 
 	slog.InfoContext(ctx, "medicine created",
@@ -223,11 +225,7 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	fields := buildMedicineUpdateFields(input)
 	if len(fields) == 0 {
-		result, err := s.repo.FindByID(ctx, clinicID, id)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to get medicine")
-		}
-		return result, nil
+		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
 	}
 
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
@@ -243,12 +241,12 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 
 func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder medicines")
 	}
-	slog.InfoContext(ctx, "medicines reordered", slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "medicines reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
 }
 
@@ -260,7 +258,7 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 
 	// カテゴリ（parent_id = NULL）の場合、子アイテムが存在すれば削除を拒否する
 	if m.ParentID == nil {
-		count, err := s.repo.CountChildren(ctx, clinicID, id)
+		count, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to count medicine children")
 		}
@@ -271,7 +269,7 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 		}
 	} else {
 		// 薬剤アイテムの場合、治療や入院ケアプランで使用中であれば削除を拒否する（BUG-108）
-		usageCount, err := s.repo.CountUsageByMedicineID(ctx, id)
+		usageCount, err := s.repo.CountUsageByMedicineID(ctx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to check medicine usage")
 		}
@@ -288,7 +286,7 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 	if err := s.inventoryRepo.DeleteByNameAndMedicineCategory(ctx, clinicID, m.Name); err != nil {
 		// best-effort: 薬剤削除は成功しているため、在庫クリーンアップ失敗は警告に留める。
 		// 孤児在庫は在庫一覧 UI から手動削除可能。
-		slog.ErrorContext(ctx, "failed to delete linked inventory (BUG-381)",
+		slog.WarnContext(ctx, "failed to delete linked inventory (best-effort, BUG-381)",
 			slog.Uint64("clinic_id", clinicID),
 			slog.Uint64("medicine_id", id),
 			slog.String("medicine_name", m.Name),

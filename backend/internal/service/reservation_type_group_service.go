@@ -99,11 +99,7 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 	}
 	fields := buildReservationTypeGroupUpdateFields(input)
 	if len(fields) == 0 {
-		g, err := s.repo.FindByID(ctx, clinicID, id)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to get reservation type group")
-		}
-		return g, nil
+		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
 	}
 	g, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -133,7 +129,7 @@ func buildReservationTypeGroupUpdateFields(input *UpdateReservationTypeGroupInpu
 }
 
 func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountCategories(ctx, clinicID, id)
+	count, err := s.repo.CountReservationTypesByGroupID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to count categories in group")
 	}
@@ -151,7 +147,7 @@ func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id u
 
 func (s *reservationTypeGroupService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder reservation type groups")

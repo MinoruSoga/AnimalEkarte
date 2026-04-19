@@ -17,7 +17,7 @@ type InventoryRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	DecreaseStock(ctx context.Context, id uint64, quantity float64) error
-	CountUsageByInventoryID(ctx context.Context, inventoryID uint64) (int64, error)
+	CountUsageByInventoryID(ctx context.Context, clinicID, inventoryID uint64) (int64, error)
 	// BUG-381: 薬剤マスタ削除時に BUG-320 で自動作成された連携在庫をカスケード削除するため、
 	// (clinic_id, name, category=medicine) で在庫を削除する。マッチなしは no-op。
 	DeleteByNameAndMedicineCategory(ctx context.Context, clinicID uint64, name string) error
@@ -126,20 +126,32 @@ func (r *inventoryRepository) DeleteByNameAndMedicineCategory(ctx context.Contex
 }
 
 // CountUsageByInventoryID は在庫アイテムを参照している治療明細・ワクチン・薬剤の件数を返す（BUG-195）
-func (r *inventoryRepository) CountUsageByInventoryID(ctx context.Context, inventoryID uint64) (int64, error) {
-	var count int64
-	// treatments, vaccines, medicines のいずれかから参照されていればカウント
-	err := r.db.WithContext(ctx).
-		Raw(`SELECT (
-			SELECT COUNT(*) FROM treatments WHERE inventory_id = ? AND deleted_at IS NULL
-		) + (
-			SELECT COUNT(*) FROM vaccines  WHERE inventory_id = ? AND deleted_at IS NULL
-		) + (
-			SELECT COUNT(*) FROM medicines WHERE inventory_id = ? AND deleted_at IS NULL
-		) AS total`, inventoryID, inventoryID, inventoryID).
-		Scan(&count).Error
-	if err != nil {
+// clinic_id フィルタを JOIN またはスコープで適用しテナント分離を保証する（BUG-383）
+func (r *inventoryRepository) CountUsageByInventoryID(ctx context.Context, clinicID, inventoryID uint64) (int64, error) {
+	var treatmentCount, vaccineCount, medicineCount int64
+	// treatments は clinic_id を直接持たないため medical_records を JOIN してテナント分離
+	if err := r.db.WithContext(ctx).
+		Model(&model.Treatment{}).
+		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Where("treatments.inventory_id = ? AND treatments.deleted_at IS NULL", inventoryID).
+		Count(&treatmentCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", inventoryID))
 	}
-	return count, nil
+	// vaccines は clinic_id を直接持つ
+	if err := r.db.WithContext(ctx).
+		Model(&model.Vaccine{}).
+		Scopes(clinicScope(clinicID)).
+		Where("inventory_id = ? AND deleted_at IS NULL", inventoryID).
+		Count(&vaccineCount).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", inventoryID))
+	}
+	// medicines は clinic_id を直接持つ
+	if err := r.db.WithContext(ctx).
+		Model(&model.Medicine{}).
+		Scopes(clinicScope(clinicID)).
+		Where("inventory_id = ? AND deleted_at IS NULL", inventoryID).
+		Count(&medicineCount).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", inventoryID))
+	}
+	return treatmentCount + vaccineCount + medicineCount, nil
 }

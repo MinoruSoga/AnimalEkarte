@@ -27,6 +27,9 @@
 - **MasterMerchandise**: 商品・保険マスタ
 - **MasterStaff**: スタッフ・職種・権限マスタ
 - **HospitalSettings**: 医院基本情報
+- **CashRegisterClose** (`cash-register-close`): レジ締め実行・締め履歴閲覧（FEAT-368）
+- **AccountingReports** (`accounting-reports`): 月次売上集計・CSV エクスポート（FEAT-368）
+- **ClosingSettings** (`closing-settings`): 締め時間・特別期間の設定変更（FEAT-368）
 
 ## 主要機能
 - **カラーコーディング**: グループごとに色を設定でき、スタッフ一覧等での識別性を高める。
