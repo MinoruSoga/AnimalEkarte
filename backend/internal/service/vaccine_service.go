@@ -149,5 +149,6 @@ func (s *vaccineService) Reorder(ctx context.Context, clinicID uint64, ids []uin
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder vaccines")
 	}
+	slog.InfoContext(ctx, "vaccines reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
 }
