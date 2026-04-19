@@ -90,7 +90,7 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update checkup type")
 	}
-	slog.InfoContext(ctx, "checkup type updated", slog.Uint64("checkup_type_id", id))
+	slog.InfoContext(ctx, "checkup type updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("checkup_type_id", id))
 	return checkupType, nil
 }
 func (s *checkupTypeService) Delete(ctx context.Context, clinicID, id uint64) error {

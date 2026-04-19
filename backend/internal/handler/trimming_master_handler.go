@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -97,12 +96,9 @@ func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
 		Price:       req.Price,
 		IsActive:    req.IsActive,
 		Description: req.Description,
+		TargetSize:  req.TargetSize,
 		Duration:    req.Duration,
 		SortOrder:   req.SortOrder,
-	}
-	if req.TargetSize != nil {
-		ts := model.TargetSize(*req.TargetSize)
-		svcInput.TargetSize = &ts
 	}
 
 	course, err := h.svc.TrimmingCourse.Update(c.Request.Context(), clinicID, id, svcInput)

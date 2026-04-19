@@ -91,7 +91,7 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update trimming course")
 	}
-	slog.InfoContext(ctx, "trimming course updated", slog.Uint64("trimming_course_id", id))
+	slog.InfoContext(ctx, "trimming course updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("trimming_course_id", id))
 	return course, nil
 }
 func (s *trimmingCourseService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -105,7 +105,7 @@ func (s *trimmingCourseService) Delete(ctx context.Context, clinicID, id uint64)
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete trimming course")
 	}
-	slog.InfoContext(ctx, "trimming course deleted", slog.Uint64("trimming_course_id", id))
+	slog.InfoContext(ctx, "trimming course deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("trimming_course_id", id))
 	return nil
 }
 
@@ -126,7 +126,7 @@ type UpdateTrimmingCourseInput struct {
 	Price       *int64
 	IsActive    *bool
 	Description *string
-	TargetSize  *model.TargetSize
+	TargetSize  *string
 	Duration    *int
 	SortOrder   *int
 }
@@ -146,7 +146,7 @@ func buildTrimmingCourseUpdateFields(input UpdateTrimmingCourseInput) map[string
 		fields["description"] = *input.Description
 	}
 	if input.TargetSize != nil {
-		fields["target_size"] = *input.TargetSize
+		fields["target_size"] = model.TargetSize(*input.TargetSize)
 	}
 	if input.Duration != nil {
 		fields["duration"] = *input.Duration
@@ -235,7 +235,7 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update trimming option")
 	}
-	slog.InfoContext(ctx, "trimming option updated", slog.Uint64("trimming_option_id", id))
+	slog.InfoContext(ctx, "trimming option updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("trimming_option_id", id))
 	return option, nil
 }
 func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -249,7 +249,7 @@ func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64)
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete trimming option")
 	}
-	slog.InfoContext(ctx, "trimming option deleted", slog.Uint64("trimming_option_id", id))
+	slog.InfoContext(ctx, "trimming option deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("trimming_option_id", id))
 	return nil
 }
 
