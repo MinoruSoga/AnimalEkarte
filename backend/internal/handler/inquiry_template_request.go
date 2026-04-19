@@ -15,8 +15,3 @@ type updateInquiryTemplateRequest struct {
 	IsActive  *bool   `json:"is_active"`
 	SortOrder *int    `json:"sort_order"`
 }
-
-// reorderInquiryTemplateRequest は問診定型文並び替えのバインド struct
-type reorderInquiryTemplateRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

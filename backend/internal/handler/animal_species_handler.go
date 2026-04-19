@@ -94,7 +94,7 @@ func (h *Handler) DeleteAnimalSpecies(c *gin.Context) {
 
 // ReorderAnimalSpecies godoc
 func (h *Handler) ReorderAnimalSpecies(c *gin.Context) {
-	var req reorderAnimalSpeciesRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

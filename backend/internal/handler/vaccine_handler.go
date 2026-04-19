@@ -124,7 +124,7 @@ func (h *Handler) ReorderVaccines(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderVaccineRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

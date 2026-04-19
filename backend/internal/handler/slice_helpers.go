@@ -9,3 +9,9 @@ func mapSlice[M, R any](items []M, f func(*M) R) []R {
 	}
 	return result
 }
+
+// reorderRequest は全ドメイン共通の Reorder リクエスト struct。
+// 各 *_request.go の重複定義をこの1つに集約する。
+type reorderRequest struct {
+	IDs []uint64 `json:"ids" binding:"required,min=1"`
+}

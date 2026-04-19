@@ -72,18 +72,18 @@ func (m *mockPermissionGroupRepository) SetStaffGroups(ctx context.Context, staf
 func TestPermissionGroupService_Create(t *testing.T) {
 	tests := []struct {
 		name      string
-		group     *model.PermissionGroup
+		input     CreatePermissionGroupInput
 		createErr error
 		wantErr   bool
 	}{
 		{
 			name:    "creates group successfully",
-			group:   &model.PermissionGroup{ClinicID: 1, Name: "管理者"},
+			input:   CreatePermissionGroupInput{Name: "管理者"},
 			wantErr: false,
 		},
 		{
 			name:      "propagates repository error",
-			group:     &model.PermissionGroup{ClinicID: 1, Name: "管理者"},
+			input:     CreatePermissionGroupInput{Name: "管理者"},
 			createErr: errors.New("db error"),
 			wantErr:   true,
 		},
@@ -97,7 +97,7 @@ func TestPermissionGroupService_Create(t *testing.T) {
 				},
 			}
 			svc := NewPermissionGroupService(repo)
-			err := svc.Create(context.Background(), tt.group)
+			_, err := svc.Create(context.Background(), 1, tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

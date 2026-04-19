@@ -22,6 +22,7 @@ type CreateReservationTypeInput struct {
 	Description string
 	SortOrder   int
 	GroupID     *uint64
+	Category    string
 
 	// LINE予約用フィールド
 	ReservationDisplayName string
@@ -43,6 +44,7 @@ type UpdateReservationTypeInput struct {
 	Description *string
 	SortOrder   *int
 	GroupID     *uint64
+	Category    *string
 
 	// LINE予約用フィールド
 	ReservationDisplayName *string
@@ -64,6 +66,7 @@ const (
 	colReservationTypeIsActive            = "is_active"
 	colReservationTypeDescription         = "description"
 	colReservationTypeSortOrder           = "sort_order"
+	colReservationTypeCategory            = "category"
 	colReservationTypeReservationDispName = "reservation_display_name"
 	colReservationTypeDurationMinutes     = "duration_minutes"
 	colReservationTypeShortName           = "short_name"
@@ -93,6 +96,9 @@ func buildReservationTypeUpdateFields(input *UpdateReservationTypeInput) map[str
 	}
 	if input.SortOrder != nil {
 		fields[colReservationTypeSortOrder] = *input.SortOrder
+	}
+	if input.Category != nil {
+		fields[colReservationTypeCategory] = model.ReservationTypeCategory(*input.Category)
 	}
 	if input.ReservationDisplayName != nil {
 		fields[colReservationTypeReservationDispName] = *input.ReservationDisplayName
@@ -223,6 +229,10 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 	if input.ReservationVisible != nil {
 		reservationVisible = *input.ReservationVisible
 	}
+	category := model.ReservationTypeCategory(input.Category)
+	if category == "" {
+		category = model.ReservationTypeCategoryGeneral
+	}
 
 	st := &model.ReservationType{
 		ClinicID:               clinicID,
@@ -231,6 +241,7 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 		IsActive:               input.IsActive,
 		Description:            input.Description,
 		SortOrder:              input.SortOrder,
+		Category:               category,
 		ReservationDisplayName: input.ReservationDisplayName,
 		DurationMinutes:        durationMinutes,
 		ShortName:              input.ShortName,

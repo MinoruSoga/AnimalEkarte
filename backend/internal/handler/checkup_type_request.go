@@ -22,8 +22,3 @@ type updateCheckupTypeRequest struct {
 	ClearParentID bool    `json:"clear_parent_id"`
 	SortOrder     *int    `json:"sort_order"`
 }
-
-// reorderCheckupTypeRequest は健康診断種別並び替えのバインド struct
-type reorderCheckupTypeRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

@@ -103,16 +103,6 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 		return
 	}
 
-	// BUG-153: 現在のクリニックに自動割り当て
-	if asgErr := h.svc.StaffClinicAssignment.Create(ctx, &model.StaffClinicAssignment{
-		StaffID:  staff.ID,
-		ClinicID: clinicID,
-		IsMain:   true,
-	}); asgErr != nil {
-		RespondError(c, apperrors.Wrap(asgErr, "failed to assign staff to clinic"))
-		return
-	}
-
 	// NOTE: Best-effort reload for Preload data. Create already succeeded.
 	if reloaded, reloadErr := h.svc.Staff.GetByID(ctx, staff.ID); reloadErr == nil {
 		staff = reloaded
@@ -402,7 +392,7 @@ func (h *Handler) ReorderStaffs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderStaffRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

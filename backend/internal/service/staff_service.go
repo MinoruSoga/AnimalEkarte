@@ -163,25 +163,39 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 		staffType = model.StaffTypeDoctor
 	}
 
-	staff := &model.Staff{
-		Name:                   input.Name,
-		LicenseNumber:          input.LicenseNumber,
-		OccupationID:           input.OccupationID,
-		SortOrder:              input.SortOrder,
-		IsActive:               true,
-		AccountID:              input.AccountID,
-		StaffType:              staffType,
-		ReservationDisplayName: input.ReservationDisplayName,
-		ReservationVisible:     input.ReservationVisible,
-		ReservationComment:     input.ReservationComment,
-		ReservationImageURL:    input.ReservationImageURL,
+	var staff *model.Staff
+	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		staff = &model.Staff{
+			Name:                   input.Name,
+			LicenseNumber:          input.LicenseNumber,
+			OccupationID:           input.OccupationID,
+			SortOrder:              input.SortOrder,
+			IsActive:               true,
+			AccountID:              input.AccountID,
+			StaffType:              staffType,
+			ReservationDisplayName: input.ReservationDisplayName,
+			ReservationVisible:     input.ReservationVisible,
+			ReservationComment:     input.ReservationComment,
+			ReservationImageURL:    input.ReservationImageURL,
+		}
+		if err := s.repo.Create(ctx, staff); err != nil {
+			return apperrors.Wrap(err, "failed to create staff")
+		}
+		if input.ClinicID != 0 {
+			if err := s.assignmentRepo.Create(ctx, &model.StaffClinicAssignment{
+				StaffID:  staff.ID,
+				ClinicID: input.ClinicID,
+				IsMain:   true,
+			}); err != nil {
+				return apperrors.Wrap(err, "failed to assign staff to clinic")
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
-	if err := s.repo.Create(ctx, staff); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create staff")
-	}
-
-	slog.InfoContext(ctx, "staff created", slog.Uint64("staff_id", staff.ID))
+	slog.InfoContext(ctx, "staff created", slog.Uint64("clinic_id", input.ClinicID), slog.Uint64("staff_id", staff.ID))
 	return staff, nil
 }
 
@@ -239,12 +253,21 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 		if err := s.repo.Create(ctx, staff); err != nil {
 			return apperrors.Wrap(err, "failed to create staff")
 		}
+		if input.ClinicID != 0 {
+			if err := s.assignmentRepo.Create(ctx, &model.StaffClinicAssignment{
+				StaffID:  staff.ID,
+				ClinicID: input.ClinicID,
+				IsMain:   true,
+			}); err != nil {
+				return apperrors.Wrap(err, "failed to assign staff to clinic")
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 
-	slog.InfoContext(ctx, "staff with account created", slog.String("email", input.Email), slog.Uint64("staff_id", staff.ID))
+	slog.InfoContext(ctx, "staff with account created", slog.Uint64("clinic_id", input.ClinicID), slog.String("email", input.Email), slog.Uint64("staff_id", staff.ID))
 	return staff, nil
 }
 

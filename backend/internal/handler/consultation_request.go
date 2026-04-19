@@ -27,7 +27,3 @@ type updateConsultationRequest struct {
 	TaxRate       *float64 `json:"tax_rate"`
 }
 
-// reorderConsultationRequest は診察料金並び替えのバインド struct
-type reorderConsultationRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

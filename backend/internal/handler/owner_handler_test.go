@@ -241,7 +241,7 @@ func TestCreateOwner(t *testing.T) {
 			"owner_name_kana": "ヤマダイチロウ",
 			"email":           "yamada@example.com",
 			"phone":           "090-1234-5678",
-			"membership_type": "general",
+			"membership_type": "non_member",
 			"pets":            []any{},
 		}
 	}

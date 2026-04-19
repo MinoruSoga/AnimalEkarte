@@ -20,8 +20,3 @@ type updateCageRequest struct {
 	Description *string `json:"description"`
 	SortOrder   *int    `json:"sort_order"`
 }
-
-// reorderCageRequest はケージ並び替えのバインド struct
-type reorderCageRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

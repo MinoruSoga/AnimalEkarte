@@ -138,7 +138,7 @@ func (h *Handler) ReorderConsultations(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderConsultationRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

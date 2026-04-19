@@ -12,6 +12,15 @@ import (
 
 // ---- PermissionGroupService ----
 
+// CreatePermissionGroupInput は権限グループ作成のための入力データ
+type CreatePermissionGroupInput struct {
+	Name        string
+	Description string
+	Color       string
+	IsActive    bool
+	SortOrder   int
+}
+
 // UpdatePermissionGroupInput holds the fields that can be updated via PATCH.
 // All fields are pointers: nil means "not provided / skip".
 type UpdatePermissionGroupInput struct {
@@ -25,7 +34,7 @@ type UpdatePermissionGroupInput struct {
 type PermissionGroupService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
-	Create(ctx context.Context, group *model.PermissionGroup) error
+	Create(ctx context.Context, clinicID uint64, input CreatePermissionGroupInput) (*model.PermissionGroup, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePermissionGroupInput) (*model.PermissionGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
@@ -57,15 +66,23 @@ func (s *permissionGroupService) GetByID(ctx context.Context, clinicID, id uint6
 	return result, nil
 }
 
-func (s *permissionGroupService) Create(ctx context.Context, group *model.PermissionGroup) error {
+func (s *permissionGroupService) Create(ctx context.Context, clinicID uint64, input CreatePermissionGroupInput) (*model.PermissionGroup, error) {
+	group := &model.PermissionGroup{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Description: input.Description,
+		Color:       input.Color,
+		IsActive:    input.IsActive,
+		SortOrder:   input.SortOrder,
+	}
 	if err := s.repo.Create(ctx, group); err != nil {
-		return apperrors.Wrap(err, "failed to create permission group")
+		return nil, apperrors.Wrap(err, "failed to create permission group")
 	}
 	slog.InfoContext(ctx, "permission group created",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("group_id", group.ID),
-		slog.Uint64("clinic_id", group.ClinicID),
 		slog.String("name", group.Name))
-	return nil
+	return group, nil
 }
 
 func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePermissionGroupInput) (*model.PermissionGroup, error) {
@@ -77,8 +94,8 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.Wrap(err, "failed to update permission group")
 	}
 	slog.InfoContext(ctx, "permission group updated",
-		slog.Uint64("group_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("group_id", id))
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get permission group after update")
@@ -98,8 +115,8 @@ func (s *permissionGroupService) Delete(ctx context.Context, clinicID, id uint64
 		return apperrors.Wrap(err, "failed to delete permission group")
 	}
 	slog.InfoContext(ctx, "permission group deleted",
-		slog.Uint64("group_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("group_id", id))
 	return nil
 }
 

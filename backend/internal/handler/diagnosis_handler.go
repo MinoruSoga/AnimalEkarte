@@ -131,7 +131,7 @@ func (h *Handler) ReorderDiagnosisTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderDiagnosisTypeRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -282,7 +282,7 @@ func (h *Handler) ReorderDiagnosisNames(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderDiagnosisNameRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

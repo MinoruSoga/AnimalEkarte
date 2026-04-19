@@ -62,6 +62,7 @@ func (h *Handler) CreateReservationType(c *gin.Context) {
 		IsActive:               req.IsActive,
 		Description:            req.Description,
 		SortOrder:              req.SortOrder,
+		Category:               req.Category,
 		ReservationDisplayName: req.ReservationDisplayName,
 		DurationMinutes:        req.DurationMinutes,
 		ShortName:              req.ShortName,
@@ -101,6 +102,7 @@ func (h *Handler) UpdateReservationType(c *gin.Context) {
 		IsActive:               req.IsActive,
 		Description:            req.Description,
 		SortOrder:              req.SortOrder,
+		Category:               req.Category,
 		ReservationDisplayName: req.ReservationDisplayName,
 		DurationMinutes:        req.DurationMinutes,
 		ShortName:              req.ShortName,
@@ -277,7 +279,7 @@ func (h *Handler) ReorderReservationTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderReservationTypeRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

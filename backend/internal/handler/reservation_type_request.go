@@ -7,6 +7,7 @@ type createReservationTypeRequest struct {
 	Description string  `json:"description"`
 	SortOrder   int     `json:"sort_order"`
 	GroupID     *uint64 `json:"group_id"`
+	Category    string  `json:"category"    binding:"omitempty,oneof=general trimming"`
 
 	// LINE予約用フィールド
 	ReservationDisplayName string `json:"reservation_display_name"`
@@ -27,6 +28,7 @@ type updateReservationTypeRequest struct {
 	Description *string `json:"description"`
 	SortOrder   *int    `json:"sort_order"`
 	GroupID     *uint64 `json:"group_id"`
+	Category    *string `json:"category"    binding:"omitempty,oneof=general trimming"`
 
 	// LINE予約用フィールド
 	ReservationDisplayName *string `json:"reservation_display_name"`

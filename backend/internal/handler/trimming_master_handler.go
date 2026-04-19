@@ -132,7 +132,7 @@ func (h *Handler) ReorderTrimmingCourses(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderTrimmingCourseRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -266,7 +266,7 @@ func (h *Handler) ReorderTrimmingOptions(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderTrimmingOptionRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

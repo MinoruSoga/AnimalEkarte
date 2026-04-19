@@ -114,7 +114,7 @@ func (h *Handler) ReorderExaminationTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderExaminationTypeRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

@@ -25,8 +25,3 @@ type updateHospitalizationPlanRequest struct {
 	TaxType     *string  `json:"tax_type"`
 	TaxRate     *float64 `json:"tax_rate"`
 }
-
-// reorderHospitalizationPlanRequest は入院プラン並び替えリクエスト。
-type reorderHospitalizationPlanRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

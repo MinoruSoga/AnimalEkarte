@@ -118,7 +118,7 @@ func (h *Handler) ReorderCages(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderCageRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

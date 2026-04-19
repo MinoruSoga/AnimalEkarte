@@ -18,7 +18,3 @@ type updateInsuranceRequest struct {
 	SortOrder    *int    `json:"sort_order"`
 }
 
-// reorderInsuranceRequest は保険並び替えリクエスト。
-type reorderInsuranceRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}

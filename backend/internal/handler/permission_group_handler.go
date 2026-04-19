@@ -61,15 +61,14 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 		return
 	}
 
-	pg := &model.PermissionGroup{
-		ClinicID:    clinicID,
+	pg, err := h.svc.PermissionGroup.Create(c.Request.Context(), clinicID, service.CreatePermissionGroupInput{
 		Name:        req.Name,
 		Description: req.Description,
 		Color:       req.Color,
 		IsActive:    req.IsActive,
 		SortOrder:   req.SortOrder,
-	}
-	if err := h.svc.PermissionGroup.Create(c.Request.Context(), pg); err != nil {
+	})
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -305,7 +304,7 @@ func (h *Handler) ReorderPermissionGroups(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req reorderPermissionGroupRequest
+	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return

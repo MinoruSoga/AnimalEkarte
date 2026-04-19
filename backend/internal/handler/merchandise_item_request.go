@@ -11,11 +11,6 @@ type createMerchandiseItemRequest struct {
 	SortOrder int     `json:"sort_order"`
 }
 
-// reorderMerchandiseItemRequest は物販品並び替えのバインド struct
-type reorderMerchandiseItemRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}
-
 // updateMerchandiseItemRequest は物販品更新のバインド struct（全フィールドポインタ型）
 type updateMerchandiseItemRequest struct {
 	Name      *string  `json:"name"`

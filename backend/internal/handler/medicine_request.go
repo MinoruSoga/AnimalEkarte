@@ -16,11 +16,6 @@ type createMedicineRequest struct {
 	TaxRate         *float64 `json:"tax_rate"`
 }
 
-// reorderMedicineRequest は薬剤並び替えのバインド struct
-type reorderMedicineRequest struct {
-	IDs []uint64 `json:"ids" binding:"required,min=1"`
-}
-
 // updateMedicineRequest は薬剤更新のバインド struct（全フィールドポインタ型）
 // DosageForm/MedicineUnit: nil = 未指定, "" = NULL クリア, "value" = 値セット
 // ParentID: nil = 未指定, clear_parent_id = true = NULL クリア, non-nil = 値セット
