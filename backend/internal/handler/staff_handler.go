@@ -585,7 +585,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.GET("/permission-groups", h.ListPermissionGroups)
 	masters.GET("/permission-groups/:id", h.GetPermissionGroup)
 	masters.POST("/permission-groups", perm(model.ResourceMasterPermission, "create"), h.CreatePermissionGroup)
-	masters.PATCH("/permission-groups", perm(model.ResourceMasterPermission, "edit"), h.ReorderPermissionGroups)
+	masters.PATCH("/permission-groups/reorder", perm(model.ResourceMasterPermission, "edit"), h.ReorderPermissionGroups)
 	masters.PATCH("/permission-groups/:id", perm(model.ResourceMasterPermission, "edit"), h.UpdatePermissionGroup)
 	masters.DELETE("/permission-groups/:id", perm(model.ResourceMasterPermission, "delete"), h.DeletePermissionGroup)
 	masters.PUT("/permission-groups/:id/rules", perm(model.ResourceMasterPermission, "edit"), h.SetPermissionGroupRules)
@@ -608,7 +608,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// Merchandise Items
 	masters.GET("/merchandise-items", h.ListMerchandiseItems)
 	masters.POST("/merchandise-items", perm(model.ResourceMasterMerchandise, "create"), h.CreateMerchandiseItem)
-	masters.POST("/merchandise-items/reorder", perm(model.ResourceMasterMerchandise, "edit"), h.ReorderMerchandiseItems)
+	masters.PATCH("/merchandise-items/reorder", perm(model.ResourceMasterMerchandise, "edit"), h.ReorderMerchandiseItems)
 	masters.GET("/merchandise-items/:id", h.GetMerchandiseItem)
 	masters.PATCH("/merchandise-items/:id", perm(model.ResourceMasterMerchandise, "edit"), h.UpdateMerchandiseItem)
 	masters.DELETE("/merchandise-items/:id", perm(model.ResourceMasterMerchandise, "delete"), h.DeleteMerchandiseItem)

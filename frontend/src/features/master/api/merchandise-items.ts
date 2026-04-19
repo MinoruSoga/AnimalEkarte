@@ -124,7 +124,7 @@ export const useReorderMerchandiseItems = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (req: ReorderMerchandiseItemsRequest) => {
-      await axios.put("/v1/masters/merchandise-items/reorder", req);
+      await axios.patch("/v1/masters/merchandise-items/reorder", req);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...MERCHANDISE_ITEMS_QUERY_KEY] });
