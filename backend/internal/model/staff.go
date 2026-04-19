@@ -12,6 +12,7 @@ type StaffType string
 const (
 	StaffTypeDoctor   StaffType = "doctor"
 	StaffTypeNurse    StaffType = "nurse"
+	StaffTypeTrimmer  StaffType = "trimmer"
 	StaffTypeResource StaffType = "resource"
 )
 

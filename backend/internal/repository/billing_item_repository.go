@@ -31,7 +31,7 @@ func NewBillingItemRepository(db *gorm.DB) BillingItemRepository {
 func (r *billingItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error) {
 	var item model.BillingItem
 	err := r.db.WithContext(ctx).
-		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ?", clinicID).
+		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billing_items.id = ?", id).
 		First(&item).Error
 	if err != nil {
@@ -43,7 +43,7 @@ func (r *billingItemRepository) FindByID(ctx context.Context, clinicID, id uint6
 func (r *billingItemRepository) FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error) {
 	items := make([]model.BillingItem, 0)
 	if err := r.db.WithContext(ctx).
-		Joins("JOIN billings ON billings.id = billing_items.billing_id").
+		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.deleted_at IS NULL").
 		Where("billings.clinic_id = ? AND billing_items.billing_id = ?", clinicID, billingID).
 		Order("sort_order ASC, id ASC").
 		Find(&items).Error; err != nil {

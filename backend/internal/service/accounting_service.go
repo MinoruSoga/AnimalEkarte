@@ -17,9 +17,9 @@ type CreateAccountingInput struct {
 	HospitalizationID *uint64
 	OwnerID           *uint64
 	PetID             *uint64
-	Subtotal          int
-	TaxTotal          int
-	TotalAmount       int
+	Subtotal          int64
+	TaxTotal          int64
+	TotalAmount       int64
 	HasInsurance      bool
 	Status            model.BillingStatus
 	ScheduledDate     time.Time
@@ -37,9 +37,9 @@ type UpdateAccountingInput struct {
 	HospitalizationID *uint64
 	OwnerID           *uint64
 	PetID             *uint64
-	Subtotal          *int
-	TaxTotal          *int
-	TotalAmount       *int
+	Subtotal          *int64
+	TaxTotal          *int64
+	TotalAmount       *int64
 	HasInsurance      *bool
 	Status            *model.BillingStatus
 	ScheduledDate     *time.Time
@@ -223,13 +223,13 @@ func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
 		PaidBy:    input.StaffID,
 	}
 	if input.Subtotal != nil {
-		p.Subtotal = int64(*input.Subtotal)
+		p.Subtotal = *input.Subtotal
 	}
 	if input.TaxTotal != nil {
-		p.TaxTotal = int64(*input.TaxTotal)
+		p.TaxTotal = *input.TaxTotal
 	}
 	if input.TotalAmount != nil {
-		p.TotalAmount = int64(*input.TotalAmount)
+		p.TotalAmount = *input.TotalAmount
 	}
 	if input.InsuranceName != nil {
 		p.InsuranceName = *input.InsuranceName

@@ -8,9 +8,9 @@ type createAccountingRequest struct {
 	HospitalizationID *uint64    `json:"hospitalization_id"`
 	OwnerID           *uint64    `json:"owner_id"`
 	PetID             *uint64    `json:"pet_id"`
-	Subtotal          int        `json:"subtotal"      binding:"min=0"`
-	TaxTotal          int        `json:"tax_total"     binding:"min=0"`
-	TotalAmount       int        `json:"total_amount"  binding:"min=0"`
+	Subtotal          int64      `json:"subtotal"      binding:"min=0"`
+	TaxTotal          int64      `json:"tax_total"     binding:"min=0"`
+	TotalAmount       int64      `json:"total_amount"  binding:"min=0"`
 	HasInsurance      bool       `json:"has_insurance"`
 	Status            string     `json:"status"`
 	ScheduledDate     time.Time  `json:"scheduled_date" binding:"required"`
@@ -26,9 +26,9 @@ type updateAccountingRequest struct {
 	HospitalizationID *uint64    `json:"hospitalization_id"`
 	OwnerID           *uint64    `json:"owner_id"`
 	PetID             *uint64    `json:"pet_id"`
-	Subtotal          *int       `json:"subtotal"`
-	TaxTotal          *int       `json:"tax_total"`
-	TotalAmount       *int       `json:"total_amount"`
+	Subtotal          *int64     `json:"subtotal"`
+	TaxTotal          *int64     `json:"tax_total"`
+	TotalAmount       *int64     `json:"total_amount"`
 	HasInsurance      *bool      `json:"has_insurance"`
 	Status            *string    `json:"status"`
 	ScheduledDate     *time.Time `json:"scheduled_date"`

@@ -295,7 +295,7 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 
 	q := dbOrTx(ctx, r.db).Model(&model.Appointment{}).
 		Scopes(clinicScope(clinicID)).
-		Joins("JOIN reservation_types ON reservation_types.id = appointments.reservation_type_id").
+		Joins("JOIN reservation_types ON reservation_types.id = appointments.reservation_type_id AND reservation_types.deleted_at IS NULL").
 		Where("reservation_types.category = ?", category)
 
 	if petID != nil {

@@ -147,9 +147,9 @@ type accountingResponse struct {
 	PetID               *uint64                 `json:"pet_id,omitempty"`
 	Owner               *accountingOwnerSummary `json:"owner,omitempty"`
 	Pet                 *accountingPetSummary   `json:"pet,omitempty"`
-	Subtotal            int                     `json:"subtotal"`
-	TaxTotal            int                     `json:"tax_total"`
-	TotalAmount         int                     `json:"total_amount"`
+	Subtotal            int64                   `json:"subtotal"`
+	TaxTotal            int64                   `json:"tax_total"`
+	TotalAmount         int64                   `json:"total_amount"`
 	TotalRefundedAmount int64                   `json:"total_refunded_amount"`
 	HasInsurance        bool                    `json:"has_insurance"`
 	Status              string                  `json:"status"`

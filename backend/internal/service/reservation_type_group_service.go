@@ -74,7 +74,9 @@ func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint6
 	if err := s.repo.Create(ctx, g); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create reservation_type_group")
 	}
-	slog.InfoContext(ctx, "reservation_type_group created", "id", g.ID, "name", g.Name)
+	slog.InfoContext(ctx, "reservation_type_group created",
+		slog.Uint64("id", g.ID),
+		slog.String("name", g.Name))
 	return g, nil
 }
 
@@ -82,19 +84,7 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := map[string]any{}
-	if input.Name != nil {
-		fields["name"] = *input.Name
-	}
-	if input.Color != nil {
-		fields["color"] = *input.Color
-	}
-	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
-	}
-	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
-	}
+	fields := buildReservationTypeGroupUpdateFields(input)
 	if len(fields) == 0 {
 		g, err := s.repo.FindByID(ctx, clinicID, id)
 		if err != nil {
@@ -109,7 +99,27 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get updated reservation type group")
 	}
+	slog.InfoContext(ctx, "reservation_type_group updated",
+		slog.Uint64("id", g.ID),
+		slog.Uint64("clinic_id", clinicID))
 	return g, nil
+}
+
+func buildReservationTypeGroupUpdateFields(input *UpdateReservationTypeGroupInput) map[string]any {
+	fields := map[string]any{}
+	if input.Name != nil {
+		fields["name"] = *input.Name
+	}
+	if input.Color != nil {
+		fields["color"] = *input.Color
+	}
+	if input.SortOrder != nil {
+		fields["sort_order"] = *input.SortOrder
+	}
+	if input.IsActive != nil {
+		fields["is_active"] = *input.IsActive
+	}
+	return fields
 }
 
 func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -123,6 +133,9 @@ func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id u
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation type group")
 	}
+	slog.InfoContext(ctx, "reservation_type_group deleted",
+		slog.Uint64("id", id),
+		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 

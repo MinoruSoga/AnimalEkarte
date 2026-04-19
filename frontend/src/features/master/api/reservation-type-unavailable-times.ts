@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { ReservationTypeUnavailableTime } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -74,6 +75,7 @@ export function useCreateUnavailableTime(clinicId: string, reservationTypeId: st
       createUnavailableTime(clinicId, reservationTypeId, req),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: unavailableTimesKey(reservationTypeId) }),
+    onError: (error: unknown) => handleApiError(error, "予約不可時間の作成"),
   });
 }
 
@@ -83,5 +85,6 @@ export function useDeleteUnavailableTime(clinicId: string, reservationTypeId: st
     mutationFn: (id: number) => deleteUnavailableTime(clinicId, reservationTypeId, id),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: unavailableTimesKey(reservationTypeId) }),
+    onError: (error: unknown) => handleApiError(error, "予約不可時間の削除"),
   });
 }

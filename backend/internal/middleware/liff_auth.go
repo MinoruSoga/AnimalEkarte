@@ -47,8 +47,8 @@ type LineReservationSettingLookup interface {
 // settingLookup でクリニックの LiffID を取得し、LINE API の client_id 照合に使用する。
 func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// ローカル開発用: LIFF_MOCK=true で認証バイパス
-		if os.Getenv("LIFF_MOCK") == "true" {
+		// ローカル開発用: LIFF_MOCK=true で認証バイパス（release モードでは無効）
+		if os.Getenv("LIFF_MOCK") == "true" && gin.Mode() != gin.ReleaseMode {
 			clinicIDStr := c.Param("clinicId")
 			var clinicID uint64
 			if _, err := fmt.Sscanf(clinicIDStr, "%d", &clinicID); err == nil && clinicID > 0 {

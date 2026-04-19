@@ -18,6 +18,7 @@ type BillingStatus string
 
 const (
 	BillingStatusWaiting   BillingStatus = "waiting"
+	BillingStatusPending   BillingStatus = "pending"
 	BillingStatusCompleted BillingStatus = "completed"
 	BillingStatusCancelled BillingStatus = "cancelled"
 )
@@ -25,8 +26,9 @@ const (
 type PaymentMethod string
 
 const (
-	PaymentMethodCash        PaymentMethod = "cash"
-	PaymentMethodCreditCard  PaymentMethod = "credit_card"
+	PaymentMethodCash            PaymentMethod = "cash"
+	PaymentMethodCreditCard      PaymentMethod = "credit_card"
+	PaymentMethodElectronicMoney PaymentMethod = "electronic_money"
 )
 
 type ItemCategory string
@@ -57,9 +59,9 @@ type Billing struct {
 	HospitalizationID *uint64        `                                                      json:"hospitalization_id,omitempty"`
 	OwnerID           *uint64        `                                                      json:"owner_id,omitempty"`
 	PetID             *uint64        `                                                      json:"pet_id,omitempty"`
-	Subtotal          int            `gorm:"default:0"                                      json:"subtotal"`
-	TaxTotal          int            `gorm:"default:0"                                      json:"tax_total"`
-	TotalAmount       int            `gorm:"default:0"                                      json:"total_amount"`
+	Subtotal          int64          `gorm:"default:0"                                      json:"subtotal"`
+	TaxTotal          int64          `gorm:"default:0"                                      json:"tax_total"`
+	TotalAmount       int64          `gorm:"default:0"                                      json:"total_amount"`
 	HasInsurance      bool           `gorm:"default:false"                                  json:"has_insurance"`
 	Status            BillingStatus  `gorm:"type:billing_status;default:'waiting'"          json:"status"`
 	ScheduledDate     time.Time      `gorm:"type:date;not null"                             json:"scheduled_date"`

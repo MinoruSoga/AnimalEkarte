@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { ReservationTypeOccupation } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -64,6 +65,7 @@ export function useLinkOccupation(clinicId: string, reservationTypeId: string) {
     mutationFn: (occupationId: number) => linkOccupation(clinicId, reservationTypeId, occupationId),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: occupationsKey(reservationTypeId) }),
+    onError: (error: unknown) => handleApiError(error, "職種の紐付け"),
   });
 }
 
@@ -73,5 +75,6 @@ export function useUnlinkOccupation(clinicId: string, reservationTypeId: string)
     mutationFn: (id: number) => unlinkOccupation(clinicId, reservationTypeId, id),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: occupationsKey(reservationTypeId) }),
+    onError: (error: unknown) => handleApiError(error, "職種の紐付け解除"),
   });
 }

@@ -189,8 +189,18 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 // SetPermissionGroupRules godoc
 // PUTメソッドで全ルールを置き換える
 func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, ok := parseIDParam(c, "id")
 	if !ok {
+		return
+	}
+
+	// TASK-016: グループがこのクリニックに属することを確認（横断テナント書き換え防止）
+	if _, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id); err != nil {
+		RespondError(c, err)
 		return
 	}
 
@@ -281,8 +291,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	}
 
 	// Return updated group with rules
-	setClinicID, _ := extractClinicID(c)
-	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), setClinicID, id)
+	pg, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
