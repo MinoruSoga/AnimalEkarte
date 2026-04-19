@@ -69,7 +69,7 @@ func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *C
 	if err := s.repo.Create(ctx, insurance); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create insurance")
 	}
-	slog.InfoContext(ctx, "insurance created", slog.Uint64("insurance_id", insurance.ID))
+	slog.InfoContext(ctx, "insurance created", slog.Uint64("clinic_id", clinicID), slog.Uint64("insurance_id", insurance.ID))
 	return insurance, nil
 }
 func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, input UpdateInsuranceInput) (*model.Insurance, error) {
@@ -84,7 +84,7 @@ func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update insurance")
 	}
-	slog.InfoContext(ctx, "insurance updated", slog.Uint64("insurance_id", id))
+	slog.InfoContext(ctx, "insurance updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("insurance_id", id))
 	return insurance, nil
 }
 func (s *insuranceService) Delete(ctx context.Context, clinicID, id uint64) error {

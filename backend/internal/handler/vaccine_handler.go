@@ -28,7 +28,7 @@ func (h *Handler) GetVaccine(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, vaccine)
+	c.JSON(http.StatusOK, toVaccineResponse(vaccine))
 }
 
 // ListVaccines godoc
@@ -46,7 +46,7 @@ func (h *Handler) ListVaccines(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, vaccines)
+	c.JSON(http.StatusOK, mapSlice(vaccines, toVaccineResponse))
 }
 
 // CreateVaccine godoc
@@ -81,7 +81,7 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, vaccine)
+	c.JSON(http.StatusCreated, toVaccineResponse(vaccine))
 }
 
 // UpdateVaccine godoc
@@ -120,7 +120,7 @@ func (h *Handler) UpdateVaccine(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, vaccine)
+	c.JSON(http.StatusOK, toVaccineResponse(vaccine))
 }
 
 // ReorderVaccines godoc

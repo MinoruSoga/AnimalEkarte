@@ -89,7 +89,7 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input Upd
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update cage")
 	}
-	slog.InfoContext(ctx, "cage updated", slog.Uint64("cage_id", id))
+	slog.InfoContext(ctx, "cage updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("cage_id", id))
 	return cage, nil
 }
 func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {

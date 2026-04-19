@@ -84,7 +84,7 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update exam type")
 	}
-	slog.InfoContext(ctx, "exam type updated", slog.Uint64("exam_type_id", id))
+	slog.InfoContext(ctx, "exam type updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("exam_type_id", id))
 	return exType, nil
 }
 func (s *examTypeService) Delete(ctx context.Context, clinicID, id uint64) error {

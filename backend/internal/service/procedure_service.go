@@ -107,7 +107,7 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update procedure")
 	}
-	slog.InfoContext(ctx, "procedure updated", slog.Uint64("procedure_id", id))
+	slog.InfoContext(ctx, "procedure updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("procedure_id", id))
 	return procedure, nil
 }
 func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) error {

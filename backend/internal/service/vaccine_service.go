@@ -68,7 +68,7 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 	if err := s.repo.Create(ctx, vaccine); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create vaccine")
 	}
-	slog.InfoContext(ctx, "vaccine created", slog.Uint64("vaccine_id", vaccine.ID))
+	slog.InfoContext(ctx, "vaccine created", slog.Uint64("clinic_id", clinicID), slog.Uint64("vaccine_id", vaccine.ID))
 	return vaccine, nil
 }
 func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input UpdateVaccineInput) (*model.Vaccine, error) {
@@ -80,7 +80,7 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update vaccine")
 	}
-	slog.InfoContext(ctx, "vaccine updated", slog.Uint64("vaccine_id", id))
+	slog.InfoContext(ctx, "vaccine updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("vaccine_id", id))
 	return vaccine, nil
 }
 
