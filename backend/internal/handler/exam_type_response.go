@@ -12,6 +12,7 @@ type examTypeItemResponse struct {
 	Name            string    `json:"name"`
 	InspectionValue string    `json:"inspection_value"`
 	NormalValue     string    `json:"normal_value"`
+	Unit            string    `json:"unit"`
 	SortOrder       int       `json:"sort_order"`
 	CreatedAt       time.Time `json:"created_at"`
 }
@@ -37,6 +38,7 @@ func toExamTypeItemResponse(item *model.ExamTypeField) examTypeItemResponse {
 		Name:            item.Name,
 		InspectionValue: item.InspectionValue,
 		NormalValue:     item.NormalValue,
+		Unit:            item.Unit,
 		SortOrder:       item.SortOrder,
 		CreatedAt:       item.CreatedAt,
 	}

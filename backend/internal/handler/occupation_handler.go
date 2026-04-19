@@ -13,6 +13,20 @@ import (
 
 // ---- Occupation ----
 
+// ListOccupations godoc
+func (h *Handler) ListOccupations(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	occupations, err := h.svc.Occupation.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(occupations, toOccupationResponse))
+}
+
 // GetOccupation godoc
 func (h *Handler) GetOccupation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -29,20 +43,6 @@ func (h *Handler) GetOccupation(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toOccupationResponse(occ))
-}
-
-// ListOccupations godoc
-func (h *Handler) ListOccupations(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	occupations, err := h.svc.Occupation.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, mapSlice(occupations, toOccupationResponse))
 }
 
 // CreateOccupation godoc

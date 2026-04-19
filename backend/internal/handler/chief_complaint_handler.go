@@ -13,6 +13,20 @@ import (
 
 // ---- ChiefComplaintType ----
 
+// ListChiefComplaints godoc
+func (h *Handler) ListChiefComplaints(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	categories, err := h.svc.ChiefComplaintType.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(categories, toChiefComplaintResponse))
+}
+
 // GetChiefComplaint godoc
 func (h *Handler) GetChiefComplaint(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -29,20 +43,6 @@ func (h *Handler) GetChiefComplaint(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toChiefComplaintResponse(category))
-}
-
-// ListChiefComplaints godoc
-func (h *Handler) ListChiefComplaints(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	categories, err := h.svc.ChiefComplaintType.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, mapSlice(categories, toChiefComplaintResponse))
 }
 
 // CreateChiefComplaint godoc

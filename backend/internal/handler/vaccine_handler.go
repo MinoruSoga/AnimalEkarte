@@ -13,24 +13,6 @@ import (
 
 // ---- Vaccine ----
 
-// GetVaccine godoc
-func (h *Handler) GetVaccine(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	vaccine, err := h.svc.Vaccine.GetByID(c.Request.Context(), clinicID, id)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toVaccineResponse(vaccine))
-}
-
 // ListVaccines godoc
 func (h *Handler) ListVaccines(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -47,6 +29,24 @@ func (h *Handler) ListVaccines(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, mapSlice(vaccines, toVaccineResponse))
+}
+
+// GetVaccine godoc
+func (h *Handler) GetVaccine(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	vaccine, err := h.svc.Vaccine.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toVaccineResponse(vaccine))
 }
 
 // CreateVaccine godoc

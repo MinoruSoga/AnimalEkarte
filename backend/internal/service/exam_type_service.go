@@ -78,7 +78,7 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	fields := buildExamTypeUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
 	}
 	exType, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -111,7 +111,7 @@ func (s *examTypeService) Delete(ctx context.Context, clinicID, id uint64) error
 
 func (s *examTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder exam types")

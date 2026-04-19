@@ -78,7 +78,7 @@ func buildMerchandiseItemUpdateFields(input *UpdateMerchandiseItemInput) map[str
 
 // MerchandiseItemService は物販品マスタのビジネスロジック
 type MerchandiseItemService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error)
+	List(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateMerchandiseItemInput) (*model.MerchandiseItem, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error)
@@ -95,12 +95,12 @@ func NewMerchandiseItemService(repo repository.MerchandiseItemRepository) Mercha
 	return &merchandiseItemService{repo: repo}
 }
 
-func (s *merchandiseItemService) List(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error) {
-	result, total, err := s.repo.FindAll(ctx, clinicID, page, limit, category)
+func (s *merchandiseItemService) List(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
+	result, err := s.repo.FindAll(ctx, clinicID, category)
 	if err != nil {
-		return nil, 0, apperrors.Wrap(err, "failed to list merchandise items")
+		return nil, apperrors.Wrap(err, "failed to list merchandise items")
 	}
-	return result, total, nil
+	return result, nil
 }
 
 func (s *merchandiseItemService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
@@ -159,11 +159,7 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 	}
 	fields := buildMerchandiseItemUpdateFields(input)
 	if len(fields) == 0 {
-		result, err := s.repo.FindByID(ctx, clinicID, id)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to get merchandise item")
-		}
-		return result, nil
+		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
 	}
 
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
@@ -179,12 +175,12 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 
 func (s *merchandiseItemService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder merchandise items")
 	}
-	slog.InfoContext(ctx, "merchandise items reordered", slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "merchandise items reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
 }
 

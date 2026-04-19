@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,20 @@ import (
 )
 
 // ---- TrimmingCourse ----
+
+// ListTrimmingCourses godoc
+func (h *Handler) ListTrimmingCourses(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	courses, err := h.svc.TrimmingCourse.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(courses, toTrimmingCourseResponse))
+}
 
 // GetTrimmingCourse godoc
 func (h *Handler) GetTrimmingCourse(c *gin.Context) {
@@ -28,20 +43,6 @@ func (h *Handler) GetTrimmingCourse(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toTrimmingCourseResponse(course))
-}
-
-// ListTrimmingCourses godoc
-func (h *Handler) ListTrimmingCourses(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	courses, err := h.svc.TrimmingCourse.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, mapSlice(courses, toTrimmingCourseResponse))
 }
 
 // CreateTrimmingCourse godoc
@@ -72,6 +73,7 @@ func (h *Handler) CreateTrimmingCourse(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/trimming-courses/%d", course.ID))
 	c.JSON(http.StatusCreated, toTrimmingCourseResponse(course))
 }
 
@@ -146,6 +148,20 @@ func (h *Handler) ReorderTrimmingCourses(c *gin.Context) {
 
 // ---- TrimmingOption ----
 
+// ListTrimmingOptions godoc
+func (h *Handler) ListTrimmingOptions(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	options, err := h.svc.TrimmingOption.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(options, toTrimmingOptionResponse))
+}
+
 // GetTrimmingOption godoc
 func (h *Handler) GetTrimmingOption(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -162,20 +178,6 @@ func (h *Handler) GetTrimmingOption(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toTrimmingOptionResponse(option))
-}
-
-// ListTrimmingOptions godoc
-func (h *Handler) ListTrimmingOptions(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	options, err := h.svc.TrimmingOption.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, mapSlice(options, toTrimmingOptionResponse))
 }
 
 // CreateTrimmingOption godoc
@@ -206,6 +208,7 @@ func (h *Handler) CreateTrimmingOption(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/trimming-options/%d", option.ID))
 	c.JSON(http.StatusCreated, toTrimmingOptionResponse(option))
 }
 

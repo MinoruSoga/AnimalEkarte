@@ -58,7 +58,12 @@ func RespondError(c *gin.Context, err error) {
 		}
 		c.JSON(http.StatusUnauthorized, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrForbidden):
-		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		var appErr *apperrors.AppError
+		msg := "forbidden"
+		if errors.As(err, &appErr) && appErr.Message != "" {
+			msg = appErr.Message
+		}
+		c.JSON(http.StatusForbidden, gin.H{"error": msg})
 	case errors.Is(err, apperrors.ErrNotImplemented):
 		c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
 	case isPgError(err):
@@ -277,6 +282,10 @@ func parseIDParam(c *gin.Context, key string) (uint64, bool) {
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid "+key))
+		return 0, false
+	}
+	if id == 0 {
+		RespondError(c, apperrors.WrapInvalidInput("IDは1以上を指定してください"))
 		return 0, false
 	}
 	return id, true

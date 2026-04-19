@@ -22,8 +22,7 @@ func (h *Handler) ListMerchandiseItems(c *gin.Context) {
 
 	category := c.Query("category") // optional category filter
 
-	// page=1, limit=10000 で全件取得（マスタデータは件数が限定的）
-	items, _, err := h.svc.MerchandiseItem.List(c.Request.Context(), clinicID, 1, 10000, category)
+	items, err := h.svc.MerchandiseItem.List(c.Request.Context(), clinicID, category)
 	if err != nil {
 		RespondError(c, err)
 		return

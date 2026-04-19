@@ -85,7 +85,7 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 	}
 	fields := buildTrimmingCourseUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
 	}
 	course, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -111,12 +111,12 @@ func (s *trimmingCourseService) Delete(ctx context.Context, clinicID, id uint64)
 
 func (s *trimmingCourseService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder trimming courses")
 	}
-	slog.InfoContext(ctx, "trimming courses reordered", slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "trimming courses reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
 }
 
@@ -241,7 +241,7 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 	}
 	fields := buildTrimmingOptionUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
 	}
 	option, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -267,12 +267,12 @@ func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64)
 
 func (s *trimmingOptionService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder trimming options")
 	}
-	slog.InfoContext(ctx, "trimming options reordered", slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "trimming options reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
 }
 

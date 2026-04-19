@@ -13,6 +13,20 @@ import (
 
 // ---- ExaminationType ----
 
+// ListExaminationTypes godoc
+func (h *Handler) ListExaminationTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	exTypes, err := h.svc.ExaminationType.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(exTypes, toExamTypeResponse))
+}
+
 // GetExaminationType godoc
 func (h *Handler) GetExaminationType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -29,20 +43,6 @@ func (h *Handler) GetExaminationType(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toExamTypeResponse(et))
-}
-
-// ListExaminationTypes godoc
-func (h *Handler) ListExaminationTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	exTypes, err := h.svc.ExaminationType.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, mapSlice(exTypes, toExamTypeResponse))
 }
 
 // CreateExaminationType godoc

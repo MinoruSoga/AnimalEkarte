@@ -15,7 +15,7 @@ import (
 
 // MerchandiseItemRepository は物販品マスタのデータアクセス
 type MerchandiseItemRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 	CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error)
 	Create(ctx context.Context, item *model.MerchandiseItem) error
@@ -31,28 +31,16 @@ func NewMerchandiseItemRepository(db *gorm.DB) MerchandiseItemRepository {
 	return &merchandiseItemRepository{db: db}
 }
 
-func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error) {
+func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64, category string) ([]model.MerchandiseItem, error) {
 	items := make([]model.MerchandiseItem, 0)
-	var total int64
-
-	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.MerchandiseItem{}).Scopes(clinicScope(clinicID))
-		if category != "" {
-			q = q.Where("category = ?", category)
-		}
-		return q
+	q := r.db.WithContext(ctx).Scopes(clinicScope(clinicID))
+	if category != "" {
+		q = q.Where("category = ?", category)
 	}
-
-	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "merchandise_item", "")
+	if err := q.Order("sort_order ASC, name ASC").Find(&items).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "merchandise_item", "")
 	}
-	if err := buildBase().
-		Offset((page - 1) * limit).Limit(limit).
-		Order("sort_order ASC, name ASC").
-		Find(&items).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "merchandise_item", "")
-	}
-	return items, total, nil
+	return items, nil
 }
 
 func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {

@@ -13,6 +13,20 @@ import (
 
 // ---- CheckupType ----
 
+// ListCheckupTypes godoc
+func (h *Handler) ListCheckupTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	checkupTypes, err := h.svc.CheckupType.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(checkupTypes, toCheckupTypeResponse))
+}
+
 // GetCheckupType godoc
 func (h *Handler) GetCheckupType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -29,20 +43,6 @@ func (h *Handler) GetCheckupType(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toCheckupTypeResponse(checkupType))
-}
-
-// ListCheckupTypes godoc
-func (h *Handler) ListCheckupTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	checkupTypes, err := h.svc.CheckupType.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, mapSlice(checkupTypes, toCheckupTypeResponse))
 }
 
 // CreateCheckupType godoc
