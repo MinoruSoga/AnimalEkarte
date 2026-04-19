@@ -14,6 +14,20 @@ import (
 
 // ---- ReservationType ----
 
+// ListReservationTypes godoc
+func (h *Handler) ListReservationTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	reservationTypes, err := h.svc.ReservationType.List(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(reservationTypes, toReservationTypeResponse))
+}
+
 // GetReservationType godoc
 func (h *Handler) GetReservationType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -30,20 +44,6 @@ func (h *Handler) GetReservationType(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toReservationTypeResponse(st))
-}
-
-// ListReservationTypes godoc
-func (h *Handler) ListReservationTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	reservationTypes, err := h.svc.ReservationType.List(c.Request.Context(), clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, mapSlice(reservationTypes, toReservationTypeResponse))
 }
 
 // CreateReservationType godoc
@@ -155,7 +155,7 @@ func (h *Handler) ListUnavailableTimes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": mapSlice(items, toUnavailableTimeResponse)})
+	c.JSON(http.StatusOK, mapSlice(items, toUnavailableTimeResponse))
 }
 
 // CreateUnavailableTime godoc
@@ -203,7 +203,7 @@ func (h *Handler) DeleteUnavailableTime(c *gin.Context) {
 	if !ok {
 		return
 	}
-	unavailableTimeID, ok := parseIDParam(c, "unavailableTimeId")
+	unavailableTimeID, ok := parseIDParam(c, "unavailable_time_id")
 	if !ok {
 		return
 	}
@@ -229,7 +229,7 @@ func (h *Handler) ListReservationTypeOccupations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": mapSlice(items, toReservationTypeOccupationResponse)})
+	c.JSON(http.StatusOK, mapSlice(items, toReservationTypeOccupationResponse))
 }
 
 // LinkOccupation godoc
@@ -252,6 +252,7 @@ func (h *Handler) LinkReservationTypeOccupation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-types/%d/occupations/%d", id, result.ID))
 	c.JSON(http.StatusCreated, toReservationTypeOccupationResponse(result))
 }
 
@@ -265,7 +266,7 @@ func (h *Handler) UnlinkReservationTypeOccupation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	occupationID, ok := parseIDParam(c, "occupationId")
+	occupationID, ok := parseIDParam(c, "occupation_id")
 	if !ok {
 		return
 	}

@@ -77,10 +77,6 @@ func (r *reservationTypeRepository) UpdateFields(ctx context.Context, clinicID, 
 func (r *reservationTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.ReservationType{})
 	if result.Error != nil {
-		// BUG-030: ON DELETE RESTRICT の FK 制約違反は 409 Conflict に変換する
-		if isFKConstraintErr(result.Error) {
-			return apperrors.WrapConflict("このサービス種別は予約に使用されているため削除できません")
-		}
 		return apperrors.FromGORM(result.Error, "reservation_type", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {

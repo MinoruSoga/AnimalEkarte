@@ -155,8 +155,32 @@ func (m *mockOccupationRepoForRType) CountWorkingStaff(ctx context.Context, clin
 	return 1, nil
 }
 
+// mockBaseOccupationRepo は OccupationRepository のテスト用スタブ
+type mockBaseOccupationRepo struct {
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
+}
+
+func (m *mockBaseOccupationRepo) FindAll(_ context.Context, _ uint64) ([]model.Occupation, error) {
+	return []model.Occupation{}, nil
+}
+func (m *mockBaseOccupationRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.Occupation{ID: id, ClinicID: clinicID}, nil
+}
+func (m *mockBaseOccupationRepo) Create(_ context.Context, _ *model.Occupation) error { return nil }
+func (m *mockBaseOccupationRepo) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Occupation, error) {
+	return &model.Occupation{}, nil
+}
+func (m *mockBaseOccupationRepo) Delete(_ context.Context, _, _ uint64) error           { return nil }
+func (m *mockBaseOccupationRepo) Reorder(_ context.Context, _ uint64, _ []uint64) error { return nil }
+func (m *mockBaseOccupationRepo) CountStaffsByOccupationID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 func newTestReservationTypeService(repo *mockReservationTypeRepository) ReservationTypeService {
-	return NewReservationTypeService(repo, &mockReservationForReservationType{}, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{})
+	return NewReservationTypeService(repo, &mockReservationForReservationType{}, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
 }
 
 // ---- List ----
@@ -247,31 +271,18 @@ func TestReservationTypeService_Create(t *testing.T) {
 // ---- Update ----
 
 func TestReservationTypeService_Update(t *testing.T) {
-	t.Run("returns existing record when no fields provided", func(t *testing.T) {
+	t.Run("returns 400 when no fields provided", func(t *testing.T) {
 		const (
 			clinicID uint64 = 1
 			id       uint64 = 5
 		)
-		existing := &model.ReservationType{ID: id, ClinicID: clinicID, Name: "既存"}
-		updateCalled := false
-		repo := &mockReservationTypeRepository{
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationType, error) {
-				updateCalled = true
-				return existing, nil
-			},
-			findByIDFn: func(_ context.Context, cid, rid uint64) (*model.ReservationType, error) {
-				assert.Equal(t, clinicID, cid)
-				assert.Equal(t, id, rid)
-				return existing, nil
-			},
-		}
+		repo := &mockReservationTypeRepository{}
 		svc := newTestReservationTypeService(repo)
 
-		got, err := svc.Update(context.Background(), clinicID, id, &UpdateReservationTypeInput{})
+		_, err := svc.Update(context.Background(), clinicID, id, &UpdateReservationTypeInput{})
 
-		require.NoError(t, err)
-		assert.Equal(t, existing, got)
-		assert.False(t, updateCalled)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
 	})
 
 	t.Run("updates fields and returns updated record", func(t *testing.T) {

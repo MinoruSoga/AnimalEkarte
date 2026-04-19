@@ -181,6 +181,7 @@ type reservationTypeService struct {
 	reservationRepo     repository.ReservationQueryRepository
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository
 	occupationRepo      repository.ReservationTypeOccupationRepository
+	baseOccupationRepo  repository.OccupationRepository
 }
 
 func NewReservationTypeService(
@@ -188,12 +189,14 @@ func NewReservationTypeService(
 	reservationRepo repository.ReservationQueryRepository,
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
 	occupationRepo repository.ReservationTypeOccupationRepository,
+	baseOccupationRepo repository.OccupationRepository,
 ) ReservationTypeService {
 	return &reservationTypeService{
 		repo:                repo,
 		reservationRepo:     reservationRepo,
 		unavailableTimeRepo: unavailableTimeRepo,
 		occupationRepo:      occupationRepo,
+		baseOccupationRepo:  baseOccupationRepo,
 	}
 }
 
@@ -266,11 +269,7 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 	}
 	fields := buildReservationTypeUpdateFields(input)
 	if len(fields) == 0 {
-		result, err := s.repo.FindByID(ctx, clinicID, id)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to get service type")
-		}
-		return result, nil
+		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
 	}
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -297,7 +296,7 @@ func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64
 
 func (s *reservationTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder service types")
@@ -383,6 +382,9 @@ func (s *reservationTypeService) LinkOccupation(ctx context.Context, clinicID, r
 	if _, err := s.repo.FindByID(ctx, clinicID, reservationTypeID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to get reservation type")
 	}
+	if _, err := s.baseOccupationRepo.FindByID(ctx, clinicID, occupationID); err != nil {
+		return nil, apperrors.Wrap(err, "occupation not found")
+	}
 	o := &model.ReservationTypeOccupation{
 		ClinicID:          clinicID,
 		ReservationTypeID: reservationTypeID,
@@ -426,7 +428,7 @@ func validateUnavailableTimeInput(input CreateUnavailableTimeInput) error {
 	switch input.UnavailableType {
 	case string(model.UnavailableTypeWeekly):
 		if input.DayOfWeek == nil {
-			return apperrors.WrapInvalidInput("day_of_week is required for weekly type")
+			return apperrors.WrapInvalidInput("曜日の指定は必須です")
 		}
 		if *input.DayOfWeek < 0 || *input.DayOfWeek > 6 {
 			return apperrors.WrapInvalidInput("day_of_week must be between 0 (Sun) and 6 (Sat)")
@@ -436,11 +438,11 @@ func validateUnavailableTimeInput(input CreateUnavailableTimeInput) error {
 			return apperrors.WrapInvalidInput("specific_date is required for specific type")
 		}
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid unavailable_type: %s", input.UnavailableType))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("不正な予約不可時間種別です: %s", input.UnavailableType))
 	}
 	// StartTime < EndTime（VARCHAR(5) "HH:MM" は辞書順比較で正しく機能する）
 	if input.StartTime >= input.EndTime {
-		return apperrors.WrapInvalidInput("start_time must be before end_time")
+		return apperrors.WrapInvalidInput("開始時刻は終了時刻より前に指定してください")
 	}
 	return nil
 }

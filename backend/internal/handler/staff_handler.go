@@ -485,11 +485,11 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// 予約不可時間
 	masters.GET("/reservation-types/:id/unavailable-times", h.ListUnavailableTimes)
 	masters.POST("/reservation-types/:id/unavailable-times", perm(model.ResourceMasterReservationType, "edit"), h.CreateUnavailableTime)
-	masters.DELETE("/reservation-types/:id/unavailable-times/:unavailableTimeId", perm(model.ResourceMasterReservationType, "edit"), h.DeleteUnavailableTime)
+	masters.DELETE("/reservation-types/:id/unavailable-times/:unavailable_time_id", perm(model.ResourceMasterReservationType, "edit"), h.DeleteUnavailableTime)
 	// 職種紐付け
 	masters.GET("/reservation-types/:id/occupations", h.ListReservationTypeOccupations)
 	masters.POST("/reservation-types/:id/occupations", perm(model.ResourceMasterReservationType, "edit"), h.LinkReservationTypeOccupation)
-	masters.DELETE("/reservation-types/:id/occupations/:occupationId", perm(model.ResourceMasterReservationType, "edit"), h.UnlinkReservationTypeOccupation)
+	masters.DELETE("/reservation-types/:id/occupations/:occupation_id", perm(model.ResourceMasterReservationType, "edit"), h.UnlinkReservationTypeOccupation)
 
 	// Consultations
 	masters.GET("/consultations", h.ListConsultations)

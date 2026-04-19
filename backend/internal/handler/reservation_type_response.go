@@ -79,7 +79,7 @@ type reservationTypeResponse struct {
 	IsActive    bool                          `json:"is_active"`
 	Description string                        `json:"description"`
 	SortOrder   int                           `json:"sort_order"`
-	GroupID     *uint64                       `json:"group_id"`
+	GroupID     *uint64                       `json:"group_id,omitempty"`
 	Group       *groupSummary                 `json:"group,omitempty"`
 	CreatedAt   time.Time                     `json:"created_at"`
 	UpdatedAt   time.Time                     `json:"updated_at"`
