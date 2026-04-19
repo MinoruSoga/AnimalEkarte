@@ -16,7 +16,7 @@ const testClinicID uint64 = 1
 // ---- DiagnosisType モック ----
 
 type mockDiagnosisTypeRepository struct {
-	findAllFn                func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, error)
+	findAllFn                func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
 	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
 	createFn                 func(ctx context.Context, category *model.DiagnosisType) error
 	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error)
@@ -25,7 +25,7 @@ type mockDiagnosisTypeRepository struct {
 	countNamesByCategoryIDFn func(ctx context.Context, clinicID, categoryID uint64) (int64, error)
 }
 
-func (m *mockDiagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, error) {
+func (m *mockDiagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
 	return m.findAllFn(ctx, clinicID, page, limit)
 }
 
@@ -62,8 +62,8 @@ func (m *mockDiagnosisTypeRepository) CountNamesByCategoryID(ctx context.Context
 // ---- DiagnosisName モック ----
 
 type mockDiagnosisNameRepository struct {
-	findAllFn          func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, error)
-	findByCategoryIDFn func(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, error)
+	findAllFn          func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	findByCategoryIDFn func(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
 	findByIDFn         func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	createFn           func(ctx context.Context, name *model.DiagnosisName) error
 	updateFieldsFn     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
@@ -71,11 +71,11 @@ type mockDiagnosisNameRepository struct {
 	reorderFn          func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-func (m *mockDiagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, error) {
+func (m *mockDiagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	return m.findAllFn(ctx, clinicID, page, limit)
 }
 
-func (m *mockDiagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, error) {
+func (m *mockDiagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	return m.findByCategoryIDFn(ctx, clinicID, categoryID, page, limit)
 }
 
@@ -157,15 +157,15 @@ func TestDiagnosisTypeService_List(t *testing.T) {
 			capturedPage := 0
 			capturedLimit := 0
 			repo := &mockDiagnosisTypeRepository{
-				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.DiagnosisType, error) {
+				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
 					capturedPage = page
 					capturedLimit = limit
-					return tt.repoData, tt.repoErr
+					return tt.repoData, int64(len(tt.repoData)), tt.repoErr
 				},
 			}
 			svc := newCategoryService(repo)
 
-			categories, err := svc.List(context.Background(), testClinicID, 1, 20)
+			categories, _, err := svc.List(context.Background(), testClinicID, 1, 20)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -493,8 +493,8 @@ func defaultCategoryRepo() *mockDiagnosisTypeRepository {
 			return &model.DiagnosisType{ID: 1}, nil
 		},
 		// FindAll は DiagnosisNameService では使用されないが、テスト追加時の panic防止
-		findAllFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisType, error) {
-			return []model.DiagnosisType{}, nil
+		findAllFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisType, int64, error) {
+			return []model.DiagnosisType{}, 0, nil
 		},
 	}
 }
@@ -537,15 +537,15 @@ func TestDiagnosisNameService_List(t *testing.T) {
 			capturedPage := 0
 			capturedLimit := 0
 			repo := &mockDiagnosisNameRepository{
-				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.DiagnosisName, error) {
+				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 					capturedPage = page
 					capturedLimit = limit
-					return tt.repoData, tt.repoErr
+					return tt.repoData, int64(len(tt.repoData)), tt.repoErr
 				},
 			}
 			svc := newNameService(repo, defaultCategoryRepo())
 
-			names, err := svc.List(context.Background(), testClinicID, 1, 20)
+			names, _, err := svc.List(context.Background(), testClinicID, 1, 20)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -600,15 +600,15 @@ func TestDiagnosisNameService_ListByCategoryID(t *testing.T) {
 			capturedPage := 0
 			capturedLimit := 0
 			repo := &mockDiagnosisNameRepository{
-				findByCategoryIDFn: func(_ context.Context, _, _ uint64, page, limit int) ([]model.DiagnosisName, error) {
+				findByCategoryIDFn: func(_ context.Context, _, _ uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 					capturedPage = page
 					capturedLimit = limit
-					return tt.repoData, tt.repoErr
+					return tt.repoData, int64(len(tt.repoData)), tt.repoErr
 				},
 			}
 			svc := newNameService(repo, defaultCategoryRepo())
 
-			names, err := svc.ListByCategoryID(context.Background(), testClinicID, tt.categoryID, 1, 20)
+			names, _, err := svc.ListByCategoryID(context.Background(), testClinicID, tt.categoryID, 1, 20)
 
 			if tt.wantErr {
 				assert.Error(t, err)

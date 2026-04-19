@@ -40,7 +40,7 @@ func NewPermissionGroupRepository(db *gorm.DB) PermissionGroupRepository {
 func (r *permissionGroupRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
 	groups := make([]model.PermissionGroup, 0)
 	err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).Where("deleted_at IS NULL").
+		Scopes(clinicScope(clinicID)).
 		Preload("Rules").
 		Order("sort_order ASC, name ASC").
 		Find(&groups).Error
@@ -54,7 +54,7 @@ func (r *permissionGroupRepository) FindByID(ctx context.Context, clinicID, id u
 	var group model.PermissionGroup
 	err := r.db.WithContext(ctx).
 		Preload("Rules").
-		Scopes(clinicScope(clinicID)).Where("id = ? AND deleted_at IS NULL", id).First(&group).Error
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&group).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
 	}
@@ -75,7 +75,7 @@ func (r *permissionGroupRepository) Create(ctx context.Context, group *model.Per
 func (r *permissionGroupRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.PermissionGroup{}).
-		Scopes(clinicScope(clinicID)).Where("id = ? AND deleted_at IS NULL", id).
+		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
 		if isUniqueConstraintErr(result.Error) {

@@ -63,7 +63,7 @@ type UpdateDiagnosisNameInput struct {
 // ---- DiagnosisTypeService ----
 
 type DiagnosisTypeService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, error)
+	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisTypeInput) (*model.DiagnosisType, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisTypeInput) (*model.DiagnosisType, error)
@@ -82,12 +82,12 @@ func NewDiagnosisTypeService(
 	return &diagnosisTypeService{repo: repo}
 }
 
-func (s *diagnosisTypeService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, error) {
-	items, err := s.repo.FindAll(ctx, clinicID, page, limit)
+func (s *diagnosisTypeService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
+	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to list diagnosis categories")
+		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis categories")
 	}
-	return items, nil
+	return items, total, nil
 }
 
 func (s *diagnosisTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error) {
@@ -124,7 +124,7 @@ func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, 
 	}
 	fields := buildDiagnosisTypeUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
 	}
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -155,7 +155,7 @@ func (s *diagnosisTypeService) Delete(ctx context.Context, clinicID, id uint64) 
 
 func (s *diagnosisTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder diagnosis categories")
@@ -187,8 +187,8 @@ func buildDiagnosisTypeUpdateFields(input *UpdateDiagnosisTypeInput) map[string]
 // ---- DiagnosisNameService ----
 
 type DiagnosisNameService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, error)
-	ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, error)
+	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisNameInput) (*model.DiagnosisName, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisNameInput) (*model.DiagnosisName, error)
@@ -209,20 +209,20 @@ func NewDiagnosisNameService(
 	return &diagnosisNameService{repo: repo, typeRepo: typeRepo}
 }
 
-func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, error) {
-	items, err := s.repo.FindAll(ctx, clinicID, page, limit)
+func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to list diagnosis names")
+		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names")
 	}
-	return items, nil
+	return items, total, nil
 }
 
-func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, error) {
-	items, err := s.repo.FindByCategoryID(ctx, clinicID, categoryID, page, limit)
+func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+	items, total, err := s.repo.FindByCategoryID(ctx, clinicID, categoryID, page, limit)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to list diagnosis names by type")
+		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names by type")
 	}
-	return items, nil
+	return items, total, nil
 }
 
 func (s *diagnosisNameService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
@@ -270,7 +270,7 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 	}
 	fields := buildDiagnosisNameUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
 	}
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -301,7 +301,7 @@ func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) 
 
 func (s *diagnosisNameService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder diagnosis names")

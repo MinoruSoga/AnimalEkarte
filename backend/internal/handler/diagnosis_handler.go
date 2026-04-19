@@ -14,6 +14,27 @@ import (
 
 // ---- DiagnosisType ----
 
+// ListDiagnosisTypes godoc
+func (h *Handler) ListDiagnosisTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	categories, total, err := h.svc.DiagnosisType.List(c.Request.Context(), clinicID, page, limit)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(categories, toDiagnosisTypeResponse), total, page, limit))
+}
+
 // GetDiagnosisType godoc
 func (h *Handler) GetDiagnosisType(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -30,27 +51,6 @@ func (h *Handler) GetDiagnosisType(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toDiagnosisTypeResponse(category))
-}
-
-// ListDiagnosisTypes godoc
-func (h *Handler) ListDiagnosisTypes(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-
-	page, limit, err := parsePagination(c)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-
-	categories, err := h.svc.DiagnosisType.List(c.Request.Context(), clinicID, page, limit)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, mapSlice(categories, toDiagnosisTypeResponse))
 }
 
 // CreateDiagnosisType godoc
@@ -178,29 +178,26 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 		return
 	}
 
-	var resp any
 	if typeIDStr := c.Query("type_id"); typeIDStr != "" {
 		catID, parseErr := strconv.ParseUint(typeIDStr, 10, 64)
 		if parseErr != nil {
 			RespondError(c, apperrors.WrapInvalidInput("invalid type_id"))
 			return
 		}
-		names, svcErr := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
+		names, total, svcErr := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
 		if svcErr != nil {
 			RespondError(c, svcErr)
 			return
 		}
-		resp = mapSlice(names, toDiagnosisNameResponse)
+		c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(names, toDiagnosisNameResponse), total, page, limit))
 	} else {
-		names, svcErr := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
+		names, total, svcErr := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
 		if svcErr != nil {
 			RespondError(c, svcErr)
 			return
 		}
-		resp = mapSlice(names, toDiagnosisNameResponse)
+		c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(names, toDiagnosisNameResponse), total, page, limit))
 	}
-
-	c.JSON(http.StatusOK, resp)
 }
 
 // CreateDiagnosisName godoc
