@@ -305,25 +305,25 @@ describe("useMedicalRecordForm", () => {
   });
 
   // ──────────────────────────
-  // handleChangeOwner
+  // 飼主変更（requestOwnerChange / confirmOwnerChange / cancelOwnerChange）
   // ──────────────────────────
-  describe("handleChangeOwner", () => {
-    it("recordId なしの場合、何もしない（updateMutation 呼ばれない）", () => {
-      const { result } = renderHook(() => useMedicalRecordForm()); // no recordId
-      act(() => {
-        result.current.handleChangeOwner({ id: "5", name: "佐藤" });
-      });
+  describe("飼主変更", () => {
+    it("recordId なしの場合、confirmOwnerChange は mutateAsync を呼ばない", async () => {
+      const { result } = renderHook(() => useMedicalRecordForm());
+      act(() => { result.current.requestOwnerChange({ id: "5", name: "佐藤" }); });
+      // pendingOwnerChange がセットされる
+      expect(result.current.pendingOwnerChange).toEqual({ id: "5", name: "佐藤" });
+      // recordId なしのため confirm しても mutation は呼ばれない
+      await act(async () => { result.current.confirmOwnerChange(); });
       expect(noMutation.mutateAsync).not.toHaveBeenCalled();
     });
 
-    it("recordId ありの場合、エラーなく実行できる", async () => {
+    it("cancelOwnerChange で pending をリセットできる", () => {
       const { result } = renderHook(() => useMedicalRecordForm("10"));
-      await act(async () => {
-        result.current.handleChangeOwner({ id: "5", name: "佐藤" });
-        await Promise.resolve();
-      });
-      // mutateAsync が呼ばれる（モックは vi.fn()）
-      expect(true).toBe(true); // エラーが投げられなければ OK
+      act(() => { result.current.requestOwnerChange({ id: "5", name: "佐藤" }); });
+      expect(result.current.pendingOwnerChange).not.toBeNull();
+      act(() => { result.current.cancelOwnerChange(); });
+      expect(result.current.pendingOwnerChange).toBeNull();
     });
   });
 
