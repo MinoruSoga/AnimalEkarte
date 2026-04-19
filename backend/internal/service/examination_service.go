@@ -73,7 +73,7 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 	if err := s.repo.Create(ctx, exam); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create examination")
 	}
-	slog.InfoContext(ctx, "examination created", slog.Uint64("examination_id", exam.ID))
+	slog.InfoContext(ctx, "examination created", slog.Uint64("clinic_id", clinicID), slog.Uint64("examination_id", exam.ID))
 	return exam, nil
 }
 
@@ -94,7 +94,7 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update examination")
 	}
-	slog.InfoContext(ctx, "examination updated", slog.Uint64("examination_id", id))
+	slog.InfoContext(ctx, "examination updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("examination_id", id))
 	return exam, nil
 }
 

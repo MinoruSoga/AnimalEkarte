@@ -107,6 +107,7 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 		return nil, apperrors.Wrap(err, "failed to update vital record")
 	}
 	slog.InfoContext(ctx, "vital updated",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("vital_id", vitalID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	result, err := s.repo.FindByID(ctx, clinicID, vitalID)
@@ -129,6 +130,7 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 		return apperrors.Wrap(err, "failed to delete vital record")
 	}
 	slog.InfoContext(ctx, "vital deleted",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("vital_id", vitalID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	return nil

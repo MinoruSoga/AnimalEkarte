@@ -120,6 +120,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	}
 
 	slog.InfoContext(ctx, "billing item created",
+		slog.Uint64("clinic_id", input.ClinicID),
 		slog.Uint64("billing_id", input.BillingID),
 		slog.Uint64("item_id", item.ID),
 	)
