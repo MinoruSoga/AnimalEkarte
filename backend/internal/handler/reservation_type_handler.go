@@ -56,14 +56,6 @@ func (h *Handler) CreateReservationType(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	reservationVisible := true
-	if req.ReservationVisible != nil {
-		reservationVisible = *req.ReservationVisible
-	}
-	durationMinutes := 15
-	if req.DurationMinutes != nil {
-		durationMinutes = *req.DurationMinutes
-	}
 	st, err := h.svc.ReservationType.Create(c.Request.Context(), clinicID, &service.CreateReservationTypeInput{
 		Name:                   req.Name,
 		Color:                  req.Color,
@@ -71,10 +63,10 @@ func (h *Handler) CreateReservationType(c *gin.Context) {
 		Description:            req.Description,
 		SortOrder:              req.SortOrder,
 		ReservationDisplayName: req.ReservationDisplayName,
-		DurationMinutes:        durationMinutes,
+		DurationMinutes:        req.DurationMinutes,
 		ShortName:              req.ShortName,
 		ShowShortName:          req.ShowShortName,
-		ReservationVisible:     reservationVisible,
+		ReservationVisible:     req.ReservationVisible,
 		ReservationComment:     req.ReservationComment,
 		ReservationImageURL:    req.ReservationImageURL,
 		ReservationDayOption:   req.ReservationDayOption,

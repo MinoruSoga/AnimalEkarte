@@ -75,7 +75,7 @@ func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to create reservation_type_group")
 	}
 	slog.InfoContext(ctx, "reservation_type_group created",
-		slog.Uint64("id", g.ID),
+		slog.Uint64("reservation_type_group_id", g.ID),
 		slog.String("name", g.Name))
 	return g, nil
 }
@@ -100,7 +100,7 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 		return nil, apperrors.Wrap(err, "failed to get updated reservation type group")
 	}
 	slog.InfoContext(ctx, "reservation_type_group updated",
-		slog.Uint64("id", g.ID),
+		slog.Uint64("reservation_type_group_id", g.ID),
 		slog.Uint64("clinic_id", clinicID))
 	return g, nil
 }
@@ -134,7 +134,7 @@ func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id u
 		return apperrors.Wrap(err, "failed to delete reservation type group")
 	}
 	slog.InfoContext(ctx, "reservation_type_group deleted",
-		slog.Uint64("id", id),
+		slog.Uint64("reservation_type_group_id", id),
 		slog.Uint64("clinic_id", clinicID))
 	return nil
 }

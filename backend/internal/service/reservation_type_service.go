@@ -25,10 +25,10 @@ type CreateReservationTypeInput struct {
 
 	// LINE予約用フィールド
 	ReservationDisplayName string
-	DurationMinutes        int
+	DurationMinutes        *int
 	ShortName              string
 	ShowShortName          bool
-	ReservationVisible     bool
+	ReservationVisible     *bool
 	ReservationComment     string
 	ReservationImageURL    string
 	ReservationDayOption   string
@@ -199,6 +199,14 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 	if reservationDayOption == "" {
 		reservationDayOption = model.DayOptionNone
 	}
+	durationMinutes := 15
+	if input.DurationMinutes != nil {
+		durationMinutes = *input.DurationMinutes
+	}
+	reservationVisible := true
+	if input.ReservationVisible != nil {
+		reservationVisible = *input.ReservationVisible
+	}
 
 	st := &model.ReservationType{
 		ClinicID:               clinicID,
@@ -208,10 +216,10 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 		Description:            input.Description,
 		SortOrder:              input.SortOrder,
 		ReservationDisplayName: input.ReservationDisplayName,
-		DurationMinutes:        input.DurationMinutes,
+		DurationMinutes:        durationMinutes,
 		ShortName:              input.ShortName,
 		ShowShortName:          input.ShowShortName,
-		ReservationVisible:     input.ReservationVisible,
+		ReservationVisible:     reservationVisible,
 		ReservationComment:     input.ReservationComment,
 		ReservationImageURL:    input.ReservationImageURL,
 		ReservationDayOption:   reservationDayOption,
@@ -440,4 +448,3 @@ func checkUnavailableTimeOverlap(existing []model.ReservationTypeUnavailableTime
 	}
 	return nil
 }
-
