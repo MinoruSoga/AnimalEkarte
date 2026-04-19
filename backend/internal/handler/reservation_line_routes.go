@@ -25,11 +25,11 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	types := clinics.Group("/reservation-types")
 	types.GET("", h.ListReservationTypeLiffs)
 	types.POST("", h.CreateReservationTypeLiff)
-	types.PUT("/:typeId", h.UpdateReservationTypeLiff)
-	types.DELETE("/:typeId", h.DeleteReservationTypeLiff)
-	types.PATCH("/:typeId/status", h.PatchReservationTypeLiffStatus)
-	types.PATCH("/:typeId/sort-order", h.PatchReservationTypeLiffSortOrder)
-	types.POST("/:typeId/image", h.UploadReservationTypeLiffImage)
+	types.PUT("/:id", h.UpdateReservationTypeLiff)
+	types.DELETE("/:id", h.DeleteReservationTypeLiff)
+	types.PATCH("/:id/status", h.PatchReservationTypeLiffStatus)
+	types.PATCH("/:id/sort-order", h.PatchReservationTypeLiffSortOrder)
+	types.POST("/:id/image", h.UploadReservationTypeLiffImage)
 
 	// TASK-RES-012: スタッフ
 	staffs := clinics.Group("/reservation-staffs")
