@@ -85,7 +85,7 @@ services:
     volumes:
       - ./backend:/app
       - ./frontend:/frontend
-    command: /bin/sh -c "cd /app && go run cmd/codegen/main.go"
+    command: /bin/sh -c "cd /app && sed 's|/output/models.ts|/frontend/src/types/generated/models.ts|' tygo.yaml > /tmp/tygo-ci.yaml && go run github.com/gzuidhof/tygo@latest generate --config /tmp/tygo-ci.yaml"
 
 volumes:
   postgres_data:
