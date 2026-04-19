@@ -9,7 +9,7 @@ type createTrimmingRequest struct {
 	EndTime           *time.Time `json:"end_time"            binding:"required"`
 	PetID             *uint64    `json:"pet_id"`
 	StaffID           *uint64    `json:"staff_id"`
-	Status            string     `json:"status"`
+	Status            string     `json:"status"              binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
 	// トリミング詳細
 	CourseID       *uint64  `json:"course_id"`
 	StyleRequest   string   `json:"style_request"`
@@ -30,7 +30,7 @@ type updateTrimmingRequest struct {
 	EndTime   *time.Time `json:"end_time"`
 	PetID     *uint64    `json:"pet_id"`
 	StaffID   *uint64    `json:"staff_id"`
-	Status    *string    `json:"status"`
+	Status    *string    `json:"status"      binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
 	// トリミング詳細
 	CourseID       *uint64   `json:"course_id"`
 	StyleRequest   *string   `json:"style_request"`

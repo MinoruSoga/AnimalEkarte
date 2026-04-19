@@ -12,10 +12,10 @@ type dischargeWithBillingRequest struct {
 type createHospitalizationRequest struct {
 	OwnerID             uint64    `json:"owner_id"              binding:"required"`
 	PetID               uint64    `json:"pet_id"                binding:"required"`
-	HospitalizationType string    `json:"hospitalization_type"  binding:"required"`
+	HospitalizationType string    `json:"hospitalization_type"  binding:"required,oneof=hospitalization hotel"`
 	StartDate           time.Time `json:"start_date"            binding:"required"`
 	EndDate             time.Time `json:"end_date"              binding:"required"`
-	Status              string    `json:"status"`
+	Status              string    `json:"status"                binding:"omitempty,oneof=admitted discharged reserved"`
 	CageID              *uint64   `json:"cage_id"`
 	DoctorID            *uint64   `json:"doctor_id"`
 	Memo                string    `json:"memo"`
@@ -27,10 +27,10 @@ type createHospitalizationRequest struct {
 type updateHospitalizationRequest struct {
 	OwnerID             *uint64    `json:"owner_id"`
 	PetID               *uint64    `json:"pet_id"`
-	HospitalizationType *string    `json:"hospitalization_type"`
+	HospitalizationType *string    `json:"hospitalization_type"  binding:"omitempty,oneof=hospitalization hotel"`
 	StartDate           *time.Time `json:"start_date"`
 	EndDate             *time.Time `json:"end_date"`
-	Status              *string    `json:"status"`
+	Status              *string    `json:"status"                binding:"omitempty,oneof=admitted discharged reserved"`
 	CageID              *uint64    `json:"cage_id"`
 	DoctorID            *uint64    `json:"doctor_id"`
 	Memo                *string    `json:"memo"`

@@ -7,7 +7,7 @@ type createEstimateRequest struct {
 	MedicalRecordID *uint64    `json:"medical_record_id"`
 	Title           string     `json:"title" binding:"required,min=1,max=255"`
 	OwnerID         *uint64    `json:"owner_id"`
-	Status          string     `json:"status"`
+	Status          string     `json:"status"  binding:"omitempty,oneof=draft sent approved rejected"`
 	Subtotal        int64      `json:"subtotal"      binding:"min=0"`
 	TaxTotal        int64      `json:"tax_total"     binding:"min=0"`
 	TotalAmount     int64      `json:"total_amount"  binding:"min=0"`
@@ -22,7 +22,7 @@ type createEstimateRequest struct {
 // updateEstimateRequest は見積書更新リクエスト（PATCH: nil = 未送信）
 type updateEstimateRequest struct {
 	Title           *string    `json:"title"`
-	Status          *string    `json:"status"`
+	Status          *string    `json:"status"  binding:"omitempty,oneof=draft sent approved rejected"`
 	Subtotal        *int64     `json:"subtotal"`
 	TaxTotal        *int64     `json:"tax_total"`
 	TotalAmount     *int64     `json:"total_amount"`

@@ -7,8 +7,8 @@ type createPetForOwnerRequest struct {
 	NameKana        string    `json:"name_kana"`
 	Breed           string    `json:"breed"`
 	Color           string    `json:"color"`
-	Gender          string    `json:"gender"`
-	Status          string    `json:"status"`
+	Gender          string    `json:"gender"            binding:"omitempty,oneof=male female unknown"`
+	Status          string    `json:"status"            binding:"omitempty,oneof=alive deceased"`
 	BirthDate       *jsonDate `json:"birth_date"`
 	Weight          *float64  `json:"weight"`
 	NeuteredDate    *jsonDate `json:"neutered_date"`
@@ -38,7 +38,7 @@ type createOwnerRequest struct {
 	Remarks        string                     `json:"remarks"`
 	IsDangerous    bool                       `json:"is_dangerous"`
 	DiscountRate   float64                    `json:"discount_rate"`
-	MembershipType string                     `json:"membership_type"`
+	MembershipType string                     `json:"membership_type"  binding:"omitempty,oneof=non_member member deceased transferred"`
 	Pets           []createPetForOwnerRequest `json:"pets"`
 }
 
@@ -60,5 +60,5 @@ type updateOwnerRequest struct {
 	Remarks        *string   `json:"remarks"`
 	IsDangerous    *bool     `json:"is_dangerous"`
 	DiscountRate   *float64  `json:"discount_rate"`
-	MembershipType *string   `json:"membership_type"`
+	MembershipType *string   `json:"membership_type"  binding:"omitempty,oneof=non_member member deceased transferred"`
 }

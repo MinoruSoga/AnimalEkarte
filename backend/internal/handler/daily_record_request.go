@@ -14,8 +14,8 @@ type addVitalRecordRequest struct {
 // addCareLogRequest はケアログ記録追加のバインド struct
 type addCareLogRequest struct {
 	Time    string  `json:"time"    binding:"required"`
-	Type    string  `json:"type"    binding:"required"`
-	Status  string  `json:"status"`
+	Type    string  `json:"type"    binding:"required,oneof=food excretion medicine treatment other"`
+	Status  string  `json:"status"  binding:"omitempty,oneof=completed partial skipped"`
 	Value   string  `json:"value"`
 	StaffID *uint64 `json:"staff_id"`
 	Notes   string  `json:"notes"`

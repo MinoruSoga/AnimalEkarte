@@ -6,8 +6,8 @@ type createPetRequest struct {
 	AnimalSpeciesID uint64    `json:"animal_species_id" binding:"required"`
 	Name            string    `json:"name"              binding:"required"`
 	NameKana        string    `json:"name_kana"`
-	Gender          string    `json:"gender"`
-	Status          string    `json:"status"`
+	Gender          string    `json:"gender"            binding:"omitempty,oneof=male female unknown"`
+	Status          string    `json:"status"            binding:"omitempty,oneof=alive deceased"`
 	BirthDate       *jsonDate `json:"birth_date"`
 	Breed           string    `json:"breed"`
 	Color           string    `json:"color"`
@@ -30,8 +30,8 @@ type updatePetRequest struct {
 	PetNumber       *string   `json:"pet_number"` // 自動採番後も手動変更可
 	Name            *string   `json:"name"`
 	NameKana        *string   `json:"name_kana"`
-	Gender          *string   `json:"gender"`
-	Status          *string   `json:"status"`
+	Gender          *string   `json:"gender"            binding:"omitempty,oneof=male female unknown"`
+	Status          *string   `json:"status"            binding:"omitempty,oneof=alive deceased"`
 	BirthDate       *jsonDate `json:"birth_date"`
 	Breed           *string   `json:"breed"`
 	Color           *string   `json:"color"`

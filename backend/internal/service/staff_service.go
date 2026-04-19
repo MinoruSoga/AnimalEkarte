@@ -279,7 +279,7 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, staffID uint64,
 		}
 		return nil
 	}); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to update clinic assignments")
 	}
 	slog.InfoContext(ctx, "clinic assignments updated", slog.Uint64("staff_id", staffID), slog.Int("count", len(clinicIDs)))
 	return nil
