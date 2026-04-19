@@ -87,10 +87,7 @@ func RateLimit(store *RateLimitStore, rps rate.Limit, burst int) gin.HandlerFunc
 		limiter := store.getLimiter(ip, rps, burst)
 
 		if !limiter.Allow() {
-			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error": fmt.Sprintf("rate limit exceeded: %d requests per second max", int(rps)),
-			})
-			c.Abort()
+			respondError(c, http.StatusTooManyRequests, fmt.Sprintf("rate limit exceeded: %d requests per second max", int(rps)))
 			return
 		}
 

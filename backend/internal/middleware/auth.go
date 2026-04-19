@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -49,8 +50,7 @@ func Auth(secret string) gin.HandlerFunc {
 		}
 
 		if tokenStr == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization required"})
-			c.Abort()
+			respondError(c, http.StatusUnauthorized, "authorization required")
 			return
 		}
 
@@ -61,8 +61,7 @@ func Auth(secret string) gin.HandlerFunc {
 			}
 			return key, nil
 		}); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
-			c.Abort()
+			respondError(c, http.StatusUnauthorized, "invalid or expired token")
 			return
 		}
 
@@ -79,20 +78,11 @@ func Auth(secret string) gin.HandlerFunc {
 			} else {
 				hID, err := strconv.ParseUint(headerClinicID, 10, 64)
 				if err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": "invalid clinic id"})
-					c.Abort()
+					respondError(c, http.StatusBadRequest, "invalid clinic id")
 					return
 				}
-				found := false
-				for _, cid := range claims.ClinicIDs {
-					if cid == hID {
-						found = true
-						break
-					}
-				}
-				if !found {
-					c.JSON(http.StatusForbidden, gin.H{"error": "not assigned to this clinic"})
-					c.Abort()
+				if !slices.Contains(claims.ClinicIDs, hID) {
+					respondError(c, http.StatusForbidden, "not assigned to this clinic")
 					return
 				}
 				clinicID = headerClinicID

@@ -66,14 +66,12 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 		// Authorization: Bearer {ID Token}
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
-			c.Abort()
+			respondError(c, http.StatusUnauthorized, "missing authorization header")
 			return
 		}
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header"})
-			c.Abort()
+			respondError(c, http.StatusUnauthorized, "invalid authorization header")
 			return
 		}
 		idToken := parts[1]
@@ -82,8 +80,7 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 		clinicIDStr := c.Param("clinicId")
 		var clinicID uint64
 		if _, err := fmt.Sscanf(clinicIDStr, "%d", &clinicID); err != nil || clinicID == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid clinic id"})
-			c.Abort()
+			respondError(c, http.StatusBadRequest, "invalid clinic id")
 			return
 		}
 
@@ -92,17 +89,14 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 		setting, err := settingLookup.FindByClinicID(c.Request.Context(), clinicID)
 		if err != nil {
 			if apperrors.IsNotFound(err) {
-				c.JSON(http.StatusNotFound, gin.H{"error": "clinic setting not found"})
-				c.Abort()
+				respondError(c, http.StatusNotFound, "clinic setting not found")
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load clinic setting"})
-			c.Abort()
+			respondError(c, http.StatusInternalServerError, "failed to load clinic setting")
 			return
 		}
 		if setting.LiffID == "" {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "LINE reservation not configured for this clinic"})
-			c.Abort()
+			respondError(c, http.StatusServiceUnavailable, "LINE reservation not configured for this clinic")
 			return
 		}
 
@@ -114,16 +108,14 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 		lineUser, err := verifyLiffIDToken(c.Request.Context(), idToken, liffChannelID)
 		if err != nil {
 			slog.WarnContext(c.Request.Context(), "invalid LINE ID token", slog.String("error", err.Error()))
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid ID token"})
-			c.Abort()
+			respondError(c, http.StatusUnauthorized, "invalid ID token")
 			return
 		}
 
 		// line_customers から顧客を特定（なければ新規作成）
 		customer, err := lookup.FindOrCreateByLineUserID(c.Request.Context(), clinicID, lineUser.Sub, lineUser.Name)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve customer"})
-			c.Abort()
+			respondError(c, http.StatusInternalServerError, "failed to resolve customer")
 			return
 		}
 
