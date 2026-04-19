@@ -52,15 +52,15 @@ func (m *mockChiefComplaintTypeRepository) Reorder(_ context.Context, _ uint64, 
 
 type mockInquiryRepository struct {
 	upsertFn func(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
-	countFn  func(ctx context.Context, categoryID uint64) (int64, error)
+	countFn  func(ctx context.Context, clinicID, categoryID uint64) (int64, error)
 }
 
 func (m *mockInquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
 	return m.upsertFn(ctx, clinicID, inquiry)
 }
 
-func (m *mockInquiryRepository) CountByChiefComplaintTypeID(ctx context.Context, categoryID uint64) (int64, error) {
-	return m.countFn(ctx, categoryID)
+func (m *mockInquiryRepository) CountByChiefComplaintTypeID(ctx context.Context, clinicID, categoryID uint64) (int64, error) {
+	return m.countFn(ctx, clinicID, categoryID)
 }
 
 // ---- Tests ----
@@ -373,7 +373,7 @@ func TestChiefComplaintTypeService_Delete(t *testing.T) {
 				},
 			}
 			inquiryRepo := &mockInquiryRepository{
-				countFn: func(_ context.Context, _ uint64) (int64, error) {
+				countFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.inquiryCount, tt.inquiryErr
 				},
 			}

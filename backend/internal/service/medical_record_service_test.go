@@ -653,7 +653,7 @@ type noopInquiryRepo struct{}
 func (n *noopInquiryRepo) UpsertByMedicalRecordID(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
 	return inquiry, nil
 }
-func (n *noopInquiryRepo) CountByChiefComplaintTypeID(_ context.Context, _ uint64) (int64, error) {
+func (n *noopInquiryRepo) CountByChiefComplaintTypeID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 

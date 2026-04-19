@@ -13,7 +13,7 @@ import (
 // InquiryRepository は医療記録問診の永続化インターフェース
 type InquiryRepository interface {
 	UpsertByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
-	CountByChiefComplaintTypeID(ctx context.Context, categoryID uint64) (int64, error)
+	CountByChiefComplaintTypeID(ctx context.Context, clinicID, categoryID uint64) (int64, error)
 }
 
 type inquiryRepository struct {
@@ -93,13 +93,13 @@ func (r *inquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicI
 	return &existing, nil
 }
 
-// CountByChiefComplaintTypeID は指定カテゴリIDを参照するInquiryの件数を返す。
-// Delete の FK チェックに使用する。
-func (r *inquiryRepository) CountByChiefComplaintTypeID(ctx context.Context, categoryID uint64) (int64, error) {
+// CountByChiefComplaintTypeID は指定クリニック・カテゴリIDを参照するInquiryの件数を返す。
+// Delete の FK チェックに使用する。clinic_id フィルタにより他クリニックのレコードを誤検知しない。
+func (r *inquiryRepository) CountByChiefComplaintTypeID(ctx context.Context, clinicID, categoryID uint64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Inquiry{}).
-		Where("chief_complaint_type_id = ?", categoryID).
+		Where("clinic_id = ? AND chief_complaint_type_id = ?", clinicID, categoryID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "inquiry", "")

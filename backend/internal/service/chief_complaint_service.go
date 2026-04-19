@@ -115,7 +115,7 @@ func (s *chiefComplaintTypeService) Reorder(ctx context.Context, clinicID uint64
 }
 
 func (s *chiefComplaintTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.inquiryRepo.CountByChiefComplaintTypeID(ctx, id)
+	count, err := s.inquiryRepo.CountByChiefComplaintTypeID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check inquiry dependency")
 	}
