@@ -206,3 +206,7 @@ export const getEstimateStatusColor = (status: string) => {
     default:        return BADGE.gray;
   }
 };
+
+export const getMasterStatusColor = (status: string) => {
+  return status === "active" ? BADGE.green : BADGE.gray;
+};
