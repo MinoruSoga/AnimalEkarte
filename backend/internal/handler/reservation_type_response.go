@@ -71,17 +71,18 @@ func toReservationTypeOccupationResponse(o *model.ReservationTypeOccupation) res
 }
 
 type reservationTypeResponse struct {
-	ID          uint64        `json:"id"`
-	ClinicID    uint64        `json:"clinic_id"`
-	Name        string        `json:"name"`
-	Color       string        `json:"color"`
-	IsActive    bool          `json:"is_active"`
-	Description string        `json:"description"`
-	SortOrder   int           `json:"sort_order"`
-	GroupID     *uint64       `json:"group_id"`
-	Group       *groupSummary `json:"group,omitempty"`
-	CreatedAt   time.Time     `json:"created_at"`
-	UpdatedAt   time.Time     `json:"updated_at"`
+	ID          uint64                        `json:"id"`
+	ClinicID    uint64                        `json:"clinic_id"`
+	Name        string                        `json:"name"`
+	Color       string                        `json:"color"`
+	Category    model.ReservationTypeCategory `json:"category"`
+	IsActive    bool                          `json:"is_active"`
+	Description string                        `json:"description"`
+	SortOrder   int                           `json:"sort_order"`
+	GroupID     *uint64                       `json:"group_id"`
+	Group       *groupSummary                 `json:"group,omitempty"`
+	CreatedAt   time.Time                     `json:"created_at"`
+	UpdatedAt   time.Time                     `json:"updated_at"`
 
 	// LINE予約用フィールド
 	ReservationDisplayName string                     `json:"reservation_display_name"`
@@ -107,6 +108,7 @@ func toReservationTypeResponse(st *model.ReservationType) reservationTypeRespons
 		ClinicID:               st.ClinicID,
 		Name:                   st.Name,
 		Color:                  st.Color,
+		Category:               st.Category,
 		IsActive:               st.IsActive,
 		Description:            st.Description,
 		SortOrder:              st.SortOrder,

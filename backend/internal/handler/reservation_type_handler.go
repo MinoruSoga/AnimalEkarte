@@ -59,7 +59,7 @@ func (h *Handler) CreateReservationType(c *gin.Context) {
 	st, err := h.svc.ReservationType.Create(c.Request.Context(), clinicID, &service.CreateReservationTypeInput{
 		Name:                   req.Name,
 		Color:                  req.Color,
-		IsActive:               true,
+		IsActive:               req.IsActive,
 		Description:            req.Description,
 		SortOrder:              req.SortOrder,
 		ReservationDisplayName: req.ReservationDisplayName,
@@ -151,11 +151,7 @@ func (h *Handler) ListUnavailableTimes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]unavailableTimeResponse, 0, len(items))
-	for i := range items {
-		resp = append(resp, toUnavailableTimeResponse(&items[i]))
-	}
-	c.JSON(http.StatusOK, gin.H{"data": resp})
+	c.JSON(http.StatusOK, gin.H{"data": mapSlice(items, toUnavailableTimeResponse)})
 }
 
 // CreateUnavailableTime godoc
@@ -228,11 +224,7 @@ func (h *Handler) ListReservationTypeOccupations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]reservationTypeOccupationResponse, 0, len(items))
-	for i := range items {
-		resp = append(resp, toReservationTypeOccupationResponse(&items[i]))
-	}
-	c.JSON(http.StatusOK, gin.H{"data": resp})
+	c.JSON(http.StatusOK, gin.H{"data": mapSlice(items, toReservationTypeOccupationResponse)})
 }
 
 // LinkOccupation godoc

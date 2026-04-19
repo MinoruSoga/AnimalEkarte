@@ -279,31 +279,31 @@ func TestTrimmingCourseService_Update(t *testing.T) {
 	name := "更新後コース名"
 	tests := []struct {
 		name    string
-		input   UpdateTrimmingCourseInput
+		input   *UpdateTrimmingCourseInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name:    "updates course successfully",
-			input:   UpdateTrimmingCourseInput{Name: &name},
+			input:   &UpdateTrimmingCourseInput{Name: &name},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
 			name:    "returns error when no fields provided",
-			input:   UpdateTrimmingCourseInput{},
+			input:   &UpdateTrimmingCourseInput{},
 			repoErr: nil,
 			wantErr: true,
 		},
 		{
 			name:    "returns not found error when course does not exist",
-			input:   UpdateTrimmingCourseInput{Name: &name},
+			input:   &UpdateTrimmingCourseInput{Name: &name},
 			repoErr: apperrors.WrapNotFound("trimming_course", "999"),
 			wantErr: true,
 		},
 		{
 			name:    "returns error on repository failure",
-			input:   UpdateTrimmingCourseInput{Name: &name},
+			input:   &UpdateTrimmingCourseInput{Name: &name},
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
@@ -608,31 +608,31 @@ func TestTrimmingOptionService_Update(t *testing.T) {
 	optName := "更新後オプション名"
 	tests := []struct {
 		name    string
-		input   UpdateTrimmingOptionInput
+		input   *UpdateTrimmingOptionInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name:    "updates option successfully",
-			input:   UpdateTrimmingOptionInput{Name: &optName},
+			input:   &UpdateTrimmingOptionInput{Name: &optName},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
 			name:    "returns error when no fields provided",
-			input:   UpdateTrimmingOptionInput{},
+			input:   &UpdateTrimmingOptionInput{},
 			repoErr: nil,
 			wantErr: true,
 		},
 		{
 			name:    "returns not found error when option does not exist",
-			input:   UpdateTrimmingOptionInput{Name: &optName},
+			input:   &UpdateTrimmingOptionInput{Name: &optName},
 			repoErr: apperrors.WrapNotFound("trimming_option", "999"),
 			wantErr: true,
 		},
 		{
 			name:    "returns error on repository failure",
-			input:   UpdateTrimmingOptionInput{Name: &optName},
+			input:   &UpdateTrimmingOptionInput{Name: &optName},
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},

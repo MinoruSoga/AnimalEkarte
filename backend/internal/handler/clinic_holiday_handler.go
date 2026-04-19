@@ -46,11 +46,7 @@ func (h *Handler) ListClinicHolidays(c *gin.Context) {
 		return
 	}
 
-	resp := make([]clinicHolidayResponse, 0, len(holidays))
-	for i := range holidays {
-		resp = append(resp, toClinicHolidayResponse(&holidays[i]))
-	}
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mapSlice(holidays, toClinicHolidayResponse))
 }
 
 type setClinicHolidayRequest struct {

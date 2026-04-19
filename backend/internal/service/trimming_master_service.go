@@ -27,7 +27,7 @@ type TrimmingCourseService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingCourseInput) (*model.TrimmingCourse, error)
-	Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingCourseInput) (*model.TrimmingCourse, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingCourseInput) (*model.TrimmingCourse, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -79,7 +79,7 @@ func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, inp
 		slog.Uint64("trimming_course_id", course.ID))
 	return course, nil
 }
-func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
+func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ type UpdateTrimmingCourseInput struct {
 	SortOrder   *int
 }
 
-func buildTrimmingCourseUpdateFields(input UpdateTrimmingCourseInput) map[string]any {
+func buildTrimmingCourseUpdateFields(input *UpdateTrimmingCourseInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colTrimmingCourseName] = *input.Name
@@ -186,7 +186,7 @@ type TrimmingOptionService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingOptionInput) (*model.TrimmingOption, error)
-	Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingOptionInput) (*model.TrimmingOption, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingOptionInput) (*model.TrimmingOption, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -235,7 +235,7 @@ func (s *trimmingOptionService) Create(ctx context.Context, clinicID uint64, inp
 		slog.Uint64("trimming_option_id", option.ID))
 	return option, nil
 }
-func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingOptionInput) (*model.TrimmingOption, error) {
+func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingOptionInput) (*model.TrimmingOption, error) {
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
@@ -299,7 +299,7 @@ type UpdateTrimmingOptionInput struct {
 	SortOrder    *int
 }
 
-func buildTrimmingOptionUpdateFields(input UpdateTrimmingOptionInput) map[string]any {
+func buildTrimmingOptionUpdateFields(input *UpdateTrimmingOptionInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colTrimmingOptionName] = *input.Name
