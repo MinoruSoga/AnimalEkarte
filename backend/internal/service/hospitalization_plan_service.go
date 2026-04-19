@@ -12,10 +12,23 @@ import (
 
 // ---- HospitalizationPlanService ----
 
+// CreateHospitalizationPlanInput は入院プラン作成の入力DTO
+type CreateHospitalizationPlanInput struct {
+	Name        string
+	Price       *int64
+	IsActive    bool
+	Description string
+	SortOrder   int
+	TaxType     string
+	TaxRate     *float64
+	BodySize    string
+	BillingUnit string
+}
+
 type HospitalizationPlanService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
-	Create(ctx context.Context, plan *model.HospitalizationPlan) error
+	Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationPlanInput) (*model.HospitalizationPlan, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -43,17 +56,43 @@ func (s *hospitalizationPlanService) GetByID(ctx context.Context, clinicID, id u
 	}
 	return result, nil
 }
-func (s *hospitalizationPlanService) Create(ctx context.Context, plan *model.HospitalizationPlan) error {
-	if err := validateRequiredName(plan.Name); err != nil {
-		return err
+func (s *hospitalizationPlanService) Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != "" {
+		taxType = model.TaxType(input.TaxType)
+	}
+	taxRate := 0.10
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
+	}
+	plan := &model.HospitalizationPlan{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Price:       input.Price,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		SortOrder:   input.SortOrder,
+		TaxType:     taxType,
+		TaxRate:     taxRate,
+	}
+	if input.BodySize != "" {
+		bs := model.BodySize(input.BodySize)
+		plan.BodySize = &bs
+	}
+	if input.BillingUnit != "" {
+		bu := model.BillingUnit(input.BillingUnit)
+		plan.BillingUnit = &bu
 	}
 	if err := s.repo.Create(ctx, plan); err != nil {
-		return apperrors.Wrap(err, "failed to create hospitalization plan")
+		return nil, apperrors.Wrap(err, "failed to create hospitalization plan")
 	}
 	slog.InfoContext(ctx, "hospitalization plan created",
 		slog.Uint64("hospitalization_plan_id", plan.ID),
-		slog.Uint64("clinic_id", plan.ClinicID))
-	return nil
+		slog.Uint64("clinic_id", clinicID))
+	return plan, nil
 }
 func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id uint64, input UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
 	if err := validateOptionalName(input.Name); err != nil {
@@ -67,7 +106,9 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update hospitalization plan")
 	}
-	slog.InfoContext(ctx, "hospitalization plan updated", slog.Uint64("hospitalization_plan_id", id))
+	slog.InfoContext(ctx, "hospitalization plan updated",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("hospitalization_plan_id", id))
 	return plan, nil
 }
 func (s *hospitalizationPlanService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -94,6 +135,9 @@ func (s *hospitalizationPlanService) Reorder(ctx context.Context, clinicID uint6
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder hospitalization plan")
 	}
+	slog.InfoContext(ctx, "hospitalization plans reordered",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Int("count", len(ids)))
 	return nil
 }
 
@@ -117,10 +161,10 @@ type UpdateHospitalizationPlanInput struct {
 	Price       *int64
 	IsActive    *bool
 	Description *string
-	BodySize    *model.BodySize
-	BillingUnit *model.BillingUnit
+	BodySize    *string
+	BillingUnit *string
 	SortOrder   *int
-	TaxType     *model.TaxType
+	TaxType     *string
 	TaxRate     *float64
 }
 
@@ -139,16 +183,16 @@ func buildHospitalizationPlanUpdateFields(input UpdateHospitalizationPlanInput) 
 		fields[colHospitalizationPlanDescription] = *input.Description
 	}
 	if input.BodySize != nil {
-		fields[colHospitalizationPlanBodySize] = *input.BodySize
+		fields[colHospitalizationPlanBodySize] = model.BodySize(*input.BodySize)
 	}
 	if input.BillingUnit != nil {
-		fields[colHospitalizationPlanBillingUnit] = *input.BillingUnit
+		fields[colHospitalizationPlanBillingUnit] = model.BillingUnit(*input.BillingUnit)
 	}
 	if input.SortOrder != nil {
 		fields[colHospitalizationPlanSortOrder] = *input.SortOrder
 	}
 	if input.TaxType != nil {
-		fields[colHospitalizationPlanTaxType] = *input.TaxType
+		fields[colHospitalizationPlanTaxType] = model.TaxType(*input.TaxType)
 	}
 	if input.TaxRate != nil {
 		fields[colHospitalizationPlanTaxRate] = *input.TaxRate

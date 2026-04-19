@@ -88,7 +88,7 @@ func (r *hospitalizationPlanRepository) CountCarePlanItemsByPlanID(ctx context.C
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
-		Where("hospitalization_plan_id = ?", planID).
+		Where("hospitalization_plan_id = ? AND deleted_at IS NULL", planID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", "")
 	}

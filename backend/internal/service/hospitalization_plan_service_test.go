@@ -164,14 +164,13 @@ func TestHospitalizationPlanService_GetByID(t *testing.T) {
 func TestHospitalizationPlanService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.HospitalizationPlan
+		input   *CreateHospitalizationPlanInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates hospitalization plan successfully",
-			input: &model.HospitalizationPlan{
-				ClinicID: 1,
+			input: &CreateHospitalizationPlanInput{
 				Name:     "New Plan",
 				IsActive: true,
 			},
@@ -180,9 +179,8 @@ func TestHospitalizationPlanService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when repository fails",
-			input: &model.HospitalizationPlan{
-				ClinicID: 1,
-				Name:     "Failed Plan",
+			input: &CreateHospitalizationPlanInput{
+				Name: "Failed Plan",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -198,12 +196,14 @@ func TestHospitalizationPlanService_Create(t *testing.T) {
 			}
 			svc := NewHospitalizationPlanService(repo)
 
-			err := svc.Create(context.Background(), tt.input)
+			plan, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, plan)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, plan)
 			}
 		})
 	}
