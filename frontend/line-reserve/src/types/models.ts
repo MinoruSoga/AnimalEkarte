@@ -46,6 +46,23 @@ export interface Course {
   reservation_comment: string;
   reservation_image_url: string;
   sort_order: number;
+  category?: 'general' | 'trimming';
+}
+
+export interface TrimmingCourse {
+  id: number;
+  name: string;
+  description: string;
+  price: number | null;
+  sort_order: number;
+}
+
+export interface TrimmingOption {
+  id: number;
+  name: string;
+  description: string;
+  price: number | null;
+  sort_order: number;
 }
 
 export interface Staff {
@@ -102,11 +119,14 @@ export interface CustomerFields {
 export interface CreateReservationBody {
   course_id: number;
   staff_id: number;
-  date: string;           // "YYYY-MM-DD"
-  start_time: string;     // "HHMM"
-  end_time: string;       // "HHMM"
+  date: string;                    // "YYYY-MM-DD"
+  start_time: string;              // "HHMM"
+  end_time: string;                // "HHMM"
   customer_fields: CustomerFields;
   request_text: string;
+  trimming_course_id?: number;     // BE-120
+  trimming_option_ids?: number[];  // BE-120
+  trimming_style_request?: string; // BE-120
 }
 
 export interface CustomerInfo {
@@ -120,12 +140,17 @@ export interface ReservationFlow {
   customerInfo: CustomerInfo;
   courseId: number | null;
   courseName: string;
+  courseCategory: 'general' | 'trimming';
   staffId: number; // 0 = 指名なし
   staffName: string;
   date: string;      // "YYYY-MM-DD"
   startTime: string; // "HHMM"
   endTime: string;   // "HHMM"
   requestText: string;
+  trimmingCourseId: number | null;  // BE-120
+  trimmingCourseName: string;       // BE-120
+  trimmingOptionIds: number[];      // BE-120
+  trimmingStyleRequest: string;     // BE-120
 }
 
 export type PageType =
@@ -136,6 +161,8 @@ export type PageType =
   | 'my-reservations'
   | 'step1'
   | 'step2'
+  | 'step2b'  // トリミングコース選択（category=trimming の場合）
+  | 'step2c'  // トリミングオプション選択
   | 'step3'
   | 'step4'
   | 'step5'

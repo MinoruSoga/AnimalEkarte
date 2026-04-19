@@ -58,6 +58,14 @@ func (m *mockLiffService) GetCourses(ctx context.Context, clinicID uint64) ([]mo
 	return []model.ReservationType{}, nil
 }
 
+func (m *mockLiffService) GetTrimmingCourses(_ context.Context, _ uint64) ([]model.TrimmingCourse, error) {
+	return []model.TrimmingCourse{}, nil
+}
+
+func (m *mockLiffService) GetTrimmingOptions(_ context.Context, _ uint64) ([]model.TrimmingOption, error) {
+	return []model.TrimmingOption{}, nil
+}
+
 func (m *mockLiffService) GetStaffs(ctx context.Context, clinicID, typeID uint64) ([]model.Staff, error) {
 	if m.getStaffsFn != nil {
 		return m.getStaffsFn(ctx, clinicID, typeID)

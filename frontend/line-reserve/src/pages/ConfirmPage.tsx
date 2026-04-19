@@ -118,6 +118,11 @@ export function ConfirmPage({
             })),
           },
           request_text: flow.requestText,
+          ...(flow.courseCategory === 'trimming' && flow.trimmingCourseId !== null ? {
+            trimming_course_id: flow.trimmingCourseId,
+            trimming_option_ids: flow.trimmingOptionIds,
+            trimming_style_request: flow.trimmingStyleRequest,
+          } : {}),
         },
         idToken,
       );

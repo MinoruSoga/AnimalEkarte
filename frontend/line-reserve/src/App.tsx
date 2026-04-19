@@ -8,6 +8,8 @@ import { getClinicId } from './lib/liff-config';
 import { TopPage } from './pages/TopPage';
 import { CustomerInfoPage } from './pages/CustomerInfoPage';
 import { CourseSelectPage } from './pages/CourseSelectPage';
+import { TrimmingCourseSelectPage } from './pages/TrimmingCourseSelectPage';
+import { TrimmingOptionSelectPage } from './pages/TrimmingOptionSelectPage';
 import { StaffSelectPage } from './pages/StaffSelectPage';
 import { DateSelectPage } from './pages/DateSelectPage';
 import { TimeSelectPage } from './pages/TimeSelectPage';
@@ -30,8 +32,18 @@ export function App() {
   const [completedReservationId, setCompletedReservationId] = useState<number>(0);
   const [completedNotes, setCompletedNotes] = useState<string>('');
 
-  const { flow, setCustomerInfo, setCourse, setStaff, setDate, setTime, setRequestText, resetFlow } =
-    useReservationFlow();
+  const {
+    flow,
+    setCustomerInfo,
+    setCourse,
+    setStaff,
+    setDate,
+    setTime,
+    setRequestText,
+    setTrimmingCourse,
+    setTrimmingOptions,
+    resetFlow,
+  } = useReservationFlow();
 
   // settings を取得して liffId を確定
   const [liffId, setLiffId] = useState<string>('');
@@ -176,11 +188,44 @@ export function App() {
       <CourseSelectPage
         clinicId={clinicId}
         idToken={idToken}
-        onSelect={(courseId, courseName) => {
-          setCourse(courseId, courseName);
-          goTo('step3');
+        onSelect={(courseId, courseName, category) => {
+          setCourse(courseId, courseName, category);
+          if (category === 'trimming') {
+            goTo('step2b');
+          } else {
+            goTo('step3');
+          }
         }}
         onBack={() => goTo('step1')}
+      />
+    );
+  }
+
+  if (page === 'step2b') {
+    return (
+      <TrimmingCourseSelectPage
+        clinicId={clinicId}
+        idToken={idToken}
+        onSelect={(trimmingCourseId, trimmingCourseName) => {
+          setTrimmingCourse(trimmingCourseId, trimmingCourseName);
+          goTo('step2c');
+        }}
+        onBack={() => goTo('step2')}
+      />
+    );
+  }
+
+  if (page === 'step2c') {
+    return (
+      <TrimmingOptionSelectPage
+        clinicId={clinicId}
+        idToken={idToken}
+        selectedOptionIds={flow.trimmingOptionIds}
+        onNext={(optionIds) => {
+          setTrimmingOptions(optionIds);
+          goTo('step3');
+        }}
+        onBack={() => goTo('step2b')}
       />
     );
   }

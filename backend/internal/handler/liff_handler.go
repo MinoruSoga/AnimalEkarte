@@ -191,13 +191,16 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 	}
 
 	input := &service.CreateReservationInput{
-		ReservationTypeID: req.TypeID,
-		StaffID:           req.StaffID,
-		Date:              date,
-		StartTime:         req.StartTime,
-		EndTime:           req.EndTime,
-		CustomerFields:    req.CustomerFields,
-		RequestText:       req.RequestText,
+		ReservationTypeID:    req.TypeID,
+		StaffID:              req.StaffID,
+		Date:                 date,
+		StartTime:            req.StartTime,
+		EndTime:              req.EndTime,
+		CustomerFields:       req.CustomerFields,
+		RequestText:          req.RequestText,
+		TrimmingCourseID:     req.TrimmingCourseID,
+		TrimmingOptionIDs:    req.TrimmingOptionIDs,
+		TrimmingStyleRequest: req.TrimmingStyleRequest,
 	}
 
 	// 指名予約時のみ所属チェック（StaffID=0 は「指名なし」）
@@ -224,6 +227,44 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"id": appt.ID, "notes": appt.Notes})
+}
+
+// GetLiffTrimmingCourses はLIFF向けトリミングコース一覧を返す。
+// GET /api/liff/:clinicId/trimming-courses
+func (h *Handler) GetLiffTrimmingCourses(c *gin.Context) {
+	clinicID, ok := parseIDParam(c, "clinicId")
+	if !ok {
+		return
+	}
+	courses, err := h.svc.Liff.GetTrimmingCourses(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	resp := make([]liffTrimmingCourseResponse, 0, len(courses))
+	for i := range courses {
+		resp = append(resp, toLiffTrimmingCourseResponse(&courses[i]))
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// GetLiffTrimmingOptions はLIFF向けトリミングオプション一覧を返す。
+// GET /api/liff/:clinicId/trimming-options
+func (h *Handler) GetLiffTrimmingOptions(c *gin.Context) {
+	clinicID, ok := parseIDParam(c, "clinicId")
+	if !ok {
+		return
+	}
+	options, err := h.svc.Liff.GetTrimmingOptions(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	resp := make([]liffTrimmingOptionResponse, 0, len(options))
+	for i := range options {
+		resp = append(resp, toLiffTrimmingOptionResponse(&options[i]))
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // GetLiffMyReservations は顧客自身の予約一覧を返す。

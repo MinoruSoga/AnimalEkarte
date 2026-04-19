@@ -20,6 +20,8 @@ type LiffService interface {
 	GetSettings(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 	GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error)
 	GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
+	GetTrimmingCourses(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
+	GetTrimmingOptions(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
 	GetStaffs(ctx context.Context, clinicID, typeID uint64) ([]model.Staff, error)
 	GetAvailableDates(ctx context.Context, clinicID, typeID, staffID uint64) ([]AvailableDateResult, BookingWindow, error)
 	GetAvailableTimes(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error)
@@ -41,6 +43,9 @@ type liffService struct {
 	notifier            ReservationNotifier
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository // BE-117
 	occupationRepo      repository.ReservationTypeOccupationRepository      // BE-117
+	trimmingCourseRepo  repository.TrimmingCourseRepository                 // BE-120
+	trimmingOptionRepo  repository.TrimmingOptionRepository                 // BE-120
+	trimmingDetailRepo  repository.AppointmentTrimmingDetailRepository      // BE-120
 }
 
 // NewLiffService はLIFFサービスを初期化して返す。
@@ -57,6 +62,9 @@ func NewLiffService(
 	notifier ReservationNotifier,
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
 	occupationRepo repository.ReservationTypeOccupationRepository,
+	trimmingCourseRepo repository.TrimmingCourseRepository,
+	trimmingOptionRepo repository.TrimmingOptionRepository,
+	trimmingDetailRepo repository.AppointmentTrimmingDetailRepository,
 ) LiffService {
 	return &liffService{
 		settingRepo:         settingRepo,
@@ -71,6 +79,9 @@ func NewLiffService(
 		notifier:            notifier,
 		unavailableTimeRepo: unavailableTimeRepo,
 		occupationRepo:      occupationRepo,
+		trimmingCourseRepo:  trimmingCourseRepo,
+		trimmingOptionRepo:  trimmingOptionRepo,
+		trimmingDetailRepo:  trimmingDetailRepo,
 	}
 }
 
@@ -90,6 +101,36 @@ func (s *liffService) GetProfile(ctx context.Context, clinicID, customerID uint6
 		return nil, apperrors.Wrap(err, "failed to get customer profile")
 	}
 	return c, nil
+}
+
+// GetTrimmingCourses はLIFF向けトリミングコース一覧を返す（is_active=true のみ）。
+func (s *liffService) GetTrimmingCourses(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
+	all, err := s.trimmingCourseRepo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming courses")
+	}
+	result := make([]model.TrimmingCourse, 0, len(all))
+	for i := range all {
+		if all[i].IsActive {
+			result = append(result, all[i])
+		}
+	}
+	return result, nil
+}
+
+// GetTrimmingOptions はLIFF向けトリミングオプション一覧を返す（is_active=true のみ）。
+func (s *liffService) GetTrimmingOptions(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
+	all, err := s.trimmingOptionRepo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming options")
+	}
+	result := make([]model.TrimmingOption, 0, len(all))
+	for i := range all {
+		if all[i].IsActive {
+			result = append(result, all[i])
+		}
+	}
+	return result, nil
 }
 
 // GetCourses はLIFF向け公開コース一覧を返す（is_internal=false && reservation_visible=true）。
@@ -333,6 +374,23 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 	appt, err := s.validators.ValidateAndCreate(ctx, input)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate and create appointment")
+	}
+
+	// BE-120: category=trimming の場合、トリミング詳細を作成（best-effort）
+	if input.TrimmingCourseID != nil {
+		detail := &model.AppointmentTrimmingDetail{
+			ClinicID:      clinicID,
+			AppointmentID: appt.ID,
+			CourseID:      input.TrimmingCourseID,
+			StyleRequest:  input.TrimmingStyleRequest,
+		}
+		if err := s.trimmingDetailRepo.Create(ctx, detail); err != nil {
+			slog.WarnContext(ctx, "failed to create trimming detail (best-effort)", "error", err, "appointment_id", appt.ID)
+		} else if len(input.TrimmingOptionIDs) > 0 {
+			if err := s.trimmingDetailRepo.SetOptions(ctx, appt.ID, input.TrimmingOptionIDs); err != nil {
+				slog.WarnContext(ctx, "failed to set trimming options (best-effort)", "error", err, "appointment_id", appt.ID)
+			}
+		}
 	}
 
 	// 顧客の追加フィールドを更新（プロフィール自動保存）

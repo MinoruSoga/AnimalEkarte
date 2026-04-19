@@ -43,16 +43,19 @@ type ReservationValidators interface {
 
 // CreateReservationInput は予約作成の入力。
 type CreateReservationInput struct {
-	ClinicID          uint64
-	CustomerID        uint64
-	ReservationTypeID uint64
-	StaffID           uint64 // 0 = 指名なし
-	Date              time.Time
-	StartTime         string // "HHMM"
-	EndTime           string // "HHMM"
-	CustomerFields    []byte
-	RequestText       string
-	Settings          *model.LineReservationSetting
+	ClinicID             uint64
+	CustomerID           uint64
+	ReservationTypeID    uint64
+	StaffID              uint64 // 0 = 指名なし
+	Date                 time.Time
+	StartTime            string // "HHMM"
+	EndTime              string // "HHMM"
+	CustomerFields       []byte
+	RequestText          string
+	Settings             *model.LineReservationSetting
+	TrimmingCourseID     *uint64  // BE-120: トリミングコース（category=trimming 時）
+	TrimmingOptionIDs    []uint64 // BE-120: トリミングオプション
+	TrimmingStyleRequest string   // BE-120: スタイルリクエスト
 }
 
 type reservationValidators struct {

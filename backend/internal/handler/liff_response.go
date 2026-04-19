@@ -208,3 +208,41 @@ func toLiffReservationResponse(r *model.Appointment) liffReservationResponse {
 	}
 	return res
 }
+
+// liffTrimmingCourseResponse はLIFF向けトリミングコースレスポンス。
+type liffTrimmingCourseResponse struct {
+	ID          uint64 `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Price       *int64 `json:"price"`
+	SortOrder   int    `json:"sort_order"`
+}
+
+func toLiffTrimmingCourseResponse(c *model.TrimmingCourse) liffTrimmingCourseResponse {
+	return liffTrimmingCourseResponse{
+		ID:          c.ID,
+		Name:        c.Name,
+		Description: c.Description,
+		Price:       c.Price,
+		SortOrder:   c.SortOrder,
+	}
+}
+
+// liffTrimmingOptionResponse はLIFF向けトリミングオプションレスポンス。
+type liffTrimmingOptionResponse struct {
+	ID          uint64 `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Price       *int64 `json:"price"`
+	SortOrder   int    `json:"sort_order"`
+}
+
+func toLiffTrimmingOptionResponse(o *model.TrimmingOption) liffTrimmingOptionResponse {
+	return liffTrimmingOptionResponse{
+		ID:          o.ID,
+		Name:        o.Name,
+		Description: o.Description,
+		Price:       o.Price,
+		SortOrder:   o.SortOrder,
+	}
+}

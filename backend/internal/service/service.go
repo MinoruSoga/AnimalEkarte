@@ -159,6 +159,9 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			notifier,
 			repos.ReservationTypeUnavailableTime,
 			repos.ReservationTypeOccupation,
+			repos.TrimmingCourse,
+			repos.TrimmingOption,
+			repos.AppointmentTrimmingDetail,
 		),
 	}
 }

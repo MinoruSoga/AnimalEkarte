@@ -74,6 +74,8 @@ func (h *Handler) RegisterLiffRoutes(r *gin.Engine) {
 
 	authed.GET("/profile", h.GetLiffProfile)
 	authed.GET("/courses", h.GetLiffTypes)
+	authed.GET("/trimming-courses", h.GetLiffTrimmingCourses) // BE-120
+	authed.GET("/trimming-options", h.GetLiffTrimmingOptions) // BE-120
 	authed.GET("/staffs", h.GetLiffStaffs)
 	authed.GET("/available-dates", h.GetLiffAvailableDates)
 	authed.GET("/available-times", h.GetLiffAvailableTimes)
