@@ -104,6 +104,24 @@ func (h *Handler) UpdateChiefComplaint(c *gin.Context) {
 	c.JSON(http.StatusOK, toChiefComplaintResponse(updated))
 }
 
+// ReorderChiefComplaints godoc
+func (h *Handler) ReorderChiefComplaints(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderChiefComplaintRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if err := h.svc.ChiefComplaintType.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 // DeleteChiefComplaint godoc
 func (h *Handler) DeleteChiefComplaint(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)

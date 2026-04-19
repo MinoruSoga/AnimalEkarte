@@ -10,10 +10,24 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// CreateInventoryInput は在庫アイテム作成の入力DTO
+type CreateInventoryInput struct {
+	Name          string
+	Category      string
+	Quantity      int
+	Unit          string
+	MinStockLevel int
+	Location      string
+	ExpiryDate    *time.Time
+	Supplier      string
+	LastRestocked *time.Time
+	Status        string
+}
+
 type InventoryService interface {
 	List(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
-	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
+	Create(ctx context.Context, clinicID uint64, input *CreateInventoryInput) (*model.InventoryItem, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateInventoryInput) (*model.InventoryItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
@@ -42,12 +56,29 @@ func (s *inventoryService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 	return result, nil
 }
 
-func (s *inventoryService) Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
+func (s *inventoryService) Create(ctx context.Context, clinicID uint64, input *CreateInventoryInput) (*model.InventoryItem, error) {
+	item := &model.InventoryItem{
+		ClinicID:      clinicID,
+		Name:          input.Name,
+		Category:      model.InventoryCategory(input.Category),
+		Quantity:      input.Quantity,
+		Unit:          input.Unit,
+		MinStockLevel: input.MinStockLevel,
+		Location:      input.Location,
+		ExpiryDate:    input.ExpiryDate,
+		Supplier:      input.Supplier,
+		LastRestocked: input.LastRestocked,
+		Status:        model.InventoryStatusSufficient,
+	}
+	if input.Status != "" {
+		item.Status = model.InventoryStatus(input.Status)
+	}
+
 	if err := s.repo.Create(ctx, clinicID, item); err != nil {
-		return apperrors.Wrap(err, "failed to create inventory item")
+		return nil, apperrors.Wrap(err, "failed to create inventory item")
 	}
 	slog.InfoContext(ctx, "inventory item created", slog.Uint64("inventory_id", item.ID), slog.Uint64("clinic_id", clinicID))
-	return nil
+	return item, nil
 }
 
 func (s *inventoryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateInventoryInput) (*model.InventoryItem, error) {

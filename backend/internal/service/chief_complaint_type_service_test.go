@@ -14,11 +14,11 @@ import (
 // ---- ChiefComplaintType モック ----
 
 type mockChiefComplaintTypeRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
-	createFn   func(ctx context.Context, category *model.ChiefComplaintType) error
-	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
+	createFn       func(ctx context.Context, category *model.ChiefComplaintType) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error)
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockChiefComplaintTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
@@ -33,12 +33,19 @@ func (m *mockChiefComplaintTypeRepository) Create(ctx context.Context, category 
 	return m.createFn(ctx, category)
 }
 
-func (m *mockChiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockChiefComplaintTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error) {
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, clinicID, id, fields)
+	}
+	return &model.ChiefComplaintType{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockChiefComplaintTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockChiefComplaintTypeRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
+	return nil
 }
 
 // ---- InquiryRepository モック ----
@@ -281,11 +288,8 @@ func TestChiefComplaintTypeService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockChiefComplaintTypeRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-					return tt.repoErr
-				},
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ChiefComplaintType, error) {
-					return tt.repoData, nil
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ChiefComplaintType, error) {
+					return tt.repoData, tt.repoErr
 				},
 			}
 			inquiryRepo := &mockInquiryRepository{}

@@ -62,8 +62,7 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 		return
 	}
 
-	vaccine := &model.Vaccine{
-		ClinicID:    clinicID,
+	svcInput := &service.CreateVaccineInput{
 		Name:        input.Name,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
@@ -74,10 +73,11 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 	}
 	if input.Species != "" {
 		s := model.VaccineSpecies(input.Species)
-		vaccine.Species = &s
+		svcInput.Species = &s
 	}
 
-	if err := h.svc.Vaccine.Create(c.Request.Context(), vaccine); err != nil {
+	vaccine, err := h.svc.Vaccine.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

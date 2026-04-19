@@ -183,14 +183,14 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 			RespondError(c, apperrors.WrapInvalidInput("invalid type_id"))
 			return
 		}
-		names, _, svcErr := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
+		names, svcErr := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
 		if svcErr != nil {
 			RespondError(c, svcErr)
 			return
 		}
 		resp = mapSlice(names, toDiagnosisNameResponse)
 	} else {
-		names, _, svcErr := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
+		names, svcErr := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
 		if svcErr != nil {
 			RespondError(c, svcErr)
 			return

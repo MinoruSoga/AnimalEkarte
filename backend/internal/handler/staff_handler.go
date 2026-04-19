@@ -593,6 +593,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// Chief Complaint Categories
 	masters.GET("/chief-complaint-types", h.ListChiefComplaints)
 	masters.POST("/chief-complaint-types", perm(model.ResourceMasterMedical, "create"), h.CreateChiefComplaint)
+	masters.PATCH("/chief-complaint-types/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderChiefComplaints)
 	masters.GET("/chief-complaint-types/:id", h.GetChiefComplaint)
 	masters.PATCH("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateChiefComplaint)
 	masters.DELETE("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteChiefComplaint)

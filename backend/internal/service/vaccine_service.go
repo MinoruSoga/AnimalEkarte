@@ -12,10 +12,22 @@ import (
 
 // ---- VaccineService ----
 
+// CreateVaccineInput はワクチン作成の入力DTO
+type CreateVaccineInput struct {
+	Name        string
+	Price       *int64
+	IsActive    bool
+	Description string
+	Species     *model.VaccineSpecies
+	Interval    string
+	ParentID    *uint64
+	SortOrder   int
+}
+
 type VaccineService interface {
 	List(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
-	Create(ctx context.Context, vaccine *model.Vaccine) error
+	Create(ctx context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateVaccineInput) (*model.Vaccine, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -41,12 +53,23 @@ func (s *vaccineService) GetByID(ctx context.Context, clinicID, id uint64) (*mod
 	}
 	return result, nil
 }
-func (s *vaccineService) Create(ctx context.Context, vaccine *model.Vaccine) error {
+func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error) {
+	vaccine := &model.Vaccine{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Price:       input.Price,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		Species:     input.Species,
+		Interval:    input.Interval,
+		ParentID:    input.ParentID,
+		SortOrder:   input.SortOrder,
+	}
 	if err := s.repo.Create(ctx, vaccine); err != nil {
-		return apperrors.Wrap(err, "failed to create vaccine")
+		return nil, apperrors.Wrap(err, "failed to create vaccine")
 	}
 	slog.InfoContext(ctx, "vaccine created", slog.Uint64("vaccine_id", vaccine.ID))
-	return nil
+	return vaccine, nil
 }
 func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input UpdateVaccineInput) (*model.Vaccine, error) {
 	fields := buildVaccineUpdateFields(input)

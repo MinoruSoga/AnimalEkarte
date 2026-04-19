@@ -99,18 +99,9 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 		return
 	}
 
-	exam := &model.Examination{
-		ClinicID:        clinicID,
-		MedicalRecordID: input.MedicalRecordID, // nil if not provided (standalone examination)
-		PetID:           input.PetID,
-		ExamTypeID:      input.ExamTypeID,
-		DoctorID:        input.DoctorID,
-		Date:            input.Date,
-		ResultSummary:   input.ResultSummary,
-		Machine:         input.Machine,
-	}
+	var status model.ExaminationStatus
 	if input.Status != "" {
-		status, err := validateEnum(input.Status,
+		s, err := validateEnum(input.Status,
 			model.ExaminationStatusPending,
 			model.ExaminationStatusInProgress,
 			model.ExaminationStatusResultEntered,
@@ -121,10 +112,21 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
-		exam.Status = status
+		status = s
 	}
 
-	if err := h.svc.Examination.Create(c.Request.Context(), exam); err != nil {
+	svcInput := &service.CreateExaminationInput{
+		MedicalRecordID: input.MedicalRecordID,
+		PetID:           input.PetID,
+		ExamTypeID:      input.ExamTypeID,
+		DoctorID:        input.DoctorID,
+		Date:            input.Date,
+		ResultSummary:   input.ResultSummary,
+		Machine:         input.Machine,
+		Status:          status,
+	}
+	exam, err := h.svc.Examination.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

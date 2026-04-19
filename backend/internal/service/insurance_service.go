@@ -12,10 +12,20 @@ import (
 
 // ---- InsuranceService ----
 
+// CreateInsuranceInput は保険作成の入力DTO
+type CreateInsuranceInput struct {
+	Name         string
+	IsActive     bool
+	Description  string
+	CoverageRate int
+	ContactPhone string
+	SortOrder    int
+}
+
 type InsuranceService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
-	Create(ctx context.Context, insurance *model.Insurance) error
+	Create(ctx context.Context, clinicID uint64, input *CreateInsuranceInput) (*model.Insurance, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateInsuranceInput) (*model.Insurance, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -43,15 +53,24 @@ func (s *insuranceService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 	}
 	return result, nil
 }
-func (s *insuranceService) Create(ctx context.Context, insurance *model.Insurance) error {
-	if err := validateRequiredName(insurance.Name); err != nil {
-		return err
+func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *CreateInsuranceInput) (*model.Insurance, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	insurance := &model.Insurance{
+		ClinicID:     clinicID,
+		Name:         input.Name,
+		IsActive:     input.IsActive,
+		Description:  input.Description,
+		CoverageRate: input.CoverageRate,
+		ContactPhone: input.ContactPhone,
+		SortOrder:    input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, insurance); err != nil {
-		return apperrors.Wrap(err, "failed to create insurance")
+		return nil, apperrors.Wrap(err, "failed to create insurance")
 	}
 	slog.InfoContext(ctx, "insurance created", slog.Uint64("insurance_id", insurance.ID))
-	return nil
+	return insurance, nil
 }
 func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, input UpdateInsuranceInput) (*model.Insurance, error) {
 	if err := validateOptionalName(input.Name); err != nil {

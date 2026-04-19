@@ -59,7 +59,7 @@ func (h *Handler) hasPermission(c *gin.Context, resource, action string) bool {
 	if !ok {
 		return false
 	}
-	rules, err := h.repos.PermissionGroup.GetEffectivePermissionsByStaffID(c.Request.Context(), staffID)
+	rules, err := h.svc.PermissionGroup.GetEffectivePermissions(c.Request.Context(), staffID)
 	if err != nil {
 		return false
 	}
@@ -168,7 +168,7 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	clinic := &model.Clinic{
+	result, err := h.svc.Clinic.CreateClinic(c.Request.Context(), &service.CreateClinicInput{
 		Name:               req.Name,
 		PostalCode:         req.PostalCode,
 		Address:            req.Address,
@@ -178,9 +178,7 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 		DirectorName:       req.DirectorName,
 		Email:              req.Email,
 		Website:            req.Website,
-		IsActive:           true,
-	}
-	result, err := h.svc.Clinic.CreateClinic(c.Request.Context(), clinic)
+	})
 	if err != nil {
 		RespondError(c, err)
 		return

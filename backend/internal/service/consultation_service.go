@@ -12,10 +12,24 @@ import (
 
 // ---- ConsultationService ----
 
+// CreateConsultationInput は診察種別作成のサービス入力 DTO
+type CreateConsultationInput struct {
+	Name          string
+	Price         *int64
+	IsActive      bool
+	Description   string
+	TimeCondition string
+	Duration      *int
+	ParentID      *uint64
+	SortOrder     int
+	TaxType       *string  // nil = "excluded" (default)
+	TaxRate       *float64 // nil = 0.10 (default)
+}
+
 type ConsultationService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
-	Create(ctx context.Context, consultation *model.Consultation) error
+	Create(ctx context.Context, clinicID uint64, input *CreateConsultationInput) (*model.Consultation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -43,15 +57,36 @@ func (s *consultationService) GetByID(ctx context.Context, clinicID, id uint64) 
 	}
 	return result, nil
 }
-func (s *consultationService) Create(ctx context.Context, consultation *model.Consultation) error {
-	if err := validateRequiredName(consultation.Name); err != nil {
-		return err
+func (s *consultationService) Create(ctx context.Context, clinicID uint64, input *CreateConsultationInput) (*model.Consultation, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != nil && *input.TaxType != "" {
+		taxType = model.TaxType(*input.TaxType)
+	}
+	taxRate := 0.10
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
+	}
+	consultation := &model.Consultation{
+		ClinicID:      clinicID,
+		Name:          input.Name,
+		Price:         input.Price,
+		IsActive:      input.IsActive,
+		Description:   input.Description,
+		TimeCondition: input.TimeCondition,
+		Duration:      input.Duration,
+		ParentID:      input.ParentID,
+		SortOrder:     input.SortOrder,
+		TaxType:       taxType,
+		TaxRate:       taxRate,
 	}
 	if err := s.repo.Create(ctx, consultation); err != nil {
-		return apperrors.Wrap(err, "failed to create consultation")
+		return nil, apperrors.Wrap(err, "failed to create consultation")
 	}
-	slog.InfoContext(ctx, "consultation created", slog.Uint64("consultation_id", consultation.ID))
-	return nil
+	slog.InfoContext(ctx, "consultation created", slog.Uint64("consultation_id", consultation.ID), slog.Uint64("clinic_id", clinicID))
+	return consultation, nil
 }
 func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
 	if input == nil {

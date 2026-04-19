@@ -30,6 +30,7 @@ type PermissionGroupService interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
 }
 
 type permissionGroupService struct {
@@ -123,6 +124,14 @@ func (s *permissionGroupService) Reorder(ctx context.Context, clinicID uint64, i
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
 	return nil
+}
+
+func (s *permissionGroupService) GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
+	rules, err := s.repo.GetEffectivePermissionsByStaffID(ctx, staffID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get effective permissions")
+	}
+	return rules, nil
 }
 
 func buildPermissionGroupUpdateFields(input *UpdatePermissionGroupInput) map[string]any {

@@ -188,7 +188,7 @@ func TestClinicService_GetClinicByID(t *testing.T) {
 func TestClinicService_CreateClinic(t *testing.T) {
 	tests := []struct {
 		name           string
-		clinic         *model.Clinic
+		input          *CreateClinicInput
 		repoCompany    *model.Company
 		repoCompanyErr error
 		repoCreateErr  error
@@ -196,36 +196,28 @@ func TestClinicService_CreateClinic(t *testing.T) {
 		wantCompanyID  uint64
 	}{
 		{
-			name: "creates clinic successfully with company id set",
-			clinic: &model.Clinic{
-				Name: "新規院",
-			},
+			name:          "creates clinic successfully with company id set",
+			input:         &CreateClinicInput{Name: "新規院"},
 			repoCompany:   &model.Company{ID: 5, Name: "グループ本社"},
 			wantErr:       false,
 			wantCompanyID: 5,
 		},
 		{
-			name: "returns error when company retrieval fails",
-			clinic: &model.Clinic{
-				Name: "新規院",
-			},
+			name:           "returns error when company retrieval fails",
+			input:          &CreateClinicInput{Name: "新規院"},
 			repoCompanyErr: apperrors.WrapNotFound("company", "singleton"),
 			wantErr:        true,
 		},
 		{
-			name: "returns error when clinic creation fails",
-			clinic: &model.Clinic{
-				Name: "既存院",
-			},
+			name:          "returns error when clinic creation fails",
+			input:         &CreateClinicInput{Name: "既存院"},
 			repoCompany:   &model.Company{ID: 5, Name: "グループ本社"},
 			repoCreateErr: apperrors.WrapAlreadyExists("clinic", "既存院"),
 			wantErr:       true,
 		},
 		{
-			name: "returns error on repository failure",
-			clinic: &model.Clinic{
-				Name: "エラー院",
-			},
+			name:          "returns error on repository failure",
+			input:         &CreateClinicInput{Name: "エラー院"},
 			repoCompany:   &model.Company{ID: 5, Name: "グループ本社"},
 			repoCreateErr: errors.New("db error"),
 			wantErr:       true,
@@ -244,7 +236,7 @@ func TestClinicService_CreateClinic(t *testing.T) {
 			}
 			svc := NewClinicService(repo)
 
-			result, err := svc.CreateClinic(context.Background(), tt.clinic)
+			result, err := svc.CreateClinic(context.Background(), tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)

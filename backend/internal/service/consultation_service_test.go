@@ -180,14 +180,13 @@ func TestConsultationService_GetByID(t *testing.T) {
 func TestConsultationService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.Consultation
+		input   *CreateConsultationInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates consultation successfully",
-			input: &model.Consultation{
-				ClinicID:  1,
+			input: &CreateConsultationInput{
 				Name:      "新規相談",
 				SortOrder: 3,
 				IsActive:  true,
@@ -196,19 +195,25 @@ func TestConsultationService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "applies default tax type and rate",
+			input: &CreateConsultationInput{
+				Name: "デフォルト税率相談",
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
 			name: "returns error when consultation already exists",
-			input: &model.Consultation{
-				ClinicID: 1,
-				Name:     "既存相談",
+			input: &CreateConsultationInput{
+				Name: "既存相談",
 			},
 			repoErr: apperrors.WrapAlreadyExists("consultation", "既存相談"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			input: &model.Consultation{
-				ClinicID: 1,
-				Name:     "エラー相談",
+			input: &CreateConsultationInput{
+				Name: "エラー相談",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -224,12 +229,14 @@ func TestConsultationService_Create(t *testing.T) {
 			}
 			svc := NewConsultationService(repo)
 
-			err := svc.Create(context.Background(), tt.input)
+			consultation, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, consultation)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, consultation)
 			}
 		})
 	}

@@ -28,7 +28,11 @@ func (h *Handler) ListCages(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, cages)
+	resp := make([]cageResponse, len(cages))
+	for i := range cages {
+		resp[i] = toCageResponse(&cages[i])
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // GetCage godoc
@@ -46,7 +50,7 @@ func (h *Handler) GetCage(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, cage)
+	c.JSON(http.StatusOK, toCageResponse(cage))
 }
 
 // CreateCage godoc
@@ -61,8 +65,7 @@ func (h *Handler) CreateCage(c *gin.Context) {
 		return
 	}
 
-	cage := &model.Cage{
-		ClinicID:    clinicID,
+	svcInput := &service.CreateCageInput{
 		Name:        input.Name,
 		CageType:    model.CageType(input.CageType),
 		CageSize:    model.CageSize(input.CageSize),
@@ -72,11 +75,12 @@ func (h *Handler) CreateCage(c *gin.Context) {
 		SortOrder:   input.SortOrder,
 	}
 
-	if err := h.svc.Cage.Create(c.Request.Context(), cage); err != nil {
+	cage, err := h.svc.Cage.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, cage)
+	c.JSON(http.StatusCreated, toCageResponse(cage))
 }
 
 // UpdateCage godoc
@@ -121,7 +125,7 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, cage)
+	c.JSON(http.StatusOK, toCageResponse(cage))
 }
 
 // ReorderCages godoc

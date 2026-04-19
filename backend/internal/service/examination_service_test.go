@@ -243,14 +243,16 @@ func TestExaminationService_GetByID(t *testing.T) {
 func TestExaminationService_Create(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
-		name    string
-		exam    *model.Examination
-		repoErr error
-		wantErr bool
+		name     string
+		clinicID uint64
+		input    *CreateExaminationInput
+		repoErr  error
+		wantErr  bool
 	}{
 		{
-			name: "creates exam successfully",
-			exam: &model.Examination{
+			name:     "creates exam successfully",
+			clinicID: 1,
+			input: &CreateExaminationInput{
 				MedicalRecordID: ptrUint64(5),
 				ExamTypeID:      1,
 				Date:            now,
@@ -260,8 +262,19 @@ func TestExaminationService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "returns error on repository failure",
-			exam: &model.Examination{
+			name:     "defaults status to pending when empty",
+			clinicID: 1,
+			input: &CreateExaminationInput{
+				ExamTypeID: 2,
+				Date:       now,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			input: &CreateExaminationInput{
 				MedicalRecordID: ptrUint64(5),
 				ExamTypeID:      1,
 				Date:            now,
@@ -280,12 +293,14 @@ func TestExaminationService_Create(t *testing.T) {
 			}
 			svc := NewExaminationService(repo)
 
-			err := svc.Create(context.Background(), tt.exam)
+			exam, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, exam)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, exam)
 			}
 		})
 	}

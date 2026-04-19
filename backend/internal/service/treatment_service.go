@@ -68,6 +68,7 @@ type BulkTreatmentItem struct {
 // TreatmentService は治療項目のビジネスロジックインターフェース
 type TreatmentService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error)
 	Delete(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error
@@ -85,6 +86,14 @@ func NewTreatmentService(repos *repository.Repositories) TreatmentService {
 	return &treatmentService{
 		repos: repos,
 	}
+}
+
+func (s *treatmentService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error) {
+	treatment, err := s.repos.Treatment.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get treatment")
+	}
+	return treatment, nil
 }
 
 func (s *treatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {

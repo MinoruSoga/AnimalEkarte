@@ -23,10 +23,25 @@ type DischargeWithBillingResult struct {
 	Status            string
 }
 
+// CreateHospitalizationInput は入院作成の入力DTO
+type CreateHospitalizationInput struct {
+	OwnerID             uint64
+	PetID               uint64
+	HospitalizationType model.HospitalizationType
+	StartDate           time.Time
+	EndDate             time.Time
+	Status              model.HospitalizationStatus
+	CageID              *uint64
+	DoctorID            *uint64
+	Memo                string
+	OwnerRequest        string
+	StaffNotes          string
+}
+
 type HospitalizationService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
-	Create(ctx context.Context, hospitalization *model.Hospitalization) error
+	Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	DischargeWithBilling(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
@@ -56,14 +71,32 @@ func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint6
 	return result, nil
 }
 
-func (s *hospitalizationService) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
+func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
+	status := input.Status
+	if status == "" {
+		status = model.HospitalizationStatusReserved
+	}
+	hospitalization := &model.Hospitalization{
+		ClinicID:            clinicID,
+		OwnerID:             input.OwnerID,
+		PetID:               input.PetID,
+		HospitalizationType: input.HospitalizationType,
+		StartDate:           input.StartDate,
+		EndDate:             input.EndDate,
+		Status:              status,
+		CageID:              input.CageID,
+		DoctorID:            input.DoctorID,
+		Memo:                input.Memo,
+		OwnerRequest:        input.OwnerRequest,
+		StaffNotes:          input.StaffNotes,
+	}
 	if err := s.repos.Hospitalization.Create(ctx, hospitalization); err != nil {
-		return apperrors.Wrap(err, "failed to create hospitalization")
+		return nil, apperrors.Wrap(err, "failed to create hospitalization")
 	}
 	slog.InfoContext(ctx, "hospitalization created",
 		slog.Uint64("hospitalization_id", hospitalization.ID),
 		slog.Uint64("clinic_id", hospitalization.ClinicID))
-	return nil
+	return hospitalization, nil
 }
 
 func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {

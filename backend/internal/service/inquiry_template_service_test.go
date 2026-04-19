@@ -168,14 +168,13 @@ func TestInquiryTemplateService_GetByID(t *testing.T) {
 func TestInquiryTemplateService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.InquiryTemplate
+		input   *CreateInquiryTemplateInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates inquiry template successfully",
-			input: &model.InquiryTemplate{
-				ClinicID: 1,
+			input: &CreateInquiryTemplateInput{
 				Category: "新規カテゴリ",
 				Title:    "新規テンプレート",
 				Content:  "テンプレートの内容",
@@ -186,18 +185,16 @@ func TestInquiryTemplateService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when template already exists",
-			input: &model.InquiryTemplate{
-				ClinicID: 1,
-				Title:    "既存テンプレート",
+			input: &CreateInquiryTemplateInput{
+				Title: "既存テンプレート",
 			},
 			repoErr: apperrors.WrapAlreadyExists("inquiry_template", "既存テンプレート"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			input: &model.InquiryTemplate{
-				ClinicID: 1,
-				Title:    "エラーテンプレート",
+			input: &CreateInquiryTemplateInput{
+				Title: "エラーテンプレート",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -213,12 +210,14 @@ func TestInquiryTemplateService_Create(t *testing.T) {
 			}
 			svc := NewInquiryTemplateService(repo)
 
-			err := svc.Create(context.Background(), tt.input)
+			tmpl, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, tmpl)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, tmpl)
 			}
 		})
 	}

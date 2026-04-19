@@ -12,10 +12,21 @@ import (
 
 // ---- CageService ----
 
+// CreateCageInput はケージ作成の入力DTO
+type CreateCageInput struct {
+	Name        string
+	CageType    model.CageType
+	CageSize    model.CageSize
+	Price       *int64
+	IsActive    bool
+	Description string
+	SortOrder   int
+}
+
 type CageService interface {
 	List(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
-	Create(ctx context.Context, cage *model.Cage) error
+	Create(ctx context.Context, clinicID uint64, input *CreateCageInput) (*model.Cage, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateCageInput) (*model.Cage, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -44,17 +55,27 @@ func (s *cageService) GetByID(ctx context.Context, clinicID, id uint64) (*model.
 	}
 	return result, nil
 }
-func (s *cageService) Create(ctx context.Context, cage *model.Cage) error {
-	if err := validateRequiredName(cage.Name); err != nil {
-		return err
+func (s *cageService) Create(ctx context.Context, clinicID uint64, input *CreateCageInput) (*model.Cage, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	cage := &model.Cage{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		CageType:    input.CageType,
+		CageSize:    input.CageSize,
+		Price:       input.Price,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, cage); err != nil {
-		return apperrors.Wrap(err, "failed to create cage")
+		return nil, apperrors.Wrap(err, "failed to create cage")
 	}
 	slog.InfoContext(ctx, "cage created",
 		slog.Uint64("cage_id", cage.ID),
 		slog.Uint64("clinic_id", cage.ClinicID))
-	return nil
+	return cage, nil
 }
 func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input UpdateCageInput) (*model.Cage, error) {
 	if err := validateOptionalName(input.Name); err != nil {

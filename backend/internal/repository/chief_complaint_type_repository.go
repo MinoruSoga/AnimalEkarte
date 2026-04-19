@@ -17,8 +17,9 @@ type ChiefComplaintTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
 	Create(ctx context.Context, category *model.ChiefComplaintType) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type chiefComplaintTypeRepository struct{ db *gorm.DB }
@@ -59,18 +60,22 @@ func (r *chiefComplaintTypeRepository) Create(ctx context.Context, category *mod
 	return nil
 }
 
-func (r *chiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *chiefComplaintTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ChiefComplaintType{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "chief_complaint_type", fmt.Sprintf("%d", id))
+		return nil, apperrors.FromGORM(result.Error, "chief_complaint_type", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("chief_complaint_type", fmt.Sprintf("%d", id))
+		return nil, apperrors.WrapNotFound("chief_complaint_type", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *chiefComplaintTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return reorderByClinicID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, ids)
 }
 
 func (r *chiefComplaintTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {

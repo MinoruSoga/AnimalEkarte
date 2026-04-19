@@ -86,10 +86,9 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 		return
 	}
 
-	item := &model.InventoryItem{
-		ClinicID:      clinicID,
+	created, err := h.svc.Inventory.Create(c.Request.Context(), clinicID, &service.CreateInventoryInput{
 		Name:          input.Name,
-		Category:      model.InventoryCategory(input.Category),
+		Category:      input.Category,
 		Quantity:      input.Quantity,
 		Unit:          input.Unit,
 		MinStockLevel: input.MinStockLevel,
@@ -97,16 +96,13 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 		ExpiryDate:    expiryDate,
 		Supplier:      input.Supplier,
 		LastRestocked: lastRestocked,
-	}
-	if input.Status != "" {
-		item.Status = model.InventoryStatus(input.Status)
-	}
-
-	if err := h.svc.Inventory.Create(c.Request.Context(), clinicID, item); err != nil {
+		Status:        input.Status,
+	})
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, item)
+	c.JSON(http.StatusCreated, created)
 }
 
 // UpdateInventory godoc

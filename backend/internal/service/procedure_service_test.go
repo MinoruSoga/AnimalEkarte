@@ -168,13 +168,13 @@ func TestProcedureService_GetByID(t *testing.T) {
 func TestProcedureService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.Procedure
+		input   *CreateProcedureInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates procedure successfully",
-			input: &model.Procedure{
+			input: &CreateProcedureInput{
 				Name:     "New Procedure",
 				IsActive: true,
 			},
@@ -182,8 +182,16 @@ func TestProcedureService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "creates procedure with tax defaults applied",
+			input: &CreateProcedureInput{
+				Name: "Default Tax Procedure",
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
 			name: "returns error when repository fails",
-			input: &model.Procedure{
+			input: &CreateProcedureInput{
 				Name: "Failed Procedure",
 			},
 			repoErr: errors.New("db error"),
@@ -200,12 +208,14 @@ func TestProcedureService_Create(t *testing.T) {
 			}
 			svc := NewProcedureService(repo)
 
-			err := svc.Create(context.Background(), tt.input)
+			procedure, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, procedure)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, procedure)
 			}
 		})
 	}

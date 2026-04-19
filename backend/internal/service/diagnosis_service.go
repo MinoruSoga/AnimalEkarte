@@ -126,16 +126,13 @@ func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, 
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update diagnosis type")
 	}
 	slog.InfoContext(ctx, "diagnosis type updated",
 		slog.Uint64("type_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get diagnosis type after update")
-	}
 	return result, nil
 }
 
@@ -190,8 +187,8 @@ func buildDiagnosisTypeUpdateFields(input *UpdateDiagnosisTypeInput) map[string]
 // ---- DiagnosisNameService ----
 
 type DiagnosisNameService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
-	ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, error)
+	ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisNameInput) (*model.DiagnosisName, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisNameInput) (*model.DiagnosisName, error)
@@ -212,20 +209,20 @@ func NewDiagnosisNameService(
 	return &diagnosisNameService{repo: repo, typeRepo: typeRepo}
 }
 
-func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
-	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
+func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, error) {
+	items, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
-		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names")
+		return nil, apperrors.Wrap(err, "failed to list diagnosis names")
 	}
-	return items, total, nil
+	return items, nil
 }
 
-func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
-	items, total, err := s.repo.FindByCategoryID(ctx, clinicID, categoryID, page, limit)
+func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, error) {
+	items, err := s.repo.FindByCategoryID(ctx, clinicID, categoryID, page, limit)
 	if err != nil {
-		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names by type")
+		return nil, apperrors.Wrap(err, "failed to list diagnosis names by type")
 	}
-	return items, total, nil
+	return items, nil
 }
 
 func (s *diagnosisNameService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
@@ -275,16 +272,13 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update diagnosis name")
 	}
 	slog.InfoContext(ctx, "diagnosis name updated",
 		slog.Uint64("name_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get diagnosis name after update")
-	}
 	return result, nil
 }
 

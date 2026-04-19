@@ -36,6 +36,7 @@ type UpdateTreatmentPlanInput struct {
 type TreatmentPlanService interface {
 	ListByMedicalRecord(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error)
 	ListByHospitalization(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	Create(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64, input *CreateTreatmentPlanInput) (*model.TreatmentPlan, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -47,6 +48,14 @@ type treatmentPlanService struct {
 
 func NewTreatmentPlanService(repo repository.TreatmentPlanRepository) TreatmentPlanService {
 	return &treatmentPlanService{repo: repo}
+}
+
+func (s *treatmentPlanService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
+	plan, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get treatment plan")
+	}
+	return plan, nil
 }
 
 func (s *treatmentPlanService) ListByMedicalRecord(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {

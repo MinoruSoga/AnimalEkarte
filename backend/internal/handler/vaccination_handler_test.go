@@ -24,7 +24,7 @@ import (
 type mockVaccinationService struct {
 	listFn    func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
-	createFn  func(ctx context.Context, v *model.Vaccination) error
+	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateVaccinationInput) (*model.Vaccination, error)
 	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateVaccinationInput) (*model.Vaccination, error)
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 }
@@ -37,8 +37,11 @@ func (m *mockVaccinationService) GetByID(ctx context.Context, clinicID, id uint6
 	return m.getByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockVaccinationService) Create(ctx context.Context, v *model.Vaccination) error {
-	return m.createFn(ctx, v)
+func (m *mockVaccinationService) Create(ctx context.Context, clinicID uint64, input *service.CreateVaccinationInput) (*model.Vaccination, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, input)
+	}
+	return &model.Vaccination{}, nil
 }
 
 func (m *mockVaccinationService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateVaccinationInput) (*model.Vaccination, error) {
@@ -236,9 +239,9 @@ func TestCreateVaccination(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccinationService{
-				createFn: func(_ context.Context, v *model.Vaccination) error {
-					assert.Equal(t, "定期接種", v.Remarks)
-					return nil
+				createFn: func(_ context.Context, _ uint64, input *service.CreateVaccinationInput) (*model.Vaccination, error) {
+					assert.Equal(t, "定期接種", input.Remarks)
+					return &model.Vaccination{}, nil
 				},
 			},
 			wantStatus: http.StatusCreated,
@@ -262,8 +265,8 @@ func TestCreateVaccination(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccinationService{
-				createFn: func(_ context.Context, _ *model.Vaccination) error {
-					return fmt.Errorf("db error")
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateVaccinationInput) (*model.Vaccination, error) {
+					return nil, fmt.Errorf("db error")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,

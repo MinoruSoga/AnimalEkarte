@@ -22,10 +22,19 @@ type UpdateInquiryTemplateInput struct {
 	SortOrder *int
 }
 
+// CreateInquiryTemplateInput は問診定型文作成の入力DTO
+type CreateInquiryTemplateInput struct {
+	Category  string
+	Title     string
+	Content   string
+	IsActive  bool
+	SortOrder int
+}
+
 type InquiryTemplateService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
-	Create(ctx context.Context, template *model.InquiryTemplate) error
+	Create(ctx context.Context, clinicID uint64, input *CreateInquiryTemplateInput) (*model.InquiryTemplate, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateInquiryTemplateInput) (*model.InquiryTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
@@ -54,17 +63,25 @@ func (s *inquiryTemplateService) GetByID(ctx context.Context, clinicID, id uint6
 	return result, nil
 }
 
-func (s *inquiryTemplateService) Create(ctx context.Context, template *model.InquiryTemplate) error {
-	if err := validateRequiredName(template.Title); err != nil {
-		return err
+func (s *inquiryTemplateService) Create(ctx context.Context, clinicID uint64, input *CreateInquiryTemplateInput) (*model.InquiryTemplate, error) {
+	if err := validateRequiredName(input.Title); err != nil {
+		return nil, err
+	}
+	template := &model.InquiryTemplate{
+		ClinicID:  clinicID,
+		Category:  input.Category,
+		Title:     input.Title,
+		Content:   input.Content,
+		IsActive:  input.IsActive,
+		SortOrder: input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, template); err != nil {
-		return apperrors.Wrap(err, "failed to create inquiry template")
+		return nil, apperrors.Wrap(err, "failed to create inquiry template")
 	}
 	slog.InfoContext(ctx, "inquiry template created",
 		slog.Uint64("template_id", template.ID),
 		slog.Uint64("clinic_id", template.ClinicID))
-	return nil
+	return template, nil
 }
 
 func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateInquiryTemplateInput) (*model.InquiryTemplate, error) {
@@ -89,6 +106,9 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 }
 
 func (s *inquiryTemplateService) Delete(ctx context.Context, clinicID, id uint64) error {
+	// 設計上の意図: inquiry_templates を参照する外部テーブル（inquiry_template_id FK）は
+	// 現スキーマに存在しないため、依存チェックなしで直接削除する。
+	// 将来 inquiry_answers 等が追加された場合は CountUsageByTemplateID を実装すること。
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete inquiry template")
 	}

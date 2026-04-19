@@ -235,20 +235,19 @@ func TestInventoryService_Create(t *testing.T) {
 	tests := []struct {
 		name     string
 		clinicID uint64
-		item     *model.InventoryItem
+		input    *CreateInventoryInput
 		repoErr  error
 		wantErr  bool
 	}{
 		{
 			name:     "creates inventory item successfully",
 			clinicID: 1,
-			item: &model.InventoryItem{
+			input: &CreateInventoryInput{
 				Name:          "新規薬剤",
-				Category:      model.InventoryCategoryMedicine,
+				Category:      string(model.InventoryCategoryMedicine),
 				Quantity:      100,
 				Unit:          "本",
 				MinStockLevel: 10,
-				Status:        model.InventoryStatusSufficient,
 			},
 			repoErr: nil,
 			wantErr: false,
@@ -256,22 +255,16 @@ func TestInventoryService_Create(t *testing.T) {
 		{
 			name:     "returns error when item already exists",
 			clinicID: 1,
-			item: &model.InventoryItem{
-				Name:     "既存薬剤",
-				Category: model.InventoryCategoryMedicine,
-			},
-			repoErr: apperrors.WrapAlreadyExists("inventory_item", "既存薬剤"),
-			wantErr: true,
+			input:    &CreateInventoryInput{Name: "既存薬剤", Category: string(model.InventoryCategoryMedicine)},
+			repoErr:  apperrors.WrapAlreadyExists("inventory_item", "既存薬剤"),
+			wantErr:  true,
 		},
 		{
 			name:     "returns error on repository failure",
 			clinicID: 1,
-			item: &model.InventoryItem{
-				Name:     "エラー薬剤",
-				Category: model.InventoryCategoryOther,
-			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			input:    &CreateInventoryInput{Name: "エラー薬剤", Category: string(model.InventoryCategoryOther)},
+			repoErr:  errors.New("db error"),
+			wantErr:  true,
 		},
 	}
 
@@ -284,12 +277,14 @@ func TestInventoryService_Create(t *testing.T) {
 			}
 			svc := NewInventoryService(repo)
 
-			err := svc.Create(context.Background(), tt.clinicID, tt.item)
+			item, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, item)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, item)
 			}
 		})
 	}

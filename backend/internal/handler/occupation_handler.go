@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -58,13 +57,14 @@ func (h *Handler) CreateOccupation(c *gin.Context) {
 		return
 	}
 
-	occ := &model.Occupation{
-		ClinicID:  clinicID,
-		Name:      req.Name,
-		IsActive:  req.IsActive,
-		SortOrder: req.SortOrder,
+	svcInput := &service.CreateOccupationInput{
+		Name:        req.Name,
+		Description: req.Description,
+		IsActive:    req.IsActive,
+		SortOrder:   req.SortOrder,
 	}
-	if err := h.svc.Occupation.Create(c.Request.Context(), occ); err != nil {
+	occ, err := h.svc.Occupation.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

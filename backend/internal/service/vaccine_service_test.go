@@ -186,33 +186,31 @@ func TestVaccineService_GetByID(t *testing.T) {
 func TestVaccineService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		vaccine *model.Vaccine
+		input   *CreateVaccineInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates vaccine successfully",
-			vaccine: &model.Vaccine{
+			input: &CreateVaccineInput{
 				Name:     "新規ワクチン",
-				ClinicID: 1,
+				IsActive: true,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
 			name: "returns error when vaccine already exists",
-			vaccine: &model.Vaccine{
-				Name:     "重複ワクチン",
-				ClinicID: 1,
+			input: &CreateVaccineInput{
+				Name: "重複ワクチン",
 			},
 			repoErr: apperrors.WrapAlreadyExists("vaccine", "重複ワクチン"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			vaccine: &model.Vaccine{
-				Name:     "エラーワクチン",
-				ClinicID: 1,
+			input: &CreateVaccineInput{
+				Name: "エラーワクチン",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -228,12 +226,14 @@ func TestVaccineService_Create(t *testing.T) {
 			}
 			svc := NewVaccineService(repo)
 
-			err := svc.Create(context.Background(), tt.vaccine)
+			vaccine, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, vaccine)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, vaccine)
 			}
 		})
 	}

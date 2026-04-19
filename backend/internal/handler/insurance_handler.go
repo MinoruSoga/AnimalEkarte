@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -62,8 +61,7 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 	if req.CoverageRate != nil {
 		coverageRate = *req.CoverageRate
 	}
-	insurance := &model.Insurance{
-		ClinicID:     clinicID,
+	svcInput := &service.CreateInsuranceInput{
 		Name:         req.Name,
 		IsActive:     req.IsActive,
 		Description:  req.Description,
@@ -72,7 +70,8 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 		SortOrder:    req.SortOrder,
 	}
 
-	if err := h.svc.Insurance.Create(c.Request.Context(), insurance); err != nil {
+	insurance, err := h.svc.Insurance.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

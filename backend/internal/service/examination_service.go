@@ -10,10 +10,22 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// CreateExaminationInput は検査作成の入力DTO
+type CreateExaminationInput struct {
+	MedicalRecordID *uint64
+	PetID           *uint64
+	ExamTypeID      uint64
+	DoctorID        *uint64
+	Date            time.Time
+	ResultSummary   string
+	Machine         string
+	Status          model.ExaminationStatus
+}
+
 type ExaminationService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
-	Create(ctx context.Context, exam *model.Examination) error
+	Create(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
@@ -42,12 +54,27 @@ func (s *examinationService) GetByID(ctx context.Context, clinicID, id uint64) (
 	return result, nil
 }
 
-func (s *examinationService) Create(ctx context.Context, exam *model.Examination) error {
+func (s *examinationService) Create(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error) {
+	status := input.Status
+	if status == "" {
+		status = model.ExaminationStatusPending
+	}
+	exam := &model.Examination{
+		ClinicID:        clinicID,
+		MedicalRecordID: input.MedicalRecordID,
+		PetID:           input.PetID,
+		ExamTypeID:      input.ExamTypeID,
+		DoctorID:        input.DoctorID,
+		Date:            input.Date,
+		ResultSummary:   input.ResultSummary,
+		Machine:         input.Machine,
+		Status:          status,
+	}
 	if err := s.repo.Create(ctx, exam); err != nil {
-		return apperrors.Wrap(err, "failed to create examination")
+		return nil, apperrors.Wrap(err, "failed to create examination")
 	}
 	slog.InfoContext(ctx, "examination created", slog.Uint64("examination_id", exam.ID))
-	return nil
+	return exam, nil
 }
 
 func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error) {

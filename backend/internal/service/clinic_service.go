@@ -10,6 +10,19 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// CreateClinicInput はクリニック作成の入力DTO
+type CreateClinicInput struct {
+	Name               string
+	PostalCode         string
+	Address            string
+	PhoneNumber        string
+	FaxNumber          string
+	RegistrationNumber string
+	DirectorName       string
+	Email              string
+	Website            string
+}
+
 // UpdateClinicInput はクリニック更新の入力DTO（nil = 未指定）
 type UpdateClinicInput struct {
 	Name               *string
@@ -83,7 +96,7 @@ type ClinicService interface {
 	ListClinics(ctx context.Context) ([]model.Clinic, error)
 	ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error)
-	CreateClinic(ctx context.Context, clinic *model.Clinic) (*model.Clinic, error)
+	CreateClinic(ctx context.Context, input *CreateClinicInput) (*model.Clinic, error)
 	UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) (*model.Clinic, error)
 	DeleteClinic(ctx context.Context, id uint64) error
 }
@@ -120,13 +133,25 @@ func (s *clinicService) GetClinicByID(ctx context.Context, id uint64) (*model.Cl
 	return clinic, nil
 }
 
-func (s *clinicService) CreateClinic(ctx context.Context, clinic *model.Clinic) (*model.Clinic, error) {
-	// company はシングルトンなので自動設定する
+func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInput) (*model.Clinic, error) {
 	company, err := s.repo.GetCompany(ctx)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get company")
 	}
-	clinic.CompanyID = company.ID
+	clinic := &model.Clinic{
+		CompanyID:          company.ID,
+		Name:               input.Name,
+		PostalCode:         input.PostalCode,
+		Address:            input.Address,
+		PhoneNumber:        input.PhoneNumber,
+		FaxNumber:          input.FaxNumber,
+		RegistrationNumber: input.RegistrationNumber,
+		DirectorName:       input.DirectorName,
+		Email:              input.Email,
+		Website:            input.Website,
+		IsActive:           true,
+	}
+
 	if err := s.repo.Create(ctx, clinic); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create clinic")
 	}

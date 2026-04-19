@@ -113,27 +113,29 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 		return
 	}
 
-	vaccination := &model.Vaccination{
-		ClinicID:        clinicID,
-		MedicalRecordID: input.MedicalRecordID,
-		PetID:           input.PetID,
-		VaccineID:       input.VaccineID,
-		Date:            *date,
-		DoctorID:        input.DoctorID,
-		NextDate:        nextDate,
-		Supplemental:    input.Supplemental,
-		Lot1:            input.Lot1,
-		Lot2:            input.Lot2,
-		Lot3:            input.Lot3,
-		Lot4:            input.Lot4,
-		Remarks:         input.Remarks,
-	}
+	var nextScheduleType *model.NextScheduleType
 	if input.NextScheduleType != "" {
 		nst := model.NextScheduleType(input.NextScheduleType)
-		vaccination.NextScheduleType = &nst
+		nextScheduleType = &nst
 	}
 
-	if err := h.svc.Vaccination.Create(c.Request.Context(), vaccination); err != nil {
+	svcInput := &service.CreateVaccinationInput{
+		MedicalRecordID:  input.MedicalRecordID,
+		PetID:            input.PetID,
+		VaccineID:        input.VaccineID,
+		Date:             *date,
+		DoctorID:         input.DoctorID,
+		NextDate:         nextDate,
+		NextScheduleType: nextScheduleType,
+		Supplemental:     input.Supplemental,
+		Lot1:             input.Lot1,
+		Lot2:             input.Lot2,
+		Lot3:             input.Lot3,
+		Lot4:             input.Lot4,
+		Remarks:          input.Remarks,
+	}
+	vaccination, err := h.svc.Vaccination.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

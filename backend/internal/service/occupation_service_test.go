@@ -178,14 +178,13 @@ func TestOccupationService_GetByID(t *testing.T) {
 func TestOccupationService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.Occupation
+		input   *CreateOccupationInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates occupation successfully",
-			input: &model.Occupation{
-				ClinicID:    1,
+			input: &CreateOccupationInput{
 				Name:        "新規職種",
 				Description: "新しい職種の説明",
 				SortOrder:   4,
@@ -196,18 +195,16 @@ func TestOccupationService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when occupation already exists",
-			input: &model.Occupation{
-				ClinicID: 1,
-				Name:     "獣医師",
+			input: &CreateOccupationInput{
+				Name: "獣医師",
 			},
 			repoErr: apperrors.WrapAlreadyExists("occupation", "獣医師"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			input: &model.Occupation{
-				ClinicID: 1,
-				Name:     "エラー職種",
+			input: &CreateOccupationInput{
+				Name: "エラー職種",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -223,12 +220,14 @@ func TestOccupationService_Create(t *testing.T) {
 			}
 			svc := NewOccupationService(repo)
 
-			err := svc.Create(context.Background(), tt.input)
+			occ, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, occ)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, occ)
 			}
 		})
 	}

@@ -28,7 +28,7 @@ func (h *Handler) GetProcedure(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, procedure)
+	c.JSON(http.StatusOK, toProcedureResponse(procedure))
 }
 
 // ListProcedures godoc
@@ -42,7 +42,11 @@ func (h *Handler) ListProcedures(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, procedures)
+	resp := make([]procedureResponse, len(procedures))
+	for i := range procedures {
+		resp[i] = toProcedureResponse(&procedures[i])
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // CreateProcedure godoc
@@ -58,35 +62,30 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		return
 	}
 
-	taxType := model.TaxTypeExcluded
+	var taxType *string
 	if input.TaxType != "" {
-		taxType = model.TaxType(input.TaxType)
+		t := input.TaxType
+		taxType = &t
 	}
-	taxRate := 0.10
-	if input.TaxRate != nil {
-		taxRate = *input.TaxRate
-	}
-	procedure := &model.Procedure{
-		ClinicID:    clinicID,
+	svcInput := &service.CreateProcedureInput{
 		Name:        input.Name,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
 		Description: input.Description,
 		Duration:    input.Duration,
+		Anesthesia:  input.Anesthesia,
 		ParentID:    input.ParentID,
 		SortOrder:   input.SortOrder,
 		TaxType:     taxType,
-		TaxRate:     taxRate,
-	}
-	if input.Anesthesia != "" {
-		procedure.Anesthesia = model.AnesthesiaType(input.Anesthesia)
+		TaxRate:     input.TaxRate,
 	}
 
-	if err := h.svc.Procedure.Create(c.Request.Context(), procedure); err != nil {
+	procedure, err := h.svc.Procedure.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, procedure)
+	c.JSON(http.StatusCreated, toProcedureResponse(procedure))
 }
 
 // UpdateProcedure godoc
@@ -130,7 +129,7 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, procedure)
+	c.JSON(http.StatusOK, toProcedureResponse(procedure))
 }
 
 // ReorderProcedures godoc

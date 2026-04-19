@@ -89,6 +89,17 @@ func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth
 	return items, nil
 }
 
+// validateShiftType は入力文字列が有効な ShiftType 値かどうかを検証する。
+func validateShiftType(s model.ShiftType) error {
+	switch s {
+	case model.ShiftTypeFull, model.ShiftTypeMorning, model.ShiftTypeAfternoon,
+		model.ShiftTypeOff, model.ShiftTypePaidLeave:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid shift_type: %s", s))
+	}
+}
+
 // requiresTimeSlot は時刻（start_time/end_time）が必要なシフト種別かどうかを返す。
 // off・paid_leave は時刻不要。
 func requiresTimeSlot(shiftType model.ShiftType) bool {
@@ -125,6 +136,9 @@ func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) e
 }
 
 func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error) {
+	if err := validateShiftType(input.ShiftType); err != nil {
+		return nil, err
+	}
 	startTime := normalizeTimeString(input.StartTime)
 	endTime := normalizeTimeString(input.EndTime)
 
@@ -179,6 +193,9 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 	// 更新後の shiftType を決定（input に値があれば上書き、なければ既存値）
 	effectiveShiftType := existing.ShiftType
 	if input.ShiftType != nil {
+		if err := validateShiftType(*input.ShiftType); err != nil {
+			return nil, err
+		}
 		effectiveShiftType = *input.ShiftType
 	}
 	// 更新後の start_time/end_time を決定

@@ -27,6 +27,7 @@ type ChiefComplaintTypeService interface {
 	Create(ctx context.Context, category *model.ChiefComplaintType) error
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type chiefComplaintTypeService struct {
@@ -75,17 +76,27 @@ func (s *chiefComplaintTypeService) Update(ctx context.Context, clinicID, id uin
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update chief complaint category")
 	}
 	slog.InfoContext(ctx, "chief complaint category updated",
 		slog.Uint64("category_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get chief complaint category after update")
-	}
 	return result, nil
+}
+
+func (s *chiefComplaintTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if len(ids) == 0 {
+		return apperrors.WrapInvalidInput("ids must not be empty")
+	}
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder chief complaint categories")
+	}
+	slog.InfoContext(ctx, "chief_complaint_types reordered",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Int("count", len(ids)))
+	return nil
 }
 
 func (s *chiefComplaintTypeService) Delete(ctx context.Context, clinicID, id uint64) error {

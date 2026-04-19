@@ -230,14 +230,13 @@ func TestCageService_Create(t *testing.T) {
 	price := int64(3000)
 	tests := []struct {
 		name    string
-		cage    *model.Cage
+		input   *CreateCageInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates cage successfully",
-			cage: &model.Cage{
-				ClinicID: 1,
+			input: &CreateCageInput{
 				Name:     "新規ケージ",
 				CageType: model.CageTypeDog,
 				CageSize: model.CageSizeMedium,
@@ -249,8 +248,7 @@ func TestCageService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when cage already exists",
-			cage: &model.Cage{
-				ClinicID: 1,
+			input: &CreateCageInput{
 				Name:     "既存ケージ",
 				CageType: model.CageTypeCat,
 				CageSize: model.CageSizeSmall,
@@ -260,8 +258,7 @@ func TestCageService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			cage: &model.Cage{
-				ClinicID: 1,
+			input: &CreateCageInput{
 				Name:     "エラーケージ",
 				CageType: model.CageTypeGeneral,
 				CageSize: model.CageSizeLarge,
@@ -280,12 +277,14 @@ func TestCageService_Create(t *testing.T) {
 			}
 			svc := newTestCageService(repo)
 
-			err := svc.Create(context.Background(), tt.cage)
+			cage, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, cage)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, cage)
 			}
 		})
 	}

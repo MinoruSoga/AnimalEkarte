@@ -12,10 +12,24 @@ import (
 
 // ---- ProcedureService ----
 
+// CreateProcedureInput は診療項目作成のサービス入力 DTO
+type CreateProcedureInput struct {
+	Name        string
+	Price       *int64
+	IsActive    bool
+	Description string
+	Duration    *int
+	Anesthesia  string
+	ParentID    *uint64
+	SortOrder   int
+	TaxType     *string  // nil = "excluded" (default)
+	TaxRate     *float64 // nil = 0.10 (default)
+}
+
 type ProcedureService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Procedure, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error)
-	Create(ctx context.Context, procedure *model.Procedure) error
+	Create(ctx context.Context, clinicID uint64, input *CreateProcedureInput) (*model.Procedure, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateProcedureInput) (*model.Procedure, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -43,15 +57,40 @@ func (s *procedureService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 	}
 	return result, nil
 }
-func (s *procedureService) Create(ctx context.Context, procedure *model.Procedure) error {
-	if err := validateRequiredName(procedure.Name); err != nil {
-		return err
+func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *CreateProcedureInput) (*model.Procedure, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != nil && *input.TaxType != "" {
+		taxType = model.TaxType(*input.TaxType)
+	}
+	taxRate := 0.10
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
+	}
+	procedure := &model.Procedure{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Price:       input.Price,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		Duration:    input.Duration,
+		SortOrder:   input.SortOrder,
+		TaxType:     taxType,
+		TaxRate:     taxRate,
+	}
+	if input.Anesthesia != "" {
+		procedure.Anesthesia = model.AnesthesiaType(input.Anesthesia)
+	}
+	if input.ParentID != nil {
+		procedure.ParentID = input.ParentID
 	}
 	if err := s.repo.Create(ctx, procedure); err != nil {
-		return apperrors.Wrap(err, "failed to create procedure")
+		return nil, apperrors.Wrap(err, "failed to create procedure")
 	}
-	slog.InfoContext(ctx, "procedure created", slog.Uint64("procedure_id", procedure.ID))
-	return nil
+	slog.InfoContext(ctx, "procedure created", slog.Uint64("procedure_id", procedure.ID), slog.Uint64("clinic_id", clinicID))
+	return procedure, nil
 }
 func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, input *UpdateProcedureInput) (*model.Procedure, error) {
 	if input == nil {

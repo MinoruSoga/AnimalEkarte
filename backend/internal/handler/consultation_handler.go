@@ -28,7 +28,7 @@ func (h *Handler) GetConsultation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, consultation)
+	c.JSON(http.StatusOK, toConsultationResponse(consultation))
 }
 
 // ListConsultations godoc
@@ -42,7 +42,11 @@ func (h *Handler) ListConsultations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, consultations)
+	resp := make([]consultationResponse, len(consultations))
+	for i := range consultations {
+		resp[i] = toConsultationResponse(&consultations[i])
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // CreateConsultation godoc
@@ -58,16 +62,12 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		return
 	}
 
-	taxType := model.TaxTypeExcluded
+	var taxType *string
 	if input.TaxType != "" {
-		taxType = model.TaxType(input.TaxType)
+		t := input.TaxType
+		taxType = &t
 	}
-	taxRate := 0.10
-	if input.TaxRate != nil {
-		taxRate = *input.TaxRate
-	}
-	consultation := &model.Consultation{
-		ClinicID:      clinicID,
+	svcInput := &service.CreateConsultationInput{
 		Name:          input.Name,
 		Price:         input.Price,
 		IsActive:      input.IsActive,
@@ -77,14 +77,15 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		ParentID:      input.ParentID,
 		SortOrder:     input.SortOrder,
 		TaxType:       taxType,
-		TaxRate:       taxRate,
+		TaxRate:       input.TaxRate,
 	}
 
-	if err := h.svc.Consultation.Create(c.Request.Context(), consultation); err != nil {
+	consultation, err := h.svc.Consultation.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, consultation)
+	c.JSON(http.StatusCreated, toConsultationResponse(consultation))
 }
 
 // UpdateConsultation godoc
@@ -128,7 +129,7 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, consultation)
+	c.JSON(http.StatusOK, toConsultationResponse(consultation))
 }
 
 // ReorderConsultations godoc

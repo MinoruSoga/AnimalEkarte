@@ -168,19 +168,18 @@ func TestInsuranceService_GetByID(t *testing.T) {
 }
 
 func TestInsuranceService_Create(t *testing.T) {
-	coverageRate := 70
 	tests := []struct {
-		name      string
-		insurance *model.Insurance
-		repoErr   error
-		wantErr   bool
+		name    string
+		input   *CreateInsuranceInput
+		repoErr error
+		wantErr bool
 	}{
 		{
 			name: "creates insurance successfully",
-			insurance: &model.Insurance{
+			input: &CreateInsuranceInput{
 				Name:         "新規保険",
 				IsActive:     true,
-				CoverageRate: coverageRate,
+				CoverageRate: 70,
 				ContactPhone: "03-1234-5678",
 			},
 			repoErr: nil,
@@ -188,7 +187,7 @@ func TestInsuranceService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when insurance already exists",
-			insurance: &model.Insurance{
+			input: &CreateInsuranceInput{
 				Name:     "既存保険",
 				IsActive: true,
 			},
@@ -197,7 +196,7 @@ func TestInsuranceService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			insurance: &model.Insurance{
+			input: &CreateInsuranceInput{
 				Name:     "エラー保険",
 				IsActive: true,
 			},
@@ -215,12 +214,14 @@ func TestInsuranceService_Create(t *testing.T) {
 			}
 			svc := NewInsuranceService(repo)
 
-			err := svc.Create(context.Background(), tt.insurance)
+			insurance, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, insurance)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, insurance)
 			}
 		})
 	}

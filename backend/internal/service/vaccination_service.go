@@ -10,10 +10,27 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// CreateVaccinationInput はワクチン接種作成の入力DTO
+type CreateVaccinationInput struct {
+	MedicalRecordID  *uint64
+	PetID            *uint64
+	VaccineID        uint64
+	Date             time.Time
+	DoctorID         *uint64
+	NextDate         *time.Time
+	NextScheduleType *model.NextScheduleType
+	Supplemental     string
+	Lot1             string
+	Lot2             string
+	Lot3             string
+	Lot4             string
+	Remarks          string
+}
+
 type VaccinationService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
-	Create(ctx context.Context, vaccination *model.Vaccination) error
+	Create(ctx context.Context, clinicID uint64, input *CreateVaccinationInput) (*model.Vaccination, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateVaccinationInput) (*model.Vaccination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
@@ -42,17 +59,33 @@ func (s *vaccinationService) GetByID(ctx context.Context, clinicID, id uint64) (
 	return result, nil
 }
 
-func (s *vaccinationService) Create(ctx context.Context, vaccination *model.Vaccination) error {
-	if vaccination.VaccineID == 0 {
-		return apperrors.WrapInvalidInput("vaccine_id is required")
+func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input *CreateVaccinationInput) (*model.Vaccination, error) {
+	if input.VaccineID == 0 {
+		return nil, apperrors.WrapInvalidInput("vaccine_id is required")
+	}
+	vaccination := &model.Vaccination{
+		ClinicID:         clinicID,
+		MedicalRecordID:  input.MedicalRecordID,
+		PetID:            input.PetID,
+		VaccineID:        input.VaccineID,
+		Date:             input.Date,
+		DoctorID:         input.DoctorID,
+		NextDate:         input.NextDate,
+		NextScheduleType: input.NextScheduleType,
+		Supplemental:     input.Supplemental,
+		Lot1:             input.Lot1,
+		Lot2:             input.Lot2,
+		Lot3:             input.Lot3,
+		Lot4:             input.Lot4,
+		Remarks:          input.Remarks,
 	}
 	if err := s.repo.Create(ctx, vaccination); err != nil {
-		return apperrors.Wrap(err, "failed to create vaccination")
+		return nil, apperrors.Wrap(err, "failed to create vaccination")
 	}
 	slog.InfoContext(ctx, "vaccination created",
 		slog.Uint64("vaccination_id", vaccination.ID),
 		slog.Uint64("clinic_id", vaccination.ClinicID))
-	return nil
+	return vaccination, nil
 }
 
 func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateVaccinationInput) (*model.Vaccination, error) {

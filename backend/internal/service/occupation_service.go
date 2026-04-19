@@ -21,10 +21,18 @@ type UpdateOccupationInput struct {
 	IsActive    *bool
 }
 
+// CreateOccupationInput は職種作成の入力DTO
+type CreateOccupationInput struct {
+	Name        string
+	Description string
+	SortOrder   int
+	IsActive    bool
+}
+
 type OccupationService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
-	Create(ctx context.Context, occupation *model.Occupation) error
+	Create(ctx context.Context, clinicID uint64, input *CreateOccupationInput) (*model.Occupation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateOccupationInput) (*model.Occupation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -54,17 +62,24 @@ func (s *occupationService) GetByID(ctx context.Context, clinicID, id uint64) (*
 	return result, nil
 }
 
-func (s *occupationService) Create(ctx context.Context, occupation *model.Occupation) error {
-	if err := validateRequiredName(occupation.Name); err != nil {
-		return err
+func (s *occupationService) Create(ctx context.Context, clinicID uint64, input *CreateOccupationInput) (*model.Occupation, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	occupation := &model.Occupation{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Description: input.Description,
+		SortOrder:   input.SortOrder,
+		IsActive:    input.IsActive,
 	}
 	if err := s.repo.Create(ctx, occupation); err != nil {
-		return apperrors.Wrap(err, "failed to create occupation")
+		return nil, apperrors.Wrap(err, "failed to create occupation")
 	}
 	slog.InfoContext(ctx, "occupation created",
 		slog.Uint64("occupation_id", occupation.ID),
 		slog.Uint64("clinic_id", occupation.ClinicID))
-	return nil
+	return occupation, nil
 }
 
 func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateOccupationInput) (*model.Occupation, error) {

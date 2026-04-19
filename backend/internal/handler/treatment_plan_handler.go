@@ -171,7 +171,7 @@ func (h *Handler) checkTreatmentPlanDiscountPermission(c *gin.Context, clinicID,
 	if req.DiscountRate == nil && req.DiscountAmount == nil {
 		return nil
 	}
-	existing, err := h.repos.TreatmentPlan.FindByID(c.Request.Context(), clinicID, planID)
+	existing, err := h.svc.TreatmentPlan.GetByID(c.Request.Context(), clinicID, planID)
 	if err != nil {
 		return err
 	}
