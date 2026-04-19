@@ -24,7 +24,7 @@ const uploadImage = async (
   return data;
 };
 
-export const useUploadImages = (medicalRecordId: string) => {
+export const useCreateMedicalRecordImages = (medicalRecordId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({

@@ -7,7 +7,7 @@ import { paths } from "@/config/paths";
 
 import { getReservationStatusLabel } from "@/utils/status-helpers";
 import type {
-  Appointment,
+  Reservation,
   ReservationFormData,
   ReservationStatus,
   Pet,
@@ -20,7 +20,7 @@ import { useUpdateReservation } from "../api/update-reservation";
 import { useDeleteReservation } from "../api/delete-reservation";
 import { transformToCreateRequest } from "../api/transforms";
 
-const EMPTY_APPOINTMENTS: Appointment[] = [];
+const EMPTY_RESERVATIONS: Reservation[] = [];
 
 /** Maps reservation type → record creation path */
 const RECORD_PATH: Record<string, string> = {
@@ -42,7 +42,7 @@ export function useReservationManagement() {
   const locationFrom = (location.state as NavigationState | null)?.from ?? null;
 
   // API mutations
-  const { data: appointments = EMPTY_APPOINTMENTS, isLoading } = useGetReservations();
+  const { data: appointments = EMPTY_RESERVATIONS, isLoading } = useGetReservations();
   const createMutation = useCreateReservation();
   const updateMutation = useUpdateReservation();
   const { mutate: updateReservationFn } = updateMutation;
@@ -59,11 +59,11 @@ export function useReservationManagement() {
 
   // Detail Modal State
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null);
+  const [detailAppointment, setDetailAppointment] = useState<Reservation | null>(null);
 
   // Confirm Dialog State
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Appointment | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Reservation | null>(null);
   const [petSelectConfirmOpen, setPetSelectConfirmOpen] = useState(false);
   const [petSelectPath, setPetSelectPath] = useState("");
 
@@ -121,8 +121,8 @@ export function useReservationManagement() {
   }, [location.search, handleOpenForm]);
 
   // Open Detail Modal
-  const handleOpenDetail = useCallback((appointment: Appointment) => {
-    setDetailAppointment(appointment);
+  const handleOpenDetail = useCallback((reservation: Reservation) => {
+    setDetailAppointment(reservation);
     setIsDetailOpen(true);
   }, []);
 
@@ -217,9 +217,9 @@ export function useReservationManagement() {
     // editingAppointment をオブジェクト参照ではなくrefで参照するため依存から除外
   );
 
-  const handleAppointmentUpdate = useCallback(
-    (appointment: Appointment, newStart: Date, newEnd: Date) => {
-      const hasOverlap = checkOverlap(newStart, newEnd, appointment.doctor, appointment.id);
+  const handleReservationUpdate = useCallback(
+    (reservation: Reservation, newStart: Date, newEnd: Date) => {
+      const hasOverlap = checkOverlap(newStart, newEnd, reservation.doctor, reservation.id);
 
       if (hasOverlap) {
         toast.error("移動先に予約が重複しています", {
@@ -229,15 +229,15 @@ export function useReservationManagement() {
       }
 
       const updatePayload = {
-        id: appointment.id,
+        id: reservation.id,
         req: {
           start_time: newStart.toISOString(),
           end_time: newEnd.toISOString(),
-          visit_type: appointment.visitType,
-          doctor_id: appointment.doctor ? Number(appointment.doctor) : undefined,
-          is_designated: appointment.isDesignated,
-          status: appointment.status,
-          notes: appointment.notes,
+          visit_type: reservation.visitType,
+          doctor_id: reservation.doctor ? Number(reservation.doctor) : undefined,
+          is_designated: reservation.isDesignated,
+          status: reservation.status,
+          notes: reservation.notes,
         },
       };
 
@@ -245,7 +245,7 @@ export function useReservationManagement() {
         updateReservationFn(updatePayload, {
           onSuccess: () => {
             toast.success("予約時間を変更しました", {
-              description: `${appointment.petName} / ${appointment.doctor}`,
+              description: `${reservation.petName} / ${reservation.doctor}`,
             });
           },
         });
@@ -256,17 +256,17 @@ export function useReservationManagement() {
 
   // Status Change Handler
   const handleStatusChange = useCallback(
-    (appointment: Appointment, status: ReservationStatus) => {
+    (reservation: Reservation, status: ReservationStatus) => {
       const updatePayload = {
-        id: appointment.id,
+        id: reservation.id,
         req: {
-          start_time: appointment.start.toISOString(),
-          end_time: appointment.end.toISOString(),
-          visit_type: appointment.visitType,
-          doctor_id: appointment.doctor ? Number(appointment.doctor) : undefined,
-          is_designated: appointment.isDesignated,
+          start_time: reservation.start.toISOString(),
+          end_time: reservation.end.toISOString(),
+          visit_type: reservation.visitType,
+          doctor_id: reservation.doctor ? Number(reservation.doctor) : undefined,
+          is_designated: reservation.isDesignated,
           status,
-          notes: appointment.notes,
+          notes: reservation.notes,
         },
       };
 
@@ -276,7 +276,7 @@ export function useReservationManagement() {
             setDetailAppointment((prev) => (prev ? { ...prev, status } : null));
             const statusLabel = getReservationStatusLabel(status);
             toast.success("ステータスを更新しました", {
-              description: `${appointment.petName} → ${statusLabel}`,
+              description: `${reservation.petName} → ${statusLabel}`,
             });
           },
         });
@@ -286,8 +286,8 @@ export function useReservationManagement() {
   );
 
   // Delete handler
-  const handleDelete = useCallback((appointment: Appointment) => {
-    setDeleteTarget(appointment);
+  const handleDelete = useCallback((reservation: Reservation) => {
+    setDeleteTarget(reservation);
     setDeleteConfirmOpen(true);
   }, []);
 
@@ -312,22 +312,22 @@ export function useReservationManagement() {
 
   // Create Record Handler
   const handleCreateRecord = useCallback(
-    (appointment: Appointment) => {
-      const targetPath = RECORD_PATH[appointment.type] || "/medical-records/new";
+    (reservation: Reservation) => {
+      const targetPath = RECORD_PATH[reservation.type] || "/medical-records/new";
 
       // Build query params: petId + doctorId (if available from reservation)
       const queryParams = new URLSearchParams();
-      if (appointment.petId) {
-        queryParams.append("petId", appointment.petId);
+      if (reservation.petId) {
+        queryParams.append("petId", reservation.petId);
       }
-      if (appointment.doctorId) {
-        queryParams.append("doctorId", appointment.doctorId);
+      if (reservation.doctorId) {
+        queryParams.append("doctorId", reservation.doctorId);
       }
 
-      if (appointment.petId) {
+      if (reservation.petId) {
         navigate(`${targetPath}?${queryParams.toString()}`, { state: { from: paths.reservations.getHref() } });
       } else {
-        const selectPath = SELECT_PATH[appointment.type] || "/medical-records/select-pet";
+        const selectPath = SELECT_PATH[reservation.type] || "/medical-records/select-pet";
         setPetSelectPath(selectPath);
         setPetSelectConfirmOpen(true);
       }
@@ -368,7 +368,7 @@ export function useReservationManagement() {
 
     // Calendar interactions
     handleTimeSlotClick,
-    handleAppointmentUpdate,
+    handleReservationUpdate,
 
     // Delete confirm
     deleteConfirmOpen,

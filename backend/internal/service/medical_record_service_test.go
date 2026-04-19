@@ -708,7 +708,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 			},
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil)
-		appt := &model.Appointment{
+		appt := &model.Reservation{
 			ID:        1,
 			ClinicID:  1,
 			StartTime: now,
@@ -745,7 +745,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, &noopInquiryRepo{}, &noopClinicalPlanRepo{}, lineCustomerRepo)
 
-		appt := &model.Appointment{
+		appt := &model.Reservation{
 			ID:             1,
 			ClinicID:       1,
 			StartTime:      now,
@@ -783,7 +783,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 		}
 		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, lineCustomerRepo)
 
-		appt := &model.Appointment{
+		appt := &model.Reservation{
 			ID:             1,
 			ClinicID:       1,
 			StartTime:      now,

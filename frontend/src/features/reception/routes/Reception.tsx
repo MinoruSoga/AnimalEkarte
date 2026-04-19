@@ -36,7 +36,7 @@ import { KanbanColumn } from "../components/KanbanColumn";
 import { useReceptionKanban } from "../hooks/use-reception-kanban";
 
 // Types
-import type { Appointment, Pet } from "@/types";
+import type { Reservation, Pet } from "@/types";
 import type { ReceptionAppointment } from "../api/types";
 
 // Columns that don't show the "add" button — Set for O(1) lookup
@@ -84,7 +84,7 @@ export function Reception() {
 
     // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingAppointment, setEditingAppointment] = useState<Partial<Appointment> | null>(null);
+    const [editingAppointment, setEditingAppointment] = useState<Partial<Reservation> | null>(null);
     // rerender-dependencies: primitive id で deps 安定化
     const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
 
@@ -236,12 +236,12 @@ export function Reception() {
     }, [selectedAppointmentId, advanceStatus]);
 
     const handleEditAppointment = useCallback((appointment: ReceptionAppointment) => {
-        // ReceptionAppointment を ReservationFormModal 用の Partial<Appointment> に変換
+        // ReceptionAppointment を ReservationFormModal 用の Partial<Reservation> に変換
         const now = new Date();
         const [hours, minutes] = appointment.time.split(':').map(Number);
         const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
 
-        const reservationFormData: Partial<Appointment> = {
+        const reservationFormData: Partial<Reservation> = {
             id: appointment.id,
             start: start,
             end: addHours(start, 1), // Default 1 hour duration
@@ -265,7 +265,7 @@ export function Reception() {
     const editingAppointmentRef = useRef(editingAppointment);
     useEffect(() => { editingAppointmentRef.current = editingAppointment; }, [editingAppointment]);
 
-    const handleEditSave = useCallback((data: Partial<Appointment>, selectedPets: Pet[]) => {
+    const handleEditSave = useCallback((data: Partial<Reservation>, selectedPets: Pet[]) => {
         if (!editingAppointmentId || !data.start) return;
 
         const updatedTime = format(data.start, "HH:mm");

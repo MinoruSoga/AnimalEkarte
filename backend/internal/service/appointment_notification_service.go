@@ -18,9 +18,9 @@ import (
 // 実装はすべてのエラーをログに記録し、呼び出し元には返さない（fire-and-forget）。
 type ReservationNotifier interface {
 	// NotifyCreated は予約確定後に LINE + メールを送信する。
-	NotifyCreated(ctx context.Context, appt *model.Appointment, customer *model.LineCustomer)
+	NotifyCreated(ctx context.Context, appt *model.Reservation, customer *model.LineCustomer)
 	// NotifyCancelled は予約キャンセル後に LINE + メールを送信する。
-	NotifyCancelled(ctx context.Context, appt *model.Appointment, customer *model.LineCustomer)
+	NotifyCancelled(ctx context.Context, appt *model.Reservation, customer *model.LineCustomer)
 }
 
 // ReservationNotificationConfig はSMTP共有設定を保持する。
@@ -55,7 +55,7 @@ func NewReservationNotificationService(cfg *ReservationNotificationConfig, setti
 
 func (s *reservationNotificationService) NotifyCreated(
 	ctx context.Context,
-	appt *model.Appointment,
+	appt *model.Reservation,
 	customer *model.LineCustomer,
 ) {
 	lineText := s.buildCreatedLineMessage(appt)
@@ -102,7 +102,7 @@ func (s *reservationNotificationService) NotifyCreated(
 
 func (s *reservationNotificationService) NotifyCancelled(
 	ctx context.Context,
-	appt *model.Appointment,
+	appt *model.Reservation,
 	customer *model.LineCustomer,
 ) {
 	lineMsg := s.buildCancelledLineMessage(appt)
@@ -172,7 +172,7 @@ func staffDisplayName(s *model.Staff) string {
 
 // ---- LINE メッセージテンプレート ----
 
-func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.Appointment) string {
+func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.Reservation) string {
 	var sb strings.Builder
 	sb.WriteString("ご予約を承りました。\n\n")
 	fmt.Fprintf(&sb, "■ 予約番号: R-%06d\n", appt.ID)
@@ -190,7 +190,7 @@ func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.App
 	return sb.String()
 }
 
-func (s *reservationNotificationService) buildCancelledLineMessage(appt *model.Appointment) string {
+func (s *reservationNotificationService) buildCancelledLineMessage(appt *model.Reservation) string {
 	var sb strings.Builder
 	sb.WriteString("以下のご予約をキャンセルしました。\n\n")
 	fmt.Fprintf(&sb, "■ 予約番号: R-%06d\n", appt.ID)
@@ -205,7 +205,7 @@ func (s *reservationNotificationService) buildCancelledLineMessage(appt *model.A
 // ---- メールテンプレート ----
 
 func (s *reservationNotificationService) buildCreatedEmail(
-	appt *model.Appointment,
+	appt *model.Reservation,
 	customer *model.LineCustomer,
 ) (subject, body string) {
 	courseName := ""
@@ -259,7 +259,7 @@ func (s *reservationNotificationService) buildCreatedEmail(
 }
 
 func (s *reservationNotificationService) buildCancelledEmail(
-	appt *model.Appointment,
+	appt *model.Reservation,
 	customer *model.LineCustomer,
 ) (subject, body string) {
 	courseName := ""
@@ -343,7 +343,7 @@ func formatDateTimeJP(start, end time.Time) string {
 
 // extractPetNamesFromCustomerFields は customer_fields JSONB からペット名一覧を抽出する。
 // appt.Pet (電カル予約) が nil の場合に customer_fields.pets (LINE予約) をフォールバックとして使用。
-func extractPetNamesFromCustomerFields(appt *model.Appointment) string {
+func extractPetNamesFromCustomerFields(appt *model.Reservation) string {
 	if appt.Pet != nil {
 		return appt.Pet.Name
 	}

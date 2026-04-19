@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { transformReservation, transformToCreateRequest } from "./transforms";
 import type { Appointment as BackendReservation } from "@/types/generated/models";
-import type { Appointment } from "@/types";
+import type { Reservation } from "@/types";
 
 /** BackendReservation の最小スタブ */
 const minimalBackend: BackendReservation = {
@@ -56,7 +56,7 @@ describe("transformReservation", () => {
   });
 
   it("status をそのままマップする", () => {
-    const statuses: Appointment["status"][] = [
+    const statuses: Reservation["status"][] = [
       "confirmed", "pending", "checked_in", "in_consultation", "accounting", "completed", "cancelled",
     ];
     for (const status of statuses) {
@@ -202,7 +202,7 @@ describe("transformReservation", () => {
 });
 
 describe("transformToCreateRequest", () => {
-  const baseData: Partial<Appointment> = {
+  const baseData: Partial<Reservation> = {
     start: new Date("2026-03-25T10:00:00Z"),
     end: new Date("2026-03-25T10:30:00Z"),
     visitType: "first",

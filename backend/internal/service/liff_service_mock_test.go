@@ -161,30 +161,30 @@ func (m *mockLiffScheduleRepository) DeleteByDate(_ context.Context, _, _ uint64
 // --- mockLiffAdminRepository ---
 
 type mockLiffAdminRepository struct {
-	findByDayFn         func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error)
-	findByCustomerIDFn  func(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error)
+	findByDayFn         func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
+	findByCustomerIDFn  func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
 	cancelByIDFn        func(ctx context.Context, clinicID, customerID, id uint64) error
-	findByIDForNotifyFn func(ctx context.Context, clinicID, id uint64) (*model.Appointment, error)
+	findByIDForNotifyFn func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 }
 
-func (m *mockLiffAdminRepository) FindByMonth(_ context.Context, _ uint64, _ int, _ time.Month) ([]model.Appointment, error) {
+func (m *mockLiffAdminRepository) FindByMonth(_ context.Context, _ uint64, _ int, _ time.Month) ([]model.Reservation, error) {
 	return nil, nil
 }
 
-func (m *mockLiffAdminRepository) FindByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error) {
+func (m *mockLiffAdminRepository) FindByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
 	if m.findByDayFn != nil {
 		return m.findByDayFn(ctx, clinicID, date)
 	}
 	return nil, nil
 }
 
-func (m *mockLiffAdminRepository) Create(_ context.Context, _ *model.Appointment) error {
+func (m *mockLiffAdminRepository) Create(_ context.Context, _ *model.Reservation) error {
 	return nil
 }
 
 func (m *mockLiffAdminRepository) SoftDelete(_ context.Context, _, _ uint64) error { return nil }
 
-func (m *mockLiffAdminRepository) FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error) {
+func (m *mockLiffAdminRepository) FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
 	if m.findByCustomerIDFn != nil {
 		return m.findByCustomerIDFn(ctx, clinicID, customerID)
 	}
@@ -198,7 +198,7 @@ func (m *mockLiffAdminRepository) CancelByID(ctx context.Context, clinicID, cust
 	return nil
 }
 
-func (m *mockLiffAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
+func (m *mockLiffAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	if m.findByIDForNotifyFn != nil {
 		return m.findByIDForNotifyFn(ctx, clinicID, id)
 	}
@@ -290,26 +290,26 @@ func (m *mockLiffOwnerRepository) CountPetsByOwnerID(_ context.Context, _, _ uin
 // --- mockLiffReservationRepository ---
 
 type mockLiffReservationRepository struct {
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error)
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 }
 
-func (m *mockLiffReservationRepository) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Appointment, int64, error) {
+func (m *mockLiffReservationRepository) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
 }
 
-func (m *mockLiffReservationRepository) FindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+func (m *mockLiffReservationRepository) FindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, apperrors.ErrNotFound
 }
 
-func (m *mockLiffReservationRepository) Create(_ context.Context, _ *model.Appointment) error {
+func (m *mockLiffReservationRepository) Create(_ context.Context, _ *model.Reservation) error {
 	return nil
 }
 
-func (m *mockLiffReservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error) {
+func (m *mockLiffReservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}
-	return &model.Appointment{ID: id, ClinicID: clinicID}, nil
+	return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockLiffReservationRepository) Delete(_ context.Context, _, _ uint64) error {
@@ -328,7 +328,7 @@ func (m *mockLiffReservationRepository) CountMedicalRecordsByReservationID(_ con
 	return 0, nil
 }
 
-func (m *mockLiffReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+func (m *mockLiffReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, apperrors.ErrNotFound
 }
 
@@ -352,37 +352,37 @@ func (m *mockLiffReservationRepository) CountByDateAndSource(_ context.Context, 
 	return 0, nil
 }
 
-func (m *mockLiffReservationRepository) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Appointment, int64, error) {
+func (m *mockLiffReservationRepository) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
 }
 
 // --- mockLiffValidators ---
 
 type mockLiffValidators struct {
-	validateAndCreateFn func(ctx context.Context, input *CreateReservationInput) (*model.Appointment, error)
+	validateAndCreateFn func(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error)
 }
 
-func (m *mockLiffValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Appointment, error) {
+func (m *mockLiffValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error) {
 	if m.validateAndCreateFn != nil {
 		return m.validateAndCreateFn(ctx, input)
 	}
-	return &model.Appointment{ID: 1, ClinicID: input.ClinicID}, nil
+	return &model.Reservation{ID: 1, ClinicID: input.ClinicID}, nil
 }
 
 // --- mockLiffNotifier ---
 
 type mockLiffNotifier struct {
-	notifyCreatedFn   func(ctx context.Context, appt *model.Appointment, customer *model.LineCustomer)
-	notifyCancelledFn func(ctx context.Context, appt *model.Appointment, customer *model.LineCustomer)
+	notifyCreatedFn   func(ctx context.Context, appt *model.Reservation, customer *model.LineCustomer)
+	notifyCancelledFn func(ctx context.Context, appt *model.Reservation, customer *model.LineCustomer)
 }
 
-func (m *mockLiffNotifier) NotifyCreated(ctx context.Context, appt *model.Appointment, customer *model.LineCustomer) {
+func (m *mockLiffNotifier) NotifyCreated(ctx context.Context, appt *model.Reservation, customer *model.LineCustomer) {
 	if m.notifyCreatedFn != nil {
 		m.notifyCreatedFn(ctx, appt, customer)
 	}
 }
 
-func (m *mockLiffNotifier) NotifyCancelled(ctx context.Context, appt *model.Appointment, customer *model.LineCustomer) {
+func (m *mockLiffNotifier) NotifyCancelled(ctx context.Context, appt *model.Reservation, customer *model.LineCustomer) {
 	if m.notifyCancelledFn != nil {
 		m.notifyCancelledFn(ctx, appt, customer)
 	}

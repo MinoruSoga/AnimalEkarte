@@ -917,7 +917,7 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // ── Hospital Settings（hospital-settings: 独立リソース） ───────
+      // ── Clinic Settings（clinic-settings: 独立リソース） ───────
       {
         path: "/settings/clinic",
         element: (
@@ -930,7 +930,7 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { ClinicMasterSettings } = await import("@/features/hospital-settings");
+              const { ClinicMasterSettings } = await import("@/features/clinic-settings");
               return { Component: ClinicMasterSettings };
             },
           },

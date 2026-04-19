@@ -25,8 +25,8 @@ type LiffService interface {
 	GetStaffs(ctx context.Context, clinicID, typeID uint64) ([]model.Staff, error)
 	GetAvailableDates(ctx context.Context, clinicID, typeID, staffID uint64) ([]AvailableDateResult, BookingWindow, error)
 	GetAvailableTimes(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error)
-	CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Appointment, error)
-	GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error)
+	CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Reservation, error)
+	GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
 	CancelReservation(ctx context.Context, clinicID, customerID, reservationID uint64) error
 }
 
@@ -351,7 +351,7 @@ func filterApplicableUnavailableTimes(times []model.ReservationTypeUnavailableTi
 }
 
 // CreateReservation は予約を確定する。staffID=0 の場合は no_staff_mode に従って自動割当する。
-func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Appointment, error) {
+func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Reservation, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
@@ -423,7 +423,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 }
 
 // GetMyReservations は顧客自身の予約一覧を返す。
-func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error) {
+func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
 	items, err := s.adminRepo.FindByCustomerID(ctx, clinicID, customerID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get my reservations")
@@ -434,7 +434,7 @@ func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerI
 // CancelReservation は予約をキャンセルする。
 func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerID, reservationID uint64) error {
 	// Phase 6: キャンセル通知のために事前にアポを取得する
-	var apptForNotify *model.Appointment
+	var apptForNotify *model.Reservation
 	if s.notifier != nil {
 		var err error
 		apptForNotify, err = s.adminRepo.FindByIDForNotify(ctx, clinicID, reservationID)
@@ -465,7 +465,7 @@ func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerI
 func (s *liffService) tryAttachReservationOwnerPet(
 	ctx context.Context,
 	clinicID, customerID uint64,
-	appt *model.Appointment,
+	appt *model.Reservation,
 	customerFields []byte,
 ) {
 	if s.reservationRepo == nil || appt == nil {
@@ -661,7 +661,7 @@ func (s *liffService) delegateStaff(ctx context.Context, clinicID, typeID uint64
 }
 
 // isStaffAvailable はスタッフが指定時間枠で空いているか確認する。
-func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.Appointment) bool {
+func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.Reservation) bool {
 	for i := range dayResv {
 		if dayResv[i].Status == model.ReservationStatusCancelled {
 			continue

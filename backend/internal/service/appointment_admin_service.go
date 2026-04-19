@@ -13,9 +13,9 @@ import (
 
 // ReservationAdminService は管理者向け予約管理のビジネスロジックインターフェース
 type ReservationAdminService interface {
-	ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Appointment, error)
-	ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Appointment, error)
+	ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Reservation, error)
+	ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -46,7 +46,7 @@ func NewReservationAdminService(repo repository.ReservationAdminRepository, resR
 	return &reservationAdminService{repo: repo, resRepo: resRepo, tx: tx}
 }
 
-func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Appointment, error) {
+func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Reservation, error) {
 	t, err := time.Parse("2006-01", yearMonth)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM format for month view")
@@ -58,7 +58,7 @@ func (s *reservationAdminService) ListByMonth(ctx context.Context, clinicID uint
 	return items, nil
 }
 
-func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error) {
+func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
 	items, err := s.repo.FindByDay(ctx, clinicID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list reservations by day")
@@ -66,7 +66,7 @@ func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64
 	return items, nil
 }
 
-func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Appointment, error) {
+func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error) {
 	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
@@ -80,13 +80,13 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 		customerFields = json.RawMessage("{}")
 	}
 
-	var result *model.Appointment
+	var result *model.Reservation
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if err := checkSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
 			return err
 		}
 
-		ra := &model.Appointment{
+		ra := &model.Reservation{
 			ClinicID:          clinicID,
 			StartTime:         input.StartTime,
 			EndTime:           input.EndTime,

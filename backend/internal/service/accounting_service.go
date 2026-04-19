@@ -56,8 +56,8 @@ type UpdateAccountingInput struct {
 	ChangeAmount    *int64
 }
 
-// buildBillingUpdateFields は UpdateAccountingInput から nil でないフィールドのみ抽出する。
-func buildBillingUpdateFields(input *UpdateAccountingInput) map[string]any {
+// buildAccountingUpdateFields は UpdateAccountingInput から nil でないフィールドのみ抽出する。
+func buildAccountingUpdateFields(input *UpdateAccountingInput) map[string]any {
 	fields := make(map[string]any)
 	if input.MedicalRecordID != nil {
 		fields["medical_record_id"] = *input.MedicalRecordID
@@ -176,7 +176,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	if input.TotalAmount != nil && *input.TotalAmount < 0 {
 		return nil, apperrors.WrapInvalidInput("金額は0以上で指定してください")
 	}
-	fields := buildBillingUpdateFields(input)
+	fields := buildAccountingUpdateFields(input)
 	if len(fields) == 0 && !hasPaymentFields(input) {
 		return nil, apperrors.WrapInvalidInput("no fields to update")
 	}
@@ -200,15 +200,15 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	}
 
 	// 更新後のレコードを返す
-	billing, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
+	accounting, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to reload accounting after update")
 	}
 
 	slog.InfoContext(ctx, "accounting updated",
-		slog.Uint64("billing_id", billing.ID),
+		slog.Uint64("billing_id", accounting.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
-	return billing, nil
+	return accounting, nil
 }
 
 // hasPaymentFields は UpdateAccountingInput に Payment 関連フィールドが含まれているか判定する。

@@ -215,7 +215,7 @@ export function useGetStaffPermissionGroups(staffId: string | null) {
   });
 }
 
-export function useSetStaffPermissionGroups() {
+export function useUpdateStaffPermissionGroups() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -285,7 +285,7 @@ export function useGetStaffClinics(staffId: string | null) {
   });
 }
 
-export function useSetStaffClinics() {
+export function useUpdateStaffClinics() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -330,7 +330,7 @@ export function useGetStaffExcludedReservationTypes(staffId: string | null) {
   });
 }
 
-export function useSetStaffExcludedReservationTypes() {
+export function useUpdateStaffExcludedReservationTypes() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({

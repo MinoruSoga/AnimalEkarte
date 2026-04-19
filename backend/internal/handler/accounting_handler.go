@@ -229,14 +229,16 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 
 	switch groupBy {
 	case "billing":
-		billings, total, err := h.svc.Accounting.ListUnpaidByBilling(ctx, clinicID, baseDate, page, limit)
+		// ListUnpaidByBilling は model.Billing スライスを返す（DBテーブル名 billings 由来）。
+		// 会計ドメイン(accounting)と DB モデル(Billing)の命名差異はここで吸収する。
+		accountings, total, err := h.svc.Accounting.ListUnpaidByBilling(ctx, clinicID, baseDate, page, limit)
 		if err != nil {
 			RespondError(c, err)
 			return
 		}
-		responses := make([]accountingResponse, 0, len(billings))
-		for i := range billings {
-			responses = append(responses, toAccountingResponse(&billings[i]))
+		responses := make([]accountingResponse, 0, len(accountings))
+		for i := range accountings {
+			responses = append(responses, toAccountingResponse(&accountings[i]))
 		}
 		c.JSON(http.StatusOK, newPaginatedResponse(responses, total, page, limit))
 	case "owner":

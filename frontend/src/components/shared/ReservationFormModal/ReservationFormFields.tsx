@@ -15,7 +15,7 @@ import { useMasterItems } from "@/hooks/use-master-items";
 import { useGetReservationTypesGrouped, useGetOnDutyStaffs } from "@/hooks/use-reservation-types";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { isOneOf } from "@/lib/type-utils";
-import type { Appointment } from "@/types";
+import type { Reservation } from "@/types";
 
 const TRIGGER_CLASS =
   `h-9 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
@@ -56,8 +56,8 @@ function FieldLabel({ children, required, trailing }: FieldLabelProps) {
 }
 
 interface ReservationFormFieldsProps {
-  formData: Partial<Appointment>;
-  onChange: (data: Partial<Appointment>) => void;
+  formData: Partial<Reservation>;
+  onChange: (data: Partial<Reservation>) => void;
   validationErrors?: Record<string, string>;
   onClearError?: (field: string) => void;
   /** 定休日の日付文字列セット (YYYY-MM-DD 形式) — BUG-343 */

@@ -103,10 +103,10 @@ export interface NavigationState {
 // --- Feature UI Types ---
 
 /**
- * フロントエンド予約アポイントメント型（UI 表示用 - id:string, start/end:Date）
+ * フロントエンド予約型（UI 表示用 - id:string, start/end:Date）
  * transforms.ts の変換結果として使用
  */
-export interface Appointment {
+export interface Reservation {
   id: string;
   start: Date;
   end: Date;

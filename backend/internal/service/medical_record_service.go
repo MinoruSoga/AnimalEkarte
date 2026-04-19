@@ -48,7 +48,7 @@ type MedicalRecordService interface {
 	// 失敗しても呼び出し元のカルテ作成は完了済みのためエラーは握りつぶす（slog.Warn のみ）。
 	CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput)
 	// AutoCreateFromReservation は予約ステータスが「受付済み」に変わったときカルテを best-effort で自動作成する。
-	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Appointment)
+	AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation)
 }
 
 // CreateSubRecordsInput はカルテ作成時の inquiry / clinical_plan サブレコード作成 DTO
@@ -294,7 +294,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 // 同日同ペットのカルテが既に存在する場合はスキップする（重複防止）。
 // LINE予約で owner_id / pet_id が未設定の場合は line_customer から補完を試みる（BUG-386）。
 // 失敗してもメイン処理（予約更新）には影響しない。
-func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Appointment) {
+func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation) {
 	// BUG-386: LINE予約で owner_id / pet_id が未設定の場合、line_customer から補完する
 	if (reservation.PetID == nil || reservation.OwnerID == nil) &&
 		reservation.LineCustomerID != nil &&

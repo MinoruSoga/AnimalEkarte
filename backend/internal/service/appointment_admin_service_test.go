@@ -17,22 +17,22 @@ import (
 // ---- ReservationAdmin モック ----
 
 type mockReservationAdminRepository struct {
-	findByMonthFn      func(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Appointment, error)
-	findByDayFn        func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error)
-	createFn           func(ctx context.Context, r *model.Appointment) error
+	findByMonthFn      func(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error)
+	findByDayFn        func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
+	createFn           func(ctx context.Context, r *model.Reservation) error
 	softDeleteFn       func(ctx context.Context, clinicID, id uint64) error
-	findByCustomerIDFn func(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error)
+	findByCustomerIDFn func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
 	cancelByIDFn       func(ctx context.Context, clinicID, customerID, id uint64) error
-	findByIDForNotify  func(ctx context.Context, clinicID, id uint64) (*model.Appointment, error)
+	findByIDForNotify  func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 }
 
-func (m *mockReservationAdminRepository) FindByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Appointment, error) {
+func (m *mockReservationAdminRepository) FindByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error) {
 	return m.findByMonthFn(ctx, clinicID, year, month)
 }
-func (m *mockReservationAdminRepository) FindByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Appointment, error) {
+func (m *mockReservationAdminRepository) FindByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
 	return m.findByDayFn(ctx, clinicID, date)
 }
-func (m *mockReservationAdminRepository) Create(ctx context.Context, r *model.Appointment) error {
+func (m *mockReservationAdminRepository) Create(ctx context.Context, r *model.Reservation) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, r)
 	}
@@ -41,7 +41,7 @@ func (m *mockReservationAdminRepository) Create(ctx context.Context, r *model.Ap
 func (m *mockReservationAdminRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
 	return m.softDeleteFn(ctx, clinicID, id)
 }
-func (m *mockReservationAdminRepository) FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Appointment, error) {
+func (m *mockReservationAdminRepository) FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
 	if m.findByCustomerIDFn != nil {
 		return m.findByCustomerIDFn(ctx, clinicID, customerID)
 	}
@@ -53,7 +53,7 @@ func (m *mockReservationAdminRepository) CancelByID(ctx context.Context, clinicI
 	}
 	return nil
 }
-func (m *mockReservationAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
+func (m *mockReservationAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	if m.findByIDForNotify != nil {
 		return m.findByIDForNotify(ctx, clinicID, id)
 	}
@@ -63,7 +63,7 @@ func (m *mockReservationAdminRepository) FindByIDForNotify(ctx context.Context, 
 // ---- Tests ----
 
 func TestReservationAdminService_ListByMonth(t *testing.T) {
-	items := []model.Appointment{{ID: 1}}
+	items := []model.Reservation{{ID: 1}}
 
 	tests := []struct {
 		name      string
@@ -92,7 +92,7 @@ func TestReservationAdminService_ListByMonth(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationAdminRepository{
-				findByMonthFn: func(_ context.Context, _ uint64, _ int, _ time.Month) ([]model.Appointment, error) {
+				findByMonthFn: func(_ context.Context, _ uint64, _ int, _ time.Month) ([]model.Reservation, error) {
 					return items, tt.repoErr
 				},
 			}
@@ -109,7 +109,7 @@ func TestReservationAdminService_ListByMonth(t *testing.T) {
 }
 
 func TestReservationAdminService_ListByDay(t *testing.T) {
-	items := []model.Appointment{{ID: 2}}
+	items := []model.Reservation{{ID: 2}}
 	day := time.Date(2026, 4, 19, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
@@ -131,7 +131,7 @@ func TestReservationAdminService_ListByDay(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationAdminRepository{
-				findByDayFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.Appointment, error) {
+				findByDayFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.Reservation, error) {
 					return items, tt.repoErr
 				},
 			}
@@ -218,7 +218,7 @@ func TestReservationAdminService_Create(t *testing.T) {
 				countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
 					return tt.conflictCount, nil
 				},
-				createFn: func(_ context.Context, _ *model.Appointment) error {
+				createFn: func(_ context.Context, _ *model.Reservation) error {
 					return tt.createErr
 				},
 			}

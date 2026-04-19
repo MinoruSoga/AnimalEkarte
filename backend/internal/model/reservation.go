@@ -34,7 +34,7 @@ const (
 	ReservationSourceLine   ReservationSource = "line"
 )
 
-type Appointment struct {
+type Reservation struct {
 	ID                uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID          uint64            `gorm:"not null"                                       json:"clinic_id"`
 	StartTime         time.Time         `gorm:"not null"                                       json:"start_time"`
@@ -68,4 +68,4 @@ type Appointment struct {
 	TrimmingDetail  *AppointmentTrimmingDetail `gorm:"foreignKey:AppointmentID"        json:"trimming_detail,omitempty"`
 }
 
-func (Appointment) TableName() string { return "appointments" }
+func (Reservation) TableName() string { return "appointments" }

@@ -13,7 +13,7 @@ import { C, PALETTE } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 // Types
-import type { Appointment, ReservationStatus } from "@/types";
+import type { Reservation, ReservationStatus } from "@/types";
 
 // 15分予約が narrow モード（petName + ownerName 表示）に収まる最小高さ
 // 15min = 40px (> isCompact 閾値 35px), 30min = 80px (full モード)
@@ -47,23 +47,23 @@ interface ReservationTypeColor {
 
 interface WeekViewProps {
   currentDate: Date;
-  appointments: Appointment[];
-  onAppointmentClick: (appointment: Appointment) => void;
+  appointments: Reservation[];
+  onAppointmentClick: (reservation: Reservation) => void;
   onTimeSlotClick?: (date: Date) => void;
-  onAppointmentUpdate?: (appointment: Appointment, newStart: Date, newEnd: Date) => void;
+  onAppointmentUpdate?: (reservation: Reservation, newStart: Date, newEnd: Date) => void;
   /** Dynamic color map from reservationType master (name → ReservationTypeColor) */
   dynamicColorMap?: Map<string, ReservationTypeColor>;
 }
 
 // Helper: Calculate event layout (overlapping)
 const calculateEventLayout = (
-  dayAppointments: Appointment[]
+  dayAppointments: Reservation[]
 ): Record<string, { left: string; width: string }> => {
   const sorted = [...dayAppointments].sort(
     (a, b) => a.start.getTime() - b.start.getTime()
   );
-  const clusters: Appointment[][] = [];
-  let currentCluster: Appointment[] = [];
+  const clusters: Reservation[][] = [];
+  let currentCluster: Reservation[] = [];
   let clusterEnd = 0;
 
   sorted.forEach((ev) => {
@@ -86,7 +86,7 @@ const calculateEventLayout = (
   const styles: Record<string, { left: string; width: string }> = {};
 
   clusters.forEach((cluster) => {
-    const columns: Appointment[][] = [];
+    const columns: Reservation[][] = [];
     const eventColIndex: Record<string, number> = {};
 
     cluster.forEach((ev) => {
@@ -149,7 +149,7 @@ const TimeSidebar = memo(function TimeSidebar() {
   );
 });
 
-// Sub-component: Appointment Card
+// Sub-component: Reservation Card
 const AppointmentCard = memo(function AppointmentCard({
   appointment,
   layoutStyle,
@@ -157,10 +157,10 @@ const AppointmentCard = memo(function AppointmentCard({
   onUpdate,
   dynamicColorMap,
 }: {
-  appointment: Appointment;
+  appointment: Reservation;
   layoutStyle: { left: string; width: string };
-  onClick: (appointment: Appointment) => void;
-  onUpdate?: (appointment: Appointment, newStart: Date, newEnd: Date) => void;
+  onClick: (reservation: Reservation) => void;
+  onUpdate?: (reservation: Reservation, newStart: Date, newEnd: Date) => void;
   dynamicColorMap?: Map<string, ReservationTypeColor>;
 }) {
   const startHour = appointment.start.getHours();
@@ -363,10 +363,10 @@ const DayColumn = memo(function DayColumn({
   dynamicColorMap,
 }: {
   date: Date;
-  appointments: Appointment[];
-  onAppointmentClick: (appointment: Appointment) => void;
+  appointments: Reservation[];
+  onAppointmentClick: (reservation: Reservation) => void;
   onTimeSlotClick?: (date: Date) => void;
-  onAppointmentUpdate?: (appointment: Appointment, newStart: Date, newEnd: Date) => void;
+  onAppointmentUpdate?: (reservation: Reservation, newStart: Date, newEnd: Date) => void;
   dynamicColorMap?: Map<string, ReservationTypeColor>;
 }) {
   const layoutStyles = useMemo(
@@ -510,7 +510,7 @@ export const WeekView = memo(function WeekView({
 
   // Pre-compute appointments grouped by date key for O(1) per-day lookup
   const appointmentsByDay = useMemo(() => {
-    const map = new Map<string, Appointment[]>();
+    const map = new Map<string, Reservation[]>();
     for (const app of appointments) {
       const key = format(app.start, "yyyy-MM-dd");
       const existing = map.get(key);

@@ -14,29 +14,29 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
-	findAllFn                          func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Appointment, int64, error)
-	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.Appointment, error)
-	createFn                           func(ctx context.Context, reservation *model.Appointment) error
-	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error)
+	findAllFn                          func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
+	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	createFn                           func(ctx context.Context, reservation *model.Reservation) error
+	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
 	countOnDutyDoctorsFn               func(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
 	countConflictsFn                   func(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
 }
 
-func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Appointment, int64, error) {
+func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
 	return m.findAllFn(ctx, clinicID, page, limit, date, status, source, petID, ownerID)
 }
 
-func (m *mockReservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Appointment, error) {
+func (m *mockReservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockReservationRepository) Create(ctx context.Context, reservation *model.Appointment) error {
+func (m *mockReservationRepository) Create(ctx context.Context, reservation *model.Reservation) error {
 	return m.createFn(ctx, reservation)
 }
 
-func (m *mockReservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Appointment, error) {
+func (m *mockReservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
@@ -59,7 +59,7 @@ func (m *mockReservationRepository) CountMedicalRecordsByReservationID(ctx conte
 	return 0, nil
 }
 
-func (m *mockReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+func (m *mockReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, nil
 }
 
@@ -89,7 +89,7 @@ func (m *mockReservationRepository) CountByDateAndSource(_ context.Context, _ ui
 	return 0, nil
 }
 
-func (m *mockReservationRepository) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Appointment, int64, error) {
+func (m *mockReservationRepository) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
 }
 
@@ -106,7 +106,7 @@ func TestReservationService_List(t *testing.T) {
 		status           *string
 		petID            *uint64
 		ownerID          *uint64
-		repoReservations []model.Appointment
+		repoReservations []model.Reservation
 		repoTotal        int64
 		repoErr          error
 		wantLen          int
@@ -122,7 +122,7 @@ func TestReservationService_List(t *testing.T) {
 			status:   nil,
 			petID:    nil,
 			ownerID:  nil,
-			repoReservations: []model.Appointment{
+			repoReservations: []model.Reservation{
 				{ID: 1, ClinicID: 1, StartTime: now, EndTime: now.Add(time.Hour), Status: model.ReservationStatusPending},
 				{ID: 2, ClinicID: 1, StartTime: now, EndTime: now.Add(time.Hour), Status: model.ReservationStatusConfirmed},
 			},
@@ -141,7 +141,7 @@ func TestReservationService_List(t *testing.T) {
 			status:   nil,
 			petID:    nil,
 			ownerID:  nil,
-			repoReservations: []model.Appointment{
+			repoReservations: []model.Reservation{
 				{ID: 1, ClinicID: 1, StartTime: now, EndTime: now.Add(time.Hour), Status: model.ReservationStatusPending},
 			},
 			repoTotal: 1,
@@ -159,7 +159,7 @@ func TestReservationService_List(t *testing.T) {
 			status:   ptrString("confirmed"),
 			petID:    nil,
 			ownerID:  nil,
-			repoReservations: []model.Appointment{
+			repoReservations: []model.Reservation{
 				{ID: 2, ClinicID: 1, StartTime: now, EndTime: now.Add(time.Hour), Status: model.ReservationStatusConfirmed},
 			},
 			repoTotal: 1,
@@ -177,7 +177,7 @@ func TestReservationService_List(t *testing.T) {
 			status:   nil,
 			petID:    ptrUint64(10),
 			ownerID:  nil,
-			repoReservations: []model.Appointment{
+			repoReservations: []model.Reservation{
 				{ID: 1, ClinicID: 1, StartTime: now, EndTime: now.Add(time.Hour), Status: model.ReservationStatusPending},
 			},
 			repoTotal: 1,
@@ -195,7 +195,7 @@ func TestReservationService_List(t *testing.T) {
 			status:   nil,
 			petID:    nil,
 			ownerID:  ptrUint64(5),
-			repoReservations: []model.Appointment{
+			repoReservations: []model.Reservation{
 				{ID: 2, ClinicID: 1, StartTime: now, EndTime: now.Add(time.Hour), Status: model.ReservationStatusConfirmed},
 			},
 			repoTotal: 1,
@@ -213,7 +213,7 @@ func TestReservationService_List(t *testing.T) {
 			status:           nil,
 			petID:            nil,
 			ownerID:          nil,
-			repoReservations: []model.Appointment{},
+			repoReservations: []model.Reservation{},
 			repoTotal:        0,
 			repoErr:          nil,
 			wantLen:          0,
@@ -241,7 +241,7 @@ func TestReservationService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationRepository{
-				findAllFn: func(_ context.Context, _ uint64, _, _ int, _ *time.Time, _ *string, _ *string, _ *uint64, _ *uint64) ([]model.Appointment, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, _, _ int, _ *time.Time, _ *string, _ *string, _ *uint64, _ *uint64) ([]model.Reservation, int64, error) {
 					return tt.repoReservations, tt.repoTotal, tt.repoErr
 				},
 			}
@@ -266,18 +266,18 @@ func TestReservationService_GetByID(t *testing.T) {
 		name            string
 		clinicID        uint64
 		id              uint64
-		repoReservation *model.Appointment
+		repoReservation *model.Reservation
 		repoErr         error
-		wantReservation *model.Appointment
+		wantReservation *model.Reservation
 		wantErr         error
 	}{
 		{
 			name:            "returns reservation when found",
 			clinicID:        1,
 			id:              10,
-			repoReservation: &model.Appointment{ID: 10, ClinicID: 1, StartTime: now, EndTime: now.Add(time.Hour), Status: model.ReservationStatusPending},
+			repoReservation: &model.Reservation{ID: 10, ClinicID: 1, StartTime: now, EndTime: now.Add(time.Hour), Status: model.ReservationStatusPending},
 			repoErr:         nil,
-			wantReservation: &model.Appointment{ID: 10, ClinicID: 1, StartTime: now, EndTime: now.Add(time.Hour), Status: model.ReservationStatusPending},
+			wantReservation: &model.Reservation{ID: 10, ClinicID: 1, StartTime: now, EndTime: now.Add(time.Hour), Status: model.ReservationStatusPending},
 			wantErr:         nil,
 		},
 		{
@@ -303,7 +303,7 @@ func TestReservationService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 					return tt.repoReservation, tt.repoErr
 				},
 			}
@@ -326,7 +326,7 @@ func TestReservationService_GetByID(t *testing.T) {
 
 func TestReservationService_GetByID_NotFound(t *testing.T) {
 	repo := &mockReservationRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Appointment, error) {
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 			return nil, apperrors.WrapNotFound("reservation", "999")
 		},
 	}
@@ -346,14 +346,14 @@ func TestReservationService_Create(t *testing.T) {
 	// 競合チェック（SELECT FOR UPDATE + トランザクション）は統合テストで担保する。
 	tests := []struct {
 		name             string
-		reservation      *model.Appointment
+		reservation      *model.Reservation
 		wantErr          bool
 		wantInvalidInput bool
 	}{
 		{
 			// BUG-034: end_time == start_time は 400 Bad Request
 			name: "returns invalid input when end_time equals start_time",
-			reservation: &model.Appointment{
+			reservation: &model.Reservation{
 				ClinicID:          1,
 				StartTime:         now,
 				EndTime:           now,
@@ -365,7 +365,7 @@ func TestReservationService_Create(t *testing.T) {
 		{
 			// BUG-034: end_time < start_time は 400 Bad Request
 			name: "returns invalid input when end_time is before start_time",
-			reservation: &model.Appointment{
+			reservation: &model.Reservation{
 				ClinicID:          1,
 				StartTime:         now,
 				EndTime:           now.Add(-time.Minute),
@@ -445,11 +445,11 @@ func TestReservationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationRepository{
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Appointment, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
-					return &model.Appointment{ID: 1, ClinicID: 1}, nil
+					return &model.Reservation{ID: 1, ClinicID: 1}, nil
 				},
 			}
 			svc := NewReservationService(repo, nil)

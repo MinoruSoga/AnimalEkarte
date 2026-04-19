@@ -180,7 +180,7 @@ func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
 	return resp
 }
 
-func toLiffReservationResponse(r *model.Appointment) liffReservationResponse {
+func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 	res := liffReservationResponse{
 		ID:        r.ID,
 		Date:      r.StartTime.Format("2006-01-02"),

@@ -38,7 +38,7 @@ func IsReservationLimitError(err error) (*ReservationLimitError, bool) {
 
 // ReservationValidators は予約制限チェックのインターフェース。
 type ReservationValidators interface {
-	ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Appointment, error)
+	ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error)
 }
 
 // CreateReservationInput は予約作成の入力。
@@ -68,7 +68,7 @@ func NewReservationValidators(tx repository.Transactor, repo repository.Reservat
 	return &reservationValidators{tx: tx, repo: repo}
 }
 
-func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Appointment, error) {
+func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error) {
 	settings := input.Settings
 
 	// 稼働状態チェック
@@ -86,7 +86,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		return nil, err
 	}
 
-	var result *model.Appointment
+	var result *model.Reservation
 	if err := v.tx.WithTx(ctx, func(ctx context.Context) error {
 		// 時間枠を SELECT FOR UPDATE でロック
 		startDT, err := toDateTime(input.Date, input.StartTime)
@@ -184,7 +184,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			}
 		}
 
-		appt := &model.Appointment{
+		appt := &model.Reservation{
 			ClinicID:          input.ClinicID,
 			StartTime:         startDT,
 			EndTime:           endDT,

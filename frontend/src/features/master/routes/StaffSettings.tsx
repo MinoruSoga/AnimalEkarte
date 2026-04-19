@@ -21,13 +21,13 @@ import {
   useUpdateStaff,
   useDeleteStaff,
   useGetStaffPermissionGroups,
-  useSetStaffPermissionGroups,
+  useUpdateStaffPermissionGroups,
   useGetStaffClinics,
-  useSetStaffClinics,
+  useUpdateStaffClinics,
   useGetClinicsList,
   useGetAllStaffPermissionGroupMap,
   useGetStaffExcludedReservationTypes,
-  useSetStaffExcludedReservationTypes,
+  useUpdateStaffExcludedReservationTypes,
 } from "../api/staffs";
 import type { Staff, CreateStaffRequest, UpdateStaffRequest } from "../api/staffs";
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
@@ -558,11 +558,11 @@ export function StaffSettings() {
   const allClinics = useMemo(() => allClinicsData ?? [], [allClinicsData]);
 
   // Group / Clinic / Excluded mutation
-  const setGroupsMutation = useSetStaffPermissionGroups();
+  const setGroupsMutation = useUpdateStaffPermissionGroups();
   const { mutate: setGroupsFn } = setGroupsMutation;
-  const setClinicsMutation = useSetStaffClinics();
+  const setClinicsMutation = useUpdateStaffClinics();
   const { mutate: setClinicsFn } = setClinicsMutation;
-  const setExcludedMutation = useSetStaffExcludedReservationTypes();
+  const setExcludedMutation = useUpdateStaffExcludedReservationTypes();
   const { mutate: setExcludedFn } = setExcludedMutation;
 
   // スタッフ全員の権限グループIDマップ（テーブル表示用）
