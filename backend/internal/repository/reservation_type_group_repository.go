@@ -73,7 +73,16 @@ func (r *reservationTypeGroupRepository) Update(ctx context.Context, clinicID, i
 		return apperrors.FromGORM(result.Error, "reservation_type_group", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_type_group", fmt.Sprintf("%d", id))
+		var count int64
+		if err := r.db.WithContext(ctx).Model(&model.ReservationTypeGroup{}).
+			Scopes(clinicScope(clinicID)).
+			Where("id = ?", id).
+			Count(&count).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_type_group", fmt.Sprintf("%d", id))
+		}
+		if count == 0 {
+			return apperrors.WrapNotFound("reservation_type_group", fmt.Sprintf("%d", id))
+		}
 	}
 	return nil
 }

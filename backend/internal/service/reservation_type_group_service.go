@@ -9,6 +9,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// defaultGroupColor はグループのデフォルトカラー（DB の default 値と一元管理）。
+const defaultGroupColor = "#3B82F6"
+
 type CreateReservationTypeGroupInput struct {
 	Name      string
 	Color     string
@@ -62,7 +65,7 @@ func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint6
 	}
 	color := input.Color
 	if color == "" {
-		color = "#3B82F6"
+		color = defaultGroupColor
 	}
 	g := &model.ReservationTypeGroup{
 		ClinicID:  clinicID,
