@@ -34,9 +34,9 @@ type updateTrimmingRequest struct {
 	// トリミング詳細
 	CourseID       *uint64   `json:"course_id"`
 	StyleRequest   *string   `json:"style_request"`
-	BW             **float64 `json:"bw"`
-	BWUnit         *string   `json:"bw_unit"`
-	BT             **float64 `json:"bt"`
+	BW             *float64 `json:"bw"`
+	BWUnit         *string  `json:"bw_unit"`
+	BT             *float64 `json:"bt"`
 	UsedShampoo    *string   `json:"used_shampoo"`
 	UsedRibbon     *string   `json:"used_ribbon"`
 	Remarks        *string   `json:"remarks"`

@@ -43,9 +43,9 @@ type UpdateTrimmingInput struct {
 	Status          *model.ReservationStatus
 	CourseID        *uint64
 	StyleRequest    *string
-	BodyWeight      **float64
+	BodyWeight      *float64
 	BWUnit          *model.BodyWeightUnit
-	BodyTemperature **float64
+	BodyTemperature *float64
 	UsedShampoo     *string
 	UsedRibbon      *string
 	Remarks         *string
@@ -165,13 +165,17 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 
 	slog.InfoContext(ctx, "trimming appointment created",
-		slog.Uint64("appointment_id", apptID),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("appointment_id", apptID))
 
 	return s.GetByID(ctx, clinicID, apptID)
 }
 
 func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.Reservation, error) {
+	if _, err := s.reservation.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming appointment")
+	}
+
 	apptFields := map[string]any{}
 	if input.StartTime != nil {
 		apptFields["start_time"] = *input.StartTime
@@ -211,13 +215,13 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 			detail.StyleRequest = *input.StyleRequest
 		}
 		if input.BodyWeight != nil {
-			detail.BodyWeight = *input.BodyWeight
+			detail.BodyWeight = input.BodyWeight
 		}
 		if input.BWUnit != nil {
 			detail.BWUnit = *input.BWUnit
 		}
 		if input.BodyTemperature != nil {
-			detail.BodyTemperature = *input.BodyTemperature
+			detail.BodyTemperature = input.BodyTemperature
 		}
 		if input.UsedShampoo != nil {
 			detail.UsedShampoo = *input.UsedShampoo
@@ -248,8 +252,8 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 
 	slog.InfoContext(ctx, "trimming appointment updated",
-		slog.Uint64("appointment_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("appointment_id", id))
 
 	return s.GetByID(ctx, clinicID, id)
 }

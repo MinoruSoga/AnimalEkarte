@@ -80,12 +80,15 @@ func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, inp
 	return course, nil
 }
 func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming course")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildTrimmingCourseUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	course, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -111,7 +114,7 @@ func (s *trimmingCourseService) Delete(ctx context.Context, clinicID, id uint64)
 
 func (s *trimmingCourseService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder trimming courses")
@@ -236,12 +239,15 @@ func (s *trimmingOptionService) Create(ctx context.Context, clinicID uint64, inp
 	return option, nil
 }
 func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingOptionInput) (*model.TrimmingOption, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get trimming option")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildTrimmingOptionUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	option, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -267,7 +273,7 @@ func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64)
 
 func (s *trimmingOptionService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder trimming options")

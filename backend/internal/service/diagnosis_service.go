@@ -17,8 +17,14 @@ const (
 	colDiagnosisTypeIsActive    = "is_active"
 	colDiagnosisTypeDescription = "description"
 	colDiagnosisTypeSortOrder   = "sort_order"
+)
 
-	// DiagnosisName 固有カラム（name/is_active/description/sort_order は DiagnosisType と同名のため共用）
+// DiagnosisName 専用列名定数 (#426: DiagnosisType 定数と分離)
+const (
+	colDiagnosisNameName            = "name"
+	colDiagnosisNameIsActive        = "is_active"
+	colDiagnosisNameDescription     = "description"
+	colDiagnosisNameSortOrder       = "sort_order"
 	colDiagnosisNameDiagnosisTypeID = "diagnosis_type_id"
 )
 
@@ -124,7 +130,7 @@ func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, 
 	}
 	fields := buildDiagnosisTypeUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -155,7 +161,7 @@ func (s *diagnosisTypeService) Delete(ctx context.Context, clinicID, id uint64) 
 
 func (s *diagnosisTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder diagnosis categories")
@@ -189,6 +195,7 @@ func buildDiagnosisTypeUpdateFields(input *UpdateDiagnosisTypeInput) map[string]
 type DiagnosisNameService interface {
 	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
 	ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	ListNames(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisNameInput) (*model.DiagnosisName, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisNameInput) (*model.DiagnosisName, error)
@@ -225,6 +232,23 @@ func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, c
 	return items, total, nil
 }
 
+// ListNames はページネーションなしで診断名の一覧を返す (#418)。
+// typeID が非 nil の場合は該当カテゴリのみ、nil の場合は全件を返す。
+func (s *diagnosisNameService) ListNames(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
+	if typeID != nil {
+		items, _, err := s.repo.FindByCategoryID(ctx, clinicID, *typeID, 1, 10000)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to list diagnosis names by type")
+		}
+		return items, nil
+	}
+	items, _, err := s.repo.FindAll(ctx, clinicID, 1, 10000)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list diagnosis names")
+	}
+	return items, nil
+}
+
 func (s *diagnosisNameService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
@@ -259,6 +283,10 @@ func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisNameInput) (*model.DiagnosisName, error) {
+	// #424: 存在確認
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis name")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
@@ -270,7 +298,7 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 	}
 	fields := buildDiagnosisNameUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -301,7 +329,7 @@ func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) 
 
 func (s *diagnosisNameService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder diagnosis names")
@@ -312,23 +340,23 @@ func (s *diagnosisNameService) Reorder(ctx context.Context, clinicID uint64, ids
 	return nil
 }
 
-// buildDiagnosisNameUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#021: 定数使用)
+// buildDiagnosisNameUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#426: DiagnosisName 専用定数使用)
 func buildDiagnosisNameUpdateFields(input *UpdateDiagnosisNameInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields[colDiagnosisTypeName] = *input.Name
+		fields[colDiagnosisNameName] = *input.Name
 	}
 	if input.DiagnosisTypeID != nil {
 		fields[colDiagnosisNameDiagnosisTypeID] = *input.DiagnosisTypeID
 	}
 	if input.IsActive != nil {
-		fields[colDiagnosisTypeIsActive] = *input.IsActive
+		fields[colDiagnosisNameIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields[colDiagnosisTypeDescription] = *input.Description
+		fields[colDiagnosisNameDescription] = *input.Description
 	}
 	if input.SortOrder != nil {
-		fields[colDiagnosisTypeSortOrder] = *input.SortOrder
+		fields[colDiagnosisNameSortOrder] = *input.SortOrder
 	}
 	return fields
 }

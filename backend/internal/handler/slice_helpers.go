@@ -15,3 +15,12 @@ func mapSlice[M, R any](items []M, f func(*M) R) []R {
 type reorderRequest struct {
 	IDs []uint64 `json:"ids" binding:"required,min=1"`
 }
+
+// nilIfEmpty は空文字列を nil ポインタに変換する汎用ヘルパー。
+// オプション文字列フィールドを *string に変換する際の定型コードを排除するために使用する。
+func nilIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}

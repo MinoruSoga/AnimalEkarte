@@ -38,13 +38,14 @@ type CreateReservationTypeInput struct {
 
 // UpdateReservationTypeInput はサービス種別更新のための入力データ（ポインタ型でゼロ値を区別する）
 type UpdateReservationTypeInput struct {
-	Name        *string
-	Color       *string
-	IsActive    *bool
-	Description *string
-	SortOrder   *int
-	GroupID     *uint64
-	Category    *string
+	Name         *string
+	Color        *string
+	IsActive     *bool
+	Description  *string
+	SortOrder    *int
+	GroupID      *uint64
+	ClearGroupID bool // true のとき group_id を NULL にクリアする
+	Category     *string
 
 	// LINE予約用フィールド
 	ReservationDisplayName *string
@@ -127,7 +128,9 @@ func buildReservationTypeUpdateFields(input *UpdateReservationTypeInput) map[str
 	if input.IsInternal != nil {
 		fields[colReservationTypeIsInternal] = *input.IsInternal
 	}
-	if input.GroupID != nil {
+	if input.ClearGroupID {
+		fields[colReservationTypeGroupID] = nil
+	} else if input.GroupID != nil {
 		fields[colReservationTypeGroupID] = *input.GroupID
 	}
 	return fields
@@ -264,12 +267,15 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 }
 
 func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeInput) (*model.ReservationType, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation type")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildReservationTypeUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -296,7 +302,7 @@ func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64
 
 func (s *reservationTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder service types")

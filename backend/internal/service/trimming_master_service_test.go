@@ -312,6 +312,12 @@ func TestTrimmingCourseService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TrimmingCourse, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.TrimmingCourse{ID: 1, Name: name}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.TrimmingCourse, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
@@ -641,6 +647,12 @@ func TestTrimmingOptionService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingOptionRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TrimmingOption, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.TrimmingOption{ID: 1, Name: optName}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.TrimmingOption, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr

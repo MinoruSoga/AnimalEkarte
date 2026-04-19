@@ -58,11 +58,6 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		return
 	}
 
-	var taxType *string
-	if input.TaxType != "" {
-		t := input.TaxType
-		taxType = &t
-	}
 	svcInput := &service.CreateConsultationInput{
 		Name:          input.Name,
 		Price:         input.Price,
@@ -72,7 +67,7 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		Duration:      input.Duration,
 		ParentID:      input.ParentID,
 		SortOrder:     input.SortOrder,
-		TaxType:       taxType,
+		TaxType:       nilIfEmpty(input.TaxType),
 		TaxRate:       input.TaxRate,
 	}
 

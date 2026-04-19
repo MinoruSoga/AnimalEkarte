@@ -67,7 +67,8 @@ func newTestMedicineService(repo *mockMedicineRepository) MedicineService {
 			return nil // デフォルト: 在庫作成成功
 		},
 	}
-	return NewMedicineService(repo, inventoryRepo)
+	// mockTransactor は trimming_service_test.go で定義済み（パッケージスコープ共有）
+	return NewMedicineService(repo, inventoryRepo, &mockTransactor{})
 }
 
 func TestMedicineService_List(t *testing.T) {
