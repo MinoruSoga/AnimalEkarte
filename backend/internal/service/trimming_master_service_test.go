@@ -217,25 +217,35 @@ func TestTrimmingCourseService_GetByID(t *testing.T) {
 func TestTrimmingCourseService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		course  *model.TrimmingCourse
+		input   *CreateTrimmingCourseInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name:    "creates course successfully",
-			course:  &model.TrimmingCourse{Name: "新規コース", ClinicID: 1},
+			input:   &CreateTrimmingCourseInput{Name: "新規コース", IsActive: true},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "creates course with target size",
+			input: &CreateTrimmingCourseInput{
+				Name:       "小型犬コース",
+				TargetSize: "small",
+				IsActive:   true,
+			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
 			name:    "returns error when course already exists",
-			course:  &model.TrimmingCourse{Name: "重複コース", ClinicID: 1},
+			input:   &CreateTrimmingCourseInput{Name: "重複コース", IsActive: true},
 			repoErr: apperrors.WrapAlreadyExists("trimming_course", "重複コース"),
 			wantErr: true,
 		},
 		{
 			name:    "returns error on repository failure",
-			course:  &model.TrimmingCourse{Name: "エラーコース", ClinicID: 1},
+			input:   &CreateTrimmingCourseInput{Name: "エラーコース", IsActive: true},
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
@@ -250,12 +260,16 @@ func TestTrimmingCourseService_Create(t *testing.T) {
 			}
 			svc := NewTrimmingCourseService(repo)
 
-			err := svc.Create(context.Background(), tt.course)
+			result, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, result)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.input.Name, result.Name)
+				assert.Equal(t, uint64(1), result.ClinicID)
 			}
 		})
 	}
@@ -531,25 +545,36 @@ func TestTrimmingOptionService_GetByID(t *testing.T) {
 func TestTrimmingOptionService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		option  *model.TrimmingOption
+		input   *CreateTrimmingOptionInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name:    "creates option successfully",
-			option:  &model.TrimmingOption{Name: "新規オプション", ClinicID: 1},
+			input:   &CreateTrimmingOptionInput{Name: "新規オプション", IsActive: true, IsCombinable: true},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "creates option with duration",
+			input: &CreateTrimmingOptionInput{
+				Name:         "爪切り",
+				IsActive:     true,
+				IsCombinable: true,
+				Duration:     func() *int { d := 15; return &d }(),
+			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
 			name:    "returns error when option already exists",
-			option:  &model.TrimmingOption{Name: "重複オプション", ClinicID: 1},
+			input:   &CreateTrimmingOptionInput{Name: "重複オプション", IsActive: true},
 			repoErr: apperrors.WrapAlreadyExists("trimming_option", "重複オプション"),
 			wantErr: true,
 		},
 		{
 			name:    "returns error on repository failure",
-			option:  &model.TrimmingOption{Name: "エラーオプション", ClinicID: 1},
+			input:   &CreateTrimmingOptionInput{Name: "エラーオプション", IsActive: true},
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
@@ -564,12 +589,16 @@ func TestTrimmingOptionService_Create(t *testing.T) {
 			}
 			svc := NewTrimmingOptionService(repo)
 
-			err := svc.Create(context.Background(), tt.option)
+			result, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, result)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.input.Name, result.Name)
+				assert.Equal(t, uint64(1), result.ClinicID)
 			}
 		})
 	}

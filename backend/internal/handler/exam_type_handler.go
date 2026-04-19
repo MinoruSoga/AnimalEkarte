@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -58,8 +57,7 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 		return
 	}
 
-	examType := &model.ExaminationType{
-		ClinicID:    clinicID,
+	svcInput := &service.CreateExamTypeInput{
 		Name:        req.Name,
 		Price:       req.Price,
 		IsActive:    req.IsActive,
@@ -68,7 +66,8 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 		SortOrder:   req.SortOrder,
 	}
 
-	if err := h.svc.ExaminationType.Create(c.Request.Context(), examType); err != nil {
+	examType, err := h.svc.ExaminationType.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

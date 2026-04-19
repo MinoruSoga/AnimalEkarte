@@ -12,6 +12,14 @@ import (
 
 // ---- ChiefComplaintTypeService ----
 
+// CreateChiefComplaintTypeInput は主訴種別作成の入力DTO
+type CreateChiefComplaintTypeInput struct {
+	Name        string
+	Description string
+	IsActive    bool
+	SortOrder   int
+}
+
 // UpdateChiefComplaintTypeInput holds the fields that can be updated via PATCH.
 // All fields are pointers: nil means "not provided / skip".
 type UpdateChiefComplaintTypeInput struct {
@@ -24,7 +32,7 @@ type UpdateChiefComplaintTypeInput struct {
 type ChiefComplaintTypeService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
-	Create(ctx context.Context, category *model.ChiefComplaintType) error
+	Create(ctx context.Context, clinicID uint64, input *CreateChiefComplaintTypeInput) (*model.ChiefComplaintType, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -55,17 +63,24 @@ func (s *chiefComplaintTypeService) GetByID(ctx context.Context, clinicID, id ui
 	return result, nil
 }
 
-func (s *chiefComplaintTypeService) Create(ctx context.Context, category *model.ChiefComplaintType) error {
-	if err := validateRequiredName(category.Name); err != nil {
-		return err
+func (s *chiefComplaintTypeService) Create(ctx context.Context, clinicID uint64, input *CreateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	category := &model.ChiefComplaintType{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Description: input.Description,
+		IsActive:    input.IsActive,
+		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, category); err != nil {
-		return apperrors.Wrap(err, "failed to create chief complaint category")
+		return nil, apperrors.Wrap(err, "failed to create chief complaint category")
 	}
 	slog.InfoContext(ctx, "chief complaint category created",
 		slog.Uint64("category_id", category.ID),
-		slog.Uint64("clinic_id", category.ClinicID))
-	return nil
+		slog.Uint64("clinic_id", clinicID))
+	return category, nil
 }
 
 func (s *chiefComplaintTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {

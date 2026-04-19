@@ -180,14 +180,13 @@ func TestChiefComplaintTypeService_GetByID(t *testing.T) {
 func TestChiefComplaintTypeService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   *model.ChiefComplaintType
+		input   *CreateChiefComplaintTypeInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates category successfully",
-			input: &model.ChiefComplaintType{
-				ClinicID: 1,
+			input: &CreateChiefComplaintTypeInput{
 				Name:     "新症状",
 				IsActive: true,
 			},
@@ -195,10 +194,20 @@ func TestChiefComplaintTypeService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "creates category with description",
+			input: &CreateChiefComplaintTypeInput{
+				Name:        "嘔吐",
+				Description: "食後に嘔吐する",
+				IsActive:    true,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
 			name: "returns error when repository fails",
-			input: &model.ChiefComplaintType{
-				ClinicID: 1,
+			input: &CreateChiefComplaintTypeInput{
 				Name:     "失敗症状",
+				IsActive: true,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -215,12 +224,16 @@ func TestChiefComplaintTypeService_Create(t *testing.T) {
 			inquiryRepo := &mockInquiryRepository{}
 			svc := NewChiefComplaintTypeService(repo, inquiryRepo)
 
-			err := svc.Create(context.Background(), tt.input)
+			result, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, result)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.input.Name, result.Name)
+				assert.Equal(t, uint64(1), result.ClinicID)
 			}
 		})
 	}

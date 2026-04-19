@@ -12,10 +12,21 @@ import (
 
 // ---- TrimmingCourseService ----
 
+// CreateTrimmingCourseInput はトリミングコース作成の入力DTO
+type CreateTrimmingCourseInput struct {
+	Name        string
+	TargetSize  string
+	Price       *int64
+	Duration    *int
+	IsActive    bool
+	Description string
+	SortOrder   int
+}
+
 type TrimmingCourseService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
-	Create(ctx context.Context, course *model.TrimmingCourse) error
+	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingCourseInput) (*model.TrimmingCourse, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingCourseInput) (*model.TrimmingCourse, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -43,15 +54,30 @@ func (s *trimmingCourseService) GetByID(ctx context.Context, clinicID, id uint64
 	}
 	return result, nil
 }
-func (s *trimmingCourseService) Create(ctx context.Context, course *model.TrimmingCourse) error {
-	if err := validateRequiredName(course.Name); err != nil {
-		return err
+func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingCourseInput) (*model.TrimmingCourse, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	course := &model.TrimmingCourse{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Price:       input.Price,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		Duration:    input.Duration,
+		SortOrder:   input.SortOrder,
+	}
+	if input.TargetSize != "" {
+		ts := model.TargetSize(input.TargetSize)
+		course.TargetSize = &ts
 	}
 	if err := s.repo.Create(ctx, course); err != nil {
-		return apperrors.Wrap(err, "failed to create trimming course")
+		return nil, apperrors.Wrap(err, "failed to create trimming course")
 	}
-	slog.InfoContext(ctx, "trimming course created", slog.Uint64("trimming_course_id", course.ID))
-	return nil
+	slog.InfoContext(ctx, "trimming course created",
+		slog.Uint64("trimming_course_id", course.ID),
+		slog.Uint64("clinic_id", clinicID))
+	return course, nil
 }
 func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
 	if err := validateOptionalName(input.Name); err != nil {
@@ -133,10 +159,21 @@ func buildTrimmingCourseUpdateFields(input UpdateTrimmingCourseInput) map[string
 
 // ---- TrimmingOptionService ----
 
+// CreateTrimmingOptionInput はトリミングオプション作成の入力DTO
+type CreateTrimmingOptionInput struct {
+	Name         string
+	Price        *int64
+	IsActive     bool
+	Description  string
+	Duration     *int
+	IsCombinable bool
+	SortOrder    int
+}
+
 type TrimmingOptionService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error)
-	Create(ctx context.Context, option *model.TrimmingOption) error
+	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingOptionInput) (*model.TrimmingOption, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingOptionInput) (*model.TrimmingOption, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -164,15 +201,27 @@ func (s *trimmingOptionService) GetByID(ctx context.Context, clinicID, id uint64
 	}
 	return result, nil
 }
-func (s *trimmingOptionService) Create(ctx context.Context, option *model.TrimmingOption) error {
-	if err := validateRequiredName(option.Name); err != nil {
-		return err
+func (s *trimmingOptionService) Create(ctx context.Context, clinicID uint64, input *CreateTrimmingOptionInput) (*model.TrimmingOption, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	option := &model.TrimmingOption{
+		ClinicID:     clinicID,
+		Name:         input.Name,
+		Price:        input.Price,
+		IsActive:     input.IsActive,
+		Description:  input.Description,
+		Duration:     input.Duration,
+		IsCombinable: input.IsCombinable,
+		SortOrder:    input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, option); err != nil {
-		return apperrors.Wrap(err, "failed to create trimming option")
+		return nil, apperrors.Wrap(err, "failed to create trimming option")
 	}
-	slog.InfoContext(ctx, "trimming option created", slog.Uint64("trimming_option_id", option.ID))
-	return nil
+	slog.InfoContext(ctx, "trimming option created",
+		slog.Uint64("trimming_option_id", option.ID),
+		slog.Uint64("clinic_id", clinicID))
+	return option, nil
 }
 func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingOptionInput) (*model.TrimmingOption, error) {
 	if err := validateOptionalName(input.Name); err != nil {

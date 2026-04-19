@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -58,8 +57,7 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 		return
 	}
 
-	checkupType := &model.CheckupType{
-		ClinicID:    clinicID,
+	svcInput := &service.CreateCheckupTypeInput{
 		Name:        input.Name,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
@@ -70,7 +68,8 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 		SortOrder:   input.SortOrder,
 	}
 
-	if err := h.svc.CheckupType.Create(c.Request.Context(), checkupType); err != nil {
+	checkupType, err := h.svc.CheckupType.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

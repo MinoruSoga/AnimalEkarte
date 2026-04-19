@@ -173,34 +173,45 @@ func TestCheckupTypeService_GetByID(t *testing.T) {
 
 func TestCheckupTypeService_Create(t *testing.T) {
 	tests := []struct {
-		name        string
-		checkupType *model.CheckupType
-		repoErr     error
-		wantErr     bool
+		name    string
+		input   *CreateCheckupTypeInput
+		repoErr error
+		wantErr bool
 	}{
 		{
 			name: "creates checkup type successfully",
-			checkupType: &model.CheckupType{
+			input: &CreateCheckupTypeInput{
 				Name:     "新規健診種別",
-				ClinicID: 1,
+				IsActive: true,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "creates checkup type with optional fields",
+			input: &CreateCheckupTypeInput{
+				Name:      "定期健診",
+				IsActive:  true,
+				Interval:  "6ヶ月",
+				TargetAge: "成犬",
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
 			name: "returns error when checkup type already exists",
-			checkupType: &model.CheckupType{
+			input: &CreateCheckupTypeInput{
 				Name:     "重複健診種別",
-				ClinicID: 1,
+				IsActive: true,
 			},
 			repoErr: apperrors.WrapAlreadyExists("checkup_type", "重複健診種別"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			checkupType: &model.CheckupType{
+			input: &CreateCheckupTypeInput{
 				Name:     "エラー健診種別",
-				ClinicID: 1,
+				IsActive: true,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -216,12 +227,16 @@ func TestCheckupTypeService_Create(t *testing.T) {
 			}
 			svc := NewCheckupTypeService(repo)
 
-			err := svc.Create(context.Background(), tt.checkupType)
+			result, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, result)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.input.Name, result.Name)
+				assert.Equal(t, uint64(1), result.ClinicID)
 			}
 		})
 	}

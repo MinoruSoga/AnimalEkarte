@@ -58,21 +58,18 @@ func (h *Handler) CreateTrimmingCourse(c *gin.Context) {
 		return
 	}
 
-	course := &model.TrimmingCourse{
-		ClinicID:    clinicID,
+	svcInput := &service.CreateTrimmingCourseInput{
 		Name:        req.Name,
+		TargetSize:  req.TargetSize,
 		Price:       req.Price,
 		IsActive:    req.IsActive,
 		Description: req.Description,
 		Duration:    req.Duration,
 		SortOrder:   req.SortOrder,
 	}
-	if req.TargetSize != "" {
-		ts := model.TargetSize(req.TargetSize)
-		course.TargetSize = &ts
-	}
 
-	if err := h.svc.TrimmingCourse.Create(c.Request.Context(), course); err != nil {
+	course, err := h.svc.TrimmingCourse.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -198,8 +195,7 @@ func (h *Handler) CreateTrimmingOption(c *gin.Context) {
 		return
 	}
 
-	option := &model.TrimmingOption{
-		ClinicID:     clinicID,
+	svcInput := &service.CreateTrimmingOptionInput{
 		Name:         req.Name,
 		Price:        req.Price,
 		IsActive:     req.IsActive,
@@ -209,7 +205,8 @@ func (h *Handler) CreateTrimmingOption(c *gin.Context) {
 		SortOrder:    req.SortOrder,
 	}
 
-	if err := h.svc.TrimmingOption.Create(c.Request.Context(), option); err != nil {
+	option, err := h.svc.TrimmingOption.Create(c.Request.Context(), clinicID, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

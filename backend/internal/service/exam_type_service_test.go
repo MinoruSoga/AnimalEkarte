@@ -185,45 +185,43 @@ func TestExamTypeService_GetByID(t *testing.T) {
 func TestExamTypeService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		exType  *model.ExaminationType
+		input   *CreateExamTypeInput
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates exam type successfully",
-			exType: &model.ExaminationType{
+			input: &CreateExamTypeInput{
 				Name:     "新規検査種別",
-				ClinicID: 1,
+				IsActive: true,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
-			name: "creates exam type with items successfully",
-			exType: &model.ExaminationType{
-				Name:     "血液検査",
-				ClinicID: 1,
-				Items: []model.ExamTypeField{
-					{Name: "白血球数", NormalValue: "5000-10000"},
-				},
+			name: "creates exam type with optional fields",
+			input: &CreateExamTypeInput{
+				Name:        "血液検査",
+				IsActive:    true,
+				Description: "血液の詳細検査",
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
 			name: "returns error when exam type already exists",
-			exType: &model.ExaminationType{
+			input: &CreateExamTypeInput{
 				Name:     "重複検査種別",
-				ClinicID: 1,
+				IsActive: true,
 			},
 			repoErr: apperrors.WrapAlreadyExists("exam_type", "重複検査種別"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			exType: &model.ExaminationType{
+			input: &CreateExamTypeInput{
 				Name:     "エラー検査種別",
-				ClinicID: 1,
+				IsActive: true,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -239,12 +237,16 @@ func TestExamTypeService_Create(t *testing.T) {
 			}
 			svc := NewExamTypeService(repo)
 
-			err := svc.Create(context.Background(), tt.exType)
+			result, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, result)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.input.Name, result.Name)
+				assert.Equal(t, uint64(1), result.ClinicID)
 			}
 		})
 	}

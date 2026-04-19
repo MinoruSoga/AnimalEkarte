@@ -12,10 +12,22 @@ import (
 
 // ---- CheckupTypeService ----
 
+// CreateCheckupTypeInput は定期健診種別作成の入力DTO
+type CreateCheckupTypeInput struct {
+	Name        string
+	Price       *int64
+	IsActive    bool
+	Description string
+	Interval    string
+	TargetAge   string
+	ParentID    *uint64
+	SortOrder   int
+}
+
 type CheckupTypeService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.CheckupType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error)
-	Create(ctx context.Context, checkupType *model.CheckupType) error
+	Create(ctx context.Context, clinicID uint64, input *CreateCheckupTypeInput) (*model.CheckupType, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateCheckupTypeInput) (*model.CheckupType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -43,15 +55,28 @@ func (s *checkupTypeService) GetByID(ctx context.Context, clinicID, id uint64) (
 	}
 	return result, nil
 }
-func (s *checkupTypeService) Create(ctx context.Context, checkupType *model.CheckupType) error {
-	if err := validateRequiredName(checkupType.Name); err != nil {
-		return err
+func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input *CreateCheckupTypeInput) (*model.CheckupType, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	checkupType := &model.CheckupType{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Price:       input.Price,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		Interval:    input.Interval,
+		TargetAge:   input.TargetAge,
+		ParentID:    input.ParentID,
+		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, checkupType); err != nil {
-		return apperrors.Wrap(err, "failed to create checkup type")
+		return nil, apperrors.Wrap(err, "failed to create checkup type")
 	}
-	slog.InfoContext(ctx, "checkup type created", slog.Uint64("checkup_type_id", checkupType.ID))
-	return nil
+	slog.InfoContext(ctx, "checkup type created",
+		slog.Uint64("checkup_type_id", checkupType.ID),
+		slog.Uint64("clinic_id", clinicID))
+	return checkupType, nil
 }
 func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, input UpdateCheckupTypeInput) (*model.CheckupType, error) {
 	if err := validateOptionalName(input.Name); err != nil {

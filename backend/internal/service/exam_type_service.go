@@ -12,10 +12,20 @@ import (
 
 // ---- ExamTypeService ----
 
+// CreateExamTypeInput は検査種別作成の入力DTO
+type CreateExamTypeInput struct {
+	Name        string
+	Price       *int64
+	IsActive    bool
+	Description string
+	ParentID    *uint64
+	SortOrder   int
+}
+
 type ExamTypeService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
-	Create(ctx context.Context, exType *model.ExaminationType) error
+	Create(ctx context.Context, clinicID uint64, input *CreateExamTypeInput) (*model.ExaminationType, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateExamTypeInput) (*model.ExaminationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -41,15 +51,26 @@ func (s *examTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*mo
 	}
 	return result, nil
 }
-func (s *examTypeService) Create(ctx context.Context, exType *model.ExaminationType) error {
-	if err := validateRequiredName(exType.Name); err != nil {
-		return err
+func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *CreateExamTypeInput) (*model.ExaminationType, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	exType := &model.ExaminationType{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Price:       input.Price,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		ParentID:    input.ParentID,
+		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, exType); err != nil {
-		return apperrors.Wrap(err, "failed to create exam type")
+		return nil, apperrors.Wrap(err, "failed to create exam type")
 	}
-	slog.InfoContext(ctx, "exam type created", slog.Uint64("exam_type_id", exType.ID))
-	return nil
+	slog.InfoContext(ctx, "exam type created",
+		slog.Uint64("exam_type_id", exType.ID),
+		slog.Uint64("clinic_id", clinicID))
+	return exType, nil
 }
 func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input UpdateExamTypeInput) (*model.ExaminationType, error) {
 	if err := validateOptionalName(input.Name); err != nil {
