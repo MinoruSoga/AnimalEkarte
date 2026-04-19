@@ -98,7 +98,7 @@ func (s *insuranceService) Delete(ctx context.Context, clinicID, id uint64) erro
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete insurance")
 	}
-	slog.InfoContext(ctx, "insurance deleted", slog.Uint64("insurance_id", id), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "insurance deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("insurance_id", id))
 	return nil
 }
 

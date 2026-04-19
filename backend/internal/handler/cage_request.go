@@ -3,8 +3,8 @@ package handler
 
 type createCageRequest struct {
 	Name        string `json:"name"        binding:"required"`
-	CageType    string `json:"cage_type"   binding:"required"`
-	CageSize    string `json:"cage_size"   binding:"required"`
+	CageType    string `json:"cage_type"   binding:"required,oneof=icu dog cat general"`
+	CageSize    string `json:"cage_size"   binding:"required,oneof=small medium large"`
 	Price       *int64 `json:"price"`
 	IsActive    bool   `json:"is_active"`
 	Description string `json:"description"`

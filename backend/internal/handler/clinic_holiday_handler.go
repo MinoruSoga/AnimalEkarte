@@ -83,7 +83,7 @@ func (h *Handler) SetClinicHoliday(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toClinicHolidayResponse(holiday))
+	c.JSON(http.StatusCreated, toClinicHolidayResponse(holiday))
 }
 
 // DeleteClinicHoliday godoc

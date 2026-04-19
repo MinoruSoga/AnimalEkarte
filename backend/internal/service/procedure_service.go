@@ -97,7 +97,7 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 	if err := s.repo.Create(ctx, procedure); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create procedure")
 	}
-	slog.InfoContext(ctx, "procedure created", slog.Uint64("procedure_id", procedure.ID), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "procedure created", slog.Uint64("clinic_id", clinicID), slog.Uint64("procedure_id", procedure.ID))
 	return procedure, nil
 }
 func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, input *UpdateProcedureInput) (*model.Procedure, error) {
@@ -139,7 +139,7 @@ func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) erro
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete procedure")
 	}
-	slog.InfoContext(ctx, "procedure deleted", slog.Uint64("procedure_id", id), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "procedure deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("procedure_id", id))
 	return nil
 }
 

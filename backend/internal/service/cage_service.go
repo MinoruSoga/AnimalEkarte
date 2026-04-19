@@ -79,8 +79,8 @@ func (s *cageService) Create(ctx context.Context, clinicID uint64, input *Create
 		return nil, apperrors.Wrap(err, "failed to create cage")
 	}
 	slog.InfoContext(ctx, "cage created",
-		slog.Uint64("cage_id", cage.ID),
-		slog.Uint64("clinic_id", cage.ClinicID))
+		slog.Uint64("clinic_id", cage.ClinicID),
+		slog.Uint64("cage_id", cage.ID))
 	return cage, nil
 }
 func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *UpdateCageInput) (*model.Cage, error) {
@@ -120,8 +120,8 @@ func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
 		return apperrors.Wrap(err, "failed to delete cage")
 	}
 	slog.InfoContext(ctx, "cage deleted",
-		slog.Uint64("cage_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("cage_id", id))
 	return nil
 }
 

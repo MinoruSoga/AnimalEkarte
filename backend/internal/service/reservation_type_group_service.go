@@ -113,8 +113,8 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 		return nil, apperrors.Wrap(err, "failed to get updated reservation type group")
 	}
 	slog.InfoContext(ctx, "reservation_type_group updated",
-		slog.Uint64("reservation_type_group_id", g.ID),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("reservation_type_group_id", g.ID))
 	return g, nil
 }
 

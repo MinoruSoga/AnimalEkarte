@@ -41,11 +41,7 @@ func (h *Handler) ListProcedures(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]procedureResponse, len(procedures))
-	for i := range procedures {
-		resp[i] = toProcedureResponse(&procedures[i])
-	}
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mapSlice(procedures, toProcedureResponse))
 }
 
 // CreateProcedure godoc

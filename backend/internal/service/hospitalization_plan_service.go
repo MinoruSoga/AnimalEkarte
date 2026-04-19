@@ -90,8 +90,8 @@ func (s *hospitalizationPlanService) Create(ctx context.Context, clinicID uint64
 		return nil, apperrors.Wrap(err, "failed to create hospitalization plan")
 	}
 	slog.InfoContext(ctx, "hospitalization plan created",
-		slog.Uint64("hospitalization_plan_id", plan.ID),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("hospitalization_plan_id", plan.ID))
 	return plan, nil
 }
 func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
@@ -123,8 +123,8 @@ func (s *hospitalizationPlanService) Delete(ctx context.Context, clinicID, id ui
 		return apperrors.Wrap(err, "failed to delete hospitalization plan")
 	}
 	slog.InfoContext(ctx, "hospitalization plan deleted",
-		slog.Uint64("hospitalization_plan_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("hospitalization_plan_id", id))
 	return nil
 }
 

@@ -27,11 +27,7 @@ func (h *Handler) ListCages(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]cageResponse, len(cages))
-	for i := range cages {
-		resp[i] = toCageResponse(&cages[i])
-	}
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mapSlice(cages, toCageResponse))
 }
 
 // GetCage godoc

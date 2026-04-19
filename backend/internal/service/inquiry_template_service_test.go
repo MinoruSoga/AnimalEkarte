@@ -19,6 +19,7 @@ type mockInquiryTemplateRepository struct {
 	createFn       func(ctx context.Context, template *model.InquiryTemplate) error
 	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
+	reorderErr     error
 }
 
 func (m *mockInquiryTemplateRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error) {
@@ -39,6 +40,10 @@ func (m *mockInquiryTemplateRepository) UpdateFields(ctx context.Context, clinic
 
 func (m *mockInquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockInquiryTemplateRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
+	return m.reorderErr
 }
 
 // ---- Tests ----

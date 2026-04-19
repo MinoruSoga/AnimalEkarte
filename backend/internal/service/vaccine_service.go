@@ -164,7 +164,7 @@ func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete vaccine")
 	}
-	slog.InfoContext(ctx, "vaccine deleted", slog.Uint64("vaccine_id", id), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "vaccine deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("vaccine_id", id))
 	return nil
 }
 

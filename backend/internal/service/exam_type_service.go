@@ -68,8 +68,8 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, apperrors.Wrap(err, "failed to create exam type")
 	}
 	slog.InfoContext(ctx, "exam type created",
-		slog.Uint64("exam_type_id", exType.ID),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("exam_type_id", exType.ID))
 	return exType, nil
 }
 func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateExamTypeInput) (*model.ExaminationType, error) {
@@ -105,7 +105,7 @@ func (s *examTypeService) Delete(ctx context.Context, clinicID, id uint64) error
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete exam type")
 	}
-	slog.InfoContext(ctx, "exam type deleted", slog.Uint64("exam_type_id", id), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "exam type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("exam_type_id", id))
 	return nil
 }
 

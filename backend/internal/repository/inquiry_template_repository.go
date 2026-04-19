@@ -19,6 +19,7 @@ type InquiryTemplateRepository interface {
 	Create(ctx context.Context, template *model.InquiryTemplate) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type inquiryTemplateRepository struct{ db *gorm.DB }
@@ -82,4 +83,8 @@ func (r *inquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uin
 		return apperrors.WrapNotFound("inquiry_template", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *inquiryTemplateRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return reorderByClinicID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, ids)
 }

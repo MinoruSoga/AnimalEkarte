@@ -122,3 +122,21 @@ func (h *Handler) DeleteInquiryTemplate(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// ReorderInquiryTemplates godoc
+func (h *Handler) ReorderInquiryTemplates(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderInquiryTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if err := h.svc.InquiryTemplate.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}

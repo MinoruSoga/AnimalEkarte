@@ -74,8 +74,8 @@ func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input 
 		return nil, apperrors.Wrap(err, "failed to create checkup type")
 	}
 	slog.InfoContext(ctx, "checkup type created",
-		slog.Uint64("checkup_type_id", checkupType.ID),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("checkup_type_id", checkupType.ID))
 	return checkupType, nil
 }
 func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, input UpdateCheckupTypeInput) (*model.CheckupType, error) {
@@ -111,7 +111,7 @@ func (s *checkupTypeService) Delete(ctx context.Context, clinicID, id uint64) er
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete checkup type")
 	}
-	slog.InfoContext(ctx, "checkup type deleted", slog.Uint64("checkup_type_id", id), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "checkup type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("checkup_type_id", id))
 	return nil
 }
 

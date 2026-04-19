@@ -601,6 +601,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// Inquiry Templates
 	masters.GET("/inquiry-templates", h.ListInquiryTemplates)
 	masters.POST("/inquiry-templates", perm(model.ResourceMasterMedical, "create"), h.CreateInquiryTemplate)
+	masters.PATCH("/inquiry-templates/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderInquiryTemplates)
 	masters.GET("/inquiry-templates/:id", h.GetInquiryTemplate)
 	masters.PATCH("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateInquiryTemplate)
 	masters.DELETE("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteInquiryTemplate)

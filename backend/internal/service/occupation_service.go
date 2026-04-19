@@ -77,8 +77,8 @@ func (s *occupationService) Create(ctx context.Context, clinicID uint64, input *
 		return nil, apperrors.Wrap(err, "failed to create occupation")
 	}
 	slog.InfoContext(ctx, "occupation created",
-		slog.Uint64("occupation_id", occupation.ID),
-		slog.Uint64("clinic_id", occupation.ClinicID))
+		slog.Uint64("clinic_id", occupation.ClinicID),
+		slog.Uint64("occupation_id", occupation.ID))
 	return occupation, nil
 }
 
@@ -95,8 +95,8 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 		return nil, apperrors.Wrap(err, "failed to update occupation")
 	}
 	slog.InfoContext(ctx, "occupation updated",
-		slog.Uint64("occupation_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("occupation_id", id))
 	return result, nil
 }
 
@@ -112,8 +112,8 @@ func (s *occupationService) Delete(ctx context.Context, clinicID, id uint64) err
 		return apperrors.Wrap(err, "failed to delete occupation")
 	}
 	slog.InfoContext(ctx, "occupation deleted",
-		slog.Uint64("occupation_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("occupation_id", id))
 	return nil
 }
 

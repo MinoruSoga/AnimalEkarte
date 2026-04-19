@@ -16,7 +16,7 @@ type createReservationTypeRequest struct {
 	ReservationVisible     *bool  `json:"reservation_visible"`
 	ReservationComment     string `json:"reservation_comment"`
 	ReservationImageURL    string `json:"reservation_image_url"`
-	ReservationDayOption   string `json:"reservation_day_option"`
+	ReservationDayOption   string `json:"reservation_day_option" binding:"omitempty,oneof=none saturday weekday anyday"`
 	IsInternal             bool   `json:"is_internal"`
 }
 

@@ -75,8 +75,8 @@ func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, inp
 		return nil, apperrors.Wrap(err, "failed to create trimming course")
 	}
 	slog.InfoContext(ctx, "trimming course created",
-		slog.Uint64("trimming_course_id", course.ID),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("trimming_course_id", course.ID))
 	return course, nil
 }
 func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
@@ -231,8 +231,8 @@ func (s *trimmingOptionService) Create(ctx context.Context, clinicID uint64, inp
 		return nil, apperrors.Wrap(err, "failed to create trimming option")
 	}
 	slog.InfoContext(ctx, "trimming option created",
-		slog.Uint64("trimming_option_id", option.ID),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("trimming_option_id", option.ID))
 	return option, nil
 }
 func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64, input UpdateTrimmingOptionInput) (*model.TrimmingOption, error) {

@@ -37,6 +37,7 @@ type InquiryTemplateService interface {
 	Create(ctx context.Context, clinicID uint64, input *CreateInquiryTemplateInput) (*model.InquiryTemplate, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateInquiryTemplateInput) (*model.InquiryTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type inquiryTemplateService struct {
@@ -79,8 +80,8 @@ func (s *inquiryTemplateService) Create(ctx context.Context, clinicID uint64, in
 		return nil, apperrors.Wrap(err, "failed to create inquiry template")
 	}
 	slog.InfoContext(ctx, "inquiry template created",
-		slog.Uint64("template_id", template.ID),
-		slog.Uint64("clinic_id", template.ClinicID))
+		slog.Uint64("clinic_id", template.ClinicID),
+		slog.Uint64("template_id", template.ID))
 	return template, nil
 }
 
@@ -97,8 +98,8 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.Wrap(err, "failed to update inquiry template")
 	}
 	slog.InfoContext(ctx, "inquiry template updated",
-		slog.Uint64("template_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("template_id", id))
 	return result, nil
 }
 
@@ -110,8 +111,21 @@ func (s *inquiryTemplateService) Delete(ctx context.Context, clinicID, id uint64
 		return apperrors.Wrap(err, "failed to delete inquiry template")
 	}
 	slog.InfoContext(ctx, "inquiry template deleted",
-		slog.Uint64("template_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("template_id", id))
+	return nil
+}
+
+func (s *inquiryTemplateService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if len(ids) == 0 {
+		return apperrors.WrapInvalidInput("ids must not be empty")
+	}
+	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
+		return apperrors.Wrap(err, "failed to reorder inquiry templates")
+	}
+	slog.InfoContext(ctx, "inquiry templates reordered",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Int("count", len(ids)))
 	return nil
 }
 

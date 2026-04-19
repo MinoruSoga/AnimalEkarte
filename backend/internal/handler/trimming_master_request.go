@@ -5,7 +5,7 @@ type createTrimmingCourseRequest struct {
 	Price       *int64 `json:"price"`
 	IsActive    bool   `json:"is_active"`
 	Description string `json:"description"`
-	TargetSize  string `json:"target_size"`
+	TargetSize  string `json:"target_size" binding:"omitempty,oneof=small medium large cat"`
 	Duration    *int   `json:"duration"`
 	SortOrder   int    `json:"sort_order"`
 }

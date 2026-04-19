@@ -283,7 +283,7 @@ func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete service type")
 	}
-	slog.InfoContext(ctx, "service type deleted", slog.Uint64("reservation_type_id", id), slog.Uint64("clinic_id", clinicID))
+	slog.InfoContext(ctx, "service type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", id))
 	return nil
 }
 
@@ -343,8 +343,8 @@ func (s *reservationTypeService) CreateUnavailableTime(ctx context.Context, clin
 		return nil, apperrors.Wrap(err, "failed to create unavailable time")
 	}
 	slog.InfoContext(ctx, "unavailable time created",
-		slog.Uint64("reservation_type_id", reservationTypeID),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("reservation_type_id", reservationTypeID))
 	return t, nil
 }
 
@@ -353,8 +353,8 @@ func (s *reservationTypeService) DeleteUnavailableTime(ctx context.Context, clin
 		return apperrors.Wrap(err, "failed to delete unavailable time")
 	}
 	slog.InfoContext(ctx, "unavailable time deleted",
-		slog.Uint64("unavailable_time_id", id),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("unavailable_time_id", id))
 	return nil
 }
 
@@ -384,9 +384,9 @@ func (s *reservationTypeService) LinkOccupation(ctx context.Context, clinicID, r
 		return nil, apperrors.Wrap(err, "failed to link occupation")
 	}
 	slog.InfoContext(ctx, "occupation linked",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("reservation_type_id", reservationTypeID),
-		slog.Uint64("occupation_id", occupationID),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("occupation_id", occupationID))
 	// Preload して返す
 	items, err := s.occupationRepo.FindAll(ctx, clinicID, reservationTypeID)
 	if err != nil {
@@ -405,9 +405,9 @@ func (s *reservationTypeService) UnlinkOccupation(ctx context.Context, clinicID,
 		return apperrors.Wrap(err, "failed to unlink occupation")
 	}
 	slog.InfoContext(ctx, "occupation unlinked",
+		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("reservation_type_id", reservationTypeID),
-		slog.Uint64("occupation_id", occupationID),
-		slog.Uint64("clinic_id", clinicID))
+		slog.Uint64("occupation_id", occupationID))
 	return nil
 }
 
