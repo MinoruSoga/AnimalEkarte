@@ -138,21 +138,36 @@ type CreateUnavailableTimeInput struct {
 	EndTime         string
 }
 
-type ReservationTypeService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
+// ReservationTypeCoreService は予約種別の CRUD・Reorder を担う。
+type ReservationTypeCoreService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
 	List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeInput) (*model.ReservationType, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeInput) (*model.ReservationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+}
 
+// ReservationTypeUnavailableTimeService は予約不可時間帯の管理を担う。
+type ReservationTypeUnavailableTimeService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
 	ListUnavailableTimes(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
 	CreateUnavailableTime(ctx context.Context, clinicID, reservationTypeID uint64, input CreateUnavailableTimeInput) (*model.ReservationTypeUnavailableTime, error)
 	DeleteUnavailableTime(ctx context.Context, clinicID, id uint64) error
+}
 
+// ReservationTypeOccupationService は診療科目ひもづけを担う。
+type ReservationTypeOccupationService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
 	ListOccupations(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
 	LinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error)
 	UnlinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
+}
+
+// ReservationTypeService は3つのサブインターフェースを合成した完全インターフェース。
+// handler 層はこのインターフェースを通じてすべての操作を行う。
+type ReservationTypeService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
+	ReservationTypeCoreService
+	ReservationTypeUnavailableTimeService
+	ReservationTypeOccupationService
 }
 
 type reservationTypeService struct {
