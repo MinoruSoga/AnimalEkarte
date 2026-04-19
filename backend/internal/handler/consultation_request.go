@@ -5,11 +5,11 @@ type createConsultationRequest struct {
 	Price         *int64   `json:"price"`
 	IsActive      bool     `json:"is_active"`
 	Description   string   `json:"description"`
-	TimeCondition string   `json:"time_condition"`
+	TimeCondition string   `json:"time_condition"  binding:"omitempty,oneof=anytime morning afternoon evening"`
 	Duration      *int     `json:"duration"`
 	ParentID      *uint64  `json:"parent_id"`
 	SortOrder     int      `json:"sort_order"`
-	TaxType       string   `json:"tax_type"`
+	TaxType       string   `json:"tax_type"        binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate       *float64 `json:"tax_rate"`
 }
 
@@ -18,11 +18,11 @@ type updateConsultationRequest struct {
 	Price         *int64   `json:"price"`
 	IsActive      *bool    `json:"is_active"`
 	Description   *string  `json:"description"`
-	TimeCondition *string  `json:"time_condition"`
+	TimeCondition *string  `json:"time_condition"  binding:"omitempty,oneof=anytime morning afternoon evening"`
 	Duration      *int     `json:"duration"`
 	ParentID      *uint64  `json:"parent_id"`
 	ClearParentID bool     `json:"clear_parent_id"`
 	SortOrder     *int     `json:"sort_order"`
-	TaxType       *string  `json:"tax_type"`
+	TaxType       *string  `json:"tax_type"        binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate       *float64 `json:"tax_rate"`
 }

@@ -367,6 +367,12 @@ func TestConsultationService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockConsultationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Consultation, error) {
+					if tt.wantNF {
+						return nil, apperrors.WrapNotFound("consultation", "999")
+					}
+					return &model.Consultation{ID: tt.id}, nil
+				},
 				countUsageByConsultationIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},

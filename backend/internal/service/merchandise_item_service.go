@@ -145,7 +145,6 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 	slog.InfoContext(ctx, "merchandise item created",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("merchandise_item_id", item.ID),
-		slog.String("name", item.Name),
 	)
 	return item, nil
 }
@@ -159,7 +158,7 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 	}
 	fields := buildMerchandiseItemUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
@@ -175,7 +174,7 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 
 func (s *merchandiseItemService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder merchandise items")

@@ -88,7 +88,7 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 	}
 	fields := buildOccupationUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -101,6 +101,9 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 }
 
 func (s *occupationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get occupation")
+	}
 	count, err := s.repo.CountStaffsByOccupationID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check occupation dependencies")
@@ -119,7 +122,7 @@ func (s *occupationService) Delete(ctx context.Context, clinicID, id uint64) err
 
 func (s *occupationService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder occupations")
@@ -138,7 +141,7 @@ const (
 )
 
 func buildOccupationUpdateFields(input *UpdateOccupationInput) map[string]any {
-	fields := map[string]any{}
+	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colOccupationName] = *input.Name
 	}

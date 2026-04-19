@@ -353,7 +353,16 @@ func TestOccupationService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockOccupationRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Occupation, error) {
+					if tt.wantNF {
+						return nil, tt.repoErr
+					}
+					return &model.Occupation{ID: id}, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
+					if tt.wantNF {
+						return nil
+					}
 					return tt.repoErr
 				},
 			}

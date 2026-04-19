@@ -100,7 +100,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Inventory:              NewInventoryService(repos.Inventory),
 		Staff:                  NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, tx),
 		Cage:                   NewCageService(repos.Cage, repos.Hospitalization),
-		Medicine:               NewMedicineService(repos.Medicine, repos.Inventory),
+		Medicine:               NewMedicineService(repos.Medicine, repos.Inventory, tx),
 		Vaccine:                NewVaccineService(repos.Vaccine),
 		Insurance:              NewInsuranceService(repos.Insurance),
 		ReservationType:        NewReservationTypeService(repos.ReservationType, repos.Reservation, repos.ReservationTypeUnavailableTime, repos.ReservationTypeOccupation, repos.Occupation),

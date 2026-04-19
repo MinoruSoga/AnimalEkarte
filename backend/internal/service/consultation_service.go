@@ -103,14 +103,14 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 }
 func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
 	if input == nil {
-		return nil, apperrors.WrapInvalidInput("input must not be nil")
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
 	fields := buildConsultationUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	consultation, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -120,6 +120,9 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	return consultation, nil
 }
 func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get consultation")
+	}
 	count, err := s.repo.CountUsageByConsultationID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check consultation dependencies")
@@ -136,7 +139,7 @@ func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) e
 
 func (s *consultationService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("ids must not be empty")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder consultations")

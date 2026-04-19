@@ -368,6 +368,13 @@ func TestChiefComplaintTypeService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockChiefComplaintTypeRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.ChiefComplaintType, error) {
+					// id=999 は「not found」ケース — FindByID でエラーを返す
+					if id == 999 {
+						return nil, tt.repoErr
+					}
+					return &model.ChiefComplaintType{ID: id}, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},

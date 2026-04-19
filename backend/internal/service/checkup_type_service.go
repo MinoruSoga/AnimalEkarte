@@ -84,7 +84,7 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	fields := buildCheckupTypeUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	checkupType, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
@@ -117,7 +117,7 @@ func (s *checkupTypeService) Delete(ctx context.Context, clinicID, id uint64) er
 
 func (s *checkupTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if len(ids) == 0 {
-		return apperrors.WrapInvalidInput("並び順のIDリストが空です")
+		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder checkup types")

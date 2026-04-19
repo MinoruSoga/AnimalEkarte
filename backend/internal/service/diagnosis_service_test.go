@@ -803,6 +803,13 @@ func TestDiagnosisNameService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockDiagnosisNameRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {
+					// id=999 は not found ケース
+					if id == 999 {
+						return nil, tt.repoErr
+					}
+					return &model.DiagnosisName{ID: id, ClinicID: testClinicID}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.DiagnosisName, error) {
 					return tt.fetchRes, tt.repoErr
 				},

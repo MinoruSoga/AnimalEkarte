@@ -130,10 +130,11 @@ type MedicineService interface {
 type medicineService struct {
 	repo          repository.MedicineRepository
 	inventoryRepo repository.InventoryRepository
+	transactor    repository.Transactor
 }
 
-func NewMedicineService(repo repository.MedicineRepository, inventoryRepo repository.InventoryRepository) MedicineService {
-	return &medicineService{repo: repo, inventoryRepo: inventoryRepo}
+func NewMedicineService(repo repository.MedicineRepository, inventoryRepo repository.InventoryRepository, transactor repository.Transactor) MedicineService {
+	return &medicineService{repo: repo, inventoryRepo: inventoryRepo, transactor: transactor}
 }
 
 func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {

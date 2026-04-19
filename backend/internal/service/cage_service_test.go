@@ -401,7 +401,20 @@ func TestCageService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCageRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+					if tt.wantNF {
+						return nil, apperrors.WrapNotFound("cage", "999")
+					}
+					if tt.repoErr != nil && !tt.wantNF {
+						// delete 側のエラーなので FindByID は成功させる
+						return &model.Cage{ID: id}, nil
+					}
+					return &model.Cage{ID: id}, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
+					if tt.wantNF {
+						return nil // FindByID で already errored
+					}
 					return tt.repoErr
 				},
 			}
