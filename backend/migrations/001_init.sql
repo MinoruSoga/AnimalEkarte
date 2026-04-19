@@ -150,7 +150,8 @@ CREATE TABLE occupations (
     sort_order  integer     NOT NULL DEFAULT 0,
     is_active   boolean     NOT NULL DEFAULT true,
     created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
 );
 
 -- ------------------------------------
@@ -255,7 +256,8 @@ CREATE TABLE exam_types (
     parent_id   bigint               REFERENCES exam_types(id) ON DELETE SET NULL,
     sort_order  integer              DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
 );
 
 -- ------------------------------------
@@ -289,7 +291,8 @@ CREATE TABLE vaccines (
     parent_id    bigint                   REFERENCES vaccines(id) ON DELETE SET NULL,
     sort_order   integer                  DEFAULT 0,
     created_at   timestamptz     NOT NULL DEFAULT now(),
-    updated_at   timestamptz     NOT NULL DEFAULT now()
+    updated_at   timestamptz     NOT NULL DEFAULT now(),
+    deleted_at   timestamptz
 );
 
 -- ------------------------------------
@@ -311,7 +314,8 @@ CREATE TABLE medicines (
     tax_rate         numeric       NOT NULL DEFAULT 0.10,
     sort_order       integer                DEFAULT 0,
     created_at       timestamptz   NOT NULL DEFAULT now(),
-    updated_at       timestamptz   NOT NULL DEFAULT now()
+    updated_at       timestamptz   NOT NULL DEFAULT now(),
+    deleted_at       timestamptz
 );
 
 -- ------------------------------------
@@ -327,7 +331,8 @@ CREATE TABLE insurances (
     contact_phone text        NOT NULL DEFAULT '',
     sort_order    integer              DEFAULT 0,
     created_at    timestamptz NOT NULL DEFAULT now(),
-    updated_at    timestamptz NOT NULL DEFAULT now()
+    updated_at    timestamptz NOT NULL DEFAULT now(),
+    deleted_at    timestamptz
 );
 
 -- ------------------------------------
@@ -344,7 +349,8 @@ CREATE TABLE cages (
     cage_size   cage_size   NOT NULL,
     sort_order  integer              DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
 );
 
 -- ------------------------------------
@@ -358,7 +364,8 @@ CREATE TABLE reservation_type_groups (
     sort_order integer              DEFAULT 0,
     is_active  boolean     NOT NULL DEFAULT true,
     created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    deleted_at timestamptz
 );
 
 CREATE INDEX idx_rtg_clinic ON reservation_type_groups(clinic_id);
@@ -386,7 +393,8 @@ CREATE TABLE reservation_types (
     is_internal              boolean                     NOT NULL DEFAULT false,
     category                 reservation_type_category   NOT NULL DEFAULT 'general',
     created_at               timestamptz                 NOT NULL DEFAULT now(),
-    updated_at               timestamptz                 NOT NULL DEFAULT now()
+    updated_at               timestamptz                 NOT NULL DEFAULT now(),
+    deleted_at               timestamptz
 );
 
 CREATE INDEX idx_reservation_types_group_id ON reservation_types(group_id);
@@ -428,7 +436,8 @@ CREATE TABLE procedures (
     tax_rate    numeric         NOT NULL DEFAULT 0.10,
     sort_order  integer                  DEFAULT 0,
     created_at  timestamptz     NOT NULL DEFAULT now(),
-    updated_at  timestamptz     NOT NULL DEFAULT now()
+    updated_at  timestamptz     NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
 );
 
 -- ------------------------------------
@@ -464,7 +473,8 @@ CREATE TABLE trimming_courses (
     duration    integer,
     sort_order  integer              DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
 );
 
 -- ------------------------------------
@@ -481,7 +491,8 @@ CREATE TABLE trimming_options (
     is_combinable  boolean     NOT NULL DEFAULT true,
     sort_order  integer              DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
 );
 
 -- ------------------------------------
@@ -495,7 +506,8 @@ CREATE TABLE diagnosis_types (
     description text        NOT NULL DEFAULT '',
     sort_order  integer              DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
 );
 
 -- ------------------------------------
@@ -510,7 +522,8 @@ CREATE TABLE diagnosis_names (
     diagnosis_type_id     bigint      NOT NULL REFERENCES diagnosis_types(id) ON DELETE CASCADE,
     sort_order            integer              DEFAULT 0,
     created_at            timestamptz NOT NULL DEFAULT now(),
-    updated_at            timestamptz NOT NULL DEFAULT now()
+    updated_at            timestamptz NOT NULL DEFAULT now(),
+    deleted_at            timestamptz
 );
 
 -- ------------------------------------
@@ -543,7 +556,8 @@ CREATE TABLE chief_complaint_types (
     is_active   boolean     NOT NULL DEFAULT true,
     sort_order  integer              DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
 );
 
 -- ------------------------------------
@@ -558,7 +572,8 @@ CREATE TABLE inquiry_templates (
     is_active  boolean     NOT NULL DEFAULT true,
     sort_order integer              DEFAULT 0,
     created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    deleted_at timestamptz
 );
 
 -- ==========================================================================
@@ -1545,21 +1560,21 @@ CREATE INDEX idx_exams_clinic_id ON exams(clinic_id);
 CREATE INDEX idx_daily_records_clinic_id ON daily_records(clinic_id);
 
 -- マスタテーブル重複登録防止（同一クリニック内で同名マスタを防ぐ）
-CREATE UNIQUE INDEX idx_exam_types_clinic_name ON exam_types(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_vaccines_clinic_name ON vaccines(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_medicines_clinic_name ON medicines(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_exam_types_clinic_name ON exam_types(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_vaccines_clinic_name ON vaccines(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_medicines_clinic_name ON medicines(clinic_id, name) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_consultations_clinic_name ON consultations(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_procedures_clinic_name ON procedures(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_cages_clinic_name ON cages(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_reservation_types_clinic_name ON reservation_types(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_diagnosis_types_clinic_name ON diagnosis_types(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_trimming_courses_clinic_name ON trimming_courses(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_trimming_options_clinic_name ON trimming_options(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_insurance_clinic_name ON insurances(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_procedures_clinic_name ON procedures(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_cages_clinic_name ON cages(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_reservation_types_clinic_name ON reservation_types(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_diagnosis_types_clinic_name ON diagnosis_types(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_trimming_courses_clinic_name ON trimming_courses(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_trimming_options_clinic_name ON trimming_options(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_insurance_clinic_name ON insurances(clinic_id, name) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_checkup_types_clinic_name ON checkup_types(clinic_id, name) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_hospitalization_plans_clinic_name ON hospitalization_plans(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_occupations_clinic_name ON occupations(clinic_id, name) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_chief_complaint_types_clinic_name ON chief_complaint_types(clinic_id, name) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_occupations_clinic_name ON occupations(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_chief_complaint_types_clinic_name ON chief_complaint_types(clinic_id, name) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_animal_species_name ON animal_species(name) WHERE is_active = true;
 CREATE UNIQUE INDEX idx_merchandise_items_clinic_name ON merchandise_items(clinic_id, name) WHERE is_active = true AND deleted_at IS NULL;
 

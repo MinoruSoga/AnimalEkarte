@@ -2,6 +2,8 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type ExaminationType struct {
@@ -13,8 +15,9 @@ type ExaminationType struct {
 	Description string    `gorm:"default:''"                                     json:"description"`
 	ParentID    *uint64   `gorm:"column:parent_id"                               json:"parent_id,omitempty"`
 	SortOrder   int       `gorm:"type:integer;default:0"                         json:"sort_order"`
-	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	CreatedAt   time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt   time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `                                                      json:"-"`
 
 	// Relations
 	Items []ExamTypeField `gorm:"foreignKey:ExamTypeID" json:"items,omitempty"`

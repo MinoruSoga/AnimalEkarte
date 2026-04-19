@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // ReservationTypeGroup は予約区分のグループ（カレンダー凡例用）
 type ReservationTypeGroup struct {
@@ -10,8 +14,9 @@ type ReservationTypeGroup struct {
 	Color     string    `gorm:"not null;default:'#3B82F6'" json:"color"`
 	SortOrder int       `gorm:"default:0"                json:"sort_order"`
 	IsActive  bool      `gorm:"not null;default:true"    json:"is_active"`
-	CreatedAt time.Time `gorm:"autoCreateTime"           json:"created_at"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime"           json:"updated_at"`
+	CreatedAt time.Time      `gorm:"autoCreateTime"           json:"created_at"`
+	UpdatedAt time.Time      `gorm:"autoUpdateTime"           json:"updated_at"`
+	DeletedAt gorm.DeletedAt `                                json:"-"`
 }
 
 func (ReservationTypeGroup) TableName() string { return "reservation_type_groups" }

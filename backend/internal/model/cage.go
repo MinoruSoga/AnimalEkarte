@@ -2,6 +2,8 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type CageType string
@@ -31,8 +33,9 @@ type Cage struct {
 	CageType    CageType  `gorm:"type:cage_type;not null"                        json:"cage_type"`
 	CageSize    CageSize  `gorm:"type:cage_size;not null"                        json:"cage_size"`
 	SortOrder   int       `gorm:"type:integer;default:0"                         json:"sort_order"`
-	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	CreatedAt   time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt   time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `                                                      json:"-"`
 }
 
 func (Cage) TableName() string { return "cages" }
