@@ -254,27 +254,40 @@ export function useMedicalRecordForm(recordId?: string) {
     [recordId, updateMutation, existingRecord?.version],
   );
 
-  // 飼主変更ハンドラ
-  const handleChangeOwner = useCallback(
+  // BUG-373: 飼主変更 — 確認モーダル経由で実行
+  const [pendingOwnerChange, setPendingOwnerChange] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  const requestOwnerChange = useCallback(
     (newOwner: { id: string; name: string }) => {
-      if (!recordId) return;
-      startSaveTransition(async () => {
-        try {
-          await updateMutation.mutateAsync({
-            id: recordId,
-            req: {
-              owner_id: Number(newOwner.id),
-              version: existingRecord?.version,
-            } as UpdateMedicalRecordRequest,
-          });
-          toast.success(`飼主を ${newOwner.name} に変更しました`);
-        } catch (error) {
-          handleApiError(error, "飼主変更");
-        }
-      });
+      setPendingOwnerChange(newOwner);
     },
-    [recordId, updateMutation, existingRecord?.version],
+    [],
   );
+
+  const confirmOwnerChange = useCallback(() => {
+    if (!pendingOwnerChange || !recordId) return;
+    const newOwner = pendingOwnerChange;
+    setPendingOwnerChange(null);
+    startSaveTransition(async () => {
+      try {
+        await updateMutation.mutateAsync({
+          id: recordId,
+          req: {
+            owner_id: Number(newOwner.id),
+            version: existingRecord?.version,
+          } as UpdateMedicalRecordRequest,
+        });
+        toast.success(`飼主を ${newOwner.name} に変更しました`);
+      } catch (error) {
+        handleApiError(error, "飼主変更");
+      }
+    });
+  }, [pendingOwnerChange, recordId, updateMutation, existingRecord?.version]);
+
+  const cancelOwnerChange = useCallback(() => setPendingOwnerChange(null), []);
 
   // 新規作成時: ページ表示と同時にカルテを自動作成
   useEffect(() => {
@@ -348,7 +361,10 @@ export function useMedicalRecordForm(recordId?: string) {
     // 担当医変更
     handleChangeDoctor,
     // 飼主変更
-    handleChangeOwner,
+    pendingOwnerChange,
+    requestOwnerChange,
+    confirmOwnerChange,
+    cancelOwnerChange,
     fieldErrors: manualErrors,
   };
 }

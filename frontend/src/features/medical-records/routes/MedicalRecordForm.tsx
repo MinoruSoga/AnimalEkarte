@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { LoadingFallback } from "@/components/shared/DataStates";
 
@@ -101,7 +102,10 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setVisitType,
     visitCount,
     handleChangeDoctor,
-    handleChangeOwner,
+    pendingOwnerChange,
+    requestOwnerChange,
+    confirmOwnerChange,
+    cancelOwnerChange,
     } = useMedicalRecordForm(recordId);
 
     useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
@@ -561,10 +565,21 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
             open={isOwnerSearchOpen}
             onOpenChange={setIsOwnerSearchOpen}
             currentOwnerName={selectedPet?.ownerName}
-            onSelect={handleChangeOwner}
+            onSelect={requestOwnerChange}
           />
         </Suspense>
       ) : null}
+
+      {/* BUG-373: 飼主変更 確認ダイアログ */}
+      <ConfirmDialog
+        open={!!pendingOwnerChange}
+        onClose={cancelOwnerChange}
+        onConfirm={confirmOwnerChange}
+        title="飼主を変更しますか？"
+        description={`飼主を「${pendingOwnerChange?.name}」に変更します。飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。`}
+        confirmLabel="変更する"
+        cancelLabel="キャンセル"
+      />
     </PageLayout>
 
     {/* Print area — hidden on screen, visible on print */}
