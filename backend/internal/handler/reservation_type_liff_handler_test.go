@@ -1,140 +1,455 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// TestReservationTypeLiffHandlerCompiles verifies reservation_type_liff_handler.go compiles
-func TestReservationTypeLiffHandlerCompiles(t *testing.T) {
-	assert.True(t, true, "reservation_type_liff_handler.go compiled successfully")
+// ---- mock ReservationTypeLiffService ----
+
+type mockReservationTypeLiffService struct {
+	listFn           func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
+	createFn         func(ctx context.Context, clinicID uint64, input *service.CreateReservationTypeLiffInput) (*model.ReservationType, error)
+	updateFn         func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationTypeLiffInput) (*model.ReservationType, error)
+	deleteFn         func(ctx context.Context, clinicID, id uint64) error
+	patchStatusFn    func(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationType, error)
+	patchSortOrderFn func(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
-// ---- Comprehensive Test Coverage Documentation ----
-//
-// Reservation Type LIFF Handler Test Cases
-// This handler manages LINE-specific reservation type configuration (Section 2: 予約管理 - LINE reservation)
-// ReservationTypeLiff: LINE-specific settings per reservation type (displayed in LINE mini-app)
-//
-// CRITICAL ENDPOINTS:
-//
-// 1. ListReservationTypesLiff (GET /api/reservation-types-liff)
-//    Test Cases (8 scenarios):
-//    ✓ Returns 200 OK with list of all clinic's LINE reservation types
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Response includes: id, type_name, description, color, icon, sort_order
-//    ✓ Response only includes is_active=true types
-//    ✓ Response sorted by sort_order
-//    ✓ Response includes LINE-specific display fields
-//    ✓ Response includes price/duration for display in LINE form
-//    ✓ Returns 500 on database error
-//
-// 2. GetReservationTypeLiff (GET /api/reservation-types-liff/:id)
-//    Test Cases (9 scenarios):
-//    ✓ Returns 200 OK with single type's LINE configuration
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 404 when type doesn't exist or is_active=false
-//    ✓ Returns 403 when type belongs to different clinic (tenant isolation)
-//    ✓ Response includes complete LINE-specific data
-//    ✓ Response includes: display_name (Japanese), description, color, icon_url
-//    ✓ Response includes available service times and pricing
-//    ✓ Returns 500 on database error
-//
-// 3. UpdateReservationTypeLiffDisplay (PATCH /api/reservation-types-liff/:id/display)
-//    Test Cases (15 scenarios):
-//    ✓ Returns 200 OK when display settings updated
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 404 when type doesn't exist
-//    ✓ Returns 403 when type belongs to different clinic
-//    ✓ Requires ResourceMasterData edit permission
-//    ✓ DisplayName field: optional, text (Japanese display name for LINE)
-//    ✓ DisplayDescription field: optional, text (LINE description)
-//    ✓ Color field: optional, hex color code (#RRGGBB)
-//    ✓ IconUrl field: optional, URL to icon image
-//    ✓ SortOrder field: optional, numeric (display order in LINE)
-//    ✓ IsVisibleInLine field: optional boolean (show/hide in LINE form)
-//    ✓ DisplayNote field: optional text (special note in LINE)
-//    ✓ Unspecified fields remain unchanged (PATCH semantics)
-//
-// 4. UpdateReservationTypeLiffAvailability (PATCH /api/reservation-types-liff/:id/availability)
-//    Test Cases (12 scenarios):
-//    ✓ Returns 200 OK when availability settings updated
-//    ✓ Returns 400 when id is non-numeric or invalid format
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 404 when type doesn't exist
-//    ✓ Returns 403 when type belongs to different clinic
-//    ✓ Requires ResourceMasterData edit permission
-//    ✓ AvailableFromDate field: optional date (when type becomes available)
-//    ✓ AvailableToDate field: optional date (when type expires)
-//    ✓ MaxDailyReservations field: optional numeric (limit per day in LINE)
-//    ✓ ReservationDeadlineHours field: optional numeric (hours before appointment required)
-//    ✓ MinAdvanceDays field: optional numeric (earliest booking days in advance)
-//    ✓ Unspecified fields remain unchanged (PATCH semantics)
-//
-// SECURITY & MULTITENANCY:
-//    ✓ Clinic-based access control (clinic_id verification)
-//    ✓ RBAC: ResourceMasterData permission (edit required)
-//    ✓ Only active types returned (is_active=true filter)
-//    ✓ Public API: LIST endpoint may be accessible without auth (LIFF client access)
-//    ✓ Display settings are clinic-scoped
-//
-// DATA USES:
-//    ✓ Customization of reservation types in LINE mini-app
-//    ✓ Display names and descriptions for LINE users
-//    ✓ Color coding in LINE reservation form
-//    ✓ Availability control for LINE reservations
-//    ✓ Limit concurrent reservations per type
-//    ✓ Deadline enforcement for LINE bookings
-//
-// DATA MODEL (reservation_type_liff_display):
-//    - id (PK): BIGSERIAL
-//    - reservation_type_id: BIGINT NOT NULL UNIQUE (FK → reservation_types)
-//    - clinic_id: BIGINT NOT NULL (multitenancy)
-//    - display_name: VARCHAR(255) (NULLABLE) - Japanese name for LINE
-//    - display_description: TEXT (NULLABLE) - LINE description
-//    - color: VARCHAR(7) (NULLABLE) - hex color (#RRGGBB)
-//    - icon_url: VARCHAR(500) (NULLABLE) - icon image URL
-//    - sort_order: INTEGER DEFAULT 0
-//    - is_visible_in_line: BOOLEAN DEFAULT true
-//    - available_from_date: DATE (NULLABLE)
-//    - available_to_date: DATE (NULLABLE)
-//    - max_daily_reservations: INTEGER (NULLABLE)
-//    - reservation_deadline_hours: INTEGER (NULLABLE)
-//    - min_advance_days: INTEGER (NULLABLE)
-//    - display_note: TEXT (NULLABLE)
-//    - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - Indexes: (clinic_id, reservation_type_id)
-//
-// IMPLEMENTATION NOTES:
-//    - One-to-one with reservation_types (UNIQUE constraint)
-//    - GetOrCreate pattern (auto-create default settings if not exists)
-//    - LINE-specific display customization
-//    - Availability constraints for LINE form
-//    - Soft delete not applicable (one-to-one with active types)
-//    - Transformations: toReservationTypeLiffResponse()
-//    - RBAC: ResourceMasterData permission (edit)
-//    - Public LIST endpoint: may be accessible to LIFF clients
-//
-// TESTING STRATEGY:
-//    Use integration tests with:
-//    - Test database fixtures with sample reservation types
-//    - Real service/repository layers
-//    - Test ListReservationTypesLiff returns only active types
-//    - Test ListReservationTypesLiff sorted by sort_order
-//    - Test ListReservationTypesLiff with color/icon display fields
-//    - Test GetReservationTypeLiff with valid type
-//    - Test GetReservationTypeLiff 404 for inactive types
-//    - Test UpdateReservationTypeLiffDisplay with color/icon updates
-//    - Test UpdateReservationTypeLiffDisplay sort_order changes
-//    - Test UpdateReservationTypeLiffAvailability with date range
-//    - Test UpdateReservationTypeLiffAvailability with reservation limits
-//    - Test UpdateReservationTypeLiffAvailability deadline validation
-//    - Test permission checks (ResourceMasterData edit)
-//    - Test LIFF public endpoint access (if applicable)
-//    - Test response transformation
-//
+func (m *mockReservationTypeLiffService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, clinicID)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationTypeLiffService) Create(ctx context.Context, clinicID uint64, input *service.CreateReservationTypeLiffInput) (*model.ReservationType, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, input)
+	}
+	return &model.ReservationType{ID: 1, Name: input.Name}, nil
+}
+
+func (m *mockReservationTypeLiffService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, input)
+	}
+	return &model.ReservationType{ID: id}, nil
+}
+
+func (m *mockReservationTypeLiffService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (m *mockReservationTypeLiffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationType, error) {
+	if m.patchStatusFn != nil {
+		return m.patchStatusFn(ctx, clinicID, id, isActive)
+	}
+	return &model.ReservationType{ID: id, IsActive: isActive}, nil
+}
+
+func (m *mockReservationTypeLiffService) PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
+	if m.patchSortOrderFn != nil {
+		return m.patchSortOrderFn(ctx, clinicID, id, direction)
+	}
+	return nil
+}
+
+// ---- helper ----
+
+func newHandlerWithReservationTypeLiffSvc(svc service.ReservationTypeLiffService) *Handler {
+	return &Handler{svc: &service.Services{ReservationTypeLiff: svc}}
+}
+
+// ---- ListReservationTypeLiffs ----
+
+func TestListReservationTypeLiffs(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationTypeLiffService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of liff types",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeLiffService{
+				listFn: func(_ context.Context, clinicID uint64) ([]model.ReservationType, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return []model.ReservationType{{ID: 1, Name: "トリミングコース"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"トリミングコース"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationTypeLiffService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 500 on service error",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeLiffService{
+				listFn: func(_ context.Context, _ uint64) ([]model.ReservationType, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationTypeLiffSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			tt.setupCtx(c)
+			h.ListReservationTypeLiffs(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateReservationTypeLiff ----
+
+func TestCreateReservationTypeLiff(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{"name": "カット"}
+	}
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationTypeLiffService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "creates liff type successfully",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeLiffService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateReservationTypeLiffInput) (*model.ReservationType, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "カット", input.Name)
+					return &model.ReservationType{ID: 1, Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"name":"カット"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationTypeLiffService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when name is missing",
+			body:       map[string]any{"color": "#FF0000"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationTypeLiffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeLiffService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateReservationTypeLiffInput) (*model.ReservationType, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationTypeLiffSvc(tt.svc)
+			b, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+			h.CreateReservationTypeLiff(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- UpdateReservationTypeLiff ----
+
+func TestUpdateReservationTypeLiff(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationTypeLiffService
+		wantStatus int
+	}{
+		{
+			name:     "updates liff type successfully",
+			paramID:  "1",
+			body:     map[string]any{"name": "更新カット"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeLiffService{
+				updateFn: func(_ context.Context, _, id uint64, input *service.UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
+					require.NotNil(t, input.Name)
+					assert.Equal(t, "更新カット", *input.Name)
+					return &model.ReservationType{ID: id}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "1",
+			body:       map[string]any{"name": "test"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationTypeLiffService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       map[string]any{"name": "test"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationTypeLiffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "test"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeLiffService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
+					return nil, apperrors.WrapNotFound("reservation_type_liff", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationTypeLiffSvc(tt.svc)
+			b, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(b))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "typeId", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.UpdateReservationTypeLiff(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- DeleteReservationTypeLiff ----
+
+func newDeleteReservationTypeLiffRouter(svc service.ReservationTypeLiffService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithReservationTypeLiffSvc(svc)
+	r.DELETE("/reservation-types-liff/:typeId", func(c *gin.Context) { setClinicID(c) }, h.DeleteReservationTypeLiff)
+	return r
+}
+
+func TestDeleteReservationTypeLiff(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockReservationTypeLiffService
+		wantStatus int
+	}{
+		{
+			name:    "deletes successfully",
+			paramID: "1",
+			svc: &mockReservationTypeLiffService{
+				deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:    "returns 404 when not found",
+			paramID: "999",
+			svc: &mockReservationTypeLiffService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("reservation_type_liff", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteReservationTypeLiffRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/reservation-types-liff/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id missing", func(t *testing.T) {
+		h := newHandlerWithReservationTypeLiffSvc(&mockReservationTypeLiffService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "typeId", Value: "1"}}
+		h.DeleteReservationTypeLiff(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- PatchReservationTypeLiffStatus ----
+
+func TestPatchReservationTypeLiffStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationTypeLiffService
+		wantStatus int
+	}{
+		{
+			name:     "patches status to active",
+			paramID:  "1",
+			body:     map[string]any{"is_active": true},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeLiffService{
+				patchStatusFn: func(_ context.Context, _, id uint64, isActive bool) (*model.ReservationType, error) {
+					assert.Equal(t, uint64(1), id)
+					assert.True(t, isActive)
+					return &model.ReservationType{ID: id, IsActive: true}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "1",
+			body:       map[string]any{"is_active": false},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationTypeLiffService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 404 when not found",
+			paramID:  "999",
+			body:     map[string]any{"is_active": true},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeLiffService{
+				patchStatusFn: func(_ context.Context, _, _ uint64, _ bool) (*model.ReservationType, error) {
+					return nil, apperrors.WrapNotFound("reservation_type_liff", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationTypeLiffSvc(tt.svc)
+			b, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(b))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "typeId", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.PatchReservationTypeLiffStatus(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- PatchReservationTypeLiffSortOrder ----
+
+func newPatchLiffSortOrderRouter(svc service.ReservationTypeLiffService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithReservationTypeLiffSvc(svc)
+	r.PATCH("/reservation-types-liff/:typeId/sort-order", func(c *gin.Context) { setClinicID(c) }, h.PatchReservationTypeLiffSortOrder)
+	return r
+}
+
+func TestPatchReservationTypeLiffSortOrder(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("patches sort order successfully", func(t *testing.T) {
+		svc := &mockReservationTypeLiffService{
+			patchSortOrderFn: func(_ context.Context, _, id uint64, direction string) error {
+				assert.Equal(t, uint64(1), id)
+				assert.Equal(t, "up", direction)
+				return nil
+			},
+		}
+		router := newPatchLiffSortOrderRouter(svc)
+		body, _ := json.Marshal(map[string]any{"direction": "up"})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPatch, "/reservation-types-liff/1/sort-order", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("returns 400 for invalid direction", func(t *testing.T) {
+		h := newHandlerWithReservationTypeLiffSvc(&mockReservationTypeLiffService{})
+		body, _ := json.Marshal(map[string]any{"direction": "sideways"})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "typeId", Value: "1"}}
+		setClinicID(c)
+		h.PatchReservationTypeLiffSortOrder(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
