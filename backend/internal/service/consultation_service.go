@@ -157,6 +157,9 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get consultation")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
@@ -172,8 +175,12 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	return consultation, nil
 }
 func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to get consultation")
+	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check consultation children")
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("この診察項目にはサブ項目が登録されているため削除できません")
 	}
 	count, err := s.repo.CountUsageByConsultationID(ctx, clinicID, id)
 	if err != nil {
