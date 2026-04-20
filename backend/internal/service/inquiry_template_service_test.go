@@ -46,6 +46,10 @@ func (m *mockInquiryTemplateRepository) Reorder(_ context.Context, _ uint64, _ [
 	return m.reorderErr
 }
 
+func (m *mockInquiryTemplateRepository) CountUsageByInquiryTemplateID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
 // ---- Tests ----
 
 func TestInquiryTemplateService_List(t *testing.T) {

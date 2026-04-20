@@ -50,7 +50,7 @@ func (m *mockExamTypeService) Reorder(ctx context.Context, clinicID uint64, ids 
 
 // ---- helper ----
 
-func newHandlerWithExamTypeSvc(svc service.ExamTypeService) *Handler {
+func newHandlerWithExamTypeSvc(svc service.ExaminationTypeService) *Handler {
 	return &Handler{
 		svc: &service.Services{ExaminationType: svc},
 	}
@@ -376,7 +376,7 @@ func TestUpdateExaminationType(t *testing.T) {
 
 // ---- DeleteExaminationType ----
 
-func newDeleteExamTypeRouter(svc service.ExamTypeService) *gin.Engine {
+func newDeleteExamTypeRouter(svc service.ExaminationTypeService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithExamTypeSvc(svc)
 	r.DELETE("/exam-types/:id", func(c *gin.Context) {
@@ -457,7 +457,7 @@ func TestDeleteExaminationType(t *testing.T) {
 
 // ---- ReorderExaminationTypes ----
 
-func newReorderExamTypesRouter(svc service.ExamTypeService) *gin.Engine {
+func newReorderExamTypesRouter(svc service.ExaminationTypeService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithExamTypeSvc(svc)
 	r.PUT("/exam-types/reorder", func(c *gin.Context) {

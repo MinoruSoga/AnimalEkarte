@@ -961,10 +961,10 @@ func TestBuildDiagnosisTypeUpdateFields(t *testing.T) {
 			SortOrder: &sortOrder,
 		}
 		fields := buildDiagnosisTypeUpdateFields(input)
-		assert.Equal(t, name, fields[colDiagnosisTypeName])
-		assert.Equal(t, isActive, fields[colDiagnosisTypeIsActive])
-		assert.Equal(t, sortOrder, fields[colDiagnosisTypeSortOrder])
-		assert.NotContains(t, fields, colDiagnosisTypeDescription)
+		assert.Equal(t, name, fields[colDiagnosisName])
+		assert.Equal(t, isActive, fields[colDiagnosisIsActive])
+		assert.Equal(t, sortOrder, fields[colDiagnosisSortOrder])
+		assert.NotContains(t, fields, colDiagnosisDescription)
 	})
 
 	t.Run("returns empty map when all fields are nil", func(t *testing.T) {
@@ -976,7 +976,7 @@ func TestBuildDiagnosisTypeUpdateFields(t *testing.T) {
 	t.Run("includes description when provided", func(t *testing.T) {
 		input := &UpdateDiagnosisTypeInput{Description: &desc}
 		fields := buildDiagnosisTypeUpdateFields(input)
-		assert.Equal(t, desc, fields[colDiagnosisTypeDescription])
+		assert.Equal(t, desc, fields[colDiagnosisDescription])
 	})
 }
 
@@ -994,11 +994,11 @@ func TestBuildDiagnosisNameUpdateFields(t *testing.T) {
 			SortOrder:       &sortOrder,
 		}
 		fields := buildDiagnosisNameUpdateFields(input)
-		assert.Equal(t, name, fields[colDiagnosisTypeName])
-		assert.Equal(t, isActive, fields[colDiagnosisTypeIsActive])
+		assert.Equal(t, name, fields[colDiagnosisName])
+		assert.Equal(t, isActive, fields[colDiagnosisIsActive])
 		assert.Equal(t, catID, fields[colDiagnosisNameDiagnosisTypeID])
-		assert.Equal(t, sortOrder, fields[colDiagnosisTypeSortOrder])
-		assert.NotContains(t, fields, colDiagnosisTypeDescription)
+		assert.Equal(t, sortOrder, fields[colDiagnosisSortOrder])
+		assert.NotContains(t, fields, colDiagnosisDescription)
 	})
 
 	t.Run("returns empty map when all fields are nil", func(t *testing.T) {

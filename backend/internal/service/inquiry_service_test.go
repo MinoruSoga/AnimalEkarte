@@ -10,7 +10,17 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// mockInquiryRepository は chief_complaint_type_service_test.go で定義済み
+type mockInquiryRepository struct {
+	upsertFn func(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
+}
+
+func (m *mockInquiryRepository) UpsertByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+	return m.upsertFn(ctx, clinicID, inquiry)
+}
+
+func (m *mockInquiryRepository) CountByChiefComplaintTypeID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
 
 func TestInquiryService_Upsert(t *testing.T) {
 	complaint := "食欲不振"
