@@ -8,13 +8,13 @@ import (
 
 // ClinicalPlan は診察所見・診断・治療方針（診察/治療タブ, v9.0追加）
 type ClinicalPlan struct {
-	ID                   uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	MedicalRecordID      uint64    `gorm:"not null;uniqueIndex"                           json:"medical_record_id"`
-	PhysicalExam         string    `gorm:"default:''"                                     json:"physical_exam"`
-	DiagnosisTypeID      *uint64   `gorm:"column:diagnosis_type_id"                       json:"diagnosis_type_id,omitempty"`
-	DiagnosisNameID      *uint64   `                                                      json:"diagnosis_name_id,omitempty"`
-	Diagnosis2CategoryID *uint64   `gorm:"column:diagnosis_2_type_id"                     json:"diagnosis_2_type_id,omitempty"`
-	Diagnosis2NameID     *uint64   `gorm:"column:diagnosis_2_name_id"                     json:"diagnosis_2_name_id,omitempty"`
+	ID                   uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	MedicalRecordID      uint64         `gorm:"not null;uniqueIndex"                           json:"medical_record_id"`
+	PhysicalExam         string         `gorm:"default:''"                                     json:"physical_exam"`
+	DiagnosisTypeID      *uint64        `gorm:"column:diagnosis_type_id"                       json:"diagnosis_type_id,omitempty"`
+	DiagnosisNameID      *uint64        `                                                      json:"diagnosis_name_id,omitempty"`
+	Diagnosis2CategoryID *uint64        `gorm:"column:diagnosis_2_type_id"                     json:"diagnosis_2_type_id,omitempty"`
+	Diagnosis2NameID     *uint64        `gorm:"column:diagnosis_2_name_id"                     json:"diagnosis_2_name_id,omitempty"`
 	DiagnosisDetails     string         `gorm:"default:''"                                     json:"diagnosis_details"`
 	TreatmentPolicy      string         `gorm:"default:''"                                     json:"treatment_policy"`
 	CreatedAt            time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`

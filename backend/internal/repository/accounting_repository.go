@@ -205,7 +205,7 @@ func (r *accountingRepository) UpsertPayment(ctx context.Context, payment *model
 		"billing_amount":   payment.BillingAmount,
 		"received_amount":  payment.ReceivedAmount,
 		"change_amount":    payment.ChangeAmount,
-		"method":           payment.Method,
+		"method":           payment.Method, //nolint:staticcheck // Method is deprecated but PaymentMethodID migration is in progress
 		"paid_by":          payment.PaidBy,
 	}
 
@@ -541,11 +541,7 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 
 	taxBreakdown := make([]TaxBreakdownRow, 0, len(taxRows))
 	for _, tr := range taxRows {
-		taxBreakdown = append(taxBreakdown, TaxBreakdownRow{
-			TaxRate:       tr.TaxRate,
-			TaxableAmount: tr.TaxableAmount,
-			TaxAmount:     tr.TaxAmount,
-		})
+		taxBreakdown = append(taxBreakdown, TaxBreakdownRow(tr))
 	}
 
 	return &CloseAggregateResult{
@@ -662,11 +658,7 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 
 	taxBreakdown := make([]TaxBreakdownRow, 0, len(taxRows))
 	for _, tr := range taxRows {
-		taxBreakdown = append(taxBreakdown, TaxBreakdownRow{
-			TaxRate:       tr.TaxRate,
-			TaxableAmount: tr.TaxableAmount,
-			TaxAmount:     tr.TaxAmount,
-		})
+		taxBreakdown = append(taxBreakdown, TaxBreakdownRow(tr))
 	}
 
 	// 会計件数（billings 単位）

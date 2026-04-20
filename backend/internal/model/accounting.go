@@ -128,18 +128,18 @@ func (item *BillingItem) CalculateTaxAmount() int64 {
 }
 
 type Payment struct {
-	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	BillingID       uint64         `gorm:"not null;uniqueIndex"                           json:"billing_id"`
-	Subtotal        int64          `gorm:"not null;default:0"                             json:"subtotal"`
-	TaxTotal        int64          `gorm:"not null;default:0"                             json:"tax_total"`
-	TotalAmount     int64          `gorm:"not null;default:0"                             json:"total_amount"`
-	InsuranceName   string         `gorm:"default:''"                                     json:"insurance_name"`
-	InsuranceRatio  float64        `gorm:"type:numeric(3,2);default:0"                    json:"insurance_ratio"`
-	InsuranceAmount int64          `gorm:"default:0"                                      json:"insurance_amount"`
-	DiscountAmount  int64          `gorm:"default:0"                                      json:"discount_amount"`
-	BillingAmount   int64          `gorm:"not null;default:0"                             json:"billing_amount"`
-	ReceivedAmount  int64          `gorm:"default:0"                                      json:"received_amount"`
-	ChangeAmount    int64          `gorm:"default:0"                                      json:"change_amount"`
+	ID              uint64  `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	BillingID       uint64  `gorm:"not null;uniqueIndex"                           json:"billing_id"`
+	Subtotal        int64   `gorm:"not null;default:0"                             json:"subtotal"`
+	TaxTotal        int64   `gorm:"not null;default:0"                             json:"tax_total"`
+	TotalAmount     int64   `gorm:"not null;default:0"                             json:"total_amount"`
+	InsuranceName   string  `gorm:"default:''"                                     json:"insurance_name"`
+	InsuranceRatio  float64 `gorm:"type:numeric(3,2);default:0"                    json:"insurance_ratio"`
+	InsuranceAmount int64   `gorm:"default:0"                                      json:"insurance_amount"`
+	DiscountAmount  int64   `gorm:"default:0"                                      json:"discount_amount"`
+	BillingAmount   int64   `gorm:"not null;default:0"                             json:"billing_amount"`
+	ReceivedAmount  int64   `gorm:"default:0"                                      json:"received_amount"`
+	ChangeAmount    int64   `gorm:"default:0"                                      json:"change_amount"`
 	// Deprecated: use PaymentMethodID. Will be removed in a future release.
 	Method          PaymentMethod  `gorm:"type:payment_method;default:'cash'"             json:"method"`
 	PaymentMethodID *uint64        `                                                      json:"payment_method_id,omitempty"`

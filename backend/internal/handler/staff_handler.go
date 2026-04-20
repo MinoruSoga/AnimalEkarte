@@ -280,8 +280,8 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 		return
 	}
 	clinicIDs := make([]uint64, 0, len(assignments))
-	for _, a := range assignments {
-		clinicIDs = append(clinicIDs, a.ClinicID)
+	for i := range assignments {
+		clinicIDs = append(clinicIDs, assignments[i].ClinicID)
 	}
 	c.JSON(http.StatusOK, gin.H{"clinic_ids": clinicIDs})
 }

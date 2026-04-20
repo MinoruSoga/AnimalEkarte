@@ -112,7 +112,7 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
-	if err := validateNonNegativePrice(input.Price, "金額"); err != nil {
+	if err := validateNonNegativePrice(input.Price); err != nil {
 		return nil, err
 	}
 	if input.Species != nil {
@@ -149,7 +149,7 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	if err := validateNonNegativePrice(input.Price, "金額"); err != nil {
+	if err := validateNonNegativePrice(input.Price); err != nil {
 		return nil, err
 	}
 	if input.Species != nil {
@@ -170,7 +170,6 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 }
 
 func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error {
-	// 子ワクチンの存在チェック (BUG-390)
 	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to count vaccine children")

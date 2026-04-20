@@ -261,12 +261,12 @@ func validateCageType(cageType string) error {
 }
 
 // validateNonNegativePrice は価格フィールドが 0 以上かを検証する（nil の場合はスキップ）(BUG-380)
-func validateNonNegativePrice(price *int64, fieldName string) error {
+func validateNonNegativePrice(price *int64) error {
 	if price == nil {
 		return nil
 	}
 	if *price < 0 {
-		return apperrors.WrapInvalidInput(fmt.Sprintf("%sは0以上を入力してください", fieldName))
+		return apperrors.WrapInvalidInput("金額は0以上を入力してください")
 	}
 	return nil
 }

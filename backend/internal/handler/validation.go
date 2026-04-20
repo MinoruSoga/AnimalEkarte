@@ -31,8 +31,8 @@ func (h *Handler) checkDoctorClinicAssignment(ctx context.Context, clinicID, doc
 	if err != nil {
 		return apperrors.Wrap(err, "failed to verify staff assignment")
 	}
-	for _, a := range assignments {
-		if a.ClinicID == clinicID {
+	for i := range assignments {
+		if assignments[i].ClinicID == clinicID {
 			return nil
 		}
 	}

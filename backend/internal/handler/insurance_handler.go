@@ -58,7 +58,6 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 		return
 	}
 
-	// デフォルト値設定はサービス層で行う (BUG-379)
 	svcInput := &service.CreateInsuranceInput{
 		Name:         req.Name,
 		IsActive:     req.IsActive,

@@ -29,7 +29,8 @@ func buildMeResponse(staff *model.Staff, account *model.Account, mainClinicID st
 	meClinicList := make([]MeClinicMembership, 0)
 	isSystemAdmin := account != nil && account.IsSystemAdmin
 	if staff != nil && len(staff.ClinicAssignments) > 0 {
-		for _, asg := range staff.ClinicAssignments {
+		for i := range staff.ClinicAssignments {
+			asg := &staff.ClinicAssignments[i]
 			clIDStr := strconv.FormatUint(asg.ClinicID, 10)
 			meClinicList = append(meClinicList, MeClinicMembership{
 				ClinicID:   clIDStr,
@@ -135,7 +136,8 @@ func (h *Handler) authenticateUser(ctx context.Context, email, password, clientI
 // メインクリニックが未設定の場合は最初の割り当てを使用する。
 func resolveClinicInfo(assignments []model.StaffClinicAssignment) (mainClinicID string, clinicIDs []uint64) {
 	clinicIDs = make([]uint64, 0, len(assignments))
-	for _, asg := range assignments {
+	for i := range assignments {
+		asg := &assignments[i]
 		if asg.IsMain && mainClinicID == "" {
 			mainClinicID = strconv.FormatUint(asg.ClinicID, 10)
 		}

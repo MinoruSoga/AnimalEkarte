@@ -22,11 +22,11 @@ type createReservationTypeRequest struct {
 }
 
 type updateReservationTypeRequest struct {
-	Name        *string `json:"name"`
-	Color       *string `json:"color"`
-	IsActive    *bool   `json:"is_active"`
-	Description *string `json:"description"`
-	SortOrder   *int    `json:"sort_order"`
+	Name         *string `json:"name"`
+	Color        *string `json:"color"`
+	IsActive     *bool   `json:"is_active"`
+	Description  *string `json:"description"`
+	SortOrder    *int    `json:"sort_order"`
 	GroupID      *uint64 `json:"group_id"`
 	ClearGroupID bool    `json:"clear_group_id"`
 	Category     *string `json:"category"    binding:"omitempty,oneof=general trimming"`

@@ -126,7 +126,7 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
-	if err := validateNonNegativePrice(input.Price, "金額"); err != nil {
+	if err := validateNonNegativePrice(input.Price); err != nil {
 		return nil, err
 	}
 	if err := validateAnesthesiaType(input.Anesthesia); err != nil {
@@ -176,7 +176,7 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	if err := validateNonNegativePrice(input.Price, "金額"); err != nil {
+	if err := validateNonNegativePrice(input.Price); err != nil {
 		return nil, err
 	}
 	if input.Anesthesia != nil {
@@ -201,7 +201,6 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	return procedure, nil
 }
 func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) error {
-	// 子処置の存在チェック (BUG-390)
 	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to count procedure children")
