@@ -16,7 +16,7 @@ type ClosingSettingsService interface {
 	Get(ctx context.Context, clinicID uint64) (*ClosingSettingsResponse, error)
 	ListSpecialPeriods(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
 	UpdateStandard(ctx context.Context, clinicID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error)
-	CreateSpecialPeriod(ctx context.Context, clinicID uint64, input CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
+	CreateSpecialPeriod(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
 	UpdateSpecialPeriod(ctx context.Context, clinicID, id uint64, input UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
 	DeleteSpecialPeriod(ctx context.Context, clinicID, id uint64) error
 	ResolveSchedule(ctx context.Context, clinicID uint64, date time.Time) (*DaySchedule, error)
@@ -125,7 +125,7 @@ func (s *closingSettingsService) UpdateStandard(ctx context.Context, clinicID ui
 	return result, nil
 }
 
-func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinicID uint64, input CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
+func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
 	startDate, err := time.Parse("2006-01-02", input.StartDate)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")

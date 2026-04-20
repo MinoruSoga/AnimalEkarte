@@ -123,8 +123,8 @@ func (s *accountingReportService) GetMonthly(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to get payment methods")
 	}
 	payMethodNames := make(map[uint64]string, len(payMethods))
-	for _, pm := range payMethods {
-		payMethodNames[pm.ID] = pm.Name
+	for i := range payMethods {
+		payMethodNames[payMethods[i].ID] = payMethods[i].Name
 	}
 
 	// 休診日マスタを取得
@@ -365,8 +365,8 @@ func buildTaxBreakdown(rows []repository.TaxBreakdownRow) TaxBreakdownSummary {
 // buildPayMethodNameMap は PaymentMethodMaster スライスから ID→名前マップを構築する
 func buildPayMethodNameMap(methods []model.PaymentMethodMaster) map[uint64]string {
 	m := make(map[uint64]string, len(methods))
-	for _, pm := range methods {
-		m[pm.ID] = pm.Name
+	for i := range methods {
+		m[methods[i].ID] = methods[i].Name
 	}
 	return m
 }

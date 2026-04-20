@@ -400,7 +400,7 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 			)
 
 			// Act
-			got, err := svc.CreateSpecialPeriod(context.Background(), 1, tt.input)
+			got, err := svc.CreateSpecialPeriod(context.Background(), 1, &tt.input)
 
 			// Assert
 			if tt.wantErr {

@@ -55,7 +55,7 @@ func (h *Handler) ExportMonthlyCSV(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "text/csv; charset=utf-8")
-	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, csvResult.Filename))
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", csvResult.Filename))
 	c.Data(http.StatusOK, "text/csv; charset=utf-8", csvResult.Data)
 }
 

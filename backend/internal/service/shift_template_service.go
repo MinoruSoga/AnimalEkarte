@@ -28,12 +28,12 @@ type ShiftBreakTemplateInput struct {
 // CreateShiftTemplateInput はシフトテンプレート作成の入力DTO
 type CreateShiftTemplateInput struct {
 	Name      string
-	ShiftType string  // string のまま（model変換はService内）
-	StartTime string  // 空文字 = nil 扱い（Service内で処理）
+	ShiftType string
+	StartTime string
 	EndTime   string
 	Notes     string
 	SortOrder int
-	IsActive  *bool   // nil = デフォルト true（Service内で処理）
+	IsActive  *bool // nil = デフォルト true（Service内で処理）
 	Breaks    []ShiftBreakTemplateInput
 }
 

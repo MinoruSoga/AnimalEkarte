@@ -115,7 +115,7 @@ func (m *mockClosingSettingsService) ListSpecialPeriods(_ context.Context, _ uin
 func (m *mockClosingSettingsService) UpdateStandard(_ context.Context, _ uint64, _ UpdateClinicSettingsInput) (*model.ClinicSettings, error) {
 	return nil, nil
 }
-func (m *mockClosingSettingsService) CreateSpecialPeriod(_ context.Context, _ uint64, _ CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
+func (m *mockClosingSettingsService) CreateSpecialPeriod(_ context.Context, _ uint64, _ *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
 	return nil, nil
 }
 func (m *mockClosingSettingsService) UpdateSpecialPeriod(_ context.Context, _, _ uint64, _ UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {

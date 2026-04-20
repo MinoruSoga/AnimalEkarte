@@ -105,7 +105,7 @@ func (h *Handler) CreateSpecialPeriod(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	period, err := h.svc.ClosingSettings.CreateSpecialPeriod(c.Request.Context(), clinicID, service.CreateSpecialPeriodInput{
+	period, err := h.svc.ClosingSettings.CreateSpecialPeriod(c.Request.Context(), clinicID, &service.CreateSpecialPeriodInput{
 		StartDate:    req.StartDate,
 		EndDate:      req.EndDate,
 		AmPmBoundary: req.AmPmBoundary,
