@@ -21,6 +21,7 @@ type ConsultationRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByConsultationID(ctx context.Context, clinicID, consultationID uint64) (int64, error)
+	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
 
 type consultationRepository struct{ db *gorm.DB }
@@ -85,6 +86,20 @@ func (r *consultationRepository) Delete(ctx context.Context, clinicID, id uint64
 
 func (r *consultationRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return reorderByClinicID(ctx, r.db, &model.Consultation{}, "consultation", clinicID, ids)
+}
+
+// CountChildrenByParentID は指定した親 ID を持つ子診察項目の件数を返す。
+// 親を削除する前に孤立子が残らないことを確認するために使用する。
+func (r *consultationRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Consultation{}).
+		Scopes(clinicScope(clinicID)).
+		Where("parent_id = ?", parentID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "consultation", fmt.Sprintf("%d", parentID))
+	}
+	return count, nil
 }
 
 // CountUsageByConsultationID は診察マスタを参照している treatments の件数を返す（BUG-107）
