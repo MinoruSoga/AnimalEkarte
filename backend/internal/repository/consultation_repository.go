@@ -109,7 +109,7 @@ func (r *consultationRepository) CountUsageByConsultationID(ctx context.Context,
 	if err := r.db.WithContext(ctx).
 		Model(&model.Treatment{}).
 		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
-		Where("treatments.consultation_id = ?", consultationID).
+		Where("treatments.consultation_id = ? AND treatments.deleted_at IS NULL", consultationID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "treatment", "")
 	}

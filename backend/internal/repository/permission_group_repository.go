@@ -135,6 +135,7 @@ func (r *permissionGroupRepository) CountStaffsByGroupID(ctx context.Context, cl
 	if err := r.db.WithContext(ctx).
 		Model(&model.StaffPermissionGroup{}).
 		Joins("JOIN permission_groups ON permission_groups.id = staff_permission_groups.group_id AND permission_groups.clinic_id = ? AND permission_groups.deleted_at IS NULL", clinicID).
+		Joins("JOIN staffs ON staffs.id = staff_permission_groups.staff_id AND staffs.deleted_at IS NULL").
 		Where("staff_permission_groups.group_id = ?", groupID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "staff_permission_group", "")
