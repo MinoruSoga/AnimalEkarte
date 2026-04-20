@@ -16,6 +16,7 @@ import (
 type ChiefComplaintTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
+	CountUsageByChiefComplaintTypeID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Create(ctx context.Context, category *model.ChiefComplaintType) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -76,6 +77,20 @@ func (r *chiefComplaintTypeRepository) UpdateFields(ctx context.Context, clinicI
 
 func (r *chiefComplaintTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return reorderByClinicID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, ids)
+}
+
+// CountUsageByChiefComplaintTypeID は主訴区分を参照している inquiries の件数を返す。
+// inquiries テーブルは clinic_id を持たないため medical_records を JOIN してテナント分離する。
+func (r *chiefComplaintTypeRepository) CountUsageByChiefComplaintTypeID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Inquiry{}).
+		Joins("JOIN medical_records ON medical_records.id = inquiries.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Where("inquiries.chief_complaint_type_id = ?", id).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "inquiry", "")
+	}
+	return count, nil
 }
 
 func (r *chiefComplaintTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {

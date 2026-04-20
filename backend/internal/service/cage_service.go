@@ -80,12 +80,11 @@ type CageService interface {
 }
 
 type cageService struct {
-	repo                repository.CageRepository
-	hospitalizationRepo repository.HospitalizationRepository
+	repo repository.CageRepository
 }
 
-func NewCageService(repo repository.CageRepository, hospitalizationRepo repository.HospitalizationRepository) CageService {
-	return &cageService{repo: repo, hospitalizationRepo: hospitalizationRepo}
+func NewCageService(repo repository.CageRepository) CageService {
+	return &cageService{repo: repo}
 }
 
 func (s *cageService) List(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
@@ -159,11 +158,11 @@ func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to get cage")
 	}
-	exists, err := s.hospitalizationRepo.ExistsByCageID(ctx, id)
+	count, err := s.repo.CountRecordsByCageID(ctx, clinicID, id)
 	if err != nil {
-		return apperrors.Wrap(err, "failed to check hospitalization dependency")
+		return apperrors.Wrap(err, "failed to check cage usage")
 	}
-	if exists {
+	if count > 0 {
 		return apperrors.WrapConflict("このケージは入院データで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {

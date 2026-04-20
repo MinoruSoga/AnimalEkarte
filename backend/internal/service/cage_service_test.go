@@ -13,12 +13,13 @@ import (
 
 // mockCageRepository は CageRepository のテスト用モック実装
 type mockCageRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
-	createFn       func(ctx context.Context, cage *model.Cage) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
-	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn              func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
+	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+	countRecordsByCageIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
+	createFn               func(ctx context.Context, cage *model.Cage) error
+	updateFieldsFn         func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
+	deleteFn               func(ctx context.Context, clinicID, id uint64) error
+	reorderFn              func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockCageRepository) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
@@ -41,6 +42,13 @@ func (m *mockCageRepository) Delete(ctx context.Context, clinicID, id uint64) er
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockCageRepository) CountRecordsByCageID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	if m.countRecordsByCageIDFn != nil {
+		return m.countRecordsByCageIDFn(ctx, clinicID, id)
+	}
+	return 0, nil
+}
+
 func (m *mockCageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if m.reorderFn != nil {
 		return m.reorderFn(ctx, clinicID, ids)
@@ -48,47 +56,8 @@ func (m *mockCageRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 	return nil
 }
 
-// mockHospitalizationForCage は Cage テストで使用する HospitalizationRepository のスタブ
-type mockHospitalizationForCage struct {
-	existsByCageIDFn func(ctx context.Context, cageID uint64) (bool, error)
-}
-
-func (m *mockHospitalizationForCage) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Hospitalization, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockHospitalizationForCage) FindByID(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
-	return nil, nil
-}
-func (m *mockHospitalizationForCage) Create(_ context.Context, _ *model.Hospitalization) error {
-	return nil
-}
-func (m *mockHospitalizationForCage) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
-	return nil, nil
-}
-func (m *mockHospitalizationForCage) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *mockHospitalizationForCage) ExistsByCageID(ctx context.Context, cageID uint64) (bool, error) {
-	if m.existsByCageIDFn != nil {
-		return m.existsByCageIDFn(ctx, cageID)
-	}
-	return false, nil
-}
-
-func (m *mockHospitalizationForCage) CountCarePlanItemsByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockHospitalizationForCage) CountDailyRecordsByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockHospitalizationForCage) CountTreatmentPlansByHospitalizationID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
 func newTestCageService(repo *mockCageRepository) CageService {
-	return NewCageService(repo, &mockHospitalizationForCage{})
+	return NewCageService(repo)
 }
 
 func TestCageService_List(t *testing.T) {

@@ -16,6 +16,7 @@ import (
 type InquiryTemplateRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
+	CountUsageByInquiryTemplateID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Create(ctx context.Context, template *model.InquiryTemplate) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -83,6 +84,13 @@ func (r *inquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uin
 		return apperrors.WrapNotFound("inquiry_template", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountUsageByInquiryTemplateID は問診定型文を参照している外部テーブルの件数を返す。
+// 現スキーマには inquiry_template_id FK を持つテーブルが存在しないため常に 0 を返す。
+// 将来 inquiry_answers 等が追加された場合はここに COUNT クエリを実装すること。
+func (r *inquiryTemplateRepository) CountUsageByInquiryTemplateID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
 }
 
 func (r *inquiryTemplateRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

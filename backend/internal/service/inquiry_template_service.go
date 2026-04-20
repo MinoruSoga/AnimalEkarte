@@ -132,9 +132,13 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 }
 
 func (s *inquiryTemplateService) Delete(ctx context.Context, clinicID, id uint64) error {
-	// 設計上の意図: inquiry_templates を参照する外部テーブル（inquiry_template_id FK）は
-	// 現スキーマに存在しないため、依存チェックなしで直接削除する。
-	// 将来 inquiry_answers 等が追加された場合は CountUsageByTemplateID を実装すること。
+	count, err := s.repo.CountUsageByInquiryTemplateID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check inquiry template usage")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この問診定型文は使用中のため削除できません")
+	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete inquiry template")
 	}

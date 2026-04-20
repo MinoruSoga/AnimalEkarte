@@ -16,6 +16,7 @@ import (
 type CageRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+	CountRecordsByCageID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Create(ctx context.Context, cage *model.Cage) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -80,6 +81,20 @@ func (r *cageRepository) Delete(ctx context.Context, clinicID, id uint64) error 
 		return apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountRecordsByCageID はケージを参照している hospitalizations の件数を返す。
+// hospitalizations テーブルは直接 clinic_id を持つためテナント分離を直接適用する。
+func (r *cageRepository) CountRecordsByCageID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Hospitalization{}).
+		Scopes(clinicScope(clinicID)).
+		Where("cage_id = ?", id).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "hospitalization", "")
+	}
+	return count, nil
 }
 
 func (r *cageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

@@ -15,12 +15,13 @@ import (
 
 // mockReservationTypeRepository は ReservationTypeRepository のテスト用モック実装
 type mockReservationTypeRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
-	createFn   func(ctx context.Context, st *model.ReservationType) error
-	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
-	reorderFn  func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                     func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
+	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
+	countUsageByReservationTypeFn func(ctx context.Context, clinicID, id uint64) (int64, error)
+	createFn                      func(ctx context.Context, st *model.ReservationType) error
+	updateFn                      func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
+	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockReservationTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
@@ -58,42 +59,18 @@ func (m *mockReservationTypeRepository) Delete(ctx context.Context, clinicID, id
 	return nil
 }
 
+func (m *mockReservationTypeRepository) CountUsageByReservationTypeID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	if m.countUsageByReservationTypeFn != nil {
+		return m.countUsageByReservationTypeFn(ctx, clinicID, id)
+	}
+	return 0, nil
+}
+
 func (m *mockReservationTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if m.reorderFn != nil {
 		return m.reorderFn(ctx, clinicID, ids)
 	}
 	return nil
-}
-
-// mockReservationForReservationType は ReservationType テストで使用する ReservationQueryRepository のスタブ
-type mockReservationForReservationType struct {
-	existsByReservationTypeIDFn func(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error)
-	existsByStaffIDFn           func(ctx context.Context, clinicID, staffID uint64) (bool, error)
-}
-
-func (m *mockReservationForReservationType) ExistsByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error) {
-	if m.existsByReservationTypeIDFn != nil {
-		return m.existsByReservationTypeIDFn(ctx, clinicID, reservationTypeID)
-	}
-	return false, nil
-}
-func (m *mockReservationForReservationType) ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error) {
-	if m.existsByStaffIDFn != nil {
-		return m.existsByStaffIDFn(ctx, clinicID, staffID)
-	}
-	return false, nil
-}
-func (m *mockReservationForReservationType) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockReservationForReservationType) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
-	return 0, nil
-}
-func (m *mockReservationForReservationType) CountByDateAndSource(_ context.Context, _ uint64, _ time.Time, _ model.ReservationSource) (int64, error) {
-	return 0, nil
-}
-func (m *mockReservationForReservationType) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
-	return nil, 0, nil
 }
 
 // mockUnavailableTimeRepository は ReservationTypeUnavailableTimeRepository のテスト用モック
@@ -180,7 +157,7 @@ func (m *mockBaseOccupationRepo) CountStaffsByOccupationID(_ context.Context, _,
 }
 
 func newTestReservationTypeService(repo *mockReservationTypeRepository) ReservationTypeService {
-	return NewReservationTypeService(repo, &mockReservationForReservationType{}, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+	return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
 }
 
 // ---- List ----

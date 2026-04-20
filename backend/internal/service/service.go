@@ -30,7 +30,7 @@ type Services struct {
 	HospitalizationPlan   HospitalizationPlanService
 	TrimmingCourse        TrimmingCourseService
 	TrimmingOption        TrimmingOptionService
-	ExaminationType       ExamTypeService
+	ExaminationType       ExaminationTypeService
 	DiagnosisType         DiagnosisTypeService
 	DiagnosisName         DiagnosisNameService
 	CheckupType           CheckupTypeService
@@ -108,11 +108,11 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Trimming:              NewTrimmingService(repos.Reservation, repos.AppointmentTrimmingDetail, tx),
 		Inventory:             NewInventoryService(repos.Inventory),
 		Staff:                 NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, tx),
-		Cage:                  NewCageService(repos.Cage, repos.Hospitalization),
+		Cage:                  NewCageService(repos.Cage),
 		Medicine:              NewMedicineService(repos.Medicine, repos.Inventory, tx),
 		Vaccine:               NewVaccineService(repos.Vaccine),
 		Insurance:             NewInsuranceService(repos.Insurance),
-		ReservationType:       NewReservationTypeService(repos.ReservationType, repos.Reservation, repos.ReservationTypeUnavailableTime, repos.ReservationTypeOccupation, repos.Occupation),
+		ReservationType:       NewReservationTypeService(repos.ReservationType, repos.ReservationTypeUnavailableTime, repos.ReservationTypeOccupation, repos.Occupation),
 		ReservationTypeGroup:  NewReservationTypeGroupService(repos.ReservationTypeGroup),
 		Consultation:          NewConsultationService(repos.Consultation),
 		Procedure:             NewProcedureService(repos.Procedure),
@@ -127,7 +127,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Examination:           NewExaminationService(repos.Examination),
 		Vaccination:           NewVaccinationService(repos.Vaccination),
 		Occupation:            NewOccupationService(repos.Occupation),
-		ChiefComplaintType:    NewChiefComplaintTypeService(repos.ChiefComplaintType, repos.Inquiry),
+		ChiefComplaintType:    NewChiefComplaintTypeService(repos.ChiefComplaintType),
 		Inquiry:               NewInquiryService(repos.Inquiry),
 		InquiryTemplate:       NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:               NewCompanyService(repos.Company),

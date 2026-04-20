@@ -16,6 +16,7 @@ import (
 type ReservationTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
+	CountUsageByReservationTypeID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Create(ctx context.Context, reservationType *model.ReservationType) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -83,6 +84,20 @@ func (r *reservationTypeRepository) Delete(ctx context.Context, clinicID, id uin
 		return apperrors.WrapNotFound("reservation_type", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+// CountUsageByReservationTypeID は予約区分を参照している appointments の件数を返す。
+// appointments テーブルは直接 clinic_id を持つためテナント分離を直接適用する。
+func (r *reservationTypeRepository) CountUsageByReservationTypeID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Reservation{}).
+		Scopes(clinicScope(clinicID)).
+		Where("reservation_type_id = ?", id).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "reservation", "")
+	}
+	return count, nil
 }
 
 // Reorder はトランザクション内で予約区分の sort_order を ids の順序で更新する

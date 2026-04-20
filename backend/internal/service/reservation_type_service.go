@@ -181,7 +181,6 @@ type ReservationTypeService interface { //nolint:revive // ReservationType is a 
 
 type reservationTypeService struct {
 	repo                repository.ReservationTypeRepository
-	reservationRepo     repository.ReservationQueryRepository
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository
 	occupationRepo      repository.ReservationTypeOccupationRepository
 	baseOccupationRepo  repository.OccupationRepository
@@ -189,14 +188,12 @@ type reservationTypeService struct {
 
 func NewReservationTypeService(
 	repo repository.ReservationTypeRepository,
-	reservationRepo repository.ReservationQueryRepository,
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
 	occupationRepo repository.ReservationTypeOccupationRepository,
 	baseOccupationRepo repository.OccupationRepository,
 ) ReservationTypeService {
 	return &reservationTypeService{
 		repo:                repo,
-		reservationRepo:     reservationRepo,
 		unavailableTimeRepo: unavailableTimeRepo,
 		occupationRepo:      occupationRepo,
 		baseOccupationRepo:  baseOccupationRepo,
@@ -286,11 +283,11 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 }
 
 func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
-	exists, err := s.reservationRepo.ExistsByReservationTypeID(ctx, clinicID, id)
+	count, err := s.repo.CountUsageByReservationTypeID(ctx, clinicID, id)
 	if err != nil {
-		return apperrors.Wrap(err, "failed to check reservation dependency")
+		return apperrors.Wrap(err, "failed to check reservation type usage")
 	}
-	if exists {
+	if count > 0 {
 		return apperrors.WrapConflict("この項目は予約データで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {

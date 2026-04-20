@@ -65,12 +65,11 @@ type ChiefComplaintTypeService interface {
 }
 
 type chiefComplaintTypeService struct {
-	repo        repository.ChiefComplaintTypeRepository
-	inquiryRepo repository.InquiryRepository
+	repo repository.ChiefComplaintTypeRepository
 }
 
-func NewChiefComplaintTypeService(repo repository.ChiefComplaintTypeRepository, inquiryRepo repository.InquiryRepository) ChiefComplaintTypeService {
-	return &chiefComplaintTypeService{repo: repo, inquiryRepo: inquiryRepo}
+func NewChiefComplaintTypeService(repo repository.ChiefComplaintTypeRepository) ChiefComplaintTypeService {
+	return &chiefComplaintTypeService{repo: repo}
 }
 
 func (s *chiefComplaintTypeService) List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
@@ -144,9 +143,9 @@ func (s *chiefComplaintTypeService) Delete(ctx context.Context, clinicID, id uin
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to get chief complaint type")
 	}
-	count, err := s.inquiryRepo.CountByChiefComplaintTypeID(ctx, clinicID, id)
+	count, err := s.repo.CountUsageByChiefComplaintTypeID(ctx, clinicID, id)
 	if err != nil {
-		return apperrors.Wrap(err, "failed to check inquiry dependency")
+		return apperrors.Wrap(err, "failed to check chief complaint type usage")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この主訴カテゴリは問診記録で使用中のため削除できません")
