@@ -1993,3 +1993,25 @@ CREATE TABLE password_reset_tokens (
 CREATE INDEX idx_prt_account ON password_reset_tokens(account_id);
 COMMENT ON TABLE password_reset_tokens IS 'パスワードリセットトークン';
 COMMENT ON TABLE reservation_type_occupations IS '予約区分対応職種';
+
+-- =============================================
+-- デフォルト支払方法のトリガー
+-- 新しいクリニック作成時に自動でデフォルト支払方法を挿入する
+-- =============================================
+CREATE OR REPLACE FUNCTION create_default_payment_methods()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO payment_methods (clinic_id, name, display_order, is_active)
+    VALUES
+        (NEW.id, '現金',            1, true),
+        (NEW.id, 'クレジットカード', 2, true),
+        (NEW.id, '電子マネー',       3, true),
+        (NEW.id, '銀行振込',         4, true);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_create_default_payment_methods
+    AFTER INSERT ON clinics
+    FOR EACH ROW
+    EXECUTE FUNCTION create_default_payment_methods();

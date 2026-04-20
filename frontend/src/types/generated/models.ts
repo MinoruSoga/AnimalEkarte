@@ -1208,6 +1208,7 @@ export const ResourceDiscount: Resource = "discount";
 export const ResourceCashRegisterClose: Resource = "cash-register-close"; // レジ締め実行・履歴
 export const ResourceAccountingReports: Resource = "accounting-reports"; // 月次売上集計（経理向け）
 export const ResourceClosingSettings: Resource = "closing-settings"; // 締め時間設定（管理者向け）
+export const ResourcePaymentMethods: Resource = "payment-methods"; // 支払方法マスタ
 
 //////////
 // source: permission_group.go
@@ -1979,7 +1980,3 @@ export const ItemCategoryTrimming: ItemCategory = "trimming";
 export const ItemCategoryHotel: ItemCategory = "hotel";
 export const ItemCategoryTraining: ItemCategory = "training";
 
-export const ResourceCashRegisterClose: Resource = "cash-register-close";
-export const ResourceAccountingReports: Resource = "accounting-reports";
-export const ResourceClosingSettings: Resource = "closing-settings";
-export const ResourcePaymentMethods: Resource = "payment-methods";
