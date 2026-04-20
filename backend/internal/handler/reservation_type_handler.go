@@ -204,11 +204,15 @@ func (h *Handler) DeleteUnavailableTime(c *gin.Context) {
 	if !ok {
 		return
 	}
+	reservationTypeID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
 	unavailableTimeID, ok := parseIDParam(c, "unavailable_time_id")
 	if !ok {
 		return
 	}
-	if err := h.svc.ReservationType.DeleteUnavailableTime(c.Request.Context(), clinicID, unavailableTimeID); err != nil {
+	if err := h.svc.ReservationType.DeleteUnavailableTime(c.Request.Context(), clinicID, reservationTypeID, unavailableTimeID); err != nil {
 		RespondError(c, err)
 		return
 	}

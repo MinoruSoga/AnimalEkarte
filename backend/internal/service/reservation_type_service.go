@@ -161,7 +161,7 @@ type ReservationTypeCoreService interface { //nolint:revive // ReservationType i
 type ReservationTypeUnavailableTimeService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
 	ListUnavailableTimes(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
 	CreateUnavailableTime(ctx context.Context, clinicID, reservationTypeID uint64, input CreateUnavailableTimeInput) (*model.ReservationTypeUnavailableTime, error)
-	DeleteUnavailableTime(ctx context.Context, clinicID, id uint64) error
+	DeleteUnavailableTime(ctx context.Context, clinicID, reservationTypeID, id uint64) error
 }
 
 // ReservationTypeOccupationService は診療科目ひもづけを担う。
@@ -361,12 +361,16 @@ func (s *reservationTypeService) CreateUnavailableTime(ctx context.Context, clin
 	return t, nil
 }
 
-func (s *reservationTypeService) DeleteUnavailableTime(ctx context.Context, clinicID, id uint64) error {
+func (s *reservationTypeService) DeleteUnavailableTime(ctx context.Context, clinicID, reservationTypeID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, reservationTypeID); err != nil {
+		return apperrors.Wrap(err, "failed to get reservation type")
+	}
 	if err := s.unavailableTimeRepo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete unavailable time")
 	}
 	slog.InfoContext(ctx, "unavailable time deleted",
 		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("reservation_type_id", reservationTypeID),
 		slog.Uint64("unavailable_time_id", id))
 	return nil
 }

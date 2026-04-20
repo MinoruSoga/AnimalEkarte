@@ -30,7 +30,7 @@ type mockReservationTypeService struct {
 	reorderFn           func(ctx context.Context, clinicID uint64, ids []uint64) error
 	listUnavailableFn   func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
 	createUnavailableFn func(ctx context.Context, clinicID, reservationTypeID uint64, input service.CreateUnavailableTimeInput) (*model.ReservationTypeUnavailableTime, error)
-	deleteUnavailableFn func(ctx context.Context, clinicID, id uint64) error
+	deleteUnavailableFn func(ctx context.Context, clinicID, reservationTypeID, id uint64) error
 	listOccupationsFn   func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
 	linkOccupationFn    func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error)
 	unlinkOccupationFn  func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
@@ -92,9 +92,9 @@ func (m *mockReservationTypeService) CreateUnavailableTime(ctx context.Context, 
 	return &model.ReservationTypeUnavailableTime{ID: 1}, nil
 }
 
-func (m *mockReservationTypeService) DeleteUnavailableTime(ctx context.Context, clinicID, id uint64) error {
+func (m *mockReservationTypeService) DeleteUnavailableTime(ctx context.Context, clinicID, reservationTypeID, id uint64) error {
 	if m.deleteUnavailableFn != nil {
-		return m.deleteUnavailableFn(ctx, clinicID, id)
+		return m.deleteUnavailableFn(ctx, clinicID, reservationTypeID, id)
 	}
 	return nil
 }
@@ -685,7 +685,8 @@ func TestDeleteUnavailableTime(t *testing.T) {
 
 	t.Run("deletes unavailable time successfully", func(t *testing.T) {
 		svc := &mockReservationTypeService{
-			deleteUnavailableFn: func(_ context.Context, _, id uint64) error {
+			deleteUnavailableFn: func(_ context.Context, _, reservationTypeID, id uint64) error {
+				assert.Equal(t, uint64(1), reservationTypeID)
 				assert.Equal(t, uint64(5), id)
 				return nil
 			},
@@ -699,7 +700,7 @@ func TestDeleteUnavailableTime(t *testing.T) {
 
 	t.Run("returns 404 when not found", func(t *testing.T) {
 		svc := &mockReservationTypeService{
-			deleteUnavailableFn: func(_ context.Context, _, _ uint64) error {
+			deleteUnavailableFn: func(_ context.Context, _, _, _ uint64) error {
 				return apperrors.WrapNotFound("unavailable_time", "999")
 			},
 		}
