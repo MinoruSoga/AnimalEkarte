@@ -219,7 +219,7 @@ func (h *Handler) DeleteUnavailableTime(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// ListOccupations godoc
+// ListReservationTypeOccupations godoc
 func (h *Handler) ListReservationTypeOccupations(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {

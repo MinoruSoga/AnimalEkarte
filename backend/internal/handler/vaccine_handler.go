@@ -71,9 +71,7 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 		ParentID:    input.ParentID,
 		SortOrder:   input.SortOrder,
 	}
-	if input.Species != "" {
-		svcInput.Species = &input.Species
-	}
+	svcInput.Species = nilIfEmpty(input.Species)
 
 	vaccine, err := h.svc.Vaccine.Create(c.Request.Context(), clinicID, svcInput)
 	if err != nil {

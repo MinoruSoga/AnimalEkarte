@@ -11,7 +11,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// AnimalSpeciesRepository はペット種類マスタのデータアクセス層
+// AnimalSpeciesRepository は動物種マスタのデータアクセス層。
+// 動物種はシステム全体で共有されるグローバルマスタであり、clinic_id を持たない。
 type AnimalSpeciesRepository interface {
 	FindAll(ctx context.Context) ([]model.AnimalSpecies, error)
 	FindByID(ctx context.Context, id uint64) (*model.AnimalSpecies, error)

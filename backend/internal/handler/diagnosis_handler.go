@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -172,11 +173,15 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 		return
 	}
 
-	page, limit, err := parsePagination(c)
-	if err != nil {
-		RespondError(c, err)
+	page, limit, paginationErr := parsePagination(c)
+	if paginationErr != nil {
+		RespondError(c, paginationErr)
 		return
 	}
+
+	var names []model.DiagnosisName
+	var total int64
+	var err error
 
 	if typeIDStr := c.Query("type_id"); typeIDStr != "" {
 		catID, parseErr := strconv.ParseUint(typeIDStr, 10, 64)
@@ -184,20 +189,15 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 			RespondError(c, apperrors.WrapInvalidInput("invalid type_id"))
 			return
 		}
-		names, total, svcErr := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
-		if svcErr != nil {
-			RespondError(c, svcErr)
-			return
-		}
-		c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(names, toDiagnosisNameResponse), total, page, limit))
+		names, total, err = h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
 	} else {
-		names, total, svcErr := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
-		if svcErr != nil {
-			RespondError(c, svcErr)
-			return
-		}
-		c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(names, toDiagnosisNameResponse), total, page, limit))
+		names, total, err = h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
 	}
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(names, toDiagnosisNameResponse), total, page, limit))
 }
 
 // CreateDiagnosisName godoc

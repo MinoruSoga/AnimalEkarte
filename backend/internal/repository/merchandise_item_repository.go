@@ -88,7 +88,7 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 	var billingCount int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.BillingItem{}).
-		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ?", clinicID).
+		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billing_items.merchandise_item_id = ? AND billing_items.deleted_at IS NULL", merchandiseItemID).
 		Count(&billingCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "billing_item", "")
