@@ -220,6 +220,9 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 }
 
 func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMedicineInput) (*model.Medicine, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "medicine not found")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}

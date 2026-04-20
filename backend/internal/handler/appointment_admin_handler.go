@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -100,6 +101,7 @@ func (h *Handler) CreateReservationAdmin(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/clinics/%d/reservations/%d", clinicID, ra.ID))
 	c.JSON(http.StatusCreated, toReservationDetailResponse(ra))
 }
 

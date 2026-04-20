@@ -64,7 +64,7 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 		return
 	}
 
-	input := service.CreateMedicineInput{
+	medicine, err := h.svc.Medicine.Create(c.Request.Context(), clinicID, &service.CreateMedicineInput{
 		Name:            req.Name,
 		ParentID:        req.ParentID,
 		Price:           req.Price,
@@ -77,9 +77,7 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 		SortOrder:       req.SortOrder,
 		TaxType:         req.TaxType,
 		TaxRate:         req.TaxRate,
-	}
-
-	medicine, err := h.svc.Medicine.Create(c.Request.Context(), clinicID, &input)
+	})
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -105,7 +103,7 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 		return
 	}
 
-	input := service.UpdateMedicineInput{
+	medicine, err := h.svc.Medicine.Update(c.Request.Context(), clinicID, id, &service.UpdateMedicineInput{
 		Name:            req.Name,
 		ParentID:        req.ParentID,
 		ClearParentID:   req.ClearParentID,
@@ -119,9 +117,7 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 		SortOrder:       req.SortOrder,
 		TaxType:         req.TaxType,
 		TaxRate:         req.TaxRate,
-	}
-
-	medicine, err := h.svc.Medicine.Update(c.Request.Context(), clinicID, id, &input)
+	})
 	if err != nil {
 		RespondError(c, err)
 		return

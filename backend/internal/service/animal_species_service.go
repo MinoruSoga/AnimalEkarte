@@ -26,6 +26,28 @@ type UpdateAnimalSpeciesInput struct {
 	SortOrder *int
 }
 
+// 列名定数
+const (
+	colAnimalSpeciesName      = "name"
+	colAnimalSpeciesIsActive  = "is_active"
+	colAnimalSpeciesSortOrder = "sort_order"
+)
+
+// buildAnimalSpeciesUpdateFields はポインタが非 nil のフィールドのみ map に追加する
+func buildAnimalSpeciesUpdateFields(input *UpdateAnimalSpeciesInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colAnimalSpeciesName] = *input.Name
+	}
+	if input.IsActive != nil {
+		fields[colAnimalSpeciesIsActive] = *input.IsActive
+	}
+	if input.SortOrder != nil {
+		fields[colAnimalSpeciesSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
 // AnimalSpeciesService はペット種類マスタのビジネスロジック層
 type AnimalSpeciesService interface {
 	List(ctx context.Context) ([]model.AnimalSpecies, error)
@@ -123,26 +145,4 @@ func (s *animalSpeciesService) Reorder(ctx context.Context, ids []uint64) error 
 	}
 	slog.InfoContext(ctx, "animal_species reordered", slog.Int("count", len(ids)))
 	return nil
-}
-
-// 列名定数
-const (
-	colAnimalSpeciesName      = "name"
-	colAnimalSpeciesIsActive  = "is_active"
-	colAnimalSpeciesSortOrder = "sort_order"
-)
-
-// buildAnimalSpeciesUpdateFields はポインタが非 nil のフィールドのみ map に追加する
-func buildAnimalSpeciesUpdateFields(input *UpdateAnimalSpeciesInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colAnimalSpeciesName] = *input.Name
-	}
-	if input.IsActive != nil {
-		fields[colAnimalSpeciesIsActive] = *input.IsActive
-	}
-	if input.SortOrder != nil {
-		fields[colAnimalSpeciesSortOrder] = *input.SortOrder
-	}
-	return fields
 }

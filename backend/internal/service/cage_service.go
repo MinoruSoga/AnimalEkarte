@@ -23,6 +23,53 @@ type CreateCageInput struct {
 	SortOrder   int
 }
 
+// UpdateCageInput はケージ更新のサービス入力 DTO
+type UpdateCageInput struct {
+	Name        *string
+	CageType    *string
+	CageSize    *string
+	Price       *int64
+	IsActive    *bool
+	Description *string
+	SortOrder   *int
+}
+
+const (
+	colCageName        = "name"
+	colCageCageType    = "cage_type"
+	colCageCageSize    = "cage_size"
+	colCagePrice       = "price"
+	colCageIsActive    = "is_active"
+	colCageDescription = "description"
+	colCageSortOrder   = "sort_order"
+)
+
+func buildCageUpdateFields(input *UpdateCageInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colCageName] = *input.Name
+	}
+	if input.CageType != nil {
+		fields[colCageCageType] = model.CageType(*input.CageType)
+	}
+	if input.CageSize != nil {
+		fields[colCageCageSize] = model.CageSize(*input.CageSize)
+	}
+	if input.Price != nil {
+		fields[colCagePrice] = *input.Price
+	}
+	if input.IsActive != nil {
+		fields[colCageIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colCageDescription] = *input.Description
+	}
+	if input.SortOrder != nil {
+		fields[colCageSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
 type CageService interface {
 	List(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
@@ -137,51 +184,4 @@ func (s *cageService) Reorder(ctx context.Context, clinicID uint64, ids []uint64
 	}
 	slog.InfoContext(ctx, "cage reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
-}
-
-// UpdateCageInput はケージ更新のサービス入力 DTO
-type UpdateCageInput struct {
-	Name        *string
-	CageType    *string
-	CageSize    *string
-	Price       *int64
-	IsActive    *bool
-	Description *string
-	SortOrder   *int
-}
-
-const (
-	colCageName        = "name"
-	colCageCageType    = "cage_type"
-	colCageCageSize    = "cage_size"
-	colCagePrice       = "price"
-	colCageIsActive    = "is_active"
-	colCageDescription = "description"
-	colCageSortOrder   = "sort_order"
-)
-
-func buildCageUpdateFields(input *UpdateCageInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colCageName] = *input.Name
-	}
-	if input.CageType != nil {
-		fields[colCageCageType] = model.CageType(*input.CageType)
-	}
-	if input.CageSize != nil {
-		fields[colCageCageSize] = model.CageSize(*input.CageSize)
-	}
-	if input.Price != nil {
-		fields[colCagePrice] = *input.Price
-	}
-	if input.IsActive != nil {
-		fields[colCageIsActive] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields[colCageDescription] = *input.Description
-	}
-	if input.SortOrder != nil {
-		fields[colCageSortOrder] = *input.SortOrder
-	}
-	return fields
 }

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"math"
 	"time"
 
 	"gorm.io/gorm"
@@ -76,3 +77,16 @@ type EstimateItem struct {
 }
 
 func (EstimateItem) TableName() string { return "estimate_items" }
+
+// CalculateTaxAmount は課税区分に応じた税額（円）を計算する。
+func (item *EstimateItem) CalculateTaxAmount() int64 {
+	subtotal := float64(item.UnitPrice) * item.Quantity
+	switch item.TaxType {
+	case TaxTypeExcluded:
+		return int64(math.Round(subtotal * item.TaxRate))
+	case TaxTypeIncluded:
+		return int64(math.Round(subtotal * item.TaxRate / (1 + item.TaxRate)))
+	default:
+		return 0
+	}
+}

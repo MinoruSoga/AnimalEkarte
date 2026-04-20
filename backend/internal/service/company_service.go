@@ -40,6 +40,44 @@ type UpdateCompanyInput struct {
 	LogoURL                   *string
 }
 
+func buildCompanyUpdateFields(input *UpdateCompanyInput) map[string]any {
+	fields := map[string]any{}
+	if input.Name != nil {
+		fields[colCompanyName] = *input.Name
+	}
+	if input.PostalCode != nil {
+		fields[colCompanyPostalCode] = *input.PostalCode
+	}
+	if input.Address != nil {
+		fields[colCompanyAddress] = *input.Address
+	}
+	if input.PhoneNumber != nil {
+		fields[colCompanyPhoneNumber] = *input.PhoneNumber
+	}
+	if input.FaxNumber != nil {
+		fields[colCompanyFaxNumber] = *input.FaxNumber
+	}
+	if input.Email != nil {
+		fields[colCompanyEmail] = *input.Email
+	}
+	if input.Website != nil {
+		fields[colCompanyWebsite] = *input.Website
+	}
+	if input.DirectorName != nil {
+		fields[colCompanyDirectorName] = *input.DirectorName
+	}
+	if input.RegistrationNumber != nil {
+		fields[colCompanyRegistrationNumber] = *input.RegistrationNumber
+	}
+	if input.InvoiceRegistrationNumber != nil {
+		fields[colCompanyInvoiceRegistrationNumber] = *input.InvoiceRegistrationNumber
+	}
+	if input.LogoURL != nil {
+		fields[colCompanyLogoURL] = *input.LogoURL
+	}
+	return fields
+}
+
 // CompanyService は法人情報のビジネスロジックインターフェース
 type CompanyService interface {
 	Get(ctx context.Context) (*model.Company, error)
@@ -79,42 +117,4 @@ func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) 
 	}
 	slog.InfoContext(ctx, "company updated", slog.Uint64("company_id", result.ID))
 	return result, nil
-}
-
-func buildCompanyUpdateFields(input *UpdateCompanyInput) map[string]any {
-	fields := map[string]any{}
-	if input.Name != nil {
-		fields[colCompanyName] = *input.Name
-	}
-	if input.PostalCode != nil {
-		fields[colCompanyPostalCode] = *input.PostalCode
-	}
-	if input.Address != nil {
-		fields[colCompanyAddress] = *input.Address
-	}
-	if input.PhoneNumber != nil {
-		fields[colCompanyPhoneNumber] = *input.PhoneNumber
-	}
-	if input.FaxNumber != nil {
-		fields[colCompanyFaxNumber] = *input.FaxNumber
-	}
-	if input.Email != nil {
-		fields[colCompanyEmail] = *input.Email
-	}
-	if input.Website != nil {
-		fields[colCompanyWebsite] = *input.Website
-	}
-	if input.DirectorName != nil {
-		fields[colCompanyDirectorName] = *input.DirectorName
-	}
-	if input.RegistrationNumber != nil {
-		fields[colCompanyRegistrationNumber] = *input.RegistrationNumber
-	}
-	if input.InvoiceRegistrationNumber != nil {
-		fields[colCompanyInvoiceRegistrationNumber] = *input.InvoiceRegistrationNumber
-	}
-	if input.LogoURL != nil {
-		fields[colCompanyLogoURL] = *input.LogoURL
-	}
-	return fields
 }

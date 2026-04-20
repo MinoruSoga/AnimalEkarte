@@ -11,14 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ReservationAdminService は管理者向け予約管理のビジネスロジックインターフェース
-type ReservationAdminService interface {
-	ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Reservation, error)
-	ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
-}
-
 // CreateReservationAdminInput は管理者手動予約の入力データ
 type CreateReservationAdminInput struct {
 	StartTime         time.Time
@@ -34,6 +26,14 @@ type CreateReservationAdminInput struct {
 	LineCustomerID    *uint64
 	IsStaffDelegated  bool
 	CustomerFields    []byte
+}
+
+// ReservationAdminService は管理者向け予約管理のビジネスロジックインターフェース
+type ReservationAdminService interface {
+	ListByMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Reservation, error)
+	ListByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type reservationAdminService struct {
