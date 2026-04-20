@@ -74,13 +74,14 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 		return
 	}
 
-	pg, err := h.svc.PermissionGroup.Create(c.Request.Context(), clinicID, service.CreatePermissionGroupInput{
+	createInput := service.CreatePermissionGroupInput{
 		Name:        req.Name,
 		Description: req.Description,
 		Color:       req.Color,
 		IsActive:    req.IsActive,
 		SortOrder:   req.SortOrder,
-	})
+	}
+	pg, err := h.svc.PermissionGroup.Create(c.Request.Context(), clinicID, &createInput)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -169,7 +170,11 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 		return
 	}
 	// 削除前に old value を取得（監査ログ用）
-	oldPG, _ := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id)
+	oldPG, getErr := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id)
+	if getErr != nil {
+		slog.WarnContext(c.Request.Context(), "failed to fetch old permission group for audit",
+			slog.String("error", getErr.Error()))
+	}
 
 	if err := h.svc.PermissionGroup.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
@@ -247,19 +252,17 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	}
 
 	// 監査ログ: 権限ルール更新
-	if auditStaffID, auditOK := extractStaffID(c); auditOK {
-		if auditErr := h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
-			ActorID:    &auditStaffID,
-			ActorType:  "staff",
-			Action:     model.AuditActionPermissionRulesUpdate,
-			Resource:   "permission_group_rules",
-			ResourceID: &id,
-			NewValue:   marshalAuditJSON(rules),
-			IPAddress:  c.ClientIP(),
-			UserAgent:  c.Request.Header.Get("User-Agent"),
-		}); auditErr != nil {
-			slog.ErrorContext(c.Request.Context(), "failed to log permission rules update", slog.String("error", auditErr.Error()))
-		}
+	if auditErr := h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+		ActorID:    &staffID,
+		ActorType:  "staff",
+		Action:     model.AuditActionPermissionRulesUpdate,
+		Resource:   "permission_group_rules",
+		ResourceID: &id,
+		NewValue:   marshalAuditJSON(rules),
+		IPAddress:  c.ClientIP(),
+		UserAgent:  c.Request.Header.Get("User-Agent"),
+	}); auditErr != nil {
+		slog.ErrorContext(c.Request.Context(), "failed to log permission rules update", slog.String("error", auditErr.Error()))
 	}
 
 	// Return updated group with rules

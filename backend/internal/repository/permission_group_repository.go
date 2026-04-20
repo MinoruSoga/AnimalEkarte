@@ -91,9 +91,9 @@ func (r *permissionGroupRepository) UpdateFields(ctx context.Context, clinicID, 
 
 func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Model(&model.PermissionGroup{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Update("deleted_at", gorm.Expr("now()"))
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", id).
+		Delete(&model.PermissionGroup{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
 	}

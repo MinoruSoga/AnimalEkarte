@@ -10,7 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- ExamTypeService ----
+// ---- ExaminationTypeService ----
 
 // CreateExamTypeInput は検査種別作成の入力DTO
 type CreateExamTypeInput struct {
@@ -67,7 +67,7 @@ func buildExamTypeUpdateFields(input *UpdateExamTypeInput) map[string]any {
 	return fields
 }
 
-type ExamTypeService interface {
+type ExaminationTypeService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateExamTypeInput) (*model.ExaminationType, error)
@@ -78,7 +78,7 @@ type ExamTypeService interface {
 
 type examTypeService struct{ repo repository.ExamTypeRepository }
 
-func NewExamTypeService(repo repository.ExamTypeRepository) ExamTypeService {
+func NewExamTypeService(repo repository.ExamTypeRepository) ExaminationTypeService {
 	return &examTypeService{repo: repo}
 }
 

@@ -50,19 +50,16 @@ type UpdateDiagnosisNameInput struct {
 
 // ---- 列名定数 (#021) ----
 
+// 共通列名定数（DiagnosisType / DiagnosisName で共有）
 const (
-	colDiagnosisTypeName        = "name"
-	colDiagnosisTypeIsActive    = "is_active"
-	colDiagnosisTypeDescription = "description"
-	colDiagnosisTypeSortOrder   = "sort_order"
+	colDiagnosisName        = "name"
+	colDiagnosisIsActive    = "is_active"
+	colDiagnosisDescription = "description"
+	colDiagnosisSortOrder   = "sort_order"
 )
 
-// DiagnosisName 専用列名定数 (#426: DiagnosisType 定数と分離)
+// DiagnosisName 固有列名定数
 const (
-	colDiagnosisNameName            = "name"
-	colDiagnosisNameIsActive        = "is_active"
-	colDiagnosisNameDescription     = "description"
-	colDiagnosisNameSortOrder       = "sort_order"
 	colDiagnosisNameDiagnosisTypeID = "diagnosis_type_id"
 )
 
@@ -179,16 +176,16 @@ func (s *diagnosisTypeService) Reorder(ctx context.Context, clinicID uint64, ids
 func buildDiagnosisTypeUpdateFields(input *UpdateDiagnosisTypeInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields[colDiagnosisTypeName] = *input.Name
+		fields[colDiagnosisName] = *input.Name
 	}
 	if input.IsActive != nil {
-		fields[colDiagnosisTypeIsActive] = *input.IsActive
+		fields[colDiagnosisIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields[colDiagnosisTypeDescription] = *input.Description
+		fields[colDiagnosisDescription] = *input.Description
 	}
 	if input.SortOrder != nil {
-		fields[colDiagnosisTypeSortOrder] = *input.SortOrder
+		fields[colDiagnosisSortOrder] = *input.SortOrder
 	}
 	return fields
 }
@@ -238,14 +235,7 @@ func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, c
 // ListNames はページネーションなしで診断名の一覧を返す (#418)。
 // typeID が非 nil の場合は該当カテゴリのみ、nil の場合は全件を返す。
 func (s *diagnosisNameService) ListNames(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
-	if typeID != nil {
-		items, _, err := s.repo.FindByCategoryID(ctx, clinicID, *typeID, 1, 10000)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to list diagnosis names by type")
-		}
-		return items, nil
-	}
-	items, _, err := s.repo.FindAll(ctx, clinicID, 1, 10000)
+	items, err := s.repo.FindAllActive(ctx, clinicID, typeID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list diagnosis names")
 	}
@@ -347,19 +337,19 @@ func (s *diagnosisNameService) Reorder(ctx context.Context, clinicID uint64, ids
 func buildDiagnosisNameUpdateFields(input *UpdateDiagnosisNameInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields[colDiagnosisNameName] = *input.Name
+		fields[colDiagnosisName] = *input.Name
 	}
 	if input.DiagnosisTypeID != nil {
 		fields[colDiagnosisNameDiagnosisTypeID] = *input.DiagnosisTypeID
 	}
 	if input.IsActive != nil {
-		fields[colDiagnosisNameIsActive] = *input.IsActive
+		fields[colDiagnosisIsActive] = *input.IsActive
 	}
 	if input.Description != nil {
-		fields[colDiagnosisNameDescription] = *input.Description
+		fields[colDiagnosisDescription] = *input.Description
 	}
 	if input.SortOrder != nil {
-		fields[colDiagnosisNameSortOrder] = *input.SortOrder
+		fields[colDiagnosisSortOrder] = *input.SortOrder
 	}
 	return fields
 }

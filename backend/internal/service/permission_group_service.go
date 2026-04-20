@@ -34,7 +34,7 @@ type UpdatePermissionGroupInput struct {
 type PermissionGroupService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
-	Create(ctx context.Context, clinicID uint64, input CreatePermissionGroupInput) (*model.PermissionGroup, error)
+	Create(ctx context.Context, clinicID uint64, input *CreatePermissionGroupInput) (*model.PermissionGroup, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePermissionGroupInput) (*model.PermissionGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// SetRules はグループのルールを全置換する。actorStaffID は自己参照チェックに使用される。
@@ -67,7 +67,10 @@ func (s *permissionGroupService) GetByID(ctx context.Context, clinicID, id uint6
 	return result, nil
 }
 
-func (s *permissionGroupService) Create(ctx context.Context, clinicID uint64, input CreatePermissionGroupInput) (*model.PermissionGroup, error) {
+func (s *permissionGroupService) Create(ctx context.Context, clinicID uint64, input *CreatePermissionGroupInput) (*model.PermissionGroup, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
 	group := &model.PermissionGroup{
 		ClinicID:    clinicID,
 		Name:        input.Name,

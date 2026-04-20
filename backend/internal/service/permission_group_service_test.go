@@ -97,7 +97,7 @@ func TestPermissionGroupService_Create(t *testing.T) {
 				},
 			}
 			svc := NewPermissionGroupService(repo)
-			_, err := svc.Create(context.Background(), 1, tt.input)
+			_, err := svc.Create(context.Background(), 1, &tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
