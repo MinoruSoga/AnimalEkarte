@@ -88,6 +88,9 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 	return vaccine, nil
 }
 func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input *UpdateVaccineInput) (*model.Vaccine, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get vaccine")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}

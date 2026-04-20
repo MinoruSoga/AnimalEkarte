@@ -96,7 +96,7 @@ func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, c
 		Model(&model.Checkup{}).
 		Where("checkup_type_id = ? AND clinic_id = ?", checkupTypeID, clinicID).
 		Count(&count).Error; err != nil {
-		return 0, apperrors.FromGORM(err, "checkup_record", "")
+		return 0, apperrors.FromGORM(err, "checkup_type", "")
 	}
 	return count, nil
 }

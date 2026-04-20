@@ -96,7 +96,7 @@ func (r *examTypeRepository) CountUsageByExamTypeID(ctx context.Context, clinicI
 		Model(&model.Examination{}).
 		Where("exam_type_id = ? AND clinic_id = ?", examTypeID, clinicID).
 		Count(&count).Error; err != nil {
-		return 0, apperrors.FromGORM(err, "examination_record", "")
+		return 0, apperrors.FromGORM(err, "exam_type", "")
 	}
 	return count, nil
 }

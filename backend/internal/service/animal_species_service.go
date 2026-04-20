@@ -10,13 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// 列名定数
-const (
-	colAnimalSpeciesName      = "name"
-	colAnimalSpeciesIsActive  = "is_active"
-	colAnimalSpeciesSortOrder = "sort_order"
-)
-
 // ---- Input DTOs ----
 
 // CreateAnimalSpeciesInput は動物種類作成の入力DTO
@@ -87,6 +80,9 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 }
 
 func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
+	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get animal species")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
@@ -128,6 +124,13 @@ func (s *animalSpeciesService) Reorder(ctx context.Context, ids []uint64) error 
 	slog.InfoContext(ctx, "animal_species reordered", slog.Int("count", len(ids)))
 	return nil
 }
+
+// 列名定数
+const (
+	colAnimalSpeciesName      = "name"
+	colAnimalSpeciesIsActive  = "is_active"
+	colAnimalSpeciesSortOrder = "sort_order"
+)
 
 // buildAnimalSpeciesUpdateFields はポインタが非 nil のフィールドのみ map に追加する
 func buildAnimalSpeciesUpdateFields(input *UpdateAnimalSpeciesInput) map[string]any {

@@ -11,23 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// --- DB column constants ---
-
-const (
-	colMedicineName            = "name"
-	colMedicineParentID        = "parent_id"
-	colMedicinePrice           = "price"
-	colMedicineIsActive        = "is_active"
-	colMedicineDescription     = "description"
-	colMedicineDosageForm      = "dosage_form"
-	colMedicineMedicineUnit    = "medicine_unit"
-	colMedicineInventoryID     = "inventory_id"
-	colMedicineDefaultQuantity = "default_quantity"
-	colMedicineSortOrder       = "sort_order"
-	colMedicineTaxType         = "tax_type"
-	colMedicineTaxRate         = "tax_rate"
-)
-
 // --- Input DTOs ---
 
 // CreateMedicineInput は薬剤作成の入力DTO
@@ -62,6 +45,23 @@ type UpdateMedicineInput struct {
 	TaxType         *string
 	TaxRate         *float64
 }
+
+// --- DB column constants ---
+
+const (
+	colMedicineName            = "name"
+	colMedicineParentID        = "parent_id"
+	colMedicinePrice           = "price"
+	colMedicineIsActive        = "is_active"
+	colMedicineDescription     = "description"
+	colMedicineDosageForm      = "dosage_form"
+	colMedicineMedicineUnit    = "medicine_unit"
+	colMedicineInventoryID     = "inventory_id"
+	colMedicineDefaultQuantity = "default_quantity"
+	colMedicineSortOrder       = "sort_order"
+	colMedicineTaxType         = "tax_type"
+	colMedicineTaxRate         = "tax_rate"
+)
 
 // buildMedicineUpdateFields は UpdateMedicineInput から map[string]any を構築する。
 // GORM のゼロ値スキップ問題（bool false が無視される等）を回避するために使用する。
@@ -225,7 +225,7 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	fields := buildMedicineUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)

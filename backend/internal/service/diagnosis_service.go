@@ -125,6 +125,9 @@ func (s *diagnosisTypeService) Create(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisTypeInput) (*model.DiagnosisType, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis type")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}

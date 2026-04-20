@@ -10,18 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// --- DB column constants ---
-
-const (
-	colMerchandiseItemName      = "name"
-	colMerchandiseItemCategory  = "category"
-	colMerchandiseItemUnitPrice = "unit_price"
-	colMerchandiseItemTaxType   = "tax_type"
-	colMerchandiseItemTaxRate   = "tax_rate"
-	colMerchandiseItemIsActive  = "is_active"
-	colMerchandiseItemSortOrder = "sort_order"
-)
-
 // --- Input DTOs ---
 
 // CreateMerchandiseItemInput は物販品作成の入力DTO
@@ -45,6 +33,18 @@ type UpdateMerchandiseItemInput struct {
 	IsActive  *bool
 	SortOrder *int
 }
+
+// --- DB column constants ---
+
+const (
+	colMerchandiseItemName      = "name"
+	colMerchandiseItemCategory  = "category"
+	colMerchandiseItemUnitPrice = "unit_price"
+	colMerchandiseItemTaxType   = "tax_type"
+	colMerchandiseItemTaxRate   = "tax_rate"
+	colMerchandiseItemIsActive  = "is_active"
+	colMerchandiseItemSortOrder = "sort_order"
+)
 
 // buildMerchandiseItemUpdateFields は UPDATE 用 map を構築する。
 // GORM のゼロ値スキップ問題（bool false が無視される等）を回避するために使用する。
