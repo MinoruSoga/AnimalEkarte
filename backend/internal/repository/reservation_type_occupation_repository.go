@@ -50,7 +50,7 @@ func (r *reservationTypeOccupationRepository) FindAll(
 ) ([]model.ReservationTypeOccupation, error) {
 	var results []model.ReservationTypeOccupation
 	err := r.db.WithContext(ctx).
-		Preload("Occupation", "clinic_id = ?", clinicID).
+		Preload("Occupation", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(clinicScope(clinicID)).
 		Where("reservation_type_id = ?", reservationTypeID).
 		Order("id ASC").
@@ -66,7 +66,7 @@ func (r *reservationTypeOccupationRepository) FindByOccupationID(
 ) (*model.ReservationTypeOccupation, error) {
 	var rto model.ReservationTypeOccupation
 	err := r.db.WithContext(ctx).
-		Preload("Occupation", "clinic_id = ?", clinicID).
+		Preload("Occupation", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(clinicScope(clinicID)).
 		Where("reservation_type_id = ? AND occupation_id = ?", reservationTypeID, occupationID).
 		First(&rto).Error

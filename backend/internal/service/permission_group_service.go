@@ -99,6 +99,9 @@ func (s *permissionGroupService) Create(ctx context.Context, clinicID uint64, in
 }
 
 func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePermissionGroupInput) (*model.PermissionGroup, error) {
+	if err := validateOptionalName(input.Name); err != nil {
+		return nil, err
+	}
 	fields := buildPermissionGroupUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
