@@ -377,10 +377,18 @@ type CloseBillingDetail struct {
 	NetAmount         int64     `json:"net_amount"`
 }
 
+// TaxBreakdownRow は税率別の集計結果1行
+type TaxBreakdownRow struct {
+	TaxRate       int64 // 例: 10 or 8
+	TaxableAmount int64
+	TaxAmount     int64
+}
+
 // CloseAggregateResult は締めプレビュー集計の結果
 type CloseAggregateResult struct {
 	AggregateRows  []BillingAggregateRow `json:"aggregate_rows"`
 	BillingDetails []CloseBillingDetail  `json:"billing_details"`
+	TaxBreakdown   []TaxBreakdownRow     `json:"-"` // サービス層で変換する
 }
 
 // MonthlyReportRow は月次レポートの1行（日×支払方法別）
@@ -390,6 +398,10 @@ type MonthlyReportRow struct {
 	Category        string  `json:"category"`
 	PaymentMethodID *uint64 `json:"payment_method_id,omitempty"`
 	NetAmount       int64   `json:"net_amount"`
+	BillingCount    int64   `json:"billing_count"`
+	// AMClosed/PMClosed は月次レポートの締め状態
+	AMClosed bool `json:"am_closed"`
+	PMClosed bool `json:"pm_closed"`
 }
 
 // MonthlyReportResult は月次売上レポートの結果
@@ -397,6 +409,7 @@ type MonthlyReportResult struct {
 	Rows         []MonthlyReportRow `json:"rows"`
 	GrandTotal   int64              `json:"grand_total"`
 	BillingCount int64              `json:"billing_count"`
+	TaxBreakdown []TaxBreakdownRow  `json:"-"` // サービス層で変換する
 }
 
 // GetCloseAggregate は指定期間内の会計を集計する。FEAT-368
@@ -496,9 +509,44 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		})
 	}
 
+	// 税率別集計
+	type taxRow struct {
+		TaxRate       int64
+		TaxableAmount int64
+		TaxAmount     int64
+	}
+	var taxRows []taxRow
+	if err := r.db.WithContext(ctx).
+		Table("billing_items").
+		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.deleted_at IS NULL").
+		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
+		Where("billings.clinic_id = ? AND billing_items.deleted_at IS NULL", input.ClinicID).
+		Where("billings.status = ?", model.BillingStatusCompleted).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", input.PeriodStart).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", input.PeriodEnd).
+		Select(
+			"billing_items.tax_rate AS tax_rate," +
+				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * (1 - COALESCE(billing_items.discount_rate, 0) / 100.0))), 0) AS taxable_amount," +
+				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * (1 - COALESCE(billing_items.discount_rate, 0) / 100.0) * billing_items.tax_rate / 100.0)), 0) AS tax_amount",
+		).
+		Group("billing_items.tax_rate").
+		Scan(&taxRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to aggregate tax breakdown for close")
+	}
+
+	taxBreakdown := make([]TaxBreakdownRow, 0, len(taxRows))
+	for _, tr := range taxRows {
+		taxBreakdown = append(taxBreakdown, TaxBreakdownRow{
+			TaxRate:       tr.TaxRate,
+			TaxableAmount: tr.TaxableAmount,
+			TaxAmount:     tr.TaxAmount,
+		})
+	}
+
 	return &CloseAggregateResult{
 		AggregateRows:  rows,
 		BillingDetails: details,
+		TaxBreakdown:   taxBreakdown,
 	}, nil
 }
 
@@ -508,21 +556,20 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst)
 	end := start.AddDate(0, 1, 0)
 
+	// 日×期間×カテゴリ×支払方法別集計（件数を含む）
 	type row struct {
 		Date            string
-		Period          string
 		Category        string
 		PaymentMethodID *uint64
 		BillingAmount   int64
 		RefundAmount    int64
+		BillingCount    int64
 	}
 	var rows []row
 	if err := r.db.WithContext(ctx).
 		Table("billings").
 		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
 		Joins("JOIN billing_items ON billing_items.billing_id = billings.id AND billing_items.deleted_at IS NULL").
-		Joins("LEFT JOIN cash_register_closes crc ON crc.clinic_id = billings.clinic_id"+
-			" AND crc.close_date = DATE(billings.completed_at AT TIME ZONE 'Asia/Tokyo')").
 		Joins("LEFT JOIN billing_refunds ON billing_refunds.billing_id = billings.id").
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
@@ -530,29 +577,90 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
 		Select(
 			"TO_CHAR(billings.completed_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS date," +
-				" COALESCE(crc.period, 'pm') AS period," +
 				" billing_items.category::text AS category," +
 				" payments.payment_method_id AS payment_method_id," +
 				" COALESCE(SUM(DISTINCT payments.billing_amount), 0) AS billing_amount," +
-				" COALESCE(SUM(billing_refunds.amount), 0) AS refund_amount",
+				" COALESCE(SUM(billing_refunds.amount), 0) AS refund_amount," +
+				" COUNT(DISTINCT billings.id) AS billing_count",
 		).
-		Group("date, crc.period, billing_items.category, payments.payment_method_id").
-		Order("date ASC, period ASC").
+		Group("date, billing_items.category, payments.payment_method_id").
+		Order("date ASC").
 		Scan(&rows).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to get monthly report")
 	}
 
+	// 締めレコード取得（日付→AM/PM 締め状態マップ）
+	type closeRow struct {
+		CloseDate string
+		Period    string
+	}
+	var closeRows []closeRow
+	if err := r.db.WithContext(ctx).
+		Table("cash_register_closes").
+		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Where("close_date >= ? AND close_date < ?", start.Format("2006-01-02"), end.Format("2006-01-02")).
+		Select("close_date::text AS close_date, period").
+		Scan(&closeRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to get cash register closes for monthly report")
+	}
+	closedAM := make(map[string]bool)
+	closedPM := make(map[string]bool)
+	for _, cr := range closeRows {
+		if cr.Period == "am" {
+			closedAM[cr.CloseDate] = true
+		} else {
+			closedPM[cr.CloseDate] = true
+		}
+	}
+
 	reportRows := make([]MonthlyReportRow, 0, len(rows))
 	var grandTotal int64
+	var totalBillingCount int64
 	for _, row := range rows {
 		net := row.BillingAmount - row.RefundAmount
 		grandTotal += net
+		totalBillingCount += row.BillingCount
 		reportRows = append(reportRows, MonthlyReportRow{
 			Date:            row.Date,
-			Period:          row.Period,
 			Category:        row.Category,
 			PaymentMethodID: row.PaymentMethodID,
 			NetAmount:       net,
+			BillingCount:    row.BillingCount,
+			AMClosed:        closedAM[row.Date],
+			PMClosed:        closedPM[row.Date],
+		})
+	}
+
+	// 税率別集計
+	type taxRow struct {
+		TaxRate       int64
+		TaxableAmount int64
+		TaxAmount     int64
+	}
+	var taxRows []taxRow
+	if err := r.db.WithContext(ctx).
+		Table("billing_items").
+		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.deleted_at IS NULL").
+		Where("billings.clinic_id = ? AND billing_items.deleted_at IS NULL", clinicID).
+		Where("billings.status = ?", model.BillingStatusCompleted).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
+		Select(
+			"billing_items.tax_rate AS tax_rate," +
+				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * (1 - COALESCE(billing_items.discount_rate, 0) / 100.0))), 0) AS taxable_amount," +
+				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * (1 - COALESCE(billing_items.discount_rate, 0) / 100.0) * billing_items.tax_rate / 100.0)), 0) AS tax_amount",
+		).
+		Group("billing_items.tax_rate").
+		Scan(&taxRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to aggregate tax breakdown for monthly report")
+	}
+
+	taxBreakdown := make([]TaxBreakdownRow, 0, len(taxRows))
+	for _, tr := range taxRows {
+		taxBreakdown = append(taxBreakdown, TaxBreakdownRow{
+			TaxRate:       tr.TaxRate,
+			TaxableAmount: tr.TaxableAmount,
+			TaxAmount:     tr.TaxAmount,
 		})
 	}
 
@@ -572,5 +680,6 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 		Rows:         reportRows,
 		GrandTotal:   grandTotal,
 		BillingCount: billingCount,
+		TaxBreakdown: taxBreakdown,
 	}, nil
 }

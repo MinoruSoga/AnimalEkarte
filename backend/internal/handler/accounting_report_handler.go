@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/csv"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -48,7 +49,7 @@ func (h *Handler) ExportMonthlyCSV(c *gin.Context) {
 		return
 	}
 
-	reader, err := h.svc.AccountingReport.ExportCSV(c.Request.Context(), clinicID, year, month)
+	result, err := h.svc.AccountingReport.GetMonthly(c.Request.Context(), clinicID, year, month)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -59,19 +60,42 @@ func (h *Handler) ExportMonthlyCSV(c *gin.Context) {
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	c.Status(http.StatusOK)
 
-	// ストリーム書き出し
-	buf := make([]byte, 32*1024)
-	for {
-		n, readErr := reader.Read(buf)
-		if n > 0 {
-			if _, writeErr := c.Writer.Write(buf[:n]); writeErr != nil {
-				return
-			}
+	// BOM（Excel の UTF-8 認識用）
+	_, _ = c.Writer.Write([]byte("\xEF\xBB\xBF"))
+
+	w := csv.NewWriter(c.Writer)
+	_ = w.Write([]string{"日付", "曜日", "AM件数", "AM純売上(円)", "PM件数", "PM純売上(円)", "日計(円)", "返金(円)", "AM締め", "PM締め", "休診"})
+
+	for _, d := range result.DailyDetails {
+		amClosed := "未"
+		if d.AMClosed {
+			amClosed = "済"
 		}
-		if readErr != nil {
-			break
+		pmClosed := "未"
+		if d.PMClosed {
+			pmClosed = "済"
 		}
+		holiday := ""
+		if d.IsHoliday {
+			holiday = "休"
+		}
+		_ = w.Write([]string{
+			d.Date,
+			d.Weekday,
+			fmt.Sprintf("%d", d.AMCount),
+			fmt.Sprintf("%d", d.AMNet),
+			fmt.Sprintf("%d", d.PMCount),
+			fmt.Sprintf("%d", d.PMNet),
+			fmt.Sprintf("%d", d.DayNet),
+			fmt.Sprintf("%d", d.Refund),
+			amClosed,
+			pmClosed,
+			holiday,
+		})
 	}
+
+	_ = w.Write([]string{"合計", "", "", "", "", "", fmt.Sprintf("%d", result.Summary.NetAmount), fmt.Sprintf("%d", result.Summary.TotalRefund), "", "", ""})
+	w.Flush()
 }
 
 // RegisterAccountingReportRoutes は売上レポート関連のルートを登録する

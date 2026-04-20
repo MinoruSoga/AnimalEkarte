@@ -153,7 +153,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ClosingSettings:        closingSettingsSvc,
 		PaymentMethodMaster:    NewPaymentMethodMasterService(repos.PaymentMethodMaster),
 		CashRegister:           NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster),
-		AccountingReport:       NewAccountingReportService(repos.Accounting),
+		AccountingReport:       NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday),
 		LineReservationSetting: NewLineReservationSettingService(repos.LineReservationSetting),
 		ReservationTypeLiff:    NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),
 		ReservationStaff:       NewReservationStaffService(repos.ReservationStaff),

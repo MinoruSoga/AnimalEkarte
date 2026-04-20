@@ -14,6 +14,7 @@ import (
 // ClosingSettingsService は締め時間設定のビジネスロジックインターフェース
 type ClosingSettingsService interface {
 	Get(ctx context.Context, clinicID uint64) (*ClosingSettingsResponse, error)
+	ListSpecialPeriods(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
 	UpdateStandard(ctx context.Context, clinicID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error)
 	CreateSpecialPeriod(ctx context.Context, clinicID uint64, input CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
 	UpdateSpecialPeriod(ctx context.Context, clinicID, id uint64, input UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
@@ -77,6 +78,14 @@ func NewClosingSettingsService(
 		periodRepo:   periodRepo,
 		holidayRepo:  holidayRepo,
 	}
+}
+
+func (s *closingSettingsService) ListSpecialPeriods(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error) {
+	periods, err := s.periodRepo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list special periods")
+	}
+	return periods, nil
 }
 
 func (s *closingSettingsService) Get(ctx context.Context, clinicID uint64) (*ClosingSettingsResponse, error) {
@@ -186,22 +195,7 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 		return nil, apperrors.WrapConflict("期間が他の特別期間と重複しています")
 	}
 
-	fields := map[string]any{}
-	if input.StartDate != nil {
-		fields["start_date"] = *input.StartDate
-	}
-	if input.EndDate != nil {
-		fields["end_date"] = *input.EndDate
-	}
-	if input.AmPmBoundary != nil {
-		fields["am_pm_boundary"] = *input.AmPmBoundary
-	}
-	if input.PmEnd != nil {
-		fields["pm_end"] = *input.PmEnd
-	}
-	if input.Note != nil {
-		fields["note"] = *input.Note
-	}
+	fields := buildSpecialPeriodUpdateFields(input)
 	if len(fields) == 0 {
 		return current, nil
 	}
@@ -270,6 +264,26 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 		PmEnd:        pmEnd,
 		IsHoliday:    isHoliday,
 	}, nil
+}
+
+func buildSpecialPeriodUpdateFields(input UpdateSpecialPeriodInput) map[string]any {
+	fields := make(map[string]any)
+	if input.StartDate != nil {
+		fields["start_date"] = *input.StartDate
+	}
+	if input.EndDate != nil {
+		fields["end_date"] = *input.EndDate
+	}
+	if input.AmPmBoundary != nil {
+		fields["am_pm_boundary"] = *input.AmPmBoundary
+	}
+	if input.PmEnd != nil {
+		fields["pm_end"] = *input.PmEnd
+	}
+	if input.Note != nil {
+		fields["note"] = *input.Note
+	}
+	return fields
 }
 
 func validateSpecialPeriodTimes(boundary, pmEnd string) error {

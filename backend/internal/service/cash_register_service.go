@@ -20,14 +20,39 @@ type CashRegisterService interface {
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 }
 
-// CashRegisterPreview は締めプレビューの結果
+// CashRegisterPreview は締めプレビューのフロントエンド向けレスポンス
 type CashRegisterPreview struct {
-	Date            string                           `json:"date"`
-	Period          string                           `json:"period"`
-	Schedule        *DaySchedule                     `json:"schedule"`
-	AggregateRows   []repository.BillingAggregateRow `json:"aggregate_rows"`
-	BillingDetails  []repository.CloseBillingDetail  `json:"billing_details"`
-	TheoreticalCash int64                            `json:"theoretical_cash"`
+	Date            string                `json:"date"`
+	Period          string                `json:"period"`
+	PeriodStart     string                `json:"period_start"`
+	PeriodEnd       string                `json:"period_end"`
+	IsAlreadyClosed bool                  `json:"is_already_closed"`
+	IsHoliday       bool                  `json:"is_holiday"`
+	Aggregate       CloseAggregateSummary `json:"aggregate"`
+	BillingDetails  []CloseBillingDetail  `json:"billing_details"`
+}
+
+// CloseAggregateSummary は締めプレビューの集計サマリー
+type CloseAggregateSummary struct {
+	Categories      map[string]map[string]int64 `json:"categories"` // category → {payment_method_name → amount}
+	PaymentMethods  []model.PaymentMethodMaster `json:"payment_methods"`
+	TheoreticalCash int64                       `json:"theoretical_cash"`
+	TaxBreakdown    TaxBreakdownSummary         `json:"tax_breakdown"`
+}
+
+// CloseBillingDetail は個別会計一覧の1レコード（フロントエンド向け）
+type CloseBillingDetail struct {
+	BillingID         uint64  `json:"billing_id"`
+	PaidAt            string  `json:"paid_at"` // ISO8601
+	OwnerName         string  `json:"owner_name"`
+	PetName           string  `json:"pet_name"`
+	IsHospitalization bool    `json:"is_hospitalization"`
+	Category          string  `json:"category"`
+	PaymentMethodID   *uint64 `json:"payment_method_id,omitempty"`
+	PaymentMethodName string  `json:"payment_method_name"`
+	BillingAmount     int64   `json:"billing_amount"`
+	RefundAmount      int64   `json:"refund_amount"`
+	NetAmount         int64   `json:"net_amount"`
 }
 
 // CloseRegisterInput はレジ締め実行の入力
@@ -44,6 +69,7 @@ type periodAggregate struct {
 	Schedule        *DaySchedule
 	AggregateRows   []repository.BillingAggregateRow
 	BillingDetails  []repository.CloseBillingDetail
+	TaxBreakdown    []repository.TaxBreakdownRow
 	TheoreticalCash int64
 	PeriodStart     time.Time
 	PeriodEnd       time.Time
@@ -106,6 +132,7 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		Schedule:        schedule,
 		AggregateRows:   aggregate.AggregateRows,
 		BillingDetails:  aggregate.BillingDetails,
+		TaxBreakdown:    aggregate.TaxBreakdown,
 		TheoreticalCash: calcTheoreticalCash(aggregate.AggregateRows),
 		PeriodStart:     periodStart,
 		PeriodEnd:       periodEnd,
@@ -122,13 +149,66 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 		return nil, err
 	}
 
+	// 二重締め確認
+	existing, err := s.closeRepo.FindByDateAndPeriod(ctx, clinicID, date, period)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to check existing close")
+	}
+	isAlreadyClosed := existing != nil
+
+	// 支払方法マスタを取得
+	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get payment methods")
+	}
+	payMethodNames := buildPayMethodNameMap(payMethods)
+
+	// カテゴリ別×支払方法名別集計マップを構築
+	categories := make(map[string]map[string]int64)
+	for _, row := range agg.AggregateRows {
+		if categories[row.Category] == nil {
+			categories[row.Category] = make(map[string]int64)
+		}
+		pmName := paymentMethodNameForClose(row.PaymentMethodID, payMethodNames)
+		categories[row.Category][pmName] += row.NetAmount
+	}
+
+	// 個別会計一覧を変換
+	details := make([]CloseBillingDetail, 0, len(agg.BillingDetails))
+	for _, d := range agg.BillingDetails {
+		pmName := paymentMethodNameForClose(d.PaymentMethodID, payMethodNames)
+		details = append(details, CloseBillingDetail{
+			BillingID:         d.BillingID,
+			PaidAt:            d.PaidAt.Format(time.RFC3339),
+			OwnerName:         d.OwnerName,
+			PetName:           d.PetName,
+			IsHospitalization: d.IsHospitalization,
+			Category:          d.Category,
+			PaymentMethodID:   d.PaymentMethodID,
+			PaymentMethodName: pmName,
+			BillingAmount:     d.BillingAmount,
+			RefundAmount:      d.RefundAmount,
+			NetAmount:         d.NetAmount,
+		})
+	}
+
+	// 税率別集計
+	taxSummary := buildTaxBreakdown(agg.TaxBreakdown)
+
 	return &CashRegisterPreview{
 		Date:            date.Format("2006-01-02"),
 		Period:          period,
-		Schedule:        agg.Schedule,
-		AggregateRows:   agg.AggregateRows,
-		BillingDetails:  agg.BillingDetails,
-		TheoreticalCash: agg.TheoreticalCash,
+		PeriodStart:     agg.PeriodStart.Format(time.RFC3339),
+		PeriodEnd:       agg.PeriodEnd.Format(time.RFC3339),
+		IsAlreadyClosed: isAlreadyClosed,
+		IsHoliday:       agg.Schedule != nil && agg.Schedule.IsHoliday,
+		Aggregate: CloseAggregateSummary{
+			Categories:      categories,
+			PaymentMethods:  payMethods,
+			TheoreticalCash: agg.TheoreticalCash,
+			TaxBreakdown:    taxSummary,
+		},
+		BillingDetails: details,
 	}, nil
 }
 

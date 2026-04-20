@@ -85,12 +85,12 @@ func (h *Handler) ListSpecialPeriods(c *gin.Context) {
 	if !ok {
 		return
 	}
-	resp, err := h.svc.ClosingSettings.Get(c.Request.Context(), clinicID)
+	periods, err := h.svc.ClosingSettings.ListSpecialPeriods(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, resp.SpecialPeriods)
+	c.JSON(http.StatusOK, periods)
 }
 
 // CreateSpecialPeriod godoc
