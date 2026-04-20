@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -26,8 +27,8 @@ func NewClinicSettingsRepository(db *gorm.DB) ClinicSettingsRepository {
 
 func (r *clinicSettingsRepository) Get(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
 	var s model.ClinicSettings
-	err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).First(&s).Error
-	if err == gorm.ErrRecordNotFound {
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).First(&s).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// レコードがなければデフォルト値を返す
 		return &model.ClinicSettings{
 			ClinicID:            clinicID,

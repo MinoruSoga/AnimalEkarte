@@ -45,7 +45,8 @@ func (r *clinicHolidayRepository) Upsert(ctx context.Context, holiday *model.Cli
 	// map を使用してゼロ値（Reason=""）も確実に更新する
 	var existing model.ClinicHoliday
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND date = ?", holiday.ClinicID, holiday.Date).
+		Scopes(clinicScope(holiday.ClinicID)).
+		Where("date = ?", holiday.Date).
 		First(&existing).Error
 
 	if err != nil {
@@ -77,7 +78,7 @@ func (r *clinicHolidayRepository) Delete(ctx context.Context, clinicID uint64, d
 		return apperrors.FromGORM(result.Error, "clinic_holiday", date.Format("2006-01-02"))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.FromGORM(gorm.ErrRecordNotFound, "clinic_holiday", date.Format("2006-01-02"))
+		return apperrors.WrapNotFound("clinic_holiday", date.Format("2006-01-02"))
 	}
 	return nil
 }

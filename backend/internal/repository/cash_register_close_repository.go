@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -36,7 +37,7 @@ func (r *cashRegisterCloseRepository) Create(ctx context.Context, c *model.CashR
 func (r *cashRegisterCloseRepository) FindAll(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error) {
 	q := r.db.WithContext(ctx).
 		Model(&model.CashRegisterClose{}).
-		Where("clinic_id = ?", clinicID)
+		Scopes(clinicScope(clinicID))
 	if startDate != nil {
 		q = q.Where("close_date >= ?", startDate)
 	}
@@ -64,7 +65,8 @@ func (r *cashRegisterCloseRepository) FindAll(ctx context.Context, clinicID uint
 func (r *cashRegisterCloseRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error) {
 	var c model.CashRegisterClose
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND id = ?", clinicID, id).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", id).
 		Preload("ClosedByStaff").
 		First(&c).Error
 	if err != nil {
@@ -76,9 +78,10 @@ func (r *cashRegisterCloseRepository) FindByID(ctx context.Context, clinicID, id
 func (r *cashRegisterCloseRepository) FindByDateAndPeriod(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error) {
 	var c model.CashRegisterClose
 	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND close_date = ? AND period = ?", clinicID, date, period).
+		Scopes(clinicScope(clinicID)).
+		Where("close_date = ? AND period = ?", date, period).
 		First(&c).Error
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
 	if err != nil {
