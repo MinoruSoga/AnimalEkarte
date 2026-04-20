@@ -319,6 +319,9 @@ func TestCageService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCageRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Cage, error) {
+					return &model.Cage{ID: tt.id, ClinicID: tt.clinicID}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Cage, error) {
 					return tt.repoCage, tt.repoErr
 				},

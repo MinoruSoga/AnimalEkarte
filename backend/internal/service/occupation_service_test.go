@@ -27,7 +27,10 @@ func (m *mockOccupationRepository) FindAll(ctx context.Context, clinicID uint64)
 }
 
 func (m *mockOccupationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.Occupation{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockOccupationRepository) Create(ctx context.Context, occupation *model.Occupation) error {

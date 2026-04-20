@@ -27,7 +27,10 @@ func (m *mockInquiryTemplateRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (m *mockInquiryTemplateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.InquiryTemplate{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockInquiryTemplateRepository) Create(ctx context.Context, template *model.InquiryTemplate) error {
