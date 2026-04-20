@@ -341,13 +341,23 @@ func TestCageService_Update(t *testing.T) {
 	}
 }
 
+func TestCageService_Update_NilInput(t *testing.T) {
+	repo := &mockCageRepository{}
+	svc := newTestCageService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
 func TestCageService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name         string
+		id           uint64
+		usageCount   int64
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
 			name:    "deletes cage successfully",
@@ -368,11 +378,21 @@ func TestCageService_Delete(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name:         "使用中のケージは削除できない",
+			id:           2,
+			usageCount:   1,
+			wantErr:      true,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCageRepository{
+				countUsageByCageIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.usageCount, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -385,6 +405,9 @@ func TestCageService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

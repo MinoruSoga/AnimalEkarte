@@ -7,18 +7,20 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ---- HospitalizationPlan モック ----
 
 type mockHospitalizationPlanRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
-	createFn       func(ctx context.Context, plan *model.HospitalizationPlan) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
-	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                    func(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
+	findByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
+	createFn                     func(ctx context.Context, plan *model.HospitalizationPlan) error
+	updateFieldsFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
+	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                    func(ctx context.Context, clinicID uint64, ids []uint64) error
+	countCarePlanItemsByPlanIDFn func(ctx context.Context, clinicID, planID uint64) (int64, error)
 }
 
 func (m *mockHospitalizationPlanRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error) {
@@ -48,7 +50,10 @@ func (m *mockHospitalizationPlanRepository) Reorder(ctx context.Context, clinicI
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockHospitalizationPlanRepository) CountCarePlanItemsByPlanID(_ context.Context, _, _ uint64) (int64, error) {
+func (m *mockHospitalizationPlanRepository) CountCarePlanItemsByPlanID(ctx context.Context, clinicID, planID uint64) (int64, error) {
+	if m.countCarePlanItemsByPlanIDFn != nil {
+		return m.countCarePlanItemsByPlanIDFn(ctx, clinicID, planID)
+	}
 	return 0, nil
 }
 
@@ -273,10 +278,13 @@ func TestHospitalizationPlanService_Update(t *testing.T) {
 
 func TestHospitalizationPlanService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
+		name          string
+		id            uint64
+		carePlanCount int64
+		countErr      error
+		repoErr       error
+		wantErr       bool
+		wantConflict  bool
 	}{
 		{
 			name:    "deletes hospitalization plan successfully",
@@ -290,11 +298,21 @@ func TestHospitalizationPlanService_Delete(t *testing.T) {
 			repoErr: errors.New("not found"),
 			wantErr: true,
 		},
+		{
+			name:          "使用中の入院プランは削除できない",
+			id:            2,
+			carePlanCount: 3,
+			wantErr:       true,
+			wantConflict:  true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockHospitalizationPlanRepository{
+				countCarePlanItemsByPlanIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.carePlanCount, tt.countErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -305,6 +323,9 @@ func TestHospitalizationPlanService_Delete(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
+				}
 			} else {
 				assert.NoError(t, err)
 			}

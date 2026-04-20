@@ -298,6 +298,14 @@ func TestTrimmingOptionService_Update(t *testing.T) {
 	}
 }
 
+func TestTrimmingOptionService_Update_NilInput(t *testing.T) {
+	repo := &mockTrimmingOptionRepository{}
+	svc := NewTrimmingOptionService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
 func TestTrimmingOptionService_Reorder(t *testing.T) {
 	tests := []struct {
 		name    string

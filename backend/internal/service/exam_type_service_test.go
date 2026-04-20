@@ -321,6 +321,14 @@ func TestExamTypeService_Update(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("nil input はエラー", func(t *testing.T) {
+		repo := &mockExamTypeRepository{}
+		svc := NewExamTypeService(repo)
+		result, err := svc.Update(context.Background(), 1, 1, nil)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
 }
 
 func TestExamTypeService_Delete(t *testing.T) {

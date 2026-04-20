@@ -202,6 +202,14 @@ func TestPermissionGroupService_Update(t *testing.T) {
 	}
 }
 
+func TestPermissionGroupService_Update_NilInput(t *testing.T) {
+	repo := &mockPermissionGroupRepository{}
+	svc := NewPermissionGroupService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
 func TestPermissionGroupService_Delete(t *testing.T) {
 	tests := []struct {
 		name         string

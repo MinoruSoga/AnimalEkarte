@@ -65,13 +65,14 @@ func (m *mockDiagnosisTypeRepository) CountChildrenByParentID(ctx context.Contex
 // ---- DiagnosisName モック ----
 
 type mockDiagnosisNameRepository struct {
-	findAllFn          func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
-	findByCategoryIDFn func(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
-	findByIDFn         func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
-	createFn           func(ctx context.Context, name *model.DiagnosisName) error
-	updateFieldsFn     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
-	deleteFn           func(ctx context.Context, clinicID, id uint64) error
-	reorderFn          func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                          func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	findByCategoryIDFn                 func(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
+	createFn                           func(ctx context.Context, name *model.DiagnosisName) error
+	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
+	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                          func(ctx context.Context, clinicID uint64, ids []uint64) error
+	countClinicalPlansByDiagnosisNameIDFn func(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error)
 }
 
 func (m *mockDiagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
@@ -108,7 +109,10 @@ func (m *mockDiagnosisNameRepository) Reorder(ctx context.Context, clinicID uint
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockDiagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(_ context.Context, _, _ uint64) (int64, error) {
+func (m *mockDiagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error) {
+	if m.countClinicalPlansByDiagnosisNameIDFn != nil {
+		return m.countClinicalPlansByDiagnosisNameIDFn(ctx, clinicID, diagnosisNameID)
+	}
 	return 0, nil
 }
 
@@ -804,11 +808,14 @@ func TestDiagnosisNameService_Update(t *testing.T) {
 
 func TestDiagnosisNameService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name         string
+		id           uint64
+		planCount    int64
+		countErr     error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
 			name:    "deletes diagnosis name successfully",
@@ -831,11 +838,21 @@ func TestDiagnosisNameService_Delete(t *testing.T) {
 			wantErr: true,
 			wantNF:  false,
 		},
+		{
+			name:         "使用中の診断名は削除できない",
+			id:           2,
+			planCount:    3,
+			wantErr:      true,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockDiagnosisNameRepository{
+				countClinicalPlansByDiagnosisNameIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.planCount, tt.countErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -848,6 +865,9 @@ func TestDiagnosisNameService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

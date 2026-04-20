@@ -301,6 +301,14 @@ func TestProcedureService_Update(t *testing.T) {
 	}
 }
 
+func TestProcedureService_Update_NilInput(t *testing.T) {
+	repo := &mockProcedureRepository{}
+	svc := NewProcedureService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
 func TestProcedureService_Delete(t *testing.T) {
 	tests := []struct {
 		name             string
