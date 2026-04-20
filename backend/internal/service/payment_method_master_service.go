@@ -100,6 +100,9 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get payment method")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}

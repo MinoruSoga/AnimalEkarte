@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -58,6 +59,8 @@ type UpdateStaffInput struct {
 	OccupationID  *uint64
 	SortOrder     *int
 	IsActive      *bool
+	// Password は nil の場合パスワード更新なし。空文字は未送信扱い。
+	Password *string
 
 	// LINE予約用フィールド
 	StaffType              *string
@@ -93,6 +96,9 @@ type StaffService interface {
 	GetExcludedReservationTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error)
 	// SetExcludedReservationTypeIDs はスタッフの除外サービス種別を全置換する
 	SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error
+	// VerifyClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
+	// 所属していない場合は ErrNotFound を返す。
+	VerifyClinicMembership(ctx context.Context, staffID, clinicID uint64) error
 }
 
 type staffService struct {
@@ -322,7 +328,7 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, staffID uint64,
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "failed to update clinic assignments")
+		return err
 	}
 	slog.InfoContext(ctx, "clinic assignments updated", slog.Uint64("staff_id", staffID), slog.Int("count", len(clinicIDs)))
 	return nil
@@ -336,19 +342,44 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 		trimmed := strings.TrimSpace(*input.Name)
 		input.Name = &trimmed
 	}
-	fields := buildStaffUpdateFields(input)
-	if len(fields) == 0 {
+
+	hasPasswordUpdate := input.Password != nil && *input.Password != ""
+	hasProfileUpdate := input.Name != nil || input.LicenseNumber != nil || input.OccupationID != nil ||
+		input.SortOrder != nil || input.IsActive != nil || input.StaffType != nil ||
+		input.ReservationDisplayName != nil || input.ReservationVisible != nil ||
+		input.ReservationComment != nil || input.ReservationImageURL != nil
+
+	if !hasProfileUpdate && !hasPasswordUpdate {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, apperrors.Wrap(err, "failed to update staff")
+
+	var staff *model.Staff
+	if hasProfileUpdate {
+		fields := buildStaffUpdateFields(input)
+		if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+			return nil, apperrors.Wrap(err, "failed to update staff")
+		}
+		slog.InfoContext(ctx, "staff updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("staff_id", id))
 	}
-	slog.InfoContext(ctx, "staff updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("staff_id", id))
+
 	updated, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get updated staff")
 	}
-	return updated, nil
+	staff = updated
+
+	if hasPasswordUpdate {
+		if err := validatePassword(*input.Password); err != nil {
+			return nil, err
+		}
+		if staff.AccountID != nil {
+			if err := s.UpdatePassword(ctx, *staff.AccountID, *input.Password); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return staff, nil
 }
 
 func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
@@ -415,6 +446,7 @@ func (s *staffService) Reorder(ctx context.Context, clinicID uint64, ids []uint6
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder staff")
 	}
+	slog.InfoContext(ctx, "staff reordered", slog.Uint64("clinic_id", clinicID))
 	return nil
 }
 
@@ -452,6 +484,19 @@ func (s *staffService) GetExcludedReservationTypeIDs(ctx context.Context, staffI
 func (s *staffService) SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error {
 	if err := s.resStaffRepo.ReplaceExcludedReservationTypes(ctx, staffID, typeIDs); err != nil {
 		return apperrors.Wrap(err, "failed to set excluded service type ids")
+	}
+	return nil
+}
+
+// VerifyClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
+// 所属していない場合は ErrNotFound を返す。
+func (s *staffService) VerifyClinicMembership(ctx context.Context, staffID, clinicID uint64) error {
+	exists, err := s.assignmentRepo.ExistsByStaffAndClinic(ctx, staffID, clinicID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to verify staff clinic membership")
+	}
+	if !exists {
+		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", staffID))
 	}
 	return nil
 }

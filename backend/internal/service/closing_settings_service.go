@@ -218,10 +218,18 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 	if len(fields) == 0 {
 		return current, nil
 	}
-	return s.periodRepo.UpdateFields(ctx, clinicID, id, fields)
+	result, err := s.periodRepo.UpdateFields(ctx, clinicID, id, fields)
+	if err != nil {
+		return nil, err
+	}
+	slog.InfoContext(ctx, "special period updated", slog.Uint64("id", id))
+	return result, nil
 }
 
 func (s *closingSettingsService) DeleteSpecialPeriod(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.periodRepo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get special period")
+	}
 	slog.InfoContext(ctx, "deleting closing special period",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("id", id))

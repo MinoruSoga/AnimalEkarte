@@ -33,3 +33,18 @@ type updateStaffRequest struct {
 	ReservationComment     *string `json:"reservation_comment"`
 	ReservationImageURL    *string `json:"reservation_image_url"`
 }
+
+// setStaffPermissionGroupsRequest は権限グループ割当リクエスト。
+type setStaffPermissionGroupsRequest struct {
+	GroupIDs []uint64 `json:"group_ids"`
+}
+
+// setStaffClinicAssignmentsRequest はクリニック割当リクエスト。
+type setStaffClinicAssignmentsRequest struct {
+	ClinicIDs []uint64 `json:"clinic_ids"`
+}
+
+// setStaffExcludedReservationTypesRequest は除外予約種別リクエスト。
+type setStaffExcludedReservationTypesRequest struct {
+	ReservationTypeIDs []uint64 `json:"reservation_type_ids"`
+}

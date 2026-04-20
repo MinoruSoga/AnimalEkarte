@@ -112,58 +112,22 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 		return
 	}
 
-	// パスワードのみの更新かどうかを判定（BUG-131）
-	hasProfileUpdate := req.Name != nil || req.LicenseNumber != nil || req.OccupationID != nil || req.SortOrder != nil || req.IsActive != nil ||
-		req.StaffType != nil || req.ReservationDisplayName != nil || req.ReservationVisible != nil || req.ReservationComment != nil || req.ReservationImageURL != nil
-	hasPasswordUpdate := req.Password != nil && *req.Password != ""
-
-	if !hasProfileUpdate && !hasPasswordUpdate {
-		RespondError(c, apperrors.WrapInvalidInput("at least one field must be provided"))
+	staff, err := h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
+		Name:                   req.Name,
+		LicenseNumber:          req.LicenseNumber,
+		OccupationID:           req.OccupationID,
+		SortOrder:              req.SortOrder,
+		IsActive:               req.IsActive,
+		Password:               req.Password,
+		StaffType:              req.StaffType,
+		ReservationDisplayName: req.ReservationDisplayName,
+		ReservationVisible:     req.ReservationVisible,
+		ReservationComment:     req.ReservationComment,
+		ReservationImageURL:    req.ReservationImageURL,
+	})
+	if err != nil {
+		RespondError(c, err)
 		return
-	}
-
-	var staff *model.Staff
-	if hasProfileUpdate {
-		var svcErr error
-		staff, svcErr = h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
-			Name:                   req.Name,
-			LicenseNumber:          req.LicenseNumber,
-			OccupationID:           req.OccupationID,
-			SortOrder:              req.SortOrder,
-			IsActive:               req.IsActive,
-			StaffType:              req.StaffType,
-			ReservationDisplayName: req.ReservationDisplayName,
-			ReservationVisible:     req.ReservationVisible,
-			ReservationComment:     req.ReservationComment,
-			ReservationImageURL:    req.ReservationImageURL,
-		})
-		if svcErr != nil {
-			RespondError(c, svcErr)
-			return
-		}
-	} else {
-		// パスワードのみ更新の場合、既存スタッフを取得
-		var findErr error
-		staff, findErr = h.svc.Staff.GetByID(c.Request.Context(), id)
-		if findErr != nil {
-			RespondError(c, findErr)
-			return
-		}
-	}
-
-	// パスワード変更（任意）: password フィールドが送信された場合のみ
-	// bcrypt ハッシュ化・Account 更新は StaffService.UpdatePassword に委譲する。
-	if hasPasswordUpdate {
-		if err := validatePassword(*req.Password); err != nil {
-			RespondError(c, err)
-			return
-		}
-		if staff.AccountID != nil {
-			if updErr := h.svc.Staff.UpdatePassword(c.Request.Context(), *staff.AccountID, *req.Password); updErr != nil {
-				RespondError(c, updErr)
-				return
-			}
-		}
 	}
 
 	c.JSON(http.StatusOK, toStaffResponse(staff))
@@ -243,9 +207,7 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
-	var req struct {
-		GroupIDs []uint64 `json:"group_ids"`
-	}
+	var req setStaffPermissionGroupsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -300,9 +262,7 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
-	var req struct {
-		ClinicIDs []uint64 `json:"clinic_ids"`
-	}
+	var req setStaffClinicAssignmentsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
@@ -355,9 +315,7 @@ func (h *Handler) SetStaffExcludedReservationTypes(c *gin.Context) {
 	if !h.verifyStaffClinicMembership(c, clinicID, id) {
 		return
 	}
-	var req struct {
-		ReservationTypeIDs []uint64 `json:"reservation_type_ids"`
-	}
+	var req setStaffExcludedReservationTypesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
