@@ -3,6 +3,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -102,6 +103,7 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 		}
 	}
 
+	c.Header("Location", fmt.Sprintf("/v1/masters/permission-groups/%d", pg.ID))
 	c.JSON(http.StatusCreated, toPermissionGroupResponse(pg))
 }
 
@@ -226,11 +228,6 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	if !ok {
 		return
 	}
-	// staffID が所属するグループ ID 一覧を取得（self-reference チェックに使用）
-	var staffGroupIDs []uint64
-	if myGroupIDs, groupErr := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), staffID); groupErr == nil {
-		staffGroupIDs = myGroupIDs
-	}
 
 	// Convert request rules to model
 	rules := make([]model.PermissionGroupRule, 0, len(req.Rules))
@@ -244,7 +241,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 		})
 	}
 
-	if err := h.svc.PermissionGroup.SetRules(c.Request.Context(), id, rules, staffGroupIDs); err != nil {
+	if err := h.svc.PermissionGroup.SetRules(c.Request.Context(), id, rules, staffID); err != nil {
 		RespondError(c, err)
 		return
 	}

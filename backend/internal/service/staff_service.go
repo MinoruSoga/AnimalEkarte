@@ -28,7 +28,7 @@ type CreateStaffInput struct {
 	// LINE予約用フィールド
 	StaffType              string
 	ReservationDisplayName string
-	ReservationVisible     bool
+	ReservationVisible     *bool
 	ReservationComment     string
 	ReservationImageURL    string
 }
@@ -46,7 +46,7 @@ type CreateStaffWithAccountInput struct {
 	// LINE予約用フィールド
 	StaffType              string
 	ReservationDisplayName string
-	ReservationVisible     bool
+	ReservationVisible     *bool
 	ReservationComment     string
 	ReservationImageURL    string
 }
@@ -163,6 +163,11 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 		staffType = model.StaffTypeDoctor
 	}
 
+	reservationVisible := true
+	if input.ReservationVisible != nil {
+		reservationVisible = *input.ReservationVisible
+	}
+
 	var staff *model.Staff
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		staff = &model.Staff{
@@ -174,7 +179,7 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 			AccountID:              input.AccountID,
 			StaffType:              staffType,
 			ReservationDisplayName: input.ReservationDisplayName,
-			ReservationVisible:     input.ReservationVisible,
+			ReservationVisible:     reservationVisible,
 			ReservationComment:     input.ReservationComment,
 			ReservationImageURL:    input.ReservationImageURL,
 		}
@@ -200,12 +205,22 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 }
 
 // CreateWithAccount はメール・パスワード付きでスタッフを作成する。
-// email 重複チェック・bcrypt ハッシュ化・Account 作成・Staff 作成をトランザクション内で一括で行う。
+// email 重複チェック・パスワードバリデーション・bcrypt ハッシュ化・Account 作成・Staff 作成をトランザクション内で一括で行う。
 func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaffWithAccountInput) (*model.Staff, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
 	name := strings.TrimSpace(input.Name)
+
+	// パスワードバリデーション（email が指定されている場合は必須）
+	if input.Email != "" && input.Password == "" {
+		return nil, apperrors.WrapInvalidInput("password is required when email is provided")
+	}
+	if input.Password != "" {
+		if err := validatePassword(input.Password); err != nil {
+			return nil, err
+		}
+	}
 
 	// email 重複チェック: FindByEmail が NotFound 以外のエラーを返した場合は伝播する
 	existing, err := s.accountRepo.FindByEmail(ctx, input.Email)
@@ -224,6 +239,11 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	staffType := model.StaffType(input.StaffType)
 	if staffType == "" {
 		staffType = model.StaffTypeDoctor
+	}
+
+	reservationVisible := true
+	if input.ReservationVisible != nil {
+		reservationVisible = *input.ReservationVisible
 	}
 
 	var staff *model.Staff
@@ -246,7 +266,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 			AccountID:              &account.ID,
 			StaffType:              staffType,
 			ReservationDisplayName: input.ReservationDisplayName,
-			ReservationVisible:     input.ReservationVisible,
+			ReservationVisible:     reservationVisible,
 			ReservationComment:     input.ReservationComment,
 			ReservationImageURL:    input.ReservationImageURL,
 		}

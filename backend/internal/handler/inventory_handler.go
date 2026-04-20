@@ -102,6 +102,7 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/inventory/%d", created.ID))
 	c.JSON(http.StatusCreated, created)
 }
 

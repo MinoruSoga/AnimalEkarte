@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -284,6 +285,27 @@ func validateOptionalCoverageRate(rate *int) error {
 		return nil
 	}
 	return validateCoverageRate(*rate)
+}
+
+// validatePassword はパスワード複雑性を検証する（BUG-139）。
+// 8文字以上、英字1文字以上、数字1文字以上が必須。
+func validatePassword(pw string) error {
+	if len(pw) < 8 {
+		return apperrors.WrapInvalidInput("パスワードは8文字以上で入力してください")
+	}
+	var hasLetter, hasDigit bool
+	for _, r := range pw {
+		if unicode.IsLetter(r) {
+			hasLetter = true
+		}
+		if unicode.IsDigit(r) {
+			hasDigit = true
+		}
+	}
+	if !hasLetter || !hasDigit {
+		return apperrors.WrapInvalidInput("パスワードは英字と数字の両方を含めてください")
+	}
+	return nil
 }
 
 // validateCageSize はケージサイズがドメイン上有効かを検証する

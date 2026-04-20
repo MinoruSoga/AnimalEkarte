@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -48,24 +49,12 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// BUG-145: email が指定されている場合は重複チェックを行い、Account を作成してスタッフに紐づける。
-	// Account 作成・bcrypt ハッシュ化はすべて StaffService.CreateWithAccount に委譲する。
+	// Account 作成・bcrypt ハッシュ化・パスワードバリデーションはすべて StaffService に委譲する。
 	email := strings.TrimSpace(req.Email)
 	var staff *model.Staff
 	var err error
 
 	if email != "" {
-		if req.Password == "" {
-			RespondError(c, apperrors.WrapInvalidInput("password is required when email is provided"))
-			return
-		}
-		if err := validatePassword(req.Password); err != nil {
-			RespondError(c, err)
-			return
-		}
-		reservationVisible := true
-		if req.ReservationVisible != nil {
-			reservationVisible = *req.ReservationVisible
-		}
 		staff, err = h.svc.Staff.CreateWithAccount(ctx, &service.CreateStaffWithAccountInput{
 			ClinicID:               clinicID,
 			Name:                   req.Name,
@@ -76,15 +65,11 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 			Password:               req.Password,
 			StaffType:              req.StaffType,
 			ReservationDisplayName: req.ReservationDisplayName,
-			ReservationVisible:     reservationVisible,
+			ReservationVisible:     req.ReservationVisible,
 			ReservationComment:     req.ReservationComment,
 			ReservationImageURL:    req.ReservationImageURL,
 		})
 	} else {
-		reservationVisible := true
-		if req.ReservationVisible != nil {
-			reservationVisible = *req.ReservationVisible
-		}
 		staff, err = h.svc.Staff.Create(ctx, &service.CreateStaffInput{
 			ClinicID:               clinicID,
 			Name:                   req.Name,
@@ -93,7 +78,7 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 			SortOrder:              req.SortOrder,
 			StaffType:              req.StaffType,
 			ReservationDisplayName: req.ReservationDisplayName,
-			ReservationVisible:     reservationVisible,
+			ReservationVisible:     req.ReservationVisible,
 			ReservationComment:     req.ReservationComment,
 			ReservationImageURL:    req.ReservationImageURL,
 		})
@@ -107,6 +92,7 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 	if reloaded, reloadErr := h.svc.Staff.GetByID(ctx, staff.ID); reloadErr == nil {
 		staff = reloaded
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/staffs/%d", staff.ID))
 	c.JSON(http.StatusCreated, toStaffResponse(staff))
 }
 

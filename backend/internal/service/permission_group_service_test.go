@@ -281,7 +281,7 @@ func TestPermissionGroupService_SetRules(t *testing.T) {
 				},
 			}
 			svc := NewPermissionGroupService(repo)
-			err := svc.SetRules(context.Background(), 1, tt.rules, nil)
+			err := svc.SetRules(context.Background(), 1, tt.rules, 0)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

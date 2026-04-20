@@ -37,7 +37,8 @@ type PermissionGroupService interface {
 	Create(ctx context.Context, clinicID uint64, input CreatePermissionGroupInput) (*model.PermissionGroup, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePermissionGroupInput) (*model.PermissionGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule, staffGroupIDs []uint64) error
+	// SetRules はグループのルールを全置換する。actorStaffID は自己参照チェックに使用される。
+	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule, actorStaffID uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
 }
@@ -117,12 +118,18 @@ func (s *permissionGroupService) Delete(ctx context.Context, clinicID, id uint64
 	return nil
 }
 
-func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule, staffGroupIDs []uint64) error {
+func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule, actorStaffID uint64) error {
 	// BUG-146: 入力バリデーション — 空文字・存在しないリソース名・重複を拒否
 	if err := validateNoDuplicateRules(rules); err != nil {
 		return err
 	}
 	// BUG-140: 自分が所属するグループの master-permission edit を削除できないようにする
+	// staffGroupIDs をサービス内で取得する（Handler が外部データを取得する責務を持たない）
+	staffGroupIDs, err := s.repo.GetGroupIDsByStaffID(ctx, actorStaffID)
+	if err != nil {
+		// エラー時は空にして自己参照チェック不能なら許可方向（ベストエフォート）
+		staffGroupIDs = []uint64{}
+	}
 	if err := validateNotSelfReference(groupID, rules, staffGroupIDs); err != nil {
 		return err
 	}
