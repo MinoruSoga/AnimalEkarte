@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -73,6 +74,7 @@ func (h *Handler) CreateHospitalizationPlan(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/hospitalization-plans/%d", plan.ID))
 	c.JSON(http.StatusCreated, toHospitalizationPlanResponse(plan))
 }
 

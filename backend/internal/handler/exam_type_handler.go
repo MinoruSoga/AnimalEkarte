@@ -72,7 +72,7 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/v1/masters/exam-types/%d", examType.ID))
+	c.Header("Location", fmt.Sprintf("/v1/masters/examination-types/%d", examType.ID))
 	c.JSON(http.StatusCreated, toExamTypeResponse(examType))
 }
 
