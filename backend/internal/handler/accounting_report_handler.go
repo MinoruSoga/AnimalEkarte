@@ -64,7 +64,10 @@ func (h *Handler) ExportMonthlyCSV(c *gin.Context) {
 	_, _ = c.Writer.Write([]byte("\xEF\xBB\xBF"))
 
 	w := csv.NewWriter(c.Writer)
-	_ = w.Write([]string{"日付", "曜日", "AM件数", "AM純売上(円)", "PM件数", "PM純売上(円)", "日計(円)", "返金(円)", "AM締め", "PM締め", "休診"})
+	_ = w.Write([]string{
+		"日付", "曜日", "AM件数", "AM純売上(円)", "PM件数", "PM純売上(円)", "日計(円)", "返金(円)", "AM締め", "PM締め", "休診",
+		"標準税率課税対象額(円)", "標準税率消費税額(円)", "軽減税率課税対象額(円)", "軽減税率消費税額(円)",
+	})
 
 	for _, d := range result.DailyDetails {
 		amClosed := "未"
@@ -91,10 +94,21 @@ func (h *Handler) ExportMonthlyCSV(c *gin.Context) {
 			amClosed,
 			pmClosed,
 			holiday,
+			"", "", "", "", // 税率別内訳は月次サマリのみ（日別内訳なし）
 		})
 	}
 
-	_ = w.Write([]string{"合計", "", "", "", "", "", fmt.Sprintf("%d", result.Summary.NetAmount), fmt.Sprintf("%d", result.Summary.TotalRefund), "", "", ""})
+	tb := result.Summary.TaxBreakdown
+	_ = w.Write([]string{
+		"合計", "", "", "", "", "",
+		fmt.Sprintf("%d", result.Summary.NetAmount),
+		fmt.Sprintf("%d", result.Summary.TotalRefund),
+		"", "", "",
+		fmt.Sprintf("%d", tb.Standard.TaxableAmount),
+		fmt.Sprintf("%d", tb.Standard.TaxAmount),
+		fmt.Sprintf("%d", tb.Reduced.TaxableAmount),
+		fmt.Sprintf("%d", tb.Reduced.TaxAmount),
+	})
 	w.Flush()
 }
 

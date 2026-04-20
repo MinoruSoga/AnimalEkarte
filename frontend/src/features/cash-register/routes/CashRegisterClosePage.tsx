@@ -150,6 +150,52 @@ export function CashRegisterClosePage() {
                 />
               </section>
 
+              {/* 消費税内訳 */}
+              <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+                <h2 className={`text-base font-semibold ${C.text} mb-4`}>消費税内訳</h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-lg">
+                  <div>
+                    <p className={`text-xs ${C.text40} mb-1`}>標準税率（10%）</p>
+                    <div className="flex justify-between text-sm py-1">
+                      <span className={C.text60}>課税対象額</span>
+                      <span className={C.text}>
+                        ¥{preview.aggregate.tax_breakdown.standard.taxable_amount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm py-1">
+                      <span className={C.text60}>消費税額</span>
+                      <span className={C.text}>
+                        ¥{preview.aggregate.tax_breakdown.standard.tax_amount.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className={`text-xs ${C.text40} mb-1`}>軽減税率（8%）</p>
+                    <div className="flex justify-between text-sm py-1">
+                      <span className={C.text60}>課税対象額</span>
+                      <span className={C.text}>
+                        ¥{preview.aggregate.tax_breakdown.reduced.taxable_amount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm py-1">
+                      <span className={C.text60}>消費税額</span>
+                      <span className={C.text}>
+                        ¥{preview.aggregate.tax_breakdown.reduced.tax_amount.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className={`mt-3 pt-3 border-t ${C.borderLight} flex justify-between text-sm font-medium max-w-lg`}>
+                  <span className={C.text70}>消費税合計</span>
+                  <span className={C.text}>
+                    ¥{(
+                      preview.aggregate.tax_breakdown.standard.tax_amount +
+                      preview.aggregate.tax_breakdown.reduced.tax_amount
+                    ).toLocaleString()}
+                  </span>
+                </div>
+              </section>
+
               {/* 締めフォーム */}
               <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
                 <h2 className={`text-base font-semibold ${C.text} mb-4`}>レジ締め実行</h2>
