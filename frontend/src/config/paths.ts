@@ -133,6 +133,19 @@ export const paths = {
       path: "/accounting/:id",
       getHref: (id: string | number) => `/accounting/${id}`,
     },
+    // FEAT-368: 締め・集計
+    close: {
+      path: "/accounting/close",
+      getHref: () => "/accounting/close",
+    },
+    closeHistory: {
+      path: "/accounting/close/history",
+      getHref: () => "/accounting/close/history",
+    },
+    reports: {
+      path: "/accounting/reports",
+      getHref: () => "/accounting/reports",
+    },
   },
 
   vaccinations: {
@@ -302,6 +315,15 @@ export const paths = {
         path: "/settings/interview/templates",
         getHref: () => "/settings/interview/templates",
       },
+    },
+    // FEAT-368: 締め設定・支払方法マスタ
+    closingTime: {
+      path: "/settings/closing-time",
+      getHref: () => "/settings/closing-time",
+    },
+    paymentMethods: {
+      path: "/settings/payment-methods",
+      getHref: () => "/settings/payment-methods",
     },
   },
 } as const;

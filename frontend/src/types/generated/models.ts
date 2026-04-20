@@ -1838,3 +1838,148 @@ export interface VitalRecord {
   pet?: Pet;
   staff?: Staff;
 }
+
+//////////
+// source: FEAT-368 (manual addition — cash register / closing settings)
+
+export interface ClinicSettings {
+  clinic_id: number /* uint64 */;
+  closing_am_pm_boundary: string; // "HH:MM"
+  closing_weekday_end: string;    // "HH:MM"
+  closing_sunday_end: string;     // "HH:MM"
+  closed_weekdays: number[];      // 0=日, 1=月...6=土
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClosingSpecialPeriod {
+  id: number /* uint64 */;
+  clinic_id: number;
+  start_date: string;     // "YYYY-MM-DD"
+  end_date: string;       // "YYYY-MM-DD"
+  am_pm_boundary: string; // "HH:MM"
+  pm_end: string;         // "HH:MM"
+  note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClosingHoliday {
+  id: number /* uint64 */;
+  clinic_id: number;
+  date: string; // "YYYY-MM-DD"
+  note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentMethodMaster {
+  id: number /* uint64 */;
+  clinic_id: number;
+  name: string;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashRegisterClose {
+  id: number /* uint64 */;
+  clinic_id: number;
+  close_date: string; // "YYYY-MM-DD"
+  period: "am" | "pm";
+  theoretical_cash: number;
+  actual_cash: number;
+  cash_difference: number;
+  category_breakdown: CategoryBreakdownSchema;
+  memo: string;
+  closed_by?: number;
+  closed_at: string;
+  created_at: string;
+  updated_at: string;
+  closed_by_staff?: Staff;
+}
+
+export interface CategoryBreakdownSchema {
+  categories: Record<string, Record<string, number>>; // category -> payment_method_name -> amount
+  tax_breakdown: {
+    standard: { taxable_amount: number; tax_amount: number };
+    reduced: { taxable_amount: number; tax_amount: number };
+  };
+}
+
+export interface ClosingSettingsResponse {
+  settings: ClinicSettings;
+  special_periods: ClosingSpecialPeriod[];
+  holidays: ClosingHoliday[];
+}
+
+export interface ClosePreviewResult {
+  date: string;
+  period: "am" | "pm";
+  period_start: string;
+  period_end: string;
+  is_already_closed: boolean;
+  is_holiday: boolean;
+  aggregate: {
+    categories: Record<string, Record<string, number>>;
+    payment_methods: PaymentMethodMaster[];
+    theoretical_cash: number;
+    tax_breakdown: CategoryBreakdownSchema["tax_breakdown"];
+  };
+  billing_details: CloseBillingDetail[];
+}
+
+export interface CloseBillingDetail {
+  billing_id: number;
+  paid_at: string;
+  owner_name: string;
+  pet_name: string;
+  is_hospitalization: boolean;
+  category: string;
+  payment_method_id?: number;
+  payment_method_name: string;
+  billing_amount: number;
+  refund_amount: number;
+  net_amount: number;
+}
+
+export interface MonthlyReportResponse {
+  year: number;
+  month: number;
+  summary: {
+    working_days: number;
+    total_billings: number;
+    total_amount: number;
+    total_refund: number;
+    net_amount: number;
+    by_payment_method: Record<string, number>;
+    by_category: Record<string, number>;
+    tax_breakdown: CategoryBreakdownSchema["tax_breakdown"];
+  };
+  daily_details: DailyReportDetail[];
+}
+
+export interface DailyReportDetail {
+  date: string;
+  weekday: string;
+  am_count: number;
+  am_net: number;
+  pm_count: number;
+  pm_net: number;
+  day_net: number;
+  refund: number;
+  am_closed: boolean;
+  pm_closed: boolean;
+  is_holiday: boolean;
+}
+
+export const ItemCategoryVaccine: ItemCategory = "vaccine";
+export const ItemCategoryTrimming: ItemCategory = "trimming";
+export const ItemCategoryHotel: ItemCategory = "hotel";
+export const ItemCategoryTraining: ItemCategory = "training";
+
+export const ResourceCashRegisterClose: Resource = "cash-register-close";
+export const ResourceAccountingReports: Resource = "accounting-reports";
+export const ResourceClosingSettings: Resource = "closing-settings";
+export const ResourcePaymentMethods: Resource = "payment-methods";

@@ -1,0 +1,30 @@
+import { useQuery } from "@tanstack/react-query";
+import { axios } from "@/lib/axios";
+import type { CashRegisterClose } from "@/types/generated/models";
+
+export interface GetCashRegisterClosesParams {
+  year?: number;
+  month?: number;
+  page?: number;
+  limit?: number;
+}
+
+export interface CashRegisterClosesResponse {
+  data: CashRegisterClose[];
+  total: number;
+}
+
+export const getCashRegisterCloses = async (
+  params?: GetCashRegisterClosesParams,
+): Promise<CashRegisterClosesResponse> => {
+  const { data } = await axios.get<CashRegisterClosesResponse>("/v1/cash-register/closes", {
+    params,
+  });
+  return data;
+};
+
+export const useGetCashRegisterCloses = (params?: GetCashRegisterClosesParams) =>
+  useQuery({
+    queryKey: ["cash-register-closes", params],
+    queryFn: () => getCashRegisterCloses(params),
+  });

@@ -77,6 +77,11 @@ type Repositories struct {
 	ReservationTypeUnavailableTime ReservationTypeUnavailableTimeRepository
 	ReservationTypeOccupation      ReservationTypeOccupationRepository
 	PasswordResetToken             PasswordResetTokenRepository
+	// FEAT-368: 集計・締め機能
+	ClinicSettings       ClinicSettingsRepository
+	ClosingSpecialPeriod ClosingSpecialPeriodRepository
+	PaymentMethodMaster  PaymentMethodMasterRepository
+	CashRegisterClose    CashRegisterCloseRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -145,6 +150,11 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		ReservationTypeUnavailableTime: NewReservationTypeUnavailableTimeRepository(db),
 		ReservationTypeOccupation:      NewReservationTypeOccupationRepository(db),
 		PasswordResetToken:             NewPasswordResetTokenRepository(db),
+		// FEAT-368: 集計・締め機能
+		ClinicSettings:       NewClinicSettingsRepository(db),
+		ClosingSpecialPeriod: NewClosingSpecialPeriodRepository(db),
+		PaymentMethodMaster:  NewPaymentMethodMasterRepository(db),
+		CashRegisterClose:    NewCashRegisterCloseRepository(db),
 	}
 }
 

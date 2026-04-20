@@ -94,6 +94,11 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterGlobalCheckupRoutes(protected)
 	h.RegisterBillingItemRoutes(protected)
 	h.RegisterLineReservationRoutes(protected)
+	// FEAT-368: 集計・締め機能
+	h.RegisterClosingSettingsRoutes(protected)
+	h.RegisterCashRegisterRoutes(protected)
+	h.RegisterAccountingReportRoutes(protected)
+	h.RegisterPaymentMethodMasterRoutes(protected)
 
 	// LIFF公開API（JWT認証なし・LINE IDトークン認証）
 	h.RegisterLiffRoutes(r)

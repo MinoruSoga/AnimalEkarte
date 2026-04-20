@@ -42,6 +42,10 @@ const (
 	ItemCategoryFood        ItemCategory = "food"
 	ItemCategoryGoods       ItemCategory = "goods"
 	ItemCategoryOther       ItemCategory = "other"
+	ItemCategoryVaccine     ItemCategory = "vaccine"
+	ItemCategoryTrimming    ItemCategory = "trimming"
+	ItemCategoryHotel       ItemCategory = "hotel"
+	ItemCategoryTraining    ItemCategory = "training"
 )
 
 type ItemSource string
@@ -118,7 +122,9 @@ type Payment struct {
 	BillingAmount   int64          `gorm:"not null;default:0"                             json:"billing_amount"`
 	ReceivedAmount  int64          `gorm:"default:0"                                      json:"received_amount"`
 	ChangeAmount    int64          `gorm:"default:0"                                      json:"change_amount"`
+	// Deprecated: use PaymentMethodID. Will be removed in a future release.
 	Method          PaymentMethod  `gorm:"type:payment_method;default:'cash'"             json:"method"`
+	PaymentMethodID *uint64        `                                                      json:"payment_method_id,omitempty"`
 	PaidBy          *uint64        `gorm:""                                               json:"paid_by"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`

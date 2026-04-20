@@ -22,6 +22,9 @@ type AccountingRepository interface {
 	FindUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
 	// BUG-368: レジ締め日次集計
 	GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error)
+	// FEAT-368: 集計・締め機能
+	GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
+	GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
 }
 
 // PaymentMethodTotal は支払方法別の売上合計。BUG-368
@@ -341,5 +344,233 @@ func (r *accountingRepository) GetDailySummary(ctx context.Context, clinicID uin
 		CategoryTotals: categoryTotals,
 		BillingCount:   base.BillingCount,
 		GrandTotal:     base.GrandTotal,
+	}, nil
+}
+
+// ---- FEAT-368: 集計・締め機能 ----
+
+// GetCloseAggregateInput は締めプレビュー集計の入力パラメータ
+type GetCloseAggregateInput struct {
+	ClinicID    uint64
+	PeriodStart time.Time // JST timestamptz
+	PeriodEnd   time.Time // JST timestamptz
+}
+
+// BillingAggregateRow は支払方法×カテゴリ別の集計結果1行
+type BillingAggregateRow struct {
+	Category        string  `json:"category"`
+	PaymentMethodID *uint64 `json:"payment_method_id,omitempty"`
+	NetAmount       int64   `json:"net_amount"` // 返金控除後
+}
+
+// CloseBillingDetail は個別会計一覧の1レコード
+type CloseBillingDetail struct {
+	BillingID         uint64    `json:"billing_id"`
+	PaidAt            time.Time `json:"paid_at"`
+	OwnerName         string    `json:"owner_name"`
+	PetName           string    `json:"pet_name"`
+	IsHospitalization bool      `json:"is_hospitalization"`
+	Category          string    `json:"category"`
+	PaymentMethodID   *uint64   `json:"payment_method_id,omitempty"`
+	BillingAmount     int64     `json:"billing_amount"`
+	RefundAmount      int64     `json:"refund_amount"`
+	NetAmount         int64     `json:"net_amount"`
+}
+
+// CloseAggregateResult は締めプレビュー集計の結果
+type CloseAggregateResult struct {
+	AggregateRows  []BillingAggregateRow `json:"aggregate_rows"`
+	BillingDetails []CloseBillingDetail  `json:"billing_details"`
+}
+
+// MonthlyReportRow は月次レポートの1行（日×支払方法別）
+type MonthlyReportRow struct {
+	Date            string  `json:"date"` // YYYY-MM-DD
+	Period          string  `json:"period"`
+	Category        string  `json:"category"`
+	PaymentMethodID *uint64 `json:"payment_method_id,omitempty"`
+	NetAmount       int64   `json:"net_amount"`
+}
+
+// MonthlyReportResult は月次売上レポートの結果
+type MonthlyReportResult struct {
+	Rows         []MonthlyReportRow `json:"rows"`
+	GrandTotal   int64              `json:"grand_total"`
+	BillingCount int64              `json:"billing_count"`
+}
+
+// GetCloseAggregate は指定期間内の会計を集計する。FEAT-368
+// billings → payments LEFT JOIN billing_refunds を結合して計算する。
+func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error) {
+	// 集計行: カテゴリ×支払方法別の純売上
+	type aggRow struct {
+		Category        string
+		PaymentMethodID *uint64
+		BillingAmount   int64
+		RefundAmount    int64
+	}
+	var aggRows []aggRow
+	if err := r.db.WithContext(ctx).
+		Table("billings").
+		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
+		Joins("JOIN billing_items ON billing_items.billing_id = billings.id AND billing_items.deleted_at IS NULL").
+		Joins("LEFT JOIN billing_refunds ON billing_refunds.billing_id = billings.id").
+		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", input.ClinicID).
+		Where("billings.status = ?", model.BillingStatusCompleted).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", input.PeriodStart).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", input.PeriodEnd).
+		Select(
+			"billing_items.category::text AS category," +
+				" payments.payment_method_id AS payment_method_id," +
+				" COALESCE(SUM(DISTINCT payments.billing_amount), 0) AS billing_amount," +
+				" COALESCE(SUM(billing_refunds.amount), 0) AS refund_amount",
+		).
+		Group("billing_items.category, payments.payment_method_id").
+		Scan(&aggRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to aggregate billings for close")
+	}
+
+	rows := make([]BillingAggregateRow, 0, len(aggRows))
+	for _, a := range aggRows {
+		rows = append(rows, BillingAggregateRow{
+			Category:        a.Category,
+			PaymentMethodID: a.PaymentMethodID,
+			NetAmount:       a.BillingAmount - a.RefundAmount,
+		})
+	}
+
+	// 個別会計一覧
+	type detailRow struct {
+		BillingID         uint64
+		PaidAt            time.Time
+		OwnerName         string
+		PetName           string
+		HospitalizationID *uint64
+		Category          string
+		PaymentMethodID   *uint64
+		BillingAmount     int64
+		RefundAmount      int64
+	}
+	var detailRows []detailRow
+	if err := r.db.WithContext(ctx).
+		Table("billings").
+		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
+		Joins("JOIN billing_items ON billing_items.billing_id = billings.id AND billing_items.deleted_at IS NULL").
+		Joins("LEFT JOIN owners ON owners.id = billings.owner_id AND owners.deleted_at IS NULL").
+		Joins("LEFT JOIN pets ON pets.id = billings.pet_id AND pets.deleted_at IS NULL").
+		Joins("LEFT JOIN billing_refunds ON billing_refunds.billing_id = billings.id").
+		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", input.ClinicID).
+		Where("billings.status = ?", model.BillingStatusCompleted).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", input.PeriodStart).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", input.PeriodEnd).
+		Select(
+			"billings.id AS billing_id," +
+				" billings.completed_at AS paid_at," +
+				" owners.name AS owner_name," +
+				" pets.name AS pet_name," +
+				" billings.hospitalization_id," +
+				" billing_items.category::text AS category," +
+				" payments.payment_method_id AS payment_method_id," +
+				" payments.billing_amount AS billing_amount," +
+				" COALESCE(SUM(billing_refunds.amount), 0) AS refund_amount",
+		).
+		Group("billings.id, billings.completed_at, owners.name, pets.name, billings.hospitalization_id, billing_items.category, payments.payment_method_id, payments.billing_amount").
+		Order("billings.completed_at ASC").
+		Scan(&detailRows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to get billing details for close")
+	}
+
+	details := make([]CloseBillingDetail, 0, len(detailRows))
+	for _, d := range detailRows {
+		details = append(details, CloseBillingDetail{
+			BillingID:         d.BillingID,
+			PaidAt:            d.PaidAt,
+			OwnerName:         d.OwnerName,
+			PetName:           d.PetName,
+			IsHospitalization: d.HospitalizationID != nil,
+			Category:          d.Category,
+			PaymentMethodID:   d.PaymentMethodID,
+			BillingAmount:     d.BillingAmount,
+			RefundAmount:      d.RefundAmount,
+			NetAmount:         d.BillingAmount - d.RefundAmount,
+		})
+	}
+
+	return &CloseAggregateResult{
+		AggregateRows:  rows,
+		BillingDetails: details,
+	}, nil
+}
+
+// GetMonthlyReport は指定年月の月次売上レポートを集計する。FEAT-368
+func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error) {
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst)
+	end := start.AddDate(0, 1, 0)
+
+	type row struct {
+		Date            string
+		Period          string
+		Category        string
+		PaymentMethodID *uint64
+		BillingAmount   int64
+		RefundAmount    int64
+	}
+	var rows []row
+	if err := r.db.WithContext(ctx).
+		Table("billings").
+		Joins("JOIN payments ON payments.billing_id = billings.id AND payments.deleted_at IS NULL").
+		Joins("JOIN billing_items ON billing_items.billing_id = billings.id AND billing_items.deleted_at IS NULL").
+		Joins("LEFT JOIN cash_register_closes crc ON crc.clinic_id = billings.clinic_id"+
+			" AND crc.close_date = DATE(billings.completed_at AT TIME ZONE 'Asia/Tokyo')").
+		Joins("LEFT JOIN billing_refunds ON billing_refunds.billing_id = billings.id").
+		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
+		Where("billings.status = ?", model.BillingStatusCompleted).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
+		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
+		Select(
+			"TO_CHAR(billings.completed_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS date," +
+				" COALESCE(crc.period, 'pm') AS period," +
+				" billing_items.category::text AS category," +
+				" payments.payment_method_id AS payment_method_id," +
+				" COALESCE(SUM(DISTINCT payments.billing_amount), 0) AS billing_amount," +
+				" COALESCE(SUM(billing_refunds.amount), 0) AS refund_amount",
+		).
+		Group("date, crc.period, billing_items.category, payments.payment_method_id").
+		Order("date ASC, period ASC").
+		Scan(&rows).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to get monthly report")
+	}
+
+	reportRows := make([]MonthlyReportRow, 0, len(rows))
+	var grandTotal int64
+	for _, row := range rows {
+		net := row.BillingAmount - row.RefundAmount
+		grandTotal += net
+		reportRows = append(reportRows, MonthlyReportRow{
+			Date:            row.Date,
+			Period:          row.Period,
+			Category:        row.Category,
+			PaymentMethodID: row.PaymentMethodID,
+			NetAmount:       net,
+		})
+	}
+
+	// 会計件数（billings 単位）
+	var billingCount int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Billing{}).
+		Scopes(clinicScope(clinicID)).
+		Where("status = ?", model.BillingStatusCompleted).
+		Where("completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
+		Where("completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
+		Count(&billingCount).Error; err != nil {
+		return nil, apperrors.Wrap(err, "failed to count monthly billings")
+	}
+
+	return &MonthlyReportResult{
+		Rows:         reportRows,
+		GrandTotal:   grandTotal,
+		BillingCount: billingCount,
 	}, nil
 }

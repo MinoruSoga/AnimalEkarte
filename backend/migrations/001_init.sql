@@ -45,7 +45,7 @@ CREATE TYPE water_intake_level AS ENUM ('normal', 'increased', 'decreased', 'non
 CREATE TYPE medical_image_type AS ENUM ('xray', 'echo', 'photo', 'endoscope', 'ct', 'mri', 'microscope', 'other');
 CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected');
 CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'returned');
-CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other');
+CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other', 'vaccine', 'trimming', 'hotel', 'training');
 CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization');
 
 -- 予約・会計・入院関連
@@ -1329,6 +1329,91 @@ CREATE TABLE clinic_holidays (
 );
 CREATE INDEX idx_clinic_holidays_clinic_date ON clinic_holidays(clinic_id, date);
 
+-- ------------------------------------
+-- 62a. clinic_settings（医院締め時間設定 — clinic_id PK で 1:1）
+-- ------------------------------------
+CREATE TABLE clinic_settings (
+    clinic_id              bigint       PRIMARY KEY REFERENCES clinics(id) ON DELETE CASCADE,
+    closing_am_pm_boundary time         NOT NULL DEFAULT '14:00',
+    closing_weekday_end    time         NOT NULL DEFAULT '18:30',
+    closing_sunday_end     time         NOT NULL DEFAULT '17:30',
+    closed_weekdays        smallint[]   NOT NULL DEFAULT '{}',
+    created_at             timestamptz  NOT NULL DEFAULT now(),
+    updated_at             timestamptz  NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE clinic_settings IS '医院締め時間・休診曜日設定（FEAT-368）';
+
+-- ------------------------------------
+-- 62b. closing_special_periods（特別期間: 年末年始・お盆等）
+-- ------------------------------------
+CREATE TABLE closing_special_periods (
+    id             BIGSERIAL    PRIMARY KEY,
+    clinic_id      bigint       NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    start_date     date         NOT NULL,
+    end_date       date         NOT NULL,
+    am_pm_boundary time         NOT NULL,
+    pm_end         time         NOT NULL,
+    note           varchar(100) NOT NULL DEFAULT '',
+    created_at     timestamptz  NOT NULL DEFAULT now(),
+    updated_at     timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT chk_closing_special_periods_date_range CHECK (start_date <= end_date),
+    CONSTRAINT chk_closing_special_periods_time_order CHECK (am_pm_boundary < pm_end)
+);
+
+CREATE INDEX idx_closing_special_periods_clinic ON closing_special_periods(clinic_id, start_date, end_date);
+
+COMMENT ON TABLE closing_special_periods IS '特別診療時間設定（年末年始・お盆等, FEAT-368）';
+
+-- ------------------------------------
+-- 62c. payment_methods（支払方法マスタ — 旧 payment_method enum のマスタ化）
+-- ------------------------------------
+CREATE TABLE payment_methods (
+    id             BIGSERIAL    PRIMARY KEY,
+    clinic_id      bigint       NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    name           varchar(50)  NOT NULL,
+    display_order  integer      NOT NULL DEFAULT 0,
+    is_active      boolean      NOT NULL DEFAULT true,
+    created_at     timestamptz  NOT NULL DEFAULT now(),
+    updated_at     timestamptz  NOT NULL DEFAULT now(),
+    deleted_at     timestamptz
+);
+
+CREATE UNIQUE INDEX idx_payment_methods_clinic_name ON payment_methods(clinic_id, name) WHERE deleted_at IS NULL;
+CREATE INDEX idx_payment_methods_clinic_order ON payment_methods(clinic_id, display_order) WHERE deleted_at IS NULL;
+
+COMMENT ON TABLE payment_methods IS '支払方法マスタ（FEAT-368: payment_method enum のマスタ化）';
+
+-- ------------------------------------
+-- 62d. cash_register_closes（レジ締めレコード）
+-- ------------------------------------
+CREATE TABLE cash_register_closes (
+    id                      BIGSERIAL    PRIMARY KEY,
+    clinic_id               bigint       NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    close_date              date         NOT NULL,
+    period                  varchar(2)   NOT NULL CHECK (period IN ('am', 'pm')),
+    theoretical_cash        bigint       NOT NULL DEFAULT 0,
+    actual_cash             bigint       NOT NULL DEFAULT 0,
+    cash_difference         bigint       NOT NULL DEFAULT 0,
+    category_breakdown      jsonb        NOT NULL DEFAULT '{}',
+    memo                    text         NOT NULL DEFAULT '',
+    closed_by               bigint       REFERENCES staffs(id),
+    closed_at               timestamptz  NOT NULL DEFAULT now(),
+    created_at              timestamptz  NOT NULL DEFAULT now(),
+    updated_at              timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT uq_cash_register_closes_date_period UNIQUE (clinic_id, close_date, period)
+);
+
+CREATE INDEX idx_cash_register_closes_clinic ON cash_register_closes(clinic_id, close_date DESC);
+
+COMMENT ON TABLE cash_register_closes IS 'レジ締めレコード（FEAT-368）';
+
+-- payments に payment_method_id を追加（段階移行: method カラムは当面維持）
+ALTER TABLE payments
+    ADD COLUMN payment_method_id bigint REFERENCES payment_methods(id);
+
+CREATE INDEX idx_payments_payment_method_id ON payments(payment_method_id) WHERE payment_method_id IS NOT NULL;
+
 CREATE INDEX idx_billing_items_merchandise_item_id ON billing_items(merchandise_item_id) WHERE deleted_at IS NULL;
 
 CREATE INDEX idx_estimate_items_merchandise_item_id ON estimate_items(merchandise_item_id);
@@ -1684,6 +1769,10 @@ COMMENT ON TABLE billing_refunds IS '返金レコード（Stripe モデル）';
 COMMENT ON TABLE shift_entries IS 'スタッフシフト';
 COMMENT ON TABLE clinic_holidays IS '医院個別休診日';
 COMMENT ON TABLE merchandise_items IS '物販・フード・その他マスタ';
+COMMENT ON TABLE clinic_settings IS '医院締め時間・休診曜日設定（FEAT-368）';
+COMMENT ON TABLE closing_special_periods IS '特別診療時間設定（FEAT-368）';
+COMMENT ON TABLE payment_methods IS '支払方法マスタ（FEAT-368）';
+COMMENT ON TABLE cash_register_closes IS 'レジ締めレコード（FEAT-368）';
 
 -- ------------------------------------
 -- 62. audit_logs（権限変更・認証操作の監査ログ）

@@ -1,0 +1,133 @@
+import { memo, useActionState, useState, useCallback } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { C, STYLE } from "@/lib/design-tokens";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { handleApiError } from "@/lib/handle-api-error";
+import type { ClosingHoliday } from "@/types/generated/models";
+import { useCreateHoliday, useDeleteHoliday } from "../api/holidays";
+
+interface HolidaySectionProps {
+  holidays: ClosingHoliday[];
+}
+
+export const HolidaySection = memo(function HolidaySection({ holidays }: HolidaySectionProps) {
+  const [showForm, setShowForm] = useState(false);
+  const createMutation = useCreateHoliday();
+  const deleteMutation = useDeleteHoliday();
+
+  const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
+    try {
+      await createMutation.mutateAsync({
+        date: formData.get("date") as string,
+        note: (formData.get("note") as string) || undefined,
+      });
+      toast.success("休診日を追加しました");
+      setShowForm(false);
+    } catch (error) {
+      handleApiError(error, "休診日の追加");
+    }
+    return null;
+  }, null);
+
+  const handleDelete = useCallback(
+    async (id: number) => {
+      try {
+        await deleteMutation.mutateAsync(id);
+        toast.success("休診日を削除しました");
+      } catch (error) {
+        handleApiError(error, "休診日の削除");
+      }
+    },
+    [deleteMutation],
+  );
+
+  const handleShowForm = useCallback(() => setShowForm(true), []);
+  const handleHideForm = useCallback(() => setShowForm(false), []);
+
+  return (
+    <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className={`text-base font-semibold ${C.text}`}>個別休診日</h2>
+        <button
+          type="button"
+          onClick={handleShowForm}
+          className={`flex items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} hover:text-white rounded-[4px] px-3 py-1.5 transition-colors`}
+        >
+          <Plus className="size-4" />
+          追加
+        </button>
+      </div>
+
+      {showForm ? (
+        <form action={formAction} className={`mb-4 p-4 rounded-lg border ${C.borderMedium} space-y-3`}>
+          <p className={`text-base font-medium ${C.text}`}>新しい休診日</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="holiday_date" className={STYLE.formLabel}>
+                日付
+              </label>
+              <input
+                id="holiday_date"
+                name="date"
+                type="date"
+                className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="holiday_note" className={STYLE.formLabel}>
+                メモ
+              </label>
+              <input
+                id="holiday_note"
+                name="note"
+                type="text"
+                className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                placeholder="例: 院内研修"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleHideForm}
+              className={`px-4 py-2 text-base ${C.text60} ${C.hoverBgLight} rounded-[4px] transition-colors`}
+            >
+              キャンセル
+            </button>
+            <SubmitButton>追加</SubmitButton>
+          </div>
+        </form>
+      ) : null}
+
+      {holidays.length > 0 ? (
+        <div className="space-y-2">
+          {holidays.map((holiday) => (
+            <div
+              key={holiday.id}
+              className={`flex items-center justify-between p-3 rounded-lg border ${C.borderLight} ${C.bgPage}`}
+            >
+              <div className="flex flex-col gap-0.5">
+                <span className={`text-base font-medium ${C.text}`}>{holiday.date}</span>
+                {holiday.note ? (
+                  <span className={`text-base ${C.text60}`}>{holiday.note}</span>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDelete(holiday.id)}
+                aria-label="削除"
+                className={`size-8 flex items-center justify-center rounded-[3px] ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className={`text-base ${C.text50} py-4 text-center`}>個別休診日は登録されていません</p>
+      )}
+    </section>
+  );
+});

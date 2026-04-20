@@ -422,6 +422,30 @@ export const router = createBrowserRouter([
               return { Component: UnpaidCustomerList };
             },
           },
+          // FEAT-368: レジ締め
+          {
+            path: "close",
+            lazy: async () => {
+              const { CashRegisterClosePage } = await import("@/features/cash-register");
+              return { Component: CashRegisterClosePage };
+            },
+          },
+          // FEAT-368: 締め履歴
+          {
+            path: "close/history",
+            lazy: async () => {
+              const { CashRegisterHistoryPage } = await import("@/features/cash-register");
+              return { Component: CashRegisterHistoryPage };
+            },
+          },
+          // FEAT-368: 月次集計レポート
+          {
+            path: "reports",
+            lazy: async () => {
+              const { AccountingReportsPage } = await import("@/features/accounting-reports");
+              return { Component: AccountingReportsPage };
+            },
+          },
           {
             // BUG-020: create 権限ガード
             path: "new",
@@ -871,6 +895,22 @@ export const router = createBrowserRouter([
                 return { Component: ShiftTemplateSettings };
               },
             }],
+          },
+          // FEAT-368: 締め時間設定
+          {
+            path: "closing-time",
+            lazy: async () => {
+              const { ClosingSettingsPage } = await import("@/features/closing-settings");
+              return { Component: ClosingSettingsPage };
+            },
+          },
+          // FEAT-368: 支払方法マスタ
+          {
+            path: "payment-methods",
+            lazy: async () => {
+              const { PaymentMethodsPage } = await import("@/features/payment-methods");
+              return { Component: PaymentMethodsPage };
+            },
           },
         ],
       },
