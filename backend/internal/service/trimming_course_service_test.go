@@ -14,12 +14,13 @@ import (
 // ---- TrimmingCourse モック ----
 
 type mockTrimmingCourseRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
-	createFn       func(ctx context.Context, course *model.TrimmingCourse) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
-	reorderErr     error
+	findAllFn                func(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
+	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
+	createFn                 func(ctx context.Context, course *model.TrimmingCourse) error
+	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
+	countRecordsByCourseIDFn func(ctx context.Context, clinicID, courseID uint64) (int64, error)
+	reorderErr               error
 }
 
 func (m *mockTrimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
@@ -46,11 +47,10 @@ func (m *mockTrimmingCourseRepository) Reorder(_ context.Context, _ uint64, _ []
 	return m.reorderErr
 }
 
-func (m *mockTrimmingCourseRepository) CountRecordsByTypeID(_ context.Context, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockTrimmingCourseRepository) CountRecordsByCourseID(_ context.Context, _, _ uint64) (int64, error) {
+func (m *mockTrimmingCourseRepository) CountRecordsByCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error) {
+	if m.countRecordsByCourseIDFn != nil {
+		return m.countRecordsByCourseIDFn(ctx, clinicID, courseID)
+	}
 	return 0, nil
 }
 
@@ -299,40 +299,52 @@ func TestTrimmingCourseService_Update(t *testing.T) {
 
 func TestTrimmingCourseService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name         string
+		id           uint64
+		countRecords int64
+		countErr     error
+		deleteErr    error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
-			name:    "deletes course successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
-			wantNF:  false,
+			name:         "deletes course successfully",
+			id:           1,
+			countRecords: 0,
+			deleteErr:    nil,
+			wantErr:      false,
 		},
 		{
-			name:    "returns not found error when course does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("trimming_course", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:         "returns conflict error when course is in use",
+			id:           1,
+			countRecords: 1,
+			wantErr:      true,
+			wantConflict: true,
 		},
 		{
-			name:    "returns error on repository failure",
-			id:      1,
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			name:      "returns not found error when course does not exist",
+			id:        999,
+			deleteErr: apperrors.WrapNotFound("trimming_course", "999"),
+			wantErr:   true,
+			wantNF:    true,
+		},
+		{
+			name:      "returns error on repository failure",
+			id:        1,
+			deleteErr: errors.New("db error"),
+			wantErr:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseRepository{
+				countRecordsByCourseIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.countRecords, tt.countErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
-					return tt.repoErr
+					return tt.deleteErr
 				},
 			}
 			svc := NewTrimmingCourseService(repo)
@@ -343,6 +355,9 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)
