@@ -56,7 +56,8 @@ func (r *reservationTypeUnavailableTimeRepository) Delete(
 	ctx context.Context, clinicID, id uint64,
 ) error {
 	result := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND id = ?", clinicID, id).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", id).
 		Delete(&model.ReservationTypeUnavailableTime{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation_type_unavailable_time", fmt.Sprintf("%d", id))

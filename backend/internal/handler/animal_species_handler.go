@@ -94,7 +94,8 @@ func (h *Handler) DeleteAnimalSpecies(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// ReorderAnimalSpecies godoc
+// ReorderAnimalSpecies は動物種マスタの表示順を更新する。
+// AnimalSpecies はシステム共通マスタ（clinic_id なし）のため clinicID パラメータは不要。
 func (h *Handler) ReorderAnimalSpecies(c *gin.Context) {
 	var req reorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
