@@ -81,12 +81,12 @@ func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint
 }
 
 // CountRecordsByCourseID は指定コースを使用しているトリミング詳細数を返す（BUG-111）
-// appointment_trimming_details テーブルは直接 clinic_id を持つためテナント分離を直接適用する
 func (r *trimmingCourseRepository) CountRecordsByCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.AppointmentTrimmingDetail{}).
-		Where("course_id = ? AND clinic_id = ?", courseID, clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("course_id = ?", courseID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "appointment_trimming_detail", "")
 	}

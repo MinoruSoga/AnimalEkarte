@@ -17,8 +17,8 @@ type CreateMerchandiseItemInput struct {
 	Name      string
 	Category  string
 	UnitPrice int64
-	TaxType   string  // "" → "excluded" (default)
-	TaxRate   float64 // 0 → 0.10 (default)
+	TaxType   string   // "" → "excluded" (default)
+	TaxRate   *float64 // nil → 0.10 (default)
 	IsActive  bool
 	SortOrder int
 }
@@ -124,8 +124,8 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 		taxType = model.TaxType(input.TaxType)
 	}
 	taxRate := 0.10
-	if input.TaxRate != 0 {
-		taxRate = input.TaxRate
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
 	}
 	item := &model.MerchandiseItem{
 		ClinicID:  clinicID,
@@ -150,6 +150,9 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 }
 
 func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get merchandise item")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}

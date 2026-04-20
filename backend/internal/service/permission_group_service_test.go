@@ -250,24 +250,24 @@ func TestPermissionGroupService_Reorder(t *testing.T) {
 }
 
 func TestPermissionGroupService_SetRules(t *testing.T) {
-	rules := []model.PermissionGroupRule{
-		{GroupID: 1, Resource: string(model.ResourceOwners), CanView: true},
+	inputs := []SetPermissionGroupRulesInput{
+		{Resource: string(model.ResourceOwners), CanView: true},
 	}
 
 	tests := []struct {
 		name        string
-		rules       []model.PermissionGroupRule
+		inputs      []SetPermissionGroupRulesInput
 		setRulesErr error
 		wantErr     bool
 	}{
 		{
 			name:    "sets rules successfully",
-			rules:   rules,
+			inputs:  inputs,
 			wantErr: false,
 		},
 		{
 			name:        "propagates repository error",
-			rules:       rules,
+			inputs:      inputs,
 			setRulesErr: errors.New("db error"),
 			wantErr:     true,
 		},
@@ -281,7 +281,7 @@ func TestPermissionGroupService_SetRules(t *testing.T) {
 				},
 			}
 			svc := NewPermissionGroupService(repo)
-			err := svc.SetRules(context.Background(), 1, tt.rules, 0)
+			err := svc.SetRules(context.Background(), 1, tt.inputs, 0)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

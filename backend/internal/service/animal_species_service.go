@@ -102,9 +102,6 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 }
 
 func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
-	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		return nil, apperrors.Wrap(err, "failed to get animal species")
-	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
@@ -143,6 +140,6 @@ func (s *animalSpeciesService) Reorder(ctx context.Context, ids []uint64) error 
 	if err := s.repo.Reorder(ctx, ids); err != nil {
 		return apperrors.Wrap(err, "failed to reorder animal species")
 	}
-	slog.InfoContext(ctx, "animal_species reordered", slog.Int("count", len(ids)))
+	slog.InfoContext(ctx, "animal species reordered", slog.Int("count", len(ids)))
 	return nil
 }

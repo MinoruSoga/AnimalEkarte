@@ -183,7 +183,7 @@ func (h *Handler) CreateUnavailableTime(c *gin.Context) {
 	if req.SpecificDate != nil {
 		t, err := time.Parse("2006-01-02", *req.SpecificDate)
 		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("specific_date must be YYYY-MM-DD"))
+			RespondError(c, apperrors.WrapInvalidInput("specific_date は YYYY-MM-DD 形式で入力してください"))
 			return
 		}
 		input.SpecificDate = &t

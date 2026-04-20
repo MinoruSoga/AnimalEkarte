@@ -203,7 +203,7 @@ func NewReservationTypeService(
 func (s *reservationTypeService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to list service types")
+		return nil, apperrors.Wrap(err, "failed to list reservation types")
 	}
 	return items, nil
 }
@@ -211,7 +211,7 @@ func (s *reservationTypeService) List(ctx context.Context, clinicID uint64) ([]m
 func (s *reservationTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get service type")
+		return nil, apperrors.Wrap(err, "failed to get reservation type")
 	}
 	return result, nil
 }
@@ -257,9 +257,9 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 		GroupID:                input.GroupID,
 	}
 	if err := s.repo.Create(ctx, st); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create service type")
+		return nil, apperrors.Wrap(err, "failed to create reservation type")
 	}
-	slog.InfoContext(ctx, "service type created", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", st.ID))
+	slog.InfoContext(ctx, "reservation type created", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", st.ID))
 	return st, nil
 }
 
@@ -276,9 +276,9 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 	}
 	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to update service type")
+		return nil, apperrors.Wrap(err, "failed to update reservation type")
 	}
-	slog.InfoContext(ctx, "service type updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", id))
+	slog.InfoContext(ctx, "reservation type updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", id))
 	return result, nil
 }
 
@@ -291,9 +291,9 @@ func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64
 		return apperrors.WrapConflict("この項目は予約データで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to delete service type")
+		return apperrors.Wrap(err, "failed to delete reservation type")
 	}
-	slog.InfoContext(ctx, "service type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", id))
+	slog.InfoContext(ctx, "reservation type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", id))
 	return nil
 }
 
@@ -302,9 +302,9 @@ func (s *reservationTypeService) Reorder(ctx context.Context, clinicID uint64, i
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		return apperrors.Wrap(err, "failed to reorder service types")
+		return apperrors.Wrap(err, "failed to reorder reservation types")
 	}
-	slog.InfoContext(ctx, "reservation_types reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
+	slog.InfoContext(ctx, "reservation type reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
 }
 
@@ -404,17 +404,11 @@ func (s *reservationTypeService) LinkOccupation(ctx context.Context, clinicID, r
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("reservation_type_id", reservationTypeID),
 		slog.Uint64("occupation_id", occupationID))
-	// Preload して返す
-	items, err := s.occupationRepo.FindAll(ctx, clinicID, reservationTypeID)
+	result, err := s.occupationRepo.FindByOccupationID(ctx, clinicID, reservationTypeID, occupationID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get linked occupation")
 	}
-	for i := range items {
-		if items[i].OccupationID == occupationID {
-			return &items[i], nil
-		}
-	}
-	return o, nil
+	return result, nil
 }
 
 func (s *reservationTypeService) UnlinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error {

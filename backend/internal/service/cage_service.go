@@ -105,6 +105,7 @@ func (s *cageService) Create(ctx context.Context, clinicID uint64, input *Create
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, err
 	}
+	// Service は Handler 以外から直接呼ばれる可能性があるため防御的バリデーションを維持する
 	if err := validateCageType(input.CageType); err != nil {
 		return nil, err
 	}
@@ -133,6 +134,7 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
+	// Service は Handler 以外から直接呼ばれる可能性があるため防御的バリデーションを維持する
 	if input.CageType != nil {
 		if err := validateCageType(*input.CageType); err != nil {
 			return nil, err
@@ -155,9 +157,6 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 	return cage, nil
 }
 func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to get cage")
-	}
 	count, err := s.repo.CountRecordsByCageID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check cage usage")

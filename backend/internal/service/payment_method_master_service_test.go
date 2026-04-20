@@ -13,13 +13,13 @@ import (
 
 // mockPaymentMethodMasterRepository は PaymentMethodMasterRepository のテスト用モック実装
 type mockPaymentMethodMasterRepository struct {
-	findAllFn        func(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
-	findByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
-	createFn         func(ctx context.Context, m *model.PaymentMethodMaster) (*model.PaymentMethodMaster, error)
-	updateFieldsFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
-	deleteFn         func(ctx context.Context, clinicID, id uint64) error
-	countUsageByIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
-	reorderFn        func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                     func(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
+	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
+	createFn                      func(ctx context.Context, m *model.PaymentMethodMaster) (*model.PaymentMethodMaster, error)
+	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
+	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
+	countUsageByPaymentMethodIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
+	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockPaymentMethodMasterRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error) {
@@ -57,9 +57,9 @@ func (m *mockPaymentMethodMasterRepository) Delete(ctx context.Context, clinicID
 	return nil
 }
 
-func (m *mockPaymentMethodMasterRepository) CountUsageByID(ctx context.Context, clinicID, id uint64) (int64, error) {
-	if m.countUsageByIDFn != nil {
-		return m.countUsageByIDFn(ctx, clinicID, id)
+func (m *mockPaymentMethodMasterRepository) CountUsageByPaymentMethodID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	if m.countUsageByPaymentMethodIDFn != nil {
+		return m.countUsageByPaymentMethodIDFn(ctx, clinicID, id)
 	}
 	return 0, nil
 }
@@ -121,6 +121,52 @@ func TestPaymentMethodMasterService_List(t *testing.T) {
 	}
 }
 
+func TestPaymentMethodMasterService_GetByID(t *testing.T) {
+	pm := &model.PaymentMethodMaster{ID: 1, ClinicID: 1, Name: "現金", DisplayOrder: 1}
+
+	tests := []struct {
+		name       string
+		findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
+		wantErr    bool
+		wantResult *model.PaymentMethodMaster
+	}{
+		{
+			name: "正常: 指定IDのレコードを返す",
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.PaymentMethodMaster, error) {
+				return pm, nil
+			},
+			wantResult: pm,
+		},
+		{
+			name: "エラー: 存在しないID → エラーを返す",
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.PaymentMethodMaster, error) {
+				return nil, apperrors.WrapNotFound("payment_method", "99")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			repo := &mockPaymentMethodMasterRepository{findByIDFn: tt.findByIDFn}
+			svc := NewPaymentMethodMasterService(repo)
+
+			// Act
+			got, err := svc.GetByID(context.Background(), 1, 1)
+
+			// Assert
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantResult, got)
+		})
+	}
+}
+
 func TestPaymentMethodMasterService_Create(t *testing.T) {
 	created := &model.PaymentMethodMaster{
 		ID:           1,
@@ -146,6 +192,14 @@ func TestPaymentMethodMasterService_Create(t *testing.T) {
 				return created, nil
 			},
 			wantResult: created,
+		},
+		{
+			name: "エラー: 名前が空 → ErrInvalidInput",
+			input: &CreatePaymentMethodInput{
+				Name:         "",
+				DisplayOrder: 1,
+			},
+			wantErr: true,
 		},
 		{
 			name: "エラー: DB エラーを返す",
@@ -183,17 +237,17 @@ func TestPaymentMethodMasterService_Create(t *testing.T) {
 
 func TestPaymentMethodMasterService_Delete(t *testing.T) {
 	tests := []struct {
-		name             string
-		id               uint64
-		countUsageByIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
-		deleteFn         func(ctx context.Context, clinicID, id uint64) error
-		wantErr          bool
-		wantErrIs        error
+		name                          string
+		id                            uint64
+		countUsageByPaymentMethodIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
+		deleteFn                      func(ctx context.Context, clinicID, id uint64) error
+		wantErr                       bool
+		wantErrIs                     error
 	}{
 		{
 			name: "正常: 未使用の支払方法を削除",
 			id:   1,
-			countUsageByIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			countUsageByPaymentMethodIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 0, nil
 			},
 			deleteFn: func(_ context.Context, _, _ uint64) error {
@@ -203,16 +257,16 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 		{
 			name: "エラー: 使用中の支払方法 → ErrConflict",
 			id:   2,
-			countUsageByIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			countUsageByPaymentMethodIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 5, nil
 			},
 			wantErr:   true,
 			wantErrIs: apperrors.ErrConflict,
 		},
 		{
-			name: "エラー: CountUsageByID がエラーを返す",
+			name: "エラー: CountUsageByPaymentMethodID がエラーを返す",
 			id:   3,
-			countUsageByIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			countUsageByPaymentMethodIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 0, errors.New("db error")
 			},
 			wantErr: true,
@@ -220,7 +274,7 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 		{
 			name: "エラー: Delete がエラーを返す",
 			id:   4,
-			countUsageByIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			countUsageByPaymentMethodIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 0, nil
 			},
 			deleteFn: func(_ context.Context, _, _ uint64) error {
@@ -234,8 +288,8 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
 			repo := &mockPaymentMethodMasterRepository{
-				countUsageByIDFn: tt.countUsageByIDFn,
-				deleteFn:         tt.deleteFn,
+				countUsageByPaymentMethodIDFn: tt.countUsageByPaymentMethodIDFn,
+				deleteFn:                      tt.deleteFn,
 			}
 			svc := NewPaymentMethodMasterService(repo)
 

@@ -475,6 +475,9 @@ func (m *mockLiffOccupationRepository) FindAll(ctx context.Context, clinicID, re
 	}
 	return []model.ReservationTypeOccupation{}, nil
 }
+func (m *mockLiffOccupationRepository) FindByOccupationID(_ context.Context, _, _, _ uint64) (*model.ReservationTypeOccupation, error) {
+	return &model.ReservationTypeOccupation{}, nil
+}
 func (m *mockLiffOccupationRepository) Create(_ context.Context, _ *model.ReservationTypeOccupation) error {
 	return nil
 }

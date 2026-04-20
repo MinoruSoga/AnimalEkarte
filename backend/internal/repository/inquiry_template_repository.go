@@ -86,9 +86,8 @@ func (r *inquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uin
 	return nil
 }
 
-// CountUsageByInquiryTemplateID は問診定型文を参照している外部テーブルの件数を返す。
+// TODO: inquiry_answers テーブル追加時に以下の COUNT クエリを実装すること。
 // 現スキーマには inquiry_template_id FK を持つテーブルが存在しないため常に 0 を返す。
-// 将来 inquiry_answers 等が追加された場合はここに COUNT クエリを実装すること。
 func (r *inquiryTemplateRepository) CountUsageByInquiryTemplateID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }

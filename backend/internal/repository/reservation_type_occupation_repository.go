@@ -26,6 +26,8 @@ var jstLoc = func() *time.Location {
 type ReservationTypeOccupationRepository interface {
 	// FindAll は Occupation を Preload して返す
 	FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
+	// FindByOccupationID は指定した occupation_id に対応する紐付けを1件返す
+	FindByOccupationID(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error)
 	Create(ctx context.Context, o *model.ReservationTypeOccupation) error
 	// Delete は物理削除（論理削除なし）
 	Delete(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
@@ -57,6 +59,21 @@ func (r *reservationTypeOccupationRepository) FindAll(
 		return nil, apperrors.FromGORM(err, "reservation_type_occupations", fmt.Sprintf("clinic=%d type=%d", clinicID, reservationTypeID))
 	}
 	return results, nil
+}
+
+func (r *reservationTypeOccupationRepository) FindByOccupationID(
+	ctx context.Context, clinicID, reservationTypeID, occupationID uint64,
+) (*model.ReservationTypeOccupation, error) {
+	var rto model.ReservationTypeOccupation
+	err := r.db.WithContext(ctx).
+		Preload("Occupation", "clinic_id = ?", clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("reservation_type_id = ? AND occupation_id = ?", reservationTypeID, occupationID).
+		First(&rto).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation_type_occupation", "")
+	}
+	return &rto, nil
 }
 
 func (r *reservationTypeOccupationRepository) Create(

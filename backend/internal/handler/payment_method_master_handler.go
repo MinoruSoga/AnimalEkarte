@@ -26,6 +26,25 @@ func (h *Handler) ListPaymentMethods(c *gin.Context) {
 	c.JSON(http.StatusOK, mapSlice(ms, toPaymentMethodResponse))
 }
 
+// GetPaymentMethod godoc
+// GET /v1/payment-methods/:id
+func (h *Handler) GetPaymentMethod(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	m, err := h.svc.PaymentMethodMaster.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toPaymentMethodResponse(m))
+}
+
 // CreatePaymentMethod godoc
 // POST /v1/payment-methods
 func (h *Handler) CreatePaymentMethod(c *gin.Context) {
@@ -121,6 +140,7 @@ func (h *Handler) RegisterPaymentMethodMasterRoutes(rg *gin.RouterGroup) {
 	pm.GET("", h.RequirePermission(string(model.ResourcePaymentMethod), "view"), h.ListPaymentMethods)
 	pm.POST("", h.RequirePermission(string(model.ResourcePaymentMethod), "edit"), h.CreatePaymentMethod)
 	pm.PATCH("/reorder", h.RequirePermission(string(model.ResourcePaymentMethod), "edit"), h.ReorderPaymentMethods)
+	pm.GET("/:id", h.RequirePermission(string(model.ResourcePaymentMethod), "view"), h.GetPaymentMethod)
 	pm.PATCH("/:id", h.RequirePermission(string(model.ResourcePaymentMethod), "edit"), h.UpdatePaymentMethod)
 	pm.DELETE("/:id", h.RequirePermission(string(model.ResourcePaymentMethod), "edit"), h.DeletePaymentMethod)
 }

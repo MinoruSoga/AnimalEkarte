@@ -31,6 +31,15 @@ type UpdatePermissionGroupInput struct {
 	IsActive    *bool
 }
 
+// SetPermissionGroupRulesInput は権限グループのルール設定のための入力データ
+type SetPermissionGroupRulesInput struct {
+	Resource  string
+	CanView   bool
+	CanCreate bool
+	CanEdit   bool
+	CanDelete bool
+}
+
 type PermissionGroupService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
@@ -38,7 +47,7 @@ type PermissionGroupService interface {
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePermissionGroupInput) (*model.PermissionGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// SetRules はグループのルールを全置換する。actorStaffID は自己参照チェックに使用される。
-	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule, actorStaffID uint64) error
+	SetRules(ctx context.Context, groupID uint64, inputs []SetPermissionGroupRulesInput, actorStaffID uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
 }
@@ -121,7 +130,18 @@ func (s *permissionGroupService) Delete(ctx context.Context, clinicID, id uint64
 	return nil
 }
 
-func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule, actorStaffID uint64) error {
+func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, inputs []SetPermissionGroupRulesInput, actorStaffID uint64) error {
+	// Input DTO を model.PermissionGroupRule に変換
+	rules := make([]model.PermissionGroupRule, 0, len(inputs))
+	for _, inp := range inputs {
+		rules = append(rules, model.PermissionGroupRule{
+			Resource:  inp.Resource,
+			CanView:   inp.CanView,
+			CanCreate: inp.CanCreate,
+			CanEdit:   inp.CanEdit,
+			CanDelete: inp.CanDelete,
+		})
+	}
 	// BUG-146: 入力バリデーション — 空文字・存在しないリソース名・重複を拒否
 	if err := validateNoDuplicateRules(rules); err != nil {
 		return err

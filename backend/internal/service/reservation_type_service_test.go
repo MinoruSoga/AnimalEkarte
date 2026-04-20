@@ -113,6 +113,9 @@ func (m *mockOccupationRepoForRType) FindAll(ctx context.Context, clinicID, rese
 	}
 	return []model.ReservationTypeOccupation{}, nil
 }
+func (m *mockOccupationRepoForRType) FindByOccupationID(_ context.Context, _, _, _ uint64) (*model.ReservationTypeOccupation, error) {
+	return &model.ReservationTypeOccupation{}, nil
+}
 func (m *mockOccupationRepoForRType) Create(ctx context.Context, o *model.ReservationTypeOccupation) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, o)

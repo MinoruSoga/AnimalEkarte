@@ -17,7 +17,7 @@ type PaymentMethodMasterRepository interface {
 	Create(ctx context.Context, m *model.PaymentMethodMaster) (*model.PaymentMethodMaster, error)
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	CountUsageByID(ctx context.Context, clinicID, id uint64) (int64, error)
+	CountUsageByPaymentMethodID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -59,12 +59,16 @@ func (r *paymentMethodMasterRepository) Create(ctx context.Context, m *model.Pay
 }
 
 func (r *paymentMethodMasterRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
-	if err := r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Model(&model.PaymentMethodMaster{}).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
-		Updates(fields).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "payment_method", fmt.Sprintf("%d", id))
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "payment_method", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return nil, apperrors.WrapNotFound("payment_method", fmt.Sprintf("%d", id))
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
@@ -82,9 +86,9 @@ func (r *paymentMethodMasterRepository) Delete(ctx context.Context, clinicID, id
 	return nil
 }
 
-// CountUsageByID は指定した支払方法を参照している payments の件数を返す。
+// CountUsageByPaymentMethodID は指定した支払方法を参照している payments の件数を返す。
 // payments テーブルに直接 clinic_id がないため billings を JOIN してテナント分離する。
-func (r *paymentMethodMasterRepository) CountUsageByID(ctx context.Context, clinicID, id uint64) (int64, error) {
+func (r *paymentMethodMasterRepository) CountUsageByPaymentMethodID(ctx context.Context, clinicID, id uint64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Payment{}).

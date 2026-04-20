@@ -67,7 +67,7 @@ func (h *Handler) CreateMerchandiseItem(c *gin.Context) {
 		Category:  req.Category,
 		UnitPrice: req.UnitPrice,
 		TaxType:   req.TaxType,
-		TaxRate:   req.TaxRate,
+		TaxRate:   req.TaxRate, // *float64: nil → service側でデフォルト 0.10 を適用
 		IsActive:  req.IsActive,
 		SortOrder: req.SortOrder,
 	}

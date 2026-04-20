@@ -29,19 +29,26 @@ type UpdateOccupationInput struct {
 	IsActive    *bool
 }
 
+const (
+	colOccupationName        = "name"
+	colOccupationDescription = "description"
+	colOccupationIsActive    = "is_active"
+	colOccupationSortOrder   = "sort_order"
+)
+
 func buildOccupationUpdateFields(input *UpdateOccupationInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colOccupationName] = *input.Name
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colOccupationDescription] = *input.Description
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colOccupationSortOrder] = *input.SortOrder
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colOccupationIsActive] = *input.IsActive
 	}
 	return fields
 }
@@ -118,9 +125,6 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 }
 
 func (s *occupationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to get occupation")
-	}
 	count, err := s.repo.CountStaffsByOccupationID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check occupation dependencies")

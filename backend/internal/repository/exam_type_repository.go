@@ -85,7 +85,7 @@ func (r *examTypeRepository) Delete(ctx context.Context, clinicID, id uint64) er
 }
 
 func (r *examTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.ExaminationType{}, "exam_type", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.ExaminationType{}, "examination_type", clinicID, ids)
 }
 
 // CountUsageByExamTypeID は検査種別を参照している exams の件数を返す（BUG-107）

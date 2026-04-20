@@ -22,16 +22,22 @@ type UpdatePaymentMethodInput struct {
 	IsActive     *bool
 }
 
+const (
+	colPaymentMethodName         = "name"
+	colPaymentMethodDisplayOrder = "display_order"
+	colPaymentMethodIsActive     = "is_active"
+)
+
 func buildPaymentMethodUpdateFields(input *UpdatePaymentMethodInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colPaymentMethodName] = *input.Name
 	}
 	if input.DisplayOrder != nil {
-		fields["display_order"] = *input.DisplayOrder
+		fields[colPaymentMethodDisplayOrder] = *input.DisplayOrder
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colPaymentMethodIsActive] = *input.IsActive
 	}
 	return fields
 }
@@ -39,6 +45,7 @@ func buildPaymentMethodUpdateFields(input *UpdatePaymentMethodInput) map[string]
 // PaymentMethodMasterService は支払方法マスタのビジネスロジックインターフェース
 type PaymentMethodMasterService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
 	Create(ctx context.Context, clinicID uint64, input *CreatePaymentMethodInput) (*model.PaymentMethodMaster, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdatePaymentMethodInput) (*model.PaymentMethodMaster, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -62,7 +69,18 @@ func (s *paymentMethodMasterService) List(ctx context.Context, clinicID uint64) 
 	return items, nil
 }
 
+func (s *paymentMethodMasterService) GetByID(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error) {
+	result, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get payment method")
+	}
+	return result, nil
+}
+
 func (s *paymentMethodMasterService) Create(ctx context.Context, clinicID uint64, input *CreatePaymentMethodInput) (*model.PaymentMethodMaster, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
 	m := &model.PaymentMethodMaster{
 		ClinicID:     clinicID,
 		Name:         input.Name,
@@ -82,6 +100,9 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
+	if err := validateOptionalName(input.Name); err != nil {
+		return nil, err
+	}
 	fields := buildPaymentMethodUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
@@ -97,7 +118,7 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 }
 
 func (s *paymentMethodMasterService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountUsageByID(ctx, clinicID, id)
+	count, err := s.repo.CountUsageByPaymentMethodID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check payment method usage")
 	}

@@ -123,6 +123,9 @@ func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *C
 	return insurance, nil
 }
 func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, input *UpdateInsuranceInput) (*model.Insurance, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get insurance")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
