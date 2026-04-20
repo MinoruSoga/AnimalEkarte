@@ -24,6 +24,61 @@ type CreateCheckupTypeInput struct {
 	SortOrder   int
 }
 
+// UpdateCheckupTypeInput はチェックアップ種別更新のサービス入力 DTO
+type UpdateCheckupTypeInput struct {
+	Name          *string
+	Price         *int64
+	IsActive      *bool
+	Description   *string
+	Interval      *string
+	TargetAge     *string
+	ParentID      *uint64
+	ClearParentID bool
+	SortOrder     *int
+}
+
+const (
+	colCheckupTypeName        = "name"
+	colCheckupTypePrice       = "price"
+	colCheckupTypeIsActive    = "is_active"
+	colCheckupTypeDescription = "description"
+	colCheckupTypeInterval    = "interval"
+	colCheckupTypeTargetAge   = "target_age"
+	colCheckupTypeParentID    = "parent_id"
+	colCheckupTypeSortOrder   = "sort_order"
+)
+
+func buildCheckupTypeUpdateFields(input *UpdateCheckupTypeInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colCheckupTypeName] = *input.Name
+	}
+	if input.Price != nil {
+		fields[colCheckupTypePrice] = *input.Price
+	}
+	if input.IsActive != nil {
+		fields[colCheckupTypeIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colCheckupTypeDescription] = *input.Description
+	}
+	if input.Interval != nil {
+		fields[colCheckupTypeInterval] = *input.Interval
+	}
+	if input.TargetAge != nil {
+		fields[colCheckupTypeTargetAge] = *input.TargetAge
+	}
+	if input.ClearParentID {
+		fields[colCheckupTypeParentID] = nil
+	} else if input.ParentID != nil {
+		fields[colCheckupTypeParentID] = *input.ParentID
+	}
+	if input.SortOrder != nil {
+		fields[colCheckupTypeSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
 type CheckupTypeService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.CheckupType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error)
@@ -129,61 +184,4 @@ func (s *checkupTypeService) Reorder(ctx context.Context, clinicID uint64, ids [
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
 	return nil
-}
-
-// --- DB column constants ---
-
-const (
-	colCheckupTypeName        = "name"
-	colCheckupTypePrice       = "price"
-	colCheckupTypeIsActive    = "is_active"
-	colCheckupTypeDescription = "description"
-	colCheckupTypeInterval    = "interval"
-	colCheckupTypeTargetAge   = "target_age"
-	colCheckupTypeParentID    = "parent_id"
-	colCheckupTypeSortOrder   = "sort_order"
-)
-
-// UpdateCheckupTypeInput はチェックアップ種別更新のサービス入力 DTO
-type UpdateCheckupTypeInput struct {
-	Name          *string
-	Price         *int64
-	IsActive      *bool
-	Description   *string
-	Interval      *string
-	TargetAge     *string
-	ParentID      *uint64
-	ClearParentID bool
-	SortOrder     *int
-}
-
-func buildCheckupTypeUpdateFields(input *UpdateCheckupTypeInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colCheckupTypeName] = *input.Name
-	}
-	if input.Price != nil {
-		fields[colCheckupTypePrice] = *input.Price
-	}
-	if input.IsActive != nil {
-		fields[colCheckupTypeIsActive] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields[colCheckupTypeDescription] = *input.Description
-	}
-	if input.Interval != nil {
-		fields[colCheckupTypeInterval] = *input.Interval
-	}
-	if input.TargetAge != nil {
-		fields[colCheckupTypeTargetAge] = *input.TargetAge
-	}
-	if input.ClearParentID {
-		fields[colCheckupTypeParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colCheckupTypeParentID] = *input.ParentID
-	}
-	if input.SortOrder != nil {
-		fields[colCheckupTypeSortOrder] = *input.SortOrder
-	}
-	return fields
 }

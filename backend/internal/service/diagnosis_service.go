@@ -10,24 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- 列名定数 (#021) ----
-
-const (
-	colDiagnosisTypeName        = "name"
-	colDiagnosisTypeIsActive    = "is_active"
-	colDiagnosisTypeDescription = "description"
-	colDiagnosisTypeSortOrder   = "sort_order"
-)
-
-// DiagnosisName 専用列名定数 (#426: DiagnosisType 定数と分離)
-const (
-	colDiagnosisNameName            = "name"
-	colDiagnosisNameIsActive        = "is_active"
-	colDiagnosisNameDescription     = "description"
-	colDiagnosisNameSortOrder       = "sort_order"
-	colDiagnosisNameDiagnosisTypeID = "diagnosis_type_id"
-)
-
 // ---- DiagnosisType Input DTOs ----
 
 // CreateDiagnosisTypeInput はカテゴリ作成の入力DTO
@@ -65,6 +47,24 @@ type UpdateDiagnosisNameInput struct {
 	Description     *string
 	SortOrder       *int
 }
+
+// ---- 列名定数 (#021) ----
+
+const (
+	colDiagnosisTypeName        = "name"
+	colDiagnosisTypeIsActive    = "is_active"
+	colDiagnosisTypeDescription = "description"
+	colDiagnosisTypeSortOrder   = "sort_order"
+)
+
+// DiagnosisName 専用列名定数 (#426: DiagnosisType 定数と分離)
+const (
+	colDiagnosisNameName            = "name"
+	colDiagnosisNameIsActive        = "is_active"
+	colDiagnosisNameDescription     = "description"
+	colDiagnosisNameSortOrder       = "sort_order"
+	colDiagnosisNameDiagnosisTypeID = "diagnosis_type_id"
+)
 
 // ---- DiagnosisTypeService ----
 

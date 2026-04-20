@@ -22,6 +22,48 @@ type CreateInsuranceInput struct {
 	SortOrder    int
 }
 
+// UpdateInsuranceInput は保険更新のサービス入力 DTO
+type UpdateInsuranceInput struct {
+	Name         *string
+	IsActive     *bool
+	Description  *string
+	CoverageRate *int
+	ContactPhone *string
+	SortOrder    *int
+}
+
+const (
+	colInsuranceName         = "name"
+	colInsuranceIsActive     = "is_active"
+	colInsuranceDescription  = "description"
+	colInsuranceCoverageRate = "coverage_rate"
+	colInsuranceContactPhone = "contact_phone"
+	colInsuranceSortOrder    = "sort_order"
+)
+
+func buildInsuranceUpdateFields(input *UpdateInsuranceInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colInsuranceName] = *input.Name
+	}
+	if input.IsActive != nil {
+		fields[colInsuranceIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colInsuranceDescription] = *input.Description
+	}
+	if input.CoverageRate != nil {
+		fields[colInsuranceCoverageRate] = *input.CoverageRate
+	}
+	if input.ContactPhone != nil {
+		fields[colInsuranceContactPhone] = *input.ContactPhone
+	}
+	if input.SortOrder != nil {
+		fields[colInsuranceSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
 type InsuranceService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
@@ -127,46 +169,4 @@ func (s *insuranceService) Reorder(ctx context.Context, clinicID uint64, ids []u
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
 	return nil
-}
-
-// UpdateInsuranceInput は保険更新のサービス入力 DTO
-type UpdateInsuranceInput struct {
-	Name         *string
-	IsActive     *bool
-	Description  *string
-	CoverageRate *int
-	ContactPhone *string
-	SortOrder    *int
-}
-
-const (
-	colInsuranceName         = "name"
-	colInsuranceIsActive     = "is_active"
-	colInsuranceDescription  = "description"
-	colInsuranceCoverageRate = "coverage_rate"
-	colInsuranceContactPhone = "contact_phone"
-	colInsuranceSortOrder    = "sort_order"
-)
-
-func buildInsuranceUpdateFields(input *UpdateInsuranceInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colInsuranceName] = *input.Name
-	}
-	if input.IsActive != nil {
-		fields[colInsuranceIsActive] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields[colInsuranceDescription] = *input.Description
-	}
-	if input.CoverageRate != nil {
-		fields[colInsuranceCoverageRate] = *input.CoverageRate
-	}
-	if input.ContactPhone != nil {
-		fields[colInsuranceContactPhone] = *input.ContactPhone
-	}
-	if input.SortOrder != nil {
-		fields[colInsuranceSortOrder] = *input.SortOrder
-	}
-	return fields
 }

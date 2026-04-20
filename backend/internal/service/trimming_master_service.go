@@ -23,6 +23,53 @@ type CreateTrimmingCourseInput struct {
 	SortOrder   int
 }
 
+// UpdateTrimmingCourseInput はトリミングコース更新のサービス入力 DTO
+type UpdateTrimmingCourseInput struct {
+	Name        *string
+	Price       *int64
+	IsActive    *bool
+	Description *string
+	TargetSize  *string
+	Duration    *int
+	SortOrder   *int
+}
+
+const (
+	colTrimmingCourseName        = "name"
+	colTrimmingCoursePrice       = "price"
+	colTrimmingCourseIsActive    = "is_active"
+	colTrimmingCourseDescription = "description"
+	colTrimmingCourseTargetSize  = "target_size"
+	colTrimmingCourseDuration    = "duration"
+	colTrimmingCourseSortOrder   = "sort_order"
+)
+
+func buildTrimmingCourseUpdateFields(input *UpdateTrimmingCourseInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colTrimmingCourseName] = *input.Name
+	}
+	if input.Price != nil {
+		fields[colTrimmingCoursePrice] = *input.Price
+	}
+	if input.IsActive != nil {
+		fields[colTrimmingCourseIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colTrimmingCourseDescription] = *input.Description
+	}
+	if input.TargetSize != nil {
+		fields[colTrimmingCourseTargetSize] = model.TargetSize(*input.TargetSize)
+	}
+	if input.Duration != nil {
+		fields[colTrimmingCourseDuration] = *input.Duration
+	}
+	if input.SortOrder != nil {
+		fields[colTrimmingCourseSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
 type TrimmingCourseService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
@@ -123,55 +170,6 @@ func (s *trimmingCourseService) Reorder(ctx context.Context, clinicID uint64, id
 	return nil
 }
 
-// --- DB column constants (TrimmingCourse) ---
-
-const (
-	colTrimmingCourseName        = "name"
-	colTrimmingCoursePrice       = "price"
-	colTrimmingCourseIsActive    = "is_active"
-	colTrimmingCourseDescription = "description"
-	colTrimmingCourseTargetSize  = "target_size"
-	colTrimmingCourseDuration    = "duration"
-	colTrimmingCourseSortOrder   = "sort_order"
-)
-
-// UpdateTrimmingCourseInput はトリミングコース更新のサービス入力 DTO
-type UpdateTrimmingCourseInput struct {
-	Name        *string
-	Price       *int64
-	IsActive    *bool
-	Description *string
-	TargetSize  *string
-	Duration    *int
-	SortOrder   *int
-}
-
-func buildTrimmingCourseUpdateFields(input *UpdateTrimmingCourseInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colTrimmingCourseName] = *input.Name
-	}
-	if input.Price != nil {
-		fields[colTrimmingCoursePrice] = *input.Price
-	}
-	if input.IsActive != nil {
-		fields[colTrimmingCourseIsActive] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields[colTrimmingCourseDescription] = *input.Description
-	}
-	if input.TargetSize != nil {
-		fields[colTrimmingCourseTargetSize] = model.TargetSize(*input.TargetSize)
-	}
-	if input.Duration != nil {
-		fields[colTrimmingCourseDuration] = *input.Duration
-	}
-	if input.SortOrder != nil {
-		fields[colTrimmingCourseSortOrder] = *input.SortOrder
-	}
-	return fields
-}
-
 // ---- TrimmingOptionService ----
 
 // CreateTrimmingOptionInput はトリミングオプション作成の入力DTO
@@ -183,6 +181,53 @@ type CreateTrimmingOptionInput struct {
 	Duration     *int
 	IsCombinable bool
 	SortOrder    int
+}
+
+// UpdateTrimmingOptionInput はトリミングオプション更新のサービス入力 DTO
+type UpdateTrimmingOptionInput struct {
+	Name         *string
+	Price        *int64
+	IsActive     *bool
+	Description  *string
+	Duration     *int
+	IsCombinable *bool
+	SortOrder    *int
+}
+
+const (
+	colTrimmingOptionName         = "name"
+	colTrimmingOptionPrice        = "price"
+	colTrimmingOptionIsActive     = "is_active"
+	colTrimmingOptionDescription  = "description"
+	colTrimmingOptionDuration     = "duration"
+	colTrimmingOptionIsCombinable = "is_combinable"
+	colTrimmingOptionSortOrder    = "sort_order"
+)
+
+func buildTrimmingOptionUpdateFields(input *UpdateTrimmingOptionInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colTrimmingOptionName] = *input.Name
+	}
+	if input.Price != nil {
+		fields[colTrimmingOptionPrice] = *input.Price
+	}
+	if input.IsActive != nil {
+		fields[colTrimmingOptionIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colTrimmingOptionDescription] = *input.Description
+	}
+	if input.Duration != nil {
+		fields[colTrimmingOptionDuration] = *input.Duration
+	}
+	if input.IsCombinable != nil {
+		fields[colTrimmingOptionIsCombinable] = *input.IsCombinable
+	}
+	if input.SortOrder != nil {
+		fields[colTrimmingOptionSortOrder] = *input.SortOrder
+	}
+	return fields
 }
 
 type TrimmingOptionService interface {
@@ -280,53 +325,4 @@ func (s *trimmingOptionService) Reorder(ctx context.Context, clinicID uint64, id
 	}
 	slog.InfoContext(ctx, "trimming options reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
-}
-
-// --- DB column constants (TrimmingOption) ---
-
-const (
-	colTrimmingOptionName         = "name"
-	colTrimmingOptionPrice        = "price"
-	colTrimmingOptionIsActive     = "is_active"
-	colTrimmingOptionDescription  = "description"
-	colTrimmingOptionDuration     = "duration"
-	colTrimmingOptionIsCombinable = "is_combinable"
-	colTrimmingOptionSortOrder    = "sort_order"
-)
-
-// UpdateTrimmingOptionInput はトリミングオプション更新のサービス入力 DTO
-type UpdateTrimmingOptionInput struct {
-	Name         *string
-	Price        *int64
-	IsActive     *bool
-	Description  *string
-	Duration     *int
-	IsCombinable *bool
-	SortOrder    *int
-}
-
-func buildTrimmingOptionUpdateFields(input *UpdateTrimmingOptionInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colTrimmingOptionName] = *input.Name
-	}
-	if input.Price != nil {
-		fields[colTrimmingOptionPrice] = *input.Price
-	}
-	if input.IsActive != nil {
-		fields[colTrimmingOptionIsActive] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields[colTrimmingOptionDescription] = *input.Description
-	}
-	if input.Duration != nil {
-		fields[colTrimmingOptionDuration] = *input.Duration
-	}
-	if input.IsCombinable != nil {
-		fields[colTrimmingOptionIsCombinable] = *input.IsCombinable
-	}
-	if input.SortOrder != nil {
-		fields[colTrimmingOptionSortOrder] = *input.SortOrder
-	}
-	return fields
 }

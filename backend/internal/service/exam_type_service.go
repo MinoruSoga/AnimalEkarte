@@ -22,6 +22,51 @@ type CreateExamTypeInput struct {
 	SortOrder   int
 }
 
+// UpdateExamTypeInput は検査種別更新のサービス入力 DTO
+type UpdateExamTypeInput struct {
+	Name          *string
+	Price         *int64
+	IsActive      *bool
+	Description   *string
+	ParentID      *uint64
+	ClearParentID bool
+	SortOrder     *int
+}
+
+const (
+	colExamTypeName        = "name"
+	colExamTypePrice       = "price"
+	colExamTypeIsActive    = "is_active"
+	colExamTypeDescription = "description"
+	colExamTypeParentID    = "parent_id"
+	colExamTypeSortOrder   = "sort_order"
+)
+
+func buildExamTypeUpdateFields(input *UpdateExamTypeInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colExamTypeName] = *input.Name
+	}
+	if input.Price != nil {
+		fields[colExamTypePrice] = *input.Price
+	}
+	if input.IsActive != nil {
+		fields[colExamTypeIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colExamTypeDescription] = *input.Description
+	}
+	if input.ClearParentID {
+		fields[colExamTypeParentID] = nil
+	} else if input.ParentID != nil {
+		fields[colExamTypeParentID] = *input.ParentID
+	}
+	if input.SortOrder != nil {
+		fields[colExamTypeSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
 type ExamTypeService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
@@ -123,49 +168,4 @@ func (s *examTypeService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
 	return nil
-}
-
-// UpdateExamTypeInput は検査種別更新のサービス入力 DTO
-type UpdateExamTypeInput struct {
-	Name          *string
-	Price         *int64
-	IsActive      *bool
-	Description   *string
-	ParentID      *uint64
-	ClearParentID bool
-	SortOrder     *int
-}
-
-const (
-	colExamTypeName        = "name"
-	colExamTypePrice       = "price"
-	colExamTypeIsActive    = "is_active"
-	colExamTypeDescription = "description"
-	colExamTypeParentID    = "parent_id"
-	colExamTypeSortOrder   = "sort_order"
-)
-
-func buildExamTypeUpdateFields(input *UpdateExamTypeInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colExamTypeName] = *input.Name
-	}
-	if input.Price != nil {
-		fields[colExamTypePrice] = *input.Price
-	}
-	if input.IsActive != nil {
-		fields[colExamTypeIsActive] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields[colExamTypeDescription] = *input.Description
-	}
-	if input.ClearParentID {
-		fields[colExamTypeParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colExamTypeParentID] = *input.ParentID
-	}
-	if input.SortOrder != nil {
-		fields[colExamTypeSortOrder] = *input.SortOrder
-	}
-	return fields
 }

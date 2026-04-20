@@ -12,6 +12,15 @@ import (
 
 // ---- InquiryTemplateService ----
 
+// CreateInquiryTemplateInput は問診定型文作成の入力DTO
+type CreateInquiryTemplateInput struct {
+	Category  string
+	Title     string
+	Content   string
+	IsActive  bool
+	SortOrder int
+}
+
 // UpdateInquiryTemplateInput holds the fields that can be updated via PATCH.
 // All fields are pointers: nil means "not provided / skip".
 type UpdateInquiryTemplateInput struct {
@@ -22,13 +31,32 @@ type UpdateInquiryTemplateInput struct {
 	SortOrder *int
 }
 
-// CreateInquiryTemplateInput は問診定型文作成の入力DTO
-type CreateInquiryTemplateInput struct {
-	Category  string
-	Title     string
-	Content   string
-	IsActive  bool
-	SortOrder int
+const (
+	colInquiryTemplateCategory  = "category"
+	colInquiryTemplateTitle     = "title"
+	colInquiryTemplateContent   = "content"
+	colInquiryTemplateIsActive  = "is_active"
+	colInquiryTemplateSortOrder = "sort_order"
+)
+
+func buildInquiryTemplateUpdateFields(input *UpdateInquiryTemplateInput) map[string]any {
+	fields := map[string]any{}
+	if input.Category != nil {
+		fields[colInquiryTemplateCategory] = *input.Category
+	}
+	if input.Title != nil {
+		fields[colInquiryTemplateTitle] = *input.Title
+	}
+	if input.Content != nil {
+		fields[colInquiryTemplateContent] = *input.Content
+	}
+	if input.IsActive != nil {
+		fields[colInquiryTemplateIsActive] = *input.IsActive
+	}
+	if input.SortOrder != nil {
+		fields[colInquiryTemplateSortOrder] = *input.SortOrder
+	}
+	return fields
 }
 
 type InquiryTemplateService interface {
@@ -127,32 +155,4 @@ func (s *inquiryTemplateService) Reorder(ctx context.Context, clinicID uint64, i
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
 	return nil
-}
-
-const (
-	colInquiryTemplateCategory  = "category"
-	colInquiryTemplateTitle     = "title"
-	colInquiryTemplateContent   = "content"
-	colInquiryTemplateIsActive  = "is_active"
-	colInquiryTemplateSortOrder = "sort_order"
-)
-
-func buildInquiryTemplateUpdateFields(input *UpdateInquiryTemplateInput) map[string]any {
-	fields := map[string]any{}
-	if input.Category != nil {
-		fields[colInquiryTemplateCategory] = *input.Category
-	}
-	if input.Title != nil {
-		fields[colInquiryTemplateTitle] = *input.Title
-	}
-	if input.Content != nil {
-		fields[colInquiryTemplateContent] = *input.Content
-	}
-	if input.IsActive != nil {
-		fields[colInquiryTemplateIsActive] = *input.IsActive
-	}
-	if input.SortOrder != nil {
-		fields[colInquiryTemplateSortOrder] = *input.SortOrder
-	}
-	return fields
 }

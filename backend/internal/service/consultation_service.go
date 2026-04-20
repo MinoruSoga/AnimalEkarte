@@ -10,19 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-const (
-	colConsultationName          = "name"
-	colConsultationPrice         = "price"
-	colConsultationIsActive      = "is_active"
-	colConsultationDescription   = "description"
-	colConsultationTimeCondition = "time_condition"
-	colConsultationDuration      = "duration"
-	colConsultationParentID      = "parent_id"
-	colConsultationSortOrder     = "sort_order"
-	colConsultationTaxType       = "tax_type"
-	colConsultationTaxRate       = "tax_rate"
-)
-
 // ---- ConsultationService ----
 
 // CreateConsultationInput は診察種別作成のサービス入力 DTO
@@ -37,6 +24,71 @@ type CreateConsultationInput struct {
 	SortOrder     int
 	TaxType       *string  // nil = "excluded" (default)
 	TaxRate       *float64 // nil = 0.10 (default)
+}
+
+// UpdateConsultationInput は診察料金更新のサービス入力 DTO
+type UpdateConsultationInput struct {
+	Name          *string
+	Price         *int64
+	IsActive      *bool
+	Description   *string
+	TimeCondition *string
+	Duration      *int
+	ParentID      *uint64
+	ClearParentID bool
+	SortOrder     *int
+	TaxType       *string
+	TaxRate       *float64
+}
+
+const (
+	colConsultationName          = "name"
+	colConsultationPrice         = "price"
+	colConsultationIsActive      = "is_active"
+	colConsultationDescription   = "description"
+	colConsultationTimeCondition = "time_condition"
+	colConsultationDuration      = "duration"
+	colConsultationParentID      = "parent_id"
+	colConsultationSortOrder     = "sort_order"
+	colConsultationTaxType       = "tax_type"
+	colConsultationTaxRate       = "tax_rate"
+)
+
+func buildConsultationUpdateFields(input *UpdateConsultationInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colConsultationName] = *input.Name
+	}
+	if input.Price != nil {
+		fields[colConsultationPrice] = *input.Price
+	}
+	if input.IsActive != nil {
+		fields[colConsultationIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colConsultationDescription] = *input.Description
+	}
+	if input.TimeCondition != nil {
+		fields[colConsultationTimeCondition] = *input.TimeCondition
+	}
+	if input.Duration != nil {
+		fields[colConsultationDuration] = *input.Duration
+	}
+	if input.ClearParentID {
+		fields[colConsultationParentID] = nil
+	} else if input.ParentID != nil {
+		fields[colConsultationParentID] = *input.ParentID
+	}
+	if input.SortOrder != nil {
+		fields[colConsultationSortOrder] = *input.SortOrder
+	}
+	if input.TaxType != nil {
+		fields[colConsultationTaxType] = model.TaxType(*input.TaxType)
+	}
+	if input.TaxRate != nil {
+		fields[colConsultationTaxRate] = *input.TaxRate
+	}
+	return fields
 }
 
 type ConsultationService interface {
@@ -148,56 +200,4 @@ func (s *consultationService) Reorder(ctx context.Context, clinicID uint64, ids 
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
 	return nil
-}
-
-// UpdateConsultationInput は診察料金更新のサービス入力 DTO
-type UpdateConsultationInput struct {
-	Name          *string
-	Price         *int64
-	IsActive      *bool
-	Description   *string
-	TimeCondition *string
-	Duration      *int
-	ParentID      *uint64
-	ClearParentID bool
-	SortOrder     *int
-	TaxType       *string
-	TaxRate       *float64
-}
-
-func buildConsultationUpdateFields(input *UpdateConsultationInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colConsultationName] = *input.Name
-	}
-	if input.Price != nil {
-		fields[colConsultationPrice] = *input.Price
-	}
-	if input.IsActive != nil {
-		fields[colConsultationIsActive] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields[colConsultationDescription] = *input.Description
-	}
-	if input.TimeCondition != nil {
-		fields[colConsultationTimeCondition] = *input.TimeCondition
-	}
-	if input.Duration != nil {
-		fields[colConsultationDuration] = *input.Duration
-	}
-	if input.ClearParentID {
-		fields[colConsultationParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colConsultationParentID] = *input.ParentID
-	}
-	if input.SortOrder != nil {
-		fields[colConsultationSortOrder] = *input.SortOrder
-	}
-	if input.TaxType != nil {
-		fields[colConsultationTaxType] = model.TaxType(*input.TaxType)
-	}
-	if input.TaxRate != nil {
-		fields[colConsultationTaxRate] = *input.TaxRate
-	}
-	return fields
 }
