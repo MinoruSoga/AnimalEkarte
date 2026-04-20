@@ -87,7 +87,8 @@ func (r *insuranceRepository) CountPetsByInsuranceID(ctx context.Context, clinic
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Pet{}).
-		Where("insurance_id = ? AND clinic_id = ?", insuranceID, clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("insurance_id = ?", insuranceID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}

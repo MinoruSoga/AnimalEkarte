@@ -94,7 +94,8 @@ func (r *examTypeRepository) CountUsageByExamTypeID(ctx context.Context, clinicI
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Examination{}).
-		Where("exam_type_id = ? AND clinic_id = ?", examTypeID, clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("exam_type_id = ?", examTypeID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "exam_type", "")
 	}

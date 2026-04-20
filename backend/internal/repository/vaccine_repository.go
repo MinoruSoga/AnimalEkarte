@@ -94,7 +94,8 @@ func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, clinicID,
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
-		Where("vaccine_id = ? AND clinic_id = ?", vaccineID, clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("vaccine_id = ?", vaccineID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "vaccination_record", "")
 	}

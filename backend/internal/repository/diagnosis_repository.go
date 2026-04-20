@@ -103,7 +103,8 @@ func (r *diagnosisTypeRepository) CountNamesByCategoryID(ctx context.Context, cl
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.DiagnosisName{}).
-		Where("diagnosis_type_id = ? AND clinic_id = ?", categoryID, clinicID).
+		Scopes(clinicScope(clinicID)).
+		Where("diagnosis_type_id = ?", categoryID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "diagnosis_name", "")
 	}
