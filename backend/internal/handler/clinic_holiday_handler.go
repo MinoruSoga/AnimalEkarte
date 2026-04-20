@@ -11,26 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type clinicHolidayResponse struct {
-	ID        uint64 `json:"id"`
-	ClinicID  uint64 `json:"clinic_id"`
-	Date      string `json:"date"` // YYYY-MM-DD
-	Reason    string `json:"reason"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
-}
-
-func toClinicHolidayResponse(h *model.ClinicHoliday) clinicHolidayResponse {
-	return clinicHolidayResponse{
-		ID:        h.ID,
-		ClinicID:  h.ClinicID,
-		Date:      h.Date.Format("2006-01-02"),
-		Reason:    h.Reason,
-		CreatedAt: h.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: h.UpdatedAt.Format(time.RFC3339),
-	}
-}
-
 // ListClinicHolidays godoc
 // GET /v1/clinic-holidays?year_month=YYYY-MM
 func (h *Handler) ListClinicHolidays(c *gin.Context) {

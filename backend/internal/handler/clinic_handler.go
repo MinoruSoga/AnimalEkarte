@@ -26,7 +26,7 @@ func (h *Handler) ListClinics(c *gin.Context) {
 			RespondError(c, err)
 			return
 		}
-		c.JSON(http.StatusOK, clinics)
+		c.JSON(http.StatusOK, mapSlice(clinics, toClinicResponse))
 		return
 	}
 
@@ -40,7 +40,7 @@ func (h *Handler) ListClinics(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, clinics)
+	c.JSON(http.StatusOK, mapSlice(clinics, toClinicResponse))
 }
 
 // hasPermission はユーザーの実効権限を確認する。
@@ -107,7 +107,7 @@ func (h *Handler) GetClinic(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, clinic)
+	c.JSON(http.StatusOK, toClinicResponse(clinic))
 }
 
 // UpdateClinic godoc
@@ -183,7 +183,7 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	c.JSON(http.StatusCreated, toClinicResponse(result))
 }
 
 // DeleteClinic godoc
