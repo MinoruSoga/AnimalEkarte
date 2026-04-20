@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type estimateItemResponse struct {
@@ -50,7 +49,7 @@ type estimateResponse struct {
 
 func toEstimateItemResponse(item *model.EstimateItem) estimateItemResponse {
 	subtotal := int64(float64(item.UnitPrice) * item.Quantity)
-	taxAmount := service.CalculateTaxAmount(item.UnitPrice, item.Quantity, item.TaxType, item.TaxRate)
+	taxAmount := item.CalculateTaxAmount()
 	return estimateItemResponse{
 		ID:                    item.ID,
 		EstimateID:            item.EstimateID,

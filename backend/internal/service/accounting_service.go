@@ -56,48 +56,6 @@ type UpdateAccountingInput struct {
 	ChangeAmount    *int64
 }
 
-// buildAccountingUpdateFields は UpdateAccountingInput から nil でないフィールドのみ抽出する。
-func buildAccountingUpdateFields(input *UpdateAccountingInput) map[string]any {
-	fields := make(map[string]any)
-	if input.MedicalRecordID != nil {
-		fields["medical_record_id"] = *input.MedicalRecordID
-	}
-	if input.HospitalizationID != nil {
-		fields["hospitalization_id"] = *input.HospitalizationID
-	}
-	if input.OwnerID != nil {
-		fields["owner_id"] = *input.OwnerID
-	}
-	if input.PetID != nil {
-		fields["pet_id"] = *input.PetID
-	}
-	if input.Subtotal != nil {
-		fields["subtotal"] = *input.Subtotal
-	}
-	if input.TaxTotal != nil {
-		fields["tax_total"] = *input.TaxTotal
-	}
-	if input.TotalAmount != nil {
-		fields["total_amount"] = *input.TotalAmount
-	}
-	if input.HasInsurance != nil {
-		fields["has_insurance"] = *input.HasInsurance
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	if input.ScheduledDate != nil {
-		fields["scheduled_date"] = *input.ScheduledDate
-	}
-	if input.CompletedAt != nil {
-		fields["completed_at"] = *input.CompletedAt
-	}
-	if input.Memo != nil {
-		fields["memo"] = *input.Memo
-	}
-	return fields
-}
-
 type AccountingService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
@@ -109,7 +67,7 @@ type AccountingService interface {
 	ListUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
 	ListUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error)
 	// BUG-368: レジ締め日次集計
-	GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error)
+	GetDailySummary(ctx context.Context, clinicID uint64, dateStr string) (*repository.DailySummaryResult, error)
 }
 
 type accountingService struct {
@@ -211,6 +169,68 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	return accounting, nil
 }
 
+// BUG-370: 月末未納者一覧（会計単位）
+func (s *accountingService) ListUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error) {
+	result, total, err := s.repo.FindUnpaidByBilling(ctx, clinicID, baseDate, page, limit)
+	if err != nil {
+		return nil, 0, apperrors.Wrap(err, "failed to list unpaid billings")
+	}
+	return result, total, nil
+}
+
+// BUG-370: 月末未納者一覧（飼主単位集約）
+func (s *accountingService) ListUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
+	result, total, summary, err := s.repo.FindUnpaidByOwner(ctx, clinicID, baseDate, page, limit)
+	if err != nil {
+		return nil, 0, summary, apperrors.Wrap(err, "failed to list unpaid by owner")
+	}
+	return result, total, summary, nil
+}
+
+// Cancel は会計を論理削除（status=cancelled）する。
+// BUG-371: ハード削除の代替。監査性のため物理削除しない。
+func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64) error {
+	// 既存値取得
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to find accounting for cancel")
+	}
+	// 既に cancelled 状態なら二重キャンセル防止（AC-12）
+	if existing.Status == model.BillingStatusCancelled {
+		return apperrors.WrapConflict("既にキャンセル済みの会計です")
+	}
+
+	fields := map[string]any{
+		"status": model.BillingStatusCancelled,
+	}
+	if _, err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
+		return apperrors.Wrap(err, "failed to cancel accounting")
+	}
+
+	slog.InfoContext(ctx, "billing cancelled",
+		slog.Uint64("billing_id", id),
+		slog.Uint64("clinic_id", clinicID))
+
+	return nil
+}
+
+// GetDailySummary は指定日のレジ締め集計を返す。BUG-368
+func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64, dateStr string) (*repository.DailySummaryResult, error) {
+	if dateStr == "" {
+		dateStr = time.Now().Format("2006-01-02")
+	}
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	date, err := time.ParseInLocation("2006-01-02", dateStr, jst)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM-DD")
+	}
+	result, err := s.repo.GetDailySummary(ctx, clinicID, date)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get daily summary")
+	}
+	return result, nil
+}
+
 // hasPaymentFields は UpdateAccountingInput に Payment 関連フィールドが含まれているか判定する。
 func hasPaymentFields(input *UpdateAccountingInput) bool {
 	return input.PaymentMethod != nil ||
@@ -264,56 +284,44 @@ func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
 	return p
 }
 
-// BUG-370: 月末未納者一覧（会計単位）
-func (s *accountingService) ListUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error) {
-	result, total, err := s.repo.FindUnpaidByBilling(ctx, clinicID, baseDate, page, limit)
-	if err != nil {
-		return nil, 0, apperrors.Wrap(err, "failed to list unpaid billings")
+// buildAccountingUpdateFields は UpdateAccountingInput から nil でないフィールドのみ抽出する。
+func buildAccountingUpdateFields(input *UpdateAccountingInput) map[string]any {
+	fields := make(map[string]any)
+	if input.MedicalRecordID != nil {
+		fields["medical_record_id"] = *input.MedicalRecordID
 	}
-	return result, total, nil
-}
-
-// BUG-370: 月末未納者一覧（飼主単位集約）
-func (s *accountingService) ListUnpaidByOwner(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
-	result, total, summary, err := s.repo.FindUnpaidByOwner(ctx, clinicID, baseDate, page, limit)
-	if err != nil {
-		return nil, 0, summary, apperrors.Wrap(err, "failed to list unpaid by owner")
+	if input.HospitalizationID != nil {
+		fields["hospitalization_id"] = *input.HospitalizationID
 	}
-	return result, total, summary, nil
-}
-
-// Cancel は会計を論理削除（status=cancelled）する。
-// BUG-371: ハード削除の代替。監査性のため物理削除しない。
-func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64) error {
-	// 既存値取得
-	existing, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to find accounting for cancel")
+	if input.OwnerID != nil {
+		fields["owner_id"] = *input.OwnerID
 	}
-	// 既に cancelled 状態なら二重キャンセル防止（AC-12）
-	if existing.Status == model.BillingStatusCancelled {
-		return apperrors.WrapConflict("既にキャンセル済みの会計です")
+	if input.PetID != nil {
+		fields["pet_id"] = *input.PetID
 	}
-
-	fields := map[string]any{
-		"status": model.BillingStatusCancelled,
+	if input.Subtotal != nil {
+		fields["subtotal"] = *input.Subtotal
 	}
-	if _, err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
-		return apperrors.Wrap(err, "failed to cancel accounting")
+	if input.TaxTotal != nil {
+		fields["tax_total"] = *input.TaxTotal
 	}
-
-	slog.InfoContext(ctx, "billing cancelled",
-		slog.Uint64("billing_id", id),
-		slog.Uint64("clinic_id", clinicID))
-
-	return nil
-}
-
-// GetDailySummary は指定日のレジ締め集計を返す。BUG-368
-func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*repository.DailySummaryResult, error) {
-	result, err := s.repo.GetDailySummary(ctx, clinicID, date)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get daily summary")
+	if input.TotalAmount != nil {
+		fields["total_amount"] = *input.TotalAmount
 	}
-	return result, nil
+	if input.HasInsurance != nil {
+		fields["has_insurance"] = *input.HasInsurance
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	if input.ScheduledDate != nil {
+		fields["scheduled_date"] = *input.ScheduledDate
+	}
+	if input.CompletedAt != nil {
+		fields["completed_at"] = *input.CompletedAt
+	}
+	if input.Memo != nil {
+		fields["memo"] = *input.Memo
+	}
+	return fields
 }

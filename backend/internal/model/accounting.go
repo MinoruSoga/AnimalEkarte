@@ -1,6 +1,7 @@
 package model
 
 import (
+	"math"
 	"time"
 
 	"gorm.io/gorm"
@@ -108,6 +109,23 @@ type BillingItem struct {
 }
 
 func (BillingItem) TableName() string { return "billing_items" }
+
+// CalculateTaxAmount は課税区分に応じた税額（円）を計算する。
+//
+//	外税: 税額 = 単価 × 数量 × 税率
+//	内税: 税額 = 単価 × 数量 × 税率 ÷ (1 + 税率)
+//	非課税: 税額 = 0
+func (item *BillingItem) CalculateTaxAmount() int64 {
+	subtotal := float64(item.UnitPrice) * item.Quantity
+	switch item.TaxType {
+	case TaxTypeExcluded:
+		return int64(math.Round(subtotal * item.TaxRate))
+	case TaxTypeIncluded:
+		return int64(math.Round(subtotal * item.TaxRate / (1 + item.TaxRate)))
+	default:
+		return 0
+	}
+}
 
 type Payment struct {
 	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`

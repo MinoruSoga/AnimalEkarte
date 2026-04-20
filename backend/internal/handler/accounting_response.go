@@ -5,7 +5,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // BUG-370: 月末未納者一覧レスポンス
@@ -165,7 +164,7 @@ type accountingResponse struct {
 
 func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
 	subtotal := int64(float64(item.UnitPrice) * item.Quantity)
-	taxAmount := service.CalculateTaxAmount(item.UnitPrice, item.Quantity, item.TaxType, item.TaxRate)
+	taxAmount := item.CalculateTaxAmount()
 	return billingItemResponse{
 		ID:                    item.ID,
 		BillingID:             item.BillingID,

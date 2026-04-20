@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -214,6 +215,10 @@ func (r *accountingRepository) UpsertPayment(ctx context.Context, payment *model
 		First(&existing).Error
 
 	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			// DB エラー → 変換して返す
+			return apperrors.FromGORM(err, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
+		}
 		// レコードなし → 新規作成
 		if err := r.db.WithContext(ctx).Create(payment).Error; err != nil {
 			return apperrors.FromGORM(err, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
