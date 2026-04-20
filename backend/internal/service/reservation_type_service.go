@@ -339,7 +339,7 @@ func (s *reservationTypeService) CreateUnavailableTime(ctx context.Context, clin
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to check existing unavailable times")
 	}
-	if err := checkUnavailableTimeOverlap(existing, input); err != nil {
+	if err := validateUnavailableTimeNotOverlaps(existing, input); err != nil {
 		return nil, err
 	}
 
@@ -457,9 +457,9 @@ func validateUnavailableTimeInput(input CreateUnavailableTimeInput) error {
 	return nil
 }
 
-// checkUnavailableTimeOverlap は既存設定との時間帯重複を検証する
+// validateUnavailableTimeNotOverlaps は既存設定との時間帯重複を検証する
 // weekly と specific の混在は許可（LIFF で specific が weekly より優先される）
-func checkUnavailableTimeOverlap(existing []model.ReservationTypeUnavailableTime, input CreateUnavailableTimeInput) error {
+func validateUnavailableTimeNotOverlaps(existing []model.ReservationTypeUnavailableTime, input CreateUnavailableTimeInput) error {
 	for i := range existing {
 		if string(existing[i].UnavailableType) != input.UnavailableType {
 			continue

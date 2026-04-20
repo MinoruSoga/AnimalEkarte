@@ -9,18 +9,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// defaultGroupColor はグループのデフォルトカラー（DB の default 値と一元管理）。
-const defaultGroupColor = "#3B82F6"
-
-// --- DB column constants ---
-
-const (
-	colReservationTypeGroupName      = "name"
-	colReservationTypeGroupColor     = "color"
-	colReservationTypeGroupSortOrder = "sort_order"
-	colReservationTypeGroupIsActive  = "is_active"
-)
-
 type CreateReservationTypeGroupInput struct {
 	Name      string
 	Color     string
@@ -34,6 +22,18 @@ type UpdateReservationTypeGroupInput struct {
 	SortOrder *int
 	IsActive  *bool
 }
+
+// defaultGroupColor はグループのデフォルトカラー（DB の default 値と一元管理）。
+const defaultGroupColor = "#3B82F6"
+
+// --- DB column constants ---
+
+const (
+	colReservationTypeGroupName      = "name"
+	colReservationTypeGroupColor     = "color"
+	colReservationTypeGroupSortOrder = "sort_order"
+	colReservationTypeGroupIsActive  = "is_active"
+)
 
 type ReservationTypeGroupService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error)
@@ -81,7 +81,7 @@ func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint6
 		Name:      input.Name,
 		Color:     color,
 		SortOrder: input.SortOrder,
-		IsActive:  true,
+		IsActive:  input.IsActive,
 	}
 	if err := s.repo.Create(ctx, g); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create reservation_type_group")

@@ -12,6 +12,14 @@ import (
 
 // ---- OccupationService ----
 
+// CreateOccupationInput は職種作成の入力DTO
+type CreateOccupationInput struct {
+	Name        string
+	Description string
+	SortOrder   int
+	IsActive    bool
+}
+
 // UpdateOccupationInput holds the fields that can be updated via PATCH.
 // All fields are pointers: nil means "not provided / skip".
 type UpdateOccupationInput struct {
@@ -19,14 +27,6 @@ type UpdateOccupationInput struct {
 	Description *string
 	SortOrder   *int
 	IsActive    *bool
-}
-
-// CreateOccupationInput は職種作成の入力DTO
-type CreateOccupationInput struct {
-	Name        string
-	Description string
-	SortOrder   int
-	IsActive    bool
 }
 
 type OccupationService interface {

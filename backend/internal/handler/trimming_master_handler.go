@@ -93,7 +93,7 @@ func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
 		return
 	}
 
-	svcInput := service.UpdateTrimmingCourseInput{
+	svcInput := &service.UpdateTrimmingCourseInput{
 		Name:        req.Name,
 		Price:       req.Price,
 		IsActive:    req.IsActive,
@@ -103,7 +103,7 @@ func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
 		SortOrder:   req.SortOrder,
 	}
 
-	course, err := h.svc.TrimmingCourse.Update(c.Request.Context(), clinicID, id, &svcInput)
+	course, err := h.svc.TrimmingCourse.Update(c.Request.Context(), clinicID, id, svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -228,7 +228,7 @@ func (h *Handler) UpdateTrimmingOption(c *gin.Context) {
 		return
 	}
 
-	svcInput := service.UpdateTrimmingOptionInput{
+	svcInput := &service.UpdateTrimmingOptionInput{
 		Name:         req.Name,
 		Price:        req.Price,
 		IsActive:     req.IsActive,
@@ -238,7 +238,7 @@ func (h *Handler) UpdateTrimmingOption(c *gin.Context) {
 		SortOrder:    req.SortOrder,
 	}
 
-	option, err := h.svc.TrimmingOption.Update(c.Request.Context(), clinicID, id, &svcInput)
+	option, err := h.svc.TrimmingOption.Update(c.Request.Context(), clinicID, id, svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return

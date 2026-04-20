@@ -56,7 +56,15 @@ func (s *paymentMethodMasterService) Create(ctx context.Context, clinicID uint64
 }
 
 func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id uint64, input UpdatePaymentMethodInput) (*model.PaymentMethodMaster, error) {
-	fields := map[string]any{}
+	fields := buildPaymentMethodUpdateFields(input)
+	if len(fields) == 0 {
+		return s.repo.FindByID(ctx, clinicID, id)
+	}
+	return s.repo.UpdateFields(ctx, clinicID, id, fields)
+}
+
+func buildPaymentMethodUpdateFields(input UpdatePaymentMethodInput) map[string]any {
+	fields := make(map[string]any)
 	if input.Name != nil {
 		fields["name"] = *input.Name
 	}
@@ -66,10 +74,7 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 	if input.IsActive != nil {
 		fields["is_active"] = *input.IsActive
 	}
-	if len(fields) == 0 {
-		return s.repo.FindByID(ctx, clinicID, id)
-	}
-	return s.repo.UpdateFields(ctx, clinicID, id, fields)
+	return fields
 }
 
 func (s *paymentMethodMasterService) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -90,6 +91,7 @@ func (h *Handler) CloseCashRegister(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/cash-register/closes/%d", record.ID))
 	c.JSON(http.StatusCreated, record)
 }
 

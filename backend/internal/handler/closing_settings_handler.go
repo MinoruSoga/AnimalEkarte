@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -126,6 +127,7 @@ func (h *Handler) CreateSpecialPeriod(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/closing-settings/special-periods/%d", period.ID))
 	c.JSON(http.StatusCreated, period)
 }
 

@@ -62,7 +62,7 @@ func (h *Handler) CreateMerchandiseItem(c *gin.Context) {
 		return
 	}
 
-	input := service.CreateMerchandiseItemInput{
+	input := &service.CreateMerchandiseItemInput{
 		Name:      req.Name,
 		Category:  req.Category,
 		UnitPrice: req.UnitPrice,
@@ -72,7 +72,7 @@ func (h *Handler) CreateMerchandiseItem(c *gin.Context) {
 		SortOrder: req.SortOrder,
 	}
 
-	item, err := h.svc.MerchandiseItem.Create(c.Request.Context(), clinicID, &input)
+	item, err := h.svc.MerchandiseItem.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -98,7 +98,7 @@ func (h *Handler) UpdateMerchandiseItem(c *gin.Context) {
 		return
 	}
 
-	input := service.UpdateMerchandiseItemInput{
+	input := &service.UpdateMerchandiseItemInput{
 		Name:      req.Name,
 		Category:  req.Category,
 		UnitPrice: req.UnitPrice,
@@ -108,7 +108,7 @@ func (h *Handler) UpdateMerchandiseItem(c *gin.Context) {
 		SortOrder: req.SortOrder,
 	}
 
-	item, err := h.svc.MerchandiseItem.Update(c.Request.Context(), clinicID, id, &input)
+	item, err := h.svc.MerchandiseItem.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
 		return

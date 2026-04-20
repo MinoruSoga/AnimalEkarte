@@ -96,7 +96,7 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 		return
 	}
 
-	svcInput := service.UpdateCageInput{
+	svcInput := &service.UpdateCageInput{
 		Name:        input.Name,
 		CageType:    input.CageType,
 		CageSize:    input.CageSize,
@@ -106,7 +106,7 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 		SortOrder:   input.SortOrder,
 	}
 
-	cage, err := h.svc.Cage.Update(c.Request.Context(), clinicID, id, &svcInput)
+	cage, err := h.svc.Cage.Update(c.Request.Context(), clinicID, id, svcInput)
 	if err != nil {
 		RespondError(c, err)
 		return

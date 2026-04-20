@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -79,6 +80,7 @@ func (h *Handler) SetClinicHoliday(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/clinic-holidays/%s", holiday.Date.Format("2006-01-02")))
 	c.JSON(http.StatusCreated, toClinicHolidayResponse(holiday))
 }
 
