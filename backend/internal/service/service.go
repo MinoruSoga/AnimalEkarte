@@ -6,60 +6,63 @@ import (
 
 // Services はすべてのサービスを保持するDIコンテナ
 type Services struct {
-	Account               AccountService
-	StaffClinicAssignment StaffClinicAssignmentService
-	Audit                 AuditService
-	AnimalSpecies         AnimalSpeciesService
-	Owner                 OwnerService
-	Pet                   PetService
-	Reservation           ReservationService
-	MedicalRecord         MedicalRecordService
-	Hospitalization       HospitalizationService
-	Accounting            AccountingService
-	Trimming              TrimmingService
-	Inventory             InventoryService
-	Staff                 StaffService
-	Cage                  CageService
-	Medicine              MedicineService
-	Vaccine               VaccineService
-	Insurance             InsuranceService
-	ReservationType       ReservationTypeService
-	ReservationTypeGroup  ReservationTypeGroupService
-	Consultation          ConsultationService
-	Procedure             ProcedureService
-	HospitalizationPlan   HospitalizationPlanService
-	TrimmingCourse        TrimmingCourseService
-	TrimmingOption        TrimmingOptionService
-	ExaminationType       ExaminationTypeService
-	DiagnosisType         DiagnosisTypeService
-	DiagnosisName         DiagnosisNameService
-	CheckupType           CheckupTypeService
-	Clinic                ClinicService
-	Examination           ExaminationService
-	Vaccination           VaccinationService
-	Occupation            OccupationService
-	ChiefComplaintType    ChiefComplaintTypeService
-	Inquiry               InquiryService
-	InquiryTemplate       InquiryTemplateService
-	Company               CompanyService
-	PermissionGroup       PermissionGroupService
-	BillingConfirmation   BillingConfirmationService
-	CarePlanItem          CarePlanItemService
-	ShiftEntry            ShiftEntryService
-	ShiftTemplate         ShiftTemplateService
-	ClinicHoliday         ClinicHolidayService
-	TreatmentPlan         TreatmentPlanService
-	Vital                 VitalService
-	Treatment             TreatmentService
-	DailyRecord           DailyRecordService
-	MedicalRecordImage    MedicalRecordImageService
-	ClinicalPlan          ClinicalPlanService
-	Checkup               CheckupService
-	Estimate              EstimateService
-	MerchandiseItem       MerchandiseItemService
-	BillingItem           BillingItemService
-	Refund                RefundService
-	PasswordReset         PasswordResetService
+	Account                        AccountService
+	StaffClinicAssignment          StaffClinicAssignmentService
+	Audit                          AuditService
+	AnimalSpecies                  AnimalSpeciesService
+	Owner                          OwnerService
+	Pet                            PetService
+	Reservation                    ReservationService
+	MedicalRecord                  MedicalRecordService
+	Hospitalization                HospitalizationService
+	Accounting                     AccountingService
+	Trimming                       TrimmingService
+	Inventory                      InventoryService
+	Staff                          StaffService
+	Cage                           CageService
+	Medicine                       MedicineService
+	Vaccine                        VaccineService
+	Insurance                      InsuranceService
+	ReservationType                ReservationTypeCoreService
+	ReservationTypeUnavailableTime ReservationTypeUnavailableTimeService
+	ReservationTypeOccupation      ReservationTypeOccupationService
+	ReservationTypeGroup           ReservationTypeGroupService
+	Consultation                   ConsultationService
+	Procedure                      ProcedureService
+	HospitalizationPlan            HospitalizationPlanService
+	TrimmingCourse                 TrimmingCourseService
+	TrimmingOption                 TrimmingOptionService
+	ExaminationType                ExaminationTypeService
+	DiagnosisType                  DiagnosisTypeService
+	DiagnosisName                  DiagnosisNameService
+	CheckupType                    CheckupTypeService
+	Clinic                         ClinicService
+	Examination                    ExaminationService
+	Vaccination                    VaccinationService
+	Occupation                     OccupationService
+	ChiefComplaintType             ChiefComplaintTypeService
+	Inquiry                        InquiryService
+	InquiryTemplate                InquiryTemplateService
+	Company                        CompanyService
+	PermissionGroup                PermissionGroupService
+	EffectivePermission            EffectivePermissionService
+	BillingConfirmation            BillingConfirmationService
+	CarePlanItem                   CarePlanItemService
+	ShiftEntry                     ShiftEntryService
+	ShiftTemplate                  ShiftTemplateService
+	ClinicHoliday                  ClinicHolidayService
+	TreatmentPlan                  TreatmentPlanService
+	Vital                          VitalService
+	Treatment                      TreatmentService
+	DailyRecord                    DailyRecordService
+	MedicalRecordImage             MedicalRecordImageService
+	ClinicalPlan                   ClinicalPlanService
+	Checkup                        CheckupService
+	Estimate                       EstimateService
+	MerchandiseItem                MerchandiseItemService
+	BillingItem                    BillingItemService
+	Refund                         RefundService
+	PasswordReset                  PasswordResetService
 
 	// FEAT-368: 集計・締め機能
 	ClosingSettings     ClosingSettingsService
@@ -94,61 +97,72 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	// ClosingSettings は CashRegister より先に初期化する（依存関係のため）
 	closingSettingsSvc := NewClosingSettingsService(repos.ClinicSettings, repos.ClosingSpecialPeriod, repos.ClinicHoliday)
 
+	// ReservationTypeService は3サブインターフェースを実装する単一インスタンス。
+	// 同一インスタンスを3フィールドに割り当てることで余分な初期化を避ける。
+	reservationTypeSvc := NewReservationTypeService(repos.ReservationType, repos.ReservationTypeUnavailableTime, repos.ReservationTypeOccupation, repos.Occupation)
+
+	// permissionGroupSvc は PermissionGroupService と EffectivePermissionService の両方を実装する。
+	// 同一インスタンスを2フィールドに割り当てることで余分な初期化を避ける。
+	permissionGroupSvc := newPermissionGroupServiceImpl(repos.PermissionGroup)
+
 	return &Services{
-		Account:               NewAccountService(repos.Account),
-		StaffClinicAssignment: NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
-		Audit:                 auditSvc,
-		AnimalSpecies:         NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
-		Owner:                 NewOwnerService(repos.Owner),
-		Pet:                   NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
-		Reservation:           NewReservationService(repos.Reservation, tx),
-		MedicalRecord:         NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr),
-		Hospitalization:       NewHospitalizationService(repos),
-		Accounting:            NewAccountingService(repos.Accounting),
-		Trimming:              NewTrimmingService(repos.Reservation, repos.AppointmentTrimmingDetail, tx),
-		Inventory:             NewInventoryService(repos.Inventory),
-		Staff:                 NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, tx),
-		Cage:                  NewCageService(repos.Cage),
-		Medicine:              NewMedicineService(repos.Medicine, repos.Inventory, tx),
-		Vaccine:               NewVaccineService(repos.Vaccine),
-		Insurance:             NewInsuranceService(repos.Insurance),
-		ReservationType:       NewReservationTypeService(repos.ReservationType, repos.ReservationTypeUnavailableTime, repos.ReservationTypeOccupation, repos.Occupation),
-		ReservationTypeGroup:  NewReservationTypeGroupService(repos.ReservationTypeGroup),
-		Consultation:          NewConsultationService(repos.Consultation),
-		Procedure:             NewProcedureService(repos.Procedure),
-		HospitalizationPlan:   NewHospitalizationPlanService(repos.HospitalizationPlan),
-		TrimmingCourse:        NewTrimmingCourseService(repos.TrimmingCourse),
-		TrimmingOption:        NewTrimmingOptionService(repos.TrimmingOption),
-		ExaminationType:       NewExamTypeService(repos.ExaminationType),
-		DiagnosisType:         NewDiagnosisTypeService(repos.DiagnosisType),
-		DiagnosisName:         NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisType),
-		CheckupType:           NewCheckupTypeService(repos.CheckupType),
-		Clinic:                NewClinicService(repos.Clinic),
-		Examination:           NewExaminationService(repos.Examination),
-		Vaccination:           NewVaccinationService(repos.Vaccination),
-		Occupation:            NewOccupationService(repos.Occupation),
-		ChiefComplaintType:    NewChiefComplaintTypeService(repos.ChiefComplaintType),
-		Inquiry:               NewInquiryService(repos.Inquiry),
-		InquiryTemplate:       NewInquiryTemplateService(repos.InquiryTemplate),
-		Company:               NewCompanyService(repos.Company),
-		PermissionGroup:       NewPermissionGroupService(repos.PermissionGroup),
-		BillingConfirmation:   NewBillingConfirmationService(repos.BillingConfirmation),
-		CarePlanItem:          NewCarePlanItemService(repos.CarePlanItem),
-		ShiftEntry:            NewShiftEntryService(repos.ShiftEntry),
-		ShiftTemplate:         NewShiftTemplateService(repos.ShiftTemplate),
-		ClinicHoliday:         NewClinicHolidayService(repos.ClinicHoliday),
-		TreatmentPlan:         NewTreatmentPlanService(repos.TreatmentPlan),
-		Vital:                 NewVitalService(repos.Vital),
-		Treatment:             NewTreatmentService(repos),
-		DailyRecord:           NewDailyRecordService(repos.DailyRecord),
-		MedicalRecordImage:    NewMedicalRecordImageService(repos.MedicalRecordImage),
-		ClinicalPlan:          NewClinicalPlanService(repos.ClinicalPlan),
-		Checkup:               NewCheckupService(repos.Checkup),
-		Estimate:              NewEstimateService(repos.Estimate),
-		MerchandiseItem:       NewMerchandiseItemService(repos.MerchandiseItem),
-		BillingItem:           NewBillingItemService(repos.BillingItem, repos.Accounting),
-		Refund:                NewRefundService(repos.Refund, repos.Accounting),
-		PasswordReset:         NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
+		Account:                        NewAccountService(repos.Account),
+		StaffClinicAssignment:          NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
+		Audit:                          auditSvc,
+		AnimalSpecies:                  NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
+		Owner:                          NewOwnerService(repos.Owner),
+		Pet:                            NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord),
+		Reservation:                    NewReservationService(repos.Reservation, tx),
+		MedicalRecord:                  NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr),
+		Hospitalization:                NewHospitalizationService(repos),
+		Accounting:                     NewAccountingService(repos.Accounting),
+		Trimming:                       NewTrimmingService(repos.Reservation, repos.AppointmentTrimmingDetail, tx),
+		Inventory:                      NewInventoryService(repos.Inventory),
+		Staff:                          NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, tx),
+		Cage:                           NewCageService(repos.Cage),
+		Medicine:                       NewMedicineService(repos.Medicine, repos.Inventory, tx),
+		Vaccine:                        NewVaccineService(repos.Vaccine),
+		Insurance:                      NewInsuranceService(repos.Insurance),
+		ReservationType:                reservationTypeSvc,
+		ReservationTypeUnavailableTime: reservationTypeSvc,
+		ReservationTypeOccupation:      reservationTypeSvc,
+		ReservationTypeGroup:           NewReservationTypeGroupService(repos.ReservationTypeGroup),
+		Consultation:                   NewConsultationService(repos.Consultation),
+		Procedure:                      NewProcedureService(repos.Procedure),
+		HospitalizationPlan:            NewHospitalizationPlanService(repos.HospitalizationPlan),
+		TrimmingCourse:                 NewTrimmingCourseService(repos.TrimmingCourse),
+		TrimmingOption:                 NewTrimmingOptionService(repos.TrimmingOption),
+		ExaminationType:                NewExamTypeService(repos.ExaminationType),
+		DiagnosisType:                  NewDiagnosisTypeService(repos.DiagnosisType),
+		DiagnosisName:                  NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisType),
+		CheckupType:                    NewCheckupTypeService(repos.CheckupType),
+		Clinic:                         NewClinicService(repos.Clinic),
+		Examination:                    NewExaminationService(repos.Examination),
+		Vaccination:                    NewVaccinationService(repos.Vaccination),
+		Occupation:                     NewOccupationService(repos.Occupation),
+		ChiefComplaintType:             NewChiefComplaintTypeService(repos.ChiefComplaintType),
+		Inquiry:                        NewInquiryService(repos.Inquiry),
+		InquiryTemplate:                NewInquiryTemplateService(repos.InquiryTemplate),
+		Company:                        NewCompanyService(repos.Company),
+		PermissionGroup:                permissionGroupSvc,
+		EffectivePermission:            permissionGroupSvc,
+		BillingConfirmation:            NewBillingConfirmationService(repos.BillingConfirmation),
+		CarePlanItem:                   NewCarePlanItemService(repos.CarePlanItem),
+		ShiftEntry:                     NewShiftEntryService(repos.ShiftEntry),
+		ShiftTemplate:                  NewShiftTemplateService(repos.ShiftTemplate),
+		ClinicHoliday:                  NewClinicHolidayService(repos.ClinicHoliday),
+		TreatmentPlan:                  NewTreatmentPlanService(repos.TreatmentPlan),
+		Vital:                          NewVitalService(repos.Vital),
+		Treatment:                      NewTreatmentService(repos),
+		DailyRecord:                    NewDailyRecordService(repos.DailyRecord),
+		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage),
+		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan),
+		Checkup:                        NewCheckupService(repos.Checkup),
+		Estimate:                       NewEstimateService(repos.Estimate),
+		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
+		BillingItem:                    NewBillingItemService(repos.BillingItem, repos.Accounting),
+		Refund:                         NewRefundService(repos.Refund, repos.Accounting),
+		PasswordReset:                  NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
 		// FEAT-368: 集計・締め機能
 		ClosingSettings:        closingSettingsSvc,
 		PaymentMethodMaster:    NewPaymentMethodMasterService(repos.PaymentMethodMaster),

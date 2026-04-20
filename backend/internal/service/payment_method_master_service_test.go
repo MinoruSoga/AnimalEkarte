@@ -309,6 +309,72 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 	}
 }
 
+func TestPaymentMethodMasterService_Update(t *testing.T) {
+	updated := &model.PaymentMethodMaster{ID: 1, ClinicID: 1, Name: "現金", DisplayOrder: 1}
+
+	ptrStr := func(s string) *string { return &s }
+
+	tests := []struct {
+		name           string
+		input          *UpdatePaymentMethodInput
+		updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
+		wantErr        bool
+		wantResult     *model.PaymentMethodMaster
+	}{
+		{
+			name:  "正常: 名前のみ更新が成功",
+			input: &UpdatePaymentMethodInput{Name: ptrStr("現金")},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PaymentMethodMaster, error) {
+				return updated, nil
+			},
+			wantResult: updated,
+		},
+		{
+			name:    "エラー: input nil はエラー",
+			input:   nil,
+			wantErr: true,
+		},
+		{
+			name:    "エラー: 空文字名前はエラー",
+			input:   &UpdatePaymentMethodInput{Name: ptrStr("")},
+			wantErr: true,
+		},
+		{
+			name:    "エラー: フィールドなしはエラー",
+			input:   &UpdatePaymentMethodInput{},
+			wantErr: true,
+		},
+		{
+			name:  "エラー: 存在しないIDはエラー",
+			input: &UpdatePaymentMethodInput{Name: ptrStr("現金")},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PaymentMethodMaster, error) {
+				return nil, apperrors.WrapNotFound("payment_method", "99")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			repo := &mockPaymentMethodMasterRepository{updateFieldsFn: tt.updateFieldsFn}
+			svc := NewPaymentMethodMasterService(repo)
+
+			// Act
+			got, err := svc.Update(context.Background(), 1, 1, tt.input)
+
+			// Assert
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantResult, got)
+		})
+	}
+}
+
 func TestPaymentMethodMasterService_Reorder(t *testing.T) {
 	tests := []struct {
 		name      string

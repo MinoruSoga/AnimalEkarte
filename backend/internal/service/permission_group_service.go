@@ -49,6 +49,11 @@ type PermissionGroupService interface {
 	// SetRules はグループのルールを全置換する。actorStaffID は自己参照チェックに使用される。
 	SetRules(ctx context.Context, groupID uint64, inputs []SetPermissionGroupRulesInput, actorStaffID uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+}
+
+// EffectivePermissionService は有効権限取得の責務を持つ独立インターフェース。
+// CRUD 操作の PermissionGroupService とは認可責務が異なるため分離する。
+type EffectivePermissionService interface {
 	GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
 }
 
@@ -57,6 +62,13 @@ type permissionGroupService struct {
 }
 
 func NewPermissionGroupService(repo repository.PermissionGroupRepository) PermissionGroupService {
+	return &permissionGroupService{repo: repo}
+}
+
+// newPermissionGroupServiceImpl は PermissionGroupService と EffectivePermissionService の
+// 両インターフェースを実装する具体型ポインタを返す。
+// service.go の DI 配線のみで使用する。
+func newPermissionGroupServiceImpl(repo repository.PermissionGroupRepository) *permissionGroupService {
 	return &permissionGroupService{repo: repo}
 }
 
@@ -99,6 +111,9 @@ func (s *permissionGroupService) Create(ctx context.Context, clinicID uint64, in
 }
 
 func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePermissionGroupInput) (*model.PermissionGroup, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
