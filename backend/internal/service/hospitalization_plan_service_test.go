@@ -26,7 +26,10 @@ func (m *mockHospitalizationPlanRepository) FindAll(ctx context.Context, clinicI
 }
 
 func (m *mockHospitalizationPlanRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.HospitalizationPlan{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockHospitalizationPlanRepository) Create(ctx context.Context, plan *model.HospitalizationPlan) error {
@@ -45,7 +48,7 @@ func (m *mockHospitalizationPlanRepository) Reorder(ctx context.Context, clinicI
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockHospitalizationPlanRepository) CountCarePlanItemsByPlanID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockHospitalizationPlanRepository) CountCarePlanItemsByPlanID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 

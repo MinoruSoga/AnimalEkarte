@@ -27,7 +27,10 @@ func (m *mockChiefComplaintTypeRepository) FindAll(ctx context.Context, clinicID
 }
 
 func (m *mockChiefComplaintTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.ChiefComplaintType{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockChiefComplaintTypeRepository) CountUsageByChiefComplaintTypeID(ctx context.Context, clinicID, id uint64) (int64, error) {

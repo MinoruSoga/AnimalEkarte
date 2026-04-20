@@ -155,7 +155,7 @@ func (m *mockBaseOccupationRepo) UpdateFields(_ context.Context, _, _ uint64, _ 
 }
 func (m *mockBaseOccupationRepo) Delete(_ context.Context, _, _ uint64) error           { return nil }
 func (m *mockBaseOccupationRepo) Reorder(_ context.Context, _ uint64, _ []uint64) error { return nil }
-func (m *mockBaseOccupationRepo) CountStaffsByOccupationID(_ context.Context, _, _ uint64) (int64, error) {
+func (m *mockBaseOccupationRepo) CountUsageByOccupationID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 

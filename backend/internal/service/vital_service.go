@@ -65,7 +65,7 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		return nil, apperrors.WrapInvalidInput("pet_id is required")
 	}
 	if input.Temperature == nil && input.HeartRate == nil && input.RespirationRate == nil && input.Weight == nil {
-		return nil, apperrors.WrapInvalidInput("少なくとも1つのバイタル値を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
 	vital := &model.VitalRecord{

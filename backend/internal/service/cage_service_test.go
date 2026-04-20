@@ -13,13 +13,13 @@ import (
 
 // mockCageRepository は CageRepository のテスト用モック実装
 type mockCageRepository struct {
-	findAllFn              func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
-	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
-	countRecordsByCageIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
-	createFn               func(ctx context.Context, cage *model.Cage) error
-	updateFieldsFn         func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
-	deleteFn               func(ctx context.Context, clinicID, id uint64) error
-	reorderFn              func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn            func(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
+	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+	countUsageByCageIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
+	createFn             func(ctx context.Context, cage *model.Cage) error
+	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
+	deleteFn             func(ctx context.Context, clinicID, id uint64) error
+	reorderFn            func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockCageRepository) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
@@ -42,9 +42,9 @@ func (m *mockCageRepository) Delete(ctx context.Context, clinicID, id uint64) er
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockCageRepository) CountRecordsByCageID(ctx context.Context, clinicID, id uint64) (int64, error) {
-	if m.countRecordsByCageIDFn != nil {
-		return m.countRecordsByCageIDFn(ctx, clinicID, id)
+func (m *mockCageRepository) CountUsageByCageID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	if m.countUsageByCageIDFn != nil {
+		return m.countUsageByCageIDFn(ctx, clinicID, id)
 	}
 	return 0, nil
 }

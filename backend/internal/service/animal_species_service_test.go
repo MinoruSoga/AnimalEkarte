@@ -190,7 +190,7 @@ func TestAnimalSpeciesService_Delete_WithPetReference(t *testing.T) {
 				},
 			}
 			petRepo := &mockPetRepository{
-				countByAnimalSpeciesIDFn: func(_ context.Context, _ uint64) (int64, error) {
+				countUsageByAnimalSpeciesIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.petCount, nil
 				},
 			}

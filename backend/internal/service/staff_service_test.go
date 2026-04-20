@@ -202,7 +202,7 @@ func (m *mockPermissionGroupForStaff) Delete(_ context.Context, _, _ uint64) err
 func (m *mockPermissionGroupForStaff) SetRules(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
 	return nil
 }
-func (m *mockPermissionGroupForStaff) CountStaffsByGroupID(_ context.Context, _, _ uint64) (int64, error) {
+func (m *mockPermissionGroupForStaff) CountUsageByGroupID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *mockPermissionGroupForStaff) Reorder(_ context.Context, _ uint64, _ []uint64) error {

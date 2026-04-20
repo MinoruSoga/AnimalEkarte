@@ -14,13 +14,13 @@ import (
 // ---- TrimmingCourse モック ----
 
 type mockTrimmingCourseRepository struct {
-	findAllFn                func(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
-	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
-	createFn                 func(ctx context.Context, course *model.TrimmingCourse) error
-	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
-	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
-	countRecordsByCourseIDFn func(ctx context.Context, clinicID, courseID uint64) (int64, error)
-	reorderErr               error
+	findAllFn              func(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
+	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
+	createFn               func(ctx context.Context, course *model.TrimmingCourse) error
+	updateFieldsFn         func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
+	deleteFn               func(ctx context.Context, clinicID, id uint64) error
+	countUsageByCourseIDFn func(ctx context.Context, clinicID, courseID uint64) (int64, error)
+	reorderErr             error
 }
 
 func (m *mockTrimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
@@ -47,9 +47,9 @@ func (m *mockTrimmingCourseRepository) Reorder(_ context.Context, _ uint64, _ []
 	return m.reorderErr
 }
 
-func (m *mockTrimmingCourseRepository) CountRecordsByCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error) {
-	if m.countRecordsByCourseIDFn != nil {
-		return m.countRecordsByCourseIDFn(ctx, clinicID, courseID)
+func (m *mockTrimmingCourseRepository) CountUsageByCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error) {
+	if m.countUsageByCourseIDFn != nil {
+		return m.countUsageByCourseIDFn(ctx, clinicID, courseID)
 	}
 	return 0, nil
 }
@@ -340,7 +340,7 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseRepository{
-				countRecordsByCourseIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+				countUsageByCourseIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.countRecords, tt.countErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

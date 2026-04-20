@@ -16,13 +16,13 @@ const testClinicID uint64 = 1
 // ---- DiagnosisType モック ----
 
 type mockDiagnosisTypeRepository struct {
-	findAllFn                func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
-	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
-	createFn                 func(ctx context.Context, category *model.DiagnosisType) error
-	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error)
-	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
-	reorderFn                func(ctx context.Context, clinicID uint64, ids []uint64) error
-	countNamesByCategoryIDFn func(ctx context.Context, clinicID, categoryID uint64) (int64, error)
+	findAllFn                 func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
+	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
+	createFn                  func(ctx context.Context, category *model.DiagnosisType) error
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error)
+	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
+	countChildrenByParentIDFn func(ctx context.Context, clinicID, categoryID uint64) (int64, error)
 }
 
 func (m *mockDiagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
@@ -55,11 +55,11 @@ func (m *mockDiagnosisTypeRepository) Reorder(ctx context.Context, clinicID uint
 	return m.reorderFn(ctx, clinicID, ids)
 }
 
-func (m *mockDiagnosisTypeRepository) CountNamesByCategoryID(ctx context.Context, clinicID, categoryID uint64) (int64, error) {
-	if m.countNamesByCategoryIDFn == nil {
+func (m *mockDiagnosisTypeRepository) CountChildrenByParentID(ctx context.Context, clinicID, categoryID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn == nil {
 		return 0, nil
 	}
-	return m.countNamesByCategoryIDFn(ctx, clinicID, categoryID)
+	return m.countChildrenByParentIDFn(ctx, clinicID, categoryID)
 }
 
 // ---- DiagnosisName モック ----
@@ -422,7 +422,7 @@ func TestDiagnosisTypeService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockDiagnosisTypeRepository{
-				countNamesByCategoryIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.nameCount, tt.countNamesErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {

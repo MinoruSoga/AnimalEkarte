@@ -87,13 +87,13 @@ func NewBillingItemService(repo repository.BillingItemRepository, billingRepo re
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
 	if input.BillingID == 0 {
-		return nil, apperrors.WrapInvalidInput("billing_id is required")
+		return nil, apperrors.WrapInvalidInput("請求IDは必須です")
 	}
 	if input.Name == "" {
-		return nil, apperrors.WrapInvalidInput("name is required")
+		return nil, apperrors.WrapInvalidInput("商品名は必須です")
 	}
 	if input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 
 	// テナント所有権確認: billing が同一クリニックに属することを確認
@@ -168,7 +168,7 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.Wrap(err, "failed to get billing item")
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 
 	fields := buildBillingItemUpdateFields(input)

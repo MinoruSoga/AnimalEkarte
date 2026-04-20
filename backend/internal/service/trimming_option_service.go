@@ -148,7 +148,7 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 }
 
 func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountRecordsByOptionID(ctx, clinicID, id)
+	count, err := s.repo.CountUsageByOptionID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check trimming option dependencies")
 	}

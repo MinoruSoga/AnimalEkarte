@@ -95,6 +95,12 @@ func (s *hospitalizationPlanService) Create(ctx context.Context, clinicID uint64
 	return plan, nil
 }
 func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get hospitalization plan")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
@@ -112,7 +118,7 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	return plan, nil
 }
 func (s *hospitalizationPlanService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountCarePlanItemsByPlanID(ctx, id)
+	count, err := s.repo.CountCarePlanItemsByPlanID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check hospitalization plan dependencies")
 	}

@@ -49,7 +49,7 @@ func (m *mockOccupationRepository) Reorder(_ context.Context, _ uint64, _ []uint
 	return m.reorderErr
 }
 
-func (m *mockOccupationRepository) CountStaffsByOccupationID(_ context.Context, _, _ uint64) (int64, error) {
+func (m *mockOccupationRepository) CountUsageByOccupationID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 

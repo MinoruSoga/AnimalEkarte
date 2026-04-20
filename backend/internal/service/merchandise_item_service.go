@@ -116,7 +116,7 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 		return nil, err
 	}
 	if input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 
 	taxType := model.TaxTypeExcluded
@@ -160,7 +160,7 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 		return nil, err
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 	fields := buildMerchandiseItemUpdateFields(input)
 	if len(fields) == 0 {

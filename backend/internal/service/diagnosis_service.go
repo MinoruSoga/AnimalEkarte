@@ -146,7 +146,7 @@ func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (s *diagnosisTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountNamesByCategoryID(ctx, clinicID, id)
+	count, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check diagnosis type dependencies")
 	}

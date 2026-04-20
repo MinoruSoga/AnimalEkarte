@@ -138,7 +138,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 
 	// ビジネスルールバリデーション
 	if input.Weight != nil && *input.Weight < 0 {
-		return nil, apperrors.WrapInvalidInput("体重は0以上の値を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgWeightZeroOrMore)
 	}
 	if err := validatePetGender(input.Gender); err != nil {
 		return nil, err
@@ -229,7 +229,7 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 
 	// ビジネスルールバリデーション
 	if input.Weight != nil && *input.Weight < 0 {
-		return nil, apperrors.WrapInvalidInput("体重は0以上の値を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgWeightZeroOrMore)
 	}
 	if input.Gender != nil {
 		if err := validatePetGender(*input.Gender); err != nil {

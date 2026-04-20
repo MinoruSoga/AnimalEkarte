@@ -17,9 +17,13 @@ const MasterNameMaxLength = 255
 
 // 日本語エラーメッセージ定数 (BUG-385)
 const (
-	ErrMsgAtLeastOneField = "少なくとも1つのフィールドを指定してください"
-	ErrMsgIDsNotEmpty     = "並び順のIDリストが空です"
-	ErrMsgInputNotNil     = "更新内容が指定されていません"
+	ErrMsgAtLeastOneField   = "少なくとも1つのフィールドを指定してください"
+	ErrMsgIDsNotEmpty       = "並び順のIDリストが空です"
+	ErrMsgInputNotNil       = "更新内容が指定されていません"
+	ErrMsgPriceZeroOrMore   = "金額は0以上を入力してください"
+	ErrMsgQuantityPositive  = "数量は0より大きい値を入力してください"
+	ErrMsgWeightZeroOrMore  = "体重は0以上の値を入力してください"
+	ErrMsgResourceNameEmpty = "リソース名が空です"
 )
 
 // RFC 5322簡易的なメール形式パターン
@@ -266,7 +270,7 @@ func validateNonNegativePrice(price *int64) error {
 		return nil
 	}
 	if *price < 0 {
-		return apperrors.WrapInvalidInput("金額は0以上を入力してください")
+		return apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 	return nil
 }

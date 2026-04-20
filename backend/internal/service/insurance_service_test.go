@@ -45,7 +45,7 @@ func (m *mockInsuranceRepository) Reorder(_ context.Context, _ uint64, _ []uint6
 	return m.reorderErr
 }
 
-func (m *mockInsuranceRepository) CountPetsByInsuranceID(_ context.Context, _, _ uint64) (int64, error) {
+func (m *mockInsuranceRepository) CountUsageByInsuranceID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 

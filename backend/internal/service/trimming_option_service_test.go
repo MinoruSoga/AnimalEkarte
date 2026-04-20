@@ -47,7 +47,7 @@ func (m *mockTrimmingOptionRepository) Reorder(_ context.Context, _ uint64, _ []
 	return m.reorderErr
 }
 
-func (m *mockTrimmingOptionRepository) CountRecordsByOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error) {
+func (m *mockTrimmingOptionRepository) CountUsageByOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error) {
 	if m.countRecordsByOptFn != nil {
 		return m.countRecordsByOptFn(ctx, clinicID, optionID)
 	}

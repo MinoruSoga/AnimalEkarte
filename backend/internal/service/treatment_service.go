@@ -109,10 +109,10 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		return nil, err
 	}
 	if input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 	if input.Quantity <= 0 {
-		return nil, apperrors.WrapInvalidInput("数量は0より大きい値を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgQuantityPositive)
 	}
 	if input.DiscountRate < 0 || input.DiscountRate > 100 {
 		return nil, apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
@@ -208,10 +208,10 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 		}
 	}
 	if input.Quantity != nil && *input.Quantity <= 0 {
-		return nil, apperrors.WrapInvalidInput("quantity must be greater than 0")
+		return nil, apperrors.WrapInvalidInput(ErrMsgQuantityPositive)
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 	if input.DiscountRate != nil && (*input.DiscountRate < 0 || *input.DiscountRate > 100) {
 		return nil, apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
@@ -219,7 +219,7 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 
 	fields := buildTreatmentUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
 	if err := s.repos.Treatment.Update(ctx, clinicID, treatmentID, fields); err != nil {

@@ -125,7 +125,7 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 }
 
 func (s *animalSpeciesService) Delete(ctx context.Context, id uint64) error {
-	count, err := s.petRepo.CountByAnimalSpeciesID(ctx, id)
+	count, err := s.petRepo.CountUsageByAnimalSpeciesID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check animal species dependencies")
 	}

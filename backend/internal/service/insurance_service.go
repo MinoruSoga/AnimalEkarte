@@ -123,6 +123,9 @@ func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *C
 	return insurance, nil
 }
 func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, input *UpdateInsuranceInput) (*model.Insurance, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return nil, apperrors.Wrap(err, "failed to get insurance")
 	}
@@ -147,7 +150,7 @@ func (s *insuranceService) Delete(ctx context.Context, clinicID, id uint64) erro
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to get insurance")
 	}
-	count, err := s.repo.CountPetsByInsuranceID(ctx, clinicID, id)
+	count, err := s.repo.CountUsageByInsuranceID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check insurance dependencies")
 	}

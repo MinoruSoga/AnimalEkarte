@@ -100,7 +100,7 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	}
 	// BUG-142: 金額バリデーション
 	if input.TotalAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上で指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 	if input.Subtotal+input.TaxTotal != input.TotalAmount {
 		return nil, apperrors.WrapInvalidInput("小計と税額の合計が請求合計と一致しません")
@@ -132,7 +132,7 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error) {
 	// BUG-142: 金額バリデーション
 	if input.TotalAmount != nil && *input.TotalAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("金額は0以上で指定してください")
+		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 	fields := buildAccountingUpdateFields(input)
 	if len(fields) == 0 && !hasPaymentFields(input) {

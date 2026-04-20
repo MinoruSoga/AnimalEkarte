@@ -132,7 +132,7 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 }
 
 func (s *permissionGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
-	count, err := s.repo.CountStaffsByGroupID(ctx, clinicID, id)
+	count, err := s.repo.CountUsageByGroupID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check permission group dependencies")
 	}
@@ -188,7 +188,7 @@ func validateNoDuplicateRules(rules []model.PermissionGroupRule) error {
 	seen := make(map[string]bool, len(rules))
 	for _, r := range rules {
 		if r.Resource == "" {
-			return apperrors.WrapInvalidInput("リソース名が空です")
+			return apperrors.WrapInvalidInput(ErrMsgResourceNameEmpty)
 		}
 		if !model.IsValidResource(r.Resource) {
 			return apperrors.WrapInvalidInput("無効なリソース名: " + r.Resource)

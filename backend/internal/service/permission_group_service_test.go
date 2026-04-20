@@ -45,7 +45,7 @@ func (m *mockPermissionGroupRepository) Delete(ctx context.Context, clinicID, id
 func (m *mockPermissionGroupRepository) SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
 	return m.setRulesFn(ctx, groupID, rules)
 }
-func (m *mockPermissionGroupRepository) CountStaffsByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
+func (m *mockPermissionGroupRepository) CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
 	return m.countStaffsByGroupIDFn(ctx, clinicID, groupID)
 }
 func (m *mockPermissionGroupRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
