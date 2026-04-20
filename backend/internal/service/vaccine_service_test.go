@@ -308,6 +308,12 @@ func TestVaccineService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccineRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccine, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.Vaccine{ID: 1, ClinicID: 1}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Vaccine, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr

@@ -294,6 +294,12 @@ func TestCheckupTypeService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCheckupTypeRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.CheckupType{ID: tt.id}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.CheckupType, error) {
 					return tt.repoData, tt.repoErr
 				},

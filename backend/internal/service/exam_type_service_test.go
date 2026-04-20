@@ -295,6 +295,12 @@ func TestExamTypeService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ExaminationType, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.ExaminationType{ID: 1}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ExaminationType, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr

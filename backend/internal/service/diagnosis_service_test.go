@@ -335,6 +335,12 @@ func TestDiagnosisTypeService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockDiagnosisTypeRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisType, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.DiagnosisType{ID: tt.id, ClinicID: testClinicID}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.DiagnosisType, error) {
 					return tt.fetchRes, tt.repoErr
 				},
