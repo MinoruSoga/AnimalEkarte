@@ -134,6 +134,9 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get cage")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}

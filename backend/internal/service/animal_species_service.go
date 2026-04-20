@@ -105,6 +105,9 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
+	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get animal species")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}

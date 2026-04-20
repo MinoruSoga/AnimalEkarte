@@ -125,6 +125,9 @@ func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, 
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis type")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
@@ -276,6 +279,9 @@ func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, inpu
 func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisNameInput) (*model.DiagnosisName, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get diagnosis name")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err

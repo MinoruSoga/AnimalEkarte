@@ -134,6 +134,9 @@ func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input 
 	return checkupType, nil
 }
 func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateCheckupTypeInput) (*model.CheckupType, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return nil, apperrors.Wrap(err, "failed to get checkup type")
 	}
