@@ -12,12 +12,13 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// CashRegisterService はレジ締めのビジネスロジックインターフェース
-type CashRegisterService interface {
-	GetPreview(ctx context.Context, clinicID uint64, date time.Time, period string) (*CashRegisterPreview, error)
-	Close(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error)
-	List(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
-	GetByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
+// CloseRegisterInput はレジ締め実行の入力
+type CloseRegisterInput struct {
+	Date       time.Time
+	Period     string
+	ActualCash int64
+	Memo       string
+	ClosedBy   *uint64
 }
 
 // CashRegisterPreview は締めプレビューのフロントエンド向けレスポンス
@@ -55,13 +56,12 @@ type CloseBillingDetail struct {
 	NetAmount         int64   `json:"net_amount"`
 }
 
-// CloseRegisterInput はレジ締め実行の入力
-type CloseRegisterInput struct {
-	Date       time.Time
-	Period     string
-	ActualCash int64
-	Memo       string
-	ClosedBy   *uint64
+// CashRegisterService はレジ締めのビジネスロジックインターフェース
+type CashRegisterService interface {
+	GetPreview(ctx context.Context, clinicID uint64, dateStr, period string) (*CashRegisterPreview, error)
+	Close(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error)
+	List(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 }
 
 // periodAggregate は集計処理の共通結果型
@@ -139,7 +139,17 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 	}, nil
 }
 
-func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, date time.Time, period string) (*CashRegisterPreview, error) {
+func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, dateStr, period string) (*CashRegisterPreview, error) {
+	if dateStr == "" {
+		return nil, apperrors.WrapInvalidInput("date クエリパラメータは必須です")
+	}
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("date は YYYY-MM-DD 形式で指定してください")
+	}
+	if period == "" {
+		return nil, apperrors.WrapInvalidInput("period クエリパラメータは必須です")
+	}
 	if err := validatePeriod(period); err != nil {
 		return nil, err
 	}
