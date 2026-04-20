@@ -29,6 +29,23 @@ type UpdateOccupationInput struct {
 	IsActive    *bool
 }
 
+func buildOccupationUpdateFields(input *UpdateOccupationInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields["name"] = *input.Name
+	}
+	if input.Description != nil {
+		fields["description"] = *input.Description
+	}
+	if input.SortOrder != nil {
+		fields["sort_order"] = *input.SortOrder
+	}
+	if input.IsActive != nil {
+		fields["is_active"] = *input.IsActive
+	}
+	return fields
+}
+
 type OccupationService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
@@ -131,28 +148,4 @@ func (s *occupationService) Reorder(ctx context.Context, clinicID uint64, ids []
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
 	return nil
-}
-
-const (
-	colOccupationName        = "name"
-	colOccupationDescription = "description"
-	colOccupationSortOrder   = "sort_order"
-	colOccupationIsActive    = "is_active"
-)
-
-func buildOccupationUpdateFields(input *UpdateOccupationInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colOccupationName] = *input.Name
-	}
-	if input.Description != nil {
-		fields[colOccupationDescription] = *input.Description
-	}
-	if input.SortOrder != nil {
-		fields[colOccupationSortOrder] = *input.SortOrder
-	}
-	if input.IsActive != nil {
-		fields[colOccupationIsActive] = *input.IsActive
-	}
-	return fields
 }

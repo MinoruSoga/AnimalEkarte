@@ -120,6 +120,7 @@ func (r *diagnosisTypeRepository) Reorder(ctx context.Context, clinicID uint64, 
 type DiagnosisNameRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
 	FindByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	FindAllActive(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, name *model.DiagnosisName) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
@@ -170,6 +171,20 @@ func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID
 		return nil, 0, apperrors.FromGORM(err, "diagnosis_name", "")
 	}
 	return names, total, nil
+}
+
+// FindAllActive はページネーションなしで全件取得する（#418: ListNames 用）。
+// typeID が非 nil の場合は該当カテゴリのみ、nil の場合はクリニック全件を返す。
+func (r *diagnosisNameRepository) FindAllActive(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
+	q := r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(clinicScope(clinicID))
+	if typeID != nil {
+		q = q.Where("diagnosis_type_id = ?", *typeID)
+	}
+	names := make([]model.DiagnosisName, 0)
+	if err := q.Order("sort_order ASC, name ASC").Find(&names).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "diagnosis_name", "")
+	}
+	return names, nil
 }
 
 func (r *diagnosisNameRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {

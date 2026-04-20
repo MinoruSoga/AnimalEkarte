@@ -106,6 +106,10 @@ func (m *mockDiagnosisNameRepository) CountClinicalPlansByDiagnosisNameID(_ cont
 	return 0, nil
 }
 
+func (m *mockDiagnosisNameRepository) FindAllActive(_ context.Context, _ uint64, _ *uint64) ([]model.DiagnosisName, error) {
+	return nil, nil
+}
+
 // newCategoryService はテスト用ヘルパー
 func newCategoryService(repo *mockDiagnosisTypeRepository) DiagnosisTypeService {
 	return NewDiagnosisTypeService(repo)

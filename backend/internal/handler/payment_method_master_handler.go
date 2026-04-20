@@ -11,21 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// ---- request types ----
-
-type createPaymentMethodRequest struct {
-	Name         string `json:"name"          binding:"required"`
-	DisplayOrder int    `json:"display_order"`
-}
-
-type updatePaymentMethodRequest struct {
-	Name         *string `json:"name"`
-	DisplayOrder *int    `json:"display_order"`
-	IsActive     *bool   `json:"is_active"`
-}
-
-// ---- handlers ----
-
 // ListPaymentMethods godoc
 // GET /v1/payment-methods
 func (h *Handler) ListPaymentMethods(c *gin.Context) {
@@ -38,7 +23,7 @@ func (h *Handler) ListPaymentMethods(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, ms)
+	c.JSON(http.StatusOK, mapSlice(ms, toPaymentMethodResponse))
 }
 
 // CreatePaymentMethod godoc
@@ -53,7 +38,7 @@ func (h *Handler) CreatePaymentMethod(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	m, err := h.svc.PaymentMethodMaster.Create(c.Request.Context(), clinicID, service.CreatePaymentMethodInput{
+	m, err := h.svc.PaymentMethodMaster.Create(c.Request.Context(), clinicID, &service.CreatePaymentMethodInput{
 		Name:         req.Name,
 		DisplayOrder: req.DisplayOrder,
 	})
@@ -62,7 +47,7 @@ func (h *Handler) CreatePaymentMethod(c *gin.Context) {
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/payment-methods/%d", m.ID))
-	c.JSON(http.StatusCreated, m)
+	c.JSON(http.StatusCreated, toPaymentMethodResponse(m))
 }
 
 // UpdatePaymentMethod godoc
@@ -81,7 +66,7 @@ func (h *Handler) UpdatePaymentMethod(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	m, err := h.svc.PaymentMethodMaster.Update(c.Request.Context(), clinicID, id, service.UpdatePaymentMethodInput{
+	m, err := h.svc.PaymentMethodMaster.Update(c.Request.Context(), clinicID, id, &service.UpdatePaymentMethodInput{
 		Name:         req.Name,
 		DisplayOrder: req.DisplayOrder,
 		IsActive:     req.IsActive,
@@ -90,7 +75,26 @@ func (h *Handler) UpdatePaymentMethod(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, m)
+	c.JSON(http.StatusOK, toPaymentMethodResponse(m))
+}
+
+// ReorderPaymentMethods godoc
+// PATCH /v1/payment-methods/reorder
+func (h *Handler) ReorderPaymentMethods(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	if err := h.svc.PaymentMethodMaster.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 // DeletePaymentMethod godoc
@@ -114,8 +118,9 @@ func (h *Handler) DeletePaymentMethod(c *gin.Context) {
 // RegisterPaymentMethodMasterRoutes は支払方法マスタ関連のルートを登録する
 func (h *Handler) RegisterPaymentMethodMasterRoutes(rg *gin.RouterGroup) {
 	pm := rg.Group("/payment-methods")
-	pm.GET("", h.RequirePermission(string(model.ResourceClosingSettings), "view"), h.ListPaymentMethods)
-	pm.POST("", h.RequirePermission(string(model.ResourceClosingSettings), "edit"), h.CreatePaymentMethod)
-	pm.PATCH("/:id", h.RequirePermission(string(model.ResourceClosingSettings), "edit"), h.UpdatePaymentMethod)
-	pm.DELETE("/:id", h.RequirePermission(string(model.ResourceClosingSettings), "edit"), h.DeletePaymentMethod)
+	pm.GET("", h.RequirePermission(string(model.ResourcePaymentMethod), "view"), h.ListPaymentMethods)
+	pm.POST("", h.RequirePermission(string(model.ResourcePaymentMethod), "edit"), h.CreatePaymentMethod)
+	pm.PATCH("/reorder", h.RequirePermission(string(model.ResourcePaymentMethod), "edit"), h.ReorderPaymentMethods)
+	pm.PATCH("/:id", h.RequirePermission(string(model.ResourcePaymentMethod), "edit"), h.UpdatePaymentMethod)
+	pm.DELETE("/:id", h.RequirePermission(string(model.ResourcePaymentMethod), "edit"), h.DeletePaymentMethod)
 }
