@@ -10,12 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// LineReservationSettingService は予約基本設定のビジネスロジックインターフェース
-type LineReservationSettingService interface {
-	Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
-	Upsert(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, error)
-}
-
 // UpsertLineReservationSettingInput は予約設定 upsert のための入力データ
 type UpsertLineReservationSettingInput struct {
 	Status                  string
@@ -46,6 +40,12 @@ type UpsertLineReservationSettingInput struct {
 	LineChannelSecret       string
 	LiffID                  string
 	LineAccessToken         string
+}
+
+// LineReservationSettingService は予約基本設定のビジネスロジックインターフェース
+type LineReservationSettingService interface {
+	Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	Upsert(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, error)
 }
 
 type lineReservationSettingService struct {

@@ -10,13 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ReservationScheduleService はスタッフスケジュールのビジネスロジックインターフェース
-type ReservationScheduleService interface {
-	ListByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]ScheduleEntry, error)
-	Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *UpsertScheduleInput) (*ScheduleEntry, error)
-	Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error
-}
-
 // BreakInput は休憩時間の入力データ
 type BreakInput struct {
 	Start string
@@ -35,6 +28,13 @@ type UpsertScheduleInput struct {
 type ScheduleEntry struct {
 	Entry  model.ShiftEntry
 	Breaks []model.ShiftEntryBreak
+}
+
+// ReservationScheduleService はスタッフスケジュールのビジネスロジックインターフェース
+type ReservationScheduleService interface {
+	ListByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]ScheduleEntry, error)
+	Upsert(ctx context.Context, clinicID, staffID uint64, date time.Time, input *UpsertScheduleInput) (*ScheduleEntry, error)
+	Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
 type reservationScheduleService struct {

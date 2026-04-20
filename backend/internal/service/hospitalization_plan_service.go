@@ -141,6 +141,19 @@ func (s *hospitalizationPlanService) Reorder(ctx context.Context, clinicID uint6
 	return nil
 }
 
+// UpdateHospitalizationPlanInput は入院プラン更新のサービス入力 DTO
+type UpdateHospitalizationPlanInput struct {
+	Name        *string
+	Price       *int64
+	IsActive    *bool
+	Description *string
+	BodySize    *string
+	BillingUnit *string
+	SortOrder   *int
+	TaxType     *string
+	TaxRate     *float64
+}
+
 // --- DB column constants ---
 
 const (
@@ -154,19 +167,6 @@ const (
 	colHospitalizationPlanTaxType     = "tax_type"
 	colHospitalizationPlanTaxRate     = "tax_rate"
 )
-
-// UpdateHospitalizationPlanInput は入院プラン更新のサービス入力 DTO
-type UpdateHospitalizationPlanInput struct {
-	Name        *string
-	Price       *int64
-	IsActive    *bool
-	Description *string
-	BodySize    *string
-	BillingUnit *string
-	SortOrder   *int
-	TaxType     *string
-	TaxRate     *float64
-}
 
 func buildHospitalizationPlanUpdateFields(input UpdateHospitalizationPlanInput) map[string]any {
 	fields := make(map[string]any)

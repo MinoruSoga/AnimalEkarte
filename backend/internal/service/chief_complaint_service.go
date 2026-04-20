@@ -29,6 +29,32 @@ type UpdateChiefComplaintTypeInput struct {
 	IsActive    *bool
 }
 
+// --- DB column constants ---
+
+const (
+	colChiefComplaintTypeName        = "name"
+	colChiefComplaintTypeDescription = "description"
+	colChiefComplaintTypeSortOrder   = "sort_order"
+	colChiefComplaintTypeIsActive    = "is_active"
+)
+
+func buildChiefComplaintTypeUpdateFields(input *UpdateChiefComplaintTypeInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colChiefComplaintTypeName] = *input.Name
+	}
+	if input.Description != nil {
+		fields[colChiefComplaintTypeDescription] = *input.Description
+	}
+	if input.SortOrder != nil {
+		fields[colChiefComplaintTypeSortOrder] = *input.SortOrder
+	}
+	if input.IsActive != nil {
+		fields[colChiefComplaintTypeIsActive] = *input.IsActive
+	}
+	return fields
+}
+
 type ChiefComplaintTypeService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
@@ -132,30 +158,4 @@ func (s *chiefComplaintTypeService) Delete(ctx context.Context, clinicID, id uin
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("chief_complaint_type_id", id))
 	return nil
-}
-
-// --- DB column constants ---
-
-const (
-	colChiefComplaintTypeName        = "name"
-	colChiefComplaintTypeDescription = "description"
-	colChiefComplaintTypeSortOrder   = "sort_order"
-	colChiefComplaintTypeIsActive    = "is_active"
-)
-
-func buildChiefComplaintTypeUpdateFields(input *UpdateChiefComplaintTypeInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colChiefComplaintTypeName] = *input.Name
-	}
-	if input.Description != nil {
-		fields[colChiefComplaintTypeDescription] = *input.Description
-	}
-	if input.SortOrder != nil {
-		fields[colChiefComplaintTypeSortOrder] = *input.SortOrder
-	}
-	if input.IsActive != nil {
-		fields[colChiefComplaintTypeIsActive] = *input.IsActive
-	}
-	return fields
 }

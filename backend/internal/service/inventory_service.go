@@ -24,6 +24,55 @@ type CreateInventoryInput struct {
 	Status        string
 }
 
+// UpdateInventoryInput は在庫アイテム更新のサービス入力 DTO
+type UpdateInventoryInput struct {
+	Name          *string
+	Category      *model.InventoryCategory
+	Quantity      *int
+	Unit          *string
+	MinStockLevel *int
+	Location      *string
+	ExpiryDate    *time.Time
+	Supplier      *string
+	LastRestocked *time.Time
+	Status        *model.InventoryStatus
+}
+
+func buildInventoryUpdateFields(input *UpdateInventoryInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields["name"] = *input.Name
+	}
+	if input.Category != nil {
+		fields["category"] = *input.Category
+	}
+	if input.Quantity != nil {
+		fields["quantity"] = *input.Quantity
+	}
+	if input.Unit != nil {
+		fields["unit"] = *input.Unit
+	}
+	if input.MinStockLevel != nil {
+		fields["min_stock_level"] = *input.MinStockLevel
+	}
+	if input.Location != nil {
+		fields["location"] = *input.Location
+	}
+	if input.ExpiryDate != nil {
+		fields["expiry_date"] = *input.ExpiryDate
+	}
+	if input.Supplier != nil {
+		fields["supplier"] = *input.Supplier
+	}
+	if input.LastRestocked != nil {
+		fields["last_restocked"] = *input.LastRestocked
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	return fields
+}
+
 type InventoryService interface {
 	List(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
@@ -110,53 +159,4 @@ func (s *inventoryService) Delete(ctx context.Context, clinicID, id uint64) erro
 	}
 	slog.InfoContext(ctx, "inventory item deleted", slog.Uint64("inventory_id", id), slog.Uint64("clinic_id", clinicID))
 	return nil
-}
-
-// UpdateInventoryInput は在庫アイテム更新のサービス入力 DTO
-type UpdateInventoryInput struct {
-	Name          *string
-	Category      *model.InventoryCategory
-	Quantity      *int
-	Unit          *string
-	MinStockLevel *int
-	Location      *string
-	ExpiryDate    *time.Time
-	Supplier      *string
-	LastRestocked *time.Time
-	Status        *model.InventoryStatus
-}
-
-func buildInventoryUpdateFields(input *UpdateInventoryInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields["name"] = *input.Name
-	}
-	if input.Category != nil {
-		fields["category"] = *input.Category
-	}
-	if input.Quantity != nil {
-		fields["quantity"] = *input.Quantity
-	}
-	if input.Unit != nil {
-		fields["unit"] = *input.Unit
-	}
-	if input.MinStockLevel != nil {
-		fields["min_stock_level"] = *input.MinStockLevel
-	}
-	if input.Location != nil {
-		fields["location"] = *input.Location
-	}
-	if input.ExpiryDate != nil {
-		fields["expiry_date"] = *input.ExpiryDate
-	}
-	if input.Supplier != nil {
-		fields["supplier"] = *input.Supplier
-	}
-	if input.LastRestocked != nil {
-		fields["last_restocked"] = *input.LastRestocked
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	return fields
 }

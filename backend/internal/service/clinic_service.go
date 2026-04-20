@@ -42,7 +42,8 @@ type UpdateClinicInput struct {
 
 // buildClinicUpdateFields は PATCH 用 map を構築する。
 // GORM のゼロ値スキップ問題を回避するために使用する。
-func buildClinicUpdateFields(input *UpdateClinicInput) map[string]any {
+// 税率が [0, 1] の範囲外の場合は error を返す。
+func buildClinicUpdateFields(input *UpdateClinicInput) (map[string]any, error) {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields["name"] = *input.Name
@@ -79,17 +80,19 @@ func buildClinicUpdateFields(input *UpdateClinicInput) map[string]any {
 	}
 	if input.StandardTaxRate != nil {
 		r := *input.StandardTaxRate
-		if r >= 0 && r <= 1 {
-			fields["standard_tax_rate"] = r
+		if r < 0 || r > 1 {
+			return nil, apperrors.WrapInvalidInput("standard_tax_rate must be between 0 and 1")
 		}
+		fields["standard_tax_rate"] = r
 	}
 	if input.ReducedTaxRate != nil {
 		r := *input.ReducedTaxRate
-		if r >= 0 && r <= 1 {
-			fields["reduced_tax_rate"] = r
+		if r < 0 || r > 1 {
+			return nil, apperrors.WrapInvalidInput("reduced_tax_rate must be between 0 and 1")
 		}
+		fields["reduced_tax_rate"] = r
 	}
-	return fields
+	return fields, nil
 }
 
 type ClinicService interface {
@@ -165,7 +168,10 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
 		return nil, apperrors.Wrap(err, "failed to find clinic for update")
 	}
-	fields := buildClinicUpdateFields(input)
+	fields, err := buildClinicUpdateFields(input)
+	if err != nil {
+		return nil, err
+	}
 	if len(fields) == 0 {
 		clinic, err := s.repo.FindByID(ctx, id)
 		if err != nil {
