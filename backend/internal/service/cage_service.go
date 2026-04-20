@@ -131,6 +131,12 @@ func (s *cageService) Create(ctx context.Context, clinicID uint64, input *Create
 	return cage, nil
 }
 func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *UpdateCageInput) (*model.Cage, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get cage")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}

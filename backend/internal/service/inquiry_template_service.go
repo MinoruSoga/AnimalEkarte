@@ -114,6 +114,12 @@ func (s *inquiryTemplateService) Create(ctx context.Context, clinicID uint64, in
 }
 
 func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateInquiryTemplateInput) (*model.InquiryTemplate, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get inquiry template")
+	}
 	if err := validateOptionalName(input.Title); err != nil {
 		return nil, err
 	}

@@ -118,6 +118,9 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 	return exType, nil
 }
 func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateExamTypeInput) (*model.ExaminationType, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return nil, apperrors.Wrap(err, "failed to get exam type")
 	}
