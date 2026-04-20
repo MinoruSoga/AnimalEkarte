@@ -402,3 +402,11 @@ func TestTrimmingCourseService_Reorder(t *testing.T) {
 		})
 	}
 }
+
+func TestTrimmingCourseService_Update_NilInput(t *testing.T) {
+	repo := &mockTrimmingCourseRepository{}
+	svc := NewTrimmingCourseService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}

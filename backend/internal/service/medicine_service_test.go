@@ -339,7 +339,7 @@ func uint64Ptr(v uint64) *uint64 { return &v }
 
 func TestMedicineService_Update_NilInput(t *testing.T) {
 	repo := &mockMedicineRepository{}
-	svc := NewMedicineService(repo)
+	svc := NewMedicineService(repo, &mockInventoryRepository{}, &mockTransactor{})
 	result, err := svc.Update(context.Background(), 1, 1, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)

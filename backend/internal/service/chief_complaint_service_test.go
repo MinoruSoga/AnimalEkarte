@@ -14,12 +14,12 @@ import (
 // ---- ChiefComplaintType モック ----
 
 type mockChiefComplaintTypeRepository struct {
-	findAllFn                      func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)
-	findByIDFn                     func(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
+	findAllFn                        func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error)
+	findByIDFn                       func(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
 	countUsageByChiefComplaintTypeFn func(ctx context.Context, clinicID, id uint64) (int64, error)
-	createFn                       func(ctx context.Context, category *model.ChiefComplaintType) error
-	updateFieldsFn                 func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error)
-	deleteFn                       func(ctx context.Context, clinicID, id uint64) error
+	createFn                         func(ctx context.Context, category *model.ChiefComplaintType) error
+	updateFieldsFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error)
+	deleteFn                         func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockChiefComplaintTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
@@ -314,8 +314,7 @@ func TestChiefComplaintTypeService_Update(t *testing.T) {
 
 func TestChiefComplaintTypeService_Update_NilInput(t *testing.T) {
 	repo := &mockChiefComplaintTypeRepository{}
-	inquiryRepo := &mockInquiryRepository{}
-	svc := NewChiefComplaintTypeService(repo, inquiryRepo)
+	svc := NewChiefComplaintTypeService(repo)
 	result, err := svc.Update(context.Background(), 1, 1, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)

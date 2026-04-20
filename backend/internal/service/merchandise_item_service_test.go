@@ -30,7 +30,10 @@ func (m *mockMerchandiseItemRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (m *mockMerchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.MerchandiseItem{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockMerchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error) {
