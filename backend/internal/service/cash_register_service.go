@@ -233,8 +233,8 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 
 	cashDifference := input.ActualCash - agg.TheoreticalCash
 
-	// category_breakdown JSONB を構築
-	breakdownSchema := buildCategoryBreakdown(agg.AggregateRows)
+	// category_breakdown JSONB を構築（消費税内訳を含む）
+	breakdownSchema := buildCategoryBreakdown(agg.AggregateRows, agg.TaxBreakdown)
 	breakdownJSON, err := json.Marshal(breakdownSchema)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to marshal category breakdown")
@@ -326,7 +326,7 @@ func calcTheoreticalCash(rows []repository.BillingAggregateRow) int64 {
 }
 
 // buildCategoryBreakdown は集計行から CategoryBreakdownSchema を構築する
-func buildCategoryBreakdown(rows []repository.BillingAggregateRow) model.CategoryBreakdownSchema {
+func buildCategoryBreakdown(rows []repository.BillingAggregateRow, taxRows []repository.TaxBreakdownRow) model.CategoryBreakdownSchema {
 	cats := make(map[string]map[string]int64)
 	for _, r := range rows {
 		if cats[r.Category] == nil {
@@ -338,7 +338,12 @@ func buildCategoryBreakdown(rows []repository.BillingAggregateRow) model.Categor
 		}
 		cats[r.Category][key] += r.NetAmount
 	}
+	tax := buildTaxBreakdown(taxRows)
 	return model.CategoryBreakdownSchema{
 		Categories: cats,
+		TaxBreakdown: model.TaxBreakdown{
+			Standard: model.TaxBreakdownItem{TaxableAmount: tax.Standard.TaxableAmount, TaxAmount: tax.Standard.TaxAmount},
+			Reduced:  model.TaxBreakdownItem{TaxableAmount: tax.Reduced.TaxableAmount, TaxAmount: tax.Reduced.TaxAmount},
+		},
 	}
 }

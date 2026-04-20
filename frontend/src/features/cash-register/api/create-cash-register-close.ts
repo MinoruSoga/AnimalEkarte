@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import type { CashRegisterClose } from "@/types/generated/models";
 
 export interface CreateCashRegisterCloseRequest {
-  close_date: string;
+  date: string;
   period: "am" | "pm";
   actual_cash: number;
   memo?: string;

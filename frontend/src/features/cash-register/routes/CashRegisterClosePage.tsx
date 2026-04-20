@@ -48,7 +48,7 @@ export function CashRegisterClosePage() {
     if (!pendingFormData) return;
     try {
       await createMutation.mutateAsync({
-        close_date: pendingFormData.get("close_date") as string,
+        date: pendingFormData.get("close_date") as string,
         period: pendingFormData.get("period") as "am" | "pm",
         actual_cash: Number(pendingFormData.get("actual_cash")),
         memo: (pendingFormData.get("memo") as string) || undefined,
