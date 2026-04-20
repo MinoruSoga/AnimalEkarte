@@ -432,11 +432,11 @@ func validateUnavailableTimeInput(input CreateUnavailableTimeInput) error {
 			return apperrors.WrapInvalidInput("曜日の指定は必須です")
 		}
 		if *input.DayOfWeek < 0 || *input.DayOfWeek > 6 {
-			return apperrors.WrapInvalidInput("day_of_week must be between 0 (Sun) and 6 (Sat)")
+			return apperrors.WrapInvalidInput("day_of_week は 0（日曜）から 6（土曜）の範囲で指定してください")
 		}
 	case string(model.UnavailableTypeSpecific):
 		if input.SpecificDate == nil {
-			return apperrors.WrapInvalidInput("specific_date is required for specific type")
+			return apperrors.WrapInvalidInput("specific タイプでは specific_date の指定は必須です")
 		}
 	default:
 		return apperrors.WrapInvalidInput(fmt.Sprintf("不正な予約不可時間種別です: %s", input.UnavailableType))

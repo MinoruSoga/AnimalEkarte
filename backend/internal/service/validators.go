@@ -40,7 +40,7 @@ func validatePetGender(gender string) error {
 	case model.PetGenderMale, model.PetGenderFemale, model.PetGenderUnknown:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid gender: %s", gender))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("性別の値が不正です: %s", gender))
 	}
 }
 
@@ -53,7 +53,7 @@ func validatePetStatus(status string) error {
 	case model.PetStatusAlive, model.PetStatusDeceased:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid status: %s", status))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("ステータスの値が不正です: %s", status))
 	}
 }
 
@@ -67,7 +67,7 @@ func validatePetAcquisitionType(t string) error {
 		model.AcquisitionTypeProtected, model.AcquisitionTypeOther:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid acquisition_type: %s", t))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("入手経路の値が不正です: %s", t))
 	}
 }
 
@@ -80,7 +80,7 @@ func validatePetDangerLevel(level string) error {
 	case model.DangerLevelLow, model.DangerLevelMedium, model.DangerLevelHigh:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid danger_level: %s", level))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("危険度の値が不正です: %s", level))
 	}
 }
 
@@ -132,7 +132,7 @@ func validateMedicalImageType(t string) error {
 		model.MedicalImageTypeMicroscope, model.MedicalImageTypeOther:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid image_type: %s", t))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("画像種別の値が不正です: %s", t))
 	}
 }
 
@@ -146,7 +146,7 @@ func validateMembershipType(t model.MembershipType) error {
 		model.MembershipTypeDeceased, model.MembershipTypeTransferred:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid membership_type: %s", t))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("会員種別の値が不正です: %s", t))
 	}
 }
 
@@ -194,7 +194,7 @@ func validateVaccineSpecies(species string) error {
 	case model.VaccineSpeciesDog, model.VaccineSpeciesCat, model.VaccineSpeciesBoth:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid vaccine species: %s", species))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("ワクチン対象種別の値が不正です: %s", species))
 	}
 }
 
@@ -208,7 +208,7 @@ func validateAnesthesiaType(anesthesia string) error {
 		model.AnesthesiaTypeSedation, model.AnesthesiaTypeGeneral:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid anesthesia_type: %s", anesthesia))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("麻酔種別の値が不正です: %s", anesthesia))
 	}
 }
 
@@ -221,7 +221,7 @@ func validateTaxType(taxType string) error {
 	case model.TaxTypeIncluded, model.TaxTypeExcluded, model.TaxTypeExempt:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid tax_type: %s", taxType))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("税種別の値が不正です: %s", taxType))
 	}
 }
 
@@ -233,7 +233,7 @@ func validateItemCategory(v string) error {
 		model.ItemCategoryGoods, model.ItemCategoryOther:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid category: %s", v))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("明細カテゴリの値が不正です: %s", v))
 	}
 }
 
@@ -243,7 +243,7 @@ func validateItemSource(v string) error {
 	case model.ItemSourceMedicalRecord, model.ItemSourceManual, model.ItemSourceHospitalization:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid source: %s", v))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("明細ソースの値が不正です: %s", v))
 	}
 }
 
@@ -256,7 +256,7 @@ func validateCageType(cageType string) error {
 	case model.CageTypeICU, model.CageTypeDog, model.CageTypeCat, model.CageTypeGeneral:
 		return nil
 	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid cage_type: %s", cageType))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("ケージ種別の値が不正です: %s", cageType))
 	}
 }
 

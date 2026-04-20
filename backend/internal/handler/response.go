@@ -179,7 +179,7 @@ func parseDateQuery(c *gin.Context, key string) (*string, error) {
 		return nil, nil
 	}
 	if _, err := time.Parse("2006-01-02", s); err != nil {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s must be YYYY-MM-DD format", key))
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s は YYYY-MM-DD 形式で入力してください", key))
 	}
 	return &s, nil
 }
@@ -259,12 +259,12 @@ func parsePagination(c *gin.Context) (page, limit int, err error) {
 
 	page, err = strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
-		return 0, 0, apperrors.WrapInvalidInput("page must be a positive integer")
+		return 0, 0, apperrors.WrapInvalidInput("page は1以上の整数で指定してください")
 	}
 
 	limit, err = strconv.Atoi(limitStr)
 	if err != nil || limit < 1 || limit > 100 {
-		return 0, 0, apperrors.WrapInvalidInput("limit must be between 1 and 100")
+		return 0, 0, apperrors.WrapInvalidInput("limit は1〜100の範囲で指定してください")
 	}
 
 	return page, limit, nil
@@ -276,12 +276,12 @@ func parsePagination(c *gin.Context) (page, limit int, err error) {
 func parseIDParam(c *gin.Context, key string) (uint64, bool) {
 	s := c.Param(key)
 	if s == "" {
-		RespondError(c, apperrors.WrapInvalidInput("missing "+key))
+		RespondError(c, apperrors.WrapInvalidInput("パラメータが不足しています: "+key))
 		return 0, false
 	}
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid "+key))
+		RespondError(c, apperrors.WrapInvalidInput("パラメータの形式が不正です: "+key))
 		return 0, false
 	}
 	if id == 0 {
