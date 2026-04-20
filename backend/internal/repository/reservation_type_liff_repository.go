@@ -77,6 +77,8 @@ func (r *reservationTypeLiffRepository) UpdateFields(ctx context.Context, clinic
 func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.ReservationType{})
 	if result.Error != nil {
+		// service 層で ExistsByReservationTypeID による先行チェック済みのため通常は発生しない。
+		// race condition 時のフォールバックとして FK 制約エラーを Conflict に変換する。
 		if isFKConstraintErr(result.Error) {
 			return apperrors.WrapConflict("このコースは予約に使用されているため削除できません")
 		}
@@ -114,10 +116,10 @@ func (r *reservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clini
 		targetOrder := target.SortOrder
 		neighborOrder := neighbor.SortOrder
 
-		if err := tx.Model(&model.ReservationType{}).Where("id = ?", target.ID).Update("sort_order", neighborOrder).Error; err != nil {
+		if err := tx.Model(&model.ReservationType{}).Scopes(clinicScope(clinicID)).Where("id = ?", target.ID).Update("sort_order", neighborOrder).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", target.ID))
 		}
-		if err := tx.Model(&model.ReservationType{}).Where("id = ?", neighbor.ID).Update("sort_order", targetOrder).Error; err != nil {
+		if err := tx.Model(&model.ReservationType{}).Scopes(clinicScope(clinicID)).Where("id = ?", neighbor.ID).Update("sort_order", targetOrder).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", neighbor.ID))
 		}
 		return nil
