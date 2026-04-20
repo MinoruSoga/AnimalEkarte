@@ -102,6 +102,9 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 }
 
 func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
