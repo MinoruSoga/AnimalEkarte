@@ -302,22 +302,24 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 }
 
 func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
-	start := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
+	startTime := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
+	startStr := "2026-05-01"
+	endStr := "2026-05-05"
 
 	created := &model.ClosingSpecialPeriod{
 		ID:           1,
 		ClinicID:     1,
-		StartDate:    start,
-		EndDate:      end,
+		StartDate:    startTime,
+		EndDate:      endTime,
 		AmPmBoundary: "13:00",
 		PmEnd:        "17:00",
 		Note:         "GW",
 	}
 
 	validInput := CreateSpecialPeriodInput{
-		StartDate:    start,
-		EndDate:      end,
+		StartDate:    startStr,
+		EndDate:      endStr,
 		AmPmBoundary: "13:00",
 		PmEnd:        "17:00",
 		Note:         "GW",
@@ -355,8 +357,8 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 		{
 			name: "エラー: 開始日が終了日より後 → ErrInvalidInput",
 			input: CreateSpecialPeriodInput{
-				StartDate:    end,
-				EndDate:      start, // 逆転
+				StartDate:    endStr,
+				EndDate:      startStr, // 逆転
 				AmPmBoundary: "13:00",
 				PmEnd:        "17:00",
 			},
@@ -366,8 +368,8 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 		{
 			name: "エラー: 時刻バリデーション不正（boundary >= pmEnd） → ErrInvalidInput",
 			input: CreateSpecialPeriodInput{
-				StartDate:    start,
-				EndDate:      end,
+				StartDate:    startStr,
+				EndDate:      endStr,
 				AmPmBoundary: "18:00",
 				PmEnd:        "14:00",
 			},

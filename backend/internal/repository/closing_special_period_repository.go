@@ -37,7 +37,7 @@ func (r *closingSpecialPeriodRepository) FindAll(ctx context.Context, clinicID u
 		Order("start_date ASC").
 		Find(&periods).Error
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to find closing special periods")
+		return nil, apperrors.FromGORM(err, "closing_special_period", "")
 	}
 	return periods, nil
 }

@@ -45,8 +45,8 @@ type UpdateClinicSettingsInput struct {
 
 // CreateSpecialPeriodInput は特別期間作成の入力
 type CreateSpecialPeriodInput struct {
-	StartDate    time.Time
-	EndDate      time.Time
+	StartDate    string // YYYY-MM-DD
+	EndDate      string // YYYY-MM-DD
 	AmPmBoundary string
 	PmEnd        string
 	Note         string
@@ -54,8 +54,8 @@ type CreateSpecialPeriodInput struct {
 
 // UpdateSpecialPeriodInput は特別期間更新の入力
 type UpdateSpecialPeriodInput struct {
-	StartDate    *time.Time
-	EndDate      *time.Time
+	StartDate    *string // YYYY-MM-DD
+	EndDate      *string // YYYY-MM-DD
 	AmPmBoundary *string
 	PmEnd        *string
 	Note         *string
@@ -126,13 +126,21 @@ func (s *closingSettingsService) UpdateStandard(ctx context.Context, clinicID ui
 }
 
 func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinicID uint64, input CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
+	startDate, err := time.Parse("2006-01-02", input.StartDate)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
+	}
+	endDate, err := time.Parse("2006-01-02", input.EndDate)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
+	}
 	if err := validateSpecialPeriodTimes(input.AmPmBoundary, input.PmEnd); err != nil {
 		return nil, err
 	}
-	if input.StartDate.After(input.EndDate) {
+	if startDate.After(endDate) {
 		return nil, apperrors.WrapInvalidInput("開始日は終了日以前に設定してください")
 	}
-	overlap, err := s.periodRepo.HasOverlap(ctx, clinicID, input.StartDate, input.EndDate, nil)
+	overlap, err := s.periodRepo.HasOverlap(ctx, clinicID, startDate, endDate, nil)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to check period overlap")
 	}
@@ -141,12 +149,12 @@ func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinic
 	}
 	slog.InfoContext(ctx, "creating closing special period",
 		slog.Uint64("clinic_id", clinicID),
-		slog.String("start_date", input.StartDate.Format("2006-01-02")),
-		slog.String("end_date", input.EndDate.Format("2006-01-02")))
+		slog.String("start_date", input.StartDate),
+		slog.String("end_date", input.EndDate))
 	p := &model.ClosingSpecialPeriod{
 		ClinicID:     clinicID,
-		StartDate:    input.StartDate,
-		EndDate:      input.EndDate,
+		StartDate:    startDate,
+		EndDate:      endDate,
 		AmPmBoundary: input.AmPmBoundary,
 		PmEnd:        input.PmEnd,
 		Note:         input.Note,
@@ -176,11 +184,22 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 	// 期間バリデーション（変更がある場合のみ）
 	startDate := current.StartDate
 	endDate := current.EndDate
+	var parsedStart, parsedEnd *time.Time
 	if input.StartDate != nil {
-		startDate = *input.StartDate
+		t, err := time.Parse("2006-01-02", *input.StartDate)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
+		}
+		parsedStart = &t
+		startDate = t
 	}
 	if input.EndDate != nil {
-		endDate = *input.EndDate
+		t, err := time.Parse("2006-01-02", *input.EndDate)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
+		}
+		parsedEnd = &t
+		endDate = t
 	}
 	if startDate.After(endDate) {
 		return nil, apperrors.WrapInvalidInput("開始日は終了日以前に設定してください")
@@ -195,7 +214,7 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 		return nil, apperrors.WrapConflict("期間が他の特別期間と重複しています")
 	}
 
-	fields := buildSpecialPeriodUpdateFields(input)
+	fields := buildSpecialPeriodUpdateFields(input, parsedStart, parsedEnd)
 	if len(fields) == 0 {
 		return current, nil
 	}
@@ -266,13 +285,13 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 	}, nil
 }
 
-func buildSpecialPeriodUpdateFields(input UpdateSpecialPeriodInput) map[string]any {
+func buildSpecialPeriodUpdateFields(input UpdateSpecialPeriodInput, parsedStart, parsedEnd *time.Time) map[string]any {
 	fields := make(map[string]any)
-	if input.StartDate != nil {
-		fields["start_date"] = *input.StartDate
+	if parsedStart != nil {
+		fields["start_date"] = *parsedStart
 	}
-	if input.EndDate != nil {
-		fields["end_date"] = *input.EndDate
+	if parsedEnd != nil {
+		fields["end_date"] = *parsedEnd
 	}
 	if input.AmPmBoundary != nil {
 		fields["am_pm_boundary"] = *input.AmPmBoundary

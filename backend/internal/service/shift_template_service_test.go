@@ -136,10 +136,10 @@ func TestShiftTemplateService_Create(t *testing.T) {
 			name: "正常: 通常シフト(morning)で startTime/endTime あり → repo.Create が呼ばれる",
 			input: &CreateShiftTemplateInput{
 				Name:      "早番",
-				ShiftType: model.ShiftTypeMorning,
-				StartTime: strPtr("08:00"),
-				EndTime:   strPtr("13:00"),
-				IsActive:  true,
+				ShiftType: string(model.ShiftTypeMorning),
+				StartTime: "08:00",
+				EndTime:   "13:00",
+				IsActive:  boolPtr(true),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.createFn = func(_ context.Context, tpl *model.ShiftTemplate) error {
@@ -156,10 +156,10 @@ func TestShiftTemplateService_Create(t *testing.T) {
 			name: "正常: 終日シフト(off)で時刻なし → バリデーションエラーなし",
 			input: &CreateShiftTemplateInput{
 				Name:      "公休",
-				ShiftType: model.ShiftTypeOff,
-				StartTime: nil,
-				EndTime:   nil,
-				IsActive:  true,
+				ShiftType: string(model.ShiftTypeOff),
+				StartTime: "",
+				EndTime:   "",
+				IsActive:  boolPtr(true),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.createFn = func(_ context.Context, tpl *model.ShiftTemplate) error {
@@ -176,10 +176,10 @@ func TestShiftTemplateService_Create(t *testing.T) {
 			name: "エラー: endTime が startTime より前 → InvalidInput エラー",
 			input: &CreateShiftTemplateInput{
 				Name:      "不正シフト",
-				ShiftType: model.ShiftTypeMorning,
-				StartTime: strPtr("13:00"),
-				EndTime:   strPtr("08:00"),
-				IsActive:  true,
+				ShiftType: string(model.ShiftTypeMorning),
+				StartTime: "13:00",
+				EndTime:   "08:00",
+				IsActive:  boolPtr(true),
 			},
 			setupFn: func(_ *mockShiftTemplateRepository) {},
 			wantErr: true,
@@ -189,10 +189,10 @@ func TestShiftTemplateService_Create(t *testing.T) {
 			name: "エラー: repo.Create がエラー → error を返す",
 			input: &CreateShiftTemplateInput{
 				Name:      "早番",
-				ShiftType: model.ShiftTypeMorning,
-				StartTime: strPtr("08:00"),
-				EndTime:   strPtr("13:00"),
-				IsActive:  true,
+				ShiftType: string(model.ShiftTypeMorning),
+				StartTime: "08:00",
+				EndTime:   "13:00",
+				IsActive:  boolPtr(true),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.createFn = func(_ context.Context, _ *model.ShiftTemplate) error {
@@ -383,3 +383,6 @@ func TestShiftTemplateService_Reorder(t *testing.T) {
 		})
 	}
 }
+
+// boolPtr はテスト用のヘルパー関数
+func boolPtr(b bool) *bool { return &b }

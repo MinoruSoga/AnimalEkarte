@@ -136,29 +136,18 @@ func (h *Handler) CreateShiftTemplate(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	isActive := true
-	if req.IsActive != nil {
-		isActive = *req.IsActive
-	}
 	breaks := make([]service.ShiftBreakTemplateInput, 0, len(req.Breaks))
 	for _, b := range req.Breaks {
 		breaks = append(breaks, service.ShiftBreakTemplateInput{BreakStart: b.BreakStart, BreakEnd: b.BreakEnd})
 	}
-	var startTime, endTime *string
-	if req.StartTime != "" {
-		startTime = &req.StartTime
-	}
-	if req.EndTime != "" {
-		endTime = &req.EndTime
-	}
 	tpl, err := h.svc.ShiftTemplate.Create(c.Request.Context(), clinicID, &service.CreateShiftTemplateInput{
 		Name:      req.Name,
-		ShiftType: model.ShiftType(req.ShiftType),
-		StartTime: startTime,
-		EndTime:   endTime,
+		ShiftType: req.ShiftType,
+		StartTime: req.StartTime,
+		EndTime:   req.EndTime,
 		Notes:     req.Notes,
 		SortOrder: req.SortOrder,
-		IsActive:  isActive,
+		IsActive:  req.IsActive,
 		Breaks:    breaks,
 	})
 	if err != nil {

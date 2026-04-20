@@ -3,7 +3,6 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -106,19 +105,9 @@ func (h *Handler) CreateSpecialPeriod(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	startDate, err := time.Parse("2006-01-02", req.StartDate)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください"))
-		return
-	}
-	endDate, err := time.Parse("2006-01-02", req.EndDate)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください"))
-		return
-	}
 	period, err := h.svc.ClosingSettings.CreateSpecialPeriod(c.Request.Context(), clinicID, service.CreateSpecialPeriodInput{
-		StartDate:    startDate,
-		EndDate:      endDate,
+		StartDate:    req.StartDate,
+		EndDate:      req.EndDate,
 		AmPmBoundary: req.AmPmBoundary,
 		PmEnd:        req.PmEnd,
 		Note:         req.Note,
@@ -149,25 +138,11 @@ func (h *Handler) UpdateSpecialPeriod(c *gin.Context) {
 	}
 
 	input := service.UpdateSpecialPeriodInput{
+		StartDate:    req.StartDate,
+		EndDate:      req.EndDate,
 		AmPmBoundary: req.AmPmBoundary,
 		PmEnd:        req.PmEnd,
 		Note:         req.Note,
-	}
-	if req.StartDate != nil {
-		t, err := time.Parse("2006-01-02", *req.StartDate)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください"))
-			return
-		}
-		input.StartDate = &t
-	}
-	if req.EndDate != nil {
-		t, err := time.Parse("2006-01-02", *req.EndDate)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください"))
-			return
-		}
-		input.EndDate = &t
 	}
 
 	period, err := h.svc.ClosingSettings.UpdateSpecialPeriod(c.Request.Context(), clinicID, id, input)

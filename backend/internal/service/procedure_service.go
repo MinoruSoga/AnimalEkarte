@@ -26,6 +26,71 @@ type CreateProcedureInput struct {
 	TaxRate     *float64 // nil = 0.10 (default)
 }
 
+// UpdateProcedureInput は処置更新のサービス入力 DTO
+type UpdateProcedureInput struct {
+	Name          *string
+	Price         *int64
+	IsActive      *bool
+	Description   *string
+	Duration      *int
+	Anesthesia    *string
+	ParentID      *uint64
+	ClearParentID bool
+	SortOrder     *int
+	TaxType       *string
+	TaxRate       *float64
+}
+
+const (
+	colProcedureName        = "name"
+	colProcedurePrice       = "price"
+	colProcedureIsActive    = "is_active"
+	colProcedureDescription = "description"
+	colProcedureDuration    = "duration"
+	colProcedureAnesthesia  = "anesthesia"
+	colProcedureParentID    = "parent_id"
+	colProcedureSortOrder   = "sort_order"
+	colProcedureTaxType     = "tax_type"
+	colProcedureTaxRate     = "tax_rate"
+)
+
+func buildProcedureUpdateFields(input *UpdateProcedureInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colProcedureName] = *input.Name
+	}
+	if input.Price != nil {
+		fields[colProcedurePrice] = *input.Price
+	}
+	if input.IsActive != nil {
+		fields[colProcedureIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colProcedureDescription] = *input.Description
+	}
+	if input.Duration != nil {
+		fields[colProcedureDuration] = *input.Duration
+	}
+	if input.Anesthesia != nil {
+		fields[colProcedureAnesthesia] = model.AnesthesiaType(*input.Anesthesia)
+	}
+	if input.ClearParentID {
+		fields[colProcedureParentID] = nil
+	} else if input.ParentID != nil {
+		fields[colProcedureParentID] = *input.ParentID
+	}
+	if input.SortOrder != nil {
+		fields[colProcedureSortOrder] = *input.SortOrder
+	}
+	if input.TaxType != nil {
+		fields[colProcedureTaxType] = model.TaxType(*input.TaxType)
+	}
+	if input.TaxRate != nil {
+		fields[colProcedureTaxRate] = *input.TaxRate
+	}
+	return fields
+}
+
 type ProcedureService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Procedure, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error)
@@ -167,69 +232,4 @@ func (s *procedureService) Reorder(ctx context.Context, clinicID uint64, ids []u
 	}
 	slog.InfoContext(ctx, "procedures reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
-}
-
-// UpdateProcedureInput は処置更新のサービス入力 DTO
-type UpdateProcedureInput struct {
-	Name          *string
-	Price         *int64
-	IsActive      *bool
-	Description   *string
-	Duration      *int
-	Anesthesia    *string
-	ParentID      *uint64
-	ClearParentID bool
-	SortOrder     *int
-	TaxType       *string
-	TaxRate       *float64
-}
-
-const (
-	colProcedureName        = "name"
-	colProcedurePrice       = "price"
-	colProcedureIsActive    = "is_active"
-	colProcedureDescription = "description"
-	colProcedureDuration    = "duration"
-	colProcedureAnesthesia  = "anesthesia"
-	colProcedureParentID    = "parent_id"
-	colProcedureSortOrder   = "sort_order"
-	colProcedureTaxType     = "tax_type"
-	colProcedureTaxRate     = "tax_rate"
-)
-
-func buildProcedureUpdateFields(input *UpdateProcedureInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colProcedureName] = *input.Name
-	}
-	if input.Price != nil {
-		fields[colProcedurePrice] = *input.Price
-	}
-	if input.IsActive != nil {
-		fields[colProcedureIsActive] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields[colProcedureDescription] = *input.Description
-	}
-	if input.Duration != nil {
-		fields[colProcedureDuration] = *input.Duration
-	}
-	if input.Anesthesia != nil {
-		fields[colProcedureAnesthesia] = model.AnesthesiaType(*input.Anesthesia)
-	}
-	if input.ClearParentID {
-		fields[colProcedureParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colProcedureParentID] = *input.ParentID
-	}
-	if input.SortOrder != nil {
-		fields[colProcedureSortOrder] = *input.SortOrder
-	}
-	if input.TaxType != nil {
-		fields[colProcedureTaxType] = model.TaxType(*input.TaxType)
-	}
-	if input.TaxRate != nil {
-		fields[colProcedureTaxRate] = *input.TaxRate
-	}
-	return fields
 }

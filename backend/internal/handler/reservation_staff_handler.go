@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -47,7 +48,7 @@ func (h *Handler) CreateReservationStaff(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	staff, err := h.svc.ReservationStaff.Create(c.Request.Context(), clinicID, &service.CreateReservationStaffInput{
+	staff, excluded, err := h.svc.ReservationStaff.Create(c.Request.Context(), clinicID, &service.CreateReservationStaffInput{
 		Name:               req.Name,
 		StaffType:          req.StaffType,
 		ReservationVisible: req.ReservationVisible,
@@ -59,11 +60,7 @@ func (h *Handler) CreateReservationStaff(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	excluded, err := h.svc.ReservationStaff.GetExcludedReservationTypes(c.Request.Context(), staff.ID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
+	c.Header("Location", fmt.Sprintf("/v1/reservation-staffs/%d", staff.ID))
 	c.JSON(http.StatusCreated, toReservationStaffResponse(staff, excluded))
 }
 
@@ -82,7 +79,7 @@ func (h *Handler) UpdateReservationStaff(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	staff, err := h.svc.ReservationStaff.Update(c.Request.Context(), clinicID, id, &service.UpdateReservationStaffInput{
+	staff, excluded, err := h.svc.ReservationStaff.Update(c.Request.Context(), clinicID, id, &service.UpdateReservationStaffInput{
 		Name:               req.Name,
 		StaffType:          req.StaffType,
 		ReservationVisible: req.ReservationVisible,
@@ -90,11 +87,6 @@ func (h *Handler) UpdateReservationStaff(c *gin.Context) {
 		SortOrder:          req.SortOrder,
 		ExcludedTypeIDs:    req.ExcludedTypeIDs,
 	})
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	excluded, err := h.svc.ReservationStaff.GetExcludedReservationTypes(c.Request.Context(), staff.ID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -134,12 +126,7 @@ func (h *Handler) PatchReservationStaffStatus(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	staff, err := h.svc.ReservationStaff.PatchStatus(c.Request.Context(), clinicID, id, req.IsActive)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	excluded, err := h.svc.ReservationStaff.GetExcludedReservationTypes(c.Request.Context(), staff.ID)
+	staff, excluded, err := h.svc.ReservationStaff.PatchStatus(c.Request.Context(), clinicID, id, req.IsActive)
 	if err != nil {
 		RespondError(c, err)
 		return

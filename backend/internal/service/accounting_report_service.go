@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"fmt"
 	"time"
 
@@ -10,10 +12,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// AccountingReportService は月次売上レポートのビジネスロジックインターフェース
-type AccountingReportService interface {
-	GetMonthly(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResponse, error)
-}
+// jst は日本標準時（UTC+9）のタイムゾーン定数
+var jst = time.FixedZone("Asia/Tokyo", 9*60*60)
 
 // ---- レスポンス型（フロントエンド期待形式） ----
 
@@ -62,6 +62,20 @@ type DailyReportDetail struct {
 	AMClosed  bool   `json:"am_closed"`
 	PMClosed  bool   `json:"pm_closed"`
 	IsHoliday bool   `json:"is_holiday"`
+}
+
+// MonthlyCSVResult は月次CSV出力の結果
+type MonthlyCSVResult struct {
+	Filename string
+	Data     []byte
+}
+
+// ---- インターフェース ----
+
+// AccountingReportService は月次売上レポートのビジネスロジックインターフェース
+type AccountingReportService interface {
+	GetMonthly(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResponse, error)
+	ExportMonthlyCSV(ctx context.Context, clinicID uint64, year, month int) (*MonthlyCSVResult, error)
 }
 
 // ---- サービス実装 ----
@@ -195,7 +209,6 @@ func buildMonthlyReportResponse(
 	}
 
 	// 日別明細スライスを日付昇順で構築
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
 	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst)
 	daysInMonth := startDate.AddDate(0, 1, 0).AddDate(0, 0, -1).Day()
 
@@ -249,6 +262,71 @@ func buildMonthlyReportResponse(
 		Summary:      summary,
 		DailyDetails: dailyDetails,
 	}
+}
+
+// ExportMonthlyCSV は月次売上レポートの CSV バイト列とファイル名を返す
+func (s *accountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID uint64, year, month int) (*MonthlyCSVResult, error) {
+	result, err := s.GetMonthly(ctx, clinicID, year, month)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	// BOM（Excel の UTF-8 認識用）
+	buf.Write([]byte("\xEF\xBB\xBF"))
+
+	w := csv.NewWriter(&buf)
+	_ = w.Write([]string{
+		"日付", "曜日", "AM件数", "AM純売上(円)", "PM件数", "PM純売上(円)", "日計(円)", "返金(円)", "AM締め", "PM締め", "休診",
+		"標準税率課税対象額(円)", "標準税率消費税額(円)", "軽減税率課税対象額(円)", "軽減税率消費税額(円)",
+	})
+
+	for _, d := range result.DailyDetails {
+		amClosed := "未"
+		if d.AMClosed {
+			amClosed = "済"
+		}
+		pmClosed := "未"
+		if d.PMClosed {
+			pmClosed = "済"
+		}
+		holiday := ""
+		if d.IsHoliday {
+			holiday = "休"
+		}
+		_ = w.Write([]string{
+			d.Date,
+			d.Weekday,
+			fmt.Sprintf("%d", d.AMCount),
+			fmt.Sprintf("%d", d.AMNet),
+			fmt.Sprintf("%d", d.PMCount),
+			fmt.Sprintf("%d", d.PMNet),
+			fmt.Sprintf("%d", d.DayNet),
+			fmt.Sprintf("%d", d.Refund),
+			amClosed,
+			pmClosed,
+			holiday,
+			"", "", "", "", // 税率別内訳は月次サマリのみ（日別内訳なし）
+		})
+	}
+
+	tb := result.Summary.TaxBreakdown
+	_ = w.Write([]string{
+		"合計", "", "", "", "", "",
+		fmt.Sprintf("%d", result.Summary.NetAmount),
+		fmt.Sprintf("%d", result.Summary.TotalRefund),
+		"", "", "",
+		fmt.Sprintf("%d", tb.Standard.TaxableAmount),
+		fmt.Sprintf("%d", tb.Standard.TaxAmount),
+		fmt.Sprintf("%d", tb.Reduced.TaxableAmount),
+		fmt.Sprintf("%d", tb.Reduced.TaxAmount),
+	})
+	w.Flush()
+
+	return &MonthlyCSVResult{
+		Filename: fmt.Sprintf("monthly_report_%04d%02d.csv", year, month),
+		Data:     buf.Bytes(),
+	}, nil
 }
 
 // resolvePaymentMethodName は支払方法IDを名前に変換する。nil の場合は "現金" を返す

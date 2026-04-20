@@ -24,6 +24,61 @@ type CreateVaccineInput struct {
 	SortOrder   int
 }
 
+// UpdateVaccineInput はワクチン更新のサービス入力 DTO
+type UpdateVaccineInput struct {
+	Name          *string
+	Price         *int64
+	IsActive      *bool
+	Description   *string
+	Species       *string
+	Interval      *string
+	ParentID      *uint64
+	ClearParentID bool
+	SortOrder     *int
+}
+
+const (
+	colVaccineName        = "name"
+	colVaccinePrice       = "price"
+	colVaccineIsActive    = "is_active"
+	colVaccineDescription = "description"
+	colVaccineSpecies     = "species"
+	colVaccineInterval    = "interval"
+	colVaccineParentID    = "parent_id"
+	colVaccineSortOrder   = "sort_order"
+)
+
+func buildVaccineUpdateFields(input *UpdateVaccineInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colVaccineName] = *input.Name
+	}
+	if input.Price != nil {
+		fields[colVaccinePrice] = *input.Price
+	}
+	if input.IsActive != nil {
+		fields[colVaccineIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colVaccineDescription] = *input.Description
+	}
+	if input.Species != nil {
+		fields[colVaccineSpecies] = model.VaccineSpecies(*input.Species)
+	}
+	if input.Interval != nil {
+		fields[colVaccineInterval] = *input.Interval
+	}
+	if input.ClearParentID {
+		fields[colVaccineParentID] = nil
+	} else if input.ParentID != nil {
+		fields[colVaccineParentID] = *input.ParentID
+	}
+	if input.SortOrder != nil {
+		fields[colVaccineSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
 type VaccineService interface {
 	List(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
@@ -114,60 +169,6 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	return vaccine, nil
 }
 
-// UpdateVaccineInput はワクチン更新のサービス入力 DTO
-type UpdateVaccineInput struct {
-	Name          *string
-	Price         *int64
-	IsActive      *bool
-	Description   *string
-	Species       *string
-	Interval      *string
-	ParentID      *uint64
-	ClearParentID bool
-	SortOrder     *int
-}
-
-const (
-	colVaccineName        = "name"
-	colVaccinePrice       = "price"
-	colVaccineIsActive    = "is_active"
-	colVaccineDescription = "description"
-	colVaccineSpecies     = "species"
-	colVaccineInterval    = "interval"
-	colVaccineParentID    = "parent_id"
-	colVaccineSortOrder   = "sort_order"
-)
-
-func buildVaccineUpdateFields(input *UpdateVaccineInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colVaccineName] = *input.Name
-	}
-	if input.Price != nil {
-		fields[colVaccinePrice] = *input.Price
-	}
-	if input.IsActive != nil {
-		fields[colVaccineIsActive] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields[colVaccineDescription] = *input.Description
-	}
-	if input.Species != nil {
-		fields[colVaccineSpecies] = model.VaccineSpecies(*input.Species)
-	}
-	if input.Interval != nil {
-		fields[colVaccineInterval] = *input.Interval
-	}
-	if input.ClearParentID {
-		fields[colVaccineParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colVaccineParentID] = *input.ParentID
-	}
-	if input.SortOrder != nil {
-		fields[colVaccineSortOrder] = *input.SortOrder
-	}
-	return fields
-}
 func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error {
 	// 子ワクチンの存在チェック (BUG-390)
 	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)

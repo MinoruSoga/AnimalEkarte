@@ -28,12 +28,12 @@ type ShiftBreakTemplateInput struct {
 // CreateShiftTemplateInput はシフトテンプレート作成の入力DTO
 type CreateShiftTemplateInput struct {
 	Name      string
-	ShiftType model.ShiftType
-	StartTime *string
-	EndTime   *string
+	ShiftType string  // string のまま（model変換はService内）
+	StartTime string  // 空文字 = nil 扱い（Service内で処理）
+	EndTime   string
 	Notes     string
 	SortOrder int
-	IsActive  bool
+	IsActive  *bool   // nil = デフォルト true（Service内で処理）
 	Breaks    []ShiftBreakTemplateInput
 }
 
@@ -85,20 +85,32 @@ func (s *shiftTemplateService) List(ctx context.Context, clinicID uint64) ([]mod
 }
 
 func (s *shiftTemplateService) Create(ctx context.Context, clinicID uint64, input *CreateShiftTemplateInput) (*model.ShiftTemplate, error) {
-	startTime := normalizeTimeString(input.StartTime)
-	endTime := normalizeTimeString(input.EndTime)
-	if err := validateShiftTimes(input.ShiftType, startTime, endTime); err != nil {
+	isActive := true
+	if input.IsActive != nil {
+		isActive = *input.IsActive
+	}
+	var startTimePtr, endTimePtr *string
+	if input.StartTime != "" {
+		startTimePtr = &input.StartTime
+	}
+	if input.EndTime != "" {
+		endTimePtr = &input.EndTime
+	}
+	shiftType := model.ShiftType(input.ShiftType)
+	startTime := normalizeTimeString(startTimePtr)
+	endTime := normalizeTimeString(endTimePtr)
+	if err := validateShiftTimes(shiftType, startTime, endTime); err != nil {
 		return nil, err
 	}
 	tpl := &model.ShiftTemplate{
 		ClinicID:  clinicID,
 		Name:      input.Name,
-		ShiftType: input.ShiftType,
+		ShiftType: shiftType,
 		StartTime: startTime,
 		EndTime:   endTime,
 		Notes:     input.Notes,
 		SortOrder: input.SortOrder,
-		IsActive:  input.IsActive,
+		IsActive:  isActive,
 	}
 	if err := s.repo.Create(ctx, tpl); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create shift template")
