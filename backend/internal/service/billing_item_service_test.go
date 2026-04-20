@@ -52,25 +52,61 @@ func defaultMockBillingItemRepo() *mockBillingItemRepository {
 	}
 }
 
+func defaultMockBillingRepo() *mockAccountingRepository {
+	return &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return &model.Billing{ID: 10}, nil
+		},
+	}
+}
+
 // ---- Tests ----
 
 func TestBillingItemService_CreateItem(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     *CreateBillingItemInput
-		createErr error
-		wantErr   bool
+		name          string
+		input         *CreateBillingItemInput
+		billingFindFn func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+		createErr     error
+		wantErr       bool
+		checkDefaults func(t *testing.T, item *model.BillingItem)
 	}{
 		{
-			name: "creates item successfully",
+			name: "creates item successfully with defaults",
 			input: &CreateBillingItemInput{
 				ClinicID:  1,
 				BillingID: 10,
+				Category:  string(model.ItemCategoryExamination),
 				Name:      "診察料",
 				UnitPrice: 3000,
 				Quantity:  1,
 			},
 			wantErr: false,
+			checkDefaults: func(t *testing.T, item *model.BillingItem) {
+				assert.Equal(t, model.TaxTypeExcluded, item.TaxType)
+				assert.Equal(t, 0.10, item.TaxRate)
+				assert.Equal(t, model.ItemSourceManual, item.Source)
+			},
+		},
+		{
+			name: "creates item with explicit tax_type and source",
+			input: &CreateBillingItemInput{
+				ClinicID:  1,
+				BillingID: 10,
+				Category:  string(model.ItemCategoryMedicine),
+				Name:      "薬剤料",
+				UnitPrice: 500,
+				Quantity:  2,
+				TaxType:   string(model.TaxTypeIncluded),
+				TaxRate:   0.08,
+				Source:    string(model.ItemSourceMedicalRecord),
+			},
+			wantErr: false,
+			checkDefaults: func(t *testing.T, item *model.BillingItem) {
+				assert.Equal(t, model.TaxTypeIncluded, item.TaxType)
+				assert.Equal(t, 0.08, item.TaxRate)
+				assert.Equal(t, model.ItemSourceMedicalRecord, item.Source)
+			},
 		},
 		{
 			name:    "returns error for empty name",
@@ -84,12 +120,67 @@ func TestBillingItemService_CreateItem(t *testing.T) {
 		},
 		{
 			name:    "returns error for negative unit_price",
-			input:   &CreateBillingItemInput{ClinicID: 1, BillingID: 10, Name: "診察料", UnitPrice: -1},
+			input:   &CreateBillingItemInput{ClinicID: 1, BillingID: 10, Category: string(model.ItemCategoryExamination), Name: "診察料", UnitPrice: -1},
 			wantErr: true,
 		},
 		{
-			name:      "propagates repository create error",
-			input:     &CreateBillingItemInput{ClinicID: 1, BillingID: 10, Name: "診察料", UnitPrice: 3000},
+			name: "returns error when billing not found (tenant check)",
+			input: &CreateBillingItemInput{
+				ClinicID:  1,
+				BillingID: 10,
+				Category:  string(model.ItemCategoryExamination),
+				Name:      "診察料",
+				UnitPrice: 3000,
+			},
+			billingFindFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+				return nil, apperrors.WrapNotFound("billing", "10")
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns error for invalid category",
+			input: &CreateBillingItemInput{
+				ClinicID:  1,
+				BillingID: 10,
+				Category:  "invalid_category",
+				Name:      "診察料",
+				UnitPrice: 3000,
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns error for invalid tax_type",
+			input: &CreateBillingItemInput{
+				ClinicID:  1,
+				BillingID: 10,
+				Category:  string(model.ItemCategoryExamination),
+				Name:      "診察料",
+				UnitPrice: 3000,
+				TaxType:   "invalid_tax",
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns error for invalid source",
+			input: &CreateBillingItemInput{
+				ClinicID:  1,
+				BillingID: 10,
+				Category:  string(model.ItemCategoryExamination),
+				Name:      "診察料",
+				UnitPrice: 3000,
+				Source:    "invalid_source",
+			},
+			wantErr: true,
+		},
+		{
+			name: "propagates repository create error",
+			input: &CreateBillingItemInput{
+				ClinicID:  1,
+				BillingID: 10,
+				Category:  string(model.ItemCategoryExamination),
+				Name:      "診察料",
+				UnitPrice: 3000,
+			},
 			createErr: errors.New("db error"),
 			wantErr:   true,
 		},
@@ -102,7 +193,11 @@ func TestBillingItemService_CreateItem(t *testing.T) {
 				item.ID = 1
 				return tt.createErr
 			}
-			svc := NewBillingItemService(repo)
+			billingRepo := defaultMockBillingRepo()
+			if tt.billingFindFn != nil {
+				billingRepo.findByIDFn = tt.billingFindFn
+			}
+			svc := NewBillingItemService(repo, billingRepo)
 			result, err := svc.CreateItem(context.Background(), tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -111,6 +206,9 @@ func TestBillingItemService_CreateItem(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
 				assert.Equal(t, tt.input.Name, result.Name)
+				if tt.checkDefaults != nil {
+					tt.checkDefaults(t, result)
+				}
 			}
 		})
 	}
@@ -172,7 +270,7 @@ func TestBillingItemService_UpdateItem(t *testing.T) {
 			repo.updateFieldsFn = func(_ context.Context, _, _ uint64, _ map[string]any) error {
 				return tt.updateErr
 			}
-			svc := NewBillingItemService(repo)
+			svc := NewBillingItemService(repo, defaultMockBillingRepo())
 			result, err := svc.UpdateItem(context.Background(), 1, 1, tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -221,7 +319,7 @@ func TestBillingItemService_DeleteItem(t *testing.T) {
 			repo.deleteFn = func(_ context.Context, _, _ uint64) error {
 				return tt.deleteErr
 			}
-			svc := NewBillingItemService(repo)
+			svc := NewBillingItemService(repo, defaultMockBillingRepo())
 			err := svc.DeleteItem(context.Background(), 1, 1)
 			if tt.wantErr {
 				assert.Error(t, err)

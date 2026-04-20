@@ -224,6 +224,28 @@ func validateTaxType(taxType string) error {
 	}
 }
 
+// validateItemCategory は明細カテゴリ文字列がドメイン上有効かを検証する
+func validateItemCategory(v string) error {
+	switch model.ItemCategory(v) {
+	case model.ItemCategoryExamination, model.ItemCategoryTest, model.ItemCategoryProcedure,
+		model.ItemCategorySurgery, model.ItemCategoryMedicine, model.ItemCategoryFood,
+		model.ItemCategoryGoods, model.ItemCategoryOther:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid category: %s", v))
+	}
+}
+
+// validateItemSource は明細ソース文字列がドメイン上有効かを検証する
+func validateItemSource(v string) error {
+	switch model.ItemSource(v) {
+	case model.ItemSourceMedicalRecord, model.ItemSourceManual, model.ItemSourceHospitalization:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid source: %s", v))
+	}
+}
+
 // validateCageType はケージ種別がドメイン上有効かを検証する
 func validateCageType(cageType string) error {
 	if cageType == "" {

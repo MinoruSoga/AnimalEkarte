@@ -39,6 +39,16 @@ type CloseRegisterInput struct {
 	ClosedBy   *uint64
 }
 
+// periodAggregate は集計処理の共通結果型
+type periodAggregate struct {
+	Schedule        *DaySchedule
+	AggregateRows   []repository.BillingAggregateRow
+	BillingDetails  []repository.CloseBillingDetail
+	TheoreticalCash int64
+	PeriodStart     time.Time
+	PeriodEnd       time.Time
+}
+
 type cashRegisterService struct {
 	closeRepo      repository.CashRegisterCloseRepository
 	accountingRepo repository.AccountingRepository
@@ -61,20 +71,24 @@ func NewCashRegisterService(
 	}
 }
 
-func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, date time.Time, period string) (*CashRegisterPreview, error) {
+// validatePeriod は period 値（"am"/"pm"）のバリデーションを行う
+func validatePeriod(period string) error {
 	if period != "am" && period != "pm" {
-		return nil, apperrors.WrapInvalidInput("period は 'am' または 'pm' を指定してください")
+		return apperrors.WrapInvalidInput("period は 'am' または 'pm' を指定してください")
 	}
+	return nil
+}
 
+// fetchAggregate は date/period から集計処理（スケジュール取得・期間算出・会計集計）を実行する共通ロジック
+func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint64, date time.Time, period string) (*periodAggregate, error) {
 	schedule, err := s.closingsSvc.ResolveSchedule(ctx, clinicID, date)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to resolve schedule")
 	}
 
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	dateJST := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, jst)
+	dateJST := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, jstLocation())
 
-	periodStart, periodEnd, err := resolvePeriodRange(dateJST, period, schedule, jst)
+	periodStart, periodEnd, err := resolvePeriodRange(dateJST, period, schedule)
 	if err != nil {
 		return nil, err
 	}
@@ -88,22 +102,39 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 		return nil, apperrors.Wrap(err, "failed to aggregate billings")
 	}
 
-	// 理論現金（現金支払いのみの純額）
-	theoreticalCash := calcTheoreticalCash(aggregate.AggregateRows)
+	return &periodAggregate{
+		Schedule:        schedule,
+		AggregateRows:   aggregate.AggregateRows,
+		BillingDetails:  aggregate.BillingDetails,
+		TheoreticalCash: calcTheoreticalCash(aggregate.AggregateRows),
+		PeriodStart:     periodStart,
+		PeriodEnd:       periodEnd,
+	}, nil
+}
+
+func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, date time.Time, period string) (*CashRegisterPreview, error) {
+	if err := validatePeriod(period); err != nil {
+		return nil, err
+	}
+
+	agg, err := s.fetchAggregate(ctx, clinicID, date, period)
+	if err != nil {
+		return nil, err
+	}
 
 	return &CashRegisterPreview{
 		Date:            date.Format("2006-01-02"),
 		Period:          period,
-		Schedule:        schedule,
-		AggregateRows:   aggregate.AggregateRows,
-		BillingDetails:  aggregate.BillingDetails,
-		TheoreticalCash: theoreticalCash,
+		Schedule:        agg.Schedule,
+		AggregateRows:   agg.AggregateRows,
+		BillingDetails:  agg.BillingDetails,
+		TheoreticalCash: agg.TheoreticalCash,
 	}, nil
 }
 
 func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error) {
-	if input.Period != "am" && input.Period != "pm" {
-		return nil, apperrors.WrapInvalidInput("period は 'am' または 'pm' を指定してください")
+	if err := validatePeriod(input.Period); err != nil {
+		return nil, err
 	}
 
 	// 二重締めチェック
@@ -115,33 +146,15 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 		return nil, apperrors.WrapConflict("この日時はすでに締め済みです")
 	}
 
-	schedule, err := s.closingsSvc.ResolveSchedule(ctx, clinicID, input.Date)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to resolve schedule")
-	}
-
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	dateJST := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, jst)
-
-	periodStart, periodEnd, err := resolvePeriodRange(dateJST, input.Period, schedule, jst)
+	agg, err := s.fetchAggregate(ctx, clinicID, input.Date, input.Period)
 	if err != nil {
 		return nil, err
 	}
 
-	aggregate, err := s.accountingRepo.GetCloseAggregate(ctx, repository.GetCloseAggregateInput{
-		ClinicID:    clinicID,
-		PeriodStart: periodStart,
-		PeriodEnd:   periodEnd,
-	})
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to aggregate billings for close")
-	}
-
-	theoreticalCash := calcTheoreticalCash(aggregate.AggregateRows)
-	cashDifference := input.ActualCash - theoreticalCash
+	cashDifference := input.ActualCash - agg.TheoreticalCash
 
 	// category_breakdown JSONB を構築
-	breakdownSchema := buildCategoryBreakdown(aggregate.AggregateRows)
+	breakdownSchema := buildCategoryBreakdown(agg.AggregateRows)
 	breakdownJSON, err := json.Marshal(breakdownSchema)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to marshal category breakdown")
@@ -151,7 +164,7 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 		ClinicID:          clinicID,
 		CloseDate:         input.Date,
 		Period:            input.Period,
-		TheoreticalCash:   theoreticalCash,
+		TheoreticalCash:   agg.TheoreticalCash,
 		ActualCash:        input.ActualCash,
 		CashDifference:    cashDifference,
 		CategoryBreakdown: breakdownJSON,
@@ -168,7 +181,7 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 		slog.Uint64("clinic_id", clinicID),
 		slog.String("date", input.Date.Format("2006-01-02")),
 		slog.String("period", input.Period),
-		slog.Int64("theoretical_cash", theoreticalCash),
+		slog.Int64("theoretical_cash", agg.TheoreticalCash),
 		slog.Int64("actual_cash", input.ActualCash))
 
 	return record, nil
@@ -183,7 +196,7 @@ func (s *cashRegisterService) GetByID(ctx context.Context, clinicID, id uint64) 
 }
 
 // resolvePeriodRange は period（"am"/"pm"）と DaySchedule から集計期間（JST）を返す
-func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule, jst *time.Location) (start, end time.Time, err error) {
+func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule) (start, end time.Time, err error) {
 	boundaryH, boundaryM, parseErr := parseHHMM(schedule.AmPmBoundary)
 	if parseErr != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("am_pm_boundary の形式が正しくありません")
@@ -193,9 +206,9 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule,
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("pm_end の形式が正しくありません")
 	}
 
-	boundary := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), boundaryH, boundaryM, 0, 0, jst)
-	pmEnd := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), pmEndH, pmEndM, 0, 0, jst)
-	dayStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, jst)
+	boundary := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), boundaryH, boundaryM, 0, 0, jstLocation())
+	pmEnd := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), pmEndH, pmEndM, 0, 0, jstLocation())
+	dayStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, jstLocation())
 
 	switch period {
 	case "am":

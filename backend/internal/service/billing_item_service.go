@@ -26,14 +26,14 @@ const (
 type CreateBillingItemInput struct {
 	ClinicID              uint64
 	BillingID             uint64
-	Category              model.ItemCategory
+	Category              string // Service 内で model.ItemCategory に変換
 	Name                  string
 	UnitPrice             int64
 	Quantity              float64
-	TaxType               model.TaxType
+	TaxType               string // "" = デフォルト "excluded"
 	TaxRate               float64
 	IsInsuranceApplicable bool
-	Source                model.ItemSource
+	Source                string // "" = デフォルト "manual"
 	SortOrder             int
 }
 
@@ -76,35 +76,70 @@ type BillingItemService interface {
 }
 
 type billingItemService struct {
-	repo repository.BillingItemRepository
+	repo        repository.BillingItemRepository
+	billingRepo repository.AccountingRepository
 }
 
 // NewBillingItemService は BillingItemService を初期化して返す
-func NewBillingItemService(repo repository.BillingItemRepository) BillingItemService {
-	return &billingItemService{repo: repo}
+func NewBillingItemService(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository) BillingItemService {
+	return &billingItemService{repo: repo, billingRepo: billingRepo}
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
-	if input.Name == "" {
-		return nil, apperrors.WrapInvalidInput("name is required")
-	}
 	if input.BillingID == 0 {
 		return nil, apperrors.WrapInvalidInput("billing_id is required")
+	}
+	if input.Name == "" {
+		return nil, apperrors.WrapInvalidInput("name is required")
 	}
 	if input.UnitPrice < 0 {
 		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
 	}
 
+	// テナント所有権確認: billing が同一クリニックに属することを確認
+	if _, err := s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID); err != nil {
+		return nil, apperrors.Wrap(err, "billing not found or belongs to different clinic")
+	}
+
+	// カテゴリバリデーション
+	if err := validateItemCategory(input.Category); err != nil {
+		return nil, err
+	}
+
+	// TaxType デフォルト設定とバリデーション
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != "" {
+		if err := validateTaxType(input.TaxType); err != nil {
+			return nil, err
+		}
+		taxType = model.TaxType(input.TaxType)
+	}
+
+	// TaxRate デフォルト設定
+	taxRate := 0.10
+	if input.TaxRate > 0 {
+		taxRate = input.TaxRate
+	}
+
+	// Source デフォルト設定とバリデーション
+	source := model.ItemSourceManual
+	if input.Source != "" {
+		if err := validateItemSource(input.Source); err != nil {
+			return nil, err
+		}
+		source = model.ItemSource(input.Source)
+	}
+
 	item := &model.BillingItem{
 		BillingID:             input.BillingID,
-		Category:              input.Category,
+		Category:              model.ItemCategory(input.Category),
 		Name:                  input.Name,
 		UnitPrice:             input.UnitPrice,
 		Quantity:              input.Quantity,
-		TaxType:               input.TaxType,
-		TaxRate:               input.TaxRate,
+		TaxType:               taxType,
+		TaxRate:               taxRate,
 		IsInsuranceApplicable: input.IsInsuranceApplicable,
-		Source:                input.Source,
+		Source:                source,
 		SortOrder:             input.SortOrder,
 	}
 

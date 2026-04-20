@@ -23,53 +23,19 @@ func (h *Handler) CreateBillingItem(c *gin.Context) {
 		return
 	}
 
-	// テナント分離: billing が同一クリニックに属することを確認
-	if _, err := h.svc.Accounting.GetByID(c.Request.Context(), clinicID, req.BillingID); err != nil {
-		RespondError(c, err)
-		return
-	}
-
-	taxType := model.TaxTypeExcluded
-	if req.TaxType != "" {
-		if err := validateTaxType(req.TaxType); err != nil {
-			RespondError(c, err)
-			return
-		}
-		taxType = model.TaxType(req.TaxType)
-	}
-	taxRate := 0.10
-	if req.TaxRate > 0 {
-		taxRate = req.TaxRate
-	}
-	source := model.ItemSourceManual
-	if req.Source != "" {
-		if err := validateItemSource(req.Source); err != nil {
-			RespondError(c, err)
-			return
-		}
-		source = model.ItemSource(req.Source)
-	}
-
-	if err := validateItemCategory(req.Category); err != nil {
-		RespondError(c, err)
-		return
-	}
-
-	input := &service.CreateBillingItemInput{
+	item, err := h.svc.BillingItem.CreateItem(c.Request.Context(), &service.CreateBillingItemInput{
 		ClinicID:              clinicID,
 		BillingID:             req.BillingID,
-		Category:              model.ItemCategory(req.Category),
+		Category:              req.Category,
 		Name:                  req.Name,
 		UnitPrice:             req.UnitPrice,
 		Quantity:              req.Quantity,
-		TaxType:               taxType,
-		TaxRate:               taxRate,
+		TaxType:               req.TaxType,
+		TaxRate:               req.TaxRate,
 		IsInsuranceApplicable: req.IsInsuranceApplicable,
-		Source:                source,
+		Source:                req.Source,
 		SortOrder:             req.SortOrder,
-	}
-
-	item, err := h.svc.BillingItem.CreateItem(c.Request.Context(), input)
+	})
 	if err != nil {
 		RespondError(c, err)
 		return
