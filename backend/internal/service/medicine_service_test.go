@@ -337,6 +337,14 @@ func TestMedicineService_Update(t *testing.T) {
 
 func uint64Ptr(v uint64) *uint64 { return &v }
 
+func TestMedicineService_Update_NilInput(t *testing.T) {
+	repo := &mockMedicineRepository{}
+	svc := NewMedicineService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
 func TestMedicineService_Delete(t *testing.T) {
 	tests := []struct {
 		name             string

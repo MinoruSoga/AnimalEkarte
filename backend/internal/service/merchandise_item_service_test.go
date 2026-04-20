@@ -66,6 +66,179 @@ func newTestMerchandiseItemService(repo *mockMerchandiseItemRepository) Merchand
 	return NewMerchandiseItemService(repo)
 }
 
+// ---- Create テスト ----
+
+func TestMerchandiseItemService_Create(t *testing.T) {
+	price100 := int64(100)
+	priceNeg := int64(-1)
+
+	tests := []struct {
+		name    string
+		input   *CreateMerchandiseItemInput
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name: "creates merchandise item successfully",
+			input: &CreateMerchandiseItemInput{
+				Name:      "ドッグフード",
+				Category:  "food",
+				UnitPrice: price100,
+				IsActive:  true,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "applies default tax type and rate when not specified",
+			input: &CreateMerchandiseItemInput{
+				Name:      "デフォルト税率商品",
+				UnitPrice: price100,
+				IsActive:  true,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "returns error when name is empty",
+			input: &CreateMerchandiseItemInput{
+				Name: "",
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error when unit_price is negative",
+			input: &CreateMerchandiseItemInput{
+				Name:      "マイナス商品",
+				UnitPrice: priceNeg,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error on repository failure",
+			input: &CreateMerchandiseItemInput{
+				Name:      "エラー商品",
+				UnitPrice: price100,
+			},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockMerchandiseItemRepository{
+				createFn: func(_ context.Context, _ *model.MerchandiseItem) error {
+					return tt.repoErr
+				},
+			}
+			svc := newTestMerchandiseItemService(repo)
+
+			item, err := svc.Create(context.Background(), 1, tt.input)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, item)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, item)
+			}
+		})
+	}
+}
+
+// ---- Update テスト ----
+
+func TestMerchandiseItemService_Update(t *testing.T) {
+	name := "更新後商品名"
+	isActive := false
+	price200 := int64(200)
+	priceNeg := int64(-1)
+	category := "food"
+
+	tests := []struct {
+		name    string
+		input   *UpdateMerchandiseItemInput
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name: "updates merchandise item successfully",
+			input: &UpdateMerchandiseItemInput{
+				Name:      &name,
+				IsActive:  &isActive,
+				UnitPrice: &price200,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "updates category only",
+			input: &UpdateMerchandiseItemInput{
+				Category: &category,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:    "returns error when no fields provided",
+			input:   &UpdateMerchandiseItemInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error when unit_price is negative",
+			input: &UpdateMerchandiseItemInput{
+				UnitPrice: &priceNeg,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error on repository failure",
+			input: &UpdateMerchandiseItemInput{
+				Name: &name,
+			},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+		{
+			name: "returns not found error when item does not exist",
+			input: &UpdateMerchandiseItemInput{
+				Name: &name,
+			},
+			repoErr: apperrors.WrapNotFound("merchandise_item", "999"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockMerchandiseItemRepository{
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MerchandiseItem, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.MerchandiseItem{ID: 1, ClinicID: 1}, nil
+				},
+			}
+			svc := newTestMerchandiseItemService(repo)
+
+			item, err := svc.Update(context.Background(), 1, 1, tt.input)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, item)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, item)
+			}
+		})
+	}
+}
+
 // ---- Delete テスト ----
 
 func TestMerchandiseItemService_Delete_Success(t *testing.T) {

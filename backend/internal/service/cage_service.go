@@ -131,6 +131,9 @@ func (s *cageService) Create(ctx context.Context, clinicID uint64, input *Create
 	return cage, nil
 }
 func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *UpdateCageInput) (*model.Cage, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input is required")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}

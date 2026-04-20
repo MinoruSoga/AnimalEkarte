@@ -14,12 +14,13 @@ import (
 // ---- Occupation モック ----
 
 type mockOccupationRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
-	createFn       func(ctx context.Context, occupation *model.Occupation) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
-	reorderErr     error
+	findAllFn                    func(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
+	findByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
+	createFn                     func(ctx context.Context, occupation *model.Occupation) error
+	updateFieldsFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error)
+	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
+	reorderErr                   error
+	countStaffsByOccupationIDFn  func(ctx context.Context, clinicID, occupationID uint64) (int64, error)
 }
 
 func (m *mockOccupationRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Occupation, error) {
@@ -46,7 +47,10 @@ func (m *mockOccupationRepository) Reorder(_ context.Context, _ uint64, _ []uint
 	return m.reorderErr
 }
 
-func (m *mockOccupationRepository) CountStaffsByOccupationID(_ context.Context, _, _ uint64) (int64, error) {
+func (m *mockOccupationRepository) CountStaffsByOccupationID(ctx context.Context, clinicID, occupationID uint64) (int64, error) {
+	if m.countStaffsByOccupationIDFn != nil {
+		return m.countStaffsByOccupationIDFn(ctx, clinicID, occupationID)
+	}
 	return 0, nil
 }
 
@@ -322,11 +326,14 @@ func TestOccupationService_Update(t *testing.T) {
 
 func TestOccupationService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name         string
+		id           uint64
+		staffCount   int64
+		countErr     error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
 			name:    "deletes occupation successfully",
@@ -348,6 +355,13 @@ func TestOccupationService_Delete(t *testing.T) {
 			wantErr: true,
 			wantNF:  false,
 		},
+		{
+			name:         "スタッフが所属している職種は削除できない",
+			id:           2,
+			staffCount:   5,
+			wantErr:      true,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -358,6 +372,9 @@ func TestOccupationService_Delete(t *testing.T) {
 						return nil, tt.repoErr
 					}
 					return &model.Occupation{ID: id}, nil
+				},
+				countStaffsByOccupationIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.staffCount, tt.countErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					if tt.wantNF {
@@ -374,6 +391,9 @@ func TestOccupationService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

@@ -320,6 +320,15 @@ func TestChiefComplaintTypeService_Update(t *testing.T) {
 	}
 }
 
+func TestChiefComplaintTypeService_Update_NilInput(t *testing.T) {
+	repo := &mockChiefComplaintTypeRepository{}
+	inquiryRepo := &mockInquiryRepository{}
+	svc := NewChiefComplaintTypeService(repo, inquiryRepo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
 func TestChiefComplaintTypeService_Delete(t *testing.T) {
 	tests := []struct {
 		name         string

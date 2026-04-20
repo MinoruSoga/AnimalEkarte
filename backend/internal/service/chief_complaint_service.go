@@ -110,6 +110,9 @@ func (s *chiefComplaintTypeService) Create(ctx context.Context, clinicID uint64,
 }
 
 func (s *chiefComplaintTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input is required")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}

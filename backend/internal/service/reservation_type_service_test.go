@@ -368,6 +368,20 @@ func TestReservationTypeService_Delete(t *testing.T) {
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("使用中の予約種別は削除できない", func(t *testing.T) {
+		reservationRepo := &mockReservationForReservationType{
+			existsByReservationTypeIDFn: func(_ context.Context, _, _ uint64) (bool, error) {
+				return true, nil
+			},
+		}
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, reservationRepo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+
+		err := svc.Delete(context.Background(), 1, 2)
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+	})
 }
 
 // ---- Reorder ----

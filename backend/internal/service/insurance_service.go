@@ -123,6 +123,9 @@ func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *C
 	return insurance, nil
 }
 func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, input *UpdateInsuranceInput) (*model.Insurance, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput("input is required")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}

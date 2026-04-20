@@ -369,13 +369,24 @@ func TestCageService_Update(t *testing.T) {
 	}
 }
 
+func TestCageService_Update_NilInput(t *testing.T) {
+	repo := &mockCageRepository{}
+	svc := newTestCageService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
 func TestCageService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name         string
+		id           uint64
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
+		hospExists   bool
+		hospErr      error
 	}{
 		{
 			name:    "deletes cage successfully",
@@ -396,6 +407,13 @@ func TestCageService_Delete(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name:         "使用中のケージは削除できない",
+			id:           2,
+			hospExists:   true,
+			wantErr:      true,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -404,10 +422,6 @@ func TestCageService_Delete(t *testing.T) {
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
 					if tt.wantNF {
 						return nil, apperrors.WrapNotFound("cage", "999")
-					}
-					if tt.repoErr != nil && !tt.wantNF {
-						// delete 側のエラーなので FindByID は成功させる
-						return &model.Cage{ID: id}, nil
 					}
 					return &model.Cage{ID: id}, nil
 				},
@@ -418,7 +432,12 @@ func TestCageService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := newTestCageService(repo)
+			hospRepo := &mockHospitalizationForCage{
+				existsByCageIDFn: func(_ context.Context, _ uint64) (bool, error) {
+					return tt.hospExists, tt.hospErr
+				},
+			}
+			svc := NewCageService(repo, hospRepo)
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 
@@ -426,6 +445,9 @@ func TestCageService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)
