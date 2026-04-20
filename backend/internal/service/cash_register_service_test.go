@@ -157,10 +157,11 @@ func newCashRegisterService(
 // ---- テスト ----
 
 func TestCashRegisterService_GetPreview(t *testing.T) {
-	targetDate := time.Date(2026, 4, 20, 0, 0, 0, 0, time.UTC)
+	targetDateStr := "2026-04-20"
 
 	tests := []struct {
 		name                  string
+		dateStr               string
 		period                string
 		resolveScheduleFn     func(ctx context.Context, clinicID uint64, date time.Time) (*DaySchedule, error)
 		getCloseAggregateFn   func(ctx context.Context, input repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error)
@@ -171,8 +172,9 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 		checkResult           func(t *testing.T, got *CashRegisterPreview)
 	}{
 		{
-			name:   "正常: スケジュール解決成功 → CashRegisterPreview を返す（未締め）",
-			period: "am",
+			name:    "正常: スケジュール解決成功 → CashRegisterPreview を返す（未締め）",
+			dateStr: targetDateStr,
+			period:  "am",
 			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
 				return defaultSchedule(), nil
 			},
@@ -194,8 +196,9 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 			},
 		},
 		{
-			name:   "正常: すでに締め済みの日時 → IsAlreadyClosed=true",
-			period: "pm",
+			name:    "正常: すでに締め済みの日時 → IsAlreadyClosed=true",
+			dateStr: targetDateStr,
+			period:  "pm",
 			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
 				return defaultSchedule(), nil
 			},
@@ -213,14 +216,37 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 			},
 		},
 		{
+			name:      "エラー: date が空 → ErrInvalidInput",
+			dateStr:   "",
+			period:    "am",
+			wantErr:   true,
+			wantErrIs: apperrors.ErrInvalidInput,
+		},
+		{
+			name:      "エラー: date のフォーマットが不正 → ErrInvalidInput",
+			dateStr:   "20260420",
+			period:    "am",
+			wantErr:   true,
+			wantErrIs: apperrors.ErrInvalidInput,
+		},
+		{
+			name:      "エラー: period が空 → ErrInvalidInput",
+			dateStr:   targetDateStr,
+			period:    "",
+			wantErr:   true,
+			wantErrIs: apperrors.ErrInvalidInput,
+		},
+		{
 			name:      "エラー: period が不正 → ErrInvalidInput",
+			dateStr:   targetDateStr,
 			period:    "noon",
 			wantErr:   true,
 			wantErrIs: apperrors.ErrInvalidInput,
 		},
 		{
-			name:   "エラー: ResolveSchedule がエラーを返す",
-			period: "am",
+			name:    "エラー: ResolveSchedule がエラーを返す",
+			dateStr: targetDateStr,
+			period:  "am",
 			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
 				return nil, errors.New("schedule error")
 			},
@@ -246,7 +272,7 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 			svc := newCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo)
 
 			// Act
-			got, err := svc.GetPreview(context.Background(), 1, targetDate, tt.period)
+			got, err := svc.GetPreview(context.Background(), 1, tt.dateStr, tt.period)
 
 			// Assert
 			if tt.wantErr {

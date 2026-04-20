@@ -30,25 +30,9 @@ func (h *Handler) GetCashRegisterPreview(c *gin.Context) {
 	if !ok {
 		return
 	}
-
 	dateStr := c.Query("date")
-	if dateStr == "" {
-		RespondError(c, apperrors.WrapInvalidInput("date クエリパラメータは必須です"))
-		return
-	}
-	date, err := time.Parse("2006-01-02", dateStr)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("date は YYYY-MM-DD 形式で指定してください"))
-		return
-	}
-
 	period := c.Query("period")
-	if period == "" {
-		RespondError(c, apperrors.WrapInvalidInput("period クエリパラメータは必須です"))
-		return
-	}
-
-	preview, err := h.svc.CashRegister.GetPreview(c.Request.Context(), clinicID, date, period)
+	preview, err := h.svc.CashRegister.GetPreview(c.Request.Context(), clinicID, dateStr, period)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -9,14 +9,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// PaymentMethodMasterService は支払方法マスタのビジネスロジックインターフェース
-type PaymentMethodMasterService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
-	Create(ctx context.Context, clinicID uint64, input CreatePaymentMethodInput) (*model.PaymentMethodMaster, error)
-	Update(ctx context.Context, clinicID, id uint64, input UpdatePaymentMethodInput) (*model.PaymentMethodMaster, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
-}
-
 // CreatePaymentMethodInput は支払方法作成の入力
 type CreatePaymentMethodInput struct {
 	Name         string
@@ -28,6 +20,28 @@ type UpdatePaymentMethodInput struct {
 	Name         *string
 	DisplayOrder *int
 	IsActive     *bool
+}
+
+func buildPaymentMethodUpdateFields(input UpdatePaymentMethodInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields["name"] = *input.Name
+	}
+	if input.DisplayOrder != nil {
+		fields["display_order"] = *input.DisplayOrder
+	}
+	if input.IsActive != nil {
+		fields["is_active"] = *input.IsActive
+	}
+	return fields
+}
+
+// PaymentMethodMasterService は支払方法マスタのビジネスロジックインターフェース
+type PaymentMethodMasterService interface {
+	List(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
+	Create(ctx context.Context, clinicID uint64, input CreatePaymentMethodInput) (*model.PaymentMethodMaster, error)
+	Update(ctx context.Context, clinicID, id uint64, input UpdatePaymentMethodInput) (*model.PaymentMethodMaster, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type paymentMethodMasterService struct {
@@ -61,20 +75,6 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 		return s.repo.FindByID(ctx, clinicID, id)
 	}
 	return s.repo.UpdateFields(ctx, clinicID, id, fields)
-}
-
-func buildPaymentMethodUpdateFields(input UpdatePaymentMethodInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields["name"] = *input.Name
-	}
-	if input.DisplayOrder != nil {
-		fields["display_order"] = *input.DisplayOrder
-	}
-	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
-	}
-	return fields
 }
 
 func (s *paymentMethodMasterService) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -34,7 +34,7 @@ func (r *paymentMethodMasterRepository) FindAll(ctx context.Context, clinicID ui
 		Order("display_order ASC, id ASC").
 		Find(&ms).Error
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to find payment methods")
+		return nil, apperrors.FromGORM(err, "payment_method", "")
 	}
 	return ms, nil
 }
