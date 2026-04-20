@@ -28,17 +28,18 @@ func NewClinicSettingsRepository(db *gorm.DB) ClinicSettingsRepository {
 func (r *clinicSettingsRepository) Get(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
 	var s model.ClinicSettings
 	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).First(&s).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// レコードがなければデフォルト値を返す
-		return &model.ClinicSettings{
-			ClinicID:            clinicID,
-			ClosingAmPmBoundary: "14:00",
-			ClosingWeekdayEnd:   "18:30",
-			ClosingSundayEnd:    "17:30",
-		}, nil
-	}
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
+		wrapped := apperrors.FromGORM(err, "clinic_settings", fmt.Sprintf("%d", clinicID))
+		if errors.Is(wrapped, apperrors.ErrNotFound) {
+			// レコードがなければデフォルト値を返す
+			return &model.ClinicSettings{
+				ClinicID:            clinicID,
+				ClosingAmPmBoundary: "14:00",
+				ClosingWeekdayEnd:   "18:30",
+				ClosingSundayEnd:    "17:30",
+			}, nil
+		}
+		return nil, wrapped
 	}
 	return &s, nil
 }

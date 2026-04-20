@@ -71,8 +71,8 @@ func (r *medicineRepository) CountUsageByMedicineID(ctx context.Context, clinicI
 	}
 	if err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
-		Joins("JOIN care_plans ON care_plans.id = care_plan_items.care_plan_id AND care_plans.clinic_id = ? AND care_plans.deleted_at IS NULL", clinicID).
-		Where("care_plan_items.medicine_id = ? AND care_plan_items.deleted_at IS NULL", medicineID).
+		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.clinic_id = ? AND hospitalizations.deleted_at IS NULL", clinicID).
+		Where("care_plan_items.medicine_id = ?", medicineID).
 		Count(&carePlanCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", "")
 	}

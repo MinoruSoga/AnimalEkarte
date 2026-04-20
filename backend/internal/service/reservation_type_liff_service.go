@@ -109,7 +109,7 @@ func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id ui
 		}
 		return result, nil
 	}
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	if err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update reservation course")
 	}
 	updated, err := s.repo.FindByID(ctx, clinicID, id)
@@ -140,7 +140,7 @@ func (s *reservationTypeLiffService) Delete(ctx context.Context, clinicID, id ui
 }
 
 func (s *reservationTypeLiffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationType, error) {
-	if err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
+	if err := s.repo.UpdateFields(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to patch status")
 	}
 	result, err := s.repo.FindByID(ctx, clinicID, id)

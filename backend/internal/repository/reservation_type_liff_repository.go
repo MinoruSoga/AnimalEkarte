@@ -16,7 +16,7 @@ type ReservationTypeLiffRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 	Create(ctx context.Context, st *model.ReservationType) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// SwapSortOrder は隣接するレコードとの sort_order をスワップする。
 	// direction は "up"（sort_order 小さい方）または "down"（sort_order 大きい方）。
@@ -60,7 +60,7 @@ func (r *reservationTypeLiffRepository) Create(ctx context.Context, st *model.Re
 	return nil
 }
 
-func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *reservationTypeLiffRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.ReservationType{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -103,11 +103,12 @@ func (r *reservationTypeLiffRepository) SwapSortOrder(ctx context.Context, clini
 			q = q.Where("sort_order > ?", target.SortOrder).Order("sort_order ASC")
 		}
 		if err := q.First(&neighbor).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+			wrapped := apperrors.FromGORM(err, "reservation_type_liff", "neighbor")
+			if errors.Is(wrapped, apperrors.ErrNotFound) {
 				// 隣接なし → 変更なし
 				return nil
 			}
-			return apperrors.FromGORM(err, "reservation_type_liff", "neighbor")
+			return wrapped
 		}
 
 		targetOrder := target.SortOrder

@@ -497,7 +497,7 @@ func (s *liffService) tryAttachReservationOwnerPet(
 // resolveTargetStaffs はtypeID・staffIDに基づいて対象スタッフを返す。
 func (s *liffService) resolveTargetStaffs(ctx context.Context, clinicID, typeID, staffID uint64) ([]model.Staff, error) {
 	if staffID != 0 {
-		staff, err := s.staffRepo.FindByID(ctx, staffID)
+		staff, err := s.staffRepo.FindByIDAndClinicID(ctx, clinicID, staffID)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to get staff")
 		}

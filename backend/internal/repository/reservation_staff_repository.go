@@ -14,10 +14,9 @@ import (
 // ReservationStaffRepository は予約スタッフ（staffs の予約用ラッパー）のデータアクセスインターフェース
 type ReservationStaffRepository interface {
 	FindAllByClinicID(ctx context.Context, clinicID uint64) ([]model.Staff, error)
-	FindByID(ctx context.Context, id uint64) (*model.Staff, error)
 	FindByIDAndClinicID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	Create(ctx context.Context, staff *model.Staff, clinicID uint64) error
-	Update(ctx context.Context, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
 	SoftDelete(ctx context.Context, id uint64) error
 	SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 	// ExcludedReservationTypes
@@ -43,15 +42,6 @@ func (r *reservationStaffRepository) FindAllByClinicID(ctx context.Context, clin
 		return nil, apperrors.FromGORM(err, "reservation_staff", "")
 	}
 	return staffs, nil
-}
-
-func (r *reservationStaffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
-	var staff model.Staff
-	err := r.db.WithContext(ctx).First(&staff, "id = ?", id).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", id))
-	}
-	return &staff, nil
 }
 
 // FindByIDAndClinicID はクリニック所属チェック込みでスタッフ 1 件を取得する（マルチテナント安全）。
@@ -88,7 +78,7 @@ func (r *reservationStaffRepository) Create(ctx context.Context, staff *model.St
 	return nil
 }
 
-func (r *reservationStaffRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *reservationStaffRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Staff{}).
 		Where("id = ?", id).
@@ -134,11 +124,12 @@ func (r *reservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID
 			q = q.Where("staffs.sort_order > ?", target.SortOrder).Order("staffs.sort_order ASC")
 		}
 		if err := q.First(&neighbor).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+			wrapped := apperrors.FromGORM(err, "reservation_staff", "neighbor")
+			if errors.Is(wrapped, apperrors.ErrNotFound) {
 				// 隣接なし → 変更なし
 				return nil
 			}
-			return apperrors.FromGORM(err, "reservation_staff", "neighbor")
+			return wrapped
 		}
 
 		targetOrder := target.SortOrder

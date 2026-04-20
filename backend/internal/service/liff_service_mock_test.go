@@ -56,7 +56,7 @@ func (m *mockLiffTypeRepository) Create(_ context.Context, _ *model.ReservationT
 	return nil
 }
 
-func (m *mockLiffTypeRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *mockLiffTypeRepository) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) error {
 	return nil
 }
 
@@ -70,7 +70,7 @@ func (m *mockLiffTypeRepository) SwapSortOrder(_ context.Context, _, _ uint64, _
 
 type mockLiffStaffRepository struct {
 	findAllByClinicIDFn                      func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
-	findByIDFn                               func(ctx context.Context, id uint64) (*model.Staff, error)
+	findByIDAndClinicIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	findExcludedReservationTypesFn           func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	findExcludedReservationTypesByStaffIDsFn func(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
 }
@@ -82,14 +82,10 @@ func (m *mockLiffStaffRepository) FindAllByClinicID(ctx context.Context, clinicI
 	return nil, nil
 }
 
-func (m *mockLiffStaffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, id)
+func (m *mockLiffStaffRepository) FindByIDAndClinicID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
+	if m.findByIDAndClinicIDFn != nil {
+		return m.findByIDAndClinicIDFn(ctx, clinicID, id)
 	}
-	return nil, apperrors.ErrNotFound
-}
-
-func (m *mockLiffStaffRepository) FindByIDAndClinicID(_ context.Context, _, _ uint64) (*model.Staff, error) {
 	return nil, apperrors.ErrNotFound
 }
 
@@ -97,7 +93,7 @@ func (m *mockLiffStaffRepository) Create(_ context.Context, _ *model.Staff, _ ui
 	return nil
 }
 
-func (m *mockLiffStaffRepository) Update(_ context.Context, _ uint64, _ map[string]any) error {
+func (m *mockLiffStaffRepository) UpdateFields(_ context.Context, _ uint64, _ map[string]any) error {
 	return nil
 }
 

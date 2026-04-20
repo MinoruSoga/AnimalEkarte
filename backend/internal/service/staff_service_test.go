@@ -224,14 +224,11 @@ type mockResStaffForStaff struct{}
 func (m *mockResStaffForStaff) FindAllByClinicID(_ context.Context, _ uint64) ([]model.Staff, error) {
 	return nil, nil
 }
-func (m *mockResStaffForStaff) FindByID(_ context.Context, _ uint64) (*model.Staff, error) {
-	return nil, nil
-}
 func (m *mockResStaffForStaff) FindByIDAndClinicID(_ context.Context, _, _ uint64) (*model.Staff, error) {
 	return nil, nil
 }
 func (m *mockResStaffForStaff) Create(_ context.Context, _ *model.Staff, _ uint64) error { return nil }
-func (m *mockResStaffForStaff) Update(_ context.Context, _ uint64, _ map[string]any) error {
+func (m *mockResStaffForStaff) UpdateFields(_ context.Context, _ uint64, _ map[string]any) error {
 	return nil
 }
 func (m *mockResStaffForStaff) SoftDelete(_ context.Context, _ uint64) error { return nil }

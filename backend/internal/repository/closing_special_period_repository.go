@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"gorm.io/gorm"
-
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"gorm.io/gorm"
 )
 
 // ClosingSpecialPeriodRepository は特別締め期間のデータアクセスインターフェース
@@ -60,11 +59,12 @@ func (r *closingSpecialPeriodRepository) FindByDate(ctx context.Context, clinicI
 		Scopes(clinicScope(clinicID)).
 		Where("start_date <= ? AND end_date >= ?", date, date).
 		First(&p).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to find closing special period by date")
+		wrapped := apperrors.FromGORM(err, "closing_special_period", date.Format("2006-01-02"))
+		if errors.Is(wrapped, apperrors.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, wrapped
 	}
 	return &p, nil
 }
@@ -122,7 +122,7 @@ func (r *closingSpecialPeriodRepository) HasOverlap(ctx context.Context, clinicI
 	}
 	var count int64
 	if err := q.Count(&count).Error; err != nil {
-		return false, apperrors.Wrap(err, "failed to check overlap")
+		return false, apperrors.FromGORM(err, "closing_special_period", "")
 	}
 	return count > 0, nil
 }
