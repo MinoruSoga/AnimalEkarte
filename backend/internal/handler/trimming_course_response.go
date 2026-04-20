@@ -13,7 +13,7 @@ type trimmingCourseResponse struct {
 	Price       *int64    `json:"price,omitempty"`
 	IsActive    bool      `json:"is_active"`
 	Description string    `json:"description"`
-	TargetSize  *string   `json:"target_size"`
+	TargetSize  *string   `json:"target_size,omitempty"`
 	Duration    *int      `json:"duration,omitempty"`
 	SortOrder   int       `json:"sort_order"`
 	CreatedAt   time.Time `json:"created_at"`

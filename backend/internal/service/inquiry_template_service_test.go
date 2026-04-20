@@ -335,6 +335,47 @@ func TestInquiryTemplateService_Update(t *testing.T) {
 	}
 }
 
+func TestInquiryTemplateService_Reorder(t *testing.T) {
+	tests := []struct {
+		name       string
+		ids        []uint64
+		reorderErr error
+		wantErr    bool
+	}{
+		{
+			name:    "reorders templates successfully",
+			ids:     []uint64{3, 1, 2},
+			wantErr: false,
+		},
+		{
+			name:    "returns error for empty ids",
+			ids:     []uint64{},
+			wantErr: true,
+		},
+		{
+			name:       "propagates repository error",
+			ids:        []uint64{1, 2},
+			reorderErr: errors.New("reorder failed"),
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockInquiryTemplateRepository{
+				reorderErr: tt.reorderErr,
+			}
+			svc := NewInquiryTemplateService(repo)
+			err := svc.Reorder(context.Background(), 1, tt.ids)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestInquiryTemplateService_Delete(t *testing.T) {
 	tests := []struct {
 		name    string

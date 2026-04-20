@@ -4,7 +4,6 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -181,12 +180,12 @@ func (h *Handler) CreateUnavailableTime(c *gin.Context) {
 		EndTime:         req.EndTime,
 	}
 	if req.SpecificDate != nil {
-		t, err := time.Parse("2006-01-02", *req.SpecificDate)
+		t, err := parseDate(req.SpecificDate)
 		if err != nil {
 			RespondError(c, apperrors.WrapInvalidInput("specific_date は YYYY-MM-DD 形式で入力してください"))
 			return
 		}
-		input.SpecificDate = &t
+		input.SpecificDate = t
 	}
 	result, err := h.svc.ReservationTypeUnavailableTime.CreateUnavailableTime(c.Request.Context(), clinicID, id, input)
 	if err != nil {

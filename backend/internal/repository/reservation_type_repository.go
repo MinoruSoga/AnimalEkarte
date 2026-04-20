@@ -32,7 +32,7 @@ func NewReservationTypeRepository(db *gorm.DB) ReservationTypeRepository {
 func (r *reservationTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	reservationTypes := make([]model.ReservationType, 0)
 	if err := r.db.WithContext(ctx).
-		Preload("Group").
+		Preload("Group", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Find(&reservationTypes).Error; err != nil {
@@ -43,7 +43,7 @@ func (r *reservationTypeRepository) FindAll(ctx context.Context, clinicID uint64
 
 func (r *reservationTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	var st model.ReservationType
-	err := r.db.WithContext(ctx).Preload("Group").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&st).Error
+	err := r.db.WithContext(ctx).Preload("Group", "deleted_at IS NULL").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&st).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", id))
 	}

@@ -59,6 +59,55 @@ func (m *mockReservationTypeGroupRepository) Reorder(_ context.Context, _ uint64
 
 // ---- Tests ----
 
+func TestReservationTypeGroupService_GetByID(t *testing.T) {
+	existing := &model.ReservationTypeGroup{ID: 1, ClinicID: 1, Name: "午前診察", Color: "#3B82F6"}
+
+	tests := []struct {
+		name         string
+		id           uint64
+		repoGroup    *model.ReservationTypeGroup
+		repoErr      error
+		wantErr      bool
+		wantNotFound bool
+	}{
+		{
+			name:      "returns group when found",
+			id:        1,
+			repoGroup: existing,
+			wantErr:   false,
+		},
+		{
+			name:         "returns not found error when group does not exist",
+			id:           999,
+			repoErr:      apperrors.WrapNotFound("reservation_type_group", "999"),
+			wantErr:      true,
+			wantNotFound: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockReservationTypeGroupRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationTypeGroup, error) {
+					return tt.repoGroup, tt.repoErr
+				},
+			}
+			svc := NewReservationTypeGroupService(repo)
+			result, err := svc.GetByID(context.Background(), 1, tt.id)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+				if tt.wantNotFound {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.repoGroup, result)
+			}
+		})
+	}
+}
+
 func TestReservationTypeGroupService_Create(t *testing.T) {
 	tests := []struct {
 		name      string
