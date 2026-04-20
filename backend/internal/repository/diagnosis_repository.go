@@ -20,7 +20,7 @@ type DiagnosisTypeRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountNamesByCategoryID(ctx context.Context, clinicID, categoryID uint64) (int64, error)
+	CountChildrenByParentID(ctx context.Context, clinicID, categoryID uint64) (int64, error)
 }
 
 type diagnosisTypeRepository struct{ db *gorm.DB }
@@ -97,9 +97,9 @@ func (r *diagnosisTypeRepository) Delete(ctx context.Context, clinicID, id uint6
 	return nil
 }
 
-// CountNamesByCategoryID は指定カテゴリに属する diagnosis_names の件数を返す（BUG-113 補足）
+// CountChildrenByParentID は指定カテゴリに属する diagnosis_names の件数を返す（BUG-113 補足）
 // diagnosis_names テーブルは直接 clinic_id を持つためテナント分離を直接適用する
-func (r *diagnosisTypeRepository) CountNamesByCategoryID(ctx context.Context, clinicID, categoryID uint64) (int64, error) {
+func (r *diagnosisTypeRepository) CountChildrenByParentID(ctx context.Context, clinicID, categoryID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.DiagnosisName{}).
@@ -176,8 +176,10 @@ func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID
 
 // FindAllActive はページネーションなしで全件取得する（#418: ListNames 用）。
 // typeID が非 nil の場合は該当カテゴリのみ、nil の場合はクリニック全件を返す。
+// is_active = true のレコードのみを返す（CODE-QUALITY-232）。
 func (r *diagnosisNameRepository) FindAllActive(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
-	q := r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(clinicScope(clinicID))
+	q := r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Scopes(clinicScope(clinicID)).
+		Where("is_active = ?", true)
 	if typeID != nil {
 		q = q.Where("diagnosis_type_id = ?", *typeID)
 	}

@@ -20,7 +20,7 @@ type OccupationRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountStaffsByOccupationID(ctx context.Context, clinicID, occupationID uint64) (int64, error)
+	CountUsageByOccupationID(ctx context.Context, clinicID, occupationID uint64) (int64, error)
 }
 
 type occupationRepository struct{ db *gorm.DB }
@@ -86,9 +86,9 @@ func (r *occupationRepository) Delete(ctx context.Context, clinicID, id uint64) 
 	return nil
 }
 
-// CountStaffsByOccupationID は指定役職を参照しているスタッフ数を返す（BUG-112）
+// CountUsageByOccupationID は指定役職を参照しているスタッフ数を返す（BUG-112）
 // staffs テーブルに直接 clinic_id がないため staff_clinic_assignments を JOIN してテナント分離する
-func (r *occupationRepository) CountStaffsByOccupationID(ctx context.Context, clinicID, occupationID uint64) (int64, error) {
+func (r *occupationRepository) CountUsageByOccupationID(ctx context.Context, clinicID, occupationID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Staff{}).

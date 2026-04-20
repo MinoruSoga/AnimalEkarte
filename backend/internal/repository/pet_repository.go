@@ -14,7 +14,7 @@ type PetRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	CountByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
+	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
 	Create(ctx context.Context, pet *model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -90,7 +90,7 @@ func (r *petRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint
 	return count, nil
 }
 
-func (r *petRepository) CountByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {
+func (r *petRepository) CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
 		Where("animal_species_id = ? AND deleted_at IS NULL", speciesID).

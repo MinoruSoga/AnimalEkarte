@@ -32,7 +32,7 @@ func (r *paymentMethodMasterRepository) FindAll(ctx context.Context, clinicID ui
 	var ms []model.PaymentMethodMaster
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Order("display_order ASC, id ASC").
+		Order("display_order ASC, name ASC").
 		Find(&ms).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "payment_method", "")

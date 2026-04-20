@@ -20,7 +20,7 @@ type PermissionGroupRepository interface {
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
-	CountStaffsByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
+	CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	// GetEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
 	// UNION (bool_or) して実効権限を返す。
@@ -128,9 +128,9 @@ func (r *permissionGroupRepository) SetRules(ctx context.Context, groupID uint64
 	return nil
 }
 
-// CountStaffsByGroupID は指定グループを参照しているスタッフ数を返す（削除前の依存チェック用）
+// CountUsageByGroupID は指定グループを参照しているスタッフ数を返す（削除前の依存チェック用）
 // permission_groups テーブルが clinic_id を持つため JOIN でテナント分離を行う
-func (r *permissionGroupRepository) CountStaffsByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
+func (r *permissionGroupRepository) CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.StaffPermissionGroup{}).
@@ -146,10 +146,13 @@ func (r *permissionGroupRepository) CountStaffsByGroupID(ctx context.Context, cl
 // GetEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
 // UNION (bool_or) して実効権限を返す。
 // 戻り値の各要素は resource 毎に集約済み（GroupID=0, ID=0）。
+// staff_clinic_assignments を JOIN して clinic 境界を明示する（CODE-QUALITY-227）。
 func (r *permissionGroupRepository) GetEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
 	var rules []model.PermissionGroupRule
 	// staff_permission_groups → permission_groups (active & not deleted) → permission_group_rules を JOIN し
-	// resource 毎に bool_or で集約する
+	// resource 毎に bool_or で集約する。
+	// staff_clinic_assignments を JOIN することで、スタッフが所属するクリニックの
+	// グループのみに絞り込む（pg.clinic_id = sca.clinic_id による clinic 境界の明示）。
 	err := r.db.WithContext(ctx).
 		Raw(`
 			SELECT
@@ -163,6 +166,10 @@ func (r *permissionGroupRepository) GetEffectivePermissionsByStaffID(ctx context
 				ON pg.id = spg.group_id
 				AND pg.deleted_at IS NULL
 				AND pg.is_active = true
+			JOIN staff_clinic_assignments sca
+				ON sca.staff_id = spg.staff_id
+				AND sca.clinic_id = pg.clinic_id
+				AND sca.deleted_at IS NULL
 			JOIN permission_group_rules pgr
 				ON pgr.group_id = pg.id
 			WHERE spg.staff_id = ?
