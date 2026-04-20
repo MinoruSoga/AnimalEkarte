@@ -51,27 +51,23 @@ func (m *mockDiagnosisTypeService) Reorder(ctx context.Context, clinicID uint64,
 // ---- mock DiagnosisNameService ----
 
 type mockDiagnosisNameService struct {
-	listFn             func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
-	listNamesFn        func(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
-	listByCategoryIDFn func(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
-	getByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
-	createFn           func(ctx context.Context, clinicID uint64, input *service.CreateDiagnosisNameInput) (*model.DiagnosisName, error)
-	updateFn           func(ctx context.Context, clinicID, id uint64, input *service.UpdateDiagnosisNameInput) (*model.DiagnosisName, error)
-	deleteFn           func(ctx context.Context, clinicID, id uint64) error
-	reorderFn          func(ctx context.Context, clinicID uint64, ids []uint64) error
+	listFn      func(ctx context.Context, clinicID uint64, typeID *uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	listNamesFn func(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
+	getByIDFn   func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
+	createFn    func(ctx context.Context, clinicID uint64, input *service.CreateDiagnosisNameInput) (*model.DiagnosisName, error)
+	updateFn    func(ctx context.Context, clinicID, id uint64, input *service.UpdateDiagnosisNameInput) (*model.DiagnosisName, error)
+	deleteFn    func(ctx context.Context, clinicID, id uint64) error
+	reorderFn   func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-func (m *mockDiagnosisNameService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
-	return m.listFn(ctx, clinicID, page, limit)
+func (m *mockDiagnosisNameService) List(ctx context.Context, clinicID uint64, typeID *uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+	return m.listFn(ctx, clinicID, typeID, page, limit)
 }
 func (m *mockDiagnosisNameService) ListNames(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
 	if m.listNamesFn != nil {
 		return m.listNamesFn(ctx, clinicID, typeID)
 	}
 	return nil, nil
-}
-func (m *mockDiagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
-	return m.listByCategoryIDFn(ctx, clinicID, categoryID, page, limit)
 }
 func (m *mockDiagnosisNameService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
 	return m.getByIDFn(ctx, clinicID, id)
@@ -557,7 +553,8 @@ func TestListDiagnosisNames(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			nameSvc: &mockDiagnosisNameService{
-				listFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisName, int64, error) {
+				listFn: func(_ context.Context, _ uint64, typeID *uint64, _, _ int) ([]model.DiagnosisName, int64, error) {
+					assert.Nil(t, typeID)
 					return []model.DiagnosisName{{ID: 1, Name: "急性胃炎"}}, 1, nil
 				},
 			},
@@ -569,8 +566,9 @@ func TestListDiagnosisNames(t *testing.T) {
 			query:    "page=1&limit=10&type_id=5",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			nameSvc: &mockDiagnosisNameService{
-				listByCategoryIDFn: func(_ context.Context, _, catID uint64, _, _ int) ([]model.DiagnosisName, int64, error) {
-					assert.Equal(t, uint64(5), catID)
+				listFn: func(_ context.Context, _ uint64, typeID *uint64, _, _ int) ([]model.DiagnosisName, int64, error) {
+					require.NotNil(t, typeID)
+					assert.Equal(t, uint64(5), *typeID)
 					return []model.DiagnosisName{{ID: 2, Name: "慢性胃炎"}}, 1, nil
 				},
 			},
@@ -596,7 +594,7 @@ func TestListDiagnosisNames(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			nameSvc: &mockDiagnosisNameService{
-				listFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisName, int64, error) {
+				listFn: func(_ context.Context, _ uint64, _ *uint64, _, _ int) ([]model.DiagnosisName, int64, error) {
 					return nil, 0, fmt.Errorf("db error")
 				},
 			},
