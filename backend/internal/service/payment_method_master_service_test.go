@@ -18,7 +18,8 @@ type mockPaymentMethodMasterRepository struct {
 	createFn         func(ctx context.Context, m *model.PaymentMethodMaster) (*model.PaymentMethodMaster, error)
 	updateFieldsFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
-	countUsageByIDFn func(ctx context.Context, id uint64) (int64, error)
+	countUsageByIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
+	reorderFn        func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockPaymentMethodMasterRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error) {
@@ -56,11 +57,18 @@ func (m *mockPaymentMethodMasterRepository) Delete(ctx context.Context, clinicID
 	return nil
 }
 
-func (m *mockPaymentMethodMasterRepository) CountUsageByID(ctx context.Context, id uint64) (int64, error) {
+func (m *mockPaymentMethodMasterRepository) CountUsageByID(ctx context.Context, clinicID, id uint64) (int64, error) {
 	if m.countUsageByIDFn != nil {
-		return m.countUsageByIDFn(ctx, id)
+		return m.countUsageByIDFn(ctx, clinicID, id)
 	}
 	return 0, nil
+}
+
+func (m *mockPaymentMethodMasterRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, clinicID, ids)
+	}
+	return nil
 }
 
 // ---- テスト ----
@@ -123,14 +131,14 @@ func TestPaymentMethodMasterService_Create(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		input      CreatePaymentMethodInput
+		input      *CreatePaymentMethodInput
 		createFn   func(ctx context.Context, m *model.PaymentMethodMaster) (*model.PaymentMethodMaster, error)
 		wantErr    bool
 		wantResult *model.PaymentMethodMaster
 	}{
 		{
 			name: "正常: 作成済みレコードを返す",
-			input: CreatePaymentMethodInput{
+			input: &CreatePaymentMethodInput{
 				Name:         "クレジット",
 				DisplayOrder: 2,
 			},
@@ -141,7 +149,7 @@ func TestPaymentMethodMasterService_Create(t *testing.T) {
 		},
 		{
 			name: "エラー: DB エラーを返す",
-			input: CreatePaymentMethodInput{
+			input: &CreatePaymentMethodInput{
 				Name:         "クレジット",
 				DisplayOrder: 2,
 			},
@@ -177,7 +185,7 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 	tests := []struct {
 		name             string
 		id               uint64
-		countUsageByIDFn func(ctx context.Context, id uint64) (int64, error)
+		countUsageByIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
 		deleteFn         func(ctx context.Context, clinicID, id uint64) error
 		wantErr          bool
 		wantErrIs        error
@@ -185,7 +193,7 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 		{
 			name: "正常: 未使用の支払方法を削除",
 			id:   1,
-			countUsageByIDFn: func(_ context.Context, _ uint64) (int64, error) {
+			countUsageByIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 0, nil
 			},
 			deleteFn: func(_ context.Context, _, _ uint64) error {
@@ -195,7 +203,7 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 		{
 			name: "エラー: 使用中の支払方法 → ErrConflict",
 			id:   2,
-			countUsageByIDFn: func(_ context.Context, _ uint64) (int64, error) {
+			countUsageByIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 5, nil
 			},
 			wantErr:   true,
@@ -204,7 +212,7 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 		{
 			name: "エラー: CountUsageByID がエラーを返す",
 			id:   3,
-			countUsageByIDFn: func(_ context.Context, _ uint64) (int64, error) {
+			countUsageByIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 0, errors.New("db error")
 			},
 			wantErr: true,
@@ -212,7 +220,7 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 		{
 			name: "エラー: Delete がエラーを返す",
 			id:   4,
-			countUsageByIDFn: func(_ context.Context, _ uint64) (int64, error) {
+			countUsageByIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 				return 0, nil
 			},
 			deleteFn: func(_ context.Context, _, _ uint64) error {
@@ -240,6 +248,54 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 				if tt.wantErrIs != nil {
 					assert.True(t, errors.Is(err, tt.wantErrIs), "want errors.Is(%v), got %v", tt.wantErrIs, err)
 				}
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestPaymentMethodMasterService_Reorder(t *testing.T) {
+	tests := []struct {
+		name      string
+		ids       []uint64
+		reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
+		wantErr   bool
+	}{
+		{
+			name: "正常: 並び順を更新する",
+			ids:  []uint64{2, 1, 3},
+			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return nil
+			},
+		},
+		{
+			name:    "エラー: IDリストが空",
+			ids:     []uint64{},
+			wantErr: true,
+		},
+		{
+			name: "エラー: DB エラーを返す",
+			ids:  []uint64{1, 2},
+			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return errors.New("db error")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			repo := &mockPaymentMethodMasterRepository{reorderFn: tt.reorderFn}
+			svc := NewPaymentMethodMasterService(repo)
+
+			// Act
+			err := svc.Reorder(context.Background(), 1, tt.ids)
+
+			// Assert
+			if tt.wantErr {
+				assert.Error(t, err)
 				return
 			}
 			assert.NoError(t, err)
