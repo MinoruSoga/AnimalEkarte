@@ -151,7 +151,7 @@ func (h *Handler) ListUnavailableTimes(c *gin.Context) {
 	if !ok {
 		return
 	}
-	items, err := h.svc.ReservationType.ListUnavailableTimes(c.Request.Context(), clinicID, id)
+	items, err := h.svc.ReservationTypeUnavailableTime.ListUnavailableTimes(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -188,7 +188,7 @@ func (h *Handler) CreateUnavailableTime(c *gin.Context) {
 		}
 		input.SpecificDate = &t
 	}
-	result, err := h.svc.ReservationType.CreateUnavailableTime(c.Request.Context(), clinicID, id, input)
+	result, err := h.svc.ReservationTypeUnavailableTime.CreateUnavailableTime(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -212,7 +212,7 @@ func (h *Handler) DeleteUnavailableTime(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.svc.ReservationType.DeleteUnavailableTime(c.Request.Context(), clinicID, reservationTypeID, unavailableTimeID); err != nil {
+	if err := h.svc.ReservationTypeUnavailableTime.DeleteUnavailableTime(c.Request.Context(), clinicID, reservationTypeID, unavailableTimeID); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -229,7 +229,7 @@ func (h *Handler) ListReservationTypeOccupations(c *gin.Context) {
 	if !ok {
 		return
 	}
-	items, err := h.svc.ReservationType.ListOccupations(c.Request.Context(), clinicID, id)
+	items, err := h.svc.ReservationTypeOccupation.ListOccupations(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -252,7 +252,7 @@ func (h *Handler) LinkReservationTypeOccupation(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	result, err := h.svc.ReservationType.LinkOccupation(c.Request.Context(), clinicID, id, req.OccupationID)
+	result, err := h.svc.ReservationTypeOccupation.LinkOccupation(c.Request.Context(), clinicID, id, req.OccupationID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -275,7 +275,7 @@ func (h *Handler) UnlinkReservationTypeOccupation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.svc.ReservationType.UnlinkOccupation(c.Request.Context(), clinicID, id, occupationID); err != nil {
+	if err := h.svc.ReservationTypeOccupation.UnlinkOccupation(c.Request.Context(), clinicID, id, occupationID); err != nil {
 		RespondError(c, err)
 		return
 	}

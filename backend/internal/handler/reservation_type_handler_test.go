@@ -123,7 +123,11 @@ func (m *mockReservationTypeService) UnlinkOccupation(ctx context.Context, clini
 // ---- helper ----
 
 func newHandlerWithReservationTypeSvc(svc service.ReservationTypeService) *Handler {
-	return &Handler{svc: &service.Services{ReservationType: svc}}
+	return &Handler{svc: &service.Services{
+		ReservationType:                svc,
+		ReservationTypeUnavailableTime: svc,
+		ReservationTypeOccupation:      svc,
+	}}
 }
 
 // ---- ListReservationTypes ----

@@ -535,6 +535,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	// Diagnosis Names
 	masters.GET("/diagnosis-names", h.ListDiagnosisNames)
+	masters.GET("/diagnosis-names/all", h.ListDiagnosisNamesAll)
 	masters.POST("/diagnosis-names", perm(model.ResourceMasterMedical, "create"), h.CreateDiagnosisName)
 	masters.PATCH("/diagnosis-names/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderDiagnosisNames)
 	masters.GET("/diagnosis-names/:id", h.GetDiagnosisName)

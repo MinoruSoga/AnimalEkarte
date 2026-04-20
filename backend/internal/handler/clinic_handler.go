@@ -59,7 +59,7 @@ func (h *Handler) hasPermission(c *gin.Context, resource, action string) bool {
 	if !ok {
 		return false
 	}
-	rules, err := h.svc.PermissionGroup.GetEffectivePermissions(c.Request.Context(), staffID)
+	rules, err := h.svc.EffectivePermission.GetEffectivePermissions(c.Request.Context(), staffID)
 	if err != nil {
 		return false
 	}

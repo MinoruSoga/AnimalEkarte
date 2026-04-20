@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -179,25 +178,49 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 		return
 	}
 
-	var names []model.DiagnosisName
-	var total int64
-	var err error
-
-	if typeIDStr := c.Query("type_id"); typeIDStr != "" {
-		catID, parseErr := strconv.ParseUint(typeIDStr, 10, 64)
+	var typeID *uint64
+	if s := c.Query("type_id"); s != "" {
+		id, parseErr := strconv.ParseUint(s, 10, 64)
 		if parseErr != nil {
 			RespondError(c, apperrors.WrapInvalidInput("invalid type_id"))
 			return
 		}
-		names, total, err = h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
-	} else {
-		names, total, err = h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
+		typeID = &id
 	}
+
+	names, total, err := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, typeID, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(names, toDiagnosisNameResponse), total, page, limit))
+}
+
+// ListDiagnosisNamesAll godoc
+// ページネーションなしで有効な診断名の一覧を返す。
+// type_id クエリパラメータが指定された場合は該当カテゴリのみ、未指定の場合は全件を返す。
+func (h *Handler) ListDiagnosisNamesAll(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	var typeID *uint64
+	if s := c.Query("type_id"); s != "" {
+		id, parseErr := strconv.ParseUint(s, 10, 64)
+		if parseErr != nil {
+			RespondError(c, apperrors.WrapInvalidInput("invalid type_id"))
+			return
+		}
+		typeID = &id
+	}
+
+	names, err := h.svc.DiagnosisName.ListNames(c.Request.Context(), clinicID, typeID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, mapSlice(names, toDiagnosisNameResponse))
 }
 
 // CreateDiagnosisName godoc

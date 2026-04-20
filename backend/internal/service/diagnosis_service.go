@@ -122,8 +122,8 @@ func (s *diagnosisTypeService) Create(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisTypeInput) (*model.DiagnosisType, error) {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return nil, apperrors.Wrap(err, "failed to get diagnosis type")
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
@@ -193,8 +193,7 @@ func buildDiagnosisTypeUpdateFields(input *UpdateDiagnosisTypeInput) map[string]
 // ---- DiagnosisNameService ----
 
 type DiagnosisNameService interface {
-	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
-	ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	List(ctx context.Context, clinicID uint64, typeID *uint64, page, limit int) ([]model.DiagnosisName, int64, error)
 	ListNames(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisNameInput) (*model.DiagnosisName, error)
@@ -216,18 +215,17 @@ func NewDiagnosisNameService(
 	return &diagnosisNameService{repo: repo, typeRepo: typeRepo}
 }
 
-func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, typeID *uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+	if typeID != nil {
+		items, total, err := s.repo.FindByCategoryID(ctx, clinicID, *typeID, page, limit)
+		if err != nil {
+			return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names by type")
+		}
+		return items, total, nil
+	}
 	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
 		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names")
-	}
-	return items, total, nil
-}
-
-func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
-	items, total, err := s.repo.FindByCategoryID(ctx, clinicID, categoryID, page, limit)
-	if err != nil {
-		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names by type")
 	}
 	return items, total, nil
 }
@@ -276,9 +274,8 @@ func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisNameInput) (*model.DiagnosisName, error) {
-	// #424: 存在確認
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return nil, apperrors.Wrap(err, "failed to get diagnosis name")
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
