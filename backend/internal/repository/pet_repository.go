@@ -59,7 +59,7 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
-	if err := buildBase().Preload("Owner", "deleted_at IS NULL").Preload("AnimalSpecies").Preload("Insurance", "deleted_at IS NULL").
+	if err := buildBase().Preload("Owner", "deleted_at IS NULL").Preload("AnimalSpecies", "deleted_at IS NULL").Preload("Insurance", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("pets.created_at DESC").Find(&pets).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
@@ -70,7 +70,7 @@ func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*mod
 	var pet model.Pet
 	err := r.db.WithContext(ctx).
 		Preload("Owner", "deleted_at IS NULL").
-		Preload("AnimalSpecies").
+		Preload("AnimalSpecies", "deleted_at IS NULL").
 		Preload("Insurance", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&pet).Error
 	if err != nil {
