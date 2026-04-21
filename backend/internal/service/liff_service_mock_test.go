@@ -464,8 +464,8 @@ func (m *mockLiffUnavailableTimeRepository) Delete(_ context.Context, _, _ uint6
 
 // mockLiffOccupationRepository は ReservationTypeOccupationRepository のテスト用スタブ
 type mockLiffOccupationRepository struct {
-	findAllFn           func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
-	countWorkingStaffFn func(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
+	findAllFn        func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
+	countByStaffIDFn func(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
 }
 
 func (m *mockLiffOccupationRepository) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error) {
@@ -481,9 +481,9 @@ func (m *mockLiffOccupationRepository) Create(_ context.Context, _ *model.Reserv
 	return nil
 }
 func (m *mockLiffOccupationRepository) Delete(_ context.Context, _, _, _ uint64) error { return nil }
-func (m *mockLiffOccupationRepository) CountWorkingStaff(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
-	if m.countWorkingStaffFn != nil {
-		return m.countWorkingStaffFn(ctx, clinicID, reservationTypeID, date)
+func (m *mockLiffOccupationRepository) CountByStaffID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
+	if m.countByStaffIDFn != nil {
+		return m.countByStaffIDFn(ctx, clinicID, reservationTypeID, date)
 	}
 	return 1, nil // デフォルト: 1人出勤（予約可能）
 }

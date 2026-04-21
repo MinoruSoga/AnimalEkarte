@@ -31,9 +31,9 @@ type ReservationTypeOccupationRepository interface {
 	Create(ctx context.Context, o *model.ReservationTypeOccupation) error
 	// Delete は物理削除（論理削除なし）
 	Delete(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
-	// CountWorkingStaff は指定日に対応職種のスタッフが何人出勤しているかを返す（LIFF 専用）
+	// CountByStaffID は指定日に対応職種のスタッフが何人出勤しているかを返す（LIFF 専用）
 	// shift_type が 'off' / 'paid_leave' 以外のスタッフのみカウント
-	CountWorkingStaff(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
+	CountByStaffID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
 }
 
 type reservationTypeOccupationRepository struct {
@@ -104,7 +104,7 @@ func (r *reservationTypeOccupationRepository) Delete(
 	return nil
 }
 
-func (r *reservationTypeOccupationRepository) CountWorkingStaff(
+func (r *reservationTypeOccupationRepository) CountByStaffID(
 	ctx context.Context, clinicID, reservationTypeID uint64, date time.Time,
 ) (int64, error) {
 	// JST 日付文字列で shift_entries.date と比較する

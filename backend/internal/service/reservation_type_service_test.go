@@ -101,10 +101,10 @@ func (m *mockUnavailableTimeRepository) Delete(ctx context.Context, clinicID, id
 
 // mockOccupationRepository は ReservationTypeOccupationRepository のテスト用モック
 type mockOccupationRepoForRType struct {
-	findAllFn           func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
-	createFn            func(ctx context.Context, o *model.ReservationTypeOccupation) error
-	deleteFn            func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
-	countWorkingStaffFn func(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
+	findAllFn        func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
+	createFn         func(ctx context.Context, o *model.ReservationTypeOccupation) error
+	deleteFn         func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
+	countByStaffIDFn func(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
 }
 
 func (m *mockOccupationRepoForRType) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error) {
@@ -128,9 +128,9 @@ func (m *mockOccupationRepoForRType) Delete(ctx context.Context, clinicID, reser
 	}
 	return nil
 }
-func (m *mockOccupationRepoForRType) CountWorkingStaff(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
-	if m.countWorkingStaffFn != nil {
-		return m.countWorkingStaffFn(ctx, clinicID, reservationTypeID, date)
+func (m *mockOccupationRepoForRType) CountByStaffID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
+	if m.countByStaffIDFn != nil {
+		return m.countByStaffIDFn(ctx, clinicID, reservationTypeID, date)
 	}
 	return 1, nil
 }
