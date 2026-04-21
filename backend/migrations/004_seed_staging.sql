@@ -232,8 +232,8 @@ INSERT INTO occupations (id, clinic_id, name, description, sort_order, is_active
     (10, 5, '看護師', '', 2, true, '2026-04-14 11:07:04.762212+00', '2026-04-14 11:07:04.762212+00'),
     (11, 5, 'トリマー', '', 3, true, '2026-04-14 11:07:04.762212+00', '2026-04-14 11:07:04.762212+00'),
     (12, 5, '受付', '', 4, true, '2026-04-14 11:07:04.762212+00', '2026-04-14 11:07:04.762212+00')
-ON CONFLICT (id) DO UPDATE SET
-    clinic_id = EXCLUDED.clinic_id, name = EXCLUDED.name, sort_order = EXCLUDED.sort_order,
+ON CONFLICT (clinic_id, name) DO UPDATE SET
+    sort_order = EXCLUDED.sort_order,
     is_active = EXCLUDED.is_active, updated_at = now();
 
 SELECT setval(pg_get_serial_sequence('occupations', 'id'), (SELECT MAX(id) FROM occupations));
