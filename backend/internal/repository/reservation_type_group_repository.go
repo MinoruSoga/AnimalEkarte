@@ -49,7 +49,7 @@ func (r *reservationTypeGroupRepository) CountReservationTypesByGroupID(ctx cont
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.ReservationType{}).
 		Scopes(clinicScope(clinicID)).
-		Where("group_id = ?", groupID).Count(&count).Error; err != nil {
+		Where("group_id = ? AND deleted_at IS NULL", groupID).Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "reservation_type", "")
 	}
 	return count, nil

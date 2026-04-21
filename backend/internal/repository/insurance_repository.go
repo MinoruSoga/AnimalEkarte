@@ -88,7 +88,7 @@ func (r *insuranceRepository) CountUsageByInsuranceID(ctx context.Context, clini
 	if err := r.db.WithContext(ctx).
 		Model(&model.Pet{}).
 		Scopes(clinicScope(clinicID)).
-		Where("insurance_id = ?", insuranceID).
+		Where("insurance_id = ? AND deleted_at IS NULL", insuranceID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}
