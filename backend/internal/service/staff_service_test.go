@@ -590,6 +590,7 @@ func TestStaffService_Delete(t *testing.T) {
 		name                string
 		clinicID            uint64
 		id                  uint64
+		findByIDErr         error
 		reservationExists   bool
 		shiftExists         bool
 		checkReservationErr error
@@ -609,6 +610,14 @@ func TestStaffService_Delete(t *testing.T) {
 			checkShiftErr:       nil,
 			repoErr:             nil,
 			wantErr:             false,
+		},
+		{
+			name:        "returns not found error when staff does not exist",
+			clinicID:    1,
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("staff", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:                "returns conflict error when staff has reservations",
@@ -668,23 +677,17 @@ func TestStaffService_Delete(t *testing.T) {
 			repoErr:             nil,
 			wantErr:             true,
 		},
-		{
-			name:                "returns not found error when staff does not exist",
-			clinicID:            1,
-			id:                  999,
-			reservationExists:   false,
-			shiftExists:         false,
-			checkReservationErr: nil,
-			checkShiftErr:       nil,
-			repoErr:             apperrors.WrapNotFound("staff", "999"),
-			wantErr:             true,
-			wantNF:              true,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockStaffRepository{
+				findByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Staff{ID: tt.id}, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},

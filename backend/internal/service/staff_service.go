@@ -468,6 +468,11 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 }
 
 func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
+	// 存在確認（NotFound は FromGORM 経由で伝播）
+	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		return apperrors.Wrap(err, "failed to find staff before delete")
+	}
+
 	reservationExists, err := s.reservationRepo.ExistsByStaffID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check reservation dependency", "error", err)
