@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { handleApiError } from "@/lib/handle-api-error";
-import type { ClosingHoliday } from "@/types/generated/models";
+import type { ClosingHoliday } from "../api/holidays";
 import { useCreateHoliday, useDeleteHoliday } from "../api/holidays";
 
 interface HolidaySectionProps {
@@ -20,7 +20,7 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
     try {
       await createMutation.mutateAsync({
         date: formData.get("date") as string,
-        note: (formData.get("note") as string) || undefined,
+        reason: (formData.get("reason") as string) || undefined,
       });
       toast.success("休診日を追加しました");
       setShowForm(false);
@@ -31,9 +31,9 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
   }, null);
 
   const handleDelete = useCallback(
-    async (id: number) => {
+    async (date: string) => {
       try {
-        await deleteMutation.mutateAsync(id);
+        await deleteMutation.mutateAsync(date);
         toast.success("休診日を削除しました");
       } catch (error) {
         handleApiError(error, "休診日の削除");
@@ -76,12 +76,12 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
               />
             </div>
             <div>
-              <label htmlFor="holiday_note" className={STYLE.formLabel}>
-                メモ
+              <label htmlFor="holiday_reason" className={STYLE.formLabel}>
+                理由・メモ
               </label>
               <input
-                id="holiday_note"
-                name="note"
+                id="holiday_reason"
+                name="reason"
                 type="text"
                 className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
                 placeholder="例: 院内研修"
@@ -110,13 +110,13 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
             >
               <div className="flex flex-col gap-0.5">
                 <span className={`text-base font-medium ${C.text}`}>{holiday.date}</span>
-                {holiday.note ? (
-                  <span className={`text-base ${C.text60}`}>{holiday.note}</span>
+                {holiday.reason ? (
+                  <span className={`text-base ${C.text60}`}>{holiday.reason}</span>
                 ) : null}
               </div>
               <button
                 type="button"
-                onClick={() => handleDelete(holiday.id)}
+                onClick={() => handleDelete(holiday.date)}
                 aria-label="削除"
                 className={`size-8 flex items-center justify-center rounded-[3px] ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
               >

@@ -97,7 +97,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                 <input
                   type="checkbox"
                   name={`closed_weekday_${day}`}
-                  defaultChecked={settings.closed_weekdays.includes(day)}
+                  defaultChecked={(settings.closed_weekdays ?? []).includes(day)}
                   className="rounded"
                 />
                 <span className={`text-base ${C.text}`}>{WEEKDAY_LABELS[day]}</span>
