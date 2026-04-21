@@ -29,48 +29,35 @@ export const TARGET_SIZE_OPTIONS: { value: string; label: string }[] = [
 ];
 
 // ─────────────────────────────────────────────────
-// Request types
+// Request types (derived from models.ts, with nullable price/target_size/duration overrides)
 // ─────────────────────────────────────────────────
 
-export interface CreateTrimmingCourseRequest {
-  name: string;
+type TrimmingCourseBase = Omit<
+  ModelTrimmingCourse,
+  "id" | "clinic_id" | "created_at" | "updated_at" | "price" | "target_size" | "duration"
+> & {
   price?: number | null;
-  description?: string;
   target_size?: TargetSize | null;
   duration?: number | null;
-  is_active?: boolean;
-  sort_order?: number;
-}
+};
 
-export interface UpdateTrimmingCourseRequest {
-  name?: string;
-  price?: number | null;
-  description?: string;
-  target_size?: TargetSize | null;
-  duration?: number | null;
-  is_active?: boolean;
-  sort_order?: number;
-}
+export type CreateTrimmingCourseRequest = Pick<TrimmingCourseBase, "name"> &
+  Partial<Omit<TrimmingCourseBase, "name">>;
 
-export interface CreateTrimmingOptionRequest {
-  name: string;
-  price?: number | null;
-  description?: string;
-  duration?: number | null;
-  is_combinable?: boolean;
-  is_active?: boolean;
-  sort_order?: number;
-}
+export type UpdateTrimmingCourseRequest = Partial<TrimmingCourseBase>;
 
-export interface UpdateTrimmingOptionRequest {
-  name?: string;
+type TrimmingOptionBase = Omit<
+  ModelTrimmingOption,
+  "id" | "clinic_id" | "created_at" | "updated_at" | "price" | "duration"
+> & {
   price?: number | null;
-  description?: string;
   duration?: number | null;
-  is_combinable?: boolean;
-  is_active?: boolean;
-  sort_order?: number;
-}
+};
+
+export type CreateTrimmingOptionRequest = Pick<TrimmingOptionBase, "name"> &
+  Partial<Omit<TrimmingOptionBase, "name">>;
+
+export type UpdateTrimmingOptionRequest = Partial<TrimmingOptionBase>;
 
 // ─────────────────────────────────────────────────
 // Transform functions

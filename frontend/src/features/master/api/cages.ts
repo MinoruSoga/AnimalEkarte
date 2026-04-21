@@ -10,8 +10,8 @@ const CAGES_QUERY_KEY = ["masters", "cages"] as const;
 export type CageType = "icu" | "dog" | "cat" | "general";
 export type CageSize = "small" | "medium" | "large";
 
-// Request types (derived from models.ts, overriding cage_type/cage_size with strict unions)
-export type CreateCageRequest = Omit<
+// Request types (derived from models.ts, with strict unions for cage_type/cage_size)
+type CageRequestBase = Omit<
   ModelCage,
   "id" | "clinic_id" | "created_at" | "updated_at" | "cage_type" | "cage_size"
 > & {
@@ -19,7 +19,10 @@ export type CreateCageRequest = Omit<
   cage_size: CageSize;
 };
 
-export type UpdateCageRequest = Partial<CreateCageRequest>;
+export type CreateCageRequest = Pick<CageRequestBase, "name" | "cage_type" | "cage_size"> &
+  Partial<Omit<CageRequestBase, "name" | "cage_type" | "cage_size">>;
+
+export type UpdateCageRequest = Partial<CageRequestBase>;
 
 function transformCage(data: ModelCage) {
   return {
