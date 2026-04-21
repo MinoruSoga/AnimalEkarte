@@ -530,6 +530,12 @@ func TestTrimmingService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reserv := &mockTrimmingReservationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.Reservation{ID: 1, ClinicID: 1}, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},

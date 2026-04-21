@@ -28,7 +28,10 @@ func (m *mockEstimateRepository) FindAll(ctx context.Context, clinicID uint64, o
 }
 
 func (m *mockEstimateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
+ if m.findByIDFn != nil {
 	return m.findByIDFn(ctx, clinicID, id)
+ }
+ return nil, nil
 }
 
 func (m *mockEstimateRepository) Create(ctx context.Context, estimate *model.Estimate) error {

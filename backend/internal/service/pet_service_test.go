@@ -27,7 +27,10 @@ func (m *mockPetRepository) FindAll(ctx context.Context, clinicID uint64, ownerI
 }
 
 func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+ if m.findByIDFn != nil {
 	return m.findByIDFn(ctx, clinicID, id)
+ }
+ return nil, nil
 }
 
 func (m *mockPetRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
@@ -468,6 +471,9 @@ func TestPetService_Update(t *testing.T) {
 			id:       999,
 			input: UpdatePetInput{
 				Name: ptrString("存在しないペット"),
+			},
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+				return nil, apperrors.WrapNotFound("pet", "999")
 			},
 			updateErr: apperrors.WrapNotFound("pet", "999"),
 			wantErr:   true,

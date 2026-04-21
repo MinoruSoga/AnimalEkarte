@@ -26,7 +26,10 @@ func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64
 }
 
 func (m *mockVaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
+ if m.findByIDFn != nil {
 	return m.findByIDFn(ctx, clinicID, id)
+ }
+ return nil, nil
 }
 
 func (m *mockVaccinationRepository) Create(ctx context.Context, vaccination *model.Vaccination) error {

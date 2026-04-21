@@ -29,7 +29,10 @@ func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64
 }
 
 func (m *mockReservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockReservationRepository) Create(ctx context.Context, reservation *model.Reservation) error {

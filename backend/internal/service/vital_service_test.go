@@ -27,7 +27,10 @@ func (m *mockVitalRepository) FindByMedicalRecordID(ctx context.Context, clinicI
 }
 
 func (m *mockVitalRepository) FindByID(ctx context.Context, clinicID, vitalID uint64) (*model.VitalRecord, error) {
+ if m.findByIDFn != nil {
 	return m.findByIDFn(ctx, clinicID, vitalID)
+ }
+ return nil, nil
 }
 
 func (m *mockVitalRepository) Create(ctx context.Context, vital *model.VitalRecord) error {

@@ -27,7 +27,10 @@ func (m *mockShiftEntryRepository) FindAll(ctx context.Context, clinicID uint64,
 }
 
 func (m *mockShiftEntryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error) {
+ if m.findByIDFn != nil {
 	return m.findByIDFn(ctx, clinicID, id)
+ }
+ return nil, nil
 }
 
 func (m *mockShiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEntry) error {

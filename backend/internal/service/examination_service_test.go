@@ -27,7 +27,10 @@ func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64
 }
 
 func (m *mockExaminationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
+ if m.findByIDFn != nil {
 	return m.findByIDFn(ctx, clinicID, id)
+ }
+ return nil, nil
 }
 
 func (m *mockExaminationRepository) Create(ctx context.Context, exam *model.Examination) error {

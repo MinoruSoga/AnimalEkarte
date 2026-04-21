@@ -28,7 +28,10 @@ func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint
 }
 
 func (m *mockMedicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return m.findByIDFn(ctx, clinicID, id)
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
 }
 
 func (m *mockMedicalRecordRepository) Create(ctx context.Context, record *model.MedicalRecord) error {
@@ -621,6 +624,12 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
+				},
 				countEstimatesByMedicalRecordIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.estimateCount, tt.estimateErr
 				},
