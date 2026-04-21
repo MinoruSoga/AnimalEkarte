@@ -189,13 +189,13 @@ func (h *Handler) ListGlobalCheckups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": mapSlice(checkups, toCheckupGlobalResponse)})
+	c.JSON(http.StatusOK, mapSlice(checkups, toCheckupGlobalResponse))
 }
 
 // RegisterGlobalCheckupRoutes は /checkups トップレベルルートを登録する
 func (h *Handler) RegisterGlobalCheckupRoutes(rg *gin.RouterGroup) {
 	checkups := rg.Group("/checkups")
-	checkups.GET("", h.ListGlobalCheckups)
+	checkups.GET("", h.RequirePermission(string(model.ResourceCheckups), "view"), h.ListGlobalCheckups)
 }
 
 // RegisterCheckupRoutes は健診記録関連のルートを登録する

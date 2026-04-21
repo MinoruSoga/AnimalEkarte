@@ -48,7 +48,7 @@ func (h *Handler) UpdateClosingSettings(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, toClinicSettingsResponse(result))
 }
 
 // ListSpecialPeriods godoc
@@ -63,7 +63,7 @@ func (h *Handler) ListSpecialPeriods(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, periods)
+	c.JSON(http.StatusOK, mapSlice(periods, toClosingSpecialPeriodResponse))
 }
 
 // CreateSpecialPeriod godoc
@@ -90,7 +90,7 @@ func (h *Handler) CreateSpecialPeriod(c *gin.Context) {
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/closing-settings/special-periods/%d", period.ID))
-	c.JSON(http.StatusCreated, period)
+	c.JSON(http.StatusCreated, toClosingSpecialPeriodResponse(period))
 }
 
 // UpdateSpecialPeriod godoc
@@ -123,7 +123,7 @@ func (h *Handler) UpdateSpecialPeriod(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, period)
+	c.JSON(http.StatusOK, toClosingSpecialPeriodResponse(period))
 }
 
 // DeleteSpecialPeriod godoc
@@ -154,11 +154,11 @@ func (h *Handler) RegisterClosingSettingsRoutes(rg *gin.RouterGroup) {
 	sp.GET("", h.RequirePermission(string(model.ResourceClosingSettings), "view"), h.ListSpecialPeriods)
 	sp.POST("", h.RequirePermission(string(model.ResourceClosingSettings), "edit"), h.CreateSpecialPeriod)
 	sp.PATCH("/:id", h.RequirePermission(string(model.ResourceClosingSettings), "edit"), h.UpdateSpecialPeriod)
-	sp.DELETE("/:id", h.RequirePermission(string(model.ResourceClosingSettings), "edit"), h.DeleteSpecialPeriod)
+	sp.DELETE("/:id", h.RequirePermission(string(model.ResourceClosingSettings), "delete"), h.DeleteSpecialPeriod)
 
 	// 休診日は既存 ClinicHoliday ハンドラに委譲
 	holidays := cs.Group("/holidays")
 	holidays.GET("", h.ListClinicHolidays)
 	holidays.POST("", h.RequirePermission(string(model.ResourceClosingSettings), "edit"), h.SetClinicHoliday)
-	holidays.DELETE("/:date", h.RequirePermission(string(model.ResourceClosingSettings), "edit"), h.DeleteClinicHoliday)
+	holidays.DELETE("/:date", h.RequirePermission(string(model.ResourceClosingSettings), "delete"), h.DeleteClinicHoliday)
 }
