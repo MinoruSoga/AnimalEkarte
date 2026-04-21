@@ -512,7 +512,7 @@ func (s *staffService) Reorder(ctx context.Context, clinicID uint64, ids []uint6
 
 // GetPermissionGroupIDs はスタッフが所属する権限グループIDリストを返す
 func (s *staffService) GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error) {
-	ids, err := s.permissionGroupRepo.GetGroupIDsByStaffID(ctx, staffID)
+	ids, err := s.permissionGroupRepo.FindGroupIDsByStaffID(ctx, staffID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get permission group ids", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get permission group ids")
