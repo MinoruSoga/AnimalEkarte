@@ -80,6 +80,74 @@ type UpdatePetInput struct {
 	Remarks         *string
 }
 
+
+// buildPetUpdate はポインタが非 nil のフィールドのみ map に追加する
+func buildPetUpdate(input *UpdatePetInput) map[string]any {
+	fields := make(map[string]any)
+	if input.OwnerID != nil {
+		fields[colPetOwnerID] = *input.OwnerID
+	}
+	if input.AnimalSpeciesID != nil {
+		fields[colPetAnimalSpeciesID] = *input.AnimalSpeciesID
+	}
+	if input.PetNumber != nil {
+		fields["pet_number"] = *input.PetNumber
+	}
+	if input.Name != nil {
+		fields[colPetName] = *input.Name
+	}
+	if input.PetNameKana != nil {
+		fields[colPetNameKana] = *input.PetNameKana
+	}
+	if input.Gender != nil {
+		fields[colPetGender] = *input.Gender
+	}
+	if input.Status != nil {
+		fields[colPetStatus] = *input.Status
+	}
+	if input.BirthDate != nil {
+		fields[colPetBirthDate] = *input.BirthDate
+	}
+	if input.Breed != nil {
+		fields[colPetBreed] = *input.Breed
+	}
+	if input.Color != nil {
+		fields["color"] = *input.Color
+	}
+	if input.Weight != nil {
+		fields[colPetWeight] = *input.Weight
+	}
+	if input.NeuteredDate != nil {
+		fields["neutered_date"] = *input.NeuteredDate
+	}
+	if input.AcquisitionType != nil {
+		fields["acquisition_type"] = *input.AcquisitionType
+	}
+	if input.DangerLevel != nil {
+		fields["danger_level"] = *input.DangerLevel
+	}
+	if input.Food != nil {
+		fields["food"] = *input.Food
+	}
+	if input.Environment != nil {
+		fields[colPetEnvironment] = *input.Environment
+	}
+	if input.Phone != nil {
+		fields["phone"] = *input.Phone
+	}
+	if input.LastVisit != nil {
+		fields["last_visit"] = *input.LastVisit
+	}
+	if input.InsuranceID != nil {
+		// *input.InsuranceID は *uint64: nil = NULL クリア、非nil = 値セット
+		fields[colPetInsuranceID] = *input.InsuranceID
+	}
+	if input.Remarks != nil {
+		fields[colPetRemarks] = *input.Remarks
+	}
+	return fields
+}
+
 // --- Interface ---
 
 type PetService interface {
@@ -288,74 +356,6 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 	}
 	return pet, nil
 }
-
-// buildPetUpdate はポインタが非 nil のフィールドのみ map に追加する
-func buildPetUpdate(input *UpdatePetInput) map[string]any {
-	fields := make(map[string]any)
-	if input.OwnerID != nil {
-		fields[colPetOwnerID] = *input.OwnerID
-	}
-	if input.AnimalSpeciesID != nil {
-		fields[colPetAnimalSpeciesID] = *input.AnimalSpeciesID
-	}
-	if input.PetNumber != nil {
-		fields["pet_number"] = *input.PetNumber
-	}
-	if input.Name != nil {
-		fields[colPetName] = *input.Name
-	}
-	if input.PetNameKana != nil {
-		fields[colPetNameKana] = *input.PetNameKana
-	}
-	if input.Gender != nil {
-		fields[colPetGender] = *input.Gender
-	}
-	if input.Status != nil {
-		fields[colPetStatus] = *input.Status
-	}
-	if input.BirthDate != nil {
-		fields[colPetBirthDate] = *input.BirthDate
-	}
-	if input.Breed != nil {
-		fields[colPetBreed] = *input.Breed
-	}
-	if input.Color != nil {
-		fields["color"] = *input.Color
-	}
-	if input.Weight != nil {
-		fields[colPetWeight] = *input.Weight
-	}
-	if input.NeuteredDate != nil {
-		fields["neutered_date"] = *input.NeuteredDate
-	}
-	if input.AcquisitionType != nil {
-		fields["acquisition_type"] = *input.AcquisitionType
-	}
-	if input.DangerLevel != nil {
-		fields["danger_level"] = *input.DangerLevel
-	}
-	if input.Food != nil {
-		fields["food"] = *input.Food
-	}
-	if input.Environment != nil {
-		fields[colPetEnvironment] = *input.Environment
-	}
-	if input.Phone != nil {
-		fields["phone"] = *input.Phone
-	}
-	if input.LastVisit != nil {
-		fields["last_visit"] = *input.LastVisit
-	}
-	if input.InsuranceID != nil {
-		// *input.InsuranceID は *uint64: nil = NULL クリア、非nil = 値セット
-		fields[colPetInsuranceID] = *input.InsuranceID
-	}
-	if input.Remarks != nil {
-		fields[colPetRemarks] = *input.Remarks
-	}
-	return fields
-}
-
 func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find pet")

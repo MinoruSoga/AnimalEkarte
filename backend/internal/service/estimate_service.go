@@ -13,6 +13,42 @@ import (
 // ---- EstimateService ----
 
 // EstimateService は見積書のビジネスロジックインターフェース
+func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
+	fields := map[string]any{}
+	if input.Title != nil {
+		fields["title"] = *input.Title
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	if input.Subtotal != nil {
+		fields["subtotal"] = *input.Subtotal
+	}
+	if input.TaxTotal != nil {
+		fields["tax_total"] = *input.TaxTotal
+	}
+	if input.TotalAmount != nil {
+		fields["total_amount"] = *input.TotalAmount
+	}
+	if input.InsuranceAmount != nil {
+		fields["insurance_amount"] = *input.InsuranceAmount
+	}
+	if input.DiscountAmount != nil {
+		fields["discount_amount"] = *input.DiscountAmount
+	}
+	if input.ClearValidUntil {
+		fields["valid_until"] = nil
+	} else if input.ValidUntil != nil {
+		fields["valid_until"] = *input.ValidUntil
+	}
+	if input.Comment != nil {
+		fields["comment"] = *input.Comment
+	}
+	if input.Notes != nil {
+		fields["notes"] = *input.Notes
+	}
+	return fields
+}
 type EstimateService interface {
 	List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
@@ -185,39 +221,3 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error
 	return nil
 }
 
-func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
-	fields := map[string]any{}
-	if input.Title != nil {
-		fields["title"] = *input.Title
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	if input.Subtotal != nil {
-		fields["subtotal"] = *input.Subtotal
-	}
-	if input.TaxTotal != nil {
-		fields["tax_total"] = *input.TaxTotal
-	}
-	if input.TotalAmount != nil {
-		fields["total_amount"] = *input.TotalAmount
-	}
-	if input.InsuranceAmount != nil {
-		fields["insurance_amount"] = *input.InsuranceAmount
-	}
-	if input.DiscountAmount != nil {
-		fields["discount_amount"] = *input.DiscountAmount
-	}
-	if input.ClearValidUntil {
-		fields["valid_until"] = nil
-	} else if input.ValidUntil != nil {
-		fields["valid_until"] = *input.ValidUntil
-	}
-	if input.Comment != nil {
-		fields["comment"] = *input.Comment
-	}
-	if input.Notes != nil {
-		fields["notes"] = *input.Notes
-	}
-	return fields
-}

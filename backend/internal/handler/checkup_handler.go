@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -77,6 +78,7 @@ func (h *Handler) CreateCheckup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/checkups/%d", id, checkup.ID))
 	c.JSON(http.StatusCreated, toCheckupResponse(checkup))
 }
 

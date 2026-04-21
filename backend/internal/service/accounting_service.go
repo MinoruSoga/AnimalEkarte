@@ -56,6 +56,100 @@ type UpdateAccountingInput struct {
 	ChangeAmount    *int64
 }
 
+// hasPaymentFields は UpdateAccountingInput に Payment 関連フィールドが含まれているか判定する。
+func hasPaymentFields(input *UpdateAccountingInput) bool {
+	return input.PaymentMethod != nil ||
+		input.InsuranceRatio != nil ||
+		input.InsuranceAmount != nil ||
+		input.BillingAmount != nil ||
+		input.ReceivedAmount != nil ||
+		input.ChangeAmount != nil ||
+		input.DiscountAmount != nil
+}
+
+// buildPaymentFromInput は UpdateAccountingInput から Payment モデルを構築する。
+func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
+	p := &model.Payment{
+		BillingID: input.ID,
+		PaidBy:    input.StaffID,
+	}
+	if input.Subtotal != nil {
+		p.Subtotal = *input.Subtotal
+	}
+	if input.TaxTotal != nil {
+		p.TaxTotal = *input.TaxTotal
+	}
+	if input.TotalAmount != nil {
+		p.TotalAmount = *input.TotalAmount
+	}
+	if input.InsuranceName != nil {
+		p.InsuranceName = *input.InsuranceName
+	}
+	if input.InsuranceRatio != nil {
+		p.InsuranceRatio = *input.InsuranceRatio
+	}
+	if input.InsuranceAmount != nil {
+		p.InsuranceAmount = *input.InsuranceAmount
+	}
+	if input.DiscountAmount != nil {
+		p.DiscountAmount = *input.DiscountAmount
+	}
+	if input.BillingAmount != nil {
+		p.BillingAmount = *input.BillingAmount
+	}
+	if input.ReceivedAmount != nil {
+		p.ReceivedAmount = *input.ReceivedAmount
+	}
+	if input.ChangeAmount != nil {
+		p.ChangeAmount = *input.ChangeAmount
+	}
+	if input.PaymentMethod != nil {
+		p.Method = *input.PaymentMethod //nolint:staticcheck // Method is deprecated but PaymentMethodID migration is in progress
+	}
+	return p
+}
+
+// buildAccountingUpdate は UpdateAccountingInput から nil でないフィールドのみ抽出する。
+func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
+	fields := make(map[string]any)
+	if input.MedicalRecordID != nil {
+		fields["medical_record_id"] = *input.MedicalRecordID
+	}
+	if input.HospitalizationID != nil {
+		fields["hospitalization_id"] = *input.HospitalizationID
+	}
+	if input.OwnerID != nil {
+		fields["owner_id"] = *input.OwnerID
+	}
+	if input.PetID != nil {
+		fields["pet_id"] = *input.PetID
+	}
+	if input.Subtotal != nil {
+		fields["subtotal"] = *input.Subtotal
+	}
+	if input.TaxTotal != nil {
+		fields["tax_total"] = *input.TaxTotal
+	}
+	if input.TotalAmount != nil {
+		fields["total_amount"] = *input.TotalAmount
+	}
+	if input.HasInsurance != nil {
+		fields["has_insurance"] = *input.HasInsurance
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	if input.ScheduledDate != nil {
+		fields["scheduled_date"] = *input.ScheduledDate
+	}
+	if input.CompletedAt != nil {
+		fields["completed_at"] = *input.CompletedAt
+	}
+	if input.Memo != nil {
+		fields["memo"] = *input.Memo
+	}
+	return fields
+}
 type AccountingService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
@@ -234,97 +328,3 @@ func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64
 	return result, nil
 }
 
-// hasPaymentFields は UpdateAccountingInput に Payment 関連フィールドが含まれているか判定する。
-func hasPaymentFields(input *UpdateAccountingInput) bool {
-	return input.PaymentMethod != nil ||
-		input.InsuranceRatio != nil ||
-		input.InsuranceAmount != nil ||
-		input.BillingAmount != nil ||
-		input.ReceivedAmount != nil ||
-		input.ChangeAmount != nil ||
-		input.DiscountAmount != nil
-}
-
-// buildPaymentFromInput は UpdateAccountingInput から Payment モデルを構築する。
-func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
-	p := &model.Payment{
-		BillingID: input.ID,
-		PaidBy:    input.StaffID,
-	}
-	if input.Subtotal != nil {
-		p.Subtotal = *input.Subtotal
-	}
-	if input.TaxTotal != nil {
-		p.TaxTotal = *input.TaxTotal
-	}
-	if input.TotalAmount != nil {
-		p.TotalAmount = *input.TotalAmount
-	}
-	if input.InsuranceName != nil {
-		p.InsuranceName = *input.InsuranceName
-	}
-	if input.InsuranceRatio != nil {
-		p.InsuranceRatio = *input.InsuranceRatio
-	}
-	if input.InsuranceAmount != nil {
-		p.InsuranceAmount = *input.InsuranceAmount
-	}
-	if input.DiscountAmount != nil {
-		p.DiscountAmount = *input.DiscountAmount
-	}
-	if input.BillingAmount != nil {
-		p.BillingAmount = *input.BillingAmount
-	}
-	if input.ReceivedAmount != nil {
-		p.ReceivedAmount = *input.ReceivedAmount
-	}
-	if input.ChangeAmount != nil {
-		p.ChangeAmount = *input.ChangeAmount
-	}
-	if input.PaymentMethod != nil {
-		p.Method = *input.PaymentMethod //nolint:staticcheck // Method is deprecated but PaymentMethodID migration is in progress
-	}
-	return p
-}
-
-// buildAccountingUpdate は UpdateAccountingInput から nil でないフィールドのみ抽出する。
-func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
-	fields := make(map[string]any)
-	if input.MedicalRecordID != nil {
-		fields["medical_record_id"] = *input.MedicalRecordID
-	}
-	if input.HospitalizationID != nil {
-		fields["hospitalization_id"] = *input.HospitalizationID
-	}
-	if input.OwnerID != nil {
-		fields["owner_id"] = *input.OwnerID
-	}
-	if input.PetID != nil {
-		fields["pet_id"] = *input.PetID
-	}
-	if input.Subtotal != nil {
-		fields["subtotal"] = *input.Subtotal
-	}
-	if input.TaxTotal != nil {
-		fields["tax_total"] = *input.TaxTotal
-	}
-	if input.TotalAmount != nil {
-		fields["total_amount"] = *input.TotalAmount
-	}
-	if input.HasInsurance != nil {
-		fields["has_insurance"] = *input.HasInsurance
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	if input.ScheduledDate != nil {
-		fields["scheduled_date"] = *input.ScheduledDate
-	}
-	if input.CompletedAt != nil {
-		fields["completed_at"] = *input.CompletedAt
-	}
-	if input.Memo != nil {
-		fields["memo"] = *input.Memo
-	}
-	return fields
-}

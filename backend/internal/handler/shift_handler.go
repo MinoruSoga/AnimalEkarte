@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -82,6 +83,7 @@ func (h *Handler) CreateShiftEntry(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/shifts/%d", shift.ID))
 	c.JSON(http.StatusCreated, toShiftResponse(shift))
 }
 

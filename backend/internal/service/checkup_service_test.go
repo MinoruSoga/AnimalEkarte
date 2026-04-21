@@ -23,11 +23,11 @@ type mockCheckupRepository struct {
 	deleteFn                func(ctx context.Context, clinicID, checkupID uint64) error
 }
 
-func (m *mockCheckupRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
+func (m *mockCheckupRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
 	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockCheckupRepository) ListByClinic(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error) {
+func (m *mockCheckupRepository) FindByClinicID(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error) {
 	if m.listByClinicFn != nil {
 		return m.listByClinicFn(ctx, clinicID, filters)
 	}

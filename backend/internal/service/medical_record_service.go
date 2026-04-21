@@ -37,6 +37,41 @@ func generateCryptoRandomString(length int) string {
 	return string(b)
 }
 
+
+// UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO
+type UpdateMedicalRecordInput struct {
+	Date          *time.Time
+	OwnerID       *uint64
+	PetID         *uint64
+	DoctorID      *uint64
+	AppointmentID *uint64
+	Status        *model.MedicalRecordStatus
+	Version       *int // 楽観的ロック用: nil の場合はチェックをスキップ
+}
+
+func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Date != nil {
+		fields["date"] = *input.Date
+	}
+	if input.OwnerID != nil {
+		fields["owner_id"] = *input.OwnerID
+	}
+	if input.PetID != nil {
+		fields["pet_id"] = *input.PetID
+	}
+	if input.DoctorID != nil {
+		fields["doctor_id"] = *input.DoctorID
+	}
+	if input.AppointmentID != nil {
+		fields["appointment_id"] = *input.AppointmentID
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	return fields
+}
+
 type MedicalRecordService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
@@ -191,41 +226,6 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 		slog.Uint64("clinic_id", clinicID))
 	return nil
 }
-
-// UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO
-type UpdateMedicalRecordInput struct {
-	Date          *time.Time
-	OwnerID       *uint64
-	PetID         *uint64
-	DoctorID      *uint64
-	AppointmentID *uint64
-	Status        *model.MedicalRecordStatus
-	Version       *int // 楽観的ロック用: nil の場合はチェックをスキップ
-}
-
-func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Date != nil {
-		fields["date"] = *input.Date
-	}
-	if input.OwnerID != nil {
-		fields["owner_id"] = *input.OwnerID
-	}
-	if input.PetID != nil {
-		fields["pet_id"] = *input.PetID
-	}
-	if input.DoctorID != nil {
-		fields["doctor_id"] = *input.DoctorID
-	}
-	if input.AppointmentID != nil {
-		fields["appointment_id"] = *input.AppointmentID
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	return fields
-}
-
 // CreateSubRecords はカルテ作成と同時に inquiry / clinical_plan を best-effort で作成する。
 // 失敗しても呼び出し元のカルテ作成は完了済みのためエラーは握りつぶし slog.Warn のみ出力する。
 func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput) {

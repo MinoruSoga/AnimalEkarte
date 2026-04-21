@@ -95,7 +95,7 @@ func NewCompanyService(repo repository.CompanyRepository) CompanyService {
 
 // Get は法人情報シングルトンを取得する
 func (s *companyService) Get(ctx context.Context) (*model.Company, error) {
-	result, err := s.repo.Get(ctx)
+	result, err := s.repo.FindSingleton(ctx)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get company")
 	}
@@ -111,7 +111,7 @@ func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) 
 	if err := s.repo.Update(ctx, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update company")
 	}
-	result, err := s.repo.Get(ctx)
+	result, err := s.repo.FindSingleton(ctx)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get company after update")
 	}

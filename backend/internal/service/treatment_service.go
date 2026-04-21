@@ -97,7 +97,7 @@ func (s *treatmentService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 }
 
 func (s *treatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
-	treatments, err := s.repos.Treatment.ListByMedicalRecordID(ctx, clinicID, medicalRecordID)
+	treatments, err := s.repos.Treatment.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list treatments")
 	}

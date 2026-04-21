@@ -55,7 +55,7 @@ func (h *Handler) GetDailyRecord(c *gin.Context) {
 		return
 	}
 
-	record, err := h.svc.DailyRecord.GetOrCreateByDate(c.Request.Context(), clinicID, hospitalizationID, date)
+	record, err := h.svc.DailyRecord.FindOrCreateByDate(c.Request.Context(), clinicID, hospitalizationID, date)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -89,7 +89,7 @@ func (h *Handler) CreateDailyRecord(c *gin.Context) {
 		return
 	}
 
-	record, err := h.svc.DailyRecord.GetOrCreateByDate(c.Request.Context(), clinicID, hospitalizationID, date)
+	record, err := h.svc.DailyRecord.FindOrCreateByDate(c.Request.Context(), clinicID, hospitalizationID, date)
 	if err != nil {
 		RespondError(c, err)
 		return

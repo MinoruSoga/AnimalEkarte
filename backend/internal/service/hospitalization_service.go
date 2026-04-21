@@ -38,6 +38,60 @@ type CreateHospitalizationInput struct {
 	StaffNotes          string
 }
 
+
+// UpdateHospitalizationInput は入院更新のサービス入力 DTO
+type UpdateHospitalizationInput struct {
+	OwnerID             *uint64
+	PetID               *uint64
+	HospitalizationType *model.HospitalizationType
+	StartDate           *time.Time
+	EndDate             *time.Time
+	Status              *model.HospitalizationStatus
+	CageID              *uint64
+	DoctorID            *uint64
+	Memo                *string
+	OwnerRequest        *string
+	StaffNotes          *string
+}
+
+func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]any {
+	fields := make(map[string]any)
+	if input.OwnerID != nil {
+		fields["owner_id"] = *input.OwnerID
+	}
+	if input.PetID != nil {
+		fields["pet_id"] = *input.PetID
+	}
+	if input.HospitalizationType != nil {
+		fields["hospitalization_type"] = *input.HospitalizationType
+	}
+	if input.StartDate != nil {
+		fields["start_date"] = *input.StartDate
+	}
+	if input.EndDate != nil {
+		fields["end_date"] = *input.EndDate
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	if input.CageID != nil {
+		fields["cage_id"] = *input.CageID
+	}
+	if input.DoctorID != nil {
+		fields["doctor_id"] = *input.DoctorID
+	}
+	if input.Memo != nil {
+		fields["memo"] = *input.Memo
+	}
+	if input.OwnerRequest != nil {
+		fields["owner_request"] = *input.OwnerRequest
+	}
+	if input.StaffNotes != nil {
+		fields["staff_notes"] = *input.StaffNotes
+	}
+	return fields
+}
+
 type HospitalizationService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
@@ -119,60 +173,6 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		slog.Uint64("clinic_id", clinicID))
 	return hosp, nil
 }
-
-// UpdateHospitalizationInput は入院更新のサービス入力 DTO
-type UpdateHospitalizationInput struct {
-	OwnerID             *uint64
-	PetID               *uint64
-	HospitalizationType *model.HospitalizationType
-	StartDate           *time.Time
-	EndDate             *time.Time
-	Status              *model.HospitalizationStatus
-	CageID              *uint64
-	DoctorID            *uint64
-	Memo                *string
-	OwnerRequest        *string
-	StaffNotes          *string
-}
-
-func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]any {
-	fields := make(map[string]any)
-	if input.OwnerID != nil {
-		fields["owner_id"] = *input.OwnerID
-	}
-	if input.PetID != nil {
-		fields["pet_id"] = *input.PetID
-	}
-	if input.HospitalizationType != nil {
-		fields["hospitalization_type"] = *input.HospitalizationType
-	}
-	if input.StartDate != nil {
-		fields["start_date"] = *input.StartDate
-	}
-	if input.EndDate != nil {
-		fields["end_date"] = *input.EndDate
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	if input.CageID != nil {
-		fields["cage_id"] = *input.CageID
-	}
-	if input.DoctorID != nil {
-		fields["doctor_id"] = *input.DoctorID
-	}
-	if input.Memo != nil {
-		fields["memo"] = *input.Memo
-	}
-	if input.OwnerRequest != nil {
-		fields["owner_request"] = *input.OwnerRequest
-	}
-	if input.StaffNotes != nil {
-		fields["staff_notes"] = *input.StaffNotes
-	}
-	return fields
-}
-
 func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find hospitalization")
@@ -248,7 +248,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		}
 
 		// 2. ケアプラン取得
-		carePlanItems, err := txRepos.CarePlanItem.ListByHospitalizationID(ctx, clinicID, id)
+		carePlanItems, err := txRepos.CarePlanItem.FindByHospitalizationID(ctx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get care plan items")
 		}

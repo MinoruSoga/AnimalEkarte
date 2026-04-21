@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -119,6 +120,7 @@ func (h *Handler) CreateEstimate(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/estimates/%d", estimate.ID))
 	c.JSON(http.StatusCreated, toEstimateResponse(estimate))
 }
 

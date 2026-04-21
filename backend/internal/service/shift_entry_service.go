@@ -54,6 +54,24 @@ type UpdateShiftEntryInput struct {
 }
 
 // ShiftEntryService はシフト管理のビジネスロジックインターフェース
+
+func buildShiftEntryUpdate(input *UpdateShiftEntryInput) map[string]any {
+	fields := map[string]any{}
+	if input.ShiftType != nil {
+		fields["shift_type"] = *input.ShiftType
+	}
+	if input.StartTime != nil {
+		fields["start_time"] = normalizeTimeString(input.StartTime)
+	}
+	if input.EndTime != nil {
+		fields["end_time"] = normalizeTimeString(input.EndTime)
+	}
+	if input.Notes != nil {
+		fields["notes"] = *input.Notes
+	}
+	return fields
+}
+
 type ShiftEntryService interface {
 	List(ctx context.Context, clinicID uint64, yearMonth string, staffID *uint64) ([]model.ShiftEntry, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error)
@@ -243,24 +261,6 @@ func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) err
 	slog.InfoContext(ctx, "shift entry deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_entry_id", id))
 	return nil
 }
-
-func buildShiftEntryUpdate(input *UpdateShiftEntryInput) map[string]any {
-	fields := map[string]any{}
-	if input.ShiftType != nil {
-		fields["shift_type"] = *input.ShiftType
-	}
-	if input.StartTime != nil {
-		fields["start_time"] = normalizeTimeString(input.StartTime)
-	}
-	if input.EndTime != nil {
-		fields["end_time"] = normalizeTimeString(input.EndTime)
-	}
-	if input.Notes != nil {
-		fields["notes"] = *input.Notes
-	}
-	return fields
-}
-
 // validateYearMonth は "YYYY-MM" 形式を検証する
 func validateYearMonth(yearMonth string) error {
 	matched, _ := regexp.MatchString(`^\d{4}-\d{2}$`, yearMonth)

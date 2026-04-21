@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -120,6 +121,7 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/owners/%d", owner.ID))
 	c.JSON(http.StatusCreated, toOwnerResponse(owner))
 }
 

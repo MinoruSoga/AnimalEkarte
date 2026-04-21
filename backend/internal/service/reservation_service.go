@@ -10,6 +10,60 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+
+// UpdateReservationInput は予約更新のサービス入力 DTO
+type UpdateReservationInput struct {
+	StartTime         *time.Time
+	EndTime           *time.Time
+	OwnerID           *uint64
+	PetID             *uint64
+	VisitType         *model.VisitType
+	ReservationTypeID *uint64
+	DoctorID          *uint64
+	IsDesignated      *bool
+	Status            *model.ReservationStatus
+	Notes             *string
+}
+
+func buildReservationUpdate(input *UpdateReservationInput) map[string]any {
+	fields := make(map[string]any)
+	if input.StartTime != nil {
+		fields["start_time"] = *input.StartTime
+	}
+	if input.EndTime != nil {
+		fields["end_time"] = *input.EndTime
+	}
+	if input.OwnerID != nil {
+		fields["owner_id"] = *input.OwnerID
+	}
+	if input.PetID != nil {
+		fields["pet_id"] = *input.PetID
+	}
+	if input.VisitType != nil {
+		fields["visit_type"] = *input.VisitType
+	}
+	if input.ReservationTypeID != nil {
+		fields["reservation_type_id"] = *input.ReservationTypeID
+	}
+	if input.DoctorID != nil {
+		if *input.DoctorID == 0 {
+			fields["doctor_id"] = nil // 0 は「医師未指定に変更」として NULL に設定
+		} else {
+			fields["doctor_id"] = *input.DoctorID
+		}
+	}
+	if input.IsDesignated != nil {
+		fields["is_designated"] = *input.IsDesignated
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	if input.Notes != nil {
+		fields["notes"] = *input.Notes
+	}
+	return fields
+}
+
 type ReservationService interface {
 	List(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
@@ -222,60 +276,6 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		slog.Uint64("clinic_id", clinicID))
 	return result, nil
 }
-
-// UpdateReservationInput は予約更新のサービス入力 DTO
-type UpdateReservationInput struct {
-	StartTime         *time.Time
-	EndTime           *time.Time
-	OwnerID           *uint64
-	PetID             *uint64
-	VisitType         *model.VisitType
-	ReservationTypeID *uint64
-	DoctorID          *uint64
-	IsDesignated      *bool
-	Status            *model.ReservationStatus
-	Notes             *string
-}
-
-func buildReservationUpdate(input *UpdateReservationInput) map[string]any {
-	fields := make(map[string]any)
-	if input.StartTime != nil {
-		fields["start_time"] = *input.StartTime
-	}
-	if input.EndTime != nil {
-		fields["end_time"] = *input.EndTime
-	}
-	if input.OwnerID != nil {
-		fields["owner_id"] = *input.OwnerID
-	}
-	if input.PetID != nil {
-		fields["pet_id"] = *input.PetID
-	}
-	if input.VisitType != nil {
-		fields["visit_type"] = *input.VisitType
-	}
-	if input.ReservationTypeID != nil {
-		fields["reservation_type_id"] = *input.ReservationTypeID
-	}
-	if input.DoctorID != nil {
-		if *input.DoctorID == 0 {
-			fields["doctor_id"] = nil // 0 は「医師未指定に変更」として NULL に設定
-		} else {
-			fields["doctor_id"] = *input.DoctorID
-		}
-	}
-	if input.IsDesignated != nil {
-		fields["is_designated"] = *input.IsDesignated
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	if input.Notes != nil {
-		fields["notes"] = *input.Notes
-	}
-	return fields
-}
-
 func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find reservation")

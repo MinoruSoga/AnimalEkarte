@@ -62,7 +62,7 @@ func NewCarePlanItemService(repo repository.CarePlanItemRepository) CarePlanItem
 }
 
 func (s *carePlanItemService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
-	items, err := s.repo.ListByHospitalizationID(ctx, clinicID, hospitalizationID)
+	items, err := s.repo.FindByHospitalizationID(ctx, clinicID, hospitalizationID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list care plan items")
 	}

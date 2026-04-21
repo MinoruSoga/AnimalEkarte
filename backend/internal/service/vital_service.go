@@ -53,7 +53,7 @@ func NewVitalService(repo repository.VitalRepository) VitalService {
 }
 
 func (s *vitalService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
-	items, err := s.repo.ListByMedicalRecordID(ctx, clinicID, medicalRecordID)
+	items, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list vital records")
 	}

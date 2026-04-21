@@ -20,7 +20,7 @@ type CheckupFilters struct {
 
 type CheckupRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
-	ListByClinic(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error)
+	FindByClinicID(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error)
 	Create(ctx context.Context, checkup *model.Checkup) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -35,7 +35,7 @@ func NewCheckupRepository(db *gorm.DB) CheckupRepository {
 	return &checkupRepository{db: db}
 }
 
-func (r *checkupRepository) ListByClinic(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error) {
+func (r *checkupRepository) FindByClinicID(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error) {
 	checkups := make([]model.Checkup, 0)
 	q := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).

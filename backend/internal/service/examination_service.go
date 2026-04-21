@@ -22,6 +22,46 @@ type CreateExaminationInput struct {
 	Status          model.ExaminationStatus
 }
 
+// UpdateExaminationInput は検査更新のサービス入力 DTO
+type UpdateExaminationInput struct {
+	MedicalRecordID *uint64
+	PetID           *uint64
+	ExamTypeID      *uint64
+	DoctorID        *uint64
+	Date            *time.Time
+	ResultSummary   *string
+	Machine         *string
+	Status          *model.ExaminationStatus
+}
+
+func buildExaminationUpdate(input UpdateExaminationInput) map[string]any {
+	fields := make(map[string]any)
+	if input.MedicalRecordID != nil {
+		fields["medical_record_id"] = *input.MedicalRecordID
+	}
+	if input.PetID != nil {
+		fields["pet_id"] = *input.PetID
+	}
+	if input.ExamTypeID != nil {
+		fields["exam_type_id"] = *input.ExamTypeID
+	}
+	if input.DoctorID != nil {
+		fields["doctor_id"] = *input.DoctorID
+	}
+	if input.Date != nil {
+		fields["date"] = *input.Date
+	}
+	if input.ResultSummary != nil {
+		fields["result_summary"] = *input.ResultSummary
+	}
+	if input.Machine != nil {
+		fields["machine"] = *input.Machine
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	return fields
+}
 type ExaminationService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
@@ -122,43 +162,3 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) er
 	return nil
 }
 
-// UpdateExaminationInput は検査更新のサービス入力 DTO
-type UpdateExaminationInput struct {
-	MedicalRecordID *uint64
-	PetID           *uint64
-	ExamTypeID      *uint64
-	DoctorID        *uint64
-	Date            *time.Time
-	ResultSummary   *string
-	Machine         *string
-	Status          *model.ExaminationStatus
-}
-
-func buildExaminationUpdate(input UpdateExaminationInput) map[string]any {
-	fields := make(map[string]any)
-	if input.MedicalRecordID != nil {
-		fields["medical_record_id"] = *input.MedicalRecordID
-	}
-	if input.PetID != nil {
-		fields["pet_id"] = *input.PetID
-	}
-	if input.ExamTypeID != nil {
-		fields["exam_type_id"] = *input.ExamTypeID
-	}
-	if input.DoctorID != nil {
-		fields["doctor_id"] = *input.DoctorID
-	}
-	if input.Date != nil {
-		fields["date"] = *input.Date
-	}
-	if input.ResultSummary != nil {
-		fields["result_summary"] = *input.ResultSummary
-	}
-	if input.Machine != nil {
-		fields["machine"] = *input.Machine
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
-	return fields
-}
