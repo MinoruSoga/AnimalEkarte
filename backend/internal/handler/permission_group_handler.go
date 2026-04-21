@@ -88,7 +88,7 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 
 	// 監査ログ: 権限グループ作成
 	if staffID, ok := extractStaffID(c); ok {
-		h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+		_ = h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
@@ -138,7 +138,7 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 
 	// 監査ログ: 権限グループ更新
 	if staffID, ok := extractStaffID(c); ok {
-		h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+		_ = h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
@@ -187,7 +187,7 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 			auditLog.ClinicID = &oldPG.ClinicID
 			auditLog.OldValue = marshalAuditJSON(oldPG)
 		}
-		h.svc.Audit.Log(c.Request.Context(), auditLog)
+		_ = h.svc.Audit.Log(c.Request.Context(), auditLog)
 	}
 
 	c.Status(http.StatusNoContent)
@@ -241,7 +241,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	}
 
 	// 監査ログ: 権限ルール更新
-	h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
+	_ = h.svc.Audit.Log(c.Request.Context(), &model.AuditLog{
 		ActorID:    &staffID,
 		ActorType:  "staff",
 		Action:     model.AuditActionPermissionRulesUpdate,

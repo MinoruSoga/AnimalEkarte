@@ -46,7 +46,7 @@ type closingSpecialPeriodResponse struct {
 
 // closingSettingsFullResponse は Get エンドポイントの HTTP レスポンス型（設定 + 特別期間）
 type closingSettingsFullResponse struct {
-	Settings       clinicSettingsResponse        `json:"settings"`
+	Settings       clinicSettingsResponse         `json:"settings"`
 	SpecialPeriods []closingSpecialPeriodResponse `json:"special_periods"`
 }
 
