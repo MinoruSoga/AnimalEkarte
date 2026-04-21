@@ -107,7 +107,7 @@ function GroupedTable({
     <DndContext sensors={sensors} collisionDetection={closestCenter}
       onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
       <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-        <div className={`rounded-[4px] border ${C.borderLight} overflow-hidden bg-white`}>
+        <div className={`rounded-[4px] border ${C.borderLight} overflow-hidden ${C.bgWhite}`}>
           <table className="w-full border-collapse">
             <thead>
               <tr className={STYLE.tableHeaderRow}>
