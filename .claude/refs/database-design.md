@@ -1,55 +1,55 @@
 ---
-description: PostgreSQL設計規約（マルチテナント、論理削除、インデックス戦略）
+description: PostgreSQL design standards (multi-tenant, soft delete, indexing strategy)
 alwaysApply: false
 globs: ["backend/migrations/**", "backend/internal/model/**", "backend/internal/repository/**"]
 ---
 
 # Database Design Rules
 
-PostgreSQL 18 マルチテナント設計規約。
+PostgreSQL 18 multi-tenant design standards.
 
-## 核心ルール
+## Core Rules
 
-### 1. テーブル設計パターン
+### 1. Table Design Pattern
 
 ```sql
--- ✅ 標準テーブル
+-- ✅ Standard table
 CREATE TABLE owners (
   id BIGSERIAL PRIMARY KEY,
-  clinic_id BIGINT NOT NULL,  -- マルチテナント必須
+  clinic_id BIGINT NOT NULL,  -- Multi-tenant required
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100) NOT NULL,
   phone VARCHAR(20),
   address TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  deleted_at TIMESTAMP NULL,  -- 論理削除
+  deleted_at TIMESTAMP NULL,  -- Soft delete
   CONSTRAINT fk_owners_clinic FOREIGN KEY (clinic_id) REFERENCES clinics(id),
   CONSTRAINT uk_owners_clinic_email UNIQUE (clinic_id, email) WHERE deleted_at IS NULL
 );
 
--- ✅ 論理削除インデックス（active レコードのみ）
+-- ✅ Soft delete index (active records only)
 CREATE INDEX idx_owners_active ON owners(clinic_id, id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_owners_email ON owners(clinic_id, email) WHERE deleted_at IS NULL;
 
--- ✅ タイムシリーズインデックス（新しい順）
+-- ✅ Time-series index (recent first)
 CREATE INDEX idx_created_at_desc ON owners(clinic_id, created_at DESC);
 ```
 
-### 2. マルチテナント設計（clinic_id 必須）
+### 2. Multi-Tenant Design (clinic_id required)
 
 ```sql
--- ❌ 危険: clinic_id なしのクエリ（データリーク可能性）
+-- ❌ Dangerous: clinic_id omitted (data leak possible)
 SELECT * FROM owners WHERE id = 1;
 
--- ✅ 安全: 常に clinic_id を条件に含める
+-- ✅ Safe: Always include clinic_id in WHERE
 SELECT * FROM owners WHERE clinic_id = $1 AND id = $2;
 
--- ✅ インデックス設計（clinic_id を必ず先に）
+-- ✅ Index design (clinic_id first)
 CREATE INDEX idx_owners_clinic_id ON owners(clinic_id, id);
 ```
 
-### 3. 複合インデックス戦略
+### 3. Composite Index Strategy
 
 ```sql
 -- WHERE clinic_id = X AND id = Y
@@ -62,26 +62,26 @@ CREATE INDEX idx_clinic_status ON vaccinations(clinic_id, status);
 CREATE INDEX idx_clinic_created_desc ON owners(clinic_id, created_at DESC);
 
 -- WHERE clinic_id = X AND name LIKE '%X%'
--- ⚠️ LIKE '%X' では B-tree インデックス効果なし → GIN インデックス検討
+-- ⚠️ LIKE '%X' won't use B-tree index → consider GIN
 CREATE INDEX idx_owners_name_gin ON owners USING GIN(to_tsvector('japanese', name));
 ```
 
-### 4. 論理削除対応
+### 4. Soft Delete Support
 
 ```sql
--- ✅ 部分インデックス（deleted_at IS NULL）
+-- ✅ Partial index (deleted_at IS NULL)
 CREATE INDEX idx_owners_active ON owners(clinic_id, id) WHERE deleted_at IS NULL;
 
--- ✅ UNIQUE 制約も論理削除対応
+-- ✅ UNIQUE constraint with soft delete
 CREATE UNIQUE INDEX uk_owners_email
 ON owners(clinic_id, email) WHERE deleted_at IS NULL;
 
--- ✅ App層でのフィルタ
+-- ✅ Application filter
 -- repository/owner_repository.go
 func (r *OwnerRepository) GetByID(ctx context.Context, id uint64) (*Owner, error) {
   var owner Owner
   return &owner, r.db.WithContext(ctx)
-    .Where("id = ? AND deleted_at IS NULL", id)  // 必須
+    .Where("id = ? AND deleted_at IS NULL", id)  -- Required
     .First(&owner)
     .Error
 }
@@ -91,7 +91,7 @@ func (Owner) TableName() string {
   return "owners"
 }
 
-// ← Global Scope で deleted_at を自動フィルタ
+// Auto-filter deleted_at with Global Scope
 db.Scopes(SoftDeleteScope).Where(...).Find(&owners)
 
 func SoftDeleteScope(db *gorm.DB) *gorm.DB {
@@ -99,10 +99,10 @@ func SoftDeleteScope(db *gorm.DB) *gorm.DB {
 }
 ```
 
-### 5. 外部キー・リレーション設計
+### 5. Foreign Key / Relation Design
 
 ```sql
--- ✅ 外部キーは必須、DELETE CASCADE は要検討
+-- ✅ FK required; DELETE CASCADE on deliberation
 CREATE TABLE pets (
   id BIGSERIAL PRIMARY KEY,
   clinic_id BIGINT NOT NULL,
@@ -112,33 +112,33 @@ CREATE TABLE pets (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted_at TIMESTAMP NULL,
   CONSTRAINT fk_pets_owner FOREIGN KEY (owner_id) REFERENCES owners(id)
-    ON DELETE CASCADE,  -- owner 削除時に pet も削除
+    ON DELETE CASCADE,  -- Delete pet when owner deleted
   CONSTRAINT fk_pets_clinic FOREIGN KEY (clinic_id) REFERENCES clinics(id)
 );
 
--- ✅ 外部キーカラムにはインデックス必須
+-- ✅ FK column must have index
 CREATE INDEX idx_pets_owner ON pets(owner_id);
 CREATE INDEX idx_pets_clinic_owner ON pets(clinic_id, owner_id);
 ```
 
-### 6. N+1 クエリ対策
+### 6. N+1 Query Prevention
 
 ```go
-// ❌ N+1: Owner 取得 → 各 Owner の Pet をループで取得
+// ❌ N+1: Fetch Owner → Loop fetching each Owner's Pets
 owners, _ := r.GetOwners(ctx, clinicID)
 for _, owner := range owners {
-  pets, _ := r.GetPetsByOwner(ctx, owner.ID)  // N回実行
+  pets, _ := r.GetPetsByOwner(ctx, owner.ID)  // N queries
   owner.Pets = pets
 }
 
-// ✅ GORM Preload（単一クエリで関連データ取得）
+// ✅ GORM Preload (single query for related data)
 var owners []Owner
 db.WithContext(ctx)
   .Preload("Pets")
   .Where("clinic_id = ?", clinicID)
   .Find(&owners)
 
-// ✅ JOIN（複雑フィルタが必要な場合）
+// ✅ JOIN (complex filters)
 var owners []Owner
 db.WithContext(ctx)
   .Joins("LEFT JOIN pets ON owners.id = pets.owner_id")
@@ -147,10 +147,10 @@ db.WithContext(ctx)
   .Find(&owners)
 ```
 
-### 7. Enum/Status カラム設計
+### 7. Enum/Status Column Design
 
 ```sql
--- ✅ PostgreSQL ENUM型（推奨）
+-- ✅ PostgreSQL ENUM type (recommended)
 CREATE TYPE billing_status AS ENUM ('waiting', 'paid', 'failed');
 
 CREATE TABLE invoices (
@@ -176,12 +176,12 @@ type Invoice struct {
 }
 ```
 
-### 8. スキーママイグレーション
+### 8. Schema Migration
 
 ```sql
 -- backend/migrations/001_init.sql
--- リリース前は直接編集 OK（incremental migration 不要）
--- リリース後は incremental migration 推奨
+-- Pre-release: direct edit OK (incremental not needed)
+-- Post-release: incremental migration recommended
 
 -- 002_add_field.sql
 ALTER TABLE owners ADD COLUMN middle_name VARCHAR(100);
@@ -190,23 +190,23 @@ ALTER TABLE owners ADD COLUMN middle_name VARCHAR(100);
 CREATE INDEX idx_owners_clinic ON owners(clinic_id);
 ```
 
-## チェックリスト
+## Checklist
 
-- [ ] 全テーブルに `clinic_id` (マルチテナント)
-- [ ] 全テーブルに `created_at`, `updated_at`, `deleted_at`
-- [ ] WHERE 句は `clinic_id` から開始
-- [ ] インデックス: `clinic_id` を先に（複合インデックス）
-- [ ] 論理削除: 部分インデックス `WHERE deleted_at IS NULL`
-- [ ] 外部キー: ON DELETE CASCADE 検討
-- [ ] 外部キーカラム: インデックス必須
-- [ ] UNIQUE 制約: 論理削除対応（部分インデックス）
-- [ ] N+1 クエリ: Preload または JOIN で対策
-- [ ] EXPLAIN ANALYZE でクエリ確認
+- [ ] All tables have `clinic_id` (multi-tenant)
+- [ ] All tables have `created_at`, `updated_at`, `deleted_at`
+- [ ] WHERE always starts with `clinic_id`
+- [ ] Indexes: `clinic_id` first (composite)
+- [ ] Soft delete: partial indexes `WHERE deleted_at IS NULL`
+- [ ] FK: ON DELETE CASCADE deliberated
+- [ ] FK column: index required
+- [ ] UNIQUE constraint: soft delete aware (partial index)
+- [ ] N+1 prevention: Preload or JOIN used
+- [ ] EXPLAIN ANALYZE confirms query plan
 
-## パフォーマンス目標
+## Performance Targets
 
 ```
 Query Time:      < 50ms (p95)
 Index Scan Rate: > 90%
-Seq Scan Count:  < 5/日
+Seq Scan Count:  < 5/day
 ```

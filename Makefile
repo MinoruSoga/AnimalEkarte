@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -66,6 +66,16 @@ reset:
 	@echo "⏳ Running migrations and seeding..."
 	docker compose exec -T backend sh -c "DB_RESET=true go run ./cmd/migrate"
 	@echo "✓ Reset complete — all migrations and seed data applied"
+
+# マイグレーション適用（差分のみ・DBは落とさない）
+migrate:
+	docker compose exec -T backend sh -c "go run ./cmd/migrate"
+	@echo "✓ Migrations applied"
+
+# シーダー適用（マイグレーションと同じコマンド — seed は SQL ファイルとして管理されているため差分のみ適用）
+seed:
+	docker compose exec -T backend sh -c "go run ./cmd/migrate"
+	@echo "✓ Seed data applied"
 
 # バックエンドのみ再起動
 restart-api:
@@ -192,7 +202,9 @@ help:
 	@echo "  ps            コンテナ状態確認"
 	@echo "  db            DB接続（psql）"
 	@echo "  clean         キャッシュクリア＆再ビルド"
-	@echo "  reset         完全リセット（マイグレーション＋シーダー適用）"
+	@echo "  reset         完全リセット（ボリューム削除→マイグレーション＋シーダー全適用）"
+	@echo "  migrate       差分マイグレーションのみ適用（DBは落とさない）"
+	@echo "  seed          シーダーのみ適用（差分のみ・べき等）"
 	@echo "  restart-api   API再起動"
 	@echo "  restart-front フロントエンド再起動"
 	@echo "  build-prod    本番ビルド"

@@ -1,5 +1,5 @@
 ---
-description: Go/Gin REST APIの設計・実装パターン
+description: Go/Gin REST API design and implementation patterns
 alwaysApply: false
 globs: ["backend/**/*.go"]
 ---

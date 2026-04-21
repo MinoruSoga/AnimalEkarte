@@ -1,5 +1,5 @@
 ---
-description: テスト規約（ユニット・統合テスト）
+description: Testing standards (unit/integration tests)
 alwaysApply: false
 globs: ["backend/**/*_test.go", "frontend/**/*.{test,spec}.{ts,tsx}"]
 ---
@@ -58,23 +58,23 @@ go test -race ./...              # Race detection
 - Use `describe` for grouping related tests
 - Use `it` or `test` for individual test cases
 - Follow AAA pattern: Arrange, Act, Assert
-- テストファイルはfeature内の`__tests__/`ディレクトリに配置
+- Test files in `__tests__/` directory within feature
 
-### Feature Test Structure（bulletproof-react準拠）
+### Feature Test Structure (bulletproof-react compliant)
 
-テストファイルは対象ファイルと**同階層**に配置する（`__tests__/` ディレクトリは使用しない）。
+Place test files at **same level** as target file (no `__tests__/` directory).
 
 ```
 src/features/owners/
 ├── routes/
 │   ├── OwnersList.tsx
-│   └── OwnersList.test.tsx       ← 同階層
+│   └── OwnersList.test.tsx       ← same level
 ├── hooks/
 │   ├── useOwnerForm.ts
-│   └── useOwnerForm.test.ts      ← 同階層
+│   └── useOwnerForm.test.ts      ← same level
 └── api/
     ├── get-owners.ts
-    └── get-owners.test.ts        ← 同階層
+    └── get-owners.test.ts        ← same level
 ```
 
 ### Naming
@@ -82,9 +82,9 @@ src/features/owners/
 - Test descriptions: Start with "should"
 
 ### React 19 Testing Notes
-- `useActionState`のテスト: form actionをモックし、state遷移を検証
-- `useOptimistic`のテスト: 楽観的更新とロールバックの両方を検証
-- `ref` as prop: `forwardRef`なしでref受け渡しテスト可能
+- `useActionState` testing: mock form action, verify state transitions
+- `useOptimistic` testing: verify both optimistic update and rollback
+- `ref` as prop: can test ref pass-through without forwardRef
 
 ### Running Tests
 ```bash
@@ -104,4 +104,4 @@ docker compose exec frontend npm run test:coverage  # With coverage
 - Mock external dependencies
 - Use dependency injection for testability
 - Use interfaces for mockable dependencies (Go)
-- Feature内のAPIモックは`src/testing/`に共通モックを配置
+- Place feature-internal API mocks in `src/testing/`

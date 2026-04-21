@@ -1,41 +1,41 @@
 ---
-description: Go言語コーディング規約（エラー処理、Context伝播、並行性）
+description: Go 1.25 coding standards (error handling, context propagation, concurrency)
 alwaysApply: true
 globs: ["backend/**/*.go"]
 ---
 
 # Go Language Rules
 
-Go 1.25 プロジェクト標準ルール。
+Go 1.25 project standard rules.
 
-## 核心ルール
+## Core Rules
 
-### 1. Context伝播（必須）
+### 1. Context Propagation (Required)
 
-全関数の第一引数に `context.Context` を配置。
+Place `context.Context` as first argument in all functions.
 
 ```go
-// ✅ 正しい
+// ✅ Correct
 func (r *OwnerRepository) GetByID(ctx context.Context, id uint64) (*Owner, error) {
   return r.db.WithContext(ctx).First(&owner, id).Error
 }
 
-// ❌ 禁止: Context なし
+// ❌ Prohibited: No Context
 func (r *OwnerRepository) GetByID(id uint64) (*Owner, error) {
   return r.db.First(&owner, id).Error
 }
 ```
 
-### 2. エラーハンドリング（Sentinel + Wrap）
+### 2. Error Handling (Sentinel + Wrap)
 
 ```go
-// errors/errors.go で Sentinel 定義
+// Define Sentinel errors in errors/errors.go
 var (
   ErrNotFound = errors.New("not found")
   ErrConflict = errors.New("conflict")
 )
 
-// service層で Wrap
+// Wrap in service layer
 if err := repo.Create(ctx, owner); err != nil {
   if errors.Is(err, ErrConflict) {
     return fmt.Errorf("owner already exists: %w", err)
@@ -43,14 +43,14 @@ if err := repo.Create(ctx, owner); err != nil {
   return fmt.Errorf("failed to create owner: %w", err)
 }
 
-// handler層で RespondError()
+// Call RespondError() in handler layer
 RespondError(c, err)
 ```
 
-### 3. インターフェース設計
+### 3. Interface Design
 
 ```go
-// 最小化: 必要な操作のみ
+// Minimize: only necessary operations
 type OwnerRepository interface {
   GetByID(ctx context.Context, id uint64) (*Owner, error)
   Create(ctx context.Context, owner *Owner) error
@@ -58,7 +58,7 @@ type OwnerRepository interface {
   Delete(ctx context.Context, id uint64) error
 }
 
-// ❌ 禁止: 巨大インターフェース
+// ❌ Prohibited: Massive interface
 type Repository interface {
   GetByID() (*Owner, error)
   Create() error
@@ -66,11 +66,11 @@ type Repository interface {
   Delete() error
   GetAll() ([]Owner, error)
   Count() (int64, error)
-  // ... 20個のメソッド
+  // ... 20 more methods
 }
 ```
 
-### 4. GORM PATCH（ポインタ型 + buildUpdateFields）
+### 4. GORM PATCH (Pointer types + buildUpdateFields)
 
 ```go
 // service/owner_service.go
@@ -80,7 +80,7 @@ type UpdateOwnerInput struct {
 }
 
 func (s *OwnerService) Update(ctx context.Context, id uint64, input UpdateOwnerInput) (*Owner, error) {
-  // ゼロ値問題を回避
+  // Avoid zero value problem
   fields := buildOwnerUpdateFields(input)
   return s.repo.UpdateFields(ctx, id, fields)
 }
@@ -103,12 +103,12 @@ func buildOwnerUpdateFields(input UpdateOwnerInput) map[string]any {
 }
 ```
 
-### 5. 並行処理（errgroup）
+### 5. Concurrency (errgroup)
 
 ```go
 import "golang.org/x/sync/errgroup"
 
-// 複数の独立した操作を並列実行
+// Run multiple independent operations in parallel
 g, ctx := errgroup.WithContext(ctx)
 
 g.Go(func() error {
@@ -124,14 +124,14 @@ if err := g.Wait(); err != nil {
 }
 ```
 
-### 6. ログ（slog構造化ログ）
+### 6. Logging (slog structured logging)
 
-原則 service 層のみ。handler・repository には記述しない。
+Logging only in service layer. No handler or repository logging.
 
-**例外（handler 層で許容）:**
-- `response.go` の `RespondError` 内部サーバーエラーログ（HTTP インフラ関心事）
-- 監査ログ書き込み失敗時の best-effort エラーログ（`auth_handler.go`, `permission_group_handler.go`）
-- ファイルクリーンアップ失敗時の警告ログ（`medical_record_image_handler.go`）
+**Exceptions (allowed in handler layer):**
+- `response.go` `RespondError` internal server error logging (HTTP infrastructure concern)
+- Audit log write failures with best-effort error logging (`auth_handler.go`, `permission_group_handler.go`)
+- File cleanup failure warnings (`medical_record_image_handler.go`)
 
 ```go
 import "log/slog"
@@ -150,22 +150,22 @@ func (s *OwnerService) Create(ctx context.Context, input CreateOwnerInput) (*Own
 }
 ```
 
-### 7. 命名規則
+### 7. Naming Conventions
 
-| 対象 | 規則 | 例 |
-|------|------|-----|
-| パッケージ | lowercase（1単語） | `handler`, `repository` |
-| エクスポート | PascalCase | `GetOwner`, `OwnerService` |
-| 非エクスポート | camelCase | `getOwnerByID` |
-| ファイル | snake_case | `owner_handler.go` |
-| インターフェース | PascalCase + er | `OwnerRepository` |
-| テーブル | snake_case（複数形） | `owners`, `medical_records` |
+| Target | Rule | Example |
+|--------|------|---------|
+| Package | lowercase (single word) | `handler`, `repository` |
+| Exported | PascalCase | `GetOwner`, `OwnerService` |
+| Unexported | camelCase | `getOwnerByID` |
+| File | snake_case | `owner_handler.go` |
+| Interface | PascalCase + er | `OwnerRepository` |
+| Table | snake_case (plural) | `owners`, `medical_records` |
 
-## チェックリスト
+## Checklist
 
-- [ ] すべての関数に `ctx context.Context` 引数
-- [ ] Sentinel エラー + fmt.Errorf("...: %w", err) で Wrap
-- [ ] service層のみ slog 記述
-- [ ] PATCH は ポインタ型 + buildUpdateFields()
-- [ ] errgroup で並列処理
-- [ ] インターフェース最小化（3-5メソッド）
+- [ ] All functions have `ctx context.Context` argument
+- [ ] Sentinel errors + `fmt.Errorf("...: %w", err)` wrapping
+- [ ] Logging only in service layer
+- [ ] PATCH uses pointer types + buildUpdateFields()
+- [ ] errgroup for parallel processing
+- [ ] Interfaces minimized (3-5 methods)

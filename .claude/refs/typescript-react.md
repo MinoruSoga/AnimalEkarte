@@ -1,30 +1,30 @@
 ---
-description: TypeScript/React 19コーディング規約（型安全性、React 19パターン）
+description: TypeScript/React 19 coding standards (type safety, React 19 patterns)
 alwaysApply: true
 globs: ["frontend/src/**/*.{ts,tsx}"]
 ---
 
 # TypeScript / React 19 Rules
 
-React 19 + TypeScript 5.7 プロジェクト標準ルール。
+React 19 + TypeScript 5.7 project standards.
 
-## 核心ルール
+## Core Rules
 
-### 1. 型定義（any禁止、型安全性優先）
+### 1. Type Definition (any prohibited, type safety first)
 
 ```typescript
-// ❌ 禁止: any
+// ❌ Prohibited: any
 const handleChange = (e: any) => {};
 const data: any = response.data;
 
-// ✅ 正しい
+// ✅ Correct
 interface ChangeEvent {
   target: { name: string; value: string };
 }
 
 const handleChange = (e: ChangeEvent) => {};
 
-// unknown + 型ガード
+// unknown + type guard
 const parseData = (data: unknown): Owner | null => {
   if (data && typeof data === 'object' && 'id' in data) {
     return data as Owner;
@@ -33,10 +33,10 @@ const parseData = (data: unknown): Owner | null => {
 };
 ```
 
-### 2. コンポーネント定義（React 19）
+### 2. Component Definition (React 19)
 
 ```typescript
-// ✅ React 19 - 関数宣言 + Props型
+// ✅ React 19 - Function declaration + Props type
 interface OwnerCardProps {
   owner: Owner;
   onSelect?: (id: number) => void;
@@ -47,16 +47,16 @@ export function OwnerCard({ owner, onSelect, ref }: OwnerCardProps) {
   return <div ref={ref} onClick={() => onSelect?.(owner.id)}>{owner.name}</div>;
 }
 
-// ❌ 禁止: FC型（React 19では不要）
+// ❌ Prohibited: FC type (unnecessary in React 19)
 export const OwnerCard: FC<Props> = () => {};
 
-// ❌ 禁止: forwardRef（React 19ではref as prop）
+// ❌ Prohibited: forwardRef (React 19 uses ref as prop)
 export const OwnerCard = forwardRef(({ owner }, ref) => <div ref={ref} />);
 ```
 
-### 3. React 19 hooks パターン（Actions）
+### 3. React 19 Hooks Pattern (Actions)
 
-データ更新（Mutation）は **React 19 Action** パターンを標準とする。
+Use **React 19 Action** pattern for data mutations (standard).
 
 ```typescript
 // ✅ MANDATE: useActionState + <form action>
@@ -65,7 +65,7 @@ const [state, formAction, isPending] = useActionState(async (prevState, formData
     const result = await updateOwner(id, formData);
     return { success: true, data: result };
   } catch (error) {
-    handleApiError(error, "更新");
+    handleApiError(error, "update");
     return { success: false, error };
   }
 }, null);
@@ -73,63 +73,63 @@ const [state, formAction, isPending] = useActionState(async (prevState, formData
 return (
   <form action={formAction}>
     <Input name="name" defaultValue={owner.name} />
-    {/* ✅ MANDATE: すべてのフォームで SubmitButton を使用 */}
-    <SubmitButton>保存</SubmitButton>
+    {/* ✅ MANDATE: Use SubmitButton for all forms */}
+    <SubmitButton>Save</SubmitButton>
   </form>
 );
 
-// ❌ 禁止: useState + onSubmit での手動ローディング管理
+// ❌ Prohibited: useState + onSubmit manual loading management
 const [isLoading, setIsLoading] = useState(false);
 const handleSubmit = async (e) => {
-  setIsLoading(true); // 禁止
+  setIsLoading(true); // prohibited
   await api();
   setIsLoading(false);
 };
 ```
 
-### 4. デザイントークン（デザインシステム）
+### 4. Design Tokens
 
-スタイリングには必ず `src/lib/design-tokens.ts` の定数を使用する。
+Always use constants from `src/lib/design-tokens.ts` for styling.
 
 ```typescript
 import { C, STYLE } from '@/lib/design-tokens';
 
-// ✅ 正しい: トークンを使用
+// ✅ Correct: Use tokens
 <div className={cn(STYLE.FLEX_BETWEEN, "p-4")} style={{ color: C.TEXT_MAIN }}>
 
-// ❌ 禁止: Hexカラーの直接指定
+// ❌ Prohibited: Direct hex color specification
 <div style={{ color: '#37352F' }}>
 ```
 
-### 5. 命名規則
+### 5. Naming Conventions
 
 ```typescript
-// コンポーネント: PascalCase
+// Components: PascalCase
 export function OwnerCard() {}
 export function OwnerForm() {}
 
-// 関数・変数: camelCase
+// Functions/variables: camelCase
 const getOwners = async () => {};
 const isLoading = false;
 
-// 定数: UPPER_SNAKE_CASE
+// Constants: UPPER_SNAKE_CASE
 const API_BASE_URL = 'http://localhost:8080';
 const MAX_OWNERS_PER_PAGE = 20;
 
-// API Hook: useGet/useCreate/useUpdate/useDelete + エンティティ名
+// API Hook: useGet/useCreate/useUpdate/useDelete + entity name
 const useGetOwners = () => useQuery(...);
 const useGetOwner = (id) => useQuery(...);
 const useCreateOwner = () => useMutation(...);
 
-// Form Hook: use + エンティティ名 + Form
+// Form Hook: use + entity name + Form
 const useOwnerForm = (initialValues?: Owner) => {
   const [formData, setFormData] = useState(initialValues);
   return { formData, setFormData };
 };
 
-// コンポーネントファイル(.tsx): PascalCase
+// Component file (.tsx): PascalCase
 // OwnerCard.tsx, OwnerForm.tsx
-// 非コンポーネントファイル(.ts): kebab-case
+// Non-component file (.ts): kebab-case
 // use-owner-form.ts, get-owners.ts
 
 // Interface/Type: PascalCase
@@ -137,54 +137,54 @@ interface Owner {}
 type OwnerStatus = 'active' | 'inactive';
 ```
 
-### 6. 条件レンダー（`&&` 禁止）
+### 6. Conditional Render (`&&` prohibited)
 
 ```typescript
-// ❌ 禁止: &&（0や空文字が漏れる）
+// ❌ Prohibited: && (zero or empty string leak)
 {isLoading && <div>Loading...</div>}
 {items.length && <List items={items} />}
 
-// ✅ 正しい: 三項演算子
+// ✅ Correct: Ternary
 {isLoading ? <div>Loading...</div> : null}
 {items.length > 0 ? <List items={items} /> : null}
 ```
 
-### 7. import順序・Feature Indexing推奨
+### 7. Import Order / Feature Indexing
 
-外部モジュールから feature を利用する場合、必ず `index.ts` を経由する。
+Always use `index.ts` when importing from external features.
 
 ```typescript
-// ✅ 正しい: Feature Indexing 経由（推奨）
+// ✅ Correct: Feature Indexing (recommended)
 import { OwnerCard, useOwners } from '@/features/owners';
 
-// ❌ 禁止: Feature 内部ファイルへの深掘り import
+// ❌ Prohibited: Deep import from feature internals
 import { OwnerCard } from '@/features/owners/components/OwnerCard';
 import { useOwners } from '@/features/owners/hooks/use-owners';
 
-// Import順序: React → 外部lib → 内部共通 (@/) → Feature-internal → styles
+// Import order: React → external lib → internal shared (@/) → Feature-internal → styles
 import { useState } from 'react';
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { C } from '@/lib/design-tokens';
-import { getOwners } from '../api/get-owners'; // 同一feature内
+import { getOwners } from '../api/get-owners'; // same feature only
 import type { Owner } from '@/types';
 ```
 
-### 8. フォーム管理パターン
+### 8. Form Management Pattern
 
 ```typescript
-// useCallback でハンドラ安定化（memo の前提条件）
+// useCallback for handler stabilization (memo prerequisite)
 const handleInputChange = useCallback((field: string, value: string) => {
   setFormData(prev => ({ ...prev, [field]: value }));
 }, []);
 
-// lazy init で初期状態を遅延初期化
+// lazy init for deferred initial state
 const [formData, setFormData] = useState<Owner>(() => {
   return initialOwner ?? defaultOwner;
 });
 
-// useDeferredValue で検索フィルタ遅延
+// useDeferredValue for search filter delay
 const deferredSearchTerm = useDeferredValue(searchTerm);
 const filteredOwners = useMemo(
   () => owners.filter(o => o.name.includes(deferredSearchTerm)),
@@ -192,10 +192,10 @@ const filteredOwners = useMemo(
 );
 ```
 
-### 9. memo() で最適化
+### 9. memo() Optimization
 
 ```typescript
-// ✅ 大型フォームをセクションに分割
+// ✅ Split large forms into sections
 export const OwnerForm = memo(function OwnerForm({ owner, onSave }: Props) {
   const [formData, setFormData] = useState(owner);
   const handleChange = useCallback(..., []);
@@ -208,26 +208,26 @@ export const OwnerForm = memo(function OwnerForm({ owner, onSave }: Props) {
   );
 });
 
-// memo() でセクション子をメモ化
+// Memoize section children
 const OwnerInfoSection = memo(function OwnerInfoSection({ data, onChange }: Props) {
   return <div>...</div>;
 });
 ```
 
-## チェックリスト
+## Checklist
 
-- [ ] `any` 型なし（unknown + 型ガード）
-- [ ] `FC` 型、forwardRef なし（React 19パターン）
-- [ ] コンポーネント = PascalCase
+- [ ] No `any` types (use unknown + type guard)
+- [ ] No `FC` type, forwardRef (React 19 patterns)
+- [ ] Components = PascalCase
 - [ ] Hook = camelCase
-- [ ] 関数 = camelCase
-- [ ] 定数 = UPPER_SNAKE_CASE
-- [ ] スタイリング = デザイントークン（`C`, `STYLE`）使用。Hexカラー禁止。
-- [ ] 条件レンダー = 三項演算子（`&&` 禁止）
-- [ ] 外部からの Feature 利用 = `index.ts` 経由（Feature Indexing）
-- [ ] フォーム = `useActionState` + `SubmitButton` 使用
-- [ ] useCallback でハンドラ安定化
-- [ ] 複雑フォーム = useTransition（useState + setIsPending 禁止）
-- [ ] 検索フィルタ = useDeferredValue
+- [ ] Functions = camelCase
+- [ ] Constants = UPPER_SNAKE_CASE
+- [ ] Styling = Design tokens (`C`, `STYLE`). No hex colors.
+- [ ] Conditional render = Ternary (NOT `&&`)
+- [ ] Feature imports = via `index.ts` (Feature Indexing)
+- [ ] Forms = `useActionState` + `SubmitButton`
+- [ ] useCallback for handler stabilization
+- [ ] Complex forms = useTransition (NOT useState + setIsPending)
+- [ ] Search filter = useDeferredValue
 - [ ] API = useQuery/useMutation
-- [ ] Form = useXxxForm hook
+- [ ] Forms = useXxxForm hook

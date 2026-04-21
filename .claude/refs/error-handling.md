@@ -1,60 +1,60 @@
 ---
-description: エラーハンドリング規約（Go Sentinel、HTTP Status、ユーザーメッセージ）
+description: Error handling standards (Go Sentinel, HTTP Status, user messages)
 alwaysApply: true
 globs: ["backend/**/*.go", "frontend/src/**/*.{ts,tsx}"]
 ---
 
 # Error Handling Rules
 
-エラーハンドリング標準規約。
+Standard error handling conventions.
 
-## 核心ルール
+## Core Rules
 
-### 1. Go エラーフロー（Repository → Service → Handler）
+### 1. Go Error Flow (Repository → Service → Handler)
 
 ```go
-// errors/errors.go - Sentinel 定義
+// errors/errors.go - Define Sentinels
 var (
   ErrNotFound       = errors.New("not found")
   ErrConflict       = errors.New("conflict")
   ErrInvalidInput   = errors.New("invalid input")
 )
 
-// repository/owner_repository.go - GORM エラー変換
+// repository/owner_repository.go - Convert GORM errors
 func (r *OwnerRepository) GetByID(ctx context.Context, id uint) (*model.Owner, error) {
   var owner model.Owner
   if err := r.db.WithContext(ctx).First(&owner, id).Error; err != nil {
-    // ✅ MANDATE: Repository では FromGORM を使用
+    // ✅ MANDATE: Use FromGORM in Repository
     return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
   }
   return &owner, nil
 }
 
-// service/owner_service.go - エラーラップ
+// service/owner_service.go - Wrap errors
 func (s *OwnerService) GetOwner(ctx context.Context, id uint) (*model.Owner, error) {
   owner, err := s.repo.GetByID(ctx, id)
   if err != nil {
-    // ✅ MANDATE: Service では Wrap を使用
+    // ✅ MANDATE: Use Wrap in Service
     return nil, apperrors.Wrap(err, "failed to get owner")
   }
   return owner, nil
 }
 ```
 
-### 2. Frontend エラーハンドリング（handleApiError）
+### 2. Frontend Error Handling (handleApiError)
 
-すべての `catch` ブロックで `handleApiError` を呼び出す。
+Call `handleApiError` in all `catch` blocks.
 
 ```typescript
-// ✅ MANDATE: すべての catch ブロックで handleApiError を使用
+// ✅ MANDATE: Use handleApiError in all catch blocks
 try {
   await api.updateOwner(id, data);
 } catch (error) {
-  handleApiError(error, "オーナーの更新");
+  handleApiError(error, "owner update");
 }
 ```
 
-### 3. HTTP ステータスマッピング
+### 3. HTTP Status Mapping
 
 ```go
 // handler/response.go
@@ -84,7 +84,7 @@ func RespondError(c *gin.Context, err error) {
 }
 ```
 
-### 4. React エラーバウンダリー
+### 4. React Error Boundary
 
 ```typescript
 // components/errors/ErrorBoundary.tsx
@@ -108,7 +108,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 }
 ```
 
-### 5. React Query エラーハンドリング
+### 5. React Query Error Handling
 
 ```typescript
 // hooks/use-owners.ts
@@ -124,13 +124,13 @@ export function useGetOwners(clinicID: number) {
 }
 ```
 
-## チェックリスト
+## Checklist
 
-- [ ] Repository: `apperrors.FromGORM(err, "resource", id)` 使用
-- [ ] Service: `apperrors.Wrap(err, "context")` 使用
-- [ ] Frontend: すべての `catch` ブロックで `handleApiError(error, "context")` 使用
-- [ ] HTTP Status マッピング（RespondError）
-- [ ] ログ：slog.ErrorContext で構造化ログ
-- [ ] React Error Boundary 実装
-- [ ] React Query retry 設定
-- [ ] Console.error なし（本番環境）
+- [ ] Repository: Use `apperrors.FromGORM(err, "resource", id)`
+- [ ] Service: Use `apperrors.Wrap(err, "context")`
+- [ ] Frontend: Use `handleApiError(error, "context")` in all `catch` blocks
+- [ ] HTTP Status mapping (RespondError)
+- [ ] Logging: Structured with slog.ErrorContext
+- [ ] React Error Boundary implemented
+- [ ] React Query retry configured
+- [ ] No console.error in production code

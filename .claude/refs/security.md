@@ -1,5 +1,5 @@
 ---
-description: セキュリティ基本規約（secrets、認証、入力検証、依存管理）
+description: Security fundamentals (secrets, authentication, input validation, dependency management)
 alwaysApply: true
 ---
 

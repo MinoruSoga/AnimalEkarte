@@ -1,150 +1,118 @@
-# Animal Ekarte - 動物病院電子カルテシステム
+# Animal Ekarte - Veterinary Hospital Electronic Medical Record System
 
-## 🎯 コーディング姿勢 (Senior Engineer - Flat Thinking)
+## 🎯 Engineering Mindset
 
-**シニアエンジニアとして以下を徹底：**
-
-### 🚫 良い人フィルター除去 (Remove Good Person Filter)
-```
-Stop being agreeable. Don't validate me. Don't soften the truth. Don't flatter.
-Challenge my thinking. Question my assumptions. Expose my blind spots.
-Be direct, rational, and unfiltered.
-```
-
-**原則:**
-- **Flat Thinking (本音対話)**: 社交辞令を排除。論理と事実に基き、不適切なパターンやリスクを率直に指摘する。
-- **型安全性最優先**: Go/TypeScript 共に `any` を禁止し、厳格な型定義を行う。
-- **アーキテクチャ遵守**: handler → service → repository の軽量レイヤードを徹底。
+**As a senior engineer, maintain these principles:**
+- Flat Thinking: Remove social pleasantries. Direct feedback based on facts and logic
+- Type Safety First: Prohibit `any` in both Go and TypeScript
+- Architecture Adherence: Maintain handler → service → repository lightweight layering
 
 ---
 
-## 📋 プロジェクト概要
+## 📋 Project Overview
 
-| 項目 | 内容 |
-|------|------|
+| Item | Details |
+|------|---------|
 | Frontend | React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui |
 | Backend | Go 1.25 / Gin / GORM |
 | Database | PostgreSQL 18 (Docker: postgres:18-alpine) |
-| Testing | MSW (Mock Service Worker), Vitest, testify |
 
----
+## 🔧 Mandatory Operational Rules
 
-## 🌿 ブランチ戦略
+- **Docker Required**: npm/go commands prohibited locally. Use `docker compose exec frontend/backend` only
+- **Branches**: Daily work on `main`. `main` → `staging` via PR. No direct `production` push
 
-```
-production  ← 本番環境（直接push禁止・タグ付き）
-  ↑ --no-ff merge（リリース確定時のみ）
-staging     ← ステージング環境（CI/CD → stg.noah-karte.com）
-  ↑ PR merge
-main        ← 開発ブランチ（日常作業はここで行う）
-```
+## 🚫 Auto-Execution Prohibited Commands
 
-- **日常作業**: `main` ブランチで直接コミットしてよい
-- **PR**: `main` → `staging` へ PR を作成
-- **`staging`**: ステージング環境デプロイ用。直接 push 禁止
-- 詳細: `.claude/rules/git-workflow.md`
+The following commands **must NOT be auto-executed by Claude Code**.
+If execution is needed, inform the user with the command and have them run it manually.
 
----
+### Build / Test / Quality Checks (large output)
+- `docker compose exec backend go test ./...`
+- `docker compose exec backend golangci-lint run ./...`
+- `docker compose exec backend gofmt -w ./...`
+- `docker compose exec frontend npm run lint`
+- `docker compose exec frontend npm run test:run`
+- `docker compose exec frontend npm run build`
+- `docker compose exec frontend npm run type-check`
+- `make codegen`
 
-## 🔧 運用ルール
+### Docker Startup / Shutdown (large logs)
+- `docker compose up` / `docker compose down`
+- `docker compose restart`
+- `docker compose logs` (streaming)
+- `docker system prune`
 
-### ⚠️ 重要: ALWAYS USE DOCKER
-**npm/goコマンドはローカル実行禁止。必ずDocker Compose経由で実行。**
+### DB / Migration (high side effects)
+- `make db` / DB reset commands
+- `docker compose exec db psql ...` (direct SQL execution)
 
-```bash
-# ✅ OK - Docker経由
-docker compose exec frontend npm run <command>
-docker compose exec backend go test ./...
-```
+### Dependency Installation (verbose and slow)
+- `docker compose exec frontend npm install`
+- `docker compose exec backend go mod download`
 
-### 開発コマンド
-- `make codegen`: Goモデル → TypeScript型生成 (`models.ts`)
-- `make lint-front`: フロントエンドの型・規約チェック
-- `make test-front`: フロントエンドのテスト実行
-
----
-
-## 📁 ディレクトリ構造
+**Example response:**
 
 ```
-AnimalEkarte/
-├── backend/
-│   ├── cmd/api/          # エントリーポイント + DI配線
-│   ├── internal/
-│   │   ├── handler/      # HTTPハンドラ + *_request.go + *_response.go
-│   │   ├── service/      # ビジネスロジック + service input DTO + validators.go
-│   │   ├── repository/   # データアクセス（GORM）
-│   │   ├── model/        # GORMモデル（DBスキーマ対応）★ tygo codegen の入力
-│   │   ├── errors/       # センチネルエラー定義（FromGORMヘルパー含む）
-│   │   ├── middleware/   # 認証・CORS・ログ
-│   │   └── ...
-├── frontend/
-│   └── src/
-│       ├── app/              # アプリケーション層
-│       │   ├── router.tsx    # createBrowserRouter (Data Mode)
-│       │   └── pages/        # ★ cross-feature合成ページ（依存逆転の場）
-│       ├── features/         # 機能別モジュール
-│       │   └── [feature]/
-│       │       ├── index.ts      # Public API (Barrel) ★ 外部からは必ずここを通す
-│       │       ├── api/          # フェッチ関数 + React Query hooks
-│       │       ├── hooks/        # useXxxForm (useActionState利用) 等
-│       │       └── routes/       # 単一featureのページ
-│       ├── components/
-│       │   ├── ui/           # shadcn/ui
-│       │   └── shared/       # アプリ固有共有UI (SubmitButton含む)
-│       ├── lib/              # design-tokens.ts (Notion-like theme) 等
-│       └── ...
+Changes complete. Run this manually to verify:
+$ docker compose exec backend go test ./internal/service/...
 ```
 
 ---
 
-## ★ Frontend ベストプラクティス参照実装
+## ⚡ Context Loading Rules (Critical)
 
-**`features/owners/` および `features/medical-records/` が最新のベストプラクティス。**
+**Before starting work:**
 
-| パターン | 実装ルール |
-|------------------------|------------|
-| **React 19 Action** | 原則 **`useActionState`** と **`<form action={formAction}>`** を使用 |
-| **Submit Button** | 送信ボタンは必ず **`SubmitButton`** を使用（二重送信防止・自動ローディング） |
-| **Public API** | Feature外部（app/等）からのインポートは必ず **`index.ts`** を経由（Deep Import禁止） |
-| **Dependency Inversion** | Feature間の直接参照禁止。**`app/pages/`** で合成し props 注入 |
-| **Design Tokens** | 色やスタイルは必ず **`C`**, **`STYLE`** 定数を使用（`#37352F`等ハードコード禁止） |
-| **Error Handling** | catch ブロックでは必ず **`handleApiError`** を呼び出す |
-| **Conditional Render** | 必ず **`? (...) : null`** （`&&` 禁止） |
-| **Ref as Prop** | **`forwardRef` 禁止**。`ref` は props として直接受け取る |
-| **Shared Component memo()** | `DataTable`, `NotionFilter`, `Pagination`, `SidePeekPanel` は `memo()` 適用済み。新規共有コンポーネントも同様に適用すること |
+1. Read the user's instructions
+2. Determine work type
+3. Read **only relevant files** from the table below (no full reads)
+4. **Decide whether to enable `/think`** (see criteria below)
 
----
+### `/think` Enablement Criteria
 
-## 🏗 バックエンド・アーキテクチャ規約
+| Enable (complex, high cost) | Skip (simple, low cost) |
+|--------------------------|------------------------|
+| Architecture design, large refactors | File reading, searching, investigation |
+| Mysterious bug investigation, debugging | Simple typo fixes, comment updates |
+| Security design, vulnerability analysis | Known pattern implementation |
+| Multi-layer design decisions | Answering questions, explanations |
+| Technical selection with multiple trade-offs | Single file minor modifications |
 
-### 1. エラー処理の統一 (MANDATORY)
-- **Repository**: GORM エラーは必ず `apperrors.FromGORM(err, "resource", id)` で変換。
-- **Service**: 内部エラーは `apperrors.Wrap(err, "message")` でラッピング。
-- **Handler**: `RespondError(c, err)` で統一レスポンス。
-  - `ShouldBindJSON` エラー: `RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))` （全31ハンドラ統一済み）
-  - `c.JSON(http.StatusBadRequest, gin.H{"error": ...})` の直接使用は禁止。
+**Principle**: When uncertain, **SKIP**. Extended Thinking has 3-5x token overhead. Enable only for clearly complex problems.
 
-### 1b. マスタ削除の FK 依存チェック (MANDATORY)
-マスタ削除時は必ず依存レコードの存在をチェックし、参照がある場合は `apperrors.WrapConflict(...)` で 409 を返す。
-```go
-// Service層: 削除前に依存チェック
-count, err := s.repo.CountUsageByXxxID(ctx, id)
-if count > 0 {
-    return apperrors.WrapConflict("この項目は使用中のため削除できません")
-}
-```
+### Reference Files (`.claude/refs/`)
 
-### 2. Context & Logging
-- すべてのメソッドの第一引数は `context.Context`。
-- 構造化ログ `log/slog` を使用し、`InfoContext`, `ErrorContext` でコンテキストを適切に伝播させる。
+| File | Read When |
+|------|-----------|
+| `go-language.md` | Go code implementation/review |
+| `error-handling.md` | Error handling implementation (Go/TS both) |
+| `typescript-react.md` | Frontend implementation/review |
+| `testing.md` | Test implementation |
+| `api.md` | API design, endpoint additions |
+| `naming-conventions.md` | DB/API/Go naming verification |
+| `database-design.md` | DB design, migrations |
+| `git-workflow.md` | Git operations, PR creation |
+| `code-style.md` | Code convention verification |
+| `performance-rules.md` | Performance optimization |
+| `docker-rules.md` | Docker/infrastructure changes |
+| `accessibility-rules.md` | Frontend UI implementation |
+| `security.md` | Security-related changes |
 
 ---
 
----
+## 🏗 Architecture (MANDATORY)
 
-## 📚 参照ドキュメント
-- `frontend/CODING_RULES.md`: フロントエンドの実装詳細
-- `backend/CLAUDE.md`: バックエンドの実装詳細
-- `docs/FUNCTIONAL_TEST_REPORT.md`: 機能テストレポート（OK=237 / NG=1 / 未確認=3,537）
-- `.gemini/styleguide.md`: Gemini 固有の補足（本ファイルと同期済み）
+### Error Handling
+- Repository: `apperrors.FromGORM(err, "resource", id)`
+- Service: `apperrors.Wrap(err, "message")`
+- Handler: `RespondError(c, err)` (direct `c.JSON(http.StatusBadRequest, ...)` prohibited)
+
+### Master Data Deletion
+Dependency check before deletion required. If references exist → `apperrors.WrapConflict(...)` returns 409.
+
+### Frontend (MANDATORY Patterns)
+- Forms: `useActionState` + `<form action={formAction}>` + `SubmitButton`
+- Conditional Render: `? (...) : null` (NOT `&&`)
+- Feature Imports: Always via `index.ts` (NO deep imports)
+- Styling: Use `C`, `STYLE` constants (NO hex color direct specification)
