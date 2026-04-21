@@ -56,6 +56,10 @@ export const ItemCategoryMedicine: ItemCategory = "medicine";
 export const ItemCategoryFood: ItemCategory = "food";
 export const ItemCategoryGoods: ItemCategory = "goods";
 export const ItemCategoryOther: ItemCategory = "other";
+export const ItemCategoryVaccine: ItemCategory = "vaccine";
+export const ItemCategoryTrimming: ItemCategory = "trimming";
+export const ItemCategoryHotel: ItemCategory = "hotel";
+export const ItemCategoryTraining: ItemCategory = "training";
 export type ItemSource = string;
 export const ItemSourceMedicalRecord: ItemSource = "medical_record";
 export const ItemSourceManual: ItemSource = "manual";
@@ -120,7 +124,11 @@ export interface Payment {
   billing_amount: number /* int64 */;
   received_amount: number /* int64 */;
   change_amount: number /* int64 */;
+  /**
+   * Deprecated: use PaymentMethodID. Will be removed in a future release.
+   */
   method: PaymentMethod;
+  payment_method_id?: number /* uint64 */;
   paid_by?: number /* uint64 */;
   created_at: string;
   updated_at: string;
@@ -272,6 +280,53 @@ export interface Cage {
 }
 
 //////////
+// source: cash_register_close.go
+
+/**
+ * CashRegisterClose はレジ締めレコード
+ */
+export interface CashRegisterClose {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  close_date: string;
+  period: string; // "am" or "pm"
+  theoretical_cash: number /* int64 */;
+  actual_cash: number /* int64 */;
+  cash_difference: number /* int64 */;
+  category_breakdown: any /* json.RawMessage */;
+  memo: string;
+  closed_by?: number /* uint64 */;
+  closed_at: string;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  closed_by_staff?: Staff;
+}
+/**
+ * CategoryBreakdownSchema は category_breakdown JSONB の型定義
+ */
+export interface CategoryBreakdownSchema {
+  categories: { [key: string]: { [key: string]: number /* int64 */}}; // category → payment_method_name → amount
+  tax_breakdown: TaxBreakdown;
+}
+/**
+ * TaxBreakdown は消費税区分別の集計
+ */
+export interface TaxBreakdown {
+  standard: TaxBreakdownItem; // 10%
+  reduced: TaxBreakdownItem; // 8%
+}
+/**
+ * TaxBreakdownItem は課税額と税額のペア
+ */
+export interface TaxBreakdownItem {
+  taxable_amount: number /* int64 */;
+  tax_amount: number /* int64 */;
+}
+
+//////////
 // source: checkup_record.go
 
 export interface Checkup {
@@ -354,6 +409,37 @@ export interface Clinic {
 }
 
 //////////
+// source: clinic_holiday.go
+
+/**
+ * ClinicHoliday は病院が設定した個別休診日を表す
+ */
+export interface ClinicHoliday {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  date: string;
+  reason: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: clinic_settings.go
+
+/**
+ * ClinicSettings は診療所の締め時間設定
+ */
+export interface ClinicSettings {
+  clinic_id: number /* uint64 */;
+  closing_am_pm_boundary: string;
+  closing_weekday_end: string;
+  closing_sunday_end: string;
+  closed_weekdays: any /* pq.Int64Array */;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: clinical_plan.go
 
 /**
@@ -379,6 +465,24 @@ export interface ClinicalPlan {
   diagnosis_name?: DiagnosisName;
   diagnosis_2_category?: DiagnosisType;
   diagnosis_2_name?: DiagnosisName;
+}
+
+//////////
+// source: closing_special_period.go
+
+/**
+ * ClosingSpecialPeriod は特別締め時間期間（GW・年末年始等）
+ */
+export interface ClosingSpecialPeriod {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  start_date: string;
+  end_date: string;
+  am_pm_boundary: string;
+  pm_end: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -1166,6 +1270,22 @@ export interface PasswordResetToken {
 }
 
 //////////
+// source: payment_method_master.go
+
+/**
+ * PaymentMethodMaster は診療所ごとの支払方法マスタ
+ */
+export interface PaymentMethodMaster {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  display_order: number /* int */;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: permission.go
 
 /**
@@ -1208,7 +1328,10 @@ export const ResourceDiscount: Resource = "discount";
 export const ResourceCashRegisterClose: Resource = "cash-register-close"; // レジ締め実行・履歴
 export const ResourceAccountingReports: Resource = "accounting-reports"; // 月次売上集計（経理向け）
 export const ResourceClosingSettings: Resource = "closing-settings"; // 締め時間設定（管理者向け）
-export const ResourcePaymentMethods: Resource = "payment-methods"; // 支払方法マスタ
+/**
+ * 支払方法マスタ
+ */
+export const ResourcePaymentMethod: Resource = "master-payment-method";
 
 //////////
 // source: permission_group.go
@@ -1577,17 +1700,6 @@ export interface ShiftEntry {
   breaks?: ShiftEntryBreak[];
 }
 /**
- * ClinicHoliday は病院が設定した個別休診日を表す
- */
-export interface ClinicHoliday {
-  id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
-  date: string;
-  reason: string;
-  created_at: string;
-  updated_at: string;
-}
-/**
  * ShiftTemplate はシフトテンプレートマスタを表す
  */
 export interface ShiftTemplate {
@@ -1839,144 +1951,3 @@ export interface VitalRecord {
   pet?: Pet;
   staff?: Staff;
 }
-
-//////////
-// source: FEAT-368 (manual addition — cash register / closing settings)
-
-export interface ClinicSettings {
-  clinic_id: number /* uint64 */;
-  closing_am_pm_boundary: string; // "HH:MM"
-  closing_weekday_end: string;    // "HH:MM"
-  closing_sunday_end: string;     // "HH:MM"
-  closed_weekdays: number[];      // 0=日, 1=月...6=土
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ClosingSpecialPeriod {
-  id: number /* uint64 */;
-  clinic_id: number;
-  start_date: string;     // "YYYY-MM-DD"
-  end_date: string;       // "YYYY-MM-DD"
-  am_pm_boundary: string; // "HH:MM"
-  pm_end: string;         // "HH:MM"
-  note: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ClosingHoliday {
-  id: number /* uint64 */;
-  clinic_id: number;
-  date: string; // "YYYY-MM-DD"
-  note: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface PaymentMethodMaster {
-  id: number /* uint64 */;
-  clinic_id: number;
-  name: string;
-  display_order: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CashRegisterClose {
-  id: number /* uint64 */;
-  clinic_id: number;
-  close_date: string; // "YYYY-MM-DD"
-  period: "am" | "pm";
-  theoretical_cash: number;
-  actual_cash: number;
-  cash_difference: number;
-  category_breakdown: CategoryBreakdownSchema;
-  memo: string;
-  closed_by?: number;
-  closed_at: string;
-  created_at: string;
-  updated_at: string;
-  closed_by_staff?: Staff;
-}
-
-export interface CategoryBreakdownSchema {
-  categories: Record<string, Record<string, number>>; // category -> payment_method_name -> amount
-  tax_breakdown: {
-    standard: { taxable_amount: number; tax_amount: number };
-    reduced: { taxable_amount: number; tax_amount: number };
-  };
-}
-
-export interface ClosingSettingsResponse {
-  settings: ClinicSettings;
-  special_periods: ClosingSpecialPeriod[];
-  holidays: ClosingHoliday[];
-}
-
-export interface ClosePreviewResult {
-  date: string;
-  period: "am" | "pm";
-  period_start: string;
-  period_end: string;
-  is_already_closed: boolean;
-  is_holiday: boolean;
-  aggregate: {
-    categories: Record<string, Record<string, number>>;
-    payment_methods: PaymentMethodMaster[];
-    theoretical_cash: number;
-    tax_breakdown: CategoryBreakdownSchema["tax_breakdown"];
-  };
-  billing_details: CloseBillingDetail[];
-}
-
-export interface CloseBillingDetail {
-  billing_id: number;
-  paid_at: string;
-  owner_name: string;
-  pet_name: string;
-  is_hospitalization: boolean;
-  category: string;
-  payment_method_id?: number;
-  payment_method_name: string;
-  billing_amount: number;
-  refund_amount: number;
-  net_amount: number;
-}
-
-export interface MonthlyReportResponse {
-  year: number;
-  month: number;
-  summary: {
-    working_days: number;
-    total_billings: number;
-    total_amount: number;
-    total_refund: number;
-    net_amount: number;
-    by_payment_method: Record<string, number>;
-    by_category: Record<string, number>;
-    tax_breakdown: CategoryBreakdownSchema["tax_breakdown"];
-  };
-  daily_details: DailyReportDetail[];
-}
-
-export interface DailyReportDetail {
-  date: string;
-  weekday: string;
-  am_count: number;
-  am_net: number;
-  pm_count: number;
-  pm_net: number;
-  day_net: number;
-  refund: number;
-  am_closed: boolean;
-  pm_closed: boolean;
-  is_holiday: boolean;
-}
-
-export const ItemCategoryVaccine: ItemCategory = "vaccine";
-export const ItemCategoryTrimming: ItemCategory = "trimming";
-export const ItemCategoryHotel: ItemCategory = "hotel";
-export const ItemCategoryTraining: ItemCategory = "training";
-

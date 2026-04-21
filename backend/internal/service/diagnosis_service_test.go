@@ -65,13 +65,13 @@ func (m *mockDiagnosisTypeRepository) CountChildrenByParentID(ctx context.Contex
 // ---- DiagnosisName モック ----
 
 type mockDiagnosisNameRepository struct {
-	findAllFn                          func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
-	findByCategoryIDFn                 func(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
-	findByIDFn                         func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
-	createFn                           func(ctx context.Context, name *model.DiagnosisName) error
-	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
-	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
-	reorderFn                          func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn                             func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	findByCategoryIDFn                    func(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	findByIDFn                            func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
+	createFn                              func(ctx context.Context, name *model.DiagnosisName) error
+	updateFieldsFn                        func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
+	deleteFn                              func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                             func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countClinicalPlansByDiagnosisNameIDFn func(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error)
 }
 
