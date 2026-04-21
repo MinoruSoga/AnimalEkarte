@@ -14,7 +14,6 @@ import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "../constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
-import { usePermission } from "@/hooks/use-permission";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import {
   useGetStaffs,
