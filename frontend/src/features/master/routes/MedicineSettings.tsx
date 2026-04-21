@@ -511,6 +511,10 @@ export function MedicineSettings() {
   const deleteMutation = useDeleteMedicine();
   const reorderMutation = useReorderMedicines();
 
+  // BUG-380: 未保存破棄ガード（14 マスタ画面と統一パターン）
+  const dirty = useSidePeekDirty();
+  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+
   // ── FR1: useMasterCRUD (editTarget state only; deletion modal kept external) ──
   const medicineCrud = useMasterCRUD<Medicine>({
     data: medicines,
@@ -687,10 +691,6 @@ export function MedicineSettings() {
     [orderedMedicinesById, updateMutation, handleFlatSortDragEnd],
   );
 
-  // BUG-380: 未保存破棄ガード（14 マスタ画面と統一パターン）
-  const dirty = useSidePeekDirty();
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
-
   const handleCloseEdit = useCallback(() => {
     medicineCrud.handleClose();
     setDefaultParentId(undefined);
@@ -703,7 +703,7 @@ export function MedicineSettings() {
 
   const handleCreate = useCallback((parentId?: string) => {
     setDefaultParentId(parentId);
-    medicineCrud.handleCreate();
+    medicineCrud.handleNew();
   }, [medicineCrud]);
 
   // ── startSaveTransition wrapper for useMasterSave ──

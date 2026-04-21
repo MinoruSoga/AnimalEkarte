@@ -10,25 +10,16 @@ const CAGES_QUERY_KEY = ["masters", "cages"] as const;
 export type CageType = "icu" | "dog" | "cat" | "general";
 export type CageSize = "small" | "medium" | "large";
 
-export interface CreateCageRequest {
-  name: string;
+// Request types (derived from models.ts, overriding cage_type/cage_size with strict unions)
+export type CreateCageRequest = Omit<
+  ModelCage,
+  "id" | "clinic_id" | "created_at" | "updated_at" | "cage_type" | "cage_size"
+> & {
   cage_type: CageType;
   cage_size: CageSize;
-  price?: number;
-  description?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
+};
 
-export interface UpdateCageRequest {
-  name?: string;
-  cage_type?: CageType;
-  cage_size?: CageSize;
-  price?: number;
-  description?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
+export type UpdateCageRequest = Partial<CreateCageRequest>;
 
 function transformCage(data: ModelCage) {
   return {
@@ -103,7 +94,9 @@ export const deleteCage = async (id: string): Promise<void> => {
   await axios.delete(`/v1/masters/cages/${id}`);
 };
 
-export const reorderCages = async (req: { ids: number[] }): Promise<void> => {
+export type ReorderCagesRequest = { ids: number[] };
+
+export const reorderCages = async (req: ReorderCagesRequest): Promise<void> => {
   await axios.patch("/v1/masters/cages/reorder", req);
 };
 
@@ -121,7 +114,7 @@ export const useDeleteCage = () => {
 export const useReorderCages = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: reorderCages,
+    mutationFn: (req: ReorderCagesRequest) => reorderCages(req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CAGES_QUERY_KEY });
     },

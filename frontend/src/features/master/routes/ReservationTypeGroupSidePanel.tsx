@@ -74,7 +74,7 @@ export const GroupSidePanel = memo(function GroupSidePanel({
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
             <input type="color" value={formData.color} onChange={handleColorPickerChange}
-              className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0" />
+              className={LAYOUT.colorInputSmall} />
             <PropertyInput value={formData.color} onChange={handleColorInputChange} placeholder={PALETTE.pickerDefaultBlue} />
           </div>
           <p className={`text-xs ${C.text40}`}>

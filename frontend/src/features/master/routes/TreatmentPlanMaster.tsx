@@ -43,11 +43,16 @@ import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
 
 // API hooks
-import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useDeleteConsultation, useReorderConsultations } from "../api/consultations";
-import { useGetAllExaminationTypes, useCreateExaminationType, useUpdateExaminationType, useDeleteExaminationType, useReorderExaminationTypes } from "../api/exam-types-master";
-import { useGetAllProcedures, useCreateProcedure, useUpdateProcedure, useDeleteProcedure, useReorderProcedures } from "../api/procedures";
-import { useGetAllVaccinesMaster, useCreateVaccineMaster, useUpdateVaccineMaster, useDeleteVaccineMaster, useReorderVaccinesMaster } from "../api/vaccines-master";
-import { useGetAllCheckupTypes, useCreateCheckupType, useUpdateCheckupType, useDeleteCheckupType, useReorderCheckupTypes } from "../api/checkup-types";
+import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useReorderConsultations } from "../api/consultations";
+import { useGetAllExaminationTypes, useCreateExaminationType, useUpdateExaminationType, useReorderExaminationTypes } from "../api/exam-types-master";
+import { useGetAllProcedures, useCreateProcedure, useUpdateProcedure, useReorderProcedures } from "../api/procedures";
+import { useGetAllVaccinesMaster, useCreateVaccineMaster, useUpdateVaccineMaster, useReorderVaccinesMaster } from "../api/vaccines-master";
+import { useGetAllCheckupTypes, useCreateCheckupType, useUpdateCheckupType, useReorderCheckupTypes } from "../api/checkup-types";
+import type { CreateConsultationRequest, UpdateConsultationRequest } from "@/types/treatment";
+import type { CreateExaminationRequest, UpdateExaminationRequest } from "@/types/treatment";
+import type { CreateProcedureRequest, UpdateProcedureRequest } from "@/types/treatment";
+import type { CreateVaccineMasterRequest, UpdateVaccineMasterRequest } from "@/types/treatment";
+import type { CreateCheckupTypeRequest, UpdateCheckupTypeRequest } from "@/types/treatment";
 
 // Types
 import type { TreatmentItem } from "@/lib/transforms/treatment";
@@ -492,35 +497,30 @@ export function TreatmentPlanMaster() {
   const { data: consultationData } = useGetAllConsultations();
   const createConsultation = useCreateConsultation();
   const updateConsultation = useUpdateConsultation();
-  const deleteConsultation = useDeleteConsultation();
   const reorderConsultations = useReorderConsultations();
 
   // ── Examination Types ──────────────────────────────
   const { data: examinationData } = useGetAllExaminationTypes();
   const createExamination = useCreateExaminationType();
   const updateExamination = useUpdateExaminationType();
-  const deleteExamination = useDeleteExaminationType();
   const reorderExaminations = useReorderExaminationTypes();
 
   // ── Procedures ─────────────────────────────────────
   const { data: procedureData } = useGetAllProcedures();
   const createProcedure = useCreateProcedure();
   const updateProcedure = useUpdateProcedure();
-  const deleteProcedure = useDeleteProcedure();
   const reorderProcedures = useReorderProcedures();
 
   // ── Vaccines ───────────────────────────────────────
   const { data: vaccineData } = useGetAllVaccinesMaster();
   const createVaccine = useCreateVaccineMaster();
   const updateVaccine = useUpdateVaccineMaster();
-  const deleteVaccine = useDeleteVaccineMaster();
   const reorderVaccines = useReorderVaccinesMaster();
 
   // ── Checkup Types ──────────────────────────────────
   const { data: checkupData } = useGetAllCheckupTypes();
   const createCheckup = useCreateCheckupType();
   const updateCheckup = useUpdateCheckupType();
-  const deleteCheckup = useDeleteCheckupType();
   const reorderCheckups = useReorderCheckupTypes();
 
   // ── Tab configs (simplified — data & metadata only) ────────────
@@ -570,13 +570,9 @@ export function TreatmentPlanMaster() {
   ]);
 
   const selectedItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
-  const currentConfig = tabConfigs[activeTab];
 
-  const [isSavePending, setIsSavePending] = useState(false);
   const startSaveTransition = useCallback((cb: () => void) => {
-    setIsSavePending(true);
     cb();
-    setIsSavePending(false);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -598,10 +594,10 @@ export function TreatmentPlanMaster() {
   }), [editTarget, handleClose, startSaveTransition]);
 
   // ── FR2: useMasterSave hooks (5 tabs) ──────────────────────
-  const consultationSave = useMasterSave<TreatmentItem, TreatmentFormData, any, any>({
-    crud: minimalCrud as any,
+  const consultationSave = useMasterSave<TreatmentItem, TreatmentFormData, CreateConsultationRequest, UpdateConsultationRequest>({
+    crud: minimalCrud,
     createMutation: createConsultation,
-    updateMutation: updateConsultation as any,
+    updateMutation: updateConsultation,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: (data) => ({
       name: data.name,
@@ -621,10 +617,10 @@ export function TreatmentPlanMaster() {
     }),
   });
 
-  const examinationSave = useMasterSave<TreatmentItem, TreatmentFormData, any, any>({
-    crud: minimalCrud as any,
+  const examinationSave = useMasterSave<TreatmentItem, TreatmentFormData, CreateExaminationRequest, UpdateExaminationRequest>({
+    crud: minimalCrud,
     createMutation: createExamination,
-    updateMutation: updateExamination as any,
+    updateMutation: updateExamination,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: (data) => ({
       name: data.name,
@@ -640,10 +636,10 @@ export function TreatmentPlanMaster() {
     }),
   });
 
-  const procedureSave = useMasterSave<TreatmentItem, TreatmentFormData, any, any>({
-    crud: minimalCrud as any,
+  const procedureSave = useMasterSave<TreatmentItem, TreatmentFormData, CreateProcedureRequest, UpdateProcedureRequest>({
+    crud: minimalCrud,
     createMutation: createProcedure,
-    updateMutation: updateProcedure as any,
+    updateMutation: updateProcedure,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: (data) => ({
       name: data.name,
@@ -663,10 +659,10 @@ export function TreatmentPlanMaster() {
     }),
   });
 
-  const vaccineSave = useMasterSave<TreatmentItem, TreatmentFormData, any, any>({
-    crud: minimalCrud as any,
+  const vaccineSave = useMasterSave<TreatmentItem, TreatmentFormData, CreateVaccineMasterRequest, UpdateVaccineMasterRequest>({
+    crud: minimalCrud,
     createMutation: createVaccine,
-    updateMutation: updateVaccine as any,
+    updateMutation: updateVaccine,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: (data) => ({
       name: data.name,
@@ -682,10 +678,10 @@ export function TreatmentPlanMaster() {
     }),
   });
 
-  const checkupSave = useMasterSave<TreatmentItem, TreatmentFormData, any, any>({
-    crud: minimalCrud as any,
+  const checkupSave = useMasterSave<TreatmentItem, TreatmentFormData, CreateCheckupTypeRequest, UpdateCheckupTypeRequest>({
+    crud: minimalCrud,
     createMutation: createCheckup,
-    updateMutation: updateCheckup as any,
+    updateMutation: updateCheckup,
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: (data) => ({
       name: data.name,

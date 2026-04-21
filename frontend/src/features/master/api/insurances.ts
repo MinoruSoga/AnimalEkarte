@@ -7,24 +7,18 @@ import type { Insurance as ModelInsurance } from "@/types/generated/models";
 const INSURANCES_QUERY_KEY = ["masters", "insurances"] as const;
 
 // ─────────────────────────────────────────────────
-// Types
+// Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export interface CreateInsuranceRequest {
-  name: string;
-  is_active?: boolean;
-  description?: string;
-  coverage_rate?: number;
-  contact_phone?: string;
-}
+type InsuranceRequestBase = Omit<
+  ModelInsurance,
+  "id" | "clinic_id" | "created_at" | "updated_at"
+>;
 
-export interface UpdateInsuranceRequest {
-  name?: string;
-  is_active?: boolean;
-  description?: string;
-  coverage_rate?: number;
-  contact_phone?: string;
-}
+export type CreateInsuranceRequest = Pick<InsuranceRequestBase, "name"> &
+  Partial<Omit<InsuranceRequestBase, "name">>;
+
+export type UpdateInsuranceRequest = Partial<InsuranceRequestBase>;
 
 // ─────────────────────────────────────────────────
 // Transform

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo, useDeferredValue, Fragment } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -17,7 +17,6 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceMasterReservationType } from "@/types/generated/models";
@@ -42,7 +41,6 @@ import { GroupSidePanel } from "./ReservationTypeGroupSidePanel";
 import type { GroupFormData } from "./ReservationTypeGroupSidePanel";
 import { CategorySidePanel } from "./ReservationTypeSidePanel";
 import type { CategoryFormData } from "./ReservationTypeSidePanel";
-import { handleApiError } from "@/lib/handle-api-error";
 
 // ─────────────────────────────────────────────────────────────────
 // GroupedTable
@@ -69,7 +67,7 @@ function GroupedTable({
 
   const handleReorder = useCallback((newIds: string[]) => {
     reorderMutation.mutate({ ids: newIds.map(Number) }, {
-      onError: (error: unknown) => { resetOrderRef.current(); },
+      onError: () => { resetOrderRef.current(); },
     });
   }, [reorderMutation]);
 
@@ -145,12 +143,12 @@ function GroupedTable({
                             <div className="ml-auto flex items-center gap-1">
                               <button type="button" onClick={() => onGroupEdit(group)}
                                 className={`flex items-center gap-1 text-xs ${C.text45}
-                                  px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-colors`}>
+                                  ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}>
                                 <Pencil className={ICON.action} />編集
                               </button>
                               <button type="button" onClick={() => onCategoryAddInGroup(group.id)}
                                 className={`flex items-center gap-1 text-xs ${C.text45}
-                                  px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-colors`}>
+                                  ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}>
                                 <Plus className={ICON.action} />追加
                               </button>
                             </div>
@@ -206,7 +204,7 @@ function GroupedTable({
                         {canEdit ? (
                           <button type="button" onClick={() => onCategoryAddInGroup(undefined)}
                             className={`ml-auto flex items-center gap-1 text-xs ${C.text45}
-                              px-2 py-0.5 rounded-[3px] ${C.hoverBgMedium} transition-colors`}>
+                              ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}>
                             <Plus className={ICON.action} />追加
                           </button>
                         ) : null}
@@ -258,25 +256,9 @@ export function ReservationTypeSettings() {
     [groupsRaw],
   );
 
-  // 検索・フィルタ
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const deferredSearch = useDeferredValue(searchTerm);
-
   const filteredCategories = useMemo(() => {
-    let items = categoriesRaw;
-    for (const f of activeFilters) {
-      if (f.key === "status" && typeof f.value === "string") {
-        const want = f.value === "active";
-        items = items.filter((i) => (f.condition === "is" ? i.isActive === want : i.isActive !== want));
-      }
-    }
-    if (deferredSearch) {
-      const lower = deferredSearch.toLowerCase();
-      items = items.filter((i) => i.name.toLowerCase().includes(lower));
-    }
-    return items;
-  }, [categoriesRaw, activeFilters, deferredSearch]);
+    return categoriesRaw;
+  }, [categoriesRaw]);
 
   // ミューテーション
   const createGroupMutation = useCreateReservationTypeGroup();

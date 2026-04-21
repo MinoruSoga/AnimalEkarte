@@ -5,24 +5,21 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { InquiryTemplate as ModelInquiryTemplate } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Request types
+// Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export interface CreateInquiryTemplateRequest {
-  category: string;
-  title: string;
-  content: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
+type InquiryTemplateRequestBase = Omit<
+  ModelInquiryTemplate,
+  "id" | "clinic_id" | "created_at" | "updated_at"
+>;
 
-export interface UpdateInquiryTemplateRequest {
-  category?: string;
-  title?: string;
-  content?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
+export type CreateInquiryTemplateRequest = Pick<
+  InquiryTemplateRequestBase,
+  "category" | "title" | "content"
+> &
+  Partial<Omit<InquiryTemplateRequestBase, "category" | "title" | "content">>;
+
+export type UpdateInquiryTemplateRequest = Partial<InquiryTemplateRequestBase>;
 
 // ─────────────────────────────────────────────────
 // Transform

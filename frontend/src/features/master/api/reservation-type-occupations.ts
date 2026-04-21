@@ -5,6 +5,13 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ReservationTypeOccupation } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
+// Request types
+// ─────────────────────────────────────────────────
+
+export type LinkOccupationRequest = { occupation_id: number };
+export type UnlinkOccupationRequest = { id: number };
+
+// ─────────────────────────────────────────────────
 // Query keys
 // ─────────────────────────────────────────────────
 

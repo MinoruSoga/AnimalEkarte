@@ -155,6 +155,10 @@ export async function deleteTrimmingCourse(id: string): Promise<void> {
   await axios.delete(`/v1/masters/trimming-courses/${id}`);
 }
 
+export async function reorderTrimmingCourses(ids: number[]): Promise<void> {
+  await axios.patch("/v1/masters/trimming-courses/reorder", { ids });
+}
+
 // ─────────────────────────────────────────────────
 // API functions - TrimmingOption
 // ─────────────────────────────────────────────────
@@ -189,6 +193,10 @@ export async function updateTrimmingOption(
 
 export async function deleteTrimmingOption(id: string): Promise<void> {
   await axios.delete(`/v1/masters/trimming-options/${id}`);
+}
+
+export async function reorderTrimmingOptions(ids: number[]): Promise<void> {
+  await axios.patch("/v1/masters/trimming-options/reorder", { ids });
 }
 
 // ─────────────────────────────────────────────────
@@ -238,6 +246,17 @@ export function useDeleteTrimmingCourse() {
   });
 }
 
+export function useReorderTrimmingCourses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderTrimmingCourses(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
+  });
+}
+
 // ─────────────────────────────────────────────────
 // TanStack Query hooks - TrimmingOption
 // ─────────────────────────────────────────────────
@@ -282,5 +301,16 @@ export function useDeleteTrimmingOption() {
       queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
     },
     onError: (error) => handleApiError(error, "削除"),
+  });
+}
+
+export function useReorderTrimmingOptions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderTrimmingOptions(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 }

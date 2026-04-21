@@ -233,7 +233,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
           <input
             type="number"
             min={0}
-            className={`w-32 bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+            className={`w-32 bg-transparent text-base ${C.text} outline-none border-none ${LAYOUT.inputCompact} ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
             value={formData.price}
             onChange={handlePriceChange}
             placeholder="0"
@@ -461,7 +461,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
           <input
             type="number"
             min={0}
-            className={`w-32 bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+            className={`w-32 bg-transparent text-base ${C.text} outline-none border-none ${LAYOUT.inputCompact} ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
             value={formData.price}
             onChange={handlePriceChange}
             placeholder="0"
@@ -597,14 +597,8 @@ export function TrimmingSettings() {
   // rerender-dependencies: destructure methods to avoid object reference instability in useCallback deps
   const courseSetEditTarget = courseCrud.setEditTarget;
   const courseSetPendingDelete = courseCrud.setPendingDelete;
-  const courseStartSave = courseCrud.startSaveTransition;
-  const courseEditTarget = courseCrud.editTarget;
-  const courseHandleClose = courseCrud.handleClose;
   const optionSetEditTarget = optionCrud.setEditTarget;
   const optionSetPendingDelete = optionCrud.setPendingDelete;
-  const optionStartSave = optionCrud.startSaveTransition;
-  const optionEditTarget = optionCrud.editTarget;
-  const optionHandleClose = optionCrud.handleClose;
 
   const handleTabChange = useCallback((tab: string) => {
     // BUG-380: タブ切替前に未保存破棄を確認

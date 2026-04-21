@@ -79,6 +79,9 @@ export type Staff = ReturnType<typeof transformStaff>;
 
 const STAFFS_QUERY_KEY = ["masters", "staffs"] as const;
 
+const getAllPermissionGroupMapKey = (staffIds: string[]) =>
+  [...STAFFS_QUERY_KEY, "all-permission-group-map", ...staffIds] as const;
+
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
@@ -114,6 +117,10 @@ export async function updateStaff(
 
 export async function deleteStaff(id: string): Promise<void> {
   await axios.delete(`/v1/masters/staffs/${id}`);
+}
+
+export async function reorderStaffs(ids: number[]): Promise<void> {
+  await axios.patch("/v1/masters/staffs/reorder", { ids });
 }
 
 // ─────────────────────────────────────────────────
@@ -163,6 +170,17 @@ export function useDeleteStaff() {
   });
 }
 
+export function useReorderStaffs() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderStaffs(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
+  });
+}
+
 // ─────────────────────────────────────────────────
 // Staff Permission Groups API
 // ─────────────────────────────────────────────────
@@ -176,7 +194,7 @@ const STAFF_PERM_GROUPS_KEY = (staffId: string) =>
  */
 export function useGetAllStaffPermissionGroupMap(staffIds: string[]) {
   return useQuery({
-    queryKey: [...STAFFS_QUERY_KEY, "all-permission-group-map", ...staffIds],
+    queryKey: getAllPermissionGroupMapKey(staffIds),
     queryFn: async (): Promise<Map<string, string[]>> => {
       const map = new Map<string, string[]>();
       await Promise.all(
@@ -247,9 +265,12 @@ export interface ClinicSummary {
   name: string;
 }
 
+const getClinicsListKey = (scope?: "all") =>
+  ["clinics-list", scope ?? "assigned"] as const;
+
 export function useGetClinicsList(scope?: "all") {
   return useQuery({
-    queryKey: ["clinics-list", scope ?? "assigned"],
+    queryKey: getClinicsListKey(scope),
     queryFn: async (): Promise<ClinicSummary[]> => {
       const params = scope ? { scope } : undefined;
       const { data } = await axios.get<Array<{ id: number; name: string }>>(

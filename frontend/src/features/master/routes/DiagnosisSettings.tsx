@@ -540,13 +540,7 @@ export function DiagnosisSettings() {
 
   // rerender-dependencies: destructure methods to avoid object reference instability in useCallback deps
   const catSetEditTarget = catCrud.setEditTarget;
-  const catHandleClose = catCrud.handleClose;
-  const catStartSave = catCrud.startSaveTransition;
-  const catEditTarget = catCrud.editTarget;
   const nameSetEditTarget = nameCrud.setEditTarget;
-  const nameHandleClose = nameCrud.handleClose;
-  const nameStartSave = nameCrud.startSaveTransition;
-  const nameEditTarget = nameCrud.editTarget;
 
   const handleTabChange = useCallback((tab: string) => {
     // BUG-380: タブ切替前に未保存破棄を確認

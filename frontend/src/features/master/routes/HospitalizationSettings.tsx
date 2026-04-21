@@ -13,7 +13,6 @@ import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
-import { usePermission } from "@/hooks/use-permission";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { useGetAllHospitalizationPlans, useCreateHospitalizationPlan, useUpdateHospitalizationPlan, useDeleteHospitalizationPlan, BODY_SIZE_OPTIONS, BODY_SIZE_LABELS, BILLING_UNIT_OPTIONS, BILLING_UNIT_LABELS } from "../api/hospitalization-plans";
 import type { HospitalizationPlan, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest } from "../api/hospitalization-plans";
@@ -140,7 +139,6 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
 });
 
 export function HospitalizationSettings() {
-  usePermission(ResourceMasterHospitalization);
   const { data } = useGetAllHospitalizationPlans();
   const createMutation = useCreateHospitalizationPlan();
   const updateMutation = useUpdateHospitalizationPlan();

@@ -10,7 +10,6 @@ import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
-import { usePermission } from "@/hooks/use-permission";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import {
   useGetPaymentMethods,
@@ -108,7 +107,6 @@ const PaymentMethodSidePanel = memo(function PaymentMethodSidePanel({
 
 // ─── Page ───
 export function PaymentMethodSettings() {
-  usePermission(ResourcePaymentMethod);
   const { data } = useGetPaymentMethods();
   const createMutation = useCreatePaymentMethod();
   const updateMutation = useUpdatePaymentMethod();

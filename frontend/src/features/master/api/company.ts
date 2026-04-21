@@ -1,25 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Company as ModelCompany } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Request type
+// Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export interface UpdateCompanyRequest {
-  name?: string;
-  postal_code?: string;
-  address?: string;
-  phone_number?: string;
-  fax_number?: string;
-  email?: string;
-  website?: string;
-  director_name?: string;
-  registration_number?: string;
-  invoice_registration_number?: string;
-  logo_url?: string;
-}
+export type UpdateCompanyRequest = Partial<
+  Omit<ModelCompany, "id" | "created_at" | "updated_at">
+>;
 
 // ─────────────────────────────────────────────────
 // Transform
@@ -50,7 +41,7 @@ export type Company = ReturnType<typeof transformCompany>;
 // Query keys
 // ─────────────────────────────────────────────────
 
-const COMPANY_QUERY_KEY = ["company"] as const;
+const COMPANY_QUERY_KEY = ["masters", "company"] as const;
 
 // ─────────────────────────────────────────────────
 // API functions
@@ -79,3 +70,13 @@ export function useGetCompany() {
   });
 }
 
+export function useUpdateCompany() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateCompany,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: COMPANY_QUERY_KEY });
+    },
+    onError: (error) => handleApiError(error, "更新"),
+  });
+}

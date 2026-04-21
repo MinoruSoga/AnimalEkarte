@@ -7,20 +7,18 @@ import type { Occupation as ModelOccupation } from "@/types/generated/models";
 const OCCUPATIONS_QUERY_KEY = ["masters", "occupations"] as const;
 
 // ─────────────────────────────────────────────────
-// Types
+// Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export interface CreateOccupationRequest {
-  name: string;
-  description?: string;
-  is_active?: boolean;
-}
+type OccupationRequestBase = Omit<
+  ModelOccupation,
+  "id" | "clinic_id" | "created_at" | "updated_at"
+>;
 
-export interface UpdateOccupationRequest {
-  name?: string;
-  description?: string;
-  is_active?: boolean;
-}
+export type CreateOccupationRequest = Pick<OccupationRequestBase, "name"> &
+  Partial<Omit<OccupationRequestBase, "name">>;
+
+export type UpdateOccupationRequest = Partial<OccupationRequestBase>;
 
 // ─────────────────────────────────────────────────
 // Transform

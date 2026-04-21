@@ -5,22 +5,18 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ChiefComplaintType as ModelChiefComplaintType } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Request types
+// Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-export interface CreateChiefComplaintTypeRequest {
-  name: string;
-  description?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
+type ChiefComplaintTypeRequestBase = Omit<
+  ModelChiefComplaintType,
+  "id" | "clinic_id" | "created_at" | "updated_at"
+>;
 
-export interface UpdateChiefComplaintTypeRequest {
-  name?: string;
-  description?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
+export type CreateChiefComplaintTypeRequest = Pick<ChiefComplaintTypeRequestBase, "name"> &
+  Partial<Omit<ChiefComplaintTypeRequestBase, "name">>;
+
+export type UpdateChiefComplaintTypeRequest = Partial<ChiefComplaintTypeRequestBase>;
 
 // ─────────────────────────────────────────────────
 // Transform
