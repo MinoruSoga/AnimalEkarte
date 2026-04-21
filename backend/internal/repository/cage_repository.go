@@ -90,7 +90,7 @@ func (r *cageRepository) CountUsageByCageID(ctx context.Context, clinicID, id ui
 	if err := r.db.WithContext(ctx).
 		Model(&model.Hospitalization{}).
 		Scopes(clinicScope(clinicID)).
-		Where("cage_id = ?", id).
+		Where("cage_id = ? AND deleted_at IS NULL", id).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "hospitalization", "")
 	}

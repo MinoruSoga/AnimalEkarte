@@ -95,7 +95,7 @@ func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, c
 	if err := r.db.WithContext(ctx).
 		Model(&model.Checkup{}).
 		Scopes(clinicScope(clinicID)).
-		Where("checkup_type_id = ?", checkupTypeID).
+		Where("checkup_type_id = ? AND deleted_at IS NULL", checkupTypeID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "checkup_type", "")
 	}

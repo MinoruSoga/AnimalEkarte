@@ -17,7 +17,7 @@ type ReservationStaffRepository interface {
 	FindByIDAndClinicID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	Create(ctx context.Context, staff *model.Staff, clinicID uint64) error
 	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
-	SoftDelete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 	SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 	// ExcludedReservationTypes
 	FindExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
@@ -92,8 +92,11 @@ func (r *reservationStaffRepository) UpdateFields(ctx context.Context, id uint64
 	return nil
 }
 
-func (r *reservationStaffRepository) SoftDelete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Staff{}, "id = ?", id)
+func (r *reservationStaffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).
+		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
+		Where("staffs.id = ?", id).
+		Delete(&model.Staff{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation_staff", fmt.Sprintf("%d", id))
 	}
@@ -135,10 +138,10 @@ func (r *reservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID
 		targetOrder := target.SortOrder
 		neighborOrder := neighbor.SortOrder
 
-		if err := tx.Model(&model.Staff{}).Where("id = ?", target.ID).Update("sort_order", neighborOrder).Error; err != nil {
+		if err := tx.Scopes(clinicScope(clinicID)).Model(&model.Staff{}).Where("id = ?", target.ID).Update("sort_order", neighborOrder).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", target.ID))
 		}
-		if err := tx.Model(&model.Staff{}).Where("id = ?", neighbor.ID).Update("sort_order", targetOrder).Error; err != nil {
+		if err := tx.Scopes(clinicScope(clinicID)).Model(&model.Staff{}).Where("id = ?", neighbor.ID).Update("sort_order", targetOrder).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", neighbor.ID))
 		}
 		return nil

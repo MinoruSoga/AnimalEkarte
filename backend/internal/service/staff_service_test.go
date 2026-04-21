@@ -231,7 +231,7 @@ func (m *mockResStaffForStaff) Create(_ context.Context, _ *model.Staff, _ uint6
 func (m *mockResStaffForStaff) UpdateFields(_ context.Context, _ uint64, _ map[string]any) error {
 	return nil
 }
-func (m *mockResStaffForStaff) SoftDelete(_ context.Context, _ uint64) error { return nil }
+func (m *mockResStaffForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
 func (m *mockResStaffForStaff) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }

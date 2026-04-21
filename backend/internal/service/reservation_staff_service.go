@@ -65,11 +65,12 @@ type ReservationStaffService interface {
 }
 
 type reservationStaffService struct {
-	repo repository.ReservationStaffRepository
+	repo       repository.ReservationStaffRepository
+	transactor repository.Transactor
 }
 
-func NewReservationStaffService(repo repository.ReservationStaffRepository) ReservationStaffService {
-	return &reservationStaffService{repo: repo}
+func NewReservationStaffService(repo repository.ReservationStaffRepository, transactor repository.Transactor) ReservationStaffService {
+	return &reservationStaffService{repo: repo, transactor: transactor}
 }
 
 func (s *reservationStaffService) List(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
@@ -101,13 +102,18 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 		ReservationVisible: input.ReservationVisible,
 		ReservationComment: input.ReservationComment,
 	}
-	if err := s.repo.Create(ctx, staff, clinicID); err != nil {
-		return nil, nil, apperrors.Wrap(err, "failed to create reservation staff")
-	}
-	if len(input.ExcludedTypeIDs) > 0 {
-		if err := s.repo.ReplaceExcludedReservationTypes(ctx, staff.ID, input.ExcludedTypeIDs); err != nil {
-			return nil, nil, apperrors.Wrap(err, "failed to set excluded courses")
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Create(txCtx, staff, clinicID); err != nil {
+			return apperrors.Wrap(err, "failed to create reservation staff")
 		}
+		if len(input.ExcludedTypeIDs) > 0 {
+			if err := s.repo.ReplaceExcludedReservationTypes(txCtx, staff.ID, input.ExcludedTypeIDs); err != nil {
+				return apperrors.Wrap(err, "failed to set excluded courses")
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, nil, err
 	}
 	slog.InfoContext(ctx, "reservation staff created",
 		slog.Uint64("staff_id", staff.ID),
@@ -154,7 +160,7 @@ func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint6
 	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
-	if err := s.repo.SoftDelete(ctx, id); err != nil {
+	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation staff")
 	}
 	slog.InfoContext(ctx, "reservation staff deleted",

@@ -56,8 +56,8 @@ func (m *mockLiffTypeRepository) Create(_ context.Context, _ *model.ReservationT
 	return nil
 }
 
-func (m *mockLiffTypeRepository) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) error {
-	return nil
+func (m *mockLiffTypeRepository) UpdateFields(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.ReservationType, error) {
+	return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockLiffTypeRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
@@ -97,7 +97,7 @@ func (m *mockLiffStaffRepository) UpdateFields(_ context.Context, _ uint64, _ ma
 	return nil
 }
 
-func (m *mockLiffStaffRepository) SoftDelete(_ context.Context, _ uint64) error { return nil }
+func (m *mockLiffStaffRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
 
 func (m *mockLiffStaffRepository) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
