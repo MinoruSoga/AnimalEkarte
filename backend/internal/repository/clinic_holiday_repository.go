@@ -46,6 +46,7 @@ func (r *clinicHolidayRepository) Upsert(ctx context.Context, holiday *model.Cli
 	// (clinic_id, date) のユニーク制約を利用してアトミックな UPSERT を実施する。
 	// 手動の First→Create/Update パターンはレースコンディションを持つため clause.OnConflict を使用する。
 	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(holiday.ClinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "date"}},
 			DoUpdates: clause.AssignmentColumns([]string{"reason", "updated_at"}),

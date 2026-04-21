@@ -33,6 +33,7 @@ func (r *lineReservationSettingRepository) FindByClinicID(ctx context.Context, c
 
 func (r *lineReservationSettingRepository) Upsert(ctx context.Context, setting *model.LineReservationSetting) error {
 	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(setting.ClinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns(lineReservationSettingUpdatableColumns()),

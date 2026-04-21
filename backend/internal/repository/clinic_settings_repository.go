@@ -46,6 +46,7 @@ func (r *clinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID 
 
 func (r *clinicSettingsRepository) Upsert(ctx context.Context, s *model.ClinicSettings) (*model.ClinicSettings, error) {
 	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(s.ClinicID)).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "clinic_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
