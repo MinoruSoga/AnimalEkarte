@@ -3,6 +3,7 @@ import { useState, useRef, useMemo, useCallback, memo, useDeferredValue, useEffe
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
 
 // DnD
 import { DndContext, closestCenter } from "@dnd-kit/core";
@@ -16,8 +17,6 @@ import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
 import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list";
-import { toast } from "sonner";
-import { handleApiError } from "@/lib/handle-api-error";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -557,71 +556,45 @@ export function DiagnosisSettings() {
     nameSetEditTarget(null);
   }, [setSearchParams, catSetEditTarget, nameSetEditTarget, dirty]);
 
-  const handleCategorySave = useCallback(
-    (data: DiagnosisTypeFormData) => {
-      catStartSave(() => {
-        if (catEditTarget !== null && catEditTarget !== "new") {
-          const req: UpdateDiagnosisTypeRequest = {
-            name: data.name,
-            description: data.description || undefined,
-            is_active: data.isActive,
-          };
-          updateCategoryMutation.mutate(
-            { id: catEditTarget.id, req },
-            {
-              onSuccess: () => { toast.success("更新しました"); catHandleClose(); },
-              onError: (error) => handleApiError(error, "更新"),
-            },
-          );
-        } else {
-          const req: CreateDiagnosisTypeRequest = {
-            name: data.name,
-            description: data.description || undefined,
-            is_active: true,
-          };
-          createCategoryMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); catHandleClose(); },
-            onError: (error) => handleApiError(error, "登録"),
-          });
-        }
-      });
-    },
-    [catEditTarget, updateCategoryMutation, createCategoryMutation, catHandleClose, catStartSave],
-  );
+  const catSave = useMasterSave({
+    crud: catCrud,
+    createMutation: createCategoryMutation,
+    updateMutation: updateCategoryMutation,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data): CreateDiagnosisTypeRequest => ({
+      name: data.name,
+      description: data.description || undefined,
+      is_active: true,
+    }),
+    toUpdateRequest: (data): UpdateDiagnosisTypeRequest => ({
+      name: data.name,
+      description: data.description || undefined,
+      is_active: data.isActive,
+    }),
+  });
 
-  const handleNameSave = useCallback(
-    (data: DiagnosisNameFormData) => {
-      nameStartSave(() => {
-        if (nameEditTarget !== null && nameEditTarget !== "new") {
-          const req: UpdateDiagnosisNameRequest = {
-            name: data.name,
-            diagnosis_type_id: Number(data.diagnosisTypeId),
-            description: data.description || undefined,
-            is_active: data.isActive,
-          };
-          updateNameMutation.mutate(
-            { id: nameEditTarget.id, req },
-            {
-              onSuccess: () => { toast.success("更新しました"); nameHandleClose(); },
-              onError: (error) => handleApiError(error, "更新"),
-            },
-          );
-        } else {
-          const req: CreateDiagnosisNameRequest = {
-            name: data.name,
-            diagnosis_type_id: Number(data.diagnosisTypeId),
-            description: data.description || undefined,
-            is_active: true,
-          };
-          createNameMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); nameHandleClose(); },
-            onError: (error) => handleApiError(error, "登録"),
-          });
-        }
-      });
+  const nameSave = useMasterSave({
+    crud: nameCrud,
+    createMutation: createNameMutation,
+    updateMutation: updateNameMutation,
+    validate: (data) => {
+      if (!data.name.trim()) return "診断病名を入力してください";
+      if (!data.diagnosisTypeId) return "カテゴリを選択してください";
+      return null;
     },
-    [nameEditTarget, updateNameMutation, createNameMutation, nameHandleClose, nameStartSave],
-  );
+    toCreateRequest: (data): CreateDiagnosisNameRequest => ({
+      name: data.name,
+      diagnosis_type_id: Number(data.diagnosisTypeId),
+      description: data.description || undefined,
+      is_active: true,
+    }),
+    toUpdateRequest: (data): UpdateDiagnosisNameRequest => ({
+      name: data.name,
+      diagnosis_type_id: Number(data.diagnosisTypeId),
+      description: data.description || undefined,
+      is_active: data.isActive,
+    }),
+  });
 
   return (
     <>
@@ -687,7 +660,7 @@ export function DiagnosisSettings() {
             key={catCrud.panelItem ? String(catCrud.panelItem.id) : "new-category"}
             item={catCrud.panelItem}
             onClose={catCrud.handleClose}
-            onSave={handleCategorySave}
+            onSave={catSave.handleSave}
             onDeleteRequest={canDelete ? catCrud.setPendingDelete : undefined}
             readOnly={!canEdit}
             onDirtyChange={handleDirtyChange}
@@ -699,7 +672,7 @@ export function DiagnosisSettings() {
             item={nameCrud.panelItem}
             categories={rawCategories ?? []}
             onClose={nameCrud.handleClose}
-            onSave={handleNameSave}
+            onSave={nameSave.handleSave}
             onDeleteRequest={canDelete ? nameCrud.setPendingDelete : undefined}
             readOnly={!canEdit}
             onDirtyChange={handleDirtyChange}

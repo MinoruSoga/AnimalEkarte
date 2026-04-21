@@ -18,6 +18,7 @@ export type CreateUnavailableTimeRequest = Omit<
 // ─────────────────────────────────────────────────
 
 const unavailableTimesKey = (reservationTypeId: string) => [
+  "masters",
   "reservation-types",
   reservationTypeId,
   "unavailable-times",

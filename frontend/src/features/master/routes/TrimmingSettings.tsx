@@ -3,14 +3,13 @@ import { useState, useMemo, useCallback, memo, useDeferredValue, useEffect } fro
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { useMasterCRUD } from "../hooks/use-master-crud";
+import { useMasterSave } from "../hooks/use-master-save";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { ResourceMasterTrimming } from "@/types/generated/models";
 import { usePermission } from "@/hooks/use-permission";
 
 // External
 import { Plus, Scissors } from "lucide-react";
-import { toast } from "sonner";
-import { handleApiError } from "@/lib/handle-api-error";
 
 // Shared
 import { TableCell } from "@/components/ui/table";
@@ -617,83 +616,51 @@ export function TrimmingSettings() {
     optionSetPendingDelete(null);
   }, [setSearchParams, courseSetEditTarget, optionSetEditTarget, courseSetPendingDelete, optionSetPendingDelete, dirty]);
 
-  const handleCourseSave = useCallback(
-    (data: CourseFormData) => {
-      const priceValue = data.price !== "" ? Number(data.price) : null;
-      courseStartSave(() => {
-        if (courseEditTarget !== null && courseEditTarget !== "new") {
-          const req: UpdateTrimmingCourseRequest = {
-            name: data.name,
-            price: priceValue,
-            target_size: data.targetSize !== "" ? data.targetSize : null,
-            duration: data.duration !== "" ? Number(data.duration) : null,
-            description: data.description || undefined,
-            is_active: data.isActive,
-          };
-          updateCourseMutation.mutate(
-            { id: courseEditTarget.id, req },
-            {
-              onSuccess: () => { toast.success("更新しました"); courseHandleClose(); },
-              onError: (error) => handleApiError(error, "更新"),
-            },
-          );
-        } else {
-          const req: CreateTrimmingCourseRequest = {
-            name: data.name,
-            price: priceValue,
-            target_size: data.targetSize !== "" ? data.targetSize : null,
-            duration: data.duration !== "" ? Number(data.duration) : null,
-            description: data.description || undefined,
-            is_active: true,
-          };
-          createCourseMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); courseHandleClose(); },
-            onError: (error) => handleApiError(error, "登録"),
-          });
-        }
-      });
-    },
-    [courseEditTarget, updateCourseMutation, createCourseMutation, courseHandleClose, courseStartSave],
-  );
+  const courseSave = useMasterSave({
+    crud: courseCrud,
+    createMutation: createCourseMutation,
+    updateMutation: updateCourseMutation,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data): CreateTrimmingCourseRequest => ({
+      name: data.name,
+      price: data.price !== "" ? Number(data.price) : null,
+      target_size: data.targetSize !== "" ? data.targetSize : null,
+      duration: data.duration !== "" ? Number(data.duration) : null,
+      description: data.description || undefined,
+      is_active: true,
+    }),
+    toUpdateRequest: (data): UpdateTrimmingCourseRequest => ({
+      name: data.name,
+      price: data.price !== "" ? Number(data.price) : null,
+      target_size: data.targetSize !== "" ? data.targetSize : null,
+      duration: data.duration !== "" ? Number(data.duration) : null,
+      description: data.description || undefined,
+      is_active: data.isActive,
+    }),
+  });
 
-  const handleOptionSave = useCallback(
-    (data: OptionFormData) => {
-      const priceValue = data.price !== "" ? Number(data.price) : null;
-      optionStartSave(() => {
-        if (optionEditTarget !== null && optionEditTarget !== "new") {
-          const req: UpdateTrimmingOptionRequest = {
-            name: data.name,
-            price: priceValue,
-            duration: data.duration !== "" ? Number(data.duration) : null,
-            is_combinable: data.combinable,
-            description: data.description || undefined,
-            is_active: data.isActive,
-          };
-          updateOptionMutation.mutate(
-            { id: optionEditTarget.id, req },
-            {
-              onSuccess: () => { toast.success("更新しました"); optionHandleClose(); },
-              onError: (error) => handleApiError(error, "更新"),
-            },
-          );
-        } else {
-          const req: CreateTrimmingOptionRequest = {
-            name: data.name,
-            price: priceValue,
-            duration: data.duration !== "" ? Number(data.duration) : null,
-            is_combinable: data.combinable,
-            description: data.description || undefined,
-            is_active: true,
-          };
-          createOptionMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); optionHandleClose(); },
-            onError: (error) => handleApiError(error, "登録"),
-          });
-        }
-      });
-    },
-    [optionEditTarget, updateOptionMutation, createOptionMutation, optionHandleClose, optionStartSave],
-  );
+  const optionSave = useMasterSave({
+    crud: optionCrud,
+    createMutation: createOptionMutation,
+    updateMutation: updateOptionMutation,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data): CreateTrimmingOptionRequest => ({
+      name: data.name,
+      price: data.price !== "" ? Number(data.price) : null,
+      duration: data.duration !== "" ? Number(data.duration) : null,
+      is_combinable: data.combinable,
+      description: data.description || undefined,
+      is_active: true,
+    }),
+    toUpdateRequest: (data): UpdateTrimmingOptionRequest => ({
+      name: data.name,
+      price: data.price !== "" ? Number(data.price) : null,
+      duration: data.duration !== "" ? Number(data.duration) : null,
+      is_combinable: data.combinable,
+      description: data.description || undefined,
+      is_active: data.isActive,
+    }),
+  });
 
   return (
     <>
@@ -755,7 +722,7 @@ export function TrimmingSettings() {
             key={courseCrud.panelItem ? String(courseCrud.panelItem.id) : "new-trimming-course"}
             item={courseCrud.panelItem}
             onClose={courseCrud.handleClose}
-            onSave={handleCourseSave}
+            onSave={courseSave.handleSave}
             onDeleteRequest={canDelete ? courseCrud.setPendingDelete : undefined}
             readOnly={!canEdit}
             onDirtyChange={handleDirtyChange}
@@ -766,7 +733,7 @@ export function TrimmingSettings() {
             key={optionCrud.panelItem ? String(optionCrud.panelItem.id) : "new-trimming-option"}
             item={optionCrud.panelItem}
             onClose={optionCrud.handleClose}
-            onSave={handleOptionSave}
+            onSave={optionSave.handleSave}
             onDeleteRequest={canDelete ? optionCrud.setPendingDelete : undefined}
             readOnly={!canEdit}
             onDirtyChange={handleDirtyChange}

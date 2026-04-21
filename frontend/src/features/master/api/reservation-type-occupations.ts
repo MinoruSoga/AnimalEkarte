@@ -9,6 +9,7 @@ import type { ReservationTypeOccupation } from "@/types/generated/models";
 // ─────────────────────────────────────────────────
 
 const occupationsKey = (reservationTypeId: string) => [
+  "masters",
   "reservation-types",
   reservationTypeId,
   "occupations",
