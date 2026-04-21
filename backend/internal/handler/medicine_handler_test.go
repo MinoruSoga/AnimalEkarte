@@ -72,6 +72,8 @@ func newHandlerWithMedicineSvc(svc service.MedicineService) *Handler {
 func TestListMedicines(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	// TASK-232: ListMedicines は全件返却（page=1, limit=10000固定）。ページネーション引数は無視。
+	// レスポンスは JSON 配列（PaginatedResponse ラッパーなし）。
 	tests := []struct {
 		name       string
 		query      string
@@ -81,14 +83,14 @@ func TestListMedicines(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "returns paginated medicines",
-			query:    "page=1&limit=10",
+			name:     "returns all medicines as array",
+			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicineService{
 				listFn: func(_ context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, 1, page)
-					assert.Equal(t, 10, limit)
+					assert.Equal(t, medicineListMaxLimit, limit)
 					return []model.Medicine{{ID: 1, Name: "アモキシシリン"}}, 1, nil
 				},
 			},
@@ -96,8 +98,8 @@ func TestListMedicines(t *testing.T) {
 			wantBody:   `"name":"アモキシシリン"`,
 		},
 		{
-			name:     "returns empty list",
-			query:    "page=1&limit=10",
+			name:     "returns empty array when no medicines",
+			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicineService{
 				listFn: func(_ context.Context, _ uint64, _, _ int) ([]model.Medicine, int64, error) {
@@ -105,25 +107,18 @@ func TestListMedicines(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusOK,
-			wantBody:   `"total":0`,
+			wantBody:   `[]`,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
-			query:      "page=1&limit=10",
+			query:      "",
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockMedicineService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "returns 400 on invalid pagination",
-			query:      "page=0",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
-			svc:        &mockMedicineService{},
-			wantStatus: http.StatusBadRequest,
-		},
-		{
 			name:     "returns 500 on service error",
-			query:    "page=1&limit=10",
+			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicineService{
 				listFn: func(_ context.Context, _ uint64, _, _ int) ([]model.Medicine, int64, error) {
