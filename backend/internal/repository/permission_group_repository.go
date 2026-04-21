@@ -22,13 +22,13 @@ type PermissionGroupRepository interface {
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
 	CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	// GetEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
+	// FindEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
 	// UNION (bool_or) して実効権限を返す。
-	GetEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
-	// GetGroupIDsByStaffID はスタッフが所属する権限グループIDリストを返す。
-	GetGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error)
-	// SetStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
-	SetStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error
+	FindEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error)
+	// FindGroupIDsByStaffID はスタッフが所属する権限グループIDリストを返す。
+	FindGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error)
+	// ReplaceStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
+	ReplaceStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error
 }
 
 type permissionGroupRepository struct{ db *gorm.DB }
@@ -143,11 +143,11 @@ func (r *permissionGroupRepository) CountUsageByGroupID(ctx context.Context, cli
 	return count, nil
 }
 
-// GetEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
+// FindEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
 // UNION (bool_or) して実効権限を返す。
 // 戻り値の各要素は resource 毎に集約済み（GroupID=0, ID=0）。
 // staff_clinic_assignments を JOIN して clinic 境界を明示する（CODE-QUALITY-227）。
-func (r *permissionGroupRepository) GetEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
+func (r *permissionGroupRepository) FindEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
 	var rules []model.PermissionGroupRule
 	// staff_permission_groups → permission_groups (active & not deleted) → permission_group_rules を JOIN し
 	// resource 毎に bool_or で集約する。
@@ -182,8 +182,8 @@ func (r *permissionGroupRepository) GetEffectivePermissionsByStaffID(ctx context
 	return rules, nil
 }
 
-// GetGroupIDsByStaffID はスタッフが所属する権限グループIDリストを返す。
-func (r *permissionGroupRepository) GetGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
+// FindGroupIDsByStaffID はスタッフが所属する権限グループIDリストを返す。
+func (r *permissionGroupRepository) FindGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
 	var rows []struct {
 		GroupID uint64
 	}
@@ -201,8 +201,8 @@ func (r *permissionGroupRepository) GetGroupIDsByStaffID(ctx context.Context, st
 	return ids, nil
 }
 
-// SetStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
-func (r *permissionGroupRepository) SetStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
+// ReplaceStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
+func (r *permissionGroupRepository) ReplaceStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存の紐付けを全削除
 		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffPermissionGroup{}).Error; err != nil {
@@ -220,7 +220,7 @@ func (r *permissionGroupRepository) SetStaffGroups(ctx context.Context, staffID 
 		}
 		return nil
 	}); err != nil {
-		return apperrors.Wrap(err, "failed to set staff permission groups")
+		return apperrors.Wrap(err, "failed to replace staff permission groups")
 	}
 	return nil
 }

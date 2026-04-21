@@ -470,6 +470,7 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
 	// 存在確認（NotFound は FromGORM 経由で伝播）
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		slog.ErrorContext(ctx, "failed to find staff before delete", "error", err)
 		return apperrors.Wrap(err, "failed to find staff before delete")
 	}
 
@@ -521,7 +522,7 @@ func (s *staffService) GetPermissionGroupIDs(ctx context.Context, staffID uint64
 
 // SetPermissionGroupIDs はスタッフの権限グループを全置換する
 func (s *staffService) SetPermissionGroupIDs(ctx context.Context, staffID uint64, groupIDs []uint64) error {
-	if err := s.permissionGroupRepo.SetStaffGroups(ctx, staffID, groupIDs); err != nil {
+	if err := s.permissionGroupRepo.ReplaceStaffGroups(ctx, staffID, groupIDs); err != nil {
 		slog.ErrorContext(ctx, "failed to set permission group ids", "error", err)
 		return apperrors.Wrap(err, "failed to set permission group ids")
 	}

@@ -117,6 +117,7 @@ func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staff
 func (s *reservationScheduleService) Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
 	// 存在確認（NotFound は FromGORM 経由で伝播）
 	if _, err := s.repo.FindByDate(ctx, clinicID, staffID, date); err != nil {
+		slog.ErrorContext(ctx, "failed to find schedule before delete", "error", err)
 		return apperrors.Wrap(err, "failed to find schedule before delete")
 	}
 

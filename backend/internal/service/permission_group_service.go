@@ -208,7 +208,7 @@ func (s *permissionGroupService) SetRules(ctx context.Context, groupID uint64, i
 	}
 	// BUG-140: 自分が所属するグループの master-permission edit を削除できないようにする
 	// staffGroupIDs をサービス内で取得する（Handler が外部データを取得する責務を持たない）
-	staffGroupIDs, err := s.repo.GetGroupIDsByStaffID(ctx, actorStaffID)
+	staffGroupIDs, err := s.repo.FindGroupIDsByStaffID(ctx, actorStaffID)
 	if err != nil {
 		// エラー時は空にして自己参照チェック不能なら許可方向（ベストエフォート）
 		slog.WarnContext(ctx, "failed to get staff group ids for self-reference check, allowing by best-effort",
@@ -287,7 +287,7 @@ func (s *permissionGroupService) Reorder(ctx context.Context, clinicID uint64, i
 }
 
 func (s *permissionGroupService) GetEffectivePermissions(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
-	rules, err := s.repo.GetEffectivePermissionsByStaffID(ctx, staffID)
+	rules, err := s.repo.FindEffectivePermissionsByStaffID(ctx, staffID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get effective permissions", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get effective permissions")
