@@ -11,6 +11,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
+// medicineListMaxLimit はマスタ全件取得の上限定数（他マスタと統一の全件返却）
+const medicineListMaxLimit = 10000
+
 // ListMedicines godoc
 func (h *Handler) ListMedicines(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -18,18 +21,13 @@ func (h *Handler) ListMedicines(c *gin.Context) {
 		return
 	}
 
-	page, limit, err := parsePagination(c)
+	// マスタ系は全件返却（他マスタと統一）。service.List のページネーション引数は固定値で全件取得。
+	medicines, _, err := h.svc.Medicine.List(c.Request.Context(), clinicID, 1, medicineListMaxLimit)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-
-	medicines, total, err := h.svc.Medicine.List(c.Request.Context(), clinicID, page, limit)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, newPaginatedResponse(mapSlice(medicines, toMedicineResponse), total, page, limit))
+	c.JSON(http.StatusOK, mapSlice(medicines, toMedicineResponse))
 }
 
 // GetMedicine godoc

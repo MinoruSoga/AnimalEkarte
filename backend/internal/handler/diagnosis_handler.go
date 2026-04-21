@@ -4,7 +4,6 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -178,14 +177,9 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 		return
 	}
 
-	var typeID *uint64
-	if s := c.Query("type_id"); s != "" {
-		id, parseErr := strconv.ParseUint(s, 10, 64)
-		if parseErr != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid type_id"))
-			return
-		}
-		typeID = &id
+	typeID, ok2 := parseOptionalUint64Query(c, "type_id")
+	if !ok2 {
+		return
 	}
 
 	names, total, err := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, typeID, page, limit)
@@ -205,14 +199,9 @@ func (h *Handler) ListDiagnosisNamesAll(c *gin.Context) {
 		return
 	}
 
-	var typeID *uint64
-	if s := c.Query("type_id"); s != "" {
-		id, parseErr := strconv.ParseUint(s, 10, 64)
-		if parseErr != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid type_id"))
-			return
-		}
-		typeID = &id
+	typeID, ok := parseOptionalUint64Query(c, "type_id")
+	if !ok {
+		return
 	}
 
 	names, err := h.svc.DiagnosisName.ListNames(c.Request.Context(), clinicID, typeID)

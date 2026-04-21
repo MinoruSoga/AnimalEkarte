@@ -1,14 +1,13 @@
 package handler
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 type companyResponse struct {
-	ID                        string    `json:"id"`
+	ID                        uint64    `json:"id"`
 	Name                      string    `json:"name"`
 	PostalCode                string    `json:"postal_code"`
 	Address                   string    `json:"address"`
@@ -26,7 +25,7 @@ type companyResponse struct {
 
 func toCompanyResponse(c *model.Company) companyResponse {
 	return companyResponse{
-		ID:                        strconv.FormatUint(c.ID, 10),
+		ID:                        c.ID,
 		Name:                      c.Name,
 		PostalCode:                c.PostalCode,
 		Address:                   c.Address,

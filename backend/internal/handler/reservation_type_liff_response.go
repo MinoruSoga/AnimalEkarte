@@ -11,6 +11,7 @@ type reservationTypeLiffResponse struct {
 	ClinicID             uint64    `json:"clinic_id"`
 	Name                 string    `json:"name"`
 	Color                string    `json:"color"`
+	Category             string    `json:"category"`
 	IsActive             bool      `json:"is_active"`
 	Description          string    `json:"description"`
 	SortOrder            int       `json:"sort_order"`
@@ -32,6 +33,7 @@ func toReservationTypeLiffResponse(st *model.ReservationType) reservationTypeLif
 		ClinicID:             st.ClinicID,
 		Name:                 st.Name,
 		Color:                st.Color,
+		Category:             string(st.Category),
 		IsActive:             st.IsActive,
 		Description:          st.Description,
 		SortOrder:            st.SortOrder,

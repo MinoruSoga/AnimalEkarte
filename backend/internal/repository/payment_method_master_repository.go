@@ -76,7 +76,8 @@ func (r *paymentMethodMasterRepository) UpdateFields(ctx context.Context, clinic
 func (r *paymentMethodMasterRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Delete(&model.PaymentMethodMaster{}, id)
+		Where("id = ?", id).
+		Delete(&model.PaymentMethodMaster{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "payment_method", fmt.Sprintf("%d", id))
 	}

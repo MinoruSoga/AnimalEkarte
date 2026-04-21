@@ -173,6 +173,21 @@ func (h *Handler) CreateUnavailableTime(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
+
+	// 相互依存バリデーション
+	switch req.UnavailableType {
+	case "weekly":
+		if req.DayOfWeek == nil {
+			RespondError(c, apperrors.WrapInvalidInput("weekly タイプでは day_of_week が必要です"))
+			return
+		}
+	case "specific":
+		if req.SpecificDate == nil {
+			RespondError(c, apperrors.WrapInvalidInput("specific タイプでは specific_date が必要です"))
+			return
+		}
+	}
+
 	input := service.CreateUnavailableTimeInput{
 		UnavailableType: req.UnavailableType,
 		DayOfWeek:       req.DayOfWeek,

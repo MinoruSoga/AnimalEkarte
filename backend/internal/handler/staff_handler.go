@@ -13,6 +13,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
+// staffListMaxLimit は全スタッフ一括取得の上限。スタッフ数は現実的に数十〜数百名程度のため全件返却で問題ない。
+const staffListMaxLimit = 1000
+
 // ---- Staff ----
 
 // ListStaffs godoc
@@ -25,7 +28,7 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 
 	// NOTE: pagination パラメータは無視（全件返却）
 	// 将来的にページネーション対応が必要な場合は、別エンドポイント化を検討
-	staffs, _, err := h.svc.Staff.List(c.Request.Context(), clinicID, 1, 1000)
+	staffs, _, err := h.svc.Staff.List(c.Request.Context(), clinicID, 1, staffListMaxLimit)
 	if err != nil {
 		RespondError(c, err)
 		return

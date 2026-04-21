@@ -27,7 +27,7 @@ export interface UpdateCompanyRequest {
 
 function transformCompany(data: ModelCompany) {
   return {
-    id: String(data.id ?? 0),
+    id: data.id,
     name: data.name,
     postalCode: data.postal_code,
     address: data.address,

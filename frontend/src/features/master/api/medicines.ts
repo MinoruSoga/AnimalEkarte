@@ -7,18 +7,9 @@ import type { Medicine } from "@/lib/transforms/medicine";
 import type { Medicine as MedicineModel } from "@/types/generated/models";
 import type { CreateMedicineRequest, UpdateMedicineRequest, ReorderMedicinesRequest } from "@/types/medicine";
 
-interface MedicinesResponse {
-  data: MedicineModel[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
 export const getAllMedicines = async (): Promise<Medicine[]> => {
-  const { data } = await axios.get<MedicinesResponse>("/v1/masters/medicines", {
-    params: { limit: 100 },
-  });
-  return (data.data ?? []).map(transformBackendMedicineToFrontend);
+  const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
+  return (data ?? []).map(transformBackendMedicineToFrontend);
 };
 
 export const useGetAllMedicines = () => {
