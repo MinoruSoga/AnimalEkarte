@@ -12,14 +12,15 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 
 // Shared hooks
 import { useSortableList } from "@/hooks/use-sortable-list";
+import { useMasterSave } from "../hooks/use-master-save";
 
 // External
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { toast } from "sonner";
 
 // Radix UI Tabs (primitive — same as DiagnosisSettings)
 import * as TabsPrimitive from "@radix-ui/react-tabs";
@@ -522,206 +523,61 @@ export function TreatmentPlanMaster() {
   const deleteCheckup = useDeleteCheckupType();
   const reorderCheckups = useReorderCheckupTypes();
 
-  // ── Tab configs ────────────────────────────────────
+  // ── Tab configs (simplified — data & metadata only) ────────────
 
-  const tabConfigs = useMemo<Record<string, TreatmentTabConfig>>(() => ({
+  const tabConfigs = useMemo<Record<string, Omit<TreatmentTabConfig, 'onCreate' | 'onUpdate' | 'onDelete'>>>(() => ({
     consultation: {
       data: consultationData,
       entityLabel: "診察",
       emptyMessage: "診察が登録されていません",
       searchPlaceholder: "診察名で検索...",
-      onCreate: (data, cb) =>
-        createConsultation.mutate(
-          {
-            name: data.name,
-            price: data.price,
-            description: data.description || undefined,
-            is_active: data.isActive,
-            tax_type: data.taxType,
-            tax_rate: data.taxRate,
-          },
-          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
-        ),
-      onUpdate: (id, data, cb) =>
-        updateConsultation.mutate(
-          {
-            id,
-            req: {
-              name: data.name,
-              price: data.price,
-              description: data.description || undefined,
-              is_active: data.isActive,
-              tax_type: data.taxType,
-              tax_rate: data.taxRate,
-            },
-          },
-          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
-        ),
-      onDelete: (id, cb) =>
-        deleteConsultation.mutate(id, {
-          onSuccess: () => cb.onSuccess(),
-          onError: (error) => cb.onError(error),
-        }),
       onReorder: (ids) => reorderConsultations.mutate({ ids }),
     },
-
     examination: {
       data: examinationData,
       entityLabel: "検査",
       emptyMessage: "検査が登録されていません",
       searchPlaceholder: "検査名で検索...",
-      onCreate: (data, cb) =>
-        createExamination.mutate(
-          {
-            name: data.name,
-            price: data.price,
-            description: data.description || undefined,
-            is_active: data.isActive,
-          },
-          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
-        ),
-      onUpdate: (id, data, cb) =>
-        updateExamination.mutate(
-          {
-            id,
-            req: {
-              name: data.name,
-              price: data.price,
-              description: data.description || undefined,
-              is_active: data.isActive,
-            },
-          },
-          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
-        ),
-      onDelete: (id, cb) =>
-        deleteExamination.mutate(id, {
-          onSuccess: () => cb.onSuccess(),
-          onError: (error) => cb.onError(error),
-        }),
       onReorder: (ids) => reorderExaminations.mutate({ ids }),
     },
-
     procedure: {
       data: procedureData,
       entityLabel: "処置",
       emptyMessage: "処置が登録されていません",
       searchPlaceholder: "処置名で検索...",
-      onCreate: (data, cb) =>
-        createProcedure.mutate(
-          {
-            name: data.name,
-            price: data.price,
-            description: data.description || undefined,
-            is_active: data.isActive,
-            tax_type: data.taxType,
-            tax_rate: data.taxRate,
-          },
-          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
-        ),
-      onUpdate: (id, data, cb) =>
-        updateProcedure.mutate(
-          {
-            id,
-            req: {
-              name: data.name,
-              price: data.price,
-              description: data.description || undefined,
-              is_active: data.isActive,
-              tax_type: data.taxType,
-              tax_rate: data.taxRate,
-            },
-          },
-          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
-        ),
-      onDelete: (id, cb) =>
-        deleteProcedure.mutate(id, {
-          onSuccess: () => cb.onSuccess(),
-          onError: (error) => cb.onError(error),
-        }),
       onReorder: (ids) => reorderProcedures.mutate({ ids }),
     },
-
     vaccine: {
       data: vaccineData,
       entityLabel: "予防接種",
       emptyMessage: "予防接種が登録されていません",
       searchPlaceholder: "予防接種名で検索...",
-      onCreate: (data, cb) =>
-        createVaccine.mutate(
-          {
-            name: data.name,
-            price: data.price,
-            description: data.description || undefined,
-            is_active: data.isActive,
-          },
-          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
-        ),
-      onUpdate: (id, data, cb) =>
-        updateVaccine.mutate(
-          {
-            id,
-            req: {
-              name: data.name,
-              price: data.price,
-              description: data.description || undefined,
-              is_active: data.isActive,
-            },
-          },
-          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
-        ),
-      onDelete: (id, cb) =>
-        deleteVaccine.mutate(id, {
-          onSuccess: () => cb.onSuccess(),
-          onError: (error) => cb.onError(error),
-        }),
       onReorder: (ids) => reorderVaccines.mutate({ ids }),
     },
-
     checkup: {
       data: checkupData,
       entityLabel: "定期健診",
       emptyMessage: "定期健診が登録されていません",
       searchPlaceholder: "定期健診名で検索...",
-      onCreate: (data, cb) =>
-        createCheckup.mutate(
-          {
-            name: data.name,
-            price: data.price,
-            description: data.description || undefined,
-            is_active: data.isActive,
-          },
-          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
-        ),
-      onUpdate: (id, data, cb) =>
-        updateCheckup.mutate(
-          {
-            id,
-            req: {
-              name: data.name,
-              price: data.price,
-              description: data.description || undefined,
-              is_active: data.isActive,
-            },
-          },
-          { onSuccess: () => cb.onSuccess(), onError: (error) => cb.onError(error) },
-        ),
-      onDelete: (id, cb) =>
-        deleteCheckup.mutate(id, {
-          onSuccess: () => cb.onSuccess(),
-          onError: (error) => cb.onError(error),
-        }),
       onReorder: (ids) => reorderCheckups.mutate({ ids }),
     },
   }), [
-    consultationData, createConsultation, updateConsultation, deleteConsultation, reorderConsultations,
-    examinationData, createExamination, updateExamination, deleteExamination, reorderExaminations,
-    procedureData, createProcedure, updateProcedure, deleteProcedure, reorderProcedures,
-    vaccineData, createVaccine, updateVaccine, deleteVaccine, reorderVaccines,
-    checkupData, createCheckup, updateCheckup, deleteCheckup, reorderCheckups,
+    consultationData, reorderConsultations,
+    examinationData, reorderExaminations,
+    procedureData, reorderProcedures,
+    vaccineData, reorderVaccines,
+    checkupData, reorderCheckups,
   ]);
 
   const selectedItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
   const currentConfig = tabConfigs[activeTab];
+
+  const [isSavePending, setIsSavePending] = useState(false);
+  const startSaveTransition = useCallback((cb: () => void) => {
+    setIsSavePending(true);
+    cb();
+    setIsSavePending(false);
+  }, []);
 
   const handleClose = useCallback(() => {
     if (!dirty.confirmDiscard()) return;
@@ -734,20 +590,132 @@ export function TreatmentPlanMaster() {
     setEditTarget(target);
   }, [dirty]);
 
+  // Minimal CRUD object for useMasterSave (FR2 only, skip editTarget management)
+  const minimalCrud = useMemo(() => ({
+    editTarget,
+    handleClose,
+    startSaveTransition,
+  }), [editTarget, handleClose, startSaveTransition]);
+
+  // ── FR2: useMasterSave hooks (5 tabs) ──────────────────────
+  const consultationSave = useMasterSave<TreatmentItem, TreatmentFormData, any, any>({
+    crud: minimalCrud as any,
+    createMutation: createConsultation,
+    updateMutation: updateConsultation as any,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data) => ({
+      name: data.name,
+      price: data.price,
+      description: data.description || undefined,
+      is_active: data.isActive,
+      tax_type: data.taxType,
+      tax_rate: data.taxRate,
+    }),
+    toUpdateRequest: (data) => ({
+      name: data.name,
+      price: data.price,
+      description: data.description || undefined,
+      is_active: data.isActive,
+      tax_type: data.taxType,
+      tax_rate: data.taxRate,
+    }),
+  });
+
+  const examinationSave = useMasterSave<TreatmentItem, TreatmentFormData, any, any>({
+    crud: minimalCrud as any,
+    createMutation: createExamination,
+    updateMutation: updateExamination as any,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data) => ({
+      name: data.name,
+      price: data.price,
+      description: data.description || undefined,
+      is_active: data.isActive,
+    }),
+    toUpdateRequest: (data) => ({
+      name: data.name,
+      price: data.price,
+      description: data.description || undefined,
+      is_active: data.isActive,
+    }),
+  });
+
+  const procedureSave = useMasterSave<TreatmentItem, TreatmentFormData, any, any>({
+    crud: minimalCrud as any,
+    createMutation: createProcedure,
+    updateMutation: updateProcedure as any,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data) => ({
+      name: data.name,
+      price: data.price,
+      description: data.description || undefined,
+      is_active: data.isActive,
+      tax_type: data.taxType,
+      tax_rate: data.taxRate,
+    }),
+    toUpdateRequest: (data) => ({
+      name: data.name,
+      price: data.price,
+      description: data.description || undefined,
+      is_active: data.isActive,
+      tax_type: data.taxType,
+      tax_rate: data.taxRate,
+    }),
+  });
+
+  const vaccineSave = useMasterSave<TreatmentItem, TreatmentFormData, any, any>({
+    crud: minimalCrud as any,
+    createMutation: createVaccine,
+    updateMutation: updateVaccine as any,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data) => ({
+      name: data.name,
+      price: data.price,
+      description: data.description || undefined,
+      is_active: data.isActive,
+    }),
+    toUpdateRequest: (data) => ({
+      name: data.name,
+      price: data.price,
+      description: data.description || undefined,
+      is_active: data.isActive,
+    }),
+  });
+
+  const checkupSave = useMasterSave<TreatmentItem, TreatmentFormData, any, any>({
+    crud: minimalCrud as any,
+    createMutation: createCheckup,
+    updateMutation: updateCheckup as any,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data) => ({
+      name: data.name,
+      price: data.price,
+      description: data.description || undefined,
+      is_active: data.isActive,
+    }),
+    toUpdateRequest: (data) => ({
+      name: data.name,
+      price: data.price,
+      description: data.description || undefined,
+      is_active: data.isActive,
+    }),
+  });
+
+  // Map tab values to save hooks
+  const saveHooksByTab = useMemo(() => ({
+    consultation: consultationSave,
+    examination: examinationSave,
+    procedure: procedureSave,
+    vaccine: vaccineSave,
+    checkup: checkupSave,
+  }), [consultationSave, examinationSave, procedureSave, vaccineSave, checkupSave]);
+
   const handleSave = useCallback((data: TreatmentFormData) => {
-    if (!currentConfig) return;
-    if (selectedItem) {
-      currentConfig.onUpdate(selectedItem.id, data, {
-        onSuccess: () => { toast.success("更新しました"); handleClose(); },
-        onError: (error: unknown) => handleApiError(error, "更新"),
-      });
-    } else {
-      currentConfig.onCreate(data, {
-        onSuccess: () => { toast.success("登録しました"); handleClose(); },
-        onError: (error: unknown) => handleApiError(error, "登録"),
-      });
+    const hook = saveHooksByTab[activeTab as keyof typeof saveHooksByTab];
+    if (hook) {
+      hook.handleSave(data);
     }
-  }, [currentConfig, selectedItem, handleClose]);
+  }, [activeTab, saveHooksByTab]);
 
   const handleDeleteRequest = useCallback(() => {
     setPendingDelete(selectedItem);
