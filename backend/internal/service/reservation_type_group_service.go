@@ -35,6 +35,23 @@ const (
 	colReservationTypeGroupIsActive  = "is_active"
 )
 
+func buildReservationTypeGroupUpdateFields(input *UpdateReservationTypeGroupInput) map[string]any {
+	fields := map[string]any{}
+	if input.Name != nil {
+		fields[colReservationTypeGroupName] = *input.Name
+	}
+	if input.Color != nil {
+		fields[colReservationTypeGroupColor] = *input.Color
+	}
+	if input.SortOrder != nil {
+		fields[colReservationTypeGroupSortOrder] = *input.SortOrder
+	}
+	if input.IsActive != nil {
+		fields[colReservationTypeGroupIsActive] = *input.IsActive
+	}
+	return fields
+}
+
 type ReservationTypeGroupService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ReservationTypeGroup, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error)
@@ -115,23 +132,6 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("reservation_type_group_id", id))
 	return g, nil
-}
-
-func buildReservationTypeGroupUpdateFields(input *UpdateReservationTypeGroupInput) map[string]any {
-	fields := map[string]any{}
-	if input.Name != nil {
-		fields[colReservationTypeGroupName] = *input.Name
-	}
-	if input.Color != nil {
-		fields[colReservationTypeGroupColor] = *input.Color
-	}
-	if input.SortOrder != nil {
-		fields[colReservationTypeGroupSortOrder] = *input.SortOrder
-	}
-	if input.IsActive != nil {
-		fields[colReservationTypeGroupIsActive] = *input.IsActive
-	}
-	return fields
 }
 
 func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -10,7 +10,7 @@ type createReservationTypeLiffRequest struct {
 	ShowShortName        bool   `json:"show_short_name"`
 	ReservationVisible   bool   `json:"reservation_visible"`
 	ReservationComment   string `json:"reservation_comment"`
-	ReservationDayOption string `json:"reservation_day_option"`
+	ReservationDayOption string `json:"reservation_day_option" binding:"omitempty,oneof=none saturday weekday anyday"`
 	IsInternal           bool   `json:"is_internal"`
 }
 
@@ -24,7 +24,7 @@ type updateReservationTypeLiffRequest struct {
 	ShowShortName        *bool   `json:"show_short_name"`
 	ReservationVisible   *bool   `json:"reservation_visible"`
 	ReservationComment   *string `json:"reservation_comment"`
-	ReservationDayOption *string `json:"reservation_day_option"`
+	ReservationDayOption *string `json:"reservation_day_option" binding:"omitempty,oneof=none saturday weekday anyday"`
 	IsInternal           *bool   `json:"is_internal"`
 }
 

@@ -385,37 +385,50 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 	return staff, nil
 }
 
+const (
+	colStaffName                   = "name"
+	colStaffLicenseNumber          = "license_number"
+	colStaffOccupationID           = "occupation_id"
+	colStaffSortOrder              = "sort_order"
+	colStaffIsActive               = "is_active"
+	colStaffStaffType              = "staff_type"
+	colStaffReservationDisplayName = "reservation_display_name"
+	colStaffReservationVisible     = "reservation_visible"
+	colStaffReservationComment     = "reservation_comment"
+	colStaffReservationImageURL    = "reservation_image_url"
+)
+
 func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colStaffName] = *input.Name
 	}
 	if input.LicenseNumber != nil {
-		fields["license_number"] = *input.LicenseNumber
+		fields[colStaffLicenseNumber] = *input.LicenseNumber
 	}
 	if input.OccupationID != nil {
-		fields["occupation_id"] = *input.OccupationID
+		fields[colStaffOccupationID] = *input.OccupationID
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colStaffSortOrder] = *input.SortOrder
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colStaffIsActive] = *input.IsActive
 	}
 	if input.StaffType != nil {
-		fields["staff_type"] = *input.StaffType
+		fields[colStaffStaffType] = *input.StaffType
 	}
 	if input.ReservationDisplayName != nil {
-		fields["reservation_display_name"] = *input.ReservationDisplayName
+		fields[colStaffReservationDisplayName] = *input.ReservationDisplayName
 	}
 	if input.ReservationVisible != nil {
-		fields["reservation_visible"] = *input.ReservationVisible
+		fields[colStaffReservationVisible] = *input.ReservationVisible
 	}
 	if input.ReservationComment != nil {
-		fields["reservation_comment"] = *input.ReservationComment
+		fields[colStaffReservationComment] = *input.ReservationComment
 	}
 	if input.ReservationImageURL != nil {
-		fields["reservation_image_url"] = *input.ReservationImageURL
+		fields[colStaffReservationImageURL] = *input.ReservationImageURL
 	}
 	return fields
 }

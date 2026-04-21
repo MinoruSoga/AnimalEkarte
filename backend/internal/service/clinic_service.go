@@ -40,57 +40,73 @@ type UpdateClinicInput struct {
 	ReducedTaxRate     *float64
 }
 
+const (
+	colClinicName               = "name"
+	colClinicPostalCode         = "postal_code"
+	colClinicAddress            = "address"
+	colClinicPhoneNumber        = "phone_number"
+	colClinicFaxNumber          = "fax_number"
+	colClinicRegistrationNumber = "registration_number"
+	colClinicDirectorName       = "director_name"
+	colClinicEmail              = "email"
+	colClinicWebsite            = "website"
+	colClinicLogoURL            = "logo_url"
+	colClinicIsActive           = "is_active"
+	colClinicStandardTaxRate    = "standard_tax_rate"
+	colClinicReducedTaxRate     = "reduced_tax_rate"
+)
+
 // buildClinicUpdateFields は PATCH 用 map を構築する。
 // GORM のゼロ値スキップ問題を回避するために使用する。
 // 税率が [0, 1] の範囲外の場合は error を返す。
 func buildClinicUpdateFields(input *UpdateClinicInput) (map[string]any, error) {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colClinicName] = *input.Name
 	}
 	if input.PostalCode != nil {
-		fields["postal_code"] = *input.PostalCode
+		fields[colClinicPostalCode] = *input.PostalCode
 	}
 	if input.Address != nil {
-		fields["address"] = *input.Address
+		fields[colClinicAddress] = *input.Address
 	}
 	if input.PhoneNumber != nil {
-		fields["phone_number"] = *input.PhoneNumber
+		fields[colClinicPhoneNumber] = *input.PhoneNumber
 	}
 	if input.FaxNumber != nil {
-		fields["fax_number"] = *input.FaxNumber
+		fields[colClinicFaxNumber] = *input.FaxNumber
 	}
 	if input.RegistrationNumber != nil {
-		fields["registration_number"] = *input.RegistrationNumber
+		fields[colClinicRegistrationNumber] = *input.RegistrationNumber
 	}
 	if input.DirectorName != nil {
-		fields["director_name"] = *input.DirectorName
+		fields[colClinicDirectorName] = *input.DirectorName
 	}
 	if input.Email != nil {
-		fields["email"] = *input.Email
+		fields[colClinicEmail] = *input.Email
 	}
 	if input.Website != nil {
-		fields["website"] = *input.Website
+		fields[colClinicWebsite] = *input.Website
 	}
 	if input.LogoURL != nil {
-		fields["logo_url"] = *input.LogoURL
+		fields[colClinicLogoURL] = *input.LogoURL
 	}
 	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
+		fields[colClinicIsActive] = *input.IsActive
 	}
 	if input.StandardTaxRate != nil {
 		r := *input.StandardTaxRate
 		if r < 0 || r > 1 {
 			return nil, apperrors.WrapInvalidInput("standard_tax_rate must be between 0 and 1")
 		}
-		fields["standard_tax_rate"] = r
+		fields[colClinicStandardTaxRate] = r
 	}
 	if input.ReducedTaxRate != nil {
 		r := *input.ReducedTaxRate
 		if r < 0 || r > 1 {
 			return nil, apperrors.WrapInvalidInput("reduced_tax_rate must be between 0 and 1")
 		}
-		fields["reduced_tax_rate"] = r
+		fields[colClinicReducedTaxRate] = r
 	}
 	return fields, nil
 }

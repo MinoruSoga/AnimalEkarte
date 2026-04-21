@@ -40,6 +40,34 @@ type SetPermissionGroupRulesInput struct {
 	CanDelete bool
 }
 
+const (
+	colPermissionGroupName        = "name"
+	colPermissionGroupDescription = "description"
+	colPermissionGroupColor       = "color"
+	colPermissionGroupSortOrder   = "sort_order"
+	colPermissionGroupIsActive    = "is_active"
+)
+
+func buildPermissionGroupUpdateFields(input *UpdatePermissionGroupInput) map[string]any {
+	fields := map[string]any{}
+	if input.Name != nil {
+		fields[colPermissionGroupName] = *input.Name
+	}
+	if input.Description != nil {
+		fields[colPermissionGroupDescription] = *input.Description
+	}
+	if input.Color != nil {
+		fields[colPermissionGroupColor] = *input.Color
+	}
+	if input.SortOrder != nil {
+		fields[colPermissionGroupSortOrder] = *input.SortOrder
+	}
+	if input.IsActive != nil {
+		fields[colPermissionGroupIsActive] = *input.IsActive
+	}
+	return fields
+}
+
 type PermissionGroupService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
@@ -254,32 +282,4 @@ func (s *permissionGroupService) GetEffectivePermissions(ctx context.Context, st
 		return nil, apperrors.Wrap(err, "failed to get effective permissions")
 	}
 	return rules, nil
-}
-
-const (
-	colPermissionGroupName        = "name"
-	colPermissionGroupDescription = "description"
-	colPermissionGroupColor       = "color"
-	colPermissionGroupSortOrder   = "sort_order"
-	colPermissionGroupIsActive    = "is_active"
-)
-
-func buildPermissionGroupUpdateFields(input *UpdatePermissionGroupInput) map[string]any {
-	fields := map[string]any{}
-	if input.Name != nil {
-		fields[colPermissionGroupName] = *input.Name
-	}
-	if input.Description != nil {
-		fields[colPermissionGroupDescription] = *input.Description
-	}
-	if input.Color != nil {
-		fields[colPermissionGroupColor] = *input.Color
-	}
-	if input.SortOrder != nil {
-		fields[colPermissionGroupSortOrder] = *input.SortOrder
-	}
-	if input.IsActive != nil {
-		fields[colPermissionGroupIsActive] = *input.IsActive
-	}
-	return fields
 }

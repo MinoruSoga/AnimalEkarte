@@ -234,12 +234,17 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 
 func (s *closingSettingsService) DeleteSpecialPeriod(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.periodRepo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get special period", slog.Any("error", err))
 		return apperrors.Wrap(err, "failed to get special period")
 	}
 	slog.InfoContext(ctx, "deleting closing special period",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("id", id))
-	return s.periodRepo.Delete(ctx, clinicID, id)
+	if err := s.periodRepo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete special period", slog.Any("error", err))
+		return apperrors.Wrap(err, "failed to delete special period")
+	}
+	return nil
 }
 
 func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID uint64, date time.Time) (*DaySchedule, error) {
@@ -299,22 +304,30 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 	}, nil
 }
 
+const (
+	colSpecialPeriodStartDate    = "start_date"
+	colSpecialPeriodEndDate      = "end_date"
+	colSpecialPeriodAmPmBoundary = "am_pm_boundary"
+	colSpecialPeriodPmEnd        = "pm_end"
+	colSpecialPeriodNote         = "note"
+)
+
 func buildSpecialPeriodUpdateFields(input UpdateSpecialPeriodInput, parsedStart, parsedEnd *time.Time) map[string]any {
 	fields := make(map[string]any)
 	if parsedStart != nil {
-		fields["start_date"] = *parsedStart
+		fields[colSpecialPeriodStartDate] = *parsedStart
 	}
 	if parsedEnd != nil {
-		fields["end_date"] = *parsedEnd
+		fields[colSpecialPeriodEndDate] = *parsedEnd
 	}
 	if input.AmPmBoundary != nil {
-		fields["am_pm_boundary"] = *input.AmPmBoundary
+		fields[colSpecialPeriodAmPmBoundary] = *input.AmPmBoundary
 	}
 	if input.PmEnd != nil {
-		fields["pm_end"] = *input.PmEnd
+		fields[colSpecialPeriodPmEnd] = *input.PmEnd
 	}
 	if input.Note != nil {
-		fields["note"] = *input.Note
+		fields[colSpecialPeriodNote] = *input.Note
 	}
 	return fields
 }

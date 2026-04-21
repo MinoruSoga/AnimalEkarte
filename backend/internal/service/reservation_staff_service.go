@@ -29,22 +29,30 @@ type UpdateReservationStaffInput struct {
 	ExcludedTypeIDs    *[]uint64
 }
 
+const (
+	colReservationStaffName               = "name"
+	colReservationStaffStaffType          = "staff_type"
+	colReservationStaffReservationVisible = "reservation_visible"
+	colReservationStaffReservationComment = "reservation_comment"
+	colReservationStaffSortOrder          = "sort_order"
+)
+
 func buildReservationStaffUpdateFields(input *UpdateReservationStaffInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colReservationStaffName] = *input.Name
 	}
 	if input.StaffType != nil {
-		fields["staff_type"] = *input.StaffType
+		fields[colReservationStaffStaffType] = *input.StaffType
 	}
 	if input.ReservationVisible != nil {
-		fields["reservation_visible"] = *input.ReservationVisible
+		fields[colReservationStaffReservationVisible] = *input.ReservationVisible
 	}
 	if input.ReservationComment != nil {
-		fields["reservation_comment"] = *input.ReservationComment
+		fields[colReservationStaffReservationComment] = *input.ReservationComment
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colReservationStaffSortOrder] = *input.SortOrder
 	}
 	return fields
 }

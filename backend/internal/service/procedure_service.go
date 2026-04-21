@@ -174,6 +174,7 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get procedure", slog.Any("error", err))
 		return nil, apperrors.Wrap(err, "failed to get procedure")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -198,6 +199,7 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	}
 	procedure, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to update procedure", slog.Any("error", err))
 		return nil, apperrors.Wrap(err, "failed to update procedure")
 	}
 	slog.InfoContext(ctx, "procedure updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("procedure_id", id))

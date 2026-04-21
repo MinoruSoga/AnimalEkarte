@@ -9,40 +9,54 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+const (
+	colReservationTypeLiffName                 = "name"
+	colReservationTypeLiffColor                = "color"
+	colReservationTypeLiffDescription          = "description"
+	colReservationTypeLiffSortOrder            = "sort_order"
+	colReservationTypeLiffDurationMinutes      = "duration_minutes"
+	colReservationTypeLiffShortName            = "short_name"
+	colReservationTypeLiffShowShortName        = "show_short_name"
+	colReservationTypeLiffReservationVisible   = "reservation_visible"
+	colReservationTypeLiffReservationComment   = "reservation_comment"
+	colReservationTypeLiffReservationDayOption = "reservation_day_option"
+	colReservationTypeLiffIsInternal           = "is_internal"
+)
+
 func buildReservationTypeLiffUpdateFields(input *UpdateReservationTypeLiffInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
-		fields["name"] = *input.Name
+		fields[colReservationTypeLiffName] = *input.Name
 	}
 	if input.Color != nil {
-		fields["color"] = *input.Color
+		fields[colReservationTypeLiffColor] = *input.Color
 	}
 	if input.Description != nil {
-		fields["description"] = *input.Description
+		fields[colReservationTypeLiffDescription] = *input.Description
 	}
 	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
+		fields[colReservationTypeLiffSortOrder] = *input.SortOrder
 	}
 	if input.DurationMinutes != nil {
-		fields["duration_minutes"] = *input.DurationMinutes
+		fields[colReservationTypeLiffDurationMinutes] = *input.DurationMinutes
 	}
 	if input.ShortName != nil {
-		fields["short_name"] = *input.ShortName
+		fields[colReservationTypeLiffShortName] = *input.ShortName
 	}
 	if input.ShowShortName != nil {
-		fields["show_short_name"] = *input.ShowShortName
+		fields[colReservationTypeLiffShowShortName] = *input.ShowShortName
 	}
 	if input.ReservationVisible != nil {
-		fields["reservation_visible"] = *input.ReservationVisible
+		fields[colReservationTypeLiffReservationVisible] = *input.ReservationVisible
 	}
 	if input.ReservationComment != nil {
-		fields["reservation_comment"] = *input.ReservationComment
+		fields[colReservationTypeLiffReservationComment] = *input.ReservationComment
 	}
 	if input.ReservationDayOption != nil {
-		fields["reservation_day_option"] = *input.ReservationDayOption
+		fields[colReservationTypeLiffReservationDayOption] = *input.ReservationDayOption
 	}
 	if input.IsInternal != nil {
-		fields["is_internal"] = *input.IsInternal
+		fields[colReservationTypeLiffIsInternal] = *input.IsInternal
 	}
 	return fields
 }
