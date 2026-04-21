@@ -14,7 +14,7 @@ import (
 // ClinicHolidayRepository は個別休診日のデータアクセスインターフェース
 type ClinicHolidayRepository interface {
 	FindByYearMonth(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
-	Upsert(ctx context.Context, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
+	Upsert(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
 	Delete(ctx context.Context, clinicID uint64, date time.Time) error
 }
 
@@ -42,11 +42,11 @@ func (r *clinicHolidayRepository) FindByYearMonth(ctx context.Context, clinicID 
 	return holidays, nil
 }
 
-func (r *clinicHolidayRepository) Upsert(ctx context.Context, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
+func (r *clinicHolidayRepository) Upsert(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
 	// (clinic_id, date) のユニーク制約を利用してアトミックな UPSERT を実施する。
 	// 手動の First→Create/Update パターンはレースコンディションを持つため clause.OnConflict を使用する。
 	err := r.db.WithContext(ctx).
-		Scopes(clinicScope(holiday.ClinicID)).
+		Scopes(clinicScope(clinicID)).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "clinic_id"}, {Name: "date"}},
 			DoUpdates: clause.AssignmentColumns([]string{"reason", "updated_at"}),

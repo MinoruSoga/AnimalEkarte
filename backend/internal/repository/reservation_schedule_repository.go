@@ -18,7 +18,7 @@ type ReservationScheduleRepository interface {
 	FindBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
 	FindByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
 	FindBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
-	Upsert(ctx context.Context, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
+	Upsert(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
 	Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
@@ -87,7 +87,7 @@ func (r *reservationScheduleRepository) FindByDate(ctx context.Context, clinicID
 }
 
 // Upsert は ShiftEntry と ShiftEntryBreaks をトランザクションで upsert する
-func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
+func (r *reservationScheduleRepository) Upsert(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 既存エントリを検索
 		var existing model.ShiftEntry

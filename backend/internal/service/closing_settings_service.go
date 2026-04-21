@@ -150,7 +150,7 @@ func (s *closingSettingsService) UpdateStandard(ctx context.Context, clinicID ui
 	if input.ClosedWeekdays != nil {
 		current.ClosedWeekdays = input.ClosedWeekdays
 	}
-	result, err := s.settingsRepo.Upsert(ctx, current)
+	result, err := s.settingsRepo.Upsert(ctx, clinicID, current)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update clinic settings", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update clinic settings")

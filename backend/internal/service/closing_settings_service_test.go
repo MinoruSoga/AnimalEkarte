@@ -16,7 +16,7 @@ import (
 
 type mockClinicSettingsRepository struct {
 	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
-	upsertFn         func(ctx context.Context, s *model.ClinicSettings) (*model.ClinicSettings, error)
+	upsertFn         func(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error)
 }
 
 func (m *mockClinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
@@ -26,9 +26,9 @@ func (m *mockClinicSettingsRepository) FindByClinicID(ctx context.Context, clini
 	return nil, nil
 }
 
-func (m *mockClinicSettingsRepository) Upsert(ctx context.Context, s *model.ClinicSettings) (*model.ClinicSettings, error) {
+func (m *mockClinicSettingsRepository) Upsert(ctx context.Context, clinicID uint64, s *model.ClinicSettings) (*model.ClinicSettings, error) {
 	if m.upsertFn != nil {
-		return m.upsertFn(ctx, s)
+		return m.upsertFn(ctx, clinicID, s)
 	}
 	return s, nil
 }
@@ -97,7 +97,7 @@ func (m *mockClosingSpecialPeriodRepository) HasOverlap(ctx context.Context, cli
 // mockClosingHolidayRepository は ClinicHolidayRepository のテスト用モック（closing_settings 専用）
 type mockClosingHolidayRepository struct {
 	findByYearMonthFn func(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
-	upsertFn          func(ctx context.Context, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
+	upsertFn          func(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
 	deleteFn          func(ctx context.Context, clinicID uint64, date time.Time) error
 }
 
@@ -108,9 +108,9 @@ func (m *mockClosingHolidayRepository) FindByYearMonth(ctx context.Context, clin
 	return nil, nil
 }
 
-func (m *mockClosingHolidayRepository) Upsert(ctx context.Context, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
+func (m *mockClosingHolidayRepository) Upsert(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
 	if m.upsertFn != nil {
-		return m.upsertFn(ctx, holiday)
+		return m.upsertFn(ctx, clinicID, holiday)
 	}
 	return holiday, nil
 }

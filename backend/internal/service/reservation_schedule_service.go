@@ -106,7 +106,7 @@ func (s *reservationScheduleService) Upsert(ctx context.Context, clinicID, staff
 		})
 	}
 
-	if err := s.repo.Upsert(ctx, entry, breaks); err != nil {
+	if err := s.repo.Upsert(ctx, clinicID, entry, breaks); err != nil {
 		slog.ErrorContext(ctx, "failed to upsert schedule", "error", err)
 		return nil, false, apperrors.Wrap(err, "failed to upsert schedule")
 	}

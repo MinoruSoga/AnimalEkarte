@@ -142,7 +142,7 @@ func (s *lineReservationSettingService) Upsert(ctx context.Context, clinicID uin
 		LiffID:                  input.LiffID,
 		LineAccessToken:         accessToken,
 	}
-	if err := s.repo.Upsert(ctx, setting); err != nil {
+	if err := s.repo.Upsert(ctx, clinicID, setting); err != nil {
 		slog.ErrorContext(ctx, "failed to upsert reservation setting", "error", err)
 		return nil, false, apperrors.Wrap(err, "failed to upsert reservation setting")
 	}

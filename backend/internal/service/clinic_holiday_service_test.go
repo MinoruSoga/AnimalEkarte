@@ -16,7 +16,7 @@ import (
 
 type mockClinicHolidayRepository struct {
 	findByYearMonthFn func(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error)
-	upsertFn          func(ctx context.Context, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
+	upsertFn          func(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error)
 	deleteFn          func(ctx context.Context, clinicID uint64, date time.Time) error
 }
 
@@ -24,8 +24,8 @@ func (m *mockClinicHolidayRepository) FindByYearMonth(ctx context.Context, clini
 	return m.findByYearMonthFn(ctx, clinicID, yearMonth)
 }
 
-func (m *mockClinicHolidayRepository) Upsert(ctx context.Context, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
-	return m.upsertFn(ctx, holiday)
+func (m *mockClinicHolidayRepository) Upsert(ctx context.Context, clinicID uint64, holiday *model.ClinicHoliday) (*model.ClinicHoliday, error) {
+	return m.upsertFn(ctx, clinicID, holiday)
 }
 
 func (m *mockClinicHolidayRepository) Delete(ctx context.Context, clinicID uint64, date time.Time) error {
@@ -105,14 +105,14 @@ func TestClinicHolidayService_Set(t *testing.T) {
 		name     string
 		date     time.Time
 		reason   string
-		upsertFn func(ctx context.Context, h *model.ClinicHoliday) (*model.ClinicHoliday, error)
+		upsertFn func(ctx context.Context, clinicID uint64, h *model.ClinicHoliday) (*model.ClinicHoliday, error)
 		wantErr  bool
 	}{
 		{
 			name:   "creates holiday successfully",
 			date:   date,
 			reason: "休診日",
-			upsertFn: func(_ context.Context, h *model.ClinicHoliday) (*model.ClinicHoliday, error) {
+			upsertFn: func(_ context.Context, _ uint64, h *model.ClinicHoliday) (*model.ClinicHoliday, error) {
 				h.ID = 1
 				return h, nil
 			},
@@ -122,7 +122,7 @@ func TestClinicHolidayService_Set(t *testing.T) {
 			name:   "propagates repository error",
 			date:   date,
 			reason: "休診日",
-			upsertFn: func(_ context.Context, _ *model.ClinicHoliday) (*model.ClinicHoliday, error) {
+			upsertFn: func(_ context.Context, _ uint64, _ *model.ClinicHoliday) (*model.ClinicHoliday, error) {
 				return nil, errors.New("upsert failed")
 			},
 			wantErr: true,

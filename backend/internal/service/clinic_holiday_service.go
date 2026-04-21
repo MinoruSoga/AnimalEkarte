@@ -41,7 +41,7 @@ func (s *clinicHolidayService) Set(ctx context.Context, clinicID uint64, date ti
 		Date:     date,
 		Reason:   reason,
 	}
-	result, err := s.repo.Upsert(ctx, holiday)
+	result, err := s.repo.Upsert(ctx, clinicID, holiday)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to set clinic holiday", "error", err)
 		return nil, apperrors.Wrap(err, "failed to set clinic holiday")

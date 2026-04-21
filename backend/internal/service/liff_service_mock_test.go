@@ -27,7 +27,7 @@ func (m *mockLiffSettingRepository) FindByClinicID(ctx context.Context, clinicID
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockLiffSettingRepository) Upsert(_ context.Context, _ *model.LineReservationSetting) error {
+func (m *mockLiffSettingRepository) Upsert(_ context.Context, _ uint64, _ *model.LineReservationSetting) error {
 	return nil
 }
 
@@ -149,7 +149,7 @@ func (m *mockLiffScheduleRepository) FindBreaksByEntryID(_ context.Context, _ ui
 	return nil, nil
 }
 
-func (m *mockLiffScheduleRepository) Upsert(_ context.Context, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) error {
+func (m *mockLiffScheduleRepository) Upsert(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) error {
 	return nil
 }
 
