@@ -900,8 +900,8 @@ export const router = createBrowserRouter([
           {
             path: "payment-methods",
             lazy: async () => {
-              const { PaymentMethodsPage } = await import("@/features/payment-methods");
-              return { Component: PaymentMethodsPage };
+              const { PaymentMethodSettings } = await import("@/features/master");
+              return { Component: PaymentMethodSettings };
             },
           },
         ],
