@@ -163,6 +163,9 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 	return cage, nil
 }
 func (s *cageService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get cage")
+	}
 	count, err := s.repo.CountUsageByCageID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check cage usage")

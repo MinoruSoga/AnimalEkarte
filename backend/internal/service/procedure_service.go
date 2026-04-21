@@ -173,6 +173,9 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get procedure")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
@@ -201,6 +204,9 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	return procedure, nil
 }
 func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get procedure")
+	}
 	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to count procedure children")

@@ -155,6 +155,9 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	return checkupType, nil
 }
 func (s *checkupTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get checkup type")
+	}
 	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check checkup type children")

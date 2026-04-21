@@ -146,6 +146,9 @@ func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (s *diagnosisTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get diagnosis type")
+	}
 	count, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check diagnosis type dependencies")
@@ -307,6 +310,9 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get diagnosis name")
+	}
 	count, err := s.repo.CountClinicalPlansByDiagnosisNameID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check diagnosis name dependencies")

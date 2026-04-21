@@ -173,6 +173,9 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 }
 
 func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get vaccine")
+	}
 	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to count vaccine children")

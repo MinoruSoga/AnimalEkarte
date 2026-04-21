@@ -114,6 +114,9 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get permission group")
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
@@ -132,6 +135,9 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 }
 
 func (s *permissionGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get permission group")
+	}
 	count, err := s.repo.CountUsageByGroupID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check permission group dependencies")

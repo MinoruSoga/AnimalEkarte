@@ -121,6 +121,9 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 }
 
 func (s *paymentMethodMasterService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get payment method")
+	}
 	count, err := s.repo.CountUsageByPaymentMethodID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check payment method usage")
