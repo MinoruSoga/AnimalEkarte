@@ -105,7 +105,7 @@ func (r *estimateRepository) CountItemsByEstimateID(ctx context.Context, estimat
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.EstimateItem{}).
-		Where("estimate_id = ?", estimateID).
+		Where("estimate_id = ? AND deleted_at IS NULL", estimateID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "estimate_item", "")
 	}

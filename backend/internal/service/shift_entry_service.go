@@ -181,15 +181,14 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 }
 
 func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateShiftEntryInput) (*model.ShiftEntry, error) {
-	fields := buildShiftEntryUpdate(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-
 	// BUG-028: 時刻バリデーション。更新後の start_time/end_time を確定させるために既存レコードを取得する。
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find shift entry for update")
+	}
+	fields := buildShiftEntryUpdate(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	// 更新後の shiftType を決定（input に値があれば上書き、なければ既存値）
 	effectiveShiftType := existing.ShiftType
@@ -235,6 +234,9 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 }
 
 func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find shift entry")
+	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete shift entry")
 	}

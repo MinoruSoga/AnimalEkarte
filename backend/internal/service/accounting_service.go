@@ -130,6 +130,9 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 }
 
 func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error) {
+	if _, err := s.repo.FindByID(ctx, input.ClinicID, input.ID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find accounting")
+	}
 	// BUG-142: 金額バリデーション
 	if input.TotalAmount != nil && *input.TotalAmount < 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)

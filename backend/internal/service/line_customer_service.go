@@ -32,6 +32,9 @@ func (s *lineCustomerService) List(ctx context.Context, clinicID uint64) ([]mode
 }
 
 func (s *lineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find line customer")
+	}
 	if err := s.repo.UpdateOwnerLink(ctx, clinicID, id, ownerID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to link owner to reservation customer")
 	}

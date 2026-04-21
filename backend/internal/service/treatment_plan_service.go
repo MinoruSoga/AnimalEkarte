@@ -110,6 +110,9 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 }
 
 func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find treatment plan")
+	}
 	fields := buildTreatmentPlanUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -127,6 +130,9 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (s *treatmentPlanService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find treatment plan")
+	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete treatment plan")
 	}

@@ -23,9 +23,9 @@ const (
 	legacyCookieName       = "auth_token"
 )
 
-// buildMeResponse はスタッフデータと補助情報からMeResponseを構築する。
+// toMeResponse はスタッフデータと補助情報からMeResponseを構築する。
 // effectivePerms は事前に計算された実効権限マップ。nil の場合はデフォルト（全権限なし）。
-func buildMeResponse(staff *model.Staff, account *model.Account, mainClinicID string, clinicNameMap map[string]string, allClinics []model.Clinic, effectivePerms EffectivePermissions) *MeResponse {
+func toMeResponse(staff *model.Staff, account *model.Account, mainClinicID string, clinicNameMap map[string]string, allClinics []model.Clinic, effectivePerms EffectivePermissions) *MeResponse {
 	meClinicList := make([]MeClinicMembership, 0)
 	isSystemAdmin := account != nil && account.IsSystemAdmin
 	if staff != nil && len(staff.ClinicAssignments) > 0 {
@@ -273,7 +273,7 @@ func (h *Handler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, LoginResponse{
 		IsSystemAdmin: account.IsSystemAdmin,
-		User:          buildMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap),
+		User:          toMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap),
 	})
 }
 
@@ -582,7 +582,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 	permMap := h.calculateEffectivePermissions(ctx, isSystemAdmin, staff.ID)
 
-	c.JSON(http.StatusOK, buildMeResponse(staff, account, mainClinicIDStr, clinicNameMap, allClinics, permMap))
+	c.JSON(http.StatusOK, toMeResponse(staff, account, mainClinicIDStr, clinicNameMap, allClinics, permMap))
 }
 
 // buildAllPermissions は全リソースに対して全CRUD true のマップを返す。

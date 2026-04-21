@@ -115,7 +115,7 @@ func (r *medicalRecordRepository) CountByPetID(ctx context.Context, clinicID, pe
 	err := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
 		Scopes(clinicScope(clinicID)).
-		Where("pet_id = ?", petID).
+		Where("pet_id = ? AND deleted_at IS NULL", petID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", "")

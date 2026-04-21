@@ -58,7 +58,7 @@ func (h *Handler) GetInventory(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	c.JSON(http.StatusOK, toInventoryResponse(item))
 }
 
 // CreateInventory godoc
@@ -103,7 +103,7 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/inventory/%d", created.ID))
-	c.JSON(http.StatusCreated, created)
+	c.JSON(http.StatusCreated, toInventoryResponse(created))
 }
 
 // UpdateInventory godoc
@@ -164,7 +164,7 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	c.JSON(http.StatusOK, toInventoryResponse(item))
 }
 
 func (h *Handler) DeleteInventory(c *gin.Context) {

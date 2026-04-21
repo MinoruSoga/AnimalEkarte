@@ -107,10 +107,6 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 }
 
 func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error) {
-	fields := buildCheckupUpdate(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
 	// 親カルテ所属確認（clinic_id スコープ済み）
 	existing, err := s.repo.FindByID(ctx, clinicID, checkupID)
 	if err != nil {
@@ -118,6 +114,10 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 	}
 	if existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
+	}
+	fields := buildCheckupUpdate(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, checkupID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update checkup")

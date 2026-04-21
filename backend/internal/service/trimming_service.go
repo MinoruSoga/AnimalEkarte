@@ -259,6 +259,9 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 }
 
 func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.reservation.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find trimming appointment")
+	}
 	if err := s.reservation.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete trimming appointment")
 	}

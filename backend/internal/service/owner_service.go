@@ -276,6 +276,9 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *UpdateOwnerInput) (*model.Owner, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find owner")
+	}
 	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
 	if input.OwnerName != nil {
 		if err := validateRequiredName(*input.OwnerName); err != nil {
@@ -420,6 +423,9 @@ func buildOwnerUpdate(input *UpdateOwnerInput) map[string]any {
 }
 
 func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find owner")
+	}
 	// FK依存チェック: ペットが紐付いている場合は削除を拒否
 	petCount, err := s.repo.CountPetsByOwnerID(ctx, clinicID, id)
 	if err != nil {

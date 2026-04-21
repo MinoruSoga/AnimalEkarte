@@ -83,7 +83,7 @@ func (r *petRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
 		Scopes(clinicScope(clinicID)).
-		Where("owner_id = ?", ownerID).
+		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}

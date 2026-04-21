@@ -120,6 +120,9 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 }
 
 func (s *reservationAdminService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.resRepo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find reservation appointment")
+	}
 	if err := s.repo.SoftDelete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation appointment")
 	}

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -114,6 +115,7 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/examinations/%d", exam.ID))
 	c.JSON(http.StatusCreated, toExaminationResponse(exam))
 }
 

@@ -79,7 +79,7 @@ func (h *Handler) GetVaccination(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, vaccination)
+	c.JSON(http.StatusOK, toVaccinationResponse(vaccination))
 }
 
 // CreateVaccination godoc
@@ -139,7 +139,8 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, vaccination)
+	c.Header("Location", fmt.Sprintf("/api/v1/vaccinations/%d", vaccination.ID))
+	c.JSON(http.StatusCreated, toVaccinationResponse(vaccination))
 }
 
 // UpdateVaccination godoc
@@ -196,7 +197,7 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, vaccination)
+	c.JSON(http.StatusOK, toVaccinationResponse(vaccination))
 }
 
 // DeleteVaccination godoc

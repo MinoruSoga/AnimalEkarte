@@ -103,6 +103,9 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
+	if _, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find hospitalization")
+	}
 	fields := buildHospitalizationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -171,6 +174,9 @@ func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]an
 }
 
 func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find hospitalization")
+	}
 	// FK依存チェック: 入院に紐付く日次記録が存在する場合は削除を拒否
 	dailyCount, err := s.repos.Hospitalization.CountDailyRecordsByHospitalizationID(ctx, clinicID, id)
 	if err != nil {

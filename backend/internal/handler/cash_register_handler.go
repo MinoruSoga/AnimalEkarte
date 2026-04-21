@@ -76,7 +76,7 @@ func (h *Handler) CloseCashRegister(c *gin.Context) {
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/cash-register/closes/%d", record.ID))
-	c.JSON(http.StatusCreated, record)
+	c.JSON(http.StatusCreated, toCashRegisterCloseResponse(record))
 }
 
 // ListCashRegisterCloses godoc
@@ -138,7 +138,7 @@ func (h *Handler) GetCashRegisterClose(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, record)
+	c.JSON(http.StatusOK, toCashRegisterCloseResponse(record))
 }
 
 // RegisterCashRegisterRoutes はレジ締め関連のルートを登録する

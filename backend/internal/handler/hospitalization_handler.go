@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -81,7 +82,7 @@ func (h *Handler) GetHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, hospitalization)
+	c.JSON(http.StatusOK, toHospitalizationResponse(hospitalization))
 }
 
 // CreateHospitalization godoc
@@ -138,7 +139,8 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, hospitalization)
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d", hospitalization.ID))
+	c.JSON(http.StatusCreated, toHospitalizationResponse(hospitalization))
 }
 
 // UpdateHospitalization godoc
@@ -198,7 +200,7 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, hosp)
+	c.JSON(http.StatusOK, toHospitalizationResponse(hosp))
 }
 
 // DischargeWithBilling godoc

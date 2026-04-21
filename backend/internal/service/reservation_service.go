@@ -189,6 +189,9 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find reservation")
+	}
 	fields := buildReservationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -274,6 +277,9 @@ func buildReservationUpdate(input *UpdateReservationInput) map[string]any {
 }
 
 func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find reservation")
+	}
 	count, err := s.repo.CountMedicalRecordsByReservationID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check reservation dependencies")

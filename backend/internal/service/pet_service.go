@@ -218,6 +218,9 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 }
 
 func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find pet")
+	}
 	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
 	if input.Name != nil {
 		if err := validateRequiredName(*input.Name); err != nil {
@@ -354,6 +357,9 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 }
 
 func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find pet")
+	}
 	// FK依存チェック: カルテが紐付いている場合は削除を拒否
 	recordCount, err := s.medicalRecordRepo.CountByPetID(ctx, clinicID, id)
 	if err != nil {

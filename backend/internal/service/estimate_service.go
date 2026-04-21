@@ -130,6 +130,9 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 }
 
 func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find estimate")
+	}
 	if input.Subtotal != nil && *input.Subtotal < 0 {
 		return nil, apperrors.WrapInvalidInput("subtotal must be 0 or greater")
 	}
@@ -163,6 +166,9 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 }
 
 func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find estimate")
+	}
 	count, err := s.repo.CountItemsByEstimateID(ctx, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check estimate item dependencies")

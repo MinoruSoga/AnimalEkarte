@@ -134,6 +134,9 @@ func (s *inventoryService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find inventory item")
+	}
 	fields := buildInventoryUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -147,6 +150,9 @@ func (s *inventoryService) Update(ctx context.Context, clinicID, id uint64, inpu
 }
 
 func (s *inventoryService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find inventory item")
+	}
 	count, err := s.repo.CountUsageByInventoryID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check inventory item dependencies")

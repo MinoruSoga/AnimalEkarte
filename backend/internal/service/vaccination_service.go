@@ -92,6 +92,9 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find vaccination")
+	}
 	fields := buildVaccinationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -168,6 +171,9 @@ func buildVaccinationUpdate(input *UpdateVaccinationInput) map[string]any {
 }
 
 func (s *vaccinationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find vaccination")
+	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete vaccination")
 	}

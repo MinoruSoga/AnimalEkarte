@@ -241,6 +241,9 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 }
 
 func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		return apperrors.Wrap(err, "failed to find clinic")
+	}
 	// FK依存チェック: クリニックに関連するオーナーが存在する場合は削除を拒否
 	ownerCount, err := s.repo.CountOwnersByClinicID(ctx, id)
 	if err != nil {

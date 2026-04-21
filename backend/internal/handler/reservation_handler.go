@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -86,7 +87,7 @@ func (h *Handler) GetReservation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, reservation)
+	c.JSON(http.StatusOK, toReservationResponse(reservation))
 }
 
 // CreateReservation godoc
@@ -164,7 +165,8 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, reservation)
+	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", reservation.ID))
+	c.JSON(http.StatusCreated, toReservationResponse(reservation))
 }
 
 // UpdateReservation godoc
@@ -242,7 +244,7 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		h.svc.MedicalRecord.AutoCreateFromReservation(ctx, clinicID, reservation)
 	}
 
-	c.JSON(http.StatusOK, reservation)
+	c.JSON(http.StatusOK, toReservationResponse(reservation))
 }
 
 // DeleteReservation godoc
