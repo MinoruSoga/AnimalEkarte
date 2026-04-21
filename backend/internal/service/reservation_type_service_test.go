@@ -437,3 +437,57 @@ func TestReservationTypeService_Reorder(t *testing.T) {
 		})
 	}
 }
+
+// ---- DeleteUnavailableTime ----
+
+func TestReservationTypeService_DeleteUnavailableTime(t *testing.T) {
+	t.Run("正常: FindByID → Delete が呼ばれる", func(t *testing.T) {
+		unavailableRepo := &mockUnavailableTimeRepository{}
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+
+		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("エラー: 親 ReservationType が存在しない → 404", func(t *testing.T) {
+		repo := &mockReservationTypeRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+				return nil, apperrors.WrapNotFound("reservation_type", "10")
+			},
+		}
+		svc := NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+
+		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("エラー: unavailableTime が存在しない → 404", func(t *testing.T) {
+		unavailableRepo := &mockUnavailableTimeRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationTypeUnavailableTime, error) {
+				return nil, apperrors.WrapNotFound("reservation_type_unavailable_time", "5")
+			},
+		}
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+
+		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("エラー: repo.Delete がエラー → error を返す", func(t *testing.T) {
+		unavailableRepo := &mockUnavailableTimeRepository{
+			deleteFn: func(_ context.Context, _, _ uint64) error {
+				return errors.New("db error")
+			},
+		}
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+
+		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
+
+		assert.Error(t, err)
+	})
+}

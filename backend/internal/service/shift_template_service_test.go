@@ -14,13 +14,14 @@ import (
 // ---- mockShiftTemplateRepository ----
 
 type mockShiftTemplateRepository struct {
-	findAllFn       func(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
-	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
-	createFn        func(ctx context.Context, tpl *model.ShiftTemplate) error
-	updateFn        func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
-	deleteFn        func(ctx context.Context, clinicID, id uint64) error
-	replaceBreaksFn func(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
-	reorderFn       func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn              func(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
+	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
+	createFn               func(ctx context.Context, tpl *model.ShiftTemplate) error
+	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
+	deleteFn               func(ctx context.Context, clinicID, id uint64) error
+	replaceBreaksFn        func(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
+	reorderFn              func(ctx context.Context, clinicID uint64, ids []uint64) error
+	countUsageByTemplateID func(ctx context.Context, clinicID, id uint64) (int64, error)
 }
 
 func (m *mockShiftTemplateRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error) {
@@ -70,6 +71,13 @@ func (m *mockShiftTemplateRepository) Reorder(ctx context.Context, clinicID uint
 		return m.reorderFn(ctx, clinicID, ids)
 	}
 	return nil
+}
+
+func (m *mockShiftTemplateRepository) CountUsageByShiftTemplateID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	if m.countUsageByTemplateID != nil {
+		return m.countUsageByTemplateID(ctx, clinicID, id)
+	}
+	return 0, nil
 }
 
 // ---- Tests: List ----
@@ -285,17 +293,21 @@ func TestShiftTemplateService_Update(t *testing.T) {
 
 func TestShiftTemplateService_Delete(t *testing.T) {
 	tests := []struct {
-		name        string
-		id          uint64
-		findByIDErr error
-		repoErr     error
-		wantErr     bool
+		name             string
+		id               uint64
+		findByIDErr      error
+		countUsageResult int64
+		countUsageErr    error
+		repoErr          error
+		wantErr          bool
+		errIs            error
 	}{
 		{
-			name:    "正常: repo.Delete が呼ばれる",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
+			name:             "正常: 使用中なし → repo.Delete が呼ばれる",
+			id:               1,
+			countUsageResult: 0,
+			repoErr:          nil,
+			wantErr:          false,
 		},
 		{
 			name:        "エラー: FindByID が not found → error を返す",
@@ -304,10 +316,24 @@ func TestShiftTemplateService_Delete(t *testing.T) {
 			wantErr:     true,
 		},
 		{
-			name:    "エラー: repo.Delete がエラー → error を返す",
-			id:      99,
-			repoErr: errors.New("not found in db"),
-			wantErr: true,
+			name:          "エラー: CountUsage がエラー → error を返す",
+			id:            1,
+			countUsageErr: errors.New("db error"),
+			wantErr:       true,
+		},
+		{
+			name:             "エラー: 使用中のテンプレート → 409 Conflict",
+			id:               1,
+			countUsageResult: 1,
+			wantErr:          true,
+			errIs:            apperrors.ErrConflict,
+		},
+		{
+			name:             "エラー: repo.Delete がエラー → error を返す",
+			id:               99,
+			countUsageResult: 0,
+			repoErr:          errors.New("not found in db"),
+			wantErr:          true,
 		},
 	}
 
@@ -320,6 +346,9 @@ func TestShiftTemplateService_Delete(t *testing.T) {
 					}
 					return &model.ShiftTemplate{ID: id}, nil
 				},
+				countUsageByTemplateID: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.countUsageResult, tt.countUsageErr
+				},
 				deleteFn: func(_ context.Context, clinicID, id uint64) error {
 					return tt.repoErr
 				},
@@ -330,6 +359,9 @@ func TestShiftTemplateService_Delete(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.errIs != nil {
+					assert.True(t, errors.Is(err, tt.errIs), "expected error to wrap %v, got %v", tt.errIs, err)
+				}
 			} else {
 				assert.NoError(t, err)
 			}
