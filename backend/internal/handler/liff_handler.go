@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -226,6 +227,7 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", appt.ID))
 	c.JSON(http.StatusCreated, gin.H{"id": appt.ID, "notes": appt.Notes})
 }
 
