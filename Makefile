@@ -133,21 +133,24 @@ mod-tidy:
 # CI と同等のチェックをローカル Docker で実行
 # 実行前に make up でコンテナを起動しておくこと
 ci-local:
-	@echo "=== [1/6] Backend: build ==="
+	@echo "=== [1/7] Backend: build ==="
 	docker compose exec backend go build ./...
-	@echo "=== [2/6] Backend: test ==="
+	@echo "=== [2/7] Backend: test ==="
 	docker compose exec backend go test ./... -count=1 -race -timeout 120s
-	@echo "=== [3/6] Backend: lint ==="
+	@echo "=== [3/7] Backend: lint ==="
 	docker run --rm \
 		-v $(PWD)/backend:/app \
 		-w /app \
 		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) \
 		golangci-lint run
-	@echo "=== [4/6] Backend: schema drift ==="
+	@echo "=== [4/7] Backend: schema drift ==="
 	docker compose exec backend go test ./internal/model/ -run TestSchemaDrift -v
-	@echo "=== [5/6] Frontend: lint ==="
+	@echo "=== [5/7] Codegen: sync check ==="
+	$(MAKE) codegen
+	git diff --exit-code frontend/src/types/generated/ || (echo "ERROR: models.ts is out of sync. Commit the updated file." && exit 1)
+	@echo "=== [6/7] Frontend: lint ==="
 	docker compose exec frontend npm run lint
-	@echo "=== [6/6] Frontend: build ==="
+	@echo "=== [7/7] Frontend: build ==="
 	docker compose exec frontend npm run build
 	@echo ""
 	@echo "✓ All CI checks passed"
