@@ -91,7 +91,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
-	if err := q.Preload("Owner").Preload("Pet").Preload("Pet.Owner").Preload("Pet.AnimalSpecies").Preload("ReservationType").Preload("Doctor").
+	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner").Preload("Pet.AnimalSpecies").Preload("ReservationType", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
@@ -101,13 +101,13 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	var reservation model.Reservation
 	err := dbOrTx(ctx, r.db).
-		Preload("Owner").
-		Preload("Pet").
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner").
 		Preload("Pet.AnimalSpecies").
-		Preload("ReservationType").
-		Preload("Doctor").
-		Preload("CreatedByStaff").
+		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
+		Preload("CreatedByStaff", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&reservation).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
@@ -324,11 +324,11 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 		return nil, 0, apperrors.FromGORM(err, "appointment", "")
 	}
 	if err := q.
-		Preload("Pet").
+		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner").
 		Preload("Pet.AnimalSpecies").
-		Preload("ReservationType").
-		Preload("Doctor").
+		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
 		Preload("TrimmingDetail.Course").
 		Preload("TrimmingDetail.Options").
 		Offset((page - 1) * limit).Limit(limit).

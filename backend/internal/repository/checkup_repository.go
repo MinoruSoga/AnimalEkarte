@@ -39,8 +39,8 @@ func (r *checkupRepository) ListByClinic(ctx context.Context, clinicID uint64, f
 	checkups := make([]model.Checkup, 0)
 	q := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Preload("CheckupType").
-		Preload("Doctor").
+		Preload("CheckupType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
 		Preload("MedicalRecord.Pet.Owner")
 	if filters.StartDate != nil {
 		q = q.Where("date >= ?", *filters.StartDate)
@@ -68,8 +68,8 @@ func (r *checkupRepository) ListByMedicalRecordID(ctx context.Context, clinicID,
 			" AND medical_records.clinic_id = ?"+
 			" AND medical_records.deleted_at IS NULL", clinicID).
 		Where("checkups.medical_record_id = ?", medicalRecordID).
-		Preload("CheckupType").
-		Preload("Doctor").
+		Preload("CheckupType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
 		Order("checkups.date ASC").
 		Find(&checkups).Error
 	if err != nil {
@@ -81,8 +81,8 @@ func (r *checkupRepository) ListByMedicalRecordID(ctx context.Context, clinicID,
 func (r *checkupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error) {
 	var checkup model.Checkup
 	err := r.db.WithContext(ctx).
-		Preload("CheckupType").
-		Preload("Doctor").
+		Preload("CheckupType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&checkup).Error

@@ -30,7 +30,7 @@ func NewProcedureRepository(db *gorm.DB) ProcedureRepository { return &procedure
 
 func (r *procedureRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
 	procedures := make([]model.Procedure, 0)
-	if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Order("sort_order ASC, name ASC").Limit(500).Find(&procedures).Error; err != nil {
+	if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Order("sort_order ASC, name ASC").Limit(10000).Find(&procedures).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "procedure", "")
 	}
 	return procedures, nil
@@ -94,7 +94,7 @@ func (r *procedureRepository) CountUsageByProcedureID(ctx context.Context, clini
 	if err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.clinic_id = ? AND hospitalizations.deleted_at IS NULL", clinicID).
-		Where("care_plan_items.procedure_id = ?", procedureID).
+		Where("care_plan_items.procedure_id = ? AND care_plan_items.deleted_at IS NULL", procedureID).
 		Count(&carePlanCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", "")
 	}

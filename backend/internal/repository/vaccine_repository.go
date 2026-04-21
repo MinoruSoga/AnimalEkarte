@@ -34,7 +34,7 @@ func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, specie
 	if species != nil {
 		q = q.Where("species = ?", *species)
 	}
-	if err := q.Order("sort_order ASC, name ASC").Limit(500).Find(&vaccines).Error; err != nil {
+	if err := q.Order("sort_order ASC, name ASC").Limit(10000).Find(&vaccines).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "vaccine", "")
 	}
 	return vaccines, nil
@@ -95,7 +95,7 @@ func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, clinicID,
 	if err := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
 		Scopes(clinicScope(clinicID)).
-		Where("vaccine_id = ?", vaccineID).
+		Where("vaccine_id = ? AND deleted_at IS NULL", vaccineID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "vaccination_record", "")
 	}

@@ -93,7 +93,7 @@ func (r *inquiryRepository) CountByChiefComplaintTypeID(ctx context.Context, cli
 	err := r.db.WithContext(ctx).
 		Model(&model.Inquiry{}).
 		Scopes(clinicScope(clinicID)).
-		Where("chief_complaint_type_id = ?", categoryID).
+		Where("chief_complaint_type_id = ? AND deleted_at IS NULL", categoryID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "inquiry", "")

@@ -36,8 +36,8 @@ func (r *reservationAdminRepository) FindByMonth(ctx context.Context, clinicID u
 
 	items := make([]model.Reservation, 0)
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType").
-		Preload("Doctor").
+		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
 		Preload("LineCustomer").
 		Scopes(clinicScope(clinicID)).
 		Where("start_time >= ? AND start_time < ?", start, end).
@@ -55,12 +55,12 @@ func (r *reservationAdminRepository) FindByDay(ctx context.Context, clinicID uin
 
 	items := make([]model.Reservation, 0)
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType").
-		Preload("Doctor").
-		Preload("CreatedByStaff").
+		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
+		Preload("CreatedByStaff", "deleted_at IS NULL").
 		Preload("LineCustomer").
-		Preload("Owner").
-		Preload("Pet").
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("Pet", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		Where("start_time >= ? AND start_time < ?", start, end).
 		Order("start_time ASC").
@@ -93,8 +93,8 @@ func (r *reservationAdminRepository) SoftDelete(ctx context.Context, clinicID, i
 func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
 	items := make([]model.Reservation, 0)
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType").
-		Preload("Doctor").
+		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		Where("line_customer_id = ? AND deleted_at IS NULL", customerID).
 		Order("start_time DESC").
@@ -108,10 +108,10 @@ func (r *reservationAdminRepository) FindByCustomerID(ctx context.Context, clini
 func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	var appt model.Reservation
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType").
-		Preload("Doctor").
-		Preload("Owner").
-		Preload("Pet").
+		Preload("ReservationType", "deleted_at IS NULL").
+		Preload("Doctor", "deleted_at IS NULL").
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("Pet", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&appt).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", id))
