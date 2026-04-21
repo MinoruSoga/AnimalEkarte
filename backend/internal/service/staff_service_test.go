@@ -19,7 +19,7 @@ type mockStaffRepository struct {
 	findByIDFn        func(ctx context.Context, id uint64) (*model.Staff, error)
 	findByAccountIDFn func(ctx context.Context, accountID uint64) (*model.Staff, error)
 	createFn          func(ctx context.Context, staff *model.Staff) error
-	updateFieldsFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn          func(ctx context.Context, clinicID, id uint64) error
 	reorderErr        error
 }
@@ -43,8 +43,8 @@ func (m *mockStaffRepository) Create(ctx context.Context, staff *model.Staff) er
 	return m.createFn(ctx, staff)
 }
 
-func (m *mockStaffRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockStaffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -513,7 +513,7 @@ func TestStaffService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockStaffRepository{
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoErr
 				},
 				findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
