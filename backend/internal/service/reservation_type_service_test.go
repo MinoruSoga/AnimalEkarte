@@ -75,9 +75,10 @@ func (m *mockReservationTypeRepository) Reorder(ctx context.Context, clinicID ui
 
 // mockUnavailableTimeRepository は ReservationTypeUnavailableTimeRepository のテスト用モック
 type mockUnavailableTimeRepository struct {
-	findAllFn func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
-	createFn  func(ctx context.Context, t *model.ReservationTypeUnavailableTime) error
-	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+	findAllFn  func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeUnavailableTime, error)
+	createFn   func(ctx context.Context, t *model.ReservationTypeUnavailableTime) error
+	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockUnavailableTimeRepository) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error) {
@@ -85,6 +86,12 @@ func (m *mockUnavailableTimeRepository) FindAll(ctx context.Context, clinicID, r
 		return m.findAllFn(ctx, clinicID, reservationTypeID)
 	}
 	return []model.ReservationTypeUnavailableTime{}, nil
+}
+func (m *mockUnavailableTimeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeUnavailableTime, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return &model.ReservationTypeUnavailableTime{ID: id}, nil
 }
 func (m *mockUnavailableTimeRepository) Create(ctx context.Context, t *model.ReservationTypeUnavailableTime) error {
 	if m.createFn != nil {
