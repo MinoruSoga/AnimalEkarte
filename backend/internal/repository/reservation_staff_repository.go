@@ -18,6 +18,7 @@ type ReservationStaffRepository interface {
 	Create(ctx context.Context, staff *model.Staff, clinicID uint64) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
+	CountAppointmentsByStaffID(ctx context.Context, clinicID, staffID uint64) (int64, error)
 	SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 	// ExcludedReservationTypes
 	FindExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
@@ -105,6 +106,19 @@ func (r *reservationStaffRepository) Delete(ctx context.Context, clinicID, id ui
 		return apperrors.WrapNotFound("reservation_staff", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *reservationStaffRepository) CountAppointmentsByStaffID(ctx context.Context, clinicID, staffID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Reservation{}).
+		Scopes(clinicScope(clinicID)).
+		Where("doctor_id = ? AND deleted_at IS NULL", staffID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "appointment", fmt.Sprintf("staff_id=%d", staffID))
+	}
+	return count, nil
 }
 
 func (r *reservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {

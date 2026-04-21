@@ -337,8 +337,8 @@ func TestReservationTypeService_Delete(t *testing.T) {
 
 	t.Run("returns not found when record does not exist", func(t *testing.T) {
 		repo := &mockReservationTypeRepository{
-			deleteFn: func(_ context.Context, _, _ uint64) error {
-				return apperrors.WrapNotFound("reservation_type", "5")
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+				return nil, apperrors.WrapNotFound("reservation_type", "5")
 			},
 		}
 		svc := newTestReservationTypeService(repo)

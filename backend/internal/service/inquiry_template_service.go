@@ -138,6 +138,9 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 }
 
 func (s *inquiryTemplateService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find inquiry template")
+	}
 	count, err := s.repo.CountUsageByInquiryTemplateID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check inquiry template usage")

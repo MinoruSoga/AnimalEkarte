@@ -178,6 +178,14 @@ func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint6
 	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
+	count, err := s.repo.CountAppointmentsByStaffID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count appointments by staff", "error", err)
+		return apperrors.Wrap(err, "failed to count reservation staff usage")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("このスタッフは予約データで使用中のため削除できません")
+	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation staff")
 	}

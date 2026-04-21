@@ -11,6 +11,34 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+const (
+	colSpecialPeriodStartDate    = "start_date"
+	colSpecialPeriodEndDate      = "end_date"
+	colSpecialPeriodAmPmBoundary = "am_pm_boundary"
+	colSpecialPeriodPmEnd        = "pm_end"
+	colSpecialPeriodNote         = "note"
+)
+
+func buildSpecialPeriodUpdateFields(input UpdateSpecialPeriodInput, parsedStart, parsedEnd *time.Time) map[string]any {
+	fields := make(map[string]any)
+	if parsedStart != nil {
+		fields[colSpecialPeriodStartDate] = *parsedStart
+	}
+	if parsedEnd != nil {
+		fields[colSpecialPeriodEndDate] = *parsedEnd
+	}
+	if input.AmPmBoundary != nil {
+		fields[colSpecialPeriodAmPmBoundary] = *input.AmPmBoundary
+	}
+	if input.PmEnd != nil {
+		fields[colSpecialPeriodPmEnd] = *input.PmEnd
+	}
+	if input.Note != nil {
+		fields[colSpecialPeriodNote] = *input.Note
+	}
+	return fields
+}
+
 // ClosingSettingsService は締め時間設定のビジネスロジックインターフェース
 type ClosingSettingsService interface {
 	Get(ctx context.Context, clinicID uint64) (*ClosingSettingsResponse, error)
@@ -302,34 +330,6 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 		PmEnd:        pmEnd,
 		IsHoliday:    isHoliday,
 	}, nil
-}
-
-const (
-	colSpecialPeriodStartDate    = "start_date"
-	colSpecialPeriodEndDate      = "end_date"
-	colSpecialPeriodAmPmBoundary = "am_pm_boundary"
-	colSpecialPeriodPmEnd        = "pm_end"
-	colSpecialPeriodNote         = "note"
-)
-
-func buildSpecialPeriodUpdateFields(input UpdateSpecialPeriodInput, parsedStart, parsedEnd *time.Time) map[string]any {
-	fields := make(map[string]any)
-	if parsedStart != nil {
-		fields[colSpecialPeriodStartDate] = *parsedStart
-	}
-	if parsedEnd != nil {
-		fields[colSpecialPeriodEndDate] = *parsedEnd
-	}
-	if input.AmPmBoundary != nil {
-		fields[colSpecialPeriodAmPmBoundary] = *input.AmPmBoundary
-	}
-	if input.PmEnd != nil {
-		fields[colSpecialPeriodPmEnd] = *input.PmEnd
-	}
-	if input.Note != nil {
-		fields[colSpecialPeriodNote] = *input.Note
-	}
-	return fields
 }
 
 func validateSpecialPeriodTimes(boundary, pmEnd string) error {

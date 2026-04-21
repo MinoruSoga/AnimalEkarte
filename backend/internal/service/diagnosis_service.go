@@ -63,6 +63,45 @@ const (
 	colDiagnosisNameDiagnosisTypeID = "diagnosis_type_id"
 )
 
+// buildDiagnosisTypeUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#021: 定数使用)
+func buildDiagnosisTypeUpdateFields(input *UpdateDiagnosisTypeInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colDiagnosisName] = *input.Name
+	}
+	if input.IsActive != nil {
+		fields[colDiagnosisIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colDiagnosisDescription] = *input.Description
+	}
+	if input.SortOrder != nil {
+		fields[colDiagnosisSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
+// buildDiagnosisNameUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#426: DiagnosisName 専用定数使用)
+func buildDiagnosisNameUpdateFields(input *UpdateDiagnosisNameInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colDiagnosisName] = *input.Name
+	}
+	if input.DiagnosisTypeID != nil {
+		fields[colDiagnosisNameDiagnosisTypeID] = *input.DiagnosisTypeID
+	}
+	if input.IsActive != nil {
+		fields[colDiagnosisIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colDiagnosisDescription] = *input.Description
+	}
+	if input.SortOrder != nil {
+		fields[colDiagnosisSortOrder] = *input.SortOrder
+	}
+	return fields
+}
+
 // ---- DiagnosisTypeService ----
 
 type DiagnosisTypeService interface {
@@ -176,24 +215,6 @@ func (s *diagnosisTypeService) Reorder(ctx context.Context, clinicID uint64, ids
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
 	return nil
-}
-
-// buildDiagnosisTypeUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#021: 定数使用)
-func buildDiagnosisTypeUpdateFields(input *UpdateDiagnosisTypeInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colDiagnosisName] = *input.Name
-	}
-	if input.IsActive != nil {
-		fields[colDiagnosisIsActive] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields[colDiagnosisDescription] = *input.Description
-	}
-	if input.SortOrder != nil {
-		fields[colDiagnosisSortOrder] = *input.SortOrder
-	}
-	return fields
 }
 
 // ---- DiagnosisNameService ----
@@ -340,25 +361,4 @@ func (s *diagnosisNameService) Reorder(ctx context.Context, clinicID uint64, ids
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
 	return nil
-}
-
-// buildDiagnosisNameUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#426: DiagnosisName 専用定数使用)
-func buildDiagnosisNameUpdateFields(input *UpdateDiagnosisNameInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colDiagnosisName] = *input.Name
-	}
-	if input.DiagnosisTypeID != nil {
-		fields[colDiagnosisNameDiagnosisTypeID] = *input.DiagnosisTypeID
-	}
-	if input.IsActive != nil {
-		fields[colDiagnosisIsActive] = *input.IsActive
-	}
-	if input.Description != nil {
-		fields[colDiagnosisDescription] = *input.Description
-	}
-	if input.SortOrder != nil {
-		fields[colDiagnosisSortOrder] = *input.SortOrder
-	}
-	return fields
 }

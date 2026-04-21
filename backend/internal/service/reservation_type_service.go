@@ -286,6 +286,9 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 }
 
 func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find reservation type")
+	}
 	count, err := s.repo.CountUsageByReservationTypeID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check reservation type usage")

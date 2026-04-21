@@ -139,6 +139,9 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	return exType, nil
 }
 func (s *examTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find exam type")
+	}
 	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check exam type children")

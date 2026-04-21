@@ -49,6 +49,32 @@ type UpdateShiftTemplateInput struct {
 	Breaks    *[]ShiftBreakTemplateInput
 }
 
+func buildShiftTemplateUpdateFields(input *UpdateShiftTemplateInput) map[string]any {
+	fields := map[string]any{}
+	if input.Name != nil {
+		fields[colShiftTemplateName] = *input.Name
+	}
+	if input.ShiftType != nil {
+		fields[colShiftTemplateShiftType] = *input.ShiftType
+	}
+	if input.StartTime != nil {
+		fields[colShiftTemplateStartTime] = normalizeTimeString(input.StartTime)
+	}
+	if input.EndTime != nil {
+		fields[colShiftTemplateEndTime] = normalizeTimeString(input.EndTime)
+	}
+	if input.Notes != nil {
+		fields[colShiftTemplateNotes] = *input.Notes
+	}
+	if input.SortOrder != nil {
+		fields[colShiftTemplateSortOrder] = *input.SortOrder
+	}
+	if input.IsActive != nil {
+		fields[colShiftTemplateIsActive] = *input.IsActive
+	}
+	return fields
+}
+
 // ShiftTemplateService はシフトテンプレートのビジネスロジックインターフェース
 type ShiftTemplateService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
@@ -190,30 +216,4 @@ func (s *shiftTemplateService) Reorder(ctx context.Context, clinicID uint64, ids
 	}
 	slog.InfoContext(ctx, "shift templates reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
-}
-
-func buildShiftTemplateUpdateFields(input *UpdateShiftTemplateInput) map[string]any {
-	fields := map[string]any{}
-	if input.Name != nil {
-		fields[colShiftTemplateName] = *input.Name
-	}
-	if input.ShiftType != nil {
-		fields[colShiftTemplateShiftType] = *input.ShiftType
-	}
-	if input.StartTime != nil {
-		fields[colShiftTemplateStartTime] = normalizeTimeString(input.StartTime)
-	}
-	if input.EndTime != nil {
-		fields[colShiftTemplateEndTime] = normalizeTimeString(input.EndTime)
-	}
-	if input.Notes != nil {
-		fields[colShiftTemplateNotes] = *input.Notes
-	}
-	if input.SortOrder != nil {
-		fields[colShiftTemplateSortOrder] = *input.SortOrder
-	}
-	if input.IsActive != nil {
-		fields[colShiftTemplateIsActive] = *input.IsActive
-	}
-	return fields
 }

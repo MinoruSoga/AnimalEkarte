@@ -70,6 +70,54 @@ type UpdateStaffInput struct {
 	ReservationImageURL    *string
 }
 
+const (
+	colStaffName                   = "name"
+	colStaffLicenseNumber          = "license_number"
+	colStaffOccupationID           = "occupation_id"
+	colStaffSortOrder              = "sort_order"
+	colStaffIsActive               = "is_active"
+	colStaffStaffType              = "staff_type"
+	colStaffReservationDisplayName = "reservation_display_name"
+	colStaffReservationVisible     = "reservation_visible"
+	colStaffReservationComment     = "reservation_comment"
+	colStaffReservationImageURL    = "reservation_image_url"
+)
+
+func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
+	fields := map[string]any{}
+	if input.Name != nil {
+		fields[colStaffName] = *input.Name
+	}
+	if input.LicenseNumber != nil {
+		fields[colStaffLicenseNumber] = *input.LicenseNumber
+	}
+	if input.OccupationID != nil {
+		fields[colStaffOccupationID] = *input.OccupationID
+	}
+	if input.SortOrder != nil {
+		fields[colStaffSortOrder] = *input.SortOrder
+	}
+	if input.IsActive != nil {
+		fields[colStaffIsActive] = *input.IsActive
+	}
+	if input.StaffType != nil {
+		fields[colStaffStaffType] = *input.StaffType
+	}
+	if input.ReservationDisplayName != nil {
+		fields[colStaffReservationDisplayName] = *input.ReservationDisplayName
+	}
+	if input.ReservationVisible != nil {
+		fields[colStaffReservationVisible] = *input.ReservationVisible
+	}
+	if input.ReservationComment != nil {
+		fields[colStaffReservationComment] = *input.ReservationComment
+	}
+	if input.ReservationImageURL != nil {
+		fields[colStaffReservationImageURL] = *input.ReservationImageURL
+	}
+	return fields
+}
+
 // StaffCoreService はスタッフの CRUD・並び替え操作（テスト時に最小モックで済む分割単位）
 type StaffCoreService interface {
 	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
@@ -400,54 +448,6 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 	}
 
 	return staff, nil
-}
-
-const (
-	colStaffName                   = "name"
-	colStaffLicenseNumber          = "license_number"
-	colStaffOccupationID           = "occupation_id"
-	colStaffSortOrder              = "sort_order"
-	colStaffIsActive               = "is_active"
-	colStaffStaffType              = "staff_type"
-	colStaffReservationDisplayName = "reservation_display_name"
-	colStaffReservationVisible     = "reservation_visible"
-	colStaffReservationComment     = "reservation_comment"
-	colStaffReservationImageURL    = "reservation_image_url"
-)
-
-func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
-	fields := map[string]any{}
-	if input.Name != nil {
-		fields[colStaffName] = *input.Name
-	}
-	if input.LicenseNumber != nil {
-		fields[colStaffLicenseNumber] = *input.LicenseNumber
-	}
-	if input.OccupationID != nil {
-		fields[colStaffOccupationID] = *input.OccupationID
-	}
-	if input.SortOrder != nil {
-		fields[colStaffSortOrder] = *input.SortOrder
-	}
-	if input.IsActive != nil {
-		fields[colStaffIsActive] = *input.IsActive
-	}
-	if input.StaffType != nil {
-		fields[colStaffStaffType] = *input.StaffType
-	}
-	if input.ReservationDisplayName != nil {
-		fields[colStaffReservationDisplayName] = *input.ReservationDisplayName
-	}
-	if input.ReservationVisible != nil {
-		fields[colStaffReservationVisible] = *input.ReservationVisible
-	}
-	if input.ReservationComment != nil {
-		fields[colStaffReservationComment] = *input.ReservationComment
-	}
-	if input.ReservationImageURL != nil {
-		fields[colStaffReservationImageURL] = *input.ReservationImageURL
-	}
-	return fields
 }
 
 func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {

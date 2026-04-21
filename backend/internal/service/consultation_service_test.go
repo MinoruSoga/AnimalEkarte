@@ -335,6 +335,7 @@ func TestConsultationService_Delete(t *testing.T) {
 	tests := []struct {
 		name             string
 		id               uint64
+		findByIDErr      error
 		childCount       int64
 		countChildrenErr error
 		usageCount       int64
@@ -351,6 +352,13 @@ func TestConsultationService_Delete(t *testing.T) {
 			usageCount: 0,
 			repoErr:    nil,
 			wantErr:    false,
+		},
+		{
+			name:        "returns not found error when FindByID fails",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("consultation", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:         "returns conflict error when consultation has children",
@@ -387,16 +395,7 @@ func TestConsultationService_Delete(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			name:       "returns not found error when consultation does not exist",
-			id:         999,
-			childCount: 0,
-			usageCount: 0,
-			repoErr:    apperrors.WrapNotFound("consultation", "999"),
-			wantErr:    true,
-			wantNF:     true,
-		},
-		{
-			name:       "returns error on repository failure",
+			name:       "returns error on repository delete failure",
 			id:         1,
 			childCount: 0,
 			usageCount: 0,
@@ -408,6 +407,12 @@ func TestConsultationService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockConsultationRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Consultation, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Consultation{ID: id}, nil
+				},
 				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.childCount, tt.countChildrenErr
 				},

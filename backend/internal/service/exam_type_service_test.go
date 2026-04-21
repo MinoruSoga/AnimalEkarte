@@ -335,6 +335,7 @@ func TestExamTypeService_Delete(t *testing.T) {
 	tests := []struct {
 		name          string
 		id            uint64
+		findByIDErr   error
 		usageCount    int64
 		countUsageErr error
 		repoErr       error
@@ -349,6 +350,13 @@ func TestExamTypeService_Delete(t *testing.T) {
 			countUsageErr: nil,
 			repoErr:       nil,
 			wantErr:       false,
+		},
+		{
+			name:        "returns not found error when FindByID fails",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("exam_type", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:          "returns conflict error when exam type is used in exam records",
@@ -368,16 +376,7 @@ func TestExamTypeService_Delete(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			name:          "returns not found error when exam type does not exist",
-			id:            999,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       apperrors.WrapNotFound("exam_type", "999"),
-			wantErr:       true,
-			wantNF:        true,
-		},
-		{
-			name:          "returns error on repository failure",
+			name:          "returns error on repository delete failure",
 			id:            1,
 			usageCount:    0,
 			countUsageErr: nil,
@@ -389,6 +388,12 @@ func TestExamTypeService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.ExaminationType{ID: id}, nil
+				},
 				countUsageByExamTypeIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},

@@ -18,6 +18,7 @@ type mockReservationStaffRepository struct {
 	createFn                               func(ctx context.Context, staff *model.Staff, clinicID uint64) error
 	updateFieldsFn                         func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn                               func(ctx context.Context, clinicID, id uint64) error
+	countAppointmentsByStaffIDFn           func() (int64, error)
 	swapSortOrderFn                        func(ctx context.Context, clinicID, id uint64, direction string) error
 	findExcludedReservationTypesFn         func(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	findExcludedReservationTypesByStaffIDs func(ctx context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
@@ -45,6 +46,13 @@ func (m *mockReservationStaffRepository) UpdateFields(ctx context.Context, clini
 
 func (m *mockReservationStaffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockReservationStaffRepository) CountAppointmentsByStaffID(_ context.Context, _, _ uint64) (int64, error) {
+	if m.countAppointmentsByStaffIDFn != nil {
+		return m.countAppointmentsByStaffIDFn()
+	}
+	return 0, nil
 }
 
 func (m *mockReservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {

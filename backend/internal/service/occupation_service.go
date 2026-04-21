@@ -131,6 +131,9 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 }
 
 func (s *occupationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to find occupation")
+	}
 	count, err := s.repo.CountUsageByOccupationID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check occupation dependencies")

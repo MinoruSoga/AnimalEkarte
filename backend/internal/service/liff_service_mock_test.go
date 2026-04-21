@@ -98,6 +98,9 @@ func (m *mockLiffStaffRepository) UpdateFields(_ context.Context, _, _ uint64, _
 }
 
 func (m *mockLiffStaffRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *mockLiffStaffRepository) CountAppointmentsByStaffID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
 
 func (m *mockLiffStaffRepository) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil

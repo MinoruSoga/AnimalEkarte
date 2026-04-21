@@ -232,6 +232,9 @@ func (m *mockResStaffForStaff) UpdateFields(_ context.Context, _, _ uint64, _ ma
 	return nil
 }
 func (m *mockResStaffForStaff) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *mockResStaffForStaff) CountAppointmentsByStaffID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
 func (m *mockResStaffForStaff) SwapSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
