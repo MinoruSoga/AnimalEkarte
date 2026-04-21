@@ -39,17 +39,6 @@ func buildSpecialPeriodUpdateFields(input UpdateSpecialPeriodInput, parsedStart,
 	return fields
 }
 
-// ClosingSettingsService は締め時間設定のビジネスロジックインターフェース
-type ClosingSettingsService interface {
-	Get(ctx context.Context, clinicID uint64) (*ClosingSettingsResponse, error)
-	ListSpecialPeriods(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
-	UpdateStandard(ctx context.Context, clinicID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error)
-	CreateSpecialPeriod(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
-	UpdateSpecialPeriod(ctx context.Context, clinicID, id uint64, input UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
-	DeleteSpecialPeriod(ctx context.Context, clinicID, id uint64) error
-	ResolveSchedule(ctx context.Context, clinicID uint64, date time.Time) (*DaySchedule, error)
-}
-
 // ClosingSettingsResponse は設定・特別期間をまとめたレスポンス
 type ClosingSettingsResponse struct {
 	Settings       *model.ClinicSettings        `json:"settings"`
@@ -87,6 +76,17 @@ type UpdateSpecialPeriodInput struct {
 	AmPmBoundary *string
 	PmEnd        *string
 	Note         *string
+}
+
+// ClosingSettingsService は締め時間設定のビジネスロジックインターフェース
+type ClosingSettingsService interface {
+	Get(ctx context.Context, clinicID uint64) (*ClosingSettingsResponse, error)
+	ListSpecialPeriods(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
+	UpdateStandard(ctx context.Context, clinicID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error)
+	CreateSpecialPeriod(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
+	UpdateSpecialPeriod(ctx context.Context, clinicID, id uint64, input UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
+	DeleteSpecialPeriod(ctx context.Context, clinicID, id uint64) error
+	ResolveSchedule(ctx context.Context, clinicID uint64, date time.Time) (*DaySchedule, error)
 }
 
 type closingSettingsService struct {

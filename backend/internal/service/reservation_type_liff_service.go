@@ -61,16 +61,6 @@ func buildReservationTypeLiffUpdateFields(input *UpdateReservationTypeLiffInput)
 	return fields
 }
 
-// ReservationTypeLiffService は予約コース（reservation_types）のビジネスロジックインターフェース
-type ReservationTypeLiffService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeLiffInput) (*model.ReservationType, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeLiffInput) (*model.ReservationType, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
-	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationType, error)
-	PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
-}
-
 // CreateReservationTypeLiffInput は予約コース作成の入力データ
 type CreateReservationTypeLiffInput struct {
 	Name                 string
@@ -99,6 +89,16 @@ type UpdateReservationTypeLiffInput struct {
 	ReservationComment   *string
 	ReservationDayOption *string
 	IsInternal           *bool
+}
+
+// ReservationTypeLiffService は予約コース（reservation_types）のビジネスロジックインターフェース
+type ReservationTypeLiffService interface {
+	List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateReservationTypeLiffInput) (*model.ReservationType, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeLiffInput) (*model.ReservationType, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
+	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationType, error)
+	PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
 type reservationTypeLiffService struct {
