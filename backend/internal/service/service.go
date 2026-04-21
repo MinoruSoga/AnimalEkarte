@@ -19,6 +19,9 @@ type Services struct {
 	Trimming                       TrimmingService
 	Inventory                      InventoryService
 	Staff                          StaffService
+	StaffCore                      StaffCoreService
+	StaffAccount                   StaffAccountService
+	StaffPermission                StaffPermissionService
 	Cage                           CageService
 	Medicine                       MedicineService
 	Vaccine                        VaccineService
@@ -71,13 +74,15 @@ type Services struct {
 	AccountingReport    AccountingReportService
 
 	// LINE予約
-	LineReservationSetting LineReservationSettingService
-	ReservationTypeLiff    ReservationTypeLiffService
-	ReservationStaff       ReservationStaffService
-	ReservationSchedule    ReservationScheduleService
-	ReservationAdmin       ReservationAdminService
-	LineCustomer           LineCustomerService
-	Liff                   LiffService
+	LineReservationSetting    LineReservationSettingService
+	ReservationTypeLiff       ReservationTypeLiffService
+	ReservationStaff          ReservationStaffService
+	ReservationStaffCore      ReservationStaffCoreService
+	ReservationStaffExclusion ReservationStaffExclusionService
+	ReservationSchedule       ReservationScheduleService
+	ReservationAdmin          ReservationAdminService
+	LineCustomer              LineCustomerService
+	Liff                      LiffService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -105,6 +110,13 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	// 同一インスタンスを2フィールドに割り当てることで余分な初期化を避ける。
 	permissionGroupSvc := newPermissionGroupServiceImpl(repos.PermissionGroup)
 
+	// staffSvc は StaffService（StaffCoreService / StaffAccountService / StaffPermissionService の合成）を実装する。
+	// 同一インスタンスを4フィールドに割り当てることで余分な初期化を避ける。
+	staffSvc := NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, tx)
+
+	// resStaffSvc は ReservationStaffService（Core + Exclusion の合成）を実装する。
+	resStaffSvc := NewReservationStaffService(repos.ReservationStaff, tx)
+
 	return &Services{
 		Account:                        NewAccountService(repos.Account),
 		StaffClinicAssignment:          NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
@@ -118,7 +130,10 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Accounting:                     NewAccountingService(repos.Accounting),
 		Trimming:                       NewTrimmingService(repos.Reservation, repos.AppointmentTrimmingDetail, tx),
 		Inventory:                      NewInventoryService(repos.Inventory),
-		Staff:                          NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, tx),
+		Staff:                          staffSvc,
+		StaffCore:                      staffSvc,
+		StaffAccount:                   staffSvc,
+		StaffPermission:                staffSvc,
 		Cage:                           NewCageService(repos.Cage),
 		Medicine:                       NewMedicineService(repos.Medicine, repos.Inventory, tx),
 		Vaccine:                        NewVaccineService(repos.Vaccine),
@@ -164,16 +179,18 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Refund:                         NewRefundService(repos.Refund, repos.Accounting),
 		PasswordReset:                  NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
 		// FEAT-368: 集計・締め機能
-		ClosingSettings:        closingSettingsSvc,
-		PaymentMethodMaster:    NewPaymentMethodMasterService(repos.PaymentMethodMaster),
-		CashRegister:           NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster),
-		AccountingReport:       NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday),
-		LineReservationSetting: NewLineReservationSettingService(repos.LineReservationSetting),
-		ReservationTypeLiff:    NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),
-		ReservationStaff:       NewReservationStaffService(repos.ReservationStaff, tx),
-		ReservationSchedule:    NewReservationScheduleService(repos.ReservationSchedule),
-		ReservationAdmin:       NewReservationAdminService(repos.ReservationAdmin, repos.Reservation, tx),
-		LineCustomer:           NewLineCustomerService(repos.LineCustomerMgr),
+		ClosingSettings:           closingSettingsSvc,
+		PaymentMethodMaster:       NewPaymentMethodMasterService(repos.PaymentMethodMaster),
+		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster),
+		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday),
+		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting),
+		ReservationTypeLiff:       NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),
+		ReservationStaff:          resStaffSvc,
+		ReservationStaffCore:      resStaffSvc,
+		ReservationStaffExclusion: resStaffSvc,
+		ReservationSchedule:       NewReservationScheduleService(repos.ReservationSchedule),
+		ReservationAdmin:          NewReservationAdminService(repos.ReservationAdmin, repos.Reservation, tx),
+		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr),
 		Liff: NewLiffService(
 			repos.LineReservationSetting,
 			repos.ReservationTypeLiff,

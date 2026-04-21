@@ -70,24 +70,36 @@ type UpdateStaffInput struct {
 	ReservationImageURL    *string
 }
 
-type StaffService interface {
+// StaffCoreService はスタッフの CRUD・並び替え操作（テスト時に最小モックで済む分割単位）
+type StaffCoreService interface {
 	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
 	GetByID(ctx context.Context, id uint64) (*model.Staff, error)
-	// FindByAccountID はアカウントIDに紐づくスタッフを返す。
-	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
 	// Create はスタッフを作成する（AccountID を呼び出し元で決定済みの場合に使用）。
 	Create(ctx context.Context, input *CreateStaffInput) (*model.Staff, error)
 	// CreateWithAccount はメールアドレスとパスワードを受け取り、
 	// email 重複チェック・bcrypt ハッシュ化・Account 作成・Staff 作成を一括で行う。
 	CreateWithAccount(ctx context.Context, input *CreateStaffWithAccountInput) (*model.Staff, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+}
+
+// StaffAccountService はアカウント・クリニック割当に関する操作
+type StaffAccountService interface {
+	// FindByAccountID はアカウントIDに紐づくスタッフを返す。
+	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
 	// UpdatePassword はスタッフに紐づくアカウントのパスワードをハッシュ化して更新する。
 	UpdatePassword(ctx context.Context, accountID uint64, newPassword string) error
 	// SetClinicAssignments はスタッフのクリニック割当をトランザクション内で差し替える。
 	// 既存割当を全削除してから新しい clinicIDs を登録する。最初の1件は is_main=true となる。
 	SetClinicAssignments(ctx context.Context, staffID uint64, clinicIDs []uint64) error
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
-	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	// VerifyClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
+	// 所属していない場合は ErrNotFound を返す。
+	VerifyClinicMembership(ctx context.Context, staffID, clinicID uint64) error
+}
+
+// StaffPermissionService は権限グループ・除外予約種別の操作
+type StaffPermissionService interface {
 	// GetPermissionGroupIDs はスタッフが所属する権限グループIDリストを返す
 	GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error)
 	// SetPermissionGroupIDs はスタッフの権限グループを全置換する
@@ -96,9 +108,14 @@ type StaffService interface {
 	GetExcludedReservationTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error)
 	// SetExcludedReservationTypeIDs はスタッフの除外サービス種別を全置換する
 	SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error
-	// VerifyClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
-	// 所属していない場合は ErrNotFound を返す。
-	VerifyClinicMembership(ctx context.Context, staffID, clinicID uint64) error
+}
+
+// StaffService は StaffCoreService / StaffAccountService / StaffPermissionService を統合したインターフェース。
+// validation.go 等、複数サブインターフェースにまたがる処理で使用する。
+type StaffService interface {
+	StaffCoreService
+	StaffAccountService
+	StaffPermissionService
 }
 
 type staffService struct {

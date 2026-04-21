@@ -57,8 +57,8 @@ func buildReservationStaffUpdateFields(input *UpdateReservationStaffInput) map[s
 	return fields
 }
 
-// ReservationStaffService は予約スタッフのビジネスロジックインターフェース
-type ReservationStaffService interface {
+// ReservationStaffCoreService は予約スタッフの CRUD・ステータス・並び順操作
+type ReservationStaffCoreService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Staff, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
@@ -66,10 +66,20 @@ type ReservationStaffService interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error)
 	PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
+}
+
+// ReservationStaffExclusionService は予約スタッフの除外コース操作
+type ReservationStaffExclusionService interface {
 	// GetExcludedReservationTypes は指定スタッフの除外コース一覧を返す
 	GetExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	// ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す（N+1回避）
 	ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
+}
+
+// ReservationStaffService は ReservationStaffCoreService / ReservationStaffExclusionService を統合したインターフェース。
+type ReservationStaffService interface {
+	ReservationStaffCoreService
+	ReservationStaffExclusionService
 }
 
 type reservationStaffService struct {
