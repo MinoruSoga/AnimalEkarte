@@ -274,7 +274,7 @@ const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
     setIsDirty(true);
   }, []);
 
-  const handleAction = () => {
+  const handleAction = useCallback(() => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
@@ -282,16 +282,18 @@ const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
     setNameError("");
     onSave(formData);
     setIsDirty(false);
-  };
+  }, [formData, onSave]);
+
+  const handleTitleChange = useCallback((v: string) => {
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
+    if (v.trim()) setNameError("");
+  }, [setFormDataDirty]);
 
   return (
     <MasterSidePanel
       isNew={!selectedMedicine}
       title={formData.name}
-      onTitleChange={(v) => {
-        setFormDataDirty((prev) => ({ ...prev, name: v }));
-        if (v.trim()) setNameError("");
-      }}
+      onTitleChange={handleTitleChange}
       onClose={onCloseEdit}
       action={handleAction}
       onDelete={selectedMedicine && canDelete ? onDeleteRequest : undefined}

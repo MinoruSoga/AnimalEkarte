@@ -37,7 +37,7 @@ func (h *Handler) GetCashRegisterPreview(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, preview)
+	c.JSON(http.StatusOK, toCashRegisterPreviewResponse(preview))
 }
 
 // CloseCashRegister godoc

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type hospitalizationResponse struct {
@@ -41,5 +42,19 @@ func toHospitalizationResponse(h *model.Hospitalization) hospitalizationResponse
 		StaffNotes:          h.StaffNotes,
 		CreatedAt:           h.CreatedAt,
 		UpdatedAt:           h.UpdatedAt,
+	}
+}
+
+type dischargeWithBillingResponse struct {
+	HospitalizationID uint64  `json:"hospitalization_id"`
+	AccountingID      *uint64 `json:"accounting_id,omitempty"`
+	Status            string  `json:"status"`
+}
+
+func toDischargeWithBillingResponse(r *service.DischargeWithBillingResult) dischargeWithBillingResponse {
+	return dischargeWithBillingResponse{
+		HospitalizationID: r.HospitalizationID,
+		AccountingID:      r.AccountingID,
+		Status:            r.Status,
 	}
 }

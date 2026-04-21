@@ -146,7 +146,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
     setIsDirty(true);
   }, []);
 
-  const handleAction = () => {
+  const handleAction = useCallback(() => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
@@ -154,13 +154,41 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
     setNameError("");
     onSave(formData);
     setIsDirty(false);
-  };
+  }, [formData, onSave]);
+
+  const handleTitleChange = useCallback((v: string) => {
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
+    if (v.trim()) setNameError("");
+  }, [setFormDataDirty]);
+
+  const handleToggleStatus = useCallback(() => {
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
+
+  const handleTargetSizeChange = useCallback((v: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      targetSize: v === "__none__" ? "" : (v as TargetSize),
+    }));
+  }, []);
+
+  const handleDurationChange = useCallback((v: string) => {
+    setFormDataDirty((prev) => ({ ...prev, duration: v }));
+  }, [setFormDataDirty]);
+
+  const handlePriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormDataDirty((prev) => ({ ...prev, price: e.target.value }));
+  }, [setFormDataDirty]);
+
+  const handleDescriptionChange = useCallback((v: string) => {
+    setFormDataDirty((prev) => ({ ...prev, description: v }));
+  }, [setFormDataDirty]);
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => { setFormDataDirty((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
+      onTitleChange={handleTitleChange}
       onClose={onClose}
       action={readOnly ? undefined : handleAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
@@ -172,9 +200,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
       <PropertyRow label="ステータス">
         <button
           type="button"
-          onClick={() =>
-            setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))
-          }
+          onClick={handleToggleStatus}
           className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
           <NotionStatusPill isActive={formData.isActive} />
@@ -184,12 +210,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
       <PropertyRow label="対象サイズ">
         <Select
           value={formData.targetSize || "__none__"}
-          onValueChange={(v) =>
-            setFormData((prev) => ({
-              ...prev,
-              targetSize: v === "__none__" ? "" : (v as TargetSize),
-            }))
-          }
+          onValueChange={handleTargetSizeChange}
         >
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
@@ -202,7 +223,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         <PropertyInput
           type="number"
           value={formData.duration}
-          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, duration: v }))}
+          onChange={handleDurationChange}
           placeholder="90"
         />
       </PropertyRow>
@@ -215,9 +236,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
             min={0}
             className={`w-32 bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
             value={formData.price}
-            onChange={(e) =>
-              setFormDataDirty((prev) => ({ ...prev, price: e.target.value }))
-            }
+            onChange={handlePriceChange}
             placeholder="0"
           />
         </div>
@@ -226,9 +245,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
       <PropertyRow label="備考">
         <PropertyInput
           value={formData.description}
-          onChange={(v) =>
-            setFormDataDirty((prev) => ({ ...prev, description: v }))
-          }
+          onChange={handleDescriptionChange}
           placeholder="補足情報など"
         />
       </PropertyRow>
@@ -362,7 +379,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
     setIsDirty(true);
   }, []);
 
-  const handleAction = () => {
+  const handleAction = useCallback(() => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
@@ -370,13 +387,38 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
     setNameError("");
     onSave(formData);
     setIsDirty(false);
-  };
+  }, [formData, onSave]);
+
+  const handleTitleChange = useCallback((v: string) => {
+    setFormDataDirty((prev) => ({ ...prev, name: v }));
+    if (v.trim()) setNameError("");
+  }, [setFormDataDirty]);
+
+  const handleToggleStatus = useCallback(() => {
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
+
+  const handleDurationChange = useCallback((v: string) => {
+    setFormDataDirty((prev) => ({ ...prev, duration: v }));
+  }, [setFormDataDirty]);
+
+  const handleToggleCombinability = useCallback(() => {
+    setFormDataDirty((prev) => ({ ...prev, combinable: !prev.combinable }));
+  }, [setFormDataDirty]);
+
+  const handlePriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormDataDirty((prev) => ({ ...prev, price: e.target.value }));
+  }, [setFormDataDirty]);
+
+  const handleDescriptionChange = useCallback((v: string) => {
+    setFormDataDirty((prev) => ({ ...prev, description: v }));
+  }, [setFormDataDirty]);
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => { setFormDataDirty((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
+      onTitleChange={handleTitleChange}
       onClose={onClose}
       action={readOnly ? undefined : handleAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
@@ -388,9 +430,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
       <PropertyRow label="ステータス">
         <button
           type="button"
-          onClick={() =>
-            setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))
-          }
+          onClick={handleToggleStatus}
           className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
           <NotionStatusPill isActive={formData.isActive} />
@@ -401,7 +441,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
         <PropertyInput
           type="number"
           value={formData.duration}
-          onChange={(v) => setFormDataDirty((prev) => ({ ...prev, duration: v }))}
+          onChange={handleDurationChange}
           placeholder="30"
         />
       </PropertyRow>
@@ -409,9 +449,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
       <PropertyRow label="組合せ可否">
         <button
           type="button"
-          onClick={() =>
-            setFormDataDirty((prev) => ({ ...prev, combinable: !prev.combinable }))
-          }
+          onClick={handleToggleCombinability}
           className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
           <CombinablePill combinable={formData.combinable} />
@@ -426,9 +464,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
             min={0}
             className={`w-32 bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
             value={formData.price}
-            onChange={(e) =>
-              setFormDataDirty((prev) => ({ ...prev, price: e.target.value }))
-            }
+            onChange={handlePriceChange}
             placeholder="0"
           />
         </div>
@@ -437,9 +473,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
       <PropertyRow label="備考">
         <PropertyInput
           value={formData.description}
-          onChange={(v) =>
-            setFormDataDirty((prev) => ({ ...prev, description: v }))
-          }
+          onChange={handleDescriptionChange}
           placeholder="補足情報など"
         />
       </PropertyRow>

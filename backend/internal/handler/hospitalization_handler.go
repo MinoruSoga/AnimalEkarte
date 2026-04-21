@@ -229,7 +229,7 @@ func (h *Handler) DischargeWithBilling(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, toDischargeWithBillingResponse(result))
 }
 
 // DeleteHospitalization godoc
