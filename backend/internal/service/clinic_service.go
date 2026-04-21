@@ -164,6 +164,9 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 }
 
 func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) (*model.Clinic, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
+	}
 	// 存在確認（NotFound を早期返却）
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
 		return nil, apperrors.Wrap(err, "failed to find clinic for update")

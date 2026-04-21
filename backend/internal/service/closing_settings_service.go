@@ -220,9 +220,15 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 	}
 	result, err := s.periodRepo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, "failed to update closing special period",
+			slog.Uint64("clinic_id", clinicID),
+			slog.Uint64("id", id),
+			slog.Any("error", err))
+		return nil, apperrors.Wrap(err, "failed to update special period")
 	}
-	slog.InfoContext(ctx, "special period updated", slog.Uint64("id", id))
+	slog.InfoContext(ctx, "closing special period updated",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("id", id))
 	return result, nil
 }
 

@@ -56,6 +56,10 @@ func (m *mockInventoryRepository) DeleteByNameAndMedicineCategory(_ context.Cont
 	return nil
 }
 
+func (m *mockInventoryRepository) UpdateNameByMedicineCategory(_ context.Context, _ uint64, _, _ string) error {
+	return nil
+}
+
 func TestInventoryService_List(t *testing.T) {
 	category := string(model.InventoryCategoryMedicine)
 	status := string(model.InventoryStatusLow)

@@ -133,6 +133,9 @@ func (s *shiftTemplateService) Create(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get shift template")
+	}
 	fields := buildShiftTemplateUpdateFields(input)
 	if len(fields) == 0 && input.Breaks == nil {
 		existing, err := s.repo.FindByID(ctx, clinicID, id)
@@ -168,6 +171,9 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (s *shiftTemplateService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get shift template")
+	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete shift template")
 	}

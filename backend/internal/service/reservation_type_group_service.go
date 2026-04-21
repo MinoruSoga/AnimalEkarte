@@ -135,6 +135,9 @@ func buildReservationTypeGroupUpdateFields(input *UpdateReservationTypeGroupInpu
 }
 
 func (s *reservationTypeGroupService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get reservation type group")
+	}
 	count, err := s.repo.CountReservationTypesByGroupID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to count categories in group")

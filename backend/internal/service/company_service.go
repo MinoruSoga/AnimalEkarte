@@ -106,7 +106,7 @@ func (s *companyService) Get(ctx context.Context) (*model.Company, error) {
 func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) (*model.Company, error) {
 	fields := buildCompanyUpdateFields(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 	if err := s.repo.Update(ctx, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update company")

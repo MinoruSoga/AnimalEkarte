@@ -9,6 +9,44 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+func buildReservationTypeLiffUpdateFields(input *UpdateReservationTypeLiffInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields["name"] = *input.Name
+	}
+	if input.Color != nil {
+		fields["color"] = *input.Color
+	}
+	if input.Description != nil {
+		fields["description"] = *input.Description
+	}
+	if input.SortOrder != nil {
+		fields["sort_order"] = *input.SortOrder
+	}
+	if input.DurationMinutes != nil {
+		fields["duration_minutes"] = *input.DurationMinutes
+	}
+	if input.ShortName != nil {
+		fields["short_name"] = *input.ShortName
+	}
+	if input.ShowShortName != nil {
+		fields["show_short_name"] = *input.ShowShortName
+	}
+	if input.ReservationVisible != nil {
+		fields["reservation_visible"] = *input.ReservationVisible
+	}
+	if input.ReservationComment != nil {
+		fields["reservation_comment"] = *input.ReservationComment
+	}
+	if input.ReservationDayOption != nil {
+		fields["reservation_day_option"] = *input.ReservationDayOption
+	}
+	if input.IsInternal != nil {
+		fields["is_internal"] = *input.IsInternal
+	}
+	return fields
+}
+
 // ReservationTypeLiffService は予約コース（reservation_types）のビジネスロジックインターフェース
 type ReservationTypeLiffService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
@@ -101,6 +139,9 @@ func (s *reservationTypeLiffService) Create(ctx context.Context, clinicID uint64
 }
 
 func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get reservation course")
+	}
 	fields := buildReservationTypeLiffUpdateFields(input)
 	if len(fields) == 0 {
 		result, err := s.repo.FindByID(ctx, clinicID, id)
@@ -109,12 +150,9 @@ func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id ui
 		}
 		return result, nil
 	}
-	if err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
-		return nil, apperrors.Wrap(err, "failed to update reservation course")
-	}
-	updated, err := s.repo.FindByID(ctx, clinicID, id)
+	updated, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get reservation course after update")
+		return nil, apperrors.Wrap(err, "failed to update reservation course")
 	}
 	slog.InfoContext(ctx, "reservation course updated",
 		slog.Uint64("reservation_type_id", id),
@@ -123,6 +161,9 @@ func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id ui
 }
 
 func (s *reservationTypeLiffService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+		return apperrors.Wrap(err, "failed to get reservation course")
+	}
 	exists, err := s.resRepo.ExistsByReservationTypeID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check reservation dependency")
@@ -140,12 +181,9 @@ func (s *reservationTypeLiffService) Delete(ctx context.Context, clinicID, id ui
 }
 
 func (s *reservationTypeLiffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationType, error) {
-	if err := s.repo.UpdateFields(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
-		return nil, apperrors.Wrap(err, "failed to patch status")
-	}
-	result, err := s.repo.FindByID(ctx, clinicID, id)
+	result, err := s.repo.UpdateFields(ctx, clinicID, id, map[string]any{"is_active": isActive})
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get reservation course after patch status")
+		return nil, apperrors.Wrap(err, "failed to patch status")
 	}
 	return result, nil
 }
@@ -158,42 +196,4 @@ func (s *reservationTypeLiffService) PatchSortOrder(ctx context.Context, clinicI
 		return apperrors.Wrap(err, "failed to reorder reservation course")
 	}
 	return nil
-}
-
-func buildReservationTypeLiffUpdateFields(input *UpdateReservationTypeLiffInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields["name"] = *input.Name
-	}
-	if input.Color != nil {
-		fields["color"] = *input.Color
-	}
-	if input.Description != nil {
-		fields["description"] = *input.Description
-	}
-	if input.SortOrder != nil {
-		fields["sort_order"] = *input.SortOrder
-	}
-	if input.DurationMinutes != nil {
-		fields["duration_minutes"] = *input.DurationMinutes
-	}
-	if input.ShortName != nil {
-		fields["short_name"] = *input.ShortName
-	}
-	if input.ShowShortName != nil {
-		fields["show_short_name"] = *input.ShowShortName
-	}
-	if input.ReservationVisible != nil {
-		fields["reservation_visible"] = *input.ReservationVisible
-	}
-	if input.ReservationComment != nil {
-		fields["reservation_comment"] = *input.ReservationComment
-	}
-	if input.ReservationDayOption != nil {
-		fields["reservation_day_option"] = *input.ReservationDayOption
-	}
-	if input.IsInternal != nil {
-		fields["is_internal"] = *input.IsInternal
-	}
-	return fields
 }

@@ -335,6 +335,9 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, staffID uint64,
 }
 
 func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error) {
+	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		return nil, apperrors.Wrap(err, "failed to get staff")
+	}
 	if input.Name != nil {
 		if err := validateRequiredName(*input.Name); err != nil {
 			return nil, err

@@ -21,6 +21,9 @@ type InventoryRepository interface {
 	// BUG-381: 薬剤マスタ削除時に BUG-320 で自動作成された連携在庫をカスケード削除するため、
 	// (clinic_id, name, category=medicine) で在庫を削除する。マッチなしは no-op。
 	DeleteByNameAndMedicineCategory(ctx context.Context, clinicID uint64, name string) error
+	// TASK-215: 薬剤名変更時に BUG-320 で自動作成された連携在庫の name を同期する。
+	// (clinic_id, oldName, category=medicine) にマッチするレコードを newName に更新する。マッチなしは no-op。
+	UpdateNameByMedicineCategory(ctx context.Context, clinicID uint64, oldName, newName string) error
 }
 
 type inventoryRepository struct {
@@ -121,6 +124,20 @@ func (r *inventoryRepository) DeleteByNameAndMedicineCategory(ctx context.Contex
 		Delete(&model.InventoryItem{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("name=%s", name))
+	}
+	return nil
+}
+
+// UpdateNameByMedicineCategory は TASK-215 で薬剤名変更時に連携在庫の name を同期する。
+// (clinic_id, oldName, category=medicine) にマッチするレコードを newName に更新する（マッチなしは no-op）。
+func (r *inventoryRepository) UpdateNameByMedicineCategory(ctx context.Context, clinicID uint64, oldName, newName string) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.InventoryItem{}).
+		Scopes(clinicScope(clinicID)).
+		Where("name = ? AND category = ?", oldName, model.InventoryCategoryMedicine).
+		Update("name", newName)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("name=%s", oldName))
 	}
 	return nil
 }

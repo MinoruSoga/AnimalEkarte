@@ -223,7 +223,8 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "medicine not found")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -234,9 +235,29 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
-	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to update medicine")
+	var result *model.Medicine
+	if input.Name != nil && *input.Name != existing.Name {
+		// TASK-215: 薬剤名変更時に連携在庫の name を同期する
+		oldName := existing.Name
+		newName := *input.Name
+		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+			var txErr error
+			result, txErr = s.repo.UpdateFields(txCtx, clinicID, id, fields)
+			if txErr != nil {
+				return apperrors.Wrap(txErr, "failed to update medicine")
+			}
+			if txErr = s.inventoryRepo.UpdateNameByMedicineCategory(txCtx, clinicID, oldName, newName); txErr != nil {
+				return apperrors.Wrap(txErr, "failed to sync inventory item name")
+			}
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+	} else {
+		result, err = s.repo.UpdateFields(ctx, clinicID, id, fields)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to update medicine")
+		}
 	}
 	slog.InfoContext(ctx, "medicine updated",
 		slog.Uint64("clinic_id", clinicID),
