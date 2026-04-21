@@ -14,6 +14,7 @@ import (
 type ReservationTypeUnavailableTimeRepository interface {
 	// FindAll は指定予約区分の予約不可時間を全件返す（LIFF・管理API 両方が使用）
 	FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeUnavailableTime, error)
 	Create(ctx context.Context, t *model.ReservationTypeUnavailableTime) error
 	// Delete は id で物理削除する（論理削除なし）
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -41,6 +42,20 @@ func (r *reservationTypeUnavailableTimeRepository) FindAll(
 		return nil, apperrors.FromGORM(err, "reservation_type_unavailable_times", fmt.Sprintf("clinic=%d type=%d", clinicID, reservationTypeID))
 	}
 	return results, nil
+}
+
+func (r *reservationTypeUnavailableTimeRepository) FindByID(
+	ctx context.Context, clinicID, id uint64,
+) (*model.ReservationTypeUnavailableTime, error) {
+	var result model.ReservationTypeUnavailableTime
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", id).
+		First(&result).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation_type_unavailable_time", fmt.Sprintf("%d", id))
+	}
+	return &result, nil
 }
 
 func (r *reservationTypeUnavailableTimeRepository) Create(

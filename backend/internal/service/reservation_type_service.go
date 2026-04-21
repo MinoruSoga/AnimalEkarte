@@ -383,6 +383,10 @@ func (s *reservationTypeService) DeleteUnavailableTime(ctx context.Context, clin
 		slog.ErrorContext(ctx, "failed to get reservation type", "error", err)
 		return apperrors.Wrap(err, "failed to get reservation type")
 	}
+	if _, err := s.unavailableTimeRepo.FindByID(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to get unavailable time", "error", err)
+		return apperrors.Wrap(err, "unavailable time not found")
+	}
 	if err := s.unavailableTimeRepo.Delete(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to delete unavailable time", "error", err)
 		return apperrors.Wrap(err, "failed to delete unavailable time")

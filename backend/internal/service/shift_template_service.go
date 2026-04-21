@@ -211,6 +211,14 @@ func (s *shiftTemplateService) Delete(ctx context.Context, clinicID, id uint64) 
 		slog.ErrorContext(ctx, "failed to get shift template", "error", err)
 		return apperrors.Wrap(err, "failed to get shift template")
 	}
+	count, err := s.repo.CountUsageByShiftTemplateID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count shift template usage", "error", err)
+		return apperrors.Wrap(err, "failed to check shift template usage")
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("このシフトテンプレートは使用中のため削除できません")
+	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to delete shift template", "error", err)
 		return apperrors.Wrap(err, "failed to delete shift template")
