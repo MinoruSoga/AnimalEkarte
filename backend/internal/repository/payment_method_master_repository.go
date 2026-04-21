@@ -94,7 +94,7 @@ func (r *paymentMethodMasterRepository) CountUsageByPaymentMethodID(ctx context.
 	err := r.db.WithContext(ctx).
 		Model(&model.Payment{}).
 		Joins("JOIN billings ON billings.id = payments.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
-		Where("payments.payment_method_id = ?", id).
+		Where("payments.payment_method_id = ? AND payments.deleted_at IS NULL", id).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "payment_method", fmt.Sprintf("%d", id))

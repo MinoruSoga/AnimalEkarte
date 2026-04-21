@@ -86,7 +86,7 @@ func (r *chiefComplaintTypeRepository) CountUsageByChiefComplaintTypeID(ctx cont
 	if err := r.db.WithContext(ctx).
 		Model(&model.Inquiry{}).
 		Joins("JOIN medical_records ON medical_records.id = inquiries.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
-		Where("inquiries.chief_complaint_type_id = ?", id).
+		Where("inquiries.chief_complaint_type_id = ? AND inquiries.deleted_at IS NULL", id).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "inquiry", "")
 	}
