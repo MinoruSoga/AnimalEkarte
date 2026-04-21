@@ -114,3 +114,20 @@ export const useDeleteInsurance = () => {
   });
 };
 
+
+const INSURANCES_QUERY_KEY = ["masters", "insurances"] as const;
+
+const reorderInsurances = async (ids: number[]): Promise<void> => {
+  await axios.patch("/v1/masters/insurances/reorder", { ids });
+};
+
+export const useReorderInsurances = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderInsurances(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
+  });
+};

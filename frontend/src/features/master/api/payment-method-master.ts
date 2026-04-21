@@ -95,3 +95,20 @@ export const useDeletePaymentMethod = () => {
     onError: (error) => handleApiError(error, "削除"),
   });
 };
+
+const PAYMENT_METHODS_QUERY_KEY = ["masters", "payment-methods"] as const;
+
+const reorderPaymentMethods = async (ids: number[]): Promise<void> => {
+  await axios.patch("/v1/payment-methods/reorder", { ids });
+};
+
+export const useReorderPaymentMethods = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderPaymentMethods(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PAYMENT_METHODS_QUERY_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
+  });
+};

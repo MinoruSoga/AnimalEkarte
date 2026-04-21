@@ -108,3 +108,20 @@ export const useDeleteOccupation = () => {
   });
 };
 
+
+const OCCUPATIONS_QUERY_KEY = ["masters", "occupations"] as const;
+
+const reorderOccupations = async (ids: number[]): Promise<void> => {
+  await axios.patch("/v1/masters/occupations/reorder", { ids });
+};
+
+export const useReorderOccupations = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderOccupations(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: OCCUPATIONS_QUERY_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
+  });
+};

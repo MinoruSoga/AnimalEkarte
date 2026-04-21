@@ -34,29 +34,18 @@ export type { FrontendMerchandiseItem };
 
 // ─── API Request Types ────────────────────────────────────
 
-interface CreateMerchandiseItemRequest {
-  name: string;
-  category: string;
-  unit_price: number;
-  tax_type: TaxType;
-  tax_rate: number;
-  is_active?: boolean;
-}
+export type CreateMerchandiseItemRequest = Omit<
+  MerchandiseItem,
+  'id' | 'clinic_id' | 'sort_order' | 'created_at' | 'updated_at'
+>;
 
-interface UpdateMerchandiseItemRequest {
-  name?: string;
-  category?: string;
-  unit_price?: number;
-  tax_type?: TaxType;
-  tax_rate?: number;
-  is_active?: boolean;
-}
+export type UpdateMerchandiseItemRequest = Partial<CreateMerchandiseItemRequest>;
 
 interface ReorderMerchandiseItemsRequest {
   ids: number[];
 }
 
-export type { CreateMerchandiseItemRequest, UpdateMerchandiseItemRequest, ReorderMerchandiseItemsRequest };
+export type { ReorderMerchandiseItemsRequest };
 
 // ─── Queries ──────────────────────────────────────────────
 

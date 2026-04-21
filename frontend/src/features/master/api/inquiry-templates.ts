@@ -127,3 +127,18 @@ export function useDeleteInquiryTemplate() {
     onError: (error) => handleApiError(error, "削除"),
   });
 }
+
+export async function reorderInquiryTemplates(ids: number[]): Promise<void> {
+  await axios.patch("/v1/masters/inquiry-templates/reorder", { ids });
+}
+
+export function useReorderInquiryTemplates() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderInquiryTemplates(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: INQUIRY_TEMPLATES_QUERY_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
+  });
+}

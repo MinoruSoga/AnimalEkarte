@@ -179,3 +179,18 @@ export const useDeleteHospitalizationPlan = () => {
     onError: (error) => handleApiError(error, "削除"),
   });
 };
+
+export const reorderHospitalizationPlans = async (ids: number[]): Promise<void> => {
+  await axios.patch(`${ENDPOINT}/reorder`, { ids });
+};
+
+export const useReorderHospitalizationPlans = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderHospitalizationPlans(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: HOSPITALIZATION_PLANS_QUERY_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
+  });
+};

@@ -136,3 +136,13 @@ export function useDeleteReservationTypeGroup() {
   });
 }
 
+export function useReorderReservationTypeGroups() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => reorderReservationTypeGroups({ ids }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: RESERVATION_CATEGORY_GROUPS_QUERY_KEY });
+    },
+    onError: (error) => handleApiError(error, "並び替え"),
+  });
+}
