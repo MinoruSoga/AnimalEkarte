@@ -183,7 +183,7 @@ func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billi
 	}
 	var billing model.Billing
 	if err := r.db.WithContext(ctx).
-		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Refunds").Preload("Refunds.RefundedByStaff", "deleted_at IS NULL").Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").
+		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Refunds", "deleted_at IS NULL").Preload("Refunds.RefundedByStaff", "deleted_at IS NULL").Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		First(&billing, "id = ?", billingID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
