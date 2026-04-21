@@ -93,7 +93,7 @@ func (r *reservationTypeRepository) CountUsageByReservationTypeID(ctx context.Co
 	if err := r.db.WithContext(ctx).
 		Model(&model.Reservation{}).
 		Scopes(clinicScope(clinicID)).
-		Where("reservation_type_id = ?", id).
+		Where("reservation_type_id = ? AND deleted_at IS NULL", id).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "reservation", "")
 	}

@@ -81,12 +81,13 @@ func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint
 }
 
 // CountUsageByCourseID は指定コースを使用しているトリミング詳細数を返す（BUG-111）
+// appointment_trimming_details は deleted_at を持たないため appointments を JOIN して論理削除を考慮する
 func (r *trimmingCourseRepository) CountUsageByCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.AppointmentTrimmingDetail{}).
-		Scopes(clinicScope(clinicID)).
-		Where("course_id = ?", courseID).
+		Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = ? AND appointments.deleted_at IS NULL", clinicID).
+		Where("appointment_trimming_details.course_id = ?", courseID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "appointment_trimming_detail", "")
 	}
