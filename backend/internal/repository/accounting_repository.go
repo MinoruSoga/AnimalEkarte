@@ -139,7 +139,7 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 		Preload("Items", "deleted_at IS NULL").
 		Preload("Payments", "deleted_at IS NULL").
 		Preload("Payments.PaidByStaff", "deleted_at IS NULL").
-		Preload("Refunds").
+		Preload("Refunds", "deleted_at IS NULL").
 		Preload("Refunds.RefundedByStaff", "deleted_at IS NULL").
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").

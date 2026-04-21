@@ -104,7 +104,7 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner", "deleted_at IS NULL").
-		Preload("Pet.AnimalSpecies").
+		Preload("Pet.AnimalSpecies", "deleted_at IS NULL").
 		Preload("ReservationType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CreatedByStaff", "deleted_at IS NULL").
