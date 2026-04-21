@@ -288,6 +288,9 @@ func TestPaymentMethodMasterService_Delete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
 			repo := &mockPaymentMethodMasterRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.PaymentMethodMaster, error) {
+					return &model.PaymentMethodMaster{ID: id}, nil
+				},
 				countUsageByPaymentMethodIDFn: tt.countUsageByPaymentMethodIDFn,
 				deleteFn:                      tt.deleteFn,
 			}

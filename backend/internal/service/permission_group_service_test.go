@@ -186,6 +186,9 @@ func TestPermissionGroupService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockPermissionGroupRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.PermissionGroup, error) {
+					return existing, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PermissionGroup, error) {
 					return existing, tt.updateErr
 				},
@@ -244,6 +247,9 @@ func TestPermissionGroupService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockPermissionGroupRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.PermissionGroup, error) {
+					return &model.PermissionGroup{ID: id}, nil
+				},
 				countStaffsByGroupIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.staffCount, tt.countErr
 				},

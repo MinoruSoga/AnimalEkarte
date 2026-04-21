@@ -344,6 +344,7 @@ func TestVaccineService_Delete(t *testing.T) {
 		countChildrenErr error
 		usageCount       int64
 		countUsageErr    error
+		findByIDErr      error
 		repoErr          error
 		wantErr          bool
 		wantNF           bool
@@ -402,15 +403,11 @@ func TestVaccineService_Delete(t *testing.T) {
 			wantErr:          true,
 		},
 		{
-			name:             "returns not found error when vaccine does not exist",
-			id:               999,
-			childCount:       0,
-			countChildrenErr: nil,
-			usageCount:       0,
-			countUsageErr:    nil,
-			repoErr:          apperrors.WrapNotFound("vaccine", "999"),
-			wantErr:          true,
-			wantNF:           true,
+			name:        "returns not found error when vaccine does not exist",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("vaccine", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:             "returns error on repository failure",
@@ -427,6 +424,12 @@ func TestVaccineService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccineRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccine, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Vaccine{ID: id}, nil
+				},
 				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.childCount, tt.countChildrenErr
 				},

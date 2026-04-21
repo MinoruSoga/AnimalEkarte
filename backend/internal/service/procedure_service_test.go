@@ -276,6 +276,9 @@ func TestProcedureService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockProcedureRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Procedure, error) {
+					return &model.Procedure{ID: id}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Procedure, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
@@ -317,6 +320,7 @@ func TestProcedureService_Delete(t *testing.T) {
 		countChildrenErr error
 		usageCount       int64
 		countUsageErr    error
+		findByIDErr      error
 		repoErr          error
 		wantErr          bool
 		wantNotFound     bool
@@ -375,15 +379,11 @@ func TestProcedureService_Delete(t *testing.T) {
 			wantErr:          true,
 		},
 		{
-			name:             "returns not found error when procedure does not exist",
-			id:               999,
-			childCount:       0,
-			countChildrenErr: nil,
-			usageCount:       0,
-			countUsageErr:    nil,
-			repoErr:          apperrors.WrapNotFound("procedure", "999"),
-			wantErr:          true,
-			wantNotFound:     true,
+			name:         "returns not found error when procedure does not exist",
+			id:           999,
+			findByIDErr:  apperrors.WrapNotFound("procedure", "999"),
+			wantErr:      true,
+			wantNotFound: true,
 		},
 		{
 			name:             "returns error on repository failure",
@@ -400,6 +400,12 @@ func TestProcedureService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockProcedureRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Procedure, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Procedure{ID: id}, nil
+				},
 				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.childCount, tt.countChildrenErr
 				},

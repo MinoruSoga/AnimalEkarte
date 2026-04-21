@@ -374,6 +374,7 @@ func TestDiagnosisTypeService_Delete(t *testing.T) {
 		id            uint64
 		nameCount     int64
 		countNamesErr error
+		findByIDErr   error
 		repoErr       error
 		wantErr       bool
 		wantNF        bool
@@ -405,13 +406,11 @@ func TestDiagnosisTypeService_Delete(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			name:          "returns not found error when category does not exist",
-			id:            999,
-			nameCount:     0,
-			countNamesErr: nil,
-			repoErr:       apperrors.WrapNotFound("diagnosis_type", "999"),
-			wantErr:       true,
-			wantNF:        true,
+			name:        "returns not found error when category does not exist",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("diagnosis_type", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:          "returns error on repository failure",
@@ -426,6 +425,12 @@ func TestDiagnosisTypeService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockDiagnosisTypeRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisType, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.DiagnosisType{ID: id}, nil
+				},
 				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.nameCount, tt.countNamesErr
 				},
@@ -812,6 +817,7 @@ func TestDiagnosisNameService_Delete(t *testing.T) {
 		id           uint64
 		planCount    int64
 		countErr     error
+		findByIDErr  error
 		repoErr      error
 		wantErr      bool
 		wantNF       bool
@@ -825,11 +831,11 @@ func TestDiagnosisNameService_Delete(t *testing.T) {
 			wantNF:  false,
 		},
 		{
-			name:    "returns not found error when name does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("diagnosis_name", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:        "returns not found error when name does not exist",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("diagnosis_name", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:    "returns error on repository failure",
@@ -850,6 +856,12 @@ func TestDiagnosisNameService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockDiagnosisNameRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.DiagnosisName{ID: id}, nil
+				},
 				countClinicalPlansByDiagnosisNameIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.planCount, tt.countErr
 				},

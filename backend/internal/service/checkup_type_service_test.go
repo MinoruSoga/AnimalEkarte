@@ -325,6 +325,7 @@ func TestCheckupTypeService_Delete(t *testing.T) {
 		id            uint64
 		usageCount    int64
 		countUsageErr error
+		findByIDErr   error
 		repoErr       error
 		wantErr       bool
 		wantNF        bool
@@ -356,13 +357,11 @@ func TestCheckupTypeService_Delete(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			name:          "returns not found error when checkup type does not exist",
-			id:            999,
-			usageCount:    0,
-			countUsageErr: nil,
-			repoErr:       apperrors.WrapNotFound("checkup_type", "999"),
-			wantErr:       true,
-			wantNF:        true,
+			name:        "returns not found error when checkup type does not exist",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("checkup_type", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:          "returns error on repository failure",
@@ -377,6 +376,12 @@ func TestCheckupTypeService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCheckupTypeRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.CheckupType, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.CheckupType{ID: id}, nil
+				},
 				countUsageByCheckupTypeIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
 				},

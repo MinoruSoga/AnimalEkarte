@@ -303,6 +303,7 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 		id           uint64
 		countRecords int64
 		countErr     error
+		findByIDErr  error
 		deleteErr    error
 		wantErr      bool
 		wantNF       bool
@@ -323,11 +324,11 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 			wantConflict: true,
 		},
 		{
-			name:      "returns not found error when course does not exist",
-			id:        999,
-			deleteErr: apperrors.WrapNotFound("trimming_course", "999"),
-			wantErr:   true,
-			wantNF:    true,
+			name:        "returns not found error when course does not exist",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("trimming_course", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:      "returns error on repository failure",
@@ -340,6 +341,12 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.TrimmingCourse{ID: id}, nil
+				},
 				countUsageByCourseIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.countRecords, tt.countErr
 				},

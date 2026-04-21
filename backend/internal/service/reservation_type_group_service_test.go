@@ -254,6 +254,9 @@ func TestReservationTypeGroupService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationTypeGroupRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.ReservationTypeGroup, error) {
+					return &model.ReservationTypeGroup{ID: id}, nil
+				},
 				countReservationTypesByGroupFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.categoryCount, tt.countErr
 				},

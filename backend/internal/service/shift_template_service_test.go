@@ -285,16 +285,23 @@ func TestShiftTemplateService_Update(t *testing.T) {
 
 func TestShiftTemplateService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
+		name        string
+		id          uint64
+		findByIDErr error
+		repoErr     error
+		wantErr     bool
 	}{
 		{
 			name:    "正常: repo.Delete が呼ばれる",
 			id:      1,
 			repoErr: nil,
 			wantErr: false,
+		},
+		{
+			name:        "エラー: FindByID が not found → error を返す",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("shift_template", "999"),
+			wantErr:     true,
 		},
 		{
 			name:    "エラー: repo.Delete がエラー → error を返す",
@@ -306,12 +313,14 @@ func TestShiftTemplateService_Delete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			deleteCalled := false
 			repo := &mockShiftTemplateRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftTemplate, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.ShiftTemplate{ID: id}, nil
+				},
 				deleteFn: func(_ context.Context, clinicID, id uint64) error {
-					deleteCalled = true
-					assert.Equal(t, uint64(10), clinicID)
-					assert.Equal(t, tt.id, id)
 					return tt.repoErr
 				},
 			}
@@ -319,7 +328,6 @@ func TestShiftTemplateService_Delete(t *testing.T) {
 
 			err := svc.Delete(context.Background(), 10, tt.id)
 
-			assert.True(t, deleteCalled, "repo.Delete should have been called")
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

@@ -349,6 +349,7 @@ func TestTrimmingOptionService_Delete(t *testing.T) {
 		id           uint64
 		usageCount   int64
 		usageErr     error
+		findByIDErr  error
 		repoErr      error
 		wantErr      bool
 		wantNF       bool
@@ -376,12 +377,11 @@ func TestTrimmingOptionService_Delete(t *testing.T) {
 			wantErr:  true,
 		},
 		{
-			name:       "returns not found error when option does not exist",
-			id:         999,
-			usageCount: 0,
-			repoErr:    apperrors.WrapNotFound("trimming_option", "999"),
-			wantErr:    true,
-			wantNF:     true,
+			name:        "returns not found error when option does not exist",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("trimming_option", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name:       "returns error on repository failure",
@@ -396,6 +396,12 @@ func TestTrimmingOptionService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingOptionRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingOption, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.TrimmingOption{ID: id}, nil
+				},
 				countRecordsByOptFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.usageErr
 				},
