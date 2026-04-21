@@ -7,23 +7,23 @@ import (
 )
 
 type inquiryResponse struct {
-	ID                   uint64     `json:"id"`
-	MedicalRecordID      uint64     `json:"medical_record_id"`
-	ChiefComplaintTypeID *uint64    `json:"chief_complaint_type_id,omitempty"`
-	ChiefComplaint       string     `json:"chief_complaint"`
-	History              string     `json:"history"`
-	CurrentMedications   string     `json:"current_medications"`
-	AllergyInfo          string     `json:"allergy_info"`
-	LastMeal             string     `json:"last_meal"`
-	LastDefecation       string     `json:"last_defecation"`
-	LastUrination        string     `json:"last_urination"`
-	Appetite             *string    `json:"appetite,omitempty"`
-	WaterIntake          *string    `json:"water_intake,omitempty"`
-	OwnerObservations    string     `json:"owner_observations"`
-	Notes                string     `json:"notes"`
-	StaffID              *uint64    `json:"staff_id,omitempty"`
-	CreatedAt            time.Time  `json:"created_at"`
-	UpdatedAt            time.Time  `json:"updated_at"`
+	ID                   uint64    `json:"id"`
+	MedicalRecordID      uint64    `json:"medical_record_id"`
+	ChiefComplaintTypeID *uint64   `json:"chief_complaint_type_id,omitempty"`
+	ChiefComplaint       string    `json:"chief_complaint"`
+	History              string    `json:"history"`
+	CurrentMedications   string    `json:"current_medications"`
+	AllergyInfo          string    `json:"allergy_info"`
+	LastMeal             string    `json:"last_meal"`
+	LastDefecation       string    `json:"last_defecation"`
+	LastUrination        string    `json:"last_urination"`
+	Appetite             *string   `json:"appetite,omitempty"`
+	WaterIntake          *string   `json:"water_intake,omitempty"`
+	OwnerObservations    string    `json:"owner_observations"`
+	Notes                string    `json:"notes"`
+	StaffID              *uint64   `json:"staff_id,omitempty"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 func toInquiryResponse(inquiry *model.Inquiry) inquiryResponse {

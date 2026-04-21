@@ -53,9 +53,9 @@ type cashRegisterTaxBreakdownResponse struct {
 }
 
 type cashRegisterAggregateSummaryResponse struct {
-	Categories      map[string]map[string]int64 `json:"categories"`
-	PaymentMethods  []paymentMethodResponse     `json:"payment_methods"`
-	TheoreticalCash int64                       `json:"theoretical_cash"`
+	Categories      map[string]map[string]int64      `json:"categories"`
+	PaymentMethods  []paymentMethodResponse          `json:"payment_methods"`
+	TheoreticalCash int64                            `json:"theoretical_cash"`
 	TaxBreakdown    cashRegisterTaxBreakdownResponse `json:"tax_breakdown"`
 }
 
@@ -74,14 +74,14 @@ type cashRegisterBillingDetailResponse struct {
 }
 
 type cashRegisterPreviewResponse struct {
-	Date            string                                `json:"date"`
-	Period          string                                `json:"period"`
-	PeriodStart     string                                `json:"period_start"`
-	PeriodEnd       string                                `json:"period_end"`
-	IsAlreadyClosed bool                                  `json:"is_already_closed"`
-	IsHoliday       bool                                  `json:"is_holiday"`
-	Aggregate       cashRegisterAggregateSummaryResponse  `json:"aggregate"`
-	BillingDetails  []cashRegisterBillingDetailResponse   `json:"billing_details"`
+	Date            string                               `json:"date"`
+	Period          string                               `json:"period"`
+	PeriodStart     string                               `json:"period_start"`
+	PeriodEnd       string                               `json:"period_end"`
+	IsAlreadyClosed bool                                 `json:"is_already_closed"`
+	IsHoliday       bool                                 `json:"is_holiday"`
+	Aggregate       cashRegisterAggregateSummaryResponse `json:"aggregate"`
+	BillingDetails  []cashRegisterBillingDetailResponse  `json:"billing_details"`
 }
 
 func toCashRegisterPreviewResponse(p *service.CashRegisterPreview) cashRegisterPreviewResponse {
@@ -108,10 +108,10 @@ func toCashRegisterPreviewResponse(p *service.CashRegisterPreview) cashRegisterP
 	}
 
 	return cashRegisterPreviewResponse{
-		Date:        p.Date,
-		Period:      p.Period,
-		PeriodStart: p.PeriodStart,
-		PeriodEnd:   p.PeriodEnd,
+		Date:            p.Date,
+		Period:          p.Period,
+		PeriodStart:     p.PeriodStart,
+		PeriodEnd:       p.PeriodEnd,
 		IsAlreadyClosed: p.IsAlreadyClosed,
 		IsHoliday:       p.IsHoliday,
 		Aggregate: cashRegisterAggregateSummaryResponse{
