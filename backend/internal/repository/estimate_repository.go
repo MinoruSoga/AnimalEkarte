@@ -47,7 +47,7 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "estimate", "")
 	}
-	if err := q.Preload("Owner").Preload("Items").
+	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").Find(&estimates).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "estimate", "")
 	}
@@ -57,9 +57,9 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 func (r *estimateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
 	var estimate model.Estimate
 	err := r.db.WithContext(ctx).
-		Preload("Owner").
-		Preload("Items").
-		Preload("CreatedStaff").
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("Items", "deleted_at IS NULL").
+		Preload("CreatedStaff", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&estimate).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))

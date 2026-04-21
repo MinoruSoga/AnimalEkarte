@@ -52,7 +52,7 @@ func (r *cashRegisterCloseRepository) FindAll(ctx context.Context, clinicID uint
 
 	var cs []model.CashRegisterClose
 	offset := (page - 1) * limit
-	if err := q.Preload("ClosedByStaff").
+	if err := q.Preload("ClosedByStaff", "deleted_at IS NULL").
 		Order("close_date DESC, period ASC").
 		Offset(offset).
 		Limit(limit).
@@ -67,7 +67,7 @@ func (r *cashRegisterCloseRepository) FindByID(ctx context.Context, clinicID, id
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
-		Preload("ClosedByStaff").
+		Preload("ClosedByStaff", "deleted_at IS NULL").
 		First(&c).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "cash_register_close", fmt.Sprintf("%d", id))

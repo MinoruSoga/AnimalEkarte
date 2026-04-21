@@ -15,7 +15,7 @@ type StaffClinicAssignmentRepository interface {
 	FindByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
 	ExistsByStaffAndClinic(ctx context.Context, staffID, clinicID uint64) (bool, error)
 	Create(ctx context.Context, assignment *model.StaffClinicAssignment) error
-	DeleteByStaffID(ctx context.Context, staffID uint64) error
+	Delete(ctx context.Context, staffID uint64) error
 }
 
 // staffClinicAssignmentRepository は StaffClinicAssignmentRepository の実装
@@ -59,8 +59,8 @@ func (r *staffClinicAssignmentRepository) Create(ctx context.Context, assignment
 	return nil
 }
 
-// DeleteByStaffID はスタッフの全クリニック所属を削除する
-func (r *staffClinicAssignmentRepository) DeleteByStaffID(ctx context.Context, staffID uint64) error {
+// Delete はスタッフの全クリニック所属を削除する
+func (r *staffClinicAssignmentRepository) Delete(ctx context.Context, staffID uint64) error {
 	if err := dbOrTx(ctx, r.db).Where("staff_id = ?", staffID).Delete(&model.StaffClinicAssignment{}).Error; err != nil {
 		return apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff_id=%d", staffID))
 	}

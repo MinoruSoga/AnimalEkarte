@@ -14,7 +14,7 @@ import (
 
 // ClinicSettingsRepository は締め時間設定のデータアクセスインターフェース
 type ClinicSettingsRepository interface {
-	Get(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
+	FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error)
 	Upsert(ctx context.Context, s *model.ClinicSettings) (*model.ClinicSettings, error)
 }
 
@@ -25,7 +25,7 @@ func NewClinicSettingsRepository(db *gorm.DB) ClinicSettingsRepository {
 	return &clinicSettingsRepository{db: db}
 }
 
-func (r *clinicSettingsRepository) Get(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+func (r *clinicSettingsRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.ClinicSettings, error) {
 	var s model.ClinicSettings
 	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).First(&s).Error
 	if err != nil {

@@ -19,7 +19,7 @@ type ReservationScheduleRepository interface {
 	FindByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
 	FindBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
 	Upsert(ctx context.Context, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
-	DeleteByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) error
+	Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
 type reservationScheduleRepository struct{ db *gorm.DB }
@@ -139,7 +139,7 @@ func (r *reservationScheduleRepository) Upsert(ctx context.Context, entry *model
 	return nil
 }
 
-func (r *reservationScheduleRepository) DeleteByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
+func (r *reservationScheduleRepository) Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
 	result := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("staff_id = ? AND date = ?",

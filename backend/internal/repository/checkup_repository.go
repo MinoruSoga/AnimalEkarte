@@ -41,7 +41,9 @@ func (r *checkupRepository) ListByClinic(ctx context.Context, clinicID uint64, f
 		Scopes(clinicScope(clinicID)).
 		Preload("CheckupType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
-		Preload("MedicalRecord.Pet.Owner")
+		Preload("MedicalRecord", "deleted_at IS NULL").
+		Preload("MedicalRecord.Pet", "deleted_at IS NULL").
+		Preload("MedicalRecord.Pet.Owner", "deleted_at IS NULL")
 	if filters.StartDate != nil {
 		q = q.Where("date >= ?", *filters.StartDate)
 	}

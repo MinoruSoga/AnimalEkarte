@@ -19,7 +19,7 @@ type StaffRepository interface {
 	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
 	// Create はスタッフを作成する。
 	Create(ctx context.Context, staff *model.Staff) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -46,8 +46,8 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		return nil, 0, apperrors.FromGORM(err, "staff", "")
 	}
 	if err := buildBase().
-		Preload("Account").
-		Preload("Occupation").
+		Preload("Account", "deleted_at IS NULL").
+		Preload("Occupation", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).
 		Order("staffs.sort_order ASC, staffs.name ASC").
 		Distinct("staffs.*").
@@ -59,7 +59,7 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 
 func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	var staff model.Staff
-	err := dbOrTx(ctx, r.db).Preload("Account").Preload("Occupation").First(&staff, "id = ?", id).Error
+	err := dbOrTx(ctx, r.db).Preload("Account", "deleted_at IS NULL").Preload("Occupation", "deleted_at IS NULL").First(&staff, "id = ?", id).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", id))
 	}
@@ -85,7 +85,7 @@ func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error 
 	return nil
 }
 
-func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *staffRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	// staffs テーブルに clinic_id は存在しない。
 	// staff_clinic_assignments を経由して clinic_id でフィルタ
 	result := dbOrTx(ctx, r.db).

@@ -31,7 +31,7 @@ func (r *medicalRecordImageRepository) ListByMedicalRecordID(ctx context.Context
 	images := make([]model.MedicalRecordImage, 0)
 	if err := r.db.WithContext(ctx).
 		Where("medical_record_id = ?", medicalRecordID).
-		Preload("Staff").
+		Preload("Staff", "deleted_at IS NULL").
 		Order("sort_order ASC, created_at ASC").
 		Find(&images).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record_image", "")
@@ -62,7 +62,7 @@ func (r *medicalRecordImageRepository) Delete(ctx context.Context, id uint64) er
 func (r *medicalRecordImageRepository) FindByID(ctx context.Context, id uint64) (*model.MedicalRecordImage, error) {
 	var image model.MedicalRecordImage
 	err := r.db.WithContext(ctx).
-		Preload("Staff").
+		Preload("Staff", "deleted_at IS NULL").
 		First(&image, id).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record_image", fmt.Sprintf("%d", id))

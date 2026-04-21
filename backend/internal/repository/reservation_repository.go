@@ -103,7 +103,7 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint6
 	err := dbOrTx(ctx, r.db).
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
-		Preload("Pet.Owner").
+		Preload("Pet.Owner", "deleted_at IS NULL").
 		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
@@ -325,12 +325,12 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 	}
 	if err := q.
 		Preload("Pet", "deleted_at IS NULL").
-		Preload("Pet.Owner").
+		Preload("Pet.Owner", "deleted_at IS NULL").
 		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
-		Preload("TrimmingDetail.Course").
-		Preload("TrimmingDetail.Options").
+		Preload("TrimmingDetail.Course", "deleted_at IS NULL").
+		Preload("TrimmingDetail.Options", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).
 		Order("appointments.start_time DESC").
 		Find(&reservations).Error; err != nil {

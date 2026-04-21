@@ -34,8 +34,8 @@ func (r *carePlanItemRepository) ListByHospitalizationID(ctx context.Context, cl
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ?", clinicID, hospitalizationID).
 		Order("care_plan_items.sort_order ASC").
-		Preload("Medicine").
-		Preload("Procedure").
+		Preload("Medicine", "deleted_at IS NULL").
+		Preload("Procedure", "deleted_at IS NULL").
 		Find(&items).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "care_plan_item", "")
@@ -48,8 +48,8 @@ func (r *carePlanItemRepository) FindByID(ctx context.Context, clinicID, id uint
 	err := r.db.WithContext(ctx).
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.id = ?", clinicID, id).
-		Preload("Medicine").
-		Preload("Procedure").
+		Preload("Medicine", "deleted_at IS NULL").
+		Preload("Procedure", "deleted_at IS NULL").
 		First(&item).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "care_plan_item", fmt.Sprintf("%d", id))

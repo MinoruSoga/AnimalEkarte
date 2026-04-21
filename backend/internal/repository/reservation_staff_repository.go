@@ -13,12 +13,12 @@ import (
 
 // ReservationStaffRepository は予約スタッフ（staffs の予約用ラッパー）のデータアクセスインターフェース
 type ReservationStaffRepository interface {
-	FindAllByClinicID(ctx context.Context, clinicID uint64) ([]model.Staff, error)
-	FindByIDAndClinicID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
+	FindAll(ctx context.Context, clinicID uint64) ([]model.Staff, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	Create(ctx context.Context, staff *model.Staff, clinicID uint64) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
-	CountAppointmentsByStaffID(ctx context.Context, clinicID, staffID uint64) (int64, error)
+	CountUsageByStaffID(ctx context.Context, clinicID, staffID uint64) (int64, error)
 	SwapSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 	// ExcludedReservationTypes
 	FindExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
@@ -32,7 +32,7 @@ func NewReservationStaffRepository(db *gorm.DB) ReservationStaffRepository {
 	return &reservationStaffRepository{db: db}
 }
 
-func (r *reservationStaffRepository) FindAllByClinicID(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
+func (r *reservationStaffRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
 	var staffs []model.Staff
 	err := r.db.WithContext(ctx).
 		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
@@ -45,8 +45,8 @@ func (r *reservationStaffRepository) FindAllByClinicID(ctx context.Context, clin
 	return staffs, nil
 }
 
-// FindByIDAndClinicID はクリニック所属チェック込みでスタッフ 1 件を取得する（マルチテナント安全）。
-func (r *reservationStaffRepository) FindByIDAndClinicID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
+// FindByID はクリニック所属チェック込みでスタッフ 1 件を取得する（マルチテナント安全）。
+func (r *reservationStaffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
 	var staff model.Staff
 	err := r.db.WithContext(ctx).
 		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
@@ -108,7 +108,7 @@ func (r *reservationStaffRepository) Delete(ctx context.Context, clinicID, id ui
 	return nil
 }
 
-func (r *reservationStaffRepository) CountAppointmentsByStaffID(ctx context.Context, clinicID, staffID uint64) (int64, error) {
+func (r *reservationStaffRepository) CountUsageByStaffID(ctx context.Context, clinicID, staffID uint64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Reservation{}).
@@ -169,7 +169,7 @@ func (r *reservationStaffRepository) SwapSortOrder(ctx context.Context, clinicID
 func (r *reservationStaffRepository) FindExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
 	var items []model.StaffReservationExclusion
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType").
+		Preload("ReservationType", "deleted_at IS NULL").
 		Where("staff_id = ?", staffID).
 		Find(&items).Error
 	if err != nil {
@@ -185,7 +185,7 @@ func (r *reservationStaffRepository) FindExcludedReservationTypesByStaffIDs(ctx 
 	}
 	var items []model.StaffReservationExclusion
 	err := r.db.WithContext(ctx).
-		Preload("ReservationType").
+		Preload("ReservationType", "deleted_at IS NULL").
 		Where("staff_id IN ?", staffIDs).
 		Find(&items).Error
 	if err != nil {

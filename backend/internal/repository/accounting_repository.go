@@ -98,7 +98,7 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-	if err := q.Preload("Owner").Preload("Pet").Preload("Payments").Preload("Payments.PaidByStaff").Preload("Items").
+	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
@@ -136,13 +136,13 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	var billing model.Billing
 	err := r.db.WithContext(ctx).
-		Preload("Items").
-		Preload("Payments").
-		Preload("Payments.PaidByStaff").
+		Preload("Items", "deleted_at IS NULL").
+		Preload("Payments", "deleted_at IS NULL").
+		Preload("Payments.PaidByStaff", "deleted_at IS NULL").
 		Preload("Refunds").
-		Preload("Refunds.RefundedByStaff").
-		Preload("Owner").
-		Preload("Pet").
+		Preload("Refunds.RefundedByStaff", "deleted_at IS NULL").
+		Preload("Owner", "deleted_at IS NULL").
+		Preload("Pet", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&billing).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
@@ -183,7 +183,7 @@ func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billi
 	}
 	var billing model.Billing
 	if err := r.db.WithContext(ctx).
-		Preload("Items").Preload("Payments").Preload("Payments.PaidByStaff").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner").Preload("Pet").
+		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Refunds").Preload("Refunds.RefundedByStaff", "deleted_at IS NULL").Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		First(&billing, "id = ?", billingID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
@@ -251,7 +251,7 @@ func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-	if err := q.Preload("Owner").Preload("Pet").Preload("Items").
+	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
 		Offset((page - 1) * limit).Limit(limit).
 		Order("scheduled_date ASC, created_at ASC").
 		Find(&billings).Error; err != nil {

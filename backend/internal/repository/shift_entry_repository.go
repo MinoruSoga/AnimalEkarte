@@ -40,7 +40,7 @@ func NewShiftEntryRepository(db *gorm.DB) ShiftEntryRepository {
 
 func (r *shiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error) {
 	q := dbOrTx(ctx, r.db).
-		Preload("Staff").
+		Preload("Staff", "deleted_at IS NULL").
 		Preload("Breaks").
 		Scopes(clinicScope(clinicID)).
 		Order("date ASC, staff_id ASC")
@@ -69,7 +69,7 @@ func (r *shiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, fil
 func (r *shiftEntryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error) {
 	var entry model.ShiftEntry
 	err := dbOrTx(ctx, r.db).
-		Preload("Staff").
+		Preload("Staff", "deleted_at IS NULL").
 		Preload("Breaks").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		First(&entry).Error
