@@ -28,10 +28,10 @@ INSERT INTO occupations (id, clinic_id, name, is_active, sort_order) VALUES
     (3, 1, 'トリマー', true, 3),
     (4, 1, '受付',     true, 4),
     -- 城東センター病院 (clinic_id=2)
-    (5, 2, 'Veterinarian',   true, 1),
-    (6, 2, 'Nurse',   true, 2),
-    (7, 2, 'Trimmer', true, 3),
-    (8, 2, 'Reception',     true, 4),
+    (5, 2, '獣医師',   true, 1),
+    (6, 2, '看護師',   true, 2),
+    (7, 2, 'トリマー', true, 3),
+    (8, 2, '受付',     true, 4),
     -- 敷島医院 (clinic_id=3)
     (9, 3, '獣医師',   true, 1),
     (10, 3, '看護師',   true, 2),
