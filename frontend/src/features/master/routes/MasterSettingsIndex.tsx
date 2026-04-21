@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
-import { Building2, Calendar, ChevronRight, ClipboardList, FolderTree, Scissors, Settings, Stethoscope } from "lucide-react";
+import { Building2, Calendar, ChevronRight, ClipboardList, Clock, CreditCard, FolderTree, Scissors, Settings, Stethoscope } from "lucide-react";
 import { CATEGORY_CONFIG } from "../constants/category-config";
 import type { MasterSettingsCategory } from "../constants/category-config";
 
@@ -15,14 +15,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 import type { ResourceAction } from "@/hooks/use-permission";
 import type { Resource } from "@/types/generated/models";
-import { ResourceHospitalSettings, ResourceMasterMedical, ResourceMasterTrimming, ResourceShifts } from "@/types/generated/models";
+import { ResourceCashRegisterClose, ResourceHospitalSettings, ResourceMasterMedical, ResourceMasterTrimming, ResourcePaymentMethod, ResourceShifts } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────
 
 /** Group keys that are NOT individual MasterSettingsCategory */
-type GroupKey = "clinic" | "treatmentItems" | "diagnosisGroup" | "trimmingGroup" | "inquiry_template" | "shift_template";
+type GroupKey = "clinic" | "treatmentItems" | "diagnosisGroup" | "trimmingGroup" | "inquiry_template" | "shift_template" | "paymentMethods" | "closingTime";
 
 /** All possible card keys in the settings index */
 type MasterCardKey = MasterSettingsCategory | GroupKey;
@@ -95,6 +95,22 @@ const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     resource: ResourceShifts,
     countCategories: [],
   },
+  paymentMethods: {
+    label: "支払方法マスタ",
+    description: "現金・クレジットカードなど支払方法の種別を管理します",
+    IconComponent: CreditCard,
+    path: "/settings/payment-methods",
+    resource: ResourcePaymentMethod,
+    countCategories: [],
+  },
+  closingTime: {
+    label: "締め時間設定",
+    description: "レジ締めのAM/PM境界・終了時刻・特別期間・休診日を設定します",
+    IconComponent: Clock,
+    path: "/settings/closing-time",
+    resource: ResourceCashRegisterClose,
+    countCategories: [],
+  },
 };
 
 // ─────────────────────────────────────────────────
@@ -109,7 +125,7 @@ const MASTER_SECTIONS: SectionDef[] = [
   { title: "予約管理マスタ", keys: ["reservationType"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
   { title: "トリミング関連", keys: ["trimmingGroup"] },
-  { title: "会計・商品", keys: ["merchandise_item", "insurance"] },
+  { title: "会計・商品", keys: ["merchandise_item", "insurance", "paymentMethods", "closingTime"] },
   { title: "スタッフ・権限", keys: ["staff", "occupations", "permission_group"] },
   { title: "シフト管理", keys: ["shift_template"] },
 ];
