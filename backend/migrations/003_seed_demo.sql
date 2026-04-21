@@ -221,17 +221,18 @@ ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- 7b. permission_groups（権限グループ: 各医院2グループ × 3医院 = 6グループ）
+-- 注記: CreateClinic で自動作成される「執行」「一般」グループと統一
 -- -----------------------------------------------------------------------------
 INSERT INTO permission_groups (id, clinic_id, name, description, color, is_active, sort_order) VALUES
     -- Hachioji Clinic (clinic_id=1)
-    (1, 1, 'Executive', 'Full resource access', '#6366F1', true, 1),
-    (2, 1, 'General', 'Basic operations (medical/reservation/grooming creation/editing)', '#10B981', true, 2),
+    (1, 1, '執行', '執行権限', '#6366F1', true, 1),
+    (2, 1, '一般', '一般スタッフ権限', '#10B981', true, 2),
     -- Joto Hospital (clinic_id=2)
-    (3, 2, 'Executive', 'Full resource access', '#6366F1', true, 1),
-    (4, 2, 'General', 'Basic operations (medical/reservation/grooming creation/editing)', '#10B981', true, 2),
+    (3, 2, '執行', '執行権限', '#6366F1', true, 1),
+    (4, 2, '一般', '一般スタッフ権限', '#10B981', true, 2),
     -- Shikishima Hospital (clinic_id=3)
-    (5, 3, 'Executive', 'Full resource access', '#6366F1', true, 1),
-    (6, 3, 'General', 'Basic operations (medical/reservation/grooming creation/editing)', '#10B981', true, 2)
+    (5, 3, '執行', '執行権限', '#6366F1', true, 1),
+    (6, 3, '一般', '一般スタッフ権限', '#10B981', true, 2)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('permission_groups', 'id'), (SELECT MAX(id) FROM permission_groups));
