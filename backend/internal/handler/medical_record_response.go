@@ -61,3 +61,7 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 	}
 	return resp
 }
+
+func toMedicalRecordResponse(r *model.MedicalRecord) medicalRecordResponse {
+	return toMedicalRecordResponseWithVisitCount(r, 0)
+}

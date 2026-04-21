@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -61,5 +62,6 @@ func (h *Handler) CreateRefund(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/api/v1/billing/%d/refunds/%d", billingID, refund.ID))
 	c.JSON(http.StatusCreated, toRefundResponse(refund))
 }
