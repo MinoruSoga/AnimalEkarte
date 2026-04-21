@@ -318,127 +318,88 @@ export function ReservationTypeSettings() {
   // ── Additional state: categoryDefaultGroupId (creation context) ───
   const [categoryDefaultGroupId, setCategoryDefaultGroupId] = useState<string | undefined>(undefined);
 
-  // ── ハンドラ ─────────────────────────────────────────────────
+  // ── FR2: useMasterSave hooks ───────────────────────────────────
+  const groupSave = useMasterSave<ReservationTypeGroup, GroupFormData, CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest>({
+    crud: groupCrud,
+    createMutation: createGroupMutation,
+    updateMutation: updateGroupMutation,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data) => ({
+      name: data.name,
+      color: data.color || undefined,
+      is_active: data.isActive,
+    }),
+    toUpdateRequest: (data) => ({
+      name: data.name,
+      color: data.color || undefined,
+      is_active: data.isActive,
+    }),
+  });
+
+  const categorySave = useMasterSave<ReservationType, CategoryFormData, CreateReservationTypeRequest, UpdateReservationTypeRequest>({
+    crud: categoryCrud,
+    createMutation: createCategoryMutation,
+    updateMutation: updateCategoryMutation,
+    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    toCreateRequest: (data) => ({
+      name: data.name,
+      description: data.description || undefined,
+      is_active: true,
+      group_id: data.groupId ? Number(data.groupId) : undefined,
+      reservation_display_name: data.reservationDisplayName || undefined,
+      duration_minutes: data.durationMinutes,
+      short_name: data.shortName || undefined,
+      reservation_visible: data.reservationVisible,
+      reservation_comment: data.reservationComment || undefined,
+      reservation_image_url: data.reservationImageUrl || undefined,
+      show_short_name: data.showShortName,
+      reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
+      is_internal: data.isInternal,
+    }),
+    toUpdateRequest: (data) => ({
+      name: data.name,
+      description: data.description || undefined,
+      is_active: data.isActive,
+      group_id: data.groupId ? Number(data.groupId) : undefined,
+      reservation_display_name: data.reservationDisplayName || undefined,
+      duration_minutes: data.durationMinutes,
+      short_name: data.shortName || undefined,
+      reservation_visible: data.reservationVisible,
+      reservation_comment: data.reservationComment || undefined,
+      reservation_image_url: data.reservationImageUrl || undefined,
+      show_short_name: data.showShortName,
+      reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
+      is_internal: data.isInternal,
+    }),
+  });
+
+  // ── Handler wrappers ───────────────────────────────────────────
   const handleGroupEdit = useCallback((group: ReservationTypeGroup) => {
-    if (!dirty.confirmDiscard()) return;
-    setGroupEditTarget(group);
-    setCategoryEditTarget(null);
-  }, [dirty]);
+    groupCrud.handleEdit(group);
+  }, [groupCrud]);
 
   const handleGroupAdd = useCallback(() => {
-    if (!dirty.confirmDiscard()) return;
-    setGroupEditTarget("new");
-    setCategoryEditTarget(null);
-  }, [dirty]);
+    groupCrud.handleNew();
+  }, [groupCrud]);
 
   const handleGroupDeleteRequest = useCallback((item: ReservationTypeGroup) => {
-    setGroupPendingDelete(item);
-  }, []);
+    groupCrud.handleDeleteRequest(item);
+  }, [groupCrud]);
 
   const handleCategoryEdit = useCallback((cat: ReservationType) => {
-    if (!dirty.confirmDiscard()) return;
-    setCategoryEditTarget(cat);
-    setGroupEditTarget(null);
+    categoryCrud.handleEdit(cat);
     setCategoryDefaultGroupId(undefined);
-  }, [dirty]);
+  }, [categoryCrud]);
 
   const handleCategoryAddInGroup = useCallback((groupId: string | undefined) => {
-    if (!dirty.confirmDiscard()) return;
-    setCategoryEditTarget("new");
+    categoryCrud.handleNew();
     setCategoryDefaultGroupId(groupId);
-    setGroupEditTarget(null);
-  }, [dirty]);
+  }, [categoryCrud]);
 
   const handleCategoryDeleteRequest = useCallback((item: ReservationType) => {
-    setCategoryPendingDelete(item);
-  }, []);
+    categoryCrud.handleDeleteRequest(item);
+  }, [categoryCrud]);
 
-  // ── グループ保存 ─────────────────────────────────────────────
-  const handleGroupSave = useCallback((data: GroupFormData) => {
-    startTransition(() => {
-      if (groupEditTarget !== null && groupEditTarget !== "new") {
-        const req: UpdateReservationTypeGroupRequest = {
-          name: data.name, color: data.color || undefined, is_active: data.isActive,
-        };
-        updateGroupMutation.mutate({ id: groupEditTarget.id, req }, {
-          onSuccess: () => { toast.success("更新しました"); setGroupEditTarget(null); },
-          onError: (error) => handleApiError(error, "更新"),
-        });
-      } else {
-        const req: CreateReservationTypeGroupRequest = {
-          name: data.name, color: data.color || undefined, is_active: data.isActive,
-        };
-        createGroupMutation.mutate(req, {
-          onSuccess: () => { toast.success("登録しました"); setGroupEditTarget(null); },
-          onError: (error) => handleApiError(error, "登録"),
-        });
-      }
-    });
-  }, [groupEditTarget, updateGroupMutation, createGroupMutation]);
-
-  const handleGroupDeleteConfirm = useCallback(() => {
-    if (!groupPendingDelete) return;
-    startTransition(() => {
-      deleteGroupMutation.mutate(groupPendingDelete.id, {
-        onSuccess: () => { toast.success("削除しました"); setGroupPendingDelete(null); },
-        onError: (error) => handleApiError(error, "削除"),
-      });
-    });
-  }, [groupPendingDelete, deleteGroupMutation]);
-
-  // ── 予約区分保存 ─────────────────────────────────────────────
-  const handleCategorySave = useCallback((data: CategoryFormData) => {
-    startTransition(() => {
-      if (categoryEditTarget !== null && categoryEditTarget !== "new") {
-        const req: UpdateReservationTypeRequest = {
-          name: data.name, description: data.description || undefined,
-          is_active: data.isActive, group_id: data.groupId ? Number(data.groupId) : undefined,
-          reservation_display_name: data.reservationDisplayName || undefined,
-          duration_minutes: data.durationMinutes, short_name: data.shortName || undefined,
-          reservation_visible: data.reservationVisible,
-          reservation_comment: data.reservationComment || undefined,
-          reservation_image_url: data.reservationImageUrl || undefined,
-          show_short_name: data.showShortName,
-          reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
-          is_internal: data.isInternal,
-        };
-        updateCategoryMutation.mutate({ id: categoryEditTarget.id, req }, {
-          onSuccess: () => { toast.success("更新しました"); setCategoryEditTarget(null); },
-          onError: (error) => handleApiError(error, "更新"),
-        });
-      } else {
-        const req: CreateReservationTypeRequest = {
-          name: data.name, description: data.description || undefined,
-          is_active: true, group_id: data.groupId ? Number(data.groupId) : undefined,
-          reservation_display_name: data.reservationDisplayName || undefined,
-          duration_minutes: data.durationMinutes, short_name: data.shortName || undefined,
-          reservation_visible: data.reservationVisible,
-          reservation_comment: data.reservationComment || undefined,
-          reservation_image_url: data.reservationImageUrl || undefined,
-          show_short_name: data.showShortName,
-          reservation_day_option: data.reservationDayOption as "none" | "weekday" | "saturday" | "anyday",
-          is_internal: data.isInternal,
-        };
-        createCategoryMutation.mutate(req, {
-          onSuccess: () => { toast.success("登録しました"); setCategoryEditTarget(null); },
-          onError: (error) => handleApiError(error, "登録"),
-        });
-      }
-    });
-  }, [categoryEditTarget, updateCategoryMutation, createCategoryMutation]);
-
-  const handleCategoryDeleteConfirm = useCallback(() => {
-    if (!categoryPendingDelete) return;
-    startTransition(() => {
-      deleteCategoryMutation.mutate(categoryPendingDelete.id, {
-        onSuccess: () => { toast.success("削除しました"); setCategoryPendingDelete(null); },
-        onError: (error) => handleApiError(error, "削除"),
-      });
-    });
-  }, [categoryPendingDelete, deleteCategoryMutation]);
-
-  const groupPanelItem = groupEditTarget === "new" ? null : (groupEditTarget ?? null);
-  const categoryPanelItem = categoryEditTarget === "new" ? null : (categoryEditTarget ?? null);
 
   return (
     <>
@@ -462,16 +423,16 @@ export function ReservationTypeSettings() {
             <div className="flex flex-col gap-4">
               <NotionFilter
                 properties={[MASTER_STATUS_FILTER]}
-                activeFilters={activeFilters}
-                onFilterChange={setActiveFilters}
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
+                activeFilters={categoryCrud.activeFilters}
+                onFilterChange={categoryCrud.setActiveFilters}
+                searchTerm={categoryCrud.searchTerm}
+                onSearchChange={categoryCrud.setSearchTerm}
                 searchPlaceholder="予約区分名で検索..."
-                count={filteredCategories.length}
+                count={categoryCrud.filteredItems.length}
               />
               <GroupedTable
                 groups={groupsRaw}
-                categories={filteredCategories}
+                categories={categoryCrud.filteredItems}
                 onCategoryEdit={handleCategoryEdit}
                 onGroupEdit={handleGroupEdit}
                 onCategoryAddInGroup={handleCategoryAddInGroup}
@@ -489,29 +450,23 @@ export function ReservationTypeSettings() {
           </PageLayout>
         </div>
 
-        {groupEditTarget !== null ? (
+        {groupCrud.editTarget !== null ? (
           <GroupSidePanel
-            key={groupPanelItem ? String(groupPanelItem.id) : "new-group"}
-            item={groupPanelItem}
-            onClose={() => {
-              if (!dirty.confirmDiscard()) return;
-              setGroupEditTarget(null);
-            }}
-            onSave={handleGroupSave}
+            key={groupCrud.panelItem ? String(groupCrud.panelItem.id) : "new-group"}
+            item={groupCrud.panelItem}
+            onClose={groupCrud.handleClose}
+            onSave={groupSave.handleSave}
             onDeleteRequest={canDelete ? handleGroupDeleteRequest : undefined}
             readOnly={!canEdit}
             onDirtyChange={handleDirtyChange}
           />
         ) : null}
-        {categoryEditTarget !== null ? (
+        {categoryCrud.editTarget !== null ? (
           <CategorySidePanel
-            key={categoryPanelItem ? String(categoryPanelItem.id) : "new-category"}
-            item={categoryPanelItem}
-            onClose={() => {
-              if (!dirty.confirmDiscard()) return;
-              setCategoryEditTarget(null);
-            }}
-            onSave={handleCategorySave}
+            key={categoryCrud.panelItem ? String(categoryCrud.panelItem.id) : "new-category"}
+            item={categoryCrud.panelItem}
+            onClose={categoryCrud.handleClose}
+            onSave={categorySave.handleSave}
             onDeleteRequest={canDelete ? handleCategoryDeleteRequest : undefined}
             readOnly={!canEdit}
             groups={activeGroups}
@@ -522,20 +477,20 @@ export function ReservationTypeSettings() {
       </div>
 
       <ConfirmDialog
-        open={groupPendingDelete !== null}
-        onClose={() => setGroupPendingDelete(null)}
+        open={groupCrud.pendingDelete !== null}
+        onClose={groupCrud.handleDeleteCancel}
         title="グループを削除しますか？"
-        description={`「${groupPendingDelete?.name}」を削除します。この操作は取り消せません。`}
+        description={`「${groupCrud.pendingDelete?.name}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除" variant="destructive"
-        onConfirm={handleGroupDeleteConfirm}
+        onConfirm={groupCrud.handleDeleteConfirm}
       />
       <ConfirmDialog
-        open={categoryPendingDelete !== null}
-        onClose={() => setCategoryPendingDelete(null)}
+        open={categoryCrud.pendingDelete !== null}
+        onClose={categoryCrud.handleDeleteCancel}
         title="予約区分を削除しますか？"
-        description={`「${categoryPendingDelete?.name}」を削除します。この操作は取り消せません。`}
+        description={`「${categoryCrud.pendingDelete?.name}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除" variant="destructive"
-        onConfirm={handleCategoryDeleteConfirm}
+        onConfirm={categoryCrud.handleDeleteConfirm}
       />
     </>
   );
