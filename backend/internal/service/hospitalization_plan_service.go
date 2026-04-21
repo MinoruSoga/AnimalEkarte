@@ -25,6 +25,65 @@ type CreateHospitalizationPlanInput struct {
 	BillingUnit string
 }
 
+// UpdateHospitalizationPlanInput は入院プラン更新のサービス入力 DTO
+type UpdateHospitalizationPlanInput struct {
+	Name        *string
+	Price       *int64
+	IsActive    *bool
+	Description *string
+	BodySize    *string
+	BillingUnit *string
+	SortOrder   *int
+	TaxType     *string
+	TaxRate     *float64
+}
+
+// --- DB column constants ---
+
+const (
+	colHospitalizationPlanName        = "name"
+	colHospitalizationPlanPrice       = "price"
+	colHospitalizationPlanIsActive    = "is_active"
+	colHospitalizationPlanDescription = "description"
+	colHospitalizationPlanBodySize    = "body_size"
+	colHospitalizationPlanBillingUnit = "billing_unit"
+	colHospitalizationPlanSortOrder   = "sort_order"
+	colHospitalizationPlanTaxType     = "tax_type"
+	colHospitalizationPlanTaxRate     = "tax_rate"
+)
+
+func buildHospitalizationPlanUpdateFields(input UpdateHospitalizationPlanInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Name != nil {
+		fields[colHospitalizationPlanName] = *input.Name
+	}
+	if input.Price != nil {
+		fields[colHospitalizationPlanPrice] = *input.Price
+	}
+	if input.IsActive != nil {
+		fields[colHospitalizationPlanIsActive] = *input.IsActive
+	}
+	if input.Description != nil {
+		fields[colHospitalizationPlanDescription] = *input.Description
+	}
+	if input.BodySize != nil {
+		fields[colHospitalizationPlanBodySize] = model.BodySize(*input.BodySize)
+	}
+	if input.BillingUnit != nil {
+		fields[colHospitalizationPlanBillingUnit] = model.BillingUnit(*input.BillingUnit)
+	}
+	if input.SortOrder != nil {
+		fields[colHospitalizationPlanSortOrder] = *input.SortOrder
+	}
+	if input.TaxType != nil {
+		fields[colHospitalizationPlanTaxType] = model.TaxType(*input.TaxType)
+	}
+	if input.TaxRate != nil {
+		fields[colHospitalizationPlanTaxRate] = *input.TaxRate
+	}
+	return fields
+}
+
 type HospitalizationPlanService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
@@ -149,4 +208,3 @@ func (s *hospitalizationPlanService) Reorder(ctx context.Context, clinicID uint6
 		slog.Int("count", len(ids)))
 	return nil
 }
-
