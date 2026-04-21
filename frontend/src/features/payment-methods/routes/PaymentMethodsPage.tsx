@@ -1,10 +1,16 @@
 import { useActionState, useState, useCallback, memo } from "react";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Plus, Trash2, Pencil, CreditCard } from "lucide-react";
 import { toast } from "sonner";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
+import { paths } from "@/config/paths";
 import type { PaymentMethodMaster } from "@/types/generated/models";
+import { ResourcePaymentMethod } from "@/types/generated/models";
 import { useGetPaymentMethods } from "../api/get-payment-methods";
 import { useCreatePaymentMethod } from "../api/create-payment-method";
 import { useUpdatePaymentMethod } from "../api/update-payment-method";
@@ -176,6 +182,7 @@ function EditForm({ method, onClose }: EditFormProps) {
 }
 
 export function PaymentMethodsPage() {
+  const navigate = useNavigate();
   const { data: methods, isLoading, isError } = useGetPaymentMethods();
   const deleteMutation = useDeletePaymentMethod();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -206,59 +213,47 @@ export function PaymentMethodsPage() {
   const handleCloseCreate = useCallback(() => setShowCreateForm(false), []);
   const handleCloseEdit = useCallback(() => setEditTarget(null), []);
 
-  if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className={`text-base ${C.text50}`}>読み込み中...</p>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className={`text-base ${C.danger}`}>データの取得に失敗しました</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-6">
-      <div className="max-w-2xl">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className={`text-xl font-bold ${C.text}`}>支払方法マスタ</h1>
-          <button
-            type="button"
-            onClick={handleShowCreate}
-            className={`flex items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} hover:text-white rounded-[4px] px-3 py-1.5 transition-colors`}
-          >
-            <Plus className="size-4" />
-            追加
-          </button>
-        </div>
+    <PageLayout
+      title="支払方法マスタ"
+      icon={<CreditCard className={`${ICON.page} ${C.text}`} />}
+      resource={ResourcePaymentMethod}
+      onBack={() => navigate(paths.settings.getHref())}
+      maxWidth="max-w-2xl"
+      headerAction={
+        <PrimaryButton onClick={handleShowCreate}>
+          <Plus className={`mr-1.5 ${ICON.action}`} />
+          追加
+        </PrimaryButton>
+      }
+    >
+      {isLoading ? <LoadingFallback /> : null}
+      {isError ? <ErrorFallback /> : null}
+      {!isLoading && !isError ? (
+        <div className="flex flex-col gap-4">
+          {showCreateForm ? <CreateForm onClose={handleCloseCreate} /> : null}
+          {editTarget !== null ? (
+            <EditForm key={editTarget.id} method={editTarget} onClose={handleCloseEdit} />
+          ) : null}
 
-        {showCreateForm ? <CreateForm onClose={handleCloseCreate} /> : null}
-        {editTarget !== null ? (
-          <EditForm key={editTarget.id} method={editTarget} onClose={handleCloseEdit} />
-        ) : null}
-
-        <div className={`bg-white rounded-lg border ${C.borderLight}`}>
-          {methods && methods.length > 0 ? (
-            methods.map((method) => (
-              <PaymentMethodRow
-                key={method.id}
-                method={method}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            ))
-          ) : (
-            <p className={`text-base ${C.text50} py-8 text-center`}>
-              支払方法は登録されていません
-            </p>
-          )}
+          <div className={`bg-white rounded-lg border ${C.borderLight}`}>
+            {methods && methods.length > 0 ? (
+              methods.map((method) => (
+                <PaymentMethodRow
+                  key={method.id}
+                  method={method}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))
+            ) : (
+              <p className={`text-base ${C.text50} py-8 text-center`}>
+                支払方法は登録されていません
+              </p>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      ) : null}
+    </PageLayout>
   );
 }
