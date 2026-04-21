@@ -414,14 +414,6 @@ export const router = createBrowserRouter([
               },
             }],
           },
-          {
-            // BUG-370: 月末未納者一覧
-            path: "unpaid",
-            lazy: async () => {
-              const { UnpaidCustomerList } = await import("@/features/accounting");
-              return { Component: UnpaidCustomerList };
-            },
-          },
           // FEAT-368: レジ締め
           {
             path: "close",

@@ -305,7 +305,6 @@ export const Sidebar = memo(function Sidebar() {
           {!collapsed ? <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>運用・管理</p> : null}
           {[
             { icon: <CreditCard    className={ICON.toolbar} />, label: "会計管理",     path: paths.accounting.getHref(),      resource: ResourceAccounting },
-            { icon: <CreditCard    className={ICON.toolbar} />, label: "未納者一覧",   path: paths.accounting.unpaid.getHref(), resource: ResourceAccounting },
             { icon: <CreditCard    className={ICON.toolbar} />, label: "レジ締め",     path: paths.accounting.close.getHref(), resource: ResourceCashRegisterClose },
             { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref(), resource: ResourceHospitalization },
             { icon: <Package       className={ICON.toolbar} />, label: "在庫管理",     path: paths.inventory.getHref(),       resource: ResourceInventory },
