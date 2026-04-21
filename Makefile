@@ -47,10 +47,25 @@ clean:
 	docker compose down --rmi local --volumes --remove-orphans
 	docker compose build --no-cache
 
-# 完全リセット（データ含む）
+# 完全リセット（スキーマ・シーダー含む）
+# 環境ファイルから DB_USER を読み込み（デフォルト: postgres）
 reset:
+	@echo "🔄 Resetting database..."
 	docker compose down -v
 	docker compose up -d --build
+	@echo "⏳ Waiting for database to be ready..."
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if docker compose exec db pg_isready > /dev/null 2>&1; then \
+			echo "✓ Database is ready"; \
+			break; \
+		fi; \
+		if [ $$i -eq 10 ]; then echo "✗ Database startup timeout"; exit 1; fi; \
+		echo "Retrying... ($$i/10)"; \
+		sleep 2; \
+	done
+	@echo "⏳ Running migrations and seeding..."
+	docker compose exec -T backend sh -c "DB_RESET=true go run ./cmd/migrate"
+	@echo "✓ Reset complete — all migrations and seed data applied"
 
 # バックエンドのみ再起動
 restart-api:
@@ -177,7 +192,7 @@ help:
 	@echo "  ps            コンテナ状態確認"
 	@echo "  db            DB接続（psql）"
 	@echo "  clean         キャッシュクリア＆再ビルド"
-	@echo "  reset         完全リセット（データ削除）"
+	@echo "  reset         完全リセット（マイグレーション＋シーダー適用）"
 	@echo "  restart-api   API再起動"
 	@echo "  restart-front フロントエンド再起動"
 	@echo "  build-prod    本番ビルド"
