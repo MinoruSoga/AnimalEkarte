@@ -12,7 +12,7 @@ import (
 
 // CarePlanItemRepository はケアプランアイテムのデータアクセスインターフェース
 type CarePlanItemRepository interface {
-	ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error)
+	FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.CarePlanItem, error)
 	Create(ctx context.Context, item *model.CarePlanItem) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -28,7 +28,7 @@ func NewCarePlanItemRepository(db *gorm.DB) CarePlanItemRepository {
 	return &carePlanItemRepository{db: db}
 }
 
-func (r *carePlanItemRepository) ListByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
+func (r *carePlanItemRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
 	items := make([]model.CarePlanItem, 0)
 	err := r.db.WithContext(ctx).
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").

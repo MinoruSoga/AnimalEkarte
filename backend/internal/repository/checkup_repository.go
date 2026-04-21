@@ -19,7 +19,7 @@ type CheckupFilters struct {
 }
 
 type CheckupRepository interface {
-	ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
 	ListByClinic(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error)
 	Create(ctx context.Context, checkup *model.Checkup) error
@@ -63,7 +63,7 @@ func (r *checkupRepository) ListByClinic(ctx context.Context, clinicID uint64, f
 	return checkups, nil
 }
 
-func (r *checkupRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
+func (r *checkupRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
 	checkups := make([]model.Checkup, 0)
 	err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = checkups.medical_record_id"+

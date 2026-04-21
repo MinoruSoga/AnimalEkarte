@@ -18,7 +18,7 @@ type TreatmentSortUpdate struct {
 
 // TreatmentRepository は治療項目の永続化インターフェース
 type TreatmentRepository interface {
-	ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	Create(ctx context.Context, treatment *model.Treatment) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -35,7 +35,7 @@ func NewTreatmentRepository(db *gorm.DB) TreatmentRepository {
 	return &treatmentRepository{db: db}
 }
 
-func (r *treatmentRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
+func (r *treatmentRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
 	treatments := make([]model.Treatment, 0)
 	if err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").

@@ -12,7 +12,7 @@ import (
 
 // MedicalRecordImageRepository は診療画像のデータアクセス層
 type MedicalRecordImageRepository interface {
-	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
+	FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
 	Create(ctx context.Context, image *model.MedicalRecordImage) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*model.MedicalRecordImage, error)
@@ -27,7 +27,7 @@ func NewMedicalRecordImageRepository(db *gorm.DB) MedicalRecordImageRepository {
 	return &medicalRecordImageRepository{db: db}
 }
 
-func (r *medicalRecordImageRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+func (r *medicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
 	images := make([]model.MedicalRecordImage, 0)
 	if err := r.db.WithContext(ctx).
 		Where("medical_record_id = ?", medicalRecordID).

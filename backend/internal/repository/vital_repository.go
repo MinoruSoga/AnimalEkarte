@@ -12,7 +12,7 @@ import (
 
 // VitalRepository はバイタル記録のデータアクセスインターフェース
 type VitalRepository interface {
-	ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
+	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.VitalRecord, error)
 	Create(ctx context.Context, vital *model.VitalRecord) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -28,7 +28,7 @@ func NewVitalRepository(db *gorm.DB) VitalRepository {
 	return &vitalRepository{db: db}
 }
 
-func (r *vitalRepository) ListByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
+func (r *vitalRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	vitals := make([]model.VitalRecord, 0)
 	if err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = vital_records.medical_record_id AND medical_records.deleted_at IS NULL").
