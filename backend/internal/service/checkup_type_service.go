@@ -48,7 +48,7 @@ const (
 	colCheckupTypeSortOrder   = "sort_order"
 )
 
-func buildCheckupTypeUpdateFields(input *UpdateCheckupTypeInput) map[string]any {
+func buildCheckupTypeUpdate(input *UpdateCheckupTypeInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colCheckupTypeName] = *input.Name
@@ -147,11 +147,11 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildCheckupTypeUpdateFields(input)
+	fields := buildCheckupTypeUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	checkupType, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	checkupType, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update checkup type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update checkup type")

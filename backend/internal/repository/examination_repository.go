@@ -14,7 +14,7 @@ type ExaminationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	Create(ctx context.Context, exam *model.Examination) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountItemsByExamID(ctx context.Context, clinicID, examID uint64) (int64, error)
 }
@@ -83,7 +83,7 @@ func (r *examinationRepository) Create(ctx context.Context, exam *model.Examinat
 	return nil
 }
 
-func (r *examinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
+func (r *examinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Examination{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

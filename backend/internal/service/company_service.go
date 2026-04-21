@@ -40,7 +40,7 @@ type UpdateCompanyInput struct {
 	LogoURL                   *string
 }
 
-func buildCompanyUpdateFields(input *UpdateCompanyInput) map[string]any {
+func buildCompanyUpdate(input *UpdateCompanyInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
 		fields[colCompanyName] = *input.Name
@@ -104,7 +104,7 @@ func (s *companyService) Get(ctx context.Context) (*model.Company, error) {
 
 // Update は法人情報を部分更新する
 func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) (*model.Company, error) {
-	fields := buildCompanyUpdateFields(input)
+	fields := buildCompanyUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}

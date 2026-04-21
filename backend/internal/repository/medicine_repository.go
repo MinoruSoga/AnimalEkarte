@@ -19,7 +19,7 @@ type MedicineRepository interface {
 	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	CountUsageByMedicineID(ctx context.Context, clinicID, medicineID uint64) (int64, error)
 	Create(ctx context.Context, medicine *model.Medicine) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -84,7 +84,7 @@ func (r *medicineRepository) CountChildrenByParentID(ctx context.Context, clinic
 	if err := r.db.WithContext(ctx).
 		Model(&model.Medicine{}).
 		Scopes(clinicScope(clinicID)).
-		Where("parent_id = ?", parentID).
+		Where("parent_id = ? AND deleted_at IS NULL", parentID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "medicine", "")
 	}
@@ -102,7 +102,7 @@ func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicin
 	return nil
 }
 
-func (r *medicineRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error) {
+func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Medicine{}).
 		Scopes(clinicScope(clinicID)).

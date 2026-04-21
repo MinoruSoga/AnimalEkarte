@@ -63,9 +63,9 @@ const (
 	colMedicineTaxRate         = "tax_rate"
 )
 
-// buildMedicineUpdateFields は UpdateMedicineInput から map[string]any を構築する。
+// buildMedicineUpdate は UpdateMedicineInput から map[string]any を構築する。
 // GORM のゼロ値スキップ問題（bool false が無視される等）を回避するために使用する。
-func buildMedicineUpdateFields(input *UpdateMedicineInput) map[string]any {
+func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colMedicineName] = *input.Name
@@ -235,7 +235,7 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildMedicineUpdateFields(input)
+	fields := buildMedicineUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
@@ -247,7 +247,7 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		newName := *input.Name
 		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 			var txErr error
-			result, txErr = s.repo.UpdateFields(txCtx, clinicID, id, fields)
+			result, txErr = s.repo.Update(txCtx, clinicID, id, fields)
 			if txErr != nil {
 				slog.ErrorContext(txCtx, "failed to update medicine", "error", txErr)
 				return apperrors.Wrap(txErr, "failed to update medicine")
@@ -261,7 +261,7 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 			return nil, err
 		}
 	} else {
-		result, err = s.repo.UpdateFields(ctx, clinicID, id, fields)
+		result, err = s.repo.Update(ctx, clinicID, id, fields)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update medicine", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update medicine")

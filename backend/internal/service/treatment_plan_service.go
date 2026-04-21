@@ -110,7 +110,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 }
 
 func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
-	fields := buildTreatmentPlanUpdateFields(input)
+	fields := buildTreatmentPlanUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -134,7 +134,7 @@ func (s *treatmentPlanService) Delete(ctx context.Context, clinicID, id uint64) 
 	return nil
 }
 
-func buildTreatmentPlanUpdateFields(input *UpdateTreatmentPlanInput) map[string]any {
+func buildTreatmentPlanUpdate(input *UpdateTreatmentPlanInput) map[string]any {
 	fields := map[string]any{}
 	if input.TreatmentContent != nil {
 		fields["treatment_content"] = *input.TreatmentContent

@@ -44,7 +44,7 @@ const (
 	colCageSortOrder   = "sort_order"
 )
 
-func buildCageUpdateFields(input *UpdateCageInput) map[string]any {
+func buildCageUpdate(input *UpdateCageInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colCageName] = *input.Name
@@ -155,11 +155,11 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 			return nil, err
 		}
 	}
-	fields := buildCageUpdateFields(input)
+	fields := buildCageUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	cage, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	cage, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update cage", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update cage")

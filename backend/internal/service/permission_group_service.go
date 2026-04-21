@@ -48,7 +48,7 @@ const (
 	colPermissionGroupIsActive    = "is_active"
 )
 
-func buildPermissionGroupUpdateFields(input *UpdatePermissionGroupInput) map[string]any {
+func buildPermissionGroupUpdate(input *UpdatePermissionGroupInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
 		fields[colPermissionGroupName] = *input.Name
@@ -152,11 +152,11 @@ func (s *permissionGroupService) Update(ctx context.Context, clinicID, id uint64
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildPermissionGroupUpdateFields(input)
+	fields := buildPermissionGroupUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update permission group", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update permission group")

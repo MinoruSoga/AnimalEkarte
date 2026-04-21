@@ -40,7 +40,7 @@ func (m *mockDiagnosisTypeRepository) Create(ctx context.Context, category *mode
 	return m.createFn(ctx, category)
 }
 
-func (m *mockDiagnosisTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error) {
+func (m *mockDiagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}
@@ -94,7 +94,7 @@ func (m *mockDiagnosisNameRepository) Create(ctx context.Context, name *model.Di
 	return m.createFn(ctx, name)
 }
 
-func (m *mockDiagnosisNameRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error) {
+func (m *mockDiagnosisNameRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}
@@ -934,7 +934,7 @@ func TestDiagnosisNameService_Reorder(t *testing.T) {
 	}
 }
 
-func TestBuildDiagnosisTypeUpdateFields(t *testing.T) {
+func TestBuildDiagnosisTypeUpdate(t *testing.T) {
 	name := "テスト"
 	isActive := false
 	desc := "説明"
@@ -946,7 +946,7 @@ func TestBuildDiagnosisTypeUpdateFields(t *testing.T) {
 			IsActive:  &isActive,
 			SortOrder: &sortOrder,
 		}
-		fields := buildDiagnosisTypeUpdateFields(input)
+		fields := buildDiagnosisTypeUpdate(input)
 		assert.Equal(t, name, fields[colDiagnosisName])
 		assert.Equal(t, isActive, fields[colDiagnosisIsActive])
 		assert.Equal(t, sortOrder, fields[colDiagnosisSortOrder])
@@ -955,18 +955,18 @@ func TestBuildDiagnosisTypeUpdateFields(t *testing.T) {
 
 	t.Run("returns empty map when all fields are nil", func(t *testing.T) {
 		input := &UpdateDiagnosisTypeInput{}
-		fields := buildDiagnosisTypeUpdateFields(input)
+		fields := buildDiagnosisTypeUpdate(input)
 		assert.Empty(t, fields)
 	})
 
 	t.Run("includes description when provided", func(t *testing.T) {
 		input := &UpdateDiagnosisTypeInput{Description: &desc}
-		fields := buildDiagnosisTypeUpdateFields(input)
+		fields := buildDiagnosisTypeUpdate(input)
 		assert.Equal(t, desc, fields[colDiagnosisDescription])
 	})
 }
 
-func TestBuildDiagnosisNameUpdateFields(t *testing.T) {
+func TestBuildDiagnosisNameUpdate(t *testing.T) {
 	name := "病名テスト"
 	isActive := false
 	catID := uint64(5)
@@ -979,7 +979,7 @@ func TestBuildDiagnosisNameUpdateFields(t *testing.T) {
 			DiagnosisTypeID: &catID,
 			SortOrder:       &sortOrder,
 		}
-		fields := buildDiagnosisNameUpdateFields(input)
+		fields := buildDiagnosisNameUpdate(input)
 		assert.Equal(t, name, fields[colDiagnosisName])
 		assert.Equal(t, isActive, fields[colDiagnosisIsActive])
 		assert.Equal(t, catID, fields[colDiagnosisNameDiagnosisTypeID])
@@ -989,7 +989,7 @@ func TestBuildDiagnosisNameUpdateFields(t *testing.T) {
 
 	t.Run("returns empty map when all fields are nil", func(t *testing.T) {
 		input := &UpdateDiagnosisNameInput{}
-		fields := buildDiagnosisNameUpdateFields(input)
+		fields := buildDiagnosisNameUpdate(input)
 		assert.Empty(t, fields)
 	})
 }

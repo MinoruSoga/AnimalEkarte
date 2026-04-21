@@ -28,7 +28,7 @@ const (
 	colPaymentMethodIsActive     = "is_active"
 )
 
-func buildPaymentMethodUpdateFields(input *UpdatePaymentMethodInput) map[string]any {
+func buildPaymentMethodUpdate(input *UpdatePaymentMethodInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colPaymentMethodName] = *input.Name
@@ -110,11 +110,11 @@ func (s *paymentMethodMasterService) Update(ctx context.Context, clinicID, id ui
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildPaymentMethodUpdateFields(input)
+	fields := buildPaymentMethodUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update payment method", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update payment method")

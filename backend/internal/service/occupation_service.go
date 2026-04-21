@@ -36,7 +36,7 @@ const (
 	colOccupationSortOrder   = "sort_order"
 )
 
-func buildOccupationUpdateFields(input *UpdateOccupationInput) map[string]any {
+func buildOccupationUpdate(input *UpdateOccupationInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colOccupationName] = *input.Name
@@ -120,11 +120,11 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildOccupationUpdateFields(input)
+	fields := buildOccupationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update occupation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update occupation")

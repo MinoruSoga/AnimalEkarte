@@ -38,7 +38,7 @@ const (
 	colChiefComplaintTypeIsActive    = "is_active"
 )
 
-func buildChiefComplaintTypeUpdateFields(input *UpdateChiefComplaintTypeInput) map[string]any {
+func buildChiefComplaintTypeUpdate(input *UpdateChiefComplaintTypeInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colChiefComplaintTypeName] = *input.Name
@@ -122,11 +122,11 @@ func (s *chiefComplaintTypeService) Update(ctx context.Context, clinicID, id uin
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildChiefComplaintTypeUpdateFields(input)
+	fields := buildChiefComplaintTypeUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update chief complaint type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update chief complaint type")

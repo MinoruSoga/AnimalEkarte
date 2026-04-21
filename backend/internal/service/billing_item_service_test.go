@@ -31,7 +31,7 @@ func (m *mockBillingItemRepository) FindByBillingID(ctx context.Context, clinicI
 func (m *mockBillingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {
 	return m.createFn(ctx, item)
 }
-func (m *mockBillingItemRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (m *mockBillingItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 func (m *mockBillingItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -249,7 +249,7 @@ func TestBillingItemService_UpdateItem(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:      "propagates UpdateFields error",
+			name:      "propagates Update error",
 			input:     &UpdateBillingItemInput{UnitPrice: &newPrice},
 			updateErr: errors.New("update failed"),
 			wantErr:   true,

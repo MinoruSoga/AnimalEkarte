@@ -29,7 +29,7 @@ func (m *mockAccountingRepositoryForReport) FindByID(_ context.Context, _, _ uin
 func (m *mockAccountingRepositoryForReport) Create(_ context.Context, _ uint64, _ *model.Billing) error {
 	return nil
 }
-func (m *mockAccountingRepositoryForReport) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+func (m *mockAccountingRepositoryForReport) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
 	return nil, nil
 }
 func (m *mockAccountingRepositoryForReport) UpsertPayment(_ context.Context, _ *model.Payment) error {

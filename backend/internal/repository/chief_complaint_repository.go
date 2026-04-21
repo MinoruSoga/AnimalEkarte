@@ -18,7 +18,7 @@ type ChiefComplaintTypeRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
 	CountUsageByChiefComplaintTypeID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Create(ctx context.Context, category *model.ChiefComplaintType) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -61,7 +61,7 @@ func (r *chiefComplaintTypeRepository) Create(ctx context.Context, category *mod
 	return nil
 }
 
-func (r *chiefComplaintTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error) {
+func (r *chiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ChiefComplaintType{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

@@ -36,7 +36,7 @@ func (m *mockPermissionGroupRepository) FindByID(ctx context.Context, clinicID, 
 func (m *mockPermissionGroupRepository) Create(ctx context.Context, group *model.PermissionGroup) error {
 	return m.createFn(ctx, group)
 }
-func (m *mockPermissionGroupRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
+func (m *mockPermissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 func (m *mockPermissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -51,16 +51,16 @@ func (m *mockPermissionGroupRepository) CountUsageByGroupID(ctx context.Context,
 func (m *mockPermissionGroupRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
 	return m.reorderErr
 }
-func (m *mockPermissionGroupRepository) GetEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
+func (m *mockPermissionGroupRepository) FindEffectivePermissionsByStaffID(ctx context.Context, staffID uint64) ([]model.PermissionGroupRule, error) {
 	return m.getEffectivePermissionsByStaffID(ctx, staffID)
 }
-func (m *mockPermissionGroupRepository) GetGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
+func (m *mockPermissionGroupRepository) FindGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
 	if m.getGroupIDsByStaffIDFn != nil {
 		return m.getGroupIDsByStaffIDFn(ctx, staffID)
 	}
 	return nil, nil
 }
-func (m *mockPermissionGroupRepository) SetStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
+func (m *mockPermissionGroupRepository) ReplaceStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
 	if m.setStaffGroupsFn != nil {
 		return m.setStaffGroupsFn(ctx, staffID, groupIDs)
 	}

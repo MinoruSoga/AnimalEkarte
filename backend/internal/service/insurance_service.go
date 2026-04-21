@@ -41,7 +41,7 @@ const (
 	colInsuranceSortOrder    = "sort_order"
 )
 
-func buildInsuranceUpdateFields(input *UpdateInsuranceInput) map[string]any {
+func buildInsuranceUpdate(input *UpdateInsuranceInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colInsuranceName] = *input.Name
@@ -139,11 +139,11 @@ func (s *insuranceService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if err := validateOptionalCoverageRate(input.CoverageRate); err != nil {
 		return nil, err
 	}
-	fields := buildInsuranceUpdateFields(input)
+	fields := buildInsuranceUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	insurance, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	insurance, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update insurance", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update insurance")

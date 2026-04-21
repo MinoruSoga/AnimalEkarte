@@ -52,7 +52,7 @@ func (h *Handler) CreateReservationTypeLiff(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/api/clinics/%d/reservation-types/%d", clinicID, st.ID))
+	c.Header("Location", fmt.Sprintf("/v1/clinics/%d/reservation-types/%d", clinicID, st.ID))
 	c.JSON(http.StatusCreated, toReservationTypeLiffResponse(st))
 }
 

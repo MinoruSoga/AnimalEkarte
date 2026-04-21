@@ -173,7 +173,7 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 			return err
 		}
 
-		updated, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+		updated, err := s.repo.Update(ctx, clinicID, id, fields)
 		if err != nil {
 			return err
 		}
@@ -189,7 +189,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	fields := buildReservationUpdateFields(input)
+	fields := buildReservationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -199,7 +199,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 
 	if !needsConflictCheck {
 		// 時刻・医師変更なし: トランザクション不要。リポジトリ経由で直接更新
-		updated, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+		updated, err := s.repo.Update(ctx, clinicID, id, fields)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to update reservation")
 		}
@@ -234,7 +234,7 @@ type UpdateReservationInput struct {
 	Notes             *string
 }
 
-func buildReservationUpdateFields(input *UpdateReservationInput) map[string]any {
+func buildReservationUpdate(input *UpdateReservationInput) map[string]any {
 	fields := make(map[string]any)
 	if input.StartTime != nil {
 		fields["start_time"] = *input.StartTime

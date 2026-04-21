@@ -14,7 +14,7 @@ type InventoryRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	DecreaseStock(ctx context.Context, id uint64, quantity float64) error
 	CountUsageByInventoryID(ctx context.Context, clinicID, inventoryID uint64) (int64, error)
@@ -75,7 +75,7 @@ func (r *inventoryRepository) Create(ctx context.Context, clinicID uint64, item 
 	return nil
 }
 
-func (r *inventoryRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
+func (r *inventoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.InventoryItem{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

@@ -41,7 +41,7 @@ const (
 	colTrimmingCourseSortOrder   = "sort_order"
 )
 
-func buildTrimmingCourseUpdateFields(input *UpdateTrimmingCourseInput) map[string]any {
+func buildTrimmingCourseUpdate(input *UpdateTrimmingCourseInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colTrimmingCourseName] = *input.Name
@@ -142,11 +142,11 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildTrimmingCourseUpdateFields(input)
+	fields := buildTrimmingCourseUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	course, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	course, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update trimming course", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update trimming course")

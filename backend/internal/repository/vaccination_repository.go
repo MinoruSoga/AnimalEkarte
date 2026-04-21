@@ -14,7 +14,7 @@ type VaccinationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	Create(ctx context.Context, vaccination *model.Vaccination) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -82,7 +82,7 @@ func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.V
 	return nil
 }
 
-func (r *vaccinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
+func (r *vaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

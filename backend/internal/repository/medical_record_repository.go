@@ -14,7 +14,7 @@ type MedicalRecordRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
 	CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error)
@@ -84,7 +84,7 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 	return nil
 }
 
-func (r *medicalRecordRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
+func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

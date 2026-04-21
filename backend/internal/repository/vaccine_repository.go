@@ -17,7 +17,7 @@ type VaccineRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
 	Create(ctx context.Context, vaccine *model.Vaccine) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByVaccineID(ctx context.Context, clinicID, vaccineID uint64) (int64, error)
@@ -59,7 +59,7 @@ func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) 
 	return nil
 }
 
-func (r *vaccineRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
+func (r *vaccineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccine{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -108,7 +108,7 @@ func (r *vaccineRepository) CountChildrenByParentID(ctx context.Context, clinicI
 	if err := r.db.WithContext(ctx).
 		Model(&model.Vaccine{}).
 		Scopes(clinicScope(clinicID)).
-		Where("parent_id = ?", parentID).
+		Where("parent_id = ? AND deleted_at IS NULL", parentID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", parentID))
 	}

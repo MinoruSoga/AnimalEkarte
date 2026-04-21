@@ -33,7 +33,7 @@ func (m *mockCheckupTypeRepository) Create(ctx context.Context, checkupType *mod
 	return m.createFn(ctx, checkupType)
 }
 
-func (m *mockCheckupTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
+func (m *mockCheckupTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 

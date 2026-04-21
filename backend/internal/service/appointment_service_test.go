@@ -36,7 +36,7 @@ func (m *mockReservationRepository) Create(ctx context.Context, reservation *mod
 	return m.createFn(ctx, reservation)
 }
 
-func (m *mockReservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+func (m *mockReservationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 

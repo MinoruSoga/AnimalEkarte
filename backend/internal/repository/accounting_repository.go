@@ -16,7 +16,7 @@ type AccountingRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
-	UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	UpsertPayment(ctx context.Context, payment *model.Payment) error
 	// BUG-370: 月末未納者一覧
 	FindUnpaidByBilling(ctx context.Context, clinicID uint64, baseDate string, page, limit int) ([]model.Billing, int64, error)
@@ -167,9 +167,9 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 	return nil
 }
 
-// UpdateFields は指定フィールドのみを更新し、更新後のレコードを返す。
+// Update は指定フィールドのみを更新し、更新後のレコードを返す。
 // map[string]any を使うことで GORM のゼロ値スキップ問題を回避する。
-func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
+func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
 		Scopes(clinicScope(clinicID)).

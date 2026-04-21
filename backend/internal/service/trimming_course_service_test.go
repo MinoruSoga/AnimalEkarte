@@ -35,7 +35,7 @@ func (m *mockTrimmingCourseRepository) Create(ctx context.Context, course *model
 	return m.createFn(ctx, course)
 }
 
-func (m *mockTrimmingCourseRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error) {
+func (m *mockTrimmingCourseRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 

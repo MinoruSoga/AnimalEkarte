@@ -45,7 +45,7 @@ func (m *mockShiftTemplateRepository) Create(ctx context.Context, tpl *model.Shi
 	return nil
 }
 
-func (m *mockShiftTemplateRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
+func (m *mockShiftTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, fields)
 	}

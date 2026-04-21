@@ -72,4 +72,4 @@ func TestRefundHandlerCompiles(t *testing.T) {
 // PRELOAD PATHS:
 //    - ListRefunds:  RefundRepository.FindByBillingID → Preload("RefundedByStaff")
 //    - Detail view:  AccountingRepository.FindByID    → Preload("Refunds.RefundedByStaff")
-//    - After update: AccountingRepository.UpdateFields → Preload("Refunds.RefundedByStaff")
+//    - After update: AccountingRepository.Update → Preload("Refunds.RefundedByStaff")

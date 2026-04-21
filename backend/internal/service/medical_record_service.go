@@ -155,14 +155,14 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 		}
 	}
 
-	fields := buildMedicalRecordUpdateFields(input)
+	fields := buildMedicalRecordUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	// バージョンをインクリメント
 	fields["version"] = existing.Version + 1
 
-	record, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	record, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update medical record")
 	}
@@ -200,7 +200,7 @@ type UpdateMedicalRecordInput struct {
 	Version       *int // 楽観的ロック用: nil の場合はチェックをスキップ
 }
 
-func buildMedicalRecordUpdateFields(input UpdateMedicalRecordInput) map[string]any {
+func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Date != nil {
 		fields["date"] = *input.Date

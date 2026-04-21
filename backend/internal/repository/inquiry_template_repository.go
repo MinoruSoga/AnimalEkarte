@@ -18,7 +18,7 @@ type InquiryTemplateRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
 	CountUsageByInquiryTemplateID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Create(ctx context.Context, template *model.InquiryTemplate) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -61,7 +61,7 @@ func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.
 	return nil
 }
 
-func (r *inquiryTemplateRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error) {
+func (r *inquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.InquiryTemplate{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

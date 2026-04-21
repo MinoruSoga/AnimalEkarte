@@ -36,7 +36,7 @@ func (m *mockProcedureRepository) Create(ctx context.Context, procedure *model.P
 	return m.createFn(ctx, procedure)
 }
 
-func (m *mockProcedureRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
+func (m *mockProcedureRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}

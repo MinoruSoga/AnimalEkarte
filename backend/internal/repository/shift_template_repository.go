@@ -16,7 +16,7 @@ type ShiftTemplateRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
 	Create(ctx context.Context, tpl *model.ShiftTemplate) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ReplaceBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -65,7 +65,7 @@ func (r *shiftTemplateRepository) Create(ctx context.Context, tpl *model.ShiftTe
 	return nil
 }
 
-func (r *shiftTemplateRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
+func (r *shiftTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ShiftTemplate{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -125,7 +125,7 @@ func (r *shiftTemplateRepository) CountUsageByShiftTemplateID(ctx context.Contex
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.ShiftTemplateBreak{}).
-		Joins("JOIN shift_templates ON shift_templates.id = shift_template_breaks.shift_template_id").
+		Joins("JOIN shift_templates ON shift_templates.id = shift_template_breaks.shift_template_id AND shift_templates.deleted_at IS NULL").
 		Where("shift_templates.clinic_id = ? AND shift_template_breaks.shift_template_id = ?", clinicID, id).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "shift_template_break", "")

@@ -34,7 +34,7 @@ func (m *mockExaminationRepository) Create(ctx context.Context, exam *model.Exam
 	return m.createFn(ctx, exam)
 }
 
-func (m *mockExaminationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
+func (m *mockExaminationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 

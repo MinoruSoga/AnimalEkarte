@@ -47,7 +47,7 @@ func (m *mockMerchandiseItemRepository) Create(ctx context.Context, item *model.
 	return m.createFn(ctx, item)
 }
 
-func (m *mockMerchandiseItemRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
+func (m *mockMerchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}

@@ -18,7 +18,7 @@ type ClosingSpecialPeriodRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error)
 	FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error)
 	Create(ctx context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error)
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	HasOverlap(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error)
 }
@@ -77,7 +77,7 @@ func (r *closingSpecialPeriodRepository) Create(ctx context.Context, p *model.Cl
 	return p, nil
 }
 
-func (r *closingSpecialPeriodRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
+func (r *closingSpecialPeriodRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ClosingSpecialPeriod{}).
 		Scopes(clinicScope(clinicID)).

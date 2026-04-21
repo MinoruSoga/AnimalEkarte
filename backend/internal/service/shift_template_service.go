@@ -49,7 +49,7 @@ type UpdateShiftTemplateInput struct {
 	Breaks    *[]ShiftBreakTemplateInput
 }
 
-func buildShiftTemplateUpdateFields(input *UpdateShiftTemplateInput) map[string]any {
+func buildShiftTemplateUpdate(input *UpdateShiftTemplateInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
 		fields[colShiftTemplateName] = *input.Name
@@ -168,7 +168,7 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 		slog.ErrorContext(ctx, "failed to get shift template", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get shift template")
 	}
-	fields := buildShiftTemplateUpdateFields(input)
+	fields := buildShiftTemplateUpdate(input)
 	if len(fields) == 0 && input.Breaks == nil {
 		existing, err := s.repo.FindByID(ctx, clinicID, id)
 		if err != nil {
@@ -180,7 +180,7 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 	var result *model.ShiftTemplate
 	if len(fields) > 0 {
 		var err error
-		result, err = s.repo.UpdateFields(ctx, clinicID, id, fields)
+		result, err = s.repo.Update(ctx, clinicID, id, fields)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update shift template", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update shift template")

@@ -46,7 +46,7 @@ type UpdateBillingItemInput struct {
 	IsInsuranceApplicable *bool
 }
 
-func buildBillingItemUpdateFields(input *UpdateBillingItemInput) map[string]any {
+func buildBillingItemUpdate(input *UpdateBillingItemInput) map[string]any {
 	fields := make(map[string]any)
 	if input.UnitPrice != nil {
 		fields[colBillingItemUnitPrice] = *input.UnitPrice
@@ -171,12 +171,12 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
 
-	fields := buildBillingItemUpdateFields(input)
+	fields := buildBillingItemUpdate(input)
 	if len(fields) == 0 {
 		return item, nil
 	}
 
-	if err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update billing item")
 	}
 

@@ -56,10 +56,10 @@ const (
 	colClinicReducedTaxRate     = "reduced_tax_rate"
 )
 
-// buildClinicUpdateFields は PATCH 用 map を構築する。
+// buildClinicUpdate は PATCH 用 map を構築する。
 // GORM のゼロ値スキップ問題を回避するために使用する。
 // 税率が [0, 1] の範囲外の場合は error を返す。
-func buildClinicUpdateFields(input *UpdateClinicInput) (map[string]any, error) {
+func buildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colClinicName] = *input.Name
@@ -216,7 +216,7 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
 		return nil, apperrors.Wrap(err, "failed to find clinic for update")
 	}
-	fields, err := buildClinicUpdateFields(input)
+	fields, err := buildClinicUpdate(input)
 	if err != nil {
 		return nil, err
 	}

@@ -34,7 +34,7 @@ func (m *mockReservationTypeLiffRepository) Create(ctx context.Context, st *mode
 	return m.createFn(ctx, st)
 }
 
-func (m *mockReservationTypeLiffRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
+func (m *mockReservationTypeLiffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}

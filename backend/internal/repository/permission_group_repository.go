@@ -17,7 +17,7 @@ type PermissionGroupRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
 	Create(ctx context.Context, group *model.PermissionGroup) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
 	CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
@@ -72,7 +72,7 @@ func (r *permissionGroupRepository) Create(ctx context.Context, group *model.Per
 	return nil
 }
 
-func (r *permissionGroupRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
+func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.PermissionGroup{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

@@ -33,7 +33,7 @@ func (m *mockInventoryRepository) Create(ctx context.Context, clinicID uint64, i
 	return m.createFn(ctx, clinicID, item)
 }
 
-func (m *mockInventoryRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
+func (m *mockInventoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 

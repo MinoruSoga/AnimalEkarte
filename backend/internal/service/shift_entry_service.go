@@ -181,7 +181,7 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 }
 
 func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, input *UpdateShiftEntryInput) (*model.ShiftEntry, error) {
-	fields := buildShiftEntryUpdateFields(input)
+	fields := buildShiftEntryUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -242,7 +242,7 @@ func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) err
 	return nil
 }
 
-func buildShiftEntryUpdateFields(input *UpdateShiftEntryInput) map[string]any {
+func buildShiftEntryUpdate(input *UpdateShiftEntryInput) map[string]any {
 	fields := map[string]any{}
 	if input.ShiftType != nil {
 		fields["shift_type"] = *input.ShiftType

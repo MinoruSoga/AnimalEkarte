@@ -41,7 +41,7 @@ const (
 	colTrimmingOptionSortOrder    = "sort_order"
 )
 
-func buildTrimmingOptionUpdateFields(input *UpdateTrimmingOptionInput) map[string]any {
+func buildTrimmingOptionUpdate(input *UpdateTrimmingOptionInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colTrimmingOptionName] = *input.Name
@@ -139,11 +139,11 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildTrimmingOptionUpdateFields(input)
+	fields := buildTrimmingOptionUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	option, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	option, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update trimming option", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update trimming option")

@@ -15,7 +15,7 @@ type TrimmingCourseRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
 	Create(ctx context.Context, course *model.TrimmingCourse) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error)
@@ -55,7 +55,7 @@ func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.Tri
 	return nil
 }
 
-func (r *trimmingCourseRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error) {
+func (r *trimmingCourseRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.TrimmingCourse{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

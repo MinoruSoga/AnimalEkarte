@@ -35,7 +35,7 @@ const (
 	colReservationTypeGroupIsActive  = "is_active"
 )
 
-func buildReservationTypeGroupUpdateFields(input *UpdateReservationTypeGroupInput) map[string]any {
+func buildReservationTypeGroupUpdate(input *UpdateReservationTypeGroupInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
 		fields[colReservationTypeGroupName] = *input.Name
@@ -124,11 +124,11 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildReservationTypeGroupUpdateFields(input)
+	fields := buildReservationTypeGroupUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	g, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	g, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update reservation_type_group", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update reservation_type_group")

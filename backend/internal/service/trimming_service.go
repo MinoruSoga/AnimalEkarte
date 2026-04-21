@@ -198,7 +198,7 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	// Create と対称なアトミック性を保証する。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if len(apptFields) > 0 {
-			if _, err := s.reservation.UpdateFields(txCtx, clinicID, id, apptFields); err != nil {
+			if _, err := s.reservation.Update(txCtx, clinicID, id, apptFields); err != nil {
 				return apperrors.Wrap(err, "failed to update trimming appointment")
 			}
 		}

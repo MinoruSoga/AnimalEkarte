@@ -145,7 +145,7 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 	if input.DiscountAmount != nil && *input.DiscountAmount < 0 {
 		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
 	}
-	fields := buildEstimateUpdateFields(input)
+	fields := buildEstimateUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -179,7 +179,7 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error
 	return nil
 }
 
-func buildEstimateUpdateFields(input *UpdateEstimateInput) map[string]any {
+func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
 	fields := map[string]any{}
 	if input.Title != nil {
 		fields["title"] = *input.Title

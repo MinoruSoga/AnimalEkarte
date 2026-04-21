@@ -86,11 +86,11 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
 	}
 
-	fields := buildExaminationUpdateFields(input)
+	fields := buildExaminationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	exam, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	exam, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update examination")
 	}
@@ -131,7 +131,7 @@ type UpdateExaminationInput struct {
 	Status          *model.ExaminationStatus
 }
 
-func buildExaminationUpdateFields(input UpdateExaminationInput) map[string]any {
+func buildExaminationUpdate(input UpdateExaminationInput) map[string]any {
 	fields := make(map[string]any)
 	if input.MedicalRecordID != nil {
 		fields["medical_record_id"] = *input.MedicalRecordID

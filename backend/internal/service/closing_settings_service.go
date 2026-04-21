@@ -19,7 +19,7 @@ const (
 	colSpecialPeriodNote         = "note"
 )
 
-func buildSpecialPeriodUpdateFields(input UpdateSpecialPeriodInput, parsedStart, parsedEnd *time.Time) map[string]any {
+func buildSpecialPeriodUpdate(input UpdateSpecialPeriodInput, parsedStart, parsedEnd *time.Time) map[string]any {
 	fields := make(map[string]any)
 	if parsedStart != nil {
 		fields[colSpecialPeriodStartDate] = *parsedStart
@@ -250,11 +250,11 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 		return nil, apperrors.WrapConflict("期間が他の特別期間と重複しています")
 	}
 
-	fields := buildSpecialPeriodUpdateFields(input, parsedStart, parsedEnd)
+	fields := buildSpecialPeriodUpdate(input, parsedStart, parsedEnd)
 	if len(fields) == 0 {
 		return current, nil
 	}
-	result, err := s.periodRepo.UpdateFields(ctx, clinicID, id, fields)
+	result, err := s.periodRepo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update closing special period",
 			slog.Uint64("clinic_id", clinicID),

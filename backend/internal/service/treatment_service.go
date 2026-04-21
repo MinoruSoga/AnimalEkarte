@@ -217,7 +217,7 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 		return nil, apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
 	}
 
-	fields := buildTreatmentUpdateFields(input)
+	fields := buildTreatmentUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
@@ -287,9 +287,9 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// buildTreatmentUpdateFields は非nilポインタフィールドだけをGORM向けmapに変換する。
+// buildTreatmentUpdate は非nilポインタフィールドだけをGORM向けmapに変換する。
 // GORMのzero-value問題（false/0/"" がスキップされる）を回避するために使用する。
-func buildTreatmentUpdateFields(input *UpdateTreatmentInput) map[string]any {
+func buildTreatmentUpdate(input *UpdateTreatmentInput) map[string]any {
 	fields := map[string]any{}
 	if input.ItemType != nil {
 		fields["item_type"] = *input.ItemType

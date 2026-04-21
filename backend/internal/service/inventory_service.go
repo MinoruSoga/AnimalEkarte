@@ -38,7 +38,7 @@ type UpdateInventoryInput struct {
 	Status        *model.InventoryStatus
 }
 
-func buildInventoryUpdateFields(input *UpdateInventoryInput) map[string]any {
+func buildInventoryUpdate(input *UpdateInventoryInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields["name"] = *input.Name
@@ -134,11 +134,11 @@ func (s *inventoryService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	fields := buildInventoryUpdateFields(input)
+	fields := buildInventoryUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	item, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	item, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update inventory item")
 	}

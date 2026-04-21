@@ -103,11 +103,11 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	fields := buildHospitalizationUpdateFields(input)
+	fields := buildHospitalizationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	hosp, err := s.repos.Hospitalization.UpdateFields(ctx, clinicID, id, fields)
+	hosp, err := s.repos.Hospitalization.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update hospitalization")
 	}
@@ -132,7 +132,7 @@ type UpdateHospitalizationInput struct {
 	StaffNotes          *string
 }
 
-func buildHospitalizationUpdateFields(input *UpdateHospitalizationInput) map[string]any {
+func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]any {
 	fields := make(map[string]any)
 	if input.OwnerID != nil {
 		fields["owner_id"] = *input.OwnerID
@@ -233,7 +233,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			"status":   dischargedStatus,
 			"end_date": input.DischargeDate,
 		}
-		if _, err := txRepos.Hospitalization.UpdateFields(ctx, clinicID, id, dischargeFields); err != nil {
+		if _, err := txRepos.Hospitalization.Update(ctx, clinicID, id, dischargeFields); err != nil {
 			return apperrors.Wrap(err, "failed to discharge hospitalization")
 		}
 

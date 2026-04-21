@@ -83,7 +83,7 @@ const (
 	colStaffReservationImageURL    = "reservation_image_url"
 )
 
-func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
+func buildStaffUpdate(input *UpdateStaffInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
 		fields[colStaffName] = *input.Name
@@ -438,8 +438,8 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 
 	var staff *model.Staff
 	if hasProfileUpdate {
-		fields := buildStaffUpdateFields(input)
-		if err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
+		fields := buildStaffUpdate(input)
+		if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 			slog.ErrorContext(ctx, "failed to update staff", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update staff")
 		}

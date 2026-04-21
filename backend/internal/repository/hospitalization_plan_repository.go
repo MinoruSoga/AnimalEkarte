@@ -17,7 +17,7 @@ type HospitalizationPlanRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountCarePlanItemsByPlanID(ctx context.Context, clinicID, planID uint64) (int64, error)
@@ -58,7 +58,7 @@ func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.
 	return nil
 }
 
-func (r *hospitalizationPlanRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
+func (r *hospitalizationPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.HospitalizationPlan{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

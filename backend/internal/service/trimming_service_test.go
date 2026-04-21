@@ -45,7 +45,7 @@ func (m *mockTrimmingReservationRepository) Create(ctx context.Context, appt *mo
 	return nil
 }
 
-func (m *mockTrimmingReservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+func (m *mockTrimmingReservationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}
@@ -422,7 +422,7 @@ func TestTrimmingService_Update(t *testing.T) {
 			clinicID: 1,
 			id:       10,
 			input: UpdateTrimmingInput{
-				// Status を含めることで apptFields が非空になり UpdateFields が呼ばれる
+				// Status を含めることで apptFields が非空になり Update が呼ばれる
 				Status: func() *model.ReservationStatus { s := model.ReservationStatusConfirmed; return &s }(),
 			},
 			updateFieldsErr: errors.New("db error"),

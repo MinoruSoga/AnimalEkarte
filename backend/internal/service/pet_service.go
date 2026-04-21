@@ -266,7 +266,7 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		}
 	}
 
-	fields := buildPetUpdateFields(input)
+	fields := buildPetUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -286,8 +286,8 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 	return pet, nil
 }
 
-// buildPetUpdateFields はポインタが非 nil のフィールドのみ map に追加する
-func buildPetUpdateFields(input *UpdatePetInput) map[string]any {
+// buildPetUpdate はポインタが非 nil のフィールドのみ map に追加する
+func buildPetUpdate(input *UpdatePetInput) map[string]any {
 	fields := make(map[string]any)
 	if input.OwnerID != nil {
 		fields[colPetOwnerID] = *input.OwnerID

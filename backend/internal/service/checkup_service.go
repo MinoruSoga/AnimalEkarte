@@ -107,7 +107,7 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 }
 
 func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error) {
-	fields := buildCheckupUpdateFields(input)
+	fields := buildCheckupUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -151,7 +151,7 @@ func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, 
 	return nil
 }
 
-func buildCheckupUpdateFields(input *UpdateCheckupInput) map[string]any {
+func buildCheckupUpdate(input *UpdateCheckupInput) map[string]any {
 	fields := map[string]any{}
 	if input.CheckupTypeID != nil {
 		fields["checkup_type_id"] = *input.CheckupTypeID

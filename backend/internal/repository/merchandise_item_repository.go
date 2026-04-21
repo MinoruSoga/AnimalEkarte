@@ -19,7 +19,7 @@ type MerchandiseItemRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 	CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error)
 	Create(ctx context.Context, item *model.MerchandiseItem) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -63,7 +63,7 @@ func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.Merc
 	return nil
 }
 
-func (r *merchandiseItemRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
+func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.MerchandiseItem{}).
 		Scopes(clinicScope(clinicID)).

@@ -15,7 +15,7 @@ type ReservationTypeGroupRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error)
 	CountReservationTypesByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	Create(ctx context.Context, g *model.ReservationTypeGroup) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -65,7 +65,7 @@ func (r *reservationTypeGroupRepository) Create(ctx context.Context, g *model.Re
 	return nil
 }
 
-func (r *reservationTypeGroupRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error) {
+func (r *reservationTypeGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ReservationTypeGroup{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

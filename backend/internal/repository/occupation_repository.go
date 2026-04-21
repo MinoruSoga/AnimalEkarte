@@ -17,7 +17,7 @@ type OccupationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
 	Create(ctx context.Context, occupation *model.Occupation) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByOccupationID(ctx context.Context, clinicID, occupationID uint64) (int64, error)
@@ -61,7 +61,7 @@ func (r *occupationRepository) Create(ctx context.Context, occupation *model.Occ
 	return nil
 }
 
-func (r *occupationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error) {
+func (r *occupationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Occupation{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

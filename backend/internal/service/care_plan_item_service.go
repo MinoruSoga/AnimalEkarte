@@ -136,7 +136,7 @@ func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizat
 		}
 	}
 
-	fields := buildCarePlanItemUpdateFields(input)
+	fields := buildCarePlanItemUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -197,7 +197,7 @@ func validateCarePlanStatus(s model.CarePlanStatus) error {
 	}
 }
 
-func buildCarePlanItemUpdateFields(input *UpdateCarePlanItemInput) map[string]any {
+func buildCarePlanItemUpdate(input *UpdateCarePlanItemInput) map[string]any {
 	fields := map[string]any{}
 	if input.Type != nil {
 		fields["type"] = *input.Type

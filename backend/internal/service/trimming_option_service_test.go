@@ -35,7 +35,7 @@ func (m *mockTrimmingOptionRepository) Create(ctx context.Context, option *model
 	return m.createFn(ctx, option)
 }
 
-func (m *mockTrimmingOptionRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error) {
+func (m *mockTrimmingOptionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 

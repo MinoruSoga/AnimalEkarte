@@ -45,7 +45,7 @@ func (m *mockReservationTypeRepository) Create(ctx context.Context, st *model.Re
 	return nil
 }
 
-func (m *mockReservationTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
+func (m *mockReservationTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, fields)
 	}
@@ -157,7 +157,7 @@ func (m *mockBaseOccupationRepo) FindByID(ctx context.Context, clinicID, id uint
 	return &model.Occupation{ID: id, ClinicID: clinicID}, nil
 }
 func (m *mockBaseOccupationRepo) Create(_ context.Context, _ *model.Occupation) error { return nil }
-func (m *mockBaseOccupationRepo) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Occupation, error) {
+func (m *mockBaseOccupationRepo) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Occupation, error) {
 	return &model.Occupation{}, nil
 }
 func (m *mockBaseOccupationRepo) Delete(_ context.Context, _, _ uint64) error           { return nil }

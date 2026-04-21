@@ -18,7 +18,7 @@ type CageRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
 	CountUsageByCageID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Create(ctx context.Context, cage *model.Cage) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -58,7 +58,7 @@ func (r *cageRepository) Create(ctx context.Context, cage *model.Cage) error {
 	return nil
 }
 
-func (r *cageRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
+func (r *cageRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Cage{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

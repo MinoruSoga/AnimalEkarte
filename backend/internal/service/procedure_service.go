@@ -54,7 +54,7 @@ const (
 	colProcedureTaxRate     = "tax_rate"
 )
 
-func buildProcedureUpdateFields(input *UpdateProcedureInput) map[string]any {
+func buildProcedureUpdate(input *UpdateProcedureInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colProcedureName] = *input.Name
@@ -111,6 +111,7 @@ func NewProcedureService(repo repository.ProcedureRepository) ProcedureService {
 func (s *procedureService) List(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list procedures", "clinic_id", clinicID, "error", err)
 		return nil, apperrors.Wrap(err, "failed to list procedures")
 	}
 	return items, nil
@@ -193,11 +194,11 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 			return nil, err
 		}
 	}
-	fields := buildProcedureUpdateFields(input)
+	fields := buildProcedureUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	procedure, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	procedure, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update procedure", slog.Any("error", err))
 		return nil, apperrors.Wrap(err, "failed to update procedure")

@@ -39,7 +39,7 @@ func (m *mockAnimalSpeciesRepository) Create(ctx context.Context, species *model
 	return nil
 }
 
-func (m *mockAnimalSpeciesRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error) {
+func (m *mockAnimalSpeciesRepository) Update(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, id, fields)
 	}

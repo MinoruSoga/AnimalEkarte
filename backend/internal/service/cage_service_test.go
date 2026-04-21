@@ -34,7 +34,7 @@ func (m *mockCageRepository) Create(ctx context.Context, cage *model.Cage) error
 	return m.createFn(ctx, cage)
 }
 
-func (m *mockCageRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
+func (m *mockCageRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 

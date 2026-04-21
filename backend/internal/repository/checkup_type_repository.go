@@ -17,7 +17,7 @@ type CheckupTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error)
 	Create(ctx context.Context, checkupType *model.CheckupType) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByCheckupTypeID(ctx context.Context, clinicID, checkupTypeID uint64) (int64, error)
@@ -59,7 +59,7 @@ func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.C
 	return nil
 }
 
-func (r *checkupTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
+func (r *checkupTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.CheckupType{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -108,7 +108,7 @@ func (r *checkupTypeRepository) CountChildrenByParentID(ctx context.Context, cli
 	if err := r.db.WithContext(ctx).
 		Model(&model.CheckupType{}).
 		Scopes(clinicScope(clinicID)).
-		Where("parent_id = ?", parentID).
+		Where("parent_id = ? AND deleted_at IS NULL", parentID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "checkup_type", "")
 	}

@@ -19,7 +19,7 @@ type StaffRepository interface {
 	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
 	// Create はスタッフを作成する。
 	Create(ctx context.Context, staff *model.Staff) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -85,7 +85,7 @@ func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error 
 	return nil
 }
 
-func (r *staffRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	// staffs テーブルに clinic_id は存在しない。
 	// staff_clinic_assignments を経由して clinic_id でフィルタ
 	result := dbOrTx(ctx, r.db).

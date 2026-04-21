@@ -484,7 +484,7 @@ func (s *liffService) tryAttachReservationOwnerPet(
 		fields["pet_id"] = *petID
 	}
 
-	updated, err := s.reservationRepo.UpdateFields(ctx, clinicID, appt.ID, fields)
+	updated, err := s.reservationRepo.Update(ctx, clinicID, appt.ID, fields)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to attach owner/pet to line reservation (best-effort)", "error", err)
 		return

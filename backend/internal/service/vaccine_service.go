@@ -48,7 +48,7 @@ const (
 	colVaccineSortOrder   = "sort_order"
 )
 
-func buildVaccineUpdateFields(input *UpdateVaccineInput) map[string]any {
+func buildVaccineUpdate(input *UpdateVaccineInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colVaccineName] = *input.Name
@@ -97,6 +97,7 @@ func NewVaccineService(repo repository.VaccineRepository) VaccineService {
 func (s *vaccineService) List(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
 	items, err := s.repo.FindAll(ctx, clinicID, species)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to list vaccines", "clinic_id", clinicID, "error", err)
 		return nil, apperrors.Wrap(err, "failed to list vaccines")
 	}
 	return items, nil
@@ -161,11 +162,11 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 			return nil, err
 		}
 	}
-	fields := buildVaccineUpdateFields(input)
+	fields := buildVaccineUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	vaccine, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	vaccine, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update vaccine", slog.Any("error", err))
 		return nil, apperrors.Wrap(err, "failed to update vaccine")

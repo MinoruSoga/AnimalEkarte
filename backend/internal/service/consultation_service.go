@@ -54,7 +54,7 @@ const (
 	colConsultationTaxRate       = "tax_rate"
 )
 
-func buildConsultationUpdateFields(input *UpdateConsultationInput) map[string]any {
+func buildConsultationUpdate(input *UpdateConsultationInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colConsultationName] = *input.Name
@@ -167,11 +167,11 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildConsultationUpdateFields(input)
+	fields := buildConsultationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	consultation, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	consultation, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update consultation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update consultation")

@@ -46,9 +46,9 @@ const (
 	colMerchandiseItemSortOrder = "sort_order"
 )
 
-// buildMerchandiseItemUpdateFields は UPDATE 用 map を構築する。
+// buildMerchandiseItemUpdate は UPDATE 用 map を構築する。
 // GORM のゼロ値スキップ問題（bool false が無視される等）を回避するために使用する。
-func buildMerchandiseItemUpdateFields(input *UpdateMerchandiseItemInput) map[string]any {
+func buildMerchandiseItemUpdate(input *UpdateMerchandiseItemInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colMerchandiseItemName] = *input.Name
@@ -166,12 +166,12 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
-	fields := buildMerchandiseItemUpdateFields(input)
+	fields := buildMerchandiseItemUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
-	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update merchandise item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update merchandise item")

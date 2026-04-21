@@ -92,11 +92,11 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	fields := buildVaccinationUpdateFields(input)
+	fields := buildVaccinationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	vaccination, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	vaccination, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update vaccination")
 	}
@@ -123,7 +123,7 @@ type UpdateVaccinationInput struct {
 	Remarks          *string
 }
 
-func buildVaccinationUpdateFields(input *UpdateVaccinationInput) map[string]any {
+func buildVaccinationUpdate(input *UpdateVaccinationInput) map[string]any {
 	fields := make(map[string]any)
 	if input.MedicalRecordID != nil {
 		fields["medical_record_id"] = *input.MedicalRecordID

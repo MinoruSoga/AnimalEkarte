@@ -52,7 +52,7 @@ const (
 	colHospitalizationPlanTaxRate     = "tax_rate"
 )
 
-func buildHospitalizationPlanUpdateFields(input UpdateHospitalizationPlanInput) map[string]any {
+func buildHospitalizationPlanUpdate(input UpdateHospitalizationPlanInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colHospitalizationPlanName] = *input.Name
@@ -167,11 +167,11 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildHospitalizationPlanUpdateFields(*input)
+	fields := buildHospitalizationPlanUpdate(*input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	plan, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	plan, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update hospitalization plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update hospitalization plan")

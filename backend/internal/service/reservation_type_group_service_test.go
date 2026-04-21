@@ -42,7 +42,7 @@ func (m *mockReservationTypeGroupRepository) Create(ctx context.Context, g *mode
 	return m.createFn(ctx, g)
 }
 
-func (m *mockReservationTypeGroupRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error) {
+func (m *mockReservationTypeGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}

@@ -37,7 +37,7 @@ func (m *mockInquiryTemplateRepository) Create(ctx context.Context, template *mo
 	return m.createFn(ctx, template)
 }
 
-func (m *mockInquiryTemplateRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error) {
+func (m *mockInquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 

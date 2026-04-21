@@ -14,7 +14,7 @@ type HospitalizationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ExistsByCageID(ctx context.Context, cageID uint64) (bool, error)
 	CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
@@ -90,7 +90,7 @@ func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization 
 	return nil
 }
 
-func (r *hospitalizationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
+func (r *hospitalizationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Hospitalization{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

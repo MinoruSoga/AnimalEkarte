@@ -63,8 +63,8 @@ const (
 	colDiagnosisNameDiagnosisTypeID = "diagnosis_type_id"
 )
 
-// buildDiagnosisTypeUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#021: 定数使用)
-func buildDiagnosisTypeUpdateFields(input *UpdateDiagnosisTypeInput) map[string]any {
+// buildDiagnosisTypeUpdate はポインタが非 nil のフィールドのみ map に追加する (#021: 定数使用)
+func buildDiagnosisTypeUpdate(input *UpdateDiagnosisTypeInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colDiagnosisName] = *input.Name
@@ -81,8 +81,8 @@ func buildDiagnosisTypeUpdateFields(input *UpdateDiagnosisTypeInput) map[string]
 	return fields
 }
 
-// buildDiagnosisNameUpdateFields はポインタが非 nil のフィールドのみ map に追加する (#426: DiagnosisName 専用定数使用)
-func buildDiagnosisNameUpdateFields(input *UpdateDiagnosisNameInput) map[string]any {
+// buildDiagnosisNameUpdate はポインタが非 nil のフィールドのみ map に追加する (#426: DiagnosisName 専用定数使用)
+func buildDiagnosisNameUpdate(input *UpdateDiagnosisNameInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colDiagnosisName] = *input.Name
@@ -174,11 +174,11 @@ func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, 
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildDiagnosisTypeUpdateFields(input)
+	fields := buildDiagnosisTypeUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update diagnosis type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update diagnosis type")
@@ -331,11 +331,11 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 			return nil, apperrors.WrapInvalidInput("診断カテゴリが見つかりません")
 		}
 	}
-	fields := buildDiagnosisNameUpdateFields(input)
+	fields := buildDiagnosisNameUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update diagnosis name", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update diagnosis name")

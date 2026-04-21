@@ -43,7 +43,7 @@ func (m *mockPaymentMethodMasterRepository) Create(ctx context.Context, pm *mode
 	return pm, nil
 }
 
-func (m *mockPaymentMethodMasterRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
+func (m *mockPaymentMethodMasterRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}

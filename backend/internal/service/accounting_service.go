@@ -134,14 +134,14 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	if input.TotalAmount != nil && *input.TotalAmount < 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
-	fields := buildAccountingUpdateFields(input)
+	fields := buildAccountingUpdate(input)
 	if len(fields) == 0 && !hasPaymentFields(input) {
 		return nil, apperrors.WrapInvalidInput("no fields to update")
 	}
 
 	// Billing 本体の更新
 	if len(fields) > 0 {
-		if _, err := s.repo.UpdateFields(ctx, input.ClinicID, input.ID, fields); err != nil {
+		if _, err := s.repo.Update(ctx, input.ClinicID, input.ID, fields); err != nil {
 			return nil, apperrors.Wrap(err, "failed to update accounting")
 		}
 	}
@@ -203,7 +203,7 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64) err
 	fields := map[string]any{
 		"status": model.BillingStatusCancelled,
 	}
-	if _, err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
+	if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return apperrors.Wrap(err, "failed to cancel accounting")
 	}
 
@@ -284,8 +284,8 @@ func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
 	return p
 }
 
-// buildAccountingUpdateFields は UpdateAccountingInput から nil でないフィールドのみ抽出する。
-func buildAccountingUpdateFields(input *UpdateAccountingInput) map[string]any {
+// buildAccountingUpdate は UpdateAccountingInput から nil でないフィールドのみ抽出する。
+func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
 	fields := make(map[string]any)
 	if input.MedicalRecordID != nil {
 		fields["medical_record_id"] = *input.MedicalRecordID

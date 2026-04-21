@@ -17,7 +17,7 @@ type ConsultationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
 	Create(ctx context.Context, consultation *model.Consultation) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByConsultationID(ctx context.Context, clinicID, consultationID uint64) (int64, error)
@@ -59,7 +59,7 @@ func (r *consultationRepository) Create(ctx context.Context, consultation *model
 	return nil
 }
 
-func (r *consultationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
+func (r *consultationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Consultation{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -95,7 +95,7 @@ func (r *consultationRepository) CountChildrenByParentID(ctx context.Context, cl
 	if err := r.db.WithContext(ctx).
 		Model(&model.Consultation{}).
 		Scopes(clinicScope(clinicID)).
-		Where("parent_id = ?", parentID).
+		Where("parent_id = ? AND deleted_at IS NULL", parentID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "consultation", fmt.Sprintf("%d", parentID))
 	}

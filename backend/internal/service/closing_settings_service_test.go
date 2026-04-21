@@ -71,7 +71,7 @@ func (m *mockClosingSpecialPeriodRepository) Create(ctx context.Context, p *mode
 	return p, nil
 }
 
-func (m *mockClosingSpecialPeriodRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
+func (m *mockClosingSpecialPeriodRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, fields)
 	}

@@ -33,8 +33,8 @@ const (
 	colAnimalSpeciesSortOrder = "sort_order"
 )
 
-// buildAnimalSpeciesUpdateFields はポインタが非 nil のフィールドのみ map に追加する
-func buildAnimalSpeciesUpdateFields(input *UpdateAnimalSpeciesInput) map[string]any {
+// buildAnimalSpeciesUpdate はポインタが非 nil のフィールドのみ map に追加する
+func buildAnimalSpeciesUpdate(input *UpdateAnimalSpeciesInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colAnimalSpeciesName] = *input.Name
@@ -115,11 +115,11 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildAnimalSpeciesUpdateFields(input)
+	fields := buildAnimalSpeciesUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.UpdateFields(ctx, id, fields)
+	result, err := s.repo.Update(ctx, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update animal species", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update animal species")

@@ -35,7 +35,7 @@ func (m *mockHospitalizationRepository) Create(ctx context.Context, hospitalizat
 	return m.createFn(ctx, hospitalization)
 }
 
-func (m *mockHospitalizationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
+func (m *mockHospitalizationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 

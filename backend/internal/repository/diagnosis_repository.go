@@ -17,7 +17,7 @@ type DiagnosisTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
 	Create(ctx context.Context, category *model.DiagnosisType) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountChildrenByParentID(ctx context.Context, clinicID, categoryID uint64) (int64, error)
@@ -70,7 +70,7 @@ func (r *diagnosisTypeRepository) Create(ctx context.Context, category *model.Di
 	return nil
 }
 
-func (r *diagnosisTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error) {
+func (r *diagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.DiagnosisType{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -104,7 +104,7 @@ func (r *diagnosisTypeRepository) CountChildrenByParentID(ctx context.Context, c
 	if err := r.db.WithContext(ctx).
 		Model(&model.DiagnosisName{}).
 		Scopes(clinicScope(clinicID)).
-		Where("diagnosis_type_id = ?", categoryID).
+		Where("diagnosis_type_id = ? AND deleted_at IS NULL", categoryID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "diagnosis_name", "")
 	}
@@ -124,7 +124,7 @@ type DiagnosisNameRepository interface {
 	FindAllActive(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, name *model.DiagnosisName) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountClinicalPlansByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error)
@@ -211,7 +211,7 @@ func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.Diagno
 	return nil
 }
 
-func (r *diagnosisNameRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error) {
+func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.DiagnosisName{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

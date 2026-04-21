@@ -37,7 +37,7 @@ const (
 	colReservationStaffSortOrder          = "sort_order"
 )
 
-func buildReservationStaffUpdateFields(input *UpdateReservationStaffInput) map[string]any {
+func buildReservationStaffUpdate(input *UpdateReservationStaffInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colReservationStaffName] = *input.Name
@@ -155,9 +155,9 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 		return nil, nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
 
-	fields := buildReservationStaffUpdateFields(input)
+	fields := buildReservationStaffUpdate(input)
 	if len(fields) > 0 {
-		if err := s.repo.UpdateFields(ctx, clinicID, id, fields); err != nil {
+		if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 			slog.ErrorContext(ctx, "failed to update reservation staff", "error", err)
 			return nil, nil, apperrors.Wrap(err, "failed to update reservation staff")
 		}
@@ -212,7 +212,7 @@ func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id 
 		slog.ErrorContext(ctx, "failed to verify reservation staff ownership", "error", err)
 		return nil, nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
-	if err := s.repo.UpdateFields(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
+	if err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
 		slog.ErrorContext(ctx, "failed to patch staff status", "error", err)
 		return nil, nil, apperrors.Wrap(err, "failed to patch staff status")
 	}

@@ -33,7 +33,7 @@ func (m *mockVaccinationRepository) Create(ctx context.Context, vaccination *mod
 	return m.createFn(ctx, vaccination)
 }
 
-func (m *mockVaccinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
+func (m *mockVaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 

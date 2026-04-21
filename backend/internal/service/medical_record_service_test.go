@@ -35,7 +35,7 @@ func (m *mockMedicalRecordRepository) Create(ctx context.Context, record *model.
 	return m.createFn(ctx, record)
 }
 
-func (m *mockMedicalRecordRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
+func (m *mockMedicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}
@@ -383,7 +383,7 @@ func TestMedicalRecordService_Update(t *testing.T) {
 		name        string
 		input       UpdateMedicalRecordInput
 		findByIDErr error // FindByID のエラー（nil = 正常レコード返却）
-		updateErr   error // UpdateFields のエラー
+		updateErr   error // Update のエラー
 		wantErr     bool
 		wantNF      bool
 	}{

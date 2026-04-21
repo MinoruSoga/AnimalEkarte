@@ -341,7 +341,7 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	}
 
 	// 更新フィールドマップ構築（nil フィールドはスキップ）
-	fields := buildOwnerUpdateFields(input)
+	fields := buildOwnerUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -362,8 +362,8 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	return owner, nil
 }
 
-// buildOwnerUpdateFields はポインタが非 nil のフィールドのみ map に追加する
-func buildOwnerUpdateFields(input *UpdateOwnerInput) map[string]any {
+// buildOwnerUpdate はポインタが非 nil のフィールドのみ map に追加する
+func buildOwnerUpdate(input *UpdateOwnerInput) map[string]any {
 	fields := make(map[string]any)
 	if input.OwnerName != nil {
 		fields[colOwnerName] = *input.OwnerName

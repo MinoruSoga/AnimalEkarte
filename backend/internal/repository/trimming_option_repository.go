@@ -15,7 +15,7 @@ type TrimmingOptionRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error)
 	Create(ctx context.Context, option *model.TrimmingOption) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error)
@@ -55,7 +55,7 @@ func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.Tri
 	return nil
 }
 
-func (r *trimmingOptionRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error) {
+func (r *trimmingOptionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.TrimmingOption{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

@@ -33,7 +33,7 @@ func (m *mockAccountingRepository) Create(ctx context.Context, clinicID uint64, 
 	return m.createFn(ctx, clinicID, accounting)
 }
 
-func (m *mockAccountingRepository) UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
+func (m *mockAccountingRepository) Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
 	return m.updateFieldsFn(ctx, clinicID, billingID, fields)
 }
 
@@ -465,7 +465,7 @@ func TestAccountingService_Cancel(t *testing.T) {
 			wantNF:      true,
 		},
 		{
-			name:           "異常: UpdateFields 失敗時はエラー伝播",
+			name:           "異常: Update 失敗時はエラー伝播",
 			clinicID:       1,
 			id:             10,
 			findByIDResult: &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusWaiting},

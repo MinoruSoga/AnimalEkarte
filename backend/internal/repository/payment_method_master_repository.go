@@ -15,7 +15,7 @@ type PaymentMethodMasterRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
 	Create(ctx context.Context, m *model.PaymentMethodMaster) (*model.PaymentMethodMaster, error)
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountUsageByPaymentMethodID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -58,7 +58,7 @@ func (r *paymentMethodMasterRepository) Create(ctx context.Context, m *model.Pay
 	return m, nil
 }
 
-func (r *paymentMethodMasterRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
+func (r *paymentMethodMasterRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.PaymentMethodMaster{}).
 		Scopes(clinicScope(clinicID)).

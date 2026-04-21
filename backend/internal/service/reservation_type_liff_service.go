@@ -23,7 +23,7 @@ const (
 	colReservationTypeLiffIsInternal           = "is_internal"
 )
 
-func buildReservationTypeLiffUpdateFields(input *UpdateReservationTypeLiffInput) map[string]any {
+func buildReservationTypeLiffUpdate(input *UpdateReservationTypeLiffInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colReservationTypeLiffName] = *input.Name
@@ -160,7 +160,7 @@ func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id ui
 		slog.ErrorContext(ctx, "failed to get reservation course", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation course")
 	}
-	fields := buildReservationTypeLiffUpdateFields(input)
+	fields := buildReservationTypeLiffUpdate(input)
 	if len(fields) == 0 {
 		result, err := s.repo.FindByID(ctx, clinicID, id)
 		if err != nil {
@@ -169,7 +169,7 @@ func (s *reservationTypeLiffService) Update(ctx context.Context, clinicID, id ui
 		}
 		return result, nil
 	}
-	updated, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	updated, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update reservation course", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update reservation course")
@@ -204,7 +204,7 @@ func (s *reservationTypeLiffService) Delete(ctx context.Context, clinicID, id ui
 }
 
 func (s *reservationTypeLiffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool) (*model.ReservationType, error) {
-	result, err := s.repo.UpdateFields(ctx, clinicID, id, map[string]any{"is_active": isActive})
+	result, err := s.repo.Update(ctx, clinicID, id, map[string]any{"is_active": isActive})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to patch status", "error", err)
 		return nil, apperrors.Wrap(err, "failed to patch status")

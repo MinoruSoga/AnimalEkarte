@@ -44,7 +44,7 @@ func (m *mockChiefComplaintTypeRepository) Create(ctx context.Context, category 
 	return m.createFn(ctx, category)
 }
 
-func (m *mockChiefComplaintTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error) {
+func (m *mockChiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}

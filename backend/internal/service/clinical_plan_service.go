@@ -63,7 +63,7 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get or create clinical plan")
 	}
-	fields := buildClinicalPlanUpdateFields(input)
+	fields := buildClinicalPlanUpdate(input)
 	if len(fields) == 0 {
 		// 全フィールドが未指定の場合は no-op として現在のレコードをそのまま返す
 		return plan, nil
@@ -97,7 +97,7 @@ func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecor
 	return nil
 }
 
-func buildClinicalPlanUpdateFields(input *UpdateClinicalPlanInput) map[string]any {
+func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
 	fields := map[string]any{}
 	if input.PhysicalExam != nil {
 		fields["physical_exam"] = *input.PhysicalExam

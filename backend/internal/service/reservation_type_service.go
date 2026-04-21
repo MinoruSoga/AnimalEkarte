@@ -80,8 +80,8 @@ const (
 	colReservationTypeGroupID             = "group_id"
 )
 
-// buildReservationTypeUpdateFields は UpdateReservationTypeInput から nil でないフィールドのみ map に変換する
-func buildReservationTypeUpdateFields(input *UpdateReservationTypeInput) map[string]any {
+// buildReservationTypeUpdate は UpdateReservationTypeInput から nil でないフィールドのみ map に変換する
+func buildReservationTypeUpdate(input *UpdateReservationTypeInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colReservationTypeName] = *input.Name
@@ -277,11 +277,11 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, err
 	}
-	fields := buildReservationTypeUpdateFields(input)
+	fields := buildReservationTypeUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update reservation type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update reservation type")

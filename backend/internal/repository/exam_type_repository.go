@@ -17,7 +17,7 @@ type ExamTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
 	Create(ctx context.Context, exType *model.ExaminationType) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByExamTypeID(ctx context.Context, clinicID, examTypeID uint64) (int64, error)
@@ -59,7 +59,7 @@ func (r *examTypeRepository) Create(ctx context.Context, exType *model.Examinati
 	return nil
 }
 
-func (r *examTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error) {
+func (r *examTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ExaminationType{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
@@ -109,7 +109,7 @@ func (r *examTypeRepository) CountChildrenByParentID(ctx context.Context, clinic
 	if err := r.db.WithContext(ctx).
 		Model(&model.ExaminationType{}).
 		Scopes(clinicScope(clinicID)).
-		Where("parent_id = ?", parentID).
+		Where("parent_id = ? AND deleted_at IS NULL", parentID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "examination_type", "")
 	}

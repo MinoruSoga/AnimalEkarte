@@ -17,7 +17,7 @@ type AnimalSpeciesRepository interface {
 	FindAll(ctx context.Context) ([]model.AnimalSpecies, error)
 	FindByID(ctx context.Context, id uint64) (*model.AnimalSpecies, error)
 	Create(ctx context.Context, species *model.AnimalSpecies) error
-	UpdateFields(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error)
+	Update(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, ids []uint64) error
 }
@@ -59,7 +59,7 @@ func (r *animalSpeciesRepository) Create(ctx context.Context, species *model.Ani
 	return nil
 }
 
-func (r *animalSpeciesRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error) {
+func (r *animalSpeciesRepository) Update(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.AnimalSpecies{}).
 		Where("id = ?", id).

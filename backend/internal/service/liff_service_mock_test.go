@@ -56,7 +56,7 @@ func (m *mockLiffTypeRepository) Create(_ context.Context, _ *model.ReservationT
 	return nil
 }
 
-func (m *mockLiffTypeRepository) UpdateFields(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.ReservationType, error) {
+func (m *mockLiffTypeRepository) Update(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.ReservationType, error) {
 	return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
 }
 
@@ -93,7 +93,7 @@ func (m *mockLiffStaffRepository) Create(_ context.Context, _ *model.Staff, _ ui
 	return nil
 }
 
-func (m *mockLiffStaffRepository) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *mockLiffStaffRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
 	return nil
 }
 
@@ -304,7 +304,7 @@ func (m *mockLiffReservationRepository) Create(_ context.Context, _ *model.Reser
 	return nil
 }
 
-func (m *mockLiffReservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+func (m *mockLiffReservationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}
@@ -454,6 +454,9 @@ func (m *mockLiffUnavailableTimeRepository) FindAll(ctx context.Context, clinicI
 		return m.findAllFn(ctx, clinicID, reservationTypeID)
 	}
 	return []model.ReservationTypeUnavailableTime{}, nil
+}
+func (m *mockLiffUnavailableTimeRepository) FindByID(_ context.Context, _, _ uint64) (*model.ReservationTypeUnavailableTime, error) {
+	return nil, nil
 }
 func (m *mockLiffUnavailableTimeRepository) Create(_ context.Context, _ *model.ReservationTypeUnavailableTime) error {
 	return nil

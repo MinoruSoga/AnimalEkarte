@@ -17,7 +17,7 @@ type InsuranceRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
 	Create(ctx context.Context, insurance *model.Insurance) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByInsuranceID(ctx context.Context, clinicID, insuranceID uint64) (int64, error)
@@ -56,7 +56,7 @@ func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insur
 	return nil
 }
 
-func (r *insuranceRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
+func (r *insuranceRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Insurance{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

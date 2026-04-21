@@ -36,7 +36,7 @@ func (m *mockConsultationRepository) Create(ctx context.Context, consultation *m
 	return m.createFn(ctx, consultation)
 }
 
-func (m *mockConsultationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
+func (m *mockConsultationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 

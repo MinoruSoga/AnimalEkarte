@@ -16,7 +16,7 @@ type BillingItemRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error)
 	FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
 	Create(ctx context.Context, item *model.BillingItem) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 }
@@ -59,7 +59,7 @@ func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingI
 	return nil
 }
 
-func (r *billingItemRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *billingItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.BillingItem{}).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).

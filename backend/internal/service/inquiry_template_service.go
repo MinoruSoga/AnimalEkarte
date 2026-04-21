@@ -39,7 +39,7 @@ const (
 	colInquiryTemplateSortOrder = "sort_order"
 )
 
-func buildInquiryTemplateUpdateFields(input *UpdateInquiryTemplateInput) map[string]any {
+func buildInquiryTemplateUpdate(input *UpdateInquiryTemplateInput) map[string]any {
 	fields := map[string]any{}
 	if input.Category != nil {
 		fields[colInquiryTemplateCategory] = *input.Category
@@ -127,11 +127,11 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 	if err := validateOptionalName(input.Title); err != nil {
 		return nil, err
 	}
-	fields := buildInquiryTemplateUpdateFields(input)
+	fields := buildInquiryTemplateUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update inquiry template", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update inquiry template")

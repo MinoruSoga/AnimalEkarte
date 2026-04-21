@@ -17,7 +17,7 @@ type ReservationCRUDRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, reservation *model.Reservation) error
-	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -125,7 +125,7 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.R
 	return nil
 }
 
-func (r *reservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
+func (r *reservationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 	result := dbOrTx(ctx, r.db).
 		Model(&model.Reservation{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).

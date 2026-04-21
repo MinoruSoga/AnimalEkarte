@@ -99,7 +99,7 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 		return nil, apperrors.WrapNotFound("vital", "not found in medical record")
 	}
 
-	fields := buildVitalUpdateFields(input)
+	fields := buildVitalUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -144,8 +144,8 @@ func weightUnitOrDefault(u *model.BodyWeightUnit) model.BodyWeightUnit {
 	return model.BodyWeightUnitKg
 }
 
-// buildVitalUpdateFields はnilでないフィールドのみmap[string]anyに変換する
-func buildVitalUpdateFields(input *UpdateVitalInput) map[string]any {
+// buildVitalUpdate はnilでないフィールドのみmap[string]anyに変換する
+func buildVitalUpdate(input *UpdateVitalInput) map[string]any {
 	fields := map[string]any{}
 	if input.RecordedAt != nil {
 		fields["recorded_at"] = *input.RecordedAt
