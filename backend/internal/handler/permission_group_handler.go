@@ -187,9 +187,7 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 			auditLog.ClinicID = &oldPG.ClinicID
 			auditLog.OldValue = marshalAuditJSON(oldPG)
 		}
-		if auditErr := h.svc.Audit.Log(c.Request.Context(), auditLog); auditErr != nil {
-			slog.ErrorContext(c.Request.Context(), "failed to log permission group deletion", slog.String("error", auditErr.Error()))
-		}
+		h.svc.Audit.Log(c.Request.Context(), auditLog)
 	}
 
 	c.Status(http.StatusNoContent)
