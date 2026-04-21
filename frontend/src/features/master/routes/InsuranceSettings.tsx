@@ -10,6 +10,7 @@ import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
+import { usePermission } from "@/hooks/use-permission";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { useGetAllInsurances, useCreateInsurance, useUpdateInsurance, useDeleteInsurance } from "../api/insurances";
 import type { Insurance, CreateInsuranceRequest, UpdateInsuranceRequest } from "../api/insurances";
@@ -106,6 +107,7 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
 });
 
 export function InsuranceSettings() {
+  usePermission(ResourceMasterInsurance);
   const { data } = useGetAllInsurances();
   const createMutation = useCreateInsurance();
   const updateMutation = useUpdateInsurance();

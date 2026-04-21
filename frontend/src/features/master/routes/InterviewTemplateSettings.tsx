@@ -10,6 +10,7 @@ import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
+import { usePermission } from "@/hooks/use-permission";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { useGetInquiryTemplates, useCreateInquiryTemplate, useUpdateInquiryTemplate, useDeleteInquiryTemplate } from "../api/inquiry-templates";
 import type {
@@ -107,6 +108,7 @@ const SidePanel = memo(function SidePanel({
 });
 
 export function InterviewTemplateSettings() {
+  usePermission(ResourceMasterMedical);
   const { data } = useGetInquiryTemplates();
   const createMutation = useCreateInquiryTemplate();
   const updateMutation = useUpdateInquiryTemplate();

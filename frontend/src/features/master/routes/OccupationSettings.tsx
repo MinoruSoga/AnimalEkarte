@@ -10,6 +10,7 @@ import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
+import { usePermission } from "@/hooks/use-permission";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { useGetAllOccupations, useCreateOccupation, useUpdateOccupation, useDeleteOccupation } from "../api/occupations";
 import type { Occupation, CreateOccupationRequest, UpdateOccupationRequest } from "../api/occupations";
@@ -108,6 +109,7 @@ const OccupationSidePanel = memo(function OccupationSidePanel({
 
 // ─── Page ───
 export function OccupationSettings() {
+  usePermission(ResourceMasterStaff);
   const { data } = useGetAllOccupations();
   const createMutation = useCreateOccupation();
   const updateMutation = useUpdateOccupation();
