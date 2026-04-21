@@ -44,7 +44,7 @@ func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint
 	err := r.db.WithContext(ctx).
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Owner.Pets", "deleted_at IS NULL").
-		Preload("Owner.Pets.AnimalSpecies").
+		Preload("Owner.Pets.AnimalSpecies", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&c).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "line_customer", fmt.Sprintf("%d", id))

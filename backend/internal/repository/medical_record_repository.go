@@ -49,7 +49,7 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	if err := q.Offset((page-1)*limit).Limit(limit).Order("date DESC, created_at DESC").
-		Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("Doctor", "deleted_at IS NULL").Preload("EnteredByStaff", "deleted_at IS NULL").Preload("Inquiry", "deleted_at IS NULL").Preload("Billing", "deleted_at IS NULL").
+		Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.AnimalSpecies", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("EnteredByStaff", "deleted_at IS NULL").Preload("Inquiry", "deleted_at IS NULL").Preload("Billing", "deleted_at IS NULL").
 		Find(&records).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
@@ -65,7 +65,7 @@ func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uin
 		Preload("EnteredByStaff", "deleted_at IS NULL").
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Pet", "deleted_at IS NULL").
-		Preload("Pet.AnimalSpecies").
+		Preload("Pet.AnimalSpecies", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&record).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
