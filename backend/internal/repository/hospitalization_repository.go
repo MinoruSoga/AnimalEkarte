@@ -69,8 +69,8 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Cage", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
-		Preload("CarePlanItems").
-		Preload("DailyRecords").
+		Preload("CarePlanItems", "deleted_at IS NULL").
+		Preload("DailyRecords", "deleted_at IS NULL").
 		Preload("TreatmentPlans", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&hospitalization).Error
 	if err != nil {

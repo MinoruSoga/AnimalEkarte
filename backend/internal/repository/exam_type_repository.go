@@ -32,7 +32,7 @@ func NewExamTypeRepository(db *gorm.DB) ExamTypeRepository {
 
 func (r *examTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
 	exTypes := make([]model.ExaminationType, 0)
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Preload("Items").Order("sort_order ASC, name ASC").Find(&exTypes).Error
+	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Preload("Items", "deleted_at IS NULL").Order("sort_order ASC, name ASC").Find(&exTypes).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "examination_type", "")
 	}
@@ -41,7 +41,7 @@ func (r *examTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]mo
 
 func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
 	var exType model.ExaminationType
-	err := r.db.WithContext(ctx).Preload("Items").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&exType).Error
+	err := r.db.WithContext(ctx).Preload("Items", "deleted_at IS NULL").Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&exType).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "examination_type", fmt.Sprintf("%d", id))
 	}

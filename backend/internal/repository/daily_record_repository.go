@@ -36,8 +36,8 @@ func (r *dailyRecordRepository) ListByHospitalizationID(ctx context.Context, cli
 		Scopes(clinicScope(clinicID)).Where("hospitalization_id = ?", hospitalizationID).
 		Order("date DESC").
 		Preload("VitalRecords").
-		Preload("CareLogs").
-		Preload("StaffNotes").
+		Preload("CareLogs", "deleted_at IS NULL").
+		Preload("StaffNotes", "deleted_at IS NULL").
 		Find(&records).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "daily_record", "")
@@ -50,8 +50,8 @@ func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Conte
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).Where("hospitalization_id = ? AND date = ?", hospitalizationID, date).
 		Preload("VitalRecords").
-		Preload("CareLogs").
-		Preload("StaffNotes").
+		Preload("CareLogs", "deleted_at IS NULL").
+		Preload("StaffNotes", "deleted_at IS NULL").
 		First(&record).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("%d/%s", hospitalizationID, date.Format("2006-01-02")))
